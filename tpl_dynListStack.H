@@ -48,6 +48,7 @@
 # include <ahIterator.H>
 # include <ah-args-ctor.H>
 # include <htlist.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 
@@ -541,8 +542,15 @@ public:
      *
      *  @param[in] stack The stack to iterate over.
      */
-    Iterator(const DynListStack<T> & stack) noexcept : Base(stack.s) {}
+    /// Iterator on the modifiable stack `stack`.
+    Iterator(DynListStack<T> & stack) noexcept : Base(stack.s) {}
+
+    /// A constant stack is iterated through Const_Iterator.
+    Iterator(const DynListStack<T> &) = delete;
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 };
 
 } // end namespace Aleph

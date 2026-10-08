@@ -85,8 +85,7 @@ namespace
   bool arc_in_cut(const DynDlist<typename GT::Arc *> &cut,
                   typename GT::Arc *arc)
   {
-    for (typename DynDlist<typename GT::Arc *>::Iterator it(cut);
-         it.has_curr(); it.next_ne())
+    for (auto it = cut.get_it(); it.has_curr(); it.next_ne())
       if (it.get_curr() == arc)
         return true;
     return false;
@@ -120,8 +119,7 @@ namespace
         EXPECT_EQ(arc_in_cut<GT>(cut, arc), crosses);
       }
 
-    for (typename DynDlist<typename GT::Arc *>::Iterator it(cut);
-         it.has_curr(); it.next_ne())
+    for (auto it = cut.get_it(); it.has_curr(); it.next_ne())
       {
         auto arc = it.get_curr();
         auto src = g.get_src_node(arc);

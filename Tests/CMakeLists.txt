@@ -586,6 +586,8 @@ set(ALEPH_POSIX_ONLY_TESTS
     robust_predicates_test
     tikzgeom_test
     tikzgeom_algorithms_test
+    # gmpfrxx_test exercises gmpfrxx.h directly (MpFrC::rnd from gmpfrxx.C).
+    gmpfrxx_test
     # geom_algorithms_test is a combined executable that links ALL sub-test .cc
     # files into one binary. A second GLOB loop also builds each sub-test .cc as
     # a standalone target. All of them call mpfr_class functions (square_root,

@@ -120,6 +120,7 @@
 #endif
 #ifdef ALEPH_MEMARRAY_ANNOTATIONS
 #  include <sanitizer/common_interface_defs.h>
+#include <ah-iterator.H>
 #endif
 
 namespace Aleph {
@@ -174,7 +175,13 @@ public:
   mutable size_t contract_threshold;
 
   /// Return the current base of array.
-  T *get_ptr() const noexcept
+  T *get_ptr() noexcept
+  {
+    return ptr;
+  }
+
+  /// \overload get_ptr()
+  const T *get_ptr() const noexcept
   {
     return ptr;
   }
@@ -614,7 +621,16 @@ public:
     return push_item(std::move(item));
   }
 
-  T &top() const
+  T &top()
+  {
+    ah_underflow_error_if(n == 0) << "top(): MemArray is empty";
+
+    return ptr[0];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &top() const
   {
     ah_underflow_error_if(n == 0) << "top(): MemArray is empty";
 
@@ -763,27 +779,57 @@ public:
   }
 
   /// Return a modifiable reference to the last element
-  T &last() const
+  T &last()
+  {
+    ah_underflow_error_if(n == 0) << "MemArray::last(): empty array";
+    return ptr[n - 1];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &last() const
   {
     ah_underflow_error_if(n == 0) << "MemArray::last(): empty array";
     return ptr[n - 1];
   }
 
   /// Return a modifiable reference to the first element
-  T &first() const
+  T &first()
+  {
+    ah_underflow_error_if(n == 0) << "MemArray::first(): empty array";
+    return ptr[0];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &first() const
   {
     ah_underflow_error_if(n == 0) << "MemArray::first(): empty array";
     return ptr[0];
   }
 
   /// \overload first
-  T &get_first() const
+  T &get_first()
+  {
+    return first();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &get_first() const
   {
     return first();
   }
 
   /// \overload last
-  T &get_last() const
+  T &get_last()
+  {
+    return last();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &get_last() const
   {
     return last();
   }
@@ -801,7 +847,15 @@ public:
 
   /// Return a modifiable reference to the ith element. No bound_statics check
   /// is performed
-  T &access(const size_t i) const noexcept
+  T &access(const size_t i) noexcept
+  {
+    assert(ptr);
+    return ptr[i];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &access(const size_t i) const noexcept
   {
     assert(ptr);
     return ptr[i];
@@ -809,7 +863,16 @@ public:
 
   /// Return a reference to the ith element. Throws
   /// `out_of_range` if `i` is out of range
-  T &operator[](const size_t i) const
+  T &operator[](const size_t i)
+  {
+    ah_out_of_range_error_if(i >= n) << "access out of range";
+
+    return ptr[i];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &operator[](const size_t i) const
   {
     ah_out_of_range_error_if(i >= n) << "access out of range";
 
@@ -820,7 +883,16 @@ public:
   ///
   /// Unlike `access()`, which also reaches the reserved slots beyond the
   /// logical size, debug builds assert that `i` is a live item (`i < n`).
-  T &operator()(const size_t i) const noexcept
+  T &operator()(const size_t i) noexcept
+  {
+    assert(ptr);
+    assert(i < n);
+    return ptr[i];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &operator()(const size_t i) const noexcept
   {
     assert(ptr);
     assert(i < n);
@@ -901,11 +973,17 @@ public:
     using Base = Array_Iterator<T>;
     using Base::Base;
 
-    /// Construct an iterator on array `a`
-    Iterator(const MemArray<T> &a) noexcept
+    /// Iterator on the modifiable array `a`.
+    Iterator(MemArray<T> &a) noexcept
       : Array_Iterator<T>(a.ptr, a.dim, a.n)
     {}
+
+    /// A constant array is iterated through Const_Iterator.
+    Iterator(const MemArray<T> &) = delete;
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 };
 }  // end namespace Aleph
 

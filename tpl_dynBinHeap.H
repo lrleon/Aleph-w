@@ -250,7 +250,7 @@ namespace Aleph {
     }
 
     /// Return a reference to the smallest element.
-    T & top() const
+    const T & top() const
     {
       return BinHeap<T, Compare>::top()->get_key();
     }

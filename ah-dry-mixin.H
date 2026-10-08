@@ -78,6 +78,7 @@
 #include <string>
 
 #include <ah-concepts.H>
+#include <ah-iterator.H>
 #include <ah-errors.H>
 
 namespace Aleph
@@ -167,7 +168,7 @@ public:
     requires PredicateWith<Operation &, typename concepts_detail::traverse_arg<Derived, Operation>::type>
   bool traverse(Operation & operation) const
   {
-    for (typename Derived::Iterator it(self()); it.has_curr(); it.next_ne())
+    for (auto it = Aleph::iterator_for(self()); it.has_curr(); it.next_ne())
       if (not operation(it.get_curr()))
         return false;
     return true;
@@ -178,7 +179,7 @@ public:
     requires PredicateWith<Operation &, typename concepts_detail::traverse_arg<Derived, Operation>::type>
   bool traverse(Operation & operation)
   {
-    for (typename Derived::Iterator it(self()); it.has_curr(); it.next_ne())
+    for (auto it = Aleph::iterator_for(self()); it.has_curr(); it.next_ne())
       if (not operation(it.get_curr()))
         return false;
     return true;
@@ -258,7 +259,7 @@ public:
    *
    *  @see nth_ne() for unchecked version.
    */
-  Type & nth(const size_t n) const
+  Type & nth(const size_t n)
   {
     Type * ptr = nullptr;
     size_t i = 0;
@@ -272,7 +273,25 @@ public:
 
     // Test the pointer, not the count: i == n + 1 overflows for n == SIZE_MAX
     ah_out_of_range_error_if(ptr == nullptr) << "index " << n << " out of range";
+    return *ptr;
+  }
 
+  /// \overload
+  /// A reference to const.
+  const Type & nth(const size_t n) const
+  {
+    const Type * ptr = nullptr;
+    size_t i = 0;
+    self().traverse([&ptr, &i, n] (const Type & item)
+    {
+      if (i++ != n)
+        return true;
+      ptr = &item;
+      return false;
+    });
+
+    // Test the pointer, not the count: i == n + 1 overflows for n == SIZE_MAX
+    ah_out_of_range_error_if(ptr == nullptr) << "index " << n << " out of range";
     return *ptr;
   }
 
@@ -290,11 +309,27 @@ public:
    *
    *  @see nth() for bounds-checked version.
    */
-  Type & nth_ne(const size_t n) const noexcept
+  Type & nth_ne(const size_t n) noexcept
   {
     Type * ptr = nullptr;
     size_t i = 0;
     self().traverse([&ptr, &i, &n] (Type & item)
+    {
+      if (i++ < n)
+        return true;
+      ptr = &item;
+      return false;
+    });
+    return *ptr;
+  }
+
+  /// \overload
+  /// A reference to const.
+  const Type & nth_ne(const size_t n) const noexcept
+  {
+    const Type * ptr = nullptr;
+    size_t i = 0;
+    self().traverse([&ptr, &i, &n] (const Type & item)
     {
       if (i++ < n)
         return true;
@@ -349,11 +384,11 @@ public:
   /// @overload
   /// @brief Const version.
   template <class Operation>
-    requires PredicateWith<Operation &, Type &>
-  Type * find_ptr(Operation & operation) const
+    requires PredicateWith<Operation &, const Type &>
+  const Type * find_ptr(Operation & operation) const
   {
-    Type * ptr = nullptr;
-    self().traverse([&ptr, &operation] (Type & item)
+    const Type * ptr = nullptr;
+    self().traverse([&ptr, &operation] (const Type & item)
     {
       if (operation(item))
       {
@@ -368,8 +403,8 @@ public:
   /// @overload
   /// @brief Version accepting rvalue operation.
   template <class Operation>
-    requires PredicateWith<Operation &, Type &>
-  Type * find_ptr(Operation and operation = Operation()) const
+    requires PredicateWith<Operation &, const Type &>
+  const Type * find_ptr(Operation and operation = Operation()) const
   {
     return find_ptr<Operation>(operation);
   }

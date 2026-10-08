@@ -52,6 +52,7 @@
 #include <ah-args-ctor.H>
 #include <tpl_dynDlist.H>
 #include <tpl_memArray.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 
@@ -92,7 +93,15 @@ private:
   }
 
   /// @brief Access the i-th item counting backwards from the youngest item.
-  T &rear_item(const size_t i = 0) const noexcept
+  T &rear_item(const size_t i = 0) noexcept
+  {
+    const size_t offset = (rear_index + this->dim - (i + 1) % this->dim) % this->dim;
+    return this->access(offset);
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &rear_item(const size_t i = 0) const noexcept
   {
     const size_t offset = (rear_index + this->dim - (i + 1) % this->dim) % this->dim;
     return this->access(offset);
@@ -381,7 +390,16 @@ public:
       @return a modifiable reference to the oldest i-th item of the queue
       @throw range_error if `i` is greater than the number of items
   */
-  T &front(const size_t i = 0) const
+  T &front(const size_t i = 0)
+  {
+    ah_range_error_if(i >= this->n) << "index of front out of range";
+
+    return this->access((front_index + i) % this->dim);
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &front(const size_t i = 0) const
   {
     ah_range_error_if(i >= this->n) << "index of front out of range";
 
@@ -394,7 +412,16 @@ public:
       @return a modifiable reference to the i-th youngest item of the queue
       @throw range_error if `i` is greater than the number of items
   */
-  T &rear(const size_t i = 0) const
+  T &rear(const size_t i = 0)
+  {
+    ah_range_error_if(i >= this->n) << "index of rear out of range";
+
+    return rear_item(i);
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &rear(const size_t i = 0) const
   {
     ah_range_error_if(i >= this->n) << "index of rear out of range";
 
@@ -407,7 +434,15 @@ public:
       @throws std::out_of_range if i >= size().
       @note O(1).
   */
-  T &operator[](const size_t i) const
+  T &operator[](const size_t i)
+  {
+    ah_out_of_range_error_if(i >= this->n) << "queue index out of range";
+    return front(i);
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &operator[](const size_t i) const
   {
     ah_out_of_range_error_if(i >= this->n) << "queue index out of range";
     return front(i);
@@ -419,7 +454,15 @@ public:
       @note O(1); no range check in Release builds.
       @throws Nothing.
   */
-  T &operator()(const size_t i) const noexcept
+  T &operator()(const size_t i) noexcept
+  {
+    assert(i < this->n);
+    return this->access((front_index + i) % this->dim);
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &operator()(const size_t i) const noexcept
   {
     assert(i < this->n);
     return this->access((front_index + i) % this->dim);
@@ -429,7 +472,15 @@ public:
       @return Modifiable reference to the front item.
       @throws std::underflow_error if empty.
   */
-  T &first() const
+  T &first()
+  {
+    ah_underflow_error_if(this->n == 0) << "queue is empty";
+    return front();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &first() const
   {
     ah_underflow_error_if(this->n == 0) << "queue is empty";
     return front();
@@ -439,20 +490,37 @@ public:
       @return Modifiable reference to the rear item.
       @throws std::underflow_error if empty.
   */
-  T &last() const
+  T &last()
+  {
+    ah_underflow_error_if(this->n == 0) << "queue is empty";
+    return rear();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &last() const
   {
     ah_underflow_error_if(this->n == 0) << "queue is empty";
     return rear();
   }
 
   /// @brief Alias for first(); throws std::underflow_error if empty.
-  T &get_first() const { return first(); }
+  T &get_first() { return first(); }
+  /// \overload
+  /// A reference to const.
+  const T &get_first() const { return first(); }
 
   /// @brief Alias for last(); throws std::underflow_error if empty.
-  T &get_last() const { return last(); }
+  T &get_last() { return last(); }
+  /// \overload
+  /// A reference to const.
+  const T &get_last() const { return last(); }
 
   /// @brief Alias for first(); throws std::underflow_error if empty.
-  T &top() const { return first(); }
+  T &top() { return first(); }
+  /// \overload
+  /// A reference to const.
+  const T &top() const { return first(); }
 
   /// @brief Remove the oldest item; same complexity and exceptions as get().
   T remove_first() { return get(); }
@@ -560,12 +628,19 @@ public:
     using Base::Base;
     using Set_Type = ArrayQueue;
 
-    /// @brief Iterate in FIFO order, including an empty moved-from queue.
-    Iterator(const ArrayQueue &q)
+    /// @brief Iterator on the modifiable queue `q`, in FIFO order (from the
+    /// oldest item), including an empty moved-from queue.
+    Iterator(ArrayQueue &q)
       : Base(q.ptr, q.dim, q.n, q.front_index,
              q.n == 0 ? 0 : (q.rear_index + q.dim - 1) % q.dim)
     {}
+
+    /// A constant queue is iterated through Const_Iterator.
+    Iterator(const ArrayQueue &) = delete;
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 };
 
 /** Very simple queue implemented with a contiguous array
@@ -602,7 +677,16 @@ class FixedQueue : public LocateFunctions<FixedQueue<T>, T>,
     i &= mask;
   }
 
-  T &rear_item(const size_t i = 0) const noexcept
+  T &rear_item(const size_t i = 0) noexcept
+  {
+    assert(static_cast<size_t>((rear_index - i - 1) & mask) == (rear_index - i - 1) % dim);
+
+    return array[static_cast<size_t>((rear_index - i - 1) & mask)];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &rear_item(const size_t i = 0) const noexcept
   {
     assert(static_cast<size_t>((rear_index - i - 1) & mask) == (rear_index - i - 1) % dim);
 
@@ -792,7 +876,15 @@ public:
     @param[in] i access position respect to oldest item
     @return a modifiable reference to the i-th item
  */
-  T &front(const size_t i = 0) const noexcept
+  T &front(const size_t i = 0) noexcept
+  {
+    assert(i < num_items);
+    return array[front_index + i];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &front(const size_t i = 0) const noexcept
   {
     assert(i < num_items);
     return array[front_index + i];
@@ -803,7 +895,15 @@ public:
       @param[in] i access position respect to youngest item
       @return a modifiable reference to the i-th item
    */
-  T &rear(const size_t i = 0) const noexcept
+  T &rear(const size_t i = 0) noexcept
+  {
+    assert(i < num_items);
+    return rear_item(i);
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &rear(const size_t i = 0) const noexcept
   {
     assert(i < num_items);
     return rear_item(i);
@@ -892,10 +992,17 @@ public:
     using Base::Base;
     using Set_Type = FixedQueue;
 
-    Iterator(const FixedQueue &q) noexcept
+    /// Iterator on the modifiable queue `q`, from the oldest item.
+    Iterator(FixedQueue &q) noexcept
       : Base(q.array, q.dim, q.num_items, q.front_index, (q.rear_index - 1) % q.dim)
     {}
+
+    /// A constant queue is iterated through Const_Iterator.
+    Iterator(const FixedQueue &) = delete;
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 };
 
 }  // end namespace Aleph

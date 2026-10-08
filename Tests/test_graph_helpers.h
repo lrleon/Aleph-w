@@ -86,8 +86,7 @@ namespace Aleph_Test_Helpers
     for (size_t i = 0; i < n; ++i)
       nodes(i) = g.insert_node(static_cast<int>(i));
 
-    for (typename Aleph::Array<std::pair<size_t, size_t>>::Iterator it(edges);
-         it.has_curr(); it.next_ne())
+    for (auto it = edges.get_it(); it.has_curr(); it.next_ne())
       {
         const auto & e = it.get_curr();
         const size_t u = e.first;

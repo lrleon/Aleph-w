@@ -57,6 +57,7 @@
 #include <ah-dry.H>
 #include <ah-args-ctor.H>
 #include <tpl_memArray.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 
@@ -707,9 +708,15 @@ public:
     /// logical position is consistent and random access is safe.
     using aleph_random_access_iterator = Iterator;
 
-    /// Initialize an iterator on array `s`
-    Iterator(const Array<T> &s) noexcept : Base(s.array) {}
+    /// Iterator on the modifiable array `s`.
+    Iterator(Array<T> &s) noexcept : Base(s.array) {}
+
+    /// A constant array is iterated through Const_Iterator.
+    Iterator(const Array<T> &) = delete;
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 };
 
 template <typename T, typename... Args>

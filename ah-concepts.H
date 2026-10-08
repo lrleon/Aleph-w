@@ -298,12 +298,14 @@ namespace Aleph
   /** @brief A type that yields an `AlephIterator` over its `Item_Type`s.
    *
    *  Requires `Item_Type` and a nested `Iterator` satisfying `AlephIterator`
-   *  that can be built from a `const` container, `Iterator it(c)`. That is
-   *  how the library obtains iterators (`get_it()`, where it exists, is a
-   *  wrapper around it; `MemArray` and the raw hash tables only offer the
-   *  constructor). This is the single test both functional layers
-   *  (`ah-uni-functional.H`, `ah-zip-utils.H`) use to decide whether to
-   *  iterate a container the Aleph way.
+   *  that can be built from a modifiable container, `Iterator it(c)`. That
+   *  is how the library obtains iterators (`get_it()`, where it exists, is
+   *  a wrapper around it; `MemArray` and the raw hash tables only offer the
+   *  constructor); a constant container is iterated through
+   *  `Aleph::const_iterator_t<C>`, the read-only view of the same iterator.
+   *  This is the single test both functional layers (`ah-uni-functional.H`,
+   *  `ah-zip-utils.H`) use to decide whether to iterate a container the
+   *  Aleph way.
    *
    *  @tparam C candidate container type.
    */
@@ -315,7 +317,7 @@ namespace Aleph
           typename C::Iterator;
         } and
       AlephIterator<typename C::Iterator> and
-      std::constructible_from<typename C::Iterator, const C &>;
+      std::constructible_from<typename C::Iterator, C &>;
 
   /** @brief A container whose items can be visited with `traverse()`.
    *

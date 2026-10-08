@@ -117,24 +117,28 @@ private:
   Node head_node;
   Node * head;
   Node *& root;
-  FixedStack<Node *> rb_stack;
   Compare cmp;
   static constexpr signed char CmpLess = -1;
   static constexpr signed char CmpEqual = 0;
   static constexpr signed char CmpGreater = 1;
 
+  /* The path from the head node to the node an operation works on. Each
+     operation builds it, consumes it and drops it: it lives in the frame
+     of the operation, so the tree never allocates. */
+  using Path = InlineStack<Node *, Node::MaxHeight>;
+
   /// Search for key and stack ancestors (optimistic duplicate detection)
   Node * search_and_stack_rb(const Key & key,
-                             signed char & cmp_result) noexcept
+                             signed char & cmp_result, Path & path) noexcept
   {
     Node *p = root;
     Node *candidate = nullptr;  // Tracks potential duplicate when going right
     size_t candidate_pos = 0;   // Stack size when candidate was set
 
-    rb_stack.push(head);
+    path.push(head);
     do
       {
-        rb_stack.push(p);
+        path.push(p);
         if (cmp(key, KEY(p)))  // key < KEY(p)
           {
             cmp_result = CmpLess;
@@ -143,7 +147,7 @@ private:
         else  // key >= KEY(p), could be equal
           {
             candidate = p;
-            candidate_pos = rb_stack.size();
+            candidate_pos = path.size();
             cmp_result = CmpGreater;
             p = RLINK(p);
           }
@@ -157,25 +161,25 @@ private:
         cmp_result = CmpEqual;
         // Truncate stack: remove nodes pushed after candidate
         const size_t to_pop =
-            rb_stack.size() > candidate_pos ?
-            rb_stack.size() - candidate_pos : 0;
+            path.size() > candidate_pos ?
+            path.size() - candidate_pos : 0;
         if (to_pop > 0)
-          rb_stack.popn(static_cast<int>(to_pop));
+          path.popn(to_pop);
         return candidate;
       }
 
-    return rb_stack.top();
+    return path.top();
   }
 
   Node * search_dup_and_stack_rb(const Key & key,
-                                 signed char & cmp_result)
+                                 signed char & cmp_result, Path & path)
   {
     Node * p = root;
-    rb_stack.push(head);
+    path.push(head);
     cmp_result = CmpEqual;
     do
       {
-        rb_stack.push(p);
+        path.push(p);
         const Key & pk = KEY(p);
         if (cmp(key, pk))
           {
@@ -190,7 +194,7 @@ private:
       }
     while (p != Node::NullPtr);
 
-    return rb_stack.top();
+    return path.top();
   }
 
   // Rotate to right with counter update
@@ -239,13 +243,13 @@ private:
     return q;
   }
 
-  void fix_red_condition(Node * p)
+  void fix_red_condition(Node * p, Path & path)
   {
     assert(COLOR(p) == RED);
 
     while (p != root)
       {
-        Node * pp = rb_stack.pop();
+        Node * pp = path.pop();
         if (COLOR(pp) == BLACK)
           break;
 
@@ -255,7 +259,7 @@ private:
             break;
           }
 
-        Node * ppp = rb_stack.pop();
+        Node * ppp = path.pop();
         Node * spp = LLINK(ppp) == pp ? RLINK(ppp) : LLINK(ppp);
 
         if (COLOR(spp) == RED)
@@ -267,7 +271,7 @@ private:
             continue;
           }
 
-        Node * pppp = rb_stack.pop();
+        Node * pppp = path.pop();
         if (LLINK(pp) == p and LLINK(ppp) == pp)
           {
             rotate_to_right_rk(ppp, pppp);
@@ -296,27 +300,25 @@ private:
         COLOR(ppp) = RED;
         break;
       }
-
-    rb_stack.empty();
   }
 
-  void find_succ_and_swap(Node * p, Node *& pp)
+  void find_succ_and_swap(Node * p, Node *& pp, Path & path)
   {
-    Node *& ref_rb_stack = rb_stack.top();
+    Node *& ref_path_top = path.top();
 
     Node * fSucc = p;
     Node * succ = RLINK(p);
-    rb_stack.push(succ);
+    path.push(succ);
 
     while (LLINK(succ) != Node::NullPtr)
       {
         fSucc = succ;
         succ = LLINK(succ);
-        rb_stack.push(succ);
+        path.push(succ);
       }
 
-    ref_rb_stack = succ;
-    rb_stack.top() = p;
+    ref_path_top = succ;
+    path.top() = p;
 
     if (LLINK(pp) == p)
       LLINK(pp) = succ;
@@ -345,7 +347,7 @@ private:
     COUNT(succ) = COUNT(p);  // Copy counter to successor position
   }
 
-  void fix_black_condition(Node * p)
+  void fix_black_condition(Node * p, Path & path)
   {
     if (COLOR(p) == RED)
       {
@@ -353,16 +355,16 @@ private:
         return;
       }
 
-    Node * pp = rb_stack.popn(2);
+    Node * pp = path.popn(2);
     while (p != root)
       {
         assert(LLINK(pp) == p or RLINK(pp) == p);
-        assert(LLINK(rb_stack.top()) == pp or RLINK(rb_stack.top()) == pp);
+        assert(LLINK(path.top()) == pp or RLINK(path.top()) == pp);
 
         Node * sp = LLINK(pp) == p ? RLINK(pp) : LLINK(pp);
         if (COLOR(sp) == RED)
           {
-            Node *& ppp = rb_stack.top();
+            Node *& ppp = path.top();
 
             if (LLINK(pp) == p)
               {
@@ -393,7 +395,7 @@ private:
 
         if (COLOR(np) == RED)
           {
-            Node * ppp = rb_stack.top();
+            Node * ppp = path.top();
 
             if (RLINK(sp) == np)
               rotate_to_left_rk(pp, ppp);
@@ -409,7 +411,7 @@ private:
 
         if (COLOR(snp) == RED)
           {
-            Node * ppp = rb_stack.top();
+            Node * ppp = path.top();
 
             if (LLINK(sp) == snp)
               {
@@ -437,26 +439,26 @@ private:
 
         COLOR(sp) = RED;
         p = pp;
-        pp = rb_stack.pop();
+        pp = path.pop();
       }
   }
 
   // Update counters along the stack after insertion
-  void update_counters_after_insertion() noexcept
+  void update_counters_after_insertion(const Path & path) noexcept
   {
     // Stack contains: [head, ..., nodes in path, ..., closest to insertion]
     // top(0) = closest node, top(size-1) = head (don't update)
-    const size_t sz = rb_stack.size();
+    const size_t sz = path.size();
     for (size_t i = 0; i < sz - 1; ++i)
-      ++COUNT(rb_stack.top(i));
+      ++COUNT(path.top(i));
   }
 
   // Update counters along the stack after deletion
-  void update_counters_after_deletion() noexcept
+  void update_counters_after_deletion(const Path & path) noexcept
   {
-    const size_t sz = rb_stack.size();
+    const size_t sz = path.size();
     for (size_t i = 0; i < sz - 1; ++i)
-      --COUNT(rb_stack.top(i));
+      --COUNT(path.top(i));
   }
 
 public:
@@ -469,7 +471,7 @@ public:
 
   Gen_Rb_Tree_Rk(Compare cmp_arg = Compare())
     : head(&head_node), root(head_node.getR()),
-      rb_stack(Node::MaxHeight), cmp(cmp_arg)
+      cmp(cmp_arg)
   { /* empty */ }
 
   void swap(Gen_Rb_Tree_Rk & tree) noexcept
@@ -480,7 +482,7 @@ public:
 
   Gen_Rb_Tree_Rk(Gen_Rb_Tree_Rk && tree) noexcept
     : head(&head_node), root(head_node.getR()),
-      rb_stack(Node::MaxHeight), cmp(std::move(tree.cmp))
+      cmp(std::move(tree.cmp))
   {
     root = tree.root;
     tree.root = Node::NullPtr;
@@ -520,19 +522,17 @@ public:
       return root = p;
 
     signed char cmp_result = CmpEqual;
-    Node * q = search_and_stack_rb(KEY(p), cmp_result);
+    Path path;
+    Node * q = search_and_stack_rb(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(q) = p;
     else if (cmp_result == CmpGreater)
       RLINK(q) = p;
     else
-      {
-        rb_stack.empty();
-        return nullptr;
-      }
+      return nullptr;
 
-    update_counters_after_insertion();
-    fix_red_condition(p);
+    update_counters_after_insertion(path);
+    fix_red_condition(p, path);
 
     return p;
   }
@@ -546,19 +546,17 @@ public:
       return root = p;
 
     signed char cmp_result = CmpEqual;
-    Node * q = search_and_stack_rb(KEY(p), cmp_result);
+    Path path;
+    Node * q = search_and_stack_rb(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(q) = p;
     else if (cmp_result == CmpGreater)
       RLINK(q) = p;
     else
-      {
-        rb_stack.empty();
-        return q;
-      }
+      return q;
 
-    update_counters_after_insertion();
-    fix_red_condition(p);
+    update_counters_after_insertion(path);
+    fix_red_condition(p, path);
 
     return p;
   }
@@ -572,14 +570,15 @@ public:
       return root = p;
 
     signed char cmp_result = CmpEqual;
-    Node * q = search_dup_and_stack_rb(KEY(p), cmp_result);
+    Path path;
+    Node * q = search_dup_and_stack_rb(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(q) = p;
     else
       RLINK(q) = p;
 
-    update_counters_after_insertion();
-    fix_red_condition(p);
+    update_counters_after_insertion(path);
+    fix_red_condition(p, path);
 
     return p;
   }
@@ -592,14 +591,12 @@ public:
       return nullptr;
 
     signed char cmp_result = CmpEqual;
-    Node * q = search_and_stack_rb(key, cmp_result);
+    Path path;
+    Node * q = search_and_stack_rb(key, cmp_result, path);
     if (cmp_result != CmpEqual)
-      {
-        rb_stack.empty();
-        return nullptr;
-      }
+      return nullptr;
 
-    Node * pq = rb_stack.top(1);
+    Node * pq = path.top(1);
     Node * p;
 
     while (true)
@@ -622,16 +619,15 @@ public:
             break;
           }
 
-        find_succ_and_swap(q, pq);
+        find_succ_and_swap(q, pq, path);
       }
 
-    update_counters_after_deletion();
+    update_counters_after_deletion(path);
 
     if (COLOR(q) == BLACK)
-      fix_black_condition(p);
+      fix_black_condition(p, path);
 
     q->reset();
-    rb_stack.empty();
 
     return q;
   }
@@ -1344,7 +1340,7 @@ public:
 
     // Collect nodes from t in preorder and insert them one by one
     // This is O(m log(n+m)) but guarantees correctness
-    FixedStack<Node*> stack(Node::MaxHeight);
+    InlineStack<Node *, Node::MaxHeight> stack;
     stack.push(t.root);
     t.root = Node::NullPtr;
 
@@ -1386,7 +1382,7 @@ public:
 
     // Simple O(n) implementation: iterate through tree and partition
     Node * found = nullptr;
-    FixedStack<Node*> stack(Node::MaxHeight);
+    InlineStack<Node *, Node::MaxHeight> stack;
     stack.push(root);
     root = Node::NullPtr;
 
@@ -1432,7 +1428,7 @@ public:
     if (root == Node::NullPtr)
       return;
 
-    FixedStack<Node*> stack(Node::MaxHeight);
+    InlineStack<Node *, Node::MaxHeight> stack;
     stack.push(root);
     root = Node::NullPtr;
 
@@ -1490,7 +1486,7 @@ public:
 
     // Simple O(n) implementation using inorder traversal
     size_t count = 0;
-    FixedStack<Node*> stack(Node::MaxHeight);
+    InlineStack<Node *, Node::MaxHeight> stack;
     Node * curr = root;
     root = Node::NullPtr;
 

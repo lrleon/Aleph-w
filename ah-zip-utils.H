@@ -40,6 +40,7 @@
 # include <optional>
 # include <functional>
 # include <ah-concepts.H>
+# include <ah-iterator.H>
 
 /**
  * @file ah-zip-utils.H
@@ -159,7 +160,7 @@ class AlephIteratorWrapper
 {
   // mutable: the wrapper's const accessors forward to the Aleph iterator,
   // whose get_curr() may be non-const (e.g. the chained hash tables).
-  mutable typename std::decay_t<Container>::Iterator it_;
+  mutable Aleph::const_iterator_t<std::decay_t<Container>> it_;
 
 public:
   using value_type = std::decay_t<typename std::decay_t<Container>::Item_Type>;

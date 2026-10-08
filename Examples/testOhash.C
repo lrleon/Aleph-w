@@ -66,7 +66,7 @@ HashTable<Key, Cmp> create_table(const HashTable<Key, Cmp> & s)
 {
   typedef HashTable<Key, Cmp> Hset;
   Hset ret_val;
-  for (typename Hset::Iterator it(s); it.has_curr(); it.next())
+  for (auto it = s.get_it(); it.has_curr(); it.next())
     ret_val.insert(it.get_curr());
   
   return ret_val;

@@ -103,7 +103,13 @@ namespace Aleph
     Node *ffHead;         ///< Pointer to head's grandparent
     Node *& root;         ///< Reference to root (right child of head)
 
-    FixedStack<Node *> path{Node::MaxHeight}; ///< Stack for deletion path
+    /* The path from the head node to the node being removed. remove() builds
+
+       it, consumes it and drops it: it lives in the frame of the operation,
+
+       so the tree never allocates. */
+
+    using Path = InlineStack<Node *, Node::MaxHeight>;
 
     size_t node_count = 0; ///< Number of nodes in tree
 
@@ -342,9 +348,12 @@ namespace Aleph
         the tree when fixing violations.
         
         @param key Key to search for
+        
+        @param path The path, which receives the head node and the nodes visited down to the
+               returned one.
         @return Node with key, or leaf where key would be
     */
-    Node * searchAndBuildPath(const Key & key) noexcept
+    Node * searchAndBuildPath(const Key & key, Path & path) noexcept
     {
       assert(root != Node::NullPtr);
 
@@ -398,8 +407,10 @@ namespace Aleph
         
         @param p Node to delete
         @param fp Parent of p (updated to point to new position)
+        @param path The path from the head node to `p`; the successor takes the place of `p` in it,
+               and the nodes down to the successor are pushed.
     */
-    void findSuccAndSwap(Node *p, Node *& fp) noexcept
+    void findSuccAndSwap(Node *p, Node *& fp, Path & path) noexcept
     {
       assert(p != Node::NullPtr);
       assert(RLINK(p) != Node::NullPtr);
@@ -481,8 +492,10 @@ namespace Aleph
         @param p Violating node (black, missing a black node)
         @param fp Parent of p (updated)
         @param sp Sibling of p (updated to new sibling, which will be black)
+        @param path The path from the head node to `fp`; its top is updated to the new parent of
+               `fp`.
     */
-    void balanceDownAndColor(Node *p, Node *& fp, Node *& sp) noexcept
+    void balanceDownAndColor(Node *p, Node *& fp, Node *& sp, Path & path) noexcept
     {
       assert(LLINK(fp) == p || RLINK(fp) == p);
       assert(LLINK(fp) == sp || RLINK(fp) == sp);
@@ -527,8 +540,9 @@ namespace Aleph
         @param fp Parent of violating node
         @param sp Sibling (black)
         @param np Nephew (red, same side as sp)
+        @param path The path from the head node to `fp`; its top is the parent of `fp`.
     */
-    void rotateNephewAndColor(Node *fp, Node *sp, Node *np) noexcept
+    void rotateNephewAndColor(Node *fp, Node *sp, Node *np, Path & path) noexcept
     {
       assert(LLINK(fp) == sp || RLINK(fp) == sp);
       assert(LLINK(sp) == np || RLINK(sp) == np);
@@ -561,8 +575,9 @@ namespace Aleph
         @param fp Parent of violating node
         @param sp Sibling (black)
         @param snp Sibling's nephew (red, opposite side from sp)
+        @param path The path from the head node to `fp`; its top is the parent of `fp`.
     */
-    void doubleRotateNephewAndColor(Node *fp, Node *sp, Node *snp) noexcept
+    void doubleRotateNephewAndColor(Node *fp, Node *sp, Node *snp, Path & path) noexcept
     {
       assert(LLINK(fp) == sp || RLINK(fp) == sp);
       assert(LLINK(sp) == snp || RLINK(sp) == snp);
@@ -627,8 +642,11 @@ namespace Aleph
         then walks up the path fixing violations.
         
         @param q Node to remove (must be on top of path stack)
+        
+        @param path The path from the head node to `q`, as built by searchAndBuildPath(); it is
+               consumed.
     */
-    void removeAndFixBlackCondition(Node *q) noexcept
+    void removeAndFixBlackCondition(Node *q, Path & path) noexcept
     {
       assert(path.top() == q);
 
@@ -663,7 +681,7 @@ namespace Aleph
               break;
             }
 
-          findSuccAndSwap(q, fq);
+          findSuccAndSwap(q, fq, path);
         }
 
       /* if color of deleted node is red, then all red black conditions are
@@ -671,7 +689,6 @@ namespace Aleph
       if (COLOR(q) == RED)
         {
           assert(COLOR(p) == BLACK);
-          path.empty();
           return;
         }
 
@@ -681,7 +698,6 @@ namespace Aleph
       if (COLOR(p) == RED)
         {
           COLOR(p) = BLACK;
-          path.empty();
           return;
         }
 
@@ -704,7 +720,7 @@ namespace Aleph
           /* if sibling is red, we rotate down for assuring that p' sibling
              to be black */
           if (COLOR(sp) == RED)
-            balanceDownAndColor(p, fp, sp);
+            balanceDownAndColor(p, fp, sp, path);
 
           assert(COLOR(sp) == BLACK);
 
@@ -722,13 +738,13 @@ namespace Aleph
 
           if (COLOR(np) == RED)
             {
-              rotateNephewAndColor(fp, sp, np);
+              rotateNephewAndColor(fp, sp, np, path);
               break;
             }
 
           if (COLOR(snp) == RED)
             {
-              doubleRotateNephewAndColor(fp, sp, snp);
+              doubleRotateNephewAndColor(fp, sp, snp, path);
               break;
             }
 
@@ -743,7 +759,6 @@ namespace Aleph
           p = fp;
           fp = path.pop(); // colorSiblingAsRed(sp) does not pop it
         }
-      path.empty();
     }
 
   public:
@@ -792,7 +807,6 @@ namespace Aleph
         fHead(&headParent),
         ffHead(&headGrandParent),
         root(headNode.getR()),
-        path(Node::MaxHeight),
         node_count(0),
         cmp()
     {
@@ -923,15 +937,16 @@ namespace Aleph
       if (root == Node::NullPtr) [[unlikely]]
         return nullptr;
 
-      Node *p = searchAndBuildPath(key);
+      Path path;
+
+      Node *p = searchAndBuildPath(key, path);
 
       if (no_equals<Key, Compare>(KEY(p), key, cmp))
         {
-          path.empty();
           return nullptr;
         }
 
-      removeAndFixBlackCondition(p);
+      removeAndFixBlackCondition(p, path);
 
       assert(node_count > 0);
       --node_count;

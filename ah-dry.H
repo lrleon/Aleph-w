@@ -84,6 +84,7 @@
 #include <utility>
 #include <vector>
 #include <ah-errors.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 template <class>
@@ -439,7 +440,7 @@ public:
   {
     using Source = const_source_t<Operation>;
     auto & self = *const_cast<Container *>(static_cast<const Container *>(this));
-    for (typename Container::Iterator it(static_cast<Source>(self)); it.has_curr();
+    for (auto it = Aleph::iterator_for(static_cast<Source>(self)); it.has_curr();
          Aleph::dry_detail::advance(it))
       {
         const auto & item = Aleph::dry_detail::current(it);
@@ -655,9 +656,18 @@ public:
 
       @return iterator positioned at the first element
   */
+  [[nodiscard]] auto get_it()
+  {
+    return typename Container::Iterator(*me());
+  }
+
+  /** @brief Read-only iterator positioned at the first item.
+      @return `Aleph::const_iterator_t<Container>` positioned at the first
+              item; the container is never modified through it.
+  */
   [[nodiscard]] auto get_it() const
   {
-    return typename Container::Iterator(*const_me());
+    return Aleph::const_iterator_t<Container>(*const_me());
   }
 
   /** Return a properly initialized iterator positioned at the `pos`
@@ -668,9 +678,23 @@ public:
       @throw what the iterator's `next()` throws if `pos` exceeds the
              number of items, usually `overflow_error`.
   */
+  [[nodiscard]] auto get_it(const size_t pos)
+  {
+    auto ret = typename Container::Iterator(*me());
+    for (size_t i = 0; i < pos; ++i)
+      ret.next();
+    return ret;
+  }
+
+  /** @brief Read-only iterator positioned at the `pos` item.
+      @param[in] pos zero-based position
+      @return `Aleph::const_iterator_t<Container>` positioned at `pos`.
+      @throw what the iterator's `next()` throws if `pos` exceeds the
+             number of items, usually `overflow_error`.
+  */
   [[nodiscard]] auto get_it(const size_t pos) const
   {
-    auto ret = typename Container::Iterator(*const_me());
+    auto ret = Aleph::const_iterator_t<Container>(*const_me());
     for (size_t i = 0; i < pos; ++i)
       ret.next();
     return ret;
@@ -680,6 +704,12 @@ public:
 
       @return iterator positioned at the first element
   */
+  [[nodiscard]] auto get_itor()
+  {
+    return get_it();
+  }
+
+  /// \overload get_itor()
   [[nodiscard]] auto get_itor() const
   {
     return get_it();
@@ -2754,8 +2784,8 @@ public:
     if (const_me()->size() != r.size())
       return false;
 
-    typename Container::Iterator it1(*const_me());
-    typename Container::Iterator it2(r);
+    Aleph::const_iterator_t<Container> it1(*const_me());
+    Aleph::const_iterator_t<Container> it2(r);
 
     // Same size: it2 has a current item whenever it1 has one
     for (; it1.has_curr(); Aleph::dry_detail::advance(it1), Aleph::dry_detail::advance(it2))
@@ -2921,8 +2951,8 @@ public:
       return false;
 
     const auto cmp = const_me()->key_comp();
-    typename Container::Iterator it1(*const_me());
-    typename Container::Iterator it2(r);
+    Aleph::const_iterator_t<Container> it1(*const_me());
+    Aleph::const_iterator_t<Container> it2(r);
 
     // Same size: it2 has a current item whenever it1 has one
     for (; it1.has_curr(); Aleph::dry_detail::advance(it1), Aleph::dry_detail::advance(it2))

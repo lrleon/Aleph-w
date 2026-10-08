@@ -69,6 +69,7 @@
 #include <ah-ranges.H>
 #include <ah-concepts.H>
 #include <hash-dry.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 /** @brief Abstract base class for optional-like results.
@@ -1717,7 +1718,8 @@ public:
       @param c2 Second container.
   */
   template <class C1, class C2>
-  Pair_Iterator(const C1 &c1, const C2 &c2) : Pair_Iterator(c1.get_it(), c2.get_it())
+    requires (not std::same_as<std::remove_cvref_t<C1>, Itor1>)
+  Pair_Iterator(C1 &c1, C2 &c2) : it1(Aleph::iterator_for(c1)), it2(Aleph::iterator_for(c2))
   {}
 
   /** @brief Check if both iterators have current elements.
@@ -1801,34 +1803,25 @@ public:
     @ingroup Algorithms
 */
 template <class C1, class C2>
-[[nodiscard]] Pair_Iterator<typename C1::Iterator, typename C2::Iterator> inline get_pair_it(
-  const C1 &c1,
-  const C2 &c2)
+[[nodiscard]] inline auto get_pair_it(C1 &c1, C2 &c2)
 {
-  using I1 = typename C1::Iterator;
-  using I2 = typename C2::Iterator;
-  auto i1 = c1.get_it();
-  auto i2 = c2.get_it();
-  return Pair_Iterator<I1, I2>(i1, i2);
+  auto i1 = Aleph::iterator_for(c1);
+  auto i2 = Aleph::iterator_for(c2);
+  return Pair_Iterator<decltype(i1), decltype(i2)>(i1, i2);
 }
 
 /** @overload get_pair_it with start position. */
 template <class C1, class C2>
-[[nodiscard]] Pair_Iterator<typename C1::Iterator, typename C2::Iterator> inline get_pair_it(
-  const C1 &c1,
-  const C2 &c2,
-  const size_t pos)
+[[nodiscard]] inline auto get_pair_it(C1 &c1, C2 &c2, const size_t pos)
 {
-  using I1 = typename C1::Iterator;
-  using I2 = typename C2::Iterator;
-  auto i1 = c1.get_it();
-  auto i2 = c2.get_it();
+  auto i1 = Aleph::iterator_for(c1);
+  auto i2 = Aleph::iterator_for(c2);
   for (size_t i = 0; i < pos; ++i)
     {
       i1.next();
       i2.next();
     }
-  return Pair_Iterator<I1, I2>(i1, i2);
+  return Pair_Iterator<decltype(i1), decltype(i2)>(i1, i2);
 }
 
 /// @cond INTERNAL

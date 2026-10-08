@@ -209,7 +209,7 @@ class Compiler_Type_Context
     return types.size();
   }
 
-  Compiler_Type &mutable_type(const Compiler_Type_Id id) const
+  Compiler_Type &mutable_type(const Compiler_Type_Id id)
   {
     ah_out_of_range_error_unless(id > 0 and id <= types.size())
       << "Compiler_Type_Context::mutable_type(): invalid id " << id;
@@ -491,7 +491,7 @@ public:
    */
   void set_struct_fields(const Compiler_Type_Id id,
                          const DynArray<std::string> &field_names,
-                         const DynArray<Compiler_Type_Id> &field_types) const
+                         const DynArray<Compiler_Type_Id> &field_types)
   {
     auto &ty = mutable_type(id);
     ah_invalid_argument_unless(ty.kind == Compiler_Type_Kind::Struct)
@@ -525,7 +525,7 @@ public:
    *  @param variant_names Variant names in declaration order.
    *  @throws std::invalid_argument If `id` is not an `enum`.
    */
-  void set_enum_variants(const Compiler_Type_Id id, const DynArray<std::string> &variant_names) const
+  void set_enum_variants(const Compiler_Type_Id id, const DynArray<std::string> &variant_names)
   {
     auto &ty = mutable_type(id);
     ah_invalid_argument_unless(ty.kind == Compiler_Type_Kind::Enum)

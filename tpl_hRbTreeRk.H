@@ -107,7 +107,13 @@ private:
   Node *ffHead;
   Node *& root;
 
-  FixedStack<Node *> path{Node::MaxHeight};
+  /* The path from the head node to the node being removed. remove() builds
+
+     it, consumes it and drops it: it lives in the frame of the operation,
+
+     so the tree never allocates. */
+
+  using Path = InlineStack<Node *, Node::MaxHeight>;
 
   Compare cmp;
 
@@ -396,7 +402,7 @@ private:
 
   // ===================== DELETION ROUTINES =====================
 
-  Node * searchAndBuildPath(const Key & key) noexcept
+  Node * searchAndBuildPath(const Key & key, Path & path) noexcept
   {
     assert(root != Node::NullPtr);
 
@@ -427,7 +433,7 @@ private:
       }
   }
 
-  void findSuccAndSwap(Node *p, Node *& fp) noexcept
+  void findSuccAndSwap(Node *p, Node *& fp, Path & path) noexcept
   {
     assert(p != Node::NullPtr);
     assert(RLINK(p) != Node::NullPtr);
@@ -480,7 +486,7 @@ private:
     // Counts will be recalculated after removal completes
   }
 
-  void balanceDownAndColor(Node *p, Node *& fp, Node *& sp) noexcept
+  void balanceDownAndColor(Node *p, Node *& fp, Node *& sp, Path & path) noexcept
   {
     assert(LLINK(fp) == p || RLINK(fp) == p);
     assert(LLINK(fp) == sp || RLINK(fp) == sp);
@@ -510,7 +516,7 @@ private:
     COLOR(fp) = RED;
   }
 
-  void rotateNephewAndColor(Node *fp, Node *sp, Node *np) noexcept
+  void rotateNephewAndColor(Node *fp, Node *sp, Node *np, Path & path) noexcept
   {
     assert(LLINK(fp) == sp || RLINK(fp) == sp);
     assert(LLINK(sp) == np || RLINK(sp) == np);
@@ -531,7 +537,7 @@ private:
     COLOR(np) = BLACK;
   }
 
-  void doubleRotateNephewAndColor(Node *fp, Node *sp, Node *snp) noexcept
+  void doubleRotateNephewAndColor(Node *fp, Node *sp, Node *snp, Path & path) noexcept
   {
     assert(LLINK(fp) == sp || RLINK(fp) == sp);
     assert(LLINK(sp) == snp || RLINK(sp) == snp);
@@ -589,7 +595,7 @@ private:
       The count update is O(n) due to the complexity of tracking all
       affected nodes during deletion with swaps and rotations.
   */
-  void removeAndFixBlackCondition(Node *q) noexcept
+  void removeAndFixBlackCondition(Node *q, Path & path) noexcept
   {
     assert(path.top() == q);
 
@@ -619,13 +625,12 @@ private:
             break;
           }
 
-        findSuccAndSwap(q, fq);
+        findSuccAndSwap(q, fq, path);
       }
 
     if (COLOR(q) == RED)
       {
         assert(COLOR(p) == BLACK);
-        path.empty();
         if (root != Node::NullPtr)
           updateCountRec(root);
         return;
@@ -634,7 +639,6 @@ private:
     if (COLOR(p) == RED)
       {
         COLOR(p) = BLACK;
-        path.empty();
         if (root != Node::NullPtr)
           updateCountRec(root);
         return;
@@ -653,7 +657,7 @@ private:
         Node *sp = getSibling(p, fp);
 
         if (COLOR(sp) == RED)
-          balanceDownAndColor(p, fp, sp);
+          balanceDownAndColor(p, fp, sp, path);
 
         assert(COLOR(sp) == BLACK);
 
@@ -670,13 +674,13 @@ private:
 
         if (COLOR(np) == RED)
           {
-            rotateNephewAndColor(fp, sp, np);
+            rotateNephewAndColor(fp, sp, np, path);
             break;
           }
 
         if (COLOR(snp) == RED)
           {
-            doubleRotateNephewAndColor(fp, sp, snp);
+            doubleRotateNephewAndColor(fp, sp, snp, path);
             break;
           }
 
@@ -690,8 +694,6 @@ private:
         p = fp;
         fp = path.pop();
       }
-
-    path.empty();
     
     // Update all counts after removal - O(n)
     if (root != Node::NullPtr)
@@ -741,7 +743,6 @@ public:
       fHead(&headParent),
       ffHead(&headGrandParent),
       root(headNode.getR()),
-      path(Node::MaxHeight),
       cmp()
   {
     init();
@@ -834,15 +835,16 @@ public:
     if (root == Node::NullPtr) [[unlikely]]
       return nullptr;
 
-    Node *p = searchAndBuildPath(key);
+    Path path;
+
+    Node *p = searchAndBuildPath(key, path);
 
     if (not equals(KEY(p), key))
       {
-        path.empty();
         return nullptr;
       }
 
-    removeAndFixBlackCondition(p);
+    removeAndFixBlackCondition(p, path);
 
     p->reset();
 

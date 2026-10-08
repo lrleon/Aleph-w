@@ -314,7 +314,16 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @param[in] key The key to search for.
    *  @return Pointer to the pair if found, nullptr otherwise.
    */
-  [[nodiscard]] Pair *search(const Key &key) const noexcept
+  [[nodiscard]] Pair *search(const Key &key) noexcept
+  {
+    static_assert(std::is_default_constructible<Data>::value,
+                  "MapOpenHash::search() requires Data to be default-constructible");
+    return this->Base::search(Pair(key, Data()));
+  }
+
+  /// \overload
+  /// A pointer to const.
+  [[nodiscard]] const Pair *search(const Key &key) const noexcept
   {
     static_assert(std::is_default_constructible<Data>::value,
                   "MapOpenHash::search() requires Data to be default-constructible");
@@ -326,7 +335,16 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @param[in] key The key to search for.
    *  @return Pointer to the pair if found, nullptr otherwise.
    */
-  [[nodiscard]] Pair *search(Key &&key) const noexcept
+  [[nodiscard]] Pair *search(Key &&key) noexcept
+  {
+    static_assert(std::is_default_constructible<Data>::value,
+                  "MapOpenHash::search() requires Data to be default-constructible");
+    return this->Base::search(Pair(std::move(key), Data()));
+  }
+
+  /// \overload
+  /// A pointer to const.
+  [[nodiscard]] const Pair *search(Key &&key) const noexcept
   {
     static_assert(std::is_default_constructible<Data>::value,
                   "MapOpenHash::search() requires Data to be default-constructible");

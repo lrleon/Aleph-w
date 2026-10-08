@@ -76,9 +76,9 @@ namespace Aleph
 
     HashSet() : Base() {}
 
-    Key &get_first() const { return this->get_it().get_curr(); }
+    const Key &get_first() const { return this->get_it().get_curr(); }
 
-    Key &get_last() const
+    const Key &get_last() const
     {
       auto it = this->get_it();
       it.reset_last();

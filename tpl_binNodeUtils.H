@@ -2412,7 +2412,7 @@ class BinNodePrefixIterator
 {
   Node *root = nullptr;
   Node *curr = Node::NullPtr;
-  ArrayStack<Node *> s;
+  InlineStack<Node *, Node::MaxHeight> s;
 
 public:
   /// Swap `this`with `it`
@@ -2427,7 +2427,7 @@ public:
 
   /// Initialize an iterator on the first node in preorder for the tree
   /// with root `r`
-  BinNodePrefixIterator(Node *r) noexcept : root(r), curr(root), s(Node::MaxHeight)
+  BinNodePrefixIterator(Node *r) noexcept : root(r), curr(root)
   {
     // empty
   }
@@ -2622,7 +2622,7 @@ class BinNodeInfixIterator
   mutable Node *root = Node::NullPtr;
   Node *curr = Node::NullPtr;
   mutable long pos = 0;
-  ArrayStack<Node *> s;
+  InlineStack<Node *, Node::MaxHeight> s;
 
   Node *advance_to_min(Node *r) noexcept
   {
@@ -2672,7 +2672,7 @@ public:
   BinNodeInfixIterator() = default;
 
   /// Initialize an iterator on the first node inorder
-  BinNodeInfixIterator(Node *r) noexcept : root(r), s(Node::MaxHeight)
+  BinNodeInfixIterator(Node *r) noexcept : root(r)
   {
     init();
   }

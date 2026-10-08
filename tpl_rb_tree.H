@@ -128,25 +128,29 @@ private:
   Node head_node;                    ///< Sentinel header node
   Node *head;                        ///< Pointer to sentinel
   Node *& root;                      ///< Reference to root (right child of head)
-  FixedStack<Node *> rb_stack;       ///< Stack for ancestor path
   Compare cmp;                       ///< Comparison functor
   size_t num_nodes;                  ///< Number of nodes in tree
   static constexpr signed char CmpLess = -1;
   static constexpr signed char CmpEqual = 0;
   static constexpr signed char CmpGreater = 1;
 
+  /* The path from the head node to the node an operation works on. Each
+     operation builds it, consumes it and drops it: it lives in the frame
+     of the operation, so the tree never allocates. */
+  using Path = InlineStack<Node *, Node::MaxHeight>;
+
   /// Search for key and stack ancestors (optimistic duplicate detection)
   Node * search_and_stack_rb(const Key & key,
-                             signed char & cmp_result) noexcept
+                             signed char & cmp_result, Path & path) noexcept
   {
     Node *p = root;
     Node *candidate = nullptr;  // Tracks potential duplicate when going right
     size_t candidate_pos = 0;   // Stack size when candidate was set
 
-    rb_stack.push(head);
+    path.push(head);
     do
       {
-        rb_stack.push(p);
+        path.push(p);
         if (cmp(key, KEY(p)))  // key < KEY(p)
           {
             cmp_result = CmpLess;
@@ -155,7 +159,7 @@ private:
         else  // key >= KEY(p), could be equal
           {
             candidate = p;
-            candidate_pos = rb_stack.size();
+            candidate_pos = path.size();
             cmp_result = CmpGreater;
             p = RLINK(p);
           }
@@ -169,26 +173,26 @@ private:
         cmp_result = CmpEqual;
         // Truncate stack: remove nodes pushed after candidate
         const size_t to_pop =
-            rb_stack.size() > candidate_pos ?
-            rb_stack.size() - candidate_pos : 0;
+            path.size() > candidate_pos ?
+            path.size() - candidate_pos : 0;
         if (to_pop > 0)
-          rb_stack.popn(static_cast<int>(to_pop));
+          path.popn(to_pop);
         return candidate;
       }
 
-    return rb_stack.top();
+    return path.top();
   }
 
   /// Search for insertion point (allows duplicates) and stack ancestors
   Node * search_dup_and_stack_rb(const Key & key,
-                                 signed char & cmp_result) noexcept
+                                 signed char & cmp_result, Path & path) noexcept
   {
     Node *p = root;
-    rb_stack.push(head);
+    path.push(head);
     cmp_result = CmpEqual;
     do
       {
-        rb_stack.push(p);
+        path.push(p);
         const Key & pk = KEY(p);
         if (cmp(key, pk))
           {
@@ -203,17 +207,17 @@ private:
       }
     while (p != Node::NullPtr);
 
-    return rb_stack.top();
+    return path.top();
   }
 
   /// Fix red-red violation after insertion
-  void fix_red_condition(Node *p) noexcept
+  void fix_red_condition(Node *p, Path & path) noexcept
   {
     assert(COLOR(p) == RED);
 
     while (p != root)
       {
-        Node *pp = rb_stack.pop();  // parent of p
+        Node *pp = path.pop();  // parent of p
         if (COLOR(pp) == BLACK)     // is p's parent black?
           break;                    // yes ==> no consecutive reds ==> done
 
@@ -223,7 +227,7 @@ private:
             break;
           }
 
-        Node *ppp = rb_stack.pop();  // grandparent of p
+        Node *ppp = path.pop();  // grandparent of p
         Node *spp = LLINK(ppp) == pp ? RLINK(ppp) : LLINK(ppp);  // uncle
         
         if (COLOR(spp) == RED)       // is p's uncle red?
@@ -235,7 +239,7 @@ private:
             continue;
           }
 
-        Node *pppp = rb_stack.pop();  // great-grandparent of p
+        Node *pppp = path.pop();  // great-grandparent of p
         if (LLINK(pp) == p and LLINK(ppp) == pp)
           {
             rotate_to_right(ppp, pppp);
@@ -264,28 +268,26 @@ private:
         COLOR(ppp) = RED;
         break;
       }
-
-    rb_stack.empty();
   }
 
   /// Find successor and swap with node being deleted
-  void find_succ_and_swap(Node *p, Node *& pp) noexcept
+  void find_succ_and_swap(Node *p, Node *& pp, Path & path) noexcept
   {
-    Node *& ref_rb_stack = rb_stack.top();
+    Node *& ref_path_top = path.top();
 
     Node *fSucc = p;
     Node *succ = RLINK(p);
-    rb_stack.push(succ);
+    path.push(succ);
 
     while (LLINK(succ) != Node::NullPtr)
       {
         fSucc = succ;
         succ = LLINK(succ);
-        rb_stack.push(succ);
+        path.push(succ);
       }
 
-    ref_rb_stack = succ;
-    rb_stack.top() = p;
+    ref_path_top = succ;
+    path.top() = p;
 
     if (LLINK(pp) == p)
       LLINK(pp) = succ;
@@ -314,7 +316,7 @@ private:
   }
 
   /// Fix black-height violation after deletion
-  void fix_black_condition(Node *p) noexcept
+  void fix_black_condition(Node *p, Path & path) noexcept
   {
     if (COLOR(p) == RED)
       {
@@ -322,16 +324,16 @@ private:
         return;
       }
 
-    Node *pp = rb_stack.popn(2);
+    Node *pp = path.popn(2);
     while (p != root)
       {
         assert(LLINK(pp) == p or RLINK(pp) == p);
-        assert(LLINK(rb_stack.top()) == pp or RLINK(rb_stack.top()) == pp);
+        assert(LLINK(path.top()) == pp or RLINK(path.top()) == pp);
 
         Node *sp = LLINK(pp) == p ? RLINK(pp) : LLINK(pp);
         if (COLOR(sp) == RED)
           {
-            Node *& ppp = rb_stack.top();
+            Node *& ppp = path.top();
 
             if (LLINK(pp) == p)
               {
@@ -362,7 +364,7 @@ private:
 
         if (COLOR(np) == RED)
           {
-            Node *ppp = rb_stack.top();
+            Node *ppp = path.top();
 
             if (RLINK(sp) == np)
               rotate_to_left(pp, ppp);
@@ -378,7 +380,7 @@ private:
 
         if (COLOR(snp) == RED)
           {
-            Node *ppp = rb_stack.top();
+            Node *ppp = path.top();
 
             if (LLINK(sp) == snp)
               {
@@ -406,7 +408,7 @@ private:
 
         COLOR(sp) = RED;
         p = pp;
-        pp = rb_stack.pop();
+        pp = path.pop();
       }
   }
 
@@ -428,7 +430,7 @@ public:
   /// Default constructor with optional comparator
   Gen_Rb_Tree(Compare __cmp = Compare()) noexcept
     : head(&head_node), root(head_node.getR()),
-      rb_stack(Node::MaxHeight), cmp(__cmp), num_nodes(0)
+      cmp(__cmp), num_nodes(0)
   {
     /* empty */
   }
@@ -446,7 +448,7 @@ public:
   /// Move constructor
   Gen_Rb_Tree(Gen_Rb_Tree && tree) noexcept
     : head(&head_node), root(head_node.getR()),
-      rb_stack(Node::MaxHeight), cmp(std::move(tree.cmp)), 
+      cmp(std::move(tree.cmp)), 
       num_nodes(tree.num_nodes)
   {
     root = tree.root;
@@ -526,19 +528,17 @@ public:
       }
 
     signed char cmp_result = CmpEqual;
-    Node *q = search_and_stack_rb(KEY(p), cmp_result);
+    Path path;
+    Node *q = search_and_stack_rb(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(q) = p;
     else if (cmp_result == CmpGreater)
       RLINK(q) = p;
     else
-      {
-        rb_stack.empty();
-        return nullptr;  // duplicate key
-      }
+      return nullptr;  // duplicate key
     
     ++num_nodes;
-    fix_red_condition(p);
+    fix_red_condition(p, path);
 
     return p;
   }
@@ -560,19 +560,17 @@ public:
       }
 
     signed char cmp_result = CmpEqual;
-    Node *q = search_and_stack_rb(KEY(p), cmp_result);
+    Path path;
+    Node *q = search_and_stack_rb(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(q) = p;
     else if (cmp_result == CmpGreater)
       RLINK(q) = p;
     else
-      {
-        rb_stack.empty();
-        return q;  // return existing node
-      }
+      return q;  // return existing node
     
     ++num_nodes;
-    fix_red_condition(p);
+    fix_red_condition(p, path);
 
     return p;
   }
@@ -594,14 +592,15 @@ public:
       }
 
     signed char cmp_result = CmpEqual;
-    Node *q = search_dup_and_stack_rb(KEY(p), cmp_result);
+    Path path;
+    Node *q = search_dup_and_stack_rb(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(q) = p;
     else
       RLINK(q) = p;
 
     ++num_nodes;
-    fix_red_condition(p);
+    fix_red_condition(p, path);
 
     return p;
   }
@@ -620,14 +619,12 @@ public:
       return nullptr;
 
     signed char cmp_result = CmpEqual;
-    Node *q = search_and_stack_rb(key, cmp_result);
+    Path path;
+    Node *q = search_and_stack_rb(key, cmp_result, path);
     if (cmp_result != CmpEqual)
-      {
-        rb_stack.empty();
-        return nullptr;
-      }
+      return nullptr;
 
-    Node *pq = rb_stack.top(1);
+    Node *pq = path.top(1);
     Node *p;
     while (true)
       {
@@ -649,14 +646,13 @@ public:
             break;
           }
 
-        find_succ_and_swap(q, pq);
+        find_succ_and_swap(q, pq, path);
       }
 
     if (COLOR(q) == BLACK)
-      fix_black_condition(p);
+      fix_black_condition(p, path);
 
     q->reset();
-    rb_stack.empty();
     --num_nodes;
 
     return q;

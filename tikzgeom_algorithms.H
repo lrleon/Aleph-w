@@ -71,7 +71,7 @@ constexpr size_t SPP_NONE = ~static_cast<size_t>(0);
                                                     const DynList<Triangle> &tl)
 {
   Array<SPP_ITri> tris;
-  for (DynList<Triangle>::Iterator it(tl); it.has_curr(); it.next_ne())
+  for (auto it = tl.get_it(); it.has_curr(); it.next_ne())
     {
       const Triangle &t = it.get_curr();
       SPP_ITri ti{};
@@ -425,7 +425,7 @@ inline void put_points(Tikz_Plane &plane, const DynList<Point> &pts,
                        const Tikz_Style &style = tikz_points_style(),
                        const int layer = Tikz_Plane::Layer_Default)
 {
-  for (DynList<Point>::Iterator it(pts); it.has_curr(); it.next_ne())
+  for (auto it = pts.get_it(); it.has_curr(); it.next_ne())
     put_in_plane(plane, it.get_curr(), style, layer);
 }
 
@@ -468,7 +468,7 @@ inline void put_point_labels(Tikz_Plane &plane, const DynList<Point> &pts,
                              const int layer = Tikz_Plane::Layer_Overlay)
 {
   size_t idx = 0;
-  for (DynList<Point>::Iterator it(pts); it.has_curr(); it.next_ne(), ++idx)
+  for (auto it = pts.get_it(); it.has_curr(); it.next_ne(), ++idx)
     put_point_label_in_plane(plane, it.get_curr(), prefix + std::to_string(idx), placement, style,
                              layer);
 }
@@ -551,7 +551,7 @@ inline Polygon polygon_from_vertex_indices(const Array<Point> &vertices,
                                            const DynList<size_t> &indices, const bool close = true)
 {
   Polygon poly;
-  for (DynList<size_t>::Iterator it(indices); it.has_curr(); it.next_ne())
+  for (auto it = indices.get_it(); it.has_curr(); it.next_ne())
     if (const size_t idx = it.get_curr(); idx < vertices.size())
       poly.add_vertex(vertices(idx));
 
@@ -1202,7 +1202,7 @@ inline void put_path(Tikz_Plane &plane, const DynList<Point> &path,
   bool has_prev = false;
   Point prev;
 
-  for (DynList<Point>::Iterator it(path); it.has_curr(); it.next_ne())
+  for (auto it = path.get_it(); it.has_curr(); it.next_ne())
     {
       const Point &curr = it.get_curr();
       if (has_prev)
@@ -1744,7 +1744,7 @@ inline void put_monotone_triangulation_result(
   const int triangle_layer = Tikz_Plane::Layer_Foreground)
 {
   put_in_plane(plane, polygon, polygon_style, polygon_layer);
-  for (DynList<Triangle>::Iterator it(triangles); it.has_curr(); it.next_ne())
+  for (auto it = triangles.get_it(); it.has_curr(); it.next_ne())
     put_in_plane(plane, it.get_curr(), triangle_style, triangle_layer);
 }
 

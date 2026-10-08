@@ -166,7 +166,7 @@ namespace
     for (size_t i = 0; i < n; ++i)
       built.nodes.append(built.g.insert_node(static_cast<int>(i)));
 
-    for (typename Array<Edge_Def>::Iterator it(edges); it.has_curr(); it.next_ne())
+    for (auto it = edges.get_it(); it.has_curr(); it.next_ne())
         {
           const auto & [u, v, w] = it.get_curr();
           if (u < n and v < n)
@@ -204,7 +204,7 @@ namespace
   Array<Canonical_Path> normalize_results(const Result_List & results)
   {
     Array<Canonical_Path> out;
-    for (typename Result_List::Iterator it(results); it.has_curr(); it.next_ne())
+    for (auto it = results.get_it(); it.has_curr(); it.next_ne())
       {
         const auto & item = it.get_curr();
         out.append(Canonical_Path{

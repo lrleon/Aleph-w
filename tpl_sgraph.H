@@ -329,8 +329,10 @@ namespace Aleph
 
       Node_Iterator() = default;
 
+      // The iterator hands out pointers to nodes and never modifies the
+      // set of the graph: it is built on the set through a const_cast.
       Node_Iterator(const List_SGraph & g) noexcept
-        : DynSetNode::Iterator(g.node_list)
+        : DynSetNode::Iterator(const_cast<DynSetNode &>(g.node_list))
       {
         // empty
       }
@@ -430,8 +432,10 @@ namespace Aleph
 
       Arc_Iterator() = default;
 
+      // The iterator hands out pointers to arcs and never modifies the set
+      // of the graph: it is built on the set through a const_cast.
       Arc_Iterator(const List_SGraph & _g) noexcept
-        : DynSetArc::Iterator(_g.arc_list)
+        : DynSetArc::Iterator(const_cast<DynSetArc &>(_g.arc_list))
       {
         // empty
       }

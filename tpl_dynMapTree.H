@@ -250,14 +250,32 @@ namespace Aleph {
      * @param[in] key Key to search.
      * @return Pointer to the stored pair if found; nullptr otherwise.
      */
-    Pair * search(const Key & key) const noexcept
+    Pair * search(const Key & key) noexcept
     {
       static_assert(std::is_default_constructible_v<Data>,
                     "DynMapTree::search() requires Data to be default-constructible");
       return this->Base::search(Pair(key, Data()));
     }
 
-    Pair * search(Key && key) const noexcept
+    /// \overload
+    /// A pointer to const.
+    const Pair * search(const Key & key) const noexcept
+    {
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::search() requires Data to be default-constructible");
+      return this->Base::search(Pair(key, Data()));
+    }
+
+    Pair * search(Key && key) noexcept
+    {
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::search() requires Data to be default-constructible");
+      return this->Base::search(Pair(std::move(key), Data()));
+    }
+
+    /// \overload
+    /// A pointer to const.
+    const Pair * search(Key && key) const noexcept
     {
       static_assert(std::is_default_constructible_v<Data>,
                     "DynMapTree::search() requires Data to be default-constructible");
@@ -317,6 +335,9 @@ namespace Aleph {
     }
 
     using Iterator = typename Base::Iterator;
+
+    /// Read-only iterator: the iterator of a constant map.
+    using Const_Iterator = typename Base::Const_Iterator;
 
     DynList<Key> keys() const
     {

@@ -48,6 +48,7 @@
 # include <ah-dry.H>
 # include <tpl_dynArray.H>
 # include <utility>
+#include <ah-iterator.H>
  # include <ah-errors.H>
 
 namespace Aleph {
@@ -247,9 +248,7 @@ public:
     ah_underflow_error_if(array.size() == 0) << "Random set is empty";
 
     const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
-    T ret_val = array.access(pos);
-    std::swap(array.access(pos), array.access(0));
-    return ret_val;
+    return array.access(pos);
   }
 
   /// Return `true` if the queue is empty
@@ -274,11 +273,12 @@ public:
     */
     Iterator(Random_Set & q) noexcept : Base(q.array) {}
 
-    /** @brief Iterator on a constant queue.
-        @param[in] q queue to iterate.
-    */
-    Iterator(const Random_Set & q) noexcept : Base(q.array) {}
+    /// A constant set is iterated through Const_Iterator.
+    Iterator(const Random_Set &) = delete;
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 
   /** Conditional traversing of the random queue
 

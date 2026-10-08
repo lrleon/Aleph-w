@@ -1017,7 +1017,7 @@ public:
   [[nodiscard]] Result operator () (const DynList<Point> &point_set) const
   {
     Array<Point> px;
-    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+    for (auto it = point_set.get_it(); it.has_curr(); it.next_ne())
       px.append(it.get_curr());
 
     ah_domain_error_if(px.size() < 2) << "Closest pair requires at least 2 points";
@@ -1164,7 +1164,7 @@ public:
   [[nodiscard]] Circle operator () (const DynList<Point> &points) const
   {
     Array<Point> pts;
-    for (DynList<Point>::Iterator it(points); it.has_curr(); it.next_ne())
+    for (auto it = points.get_it(); it.has_curr(); it.next_ne())
       pts.append(it.get_curr());
 
     ah_domain_error_if(pts.size() == 0) << "MinimumEnclosingCircle: empty point set";
@@ -2196,7 +2196,7 @@ private:
   [[nodiscard]] static Array<Point> unique_points(const DynList<Point> &point_set)
   {
     Array<Point> all;
-    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+    for (auto it = point_set.get_it(); it.has_curr(); it.next_ne())
       all.append(it.get_curr());
 
     quicksort_op(all, [](const Point &p1, const Point &p2)
@@ -2644,7 +2644,7 @@ public:
     // Build unique sorted points.
     {
       Array<Point> all;
-      for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+      for (auto it = point_set.get_it(); it.has_curr(); it.next_ne())
         all.append(it.get_curr());
       quicksort_op(all, [](const Point &a, const Point &b)
         {
@@ -3441,12 +3441,12 @@ private:
                                                           const DynList<Segment> &constraints)
   {
     Array<Point> all;
-    for (DynList<Point>::Iterator it(points); it.has_curr(); it.next_ne())
+    for (auto it = points.get_it(); it.has_curr(); it.next_ne())
       all.append(it.get_curr());
 
     // Collect constraint segments into an array for pairwise checks.
     Array<Segment> con_arr;
-    for (DynList<Segment>::Iterator it(constraints); it.has_curr(); it.next_ne())
+    for (auto it = constraints.get_it(); it.has_curr(); it.next_ne())
       {
         const Segment &s = it.get_curr();
         all.append(s.get_src_point());
@@ -3480,7 +3480,7 @@ private:
   {
     Array<IndexedEdge> result;
 
-    for (DynList<Segment>::Iterator it(constraints); it.has_curr(); it.next_ne())
+    for (auto it = constraints.get_it(); it.has_curr(); it.next_ne())
       {
         const Segment &seg = it.get_curr();
         const size_t u = find_point_index(sites, seg.get_src_point());
@@ -4748,7 +4748,7 @@ class AndrewMonotonicChainConvexHull
   static Array<Point> sorted_unique_points(const DynList<Point> &point_set)
   {
     Array<Point> points;
-    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+    for (auto it = point_set.get_it(); it.has_curr(); it.next_ne())
       points.append(it.get_curr());
 
     if (points.size() <= 1)
@@ -4882,7 +4882,7 @@ class GrahamScanConvexHull
   static Array<Point> sorted_unique_points(const DynList<Point> &point_set)
   {
     Array<Point> points;
-    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+    for (auto it = point_set.get_it(); it.has_curr(); it.next_ne())
       points.append(it.get_curr());
 
     if (points.size() <= 1)
@@ -5077,7 +5077,7 @@ class BruteForceConvexHull
    */
   static bool are_all_points_on_left(const DynList<Point> &l, const Segment &s)
   {
-    for (PointIt it(l); it.has_curr(); it.next_ne())
+    for (auto it = l.get_it(); it.has_curr(); it.next_ne())
       if (const Point &p = it.get_curr(); p.is_right_of(s))
         return false;
 
@@ -5094,11 +5094,11 @@ class BruteForceConvexHull
   {
     SegmentSet ret;
 
-    for (PointIt i(point_set); i.has_curr(); i.next_ne())
+    for (auto i = point_set.get_it(); i.has_curr(); i.next_ne())
       {
         const Point &p_i = i.get_curr();
 
-        for (PointIt j(point_set); j.has_curr(); j.next_ne())
+        for (auto j = point_set.get_it(); j.has_curr(); j.next_ne())
           {
             const Point &p_j = j.get_curr();
 
@@ -5127,7 +5127,7 @@ public:
     if (point_set.is_empty())
       return ret;
 
-    PointIt check_it(point_set);
+    auto check_it = point_set.get_it();
     const Point first = check_it.get_curr();
     bool has_distinct = false;
     check_it.next();
@@ -5212,7 +5212,7 @@ class GiftWrappingConvexHull
    */
   static const Point *get_lowest_point(const DynList<Point> &point_set)
   {
-    DynList<Point>::Iterator it(point_set);
+    auto it = point_set.get_it();
     const Point *ret = &it.get_curr();
     it.next();
 
@@ -5252,7 +5252,7 @@ public:
         ret.add_vertex(*current);
         const Point *next = nullptr;
 
-        for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+        for (auto it = point_set.get_it(); it.has_curr(); it.next_ne())
           {
             const Point &candidate = it.get_curr();
 
@@ -5340,7 +5340,7 @@ class QuickHull
     const Point &a = s.get_src_point();
     const Point &b = s.get_tgt_point();
 
-    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+    for (auto it = point_set.get_it(); it.has_curr(); it.next_ne())
       {
         const Point &p = it.get_curr();
         Geom_Number area = area_of_parallelogram(a, b, p);
@@ -5444,7 +5444,7 @@ class QuickHull
    */
   static std::pair<Point, Point> search_extremes(const DynList<Point> &point_set)
   {
-    DynList<Point>::Iterator it(point_set);
+    auto it = point_set.get_it();
     Point leftmost = it.get_curr();
     Point rightmost = it.get_curr();
     it.next();
@@ -5479,7 +5479,7 @@ class QuickHull
   {
     std::pair<DynList<Point>, DynList<Point>> ret;
 
-    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+    for (auto it = point_set.get_it(); it.has_curr(); it.next_ne())
       if (const Point &p = it.get_curr(); area_of_parallelogram(a, b, p) < 0)
         ret.first.append(p);
       else
@@ -5520,7 +5520,7 @@ public:
     convex_set.append(rightmost);
     convex_set.concat(s2);
 
-    for (DynList<Point>::Iterator it(convex_set); it.has_curr(); it.next_ne())
+    for (auto it = convex_set.get_it(); it.has_curr(); it.next_ne())
       ret.add_vertex(it.get_curr());
 
     if (ret.size() >= 3)
@@ -7248,7 +7248,7 @@ public:
               }
           }
 
-        for (DynList<Triangle>::Iterator it(tris); it.has_curr(); it.next_ne())
+        for (auto it = tris.get_it(); it.has_curr(); it.next_ne())
           {
             result.append(it.get_curr());
             produced_any = true;
@@ -8440,7 +8440,7 @@ public:
 
     // Build indexed faces from triangles.
     Array<Array<size_t>> faces;
-    for (DynList<Triangle>::Iterator it(tri_list); it.has_curr(); it.next_ne())
+    for (auto it = tri_list.get_it(); it.has_curr(); it.next_ne())
       {
         const Triangle &t = it.get_curr();
         size_t i0 = NONE, i1 = NONE, i2 = NONE;
@@ -8714,7 +8714,7 @@ public:
   void build(const DynList<Point> &points)
   {
     pts_ = Array<Point>();
-    for (DynList<Point>::Iterator it(points); it.has_curr(); it.next_ne())
+    for (auto it = points.get_it(); it.has_curr(); it.next_ne())
       pts_.append(it.get_curr());
 
     n_ = pts_.size();
@@ -9817,11 +9817,11 @@ public:
         const size_t prev_near = status.min();
 
         // Remove ending edges.
-        for (DynList<size_t>::Iterator it(ends(vi)); it.has_curr(); it.next_ne())
+        for (auto it = ends(vi).get_it(); it.has_curr(); it.next_ne())
           status.erase(it.get_curr());
 
         // Insert starting edges.
-        for (DynList<size_t>::Iterator it(starts(vi)); it.has_curr(); it.next_ne())
+        for (auto it = starts(vi).get_it(); it.has_curr(); it.next_ne())
           status.insert(it.get_curr(), dir);
 
         // Nearest edge AFTER processing events.
@@ -9938,7 +9938,7 @@ class ShortestPathInPolygon
   {
     // Convert to indexed form.
     Array<ITri> tris;
-    for (DynList<Triangle>::Iterator it(tl); it.has_curr(); it.next_ne())
+    for (auto it = tl.get_it(); it.has_curr(); it.next_ne())
       {
         const Triangle &t = it.get_curr();
         ITri ti{};
@@ -12474,7 +12474,7 @@ public:
                                           const Geom_Number &epsilon) const
   {
     Array<Point> arr;
-    for (typename DynList<Point>::Iterator it(polyline); it.has_curr(); it.next_ne())
+    for (auto it = polyline.get_it(); it.has_curr(); it.next_ne())
       arr.append(it.get_curr());
     return (*this)(arr, epsilon);
   }
@@ -12678,7 +12678,7 @@ public:
                                           const Geom_Number &area_threshold) const
   {
     Array<Point> arr;
-    for (typename DynList<Point>::Iterator it(polyline); it.has_curr(); it.next_ne())
+    for (auto it = polyline.get_it(); it.has_curr(); it.next_ne())
       arr.append(it.get_curr());
     return simplify_open_array(arr, area_threshold);
   }
@@ -12845,7 +12845,7 @@ public:
                                           const Geom_Number &ratio = Geom_Number(1, 4)) const
   {
     Array<Point> arr;
-    for (typename DynList<Point>::Iterator it(polyline); it.has_curr(); it.next_ne())
+    for (auto it = polyline.get_it(); it.has_curr(); it.next_ne())
       arr.append(it.get_curr());
     return (*this)(arr, iterations, ratio);
   }

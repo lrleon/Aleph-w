@@ -50,6 +50,7 @@
 # include <ah-args-ctor.H>
 # include <htlist.H>
 # include <tpl_dynDlist.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 
@@ -329,8 +330,15 @@ public:
     using Base = typename DynList<T>::Iterator;
     using Base::Base;
 
-    Iterator(const DynListQueue<T> & q) noexcept : Base(q.q) {}
+    /// Iterator on the modifiable queue `q`.
+    Iterator(DynListQueue<T> & q) noexcept : Base(q.q) {}
+
+    /// A constant queue is iterated through Const_Iterator.
+    Iterator(const DynListQueue<T> &) = delete;
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 };
 
 } // end namespace Aleph

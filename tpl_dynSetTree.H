@@ -853,13 +853,21 @@ namespace Aleph
         @note Be very careful with altering the search order,
         since the reference is modifiable.
     */
-    Key &find(const Key & key) const
+    Key &find(const Key & key)
     {
       Node *node = static_cast<Node *>(tree.search(key));
-
       ah_domain_error_if(node == nullptr)
         << "key not found";
+      return node->get_key();
+    }
 
+    /// \overload
+    /// A reference to const.
+    const Key &find(const Key & key) const
+    {
+      Node *node = static_cast<Node *>(tree.search(key));
+      ah_domain_error_if(node == nullptr)
+        << "key not found";
       return node->get_key();
     }
 
@@ -907,13 +915,21 @@ namespace Aleph
         @note Be very careful with altering the search order,
         because through the pointer the key is modifiable.
     */
-    Key * search(const Key & key) const
+    Key * search(const Key & key)
     {
       Node *node = static_cast<Node *>(tree.search(key));
-
       if (node == nullptr)
         return nullptr;
+      return &(node->get_key());
+    }
 
+    /// \overload
+    /// A pointer to const.
+    const Key * search(const Key & key) const
+    {
+      Node *node = static_cast<Node *>(tree.search(key));
+      if (node == nullptr)
+        return nullptr;
       return &(node->get_key());
     }
 
@@ -1394,9 +1410,13 @@ namespace Aleph
       /// Default constructor creates an "end" iterator
       Iterator() noexcept = default;
 
-      Iterator(const DynSetTree & tree) : Base(tree.tree)
+      /// Iterator on the modifiable set `tree`.
+      Iterator(DynSetTree & tree) : Base(tree.tree)
       { /* empty */
       }
+
+      /// A constant set is iterated through Const_Iterator.
+      Iterator(const DynSetTree &) = delete;
 
       const Key &get_curr_ne() const noexcept
       {
@@ -1409,6 +1429,9 @@ namespace Aleph
 
       Key &get_curr() { return Base::get_curr()->get_key(); }
     };
+
+    /// Read-only iterator: the iterator of a constant set.
+    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 
     /** Traverse all the set of pairs and for each key executes the operation op.
 

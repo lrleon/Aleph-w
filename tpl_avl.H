@@ -107,39 +107,25 @@ public:
   using Node = NodeType<Key>;  /// The type of node
 
 private:
-  FixedStack<Node *> avl_stack;
   Node head_node;
   Node *head_ptr;
   Node *&root;
   Compare cmp;
 
-  bool avl_stack_at_base() noexcept
+  /* The path from the head node to the node an operation works on. Each
+     operation builds it, consumes it and drops it: it lives in the frame
+     of the operation, so the tree never allocates. Its base is head_ptr. */
+  using Path = InlineStack<Node *, Node::MaxHeight>;
+
+  /// `true` when `path` holds only the head node.
+  static bool at_head(const Path &path) noexcept
   {
-    return not avl_stack.is_empty() and avl_stack.size() == 1 and avl_stack.base() == head_ptr;
+    return path.size() == 1;
   }
 
-  void clean_avl_stack() noexcept
+  Node *search_and_stack_avl(const Key &key, signed char &cmp_result, Path &path) noexcept
   {
-    if (avl_stack.is_empty())
-      {
-        avl_stack.push(head_ptr);
-        return;
-      }
-
-    if (avl_stack.base() != head_ptr)
-      {
-        avl_stack.empty();
-        avl_stack.push(head_ptr);
-        return;
-      }
-
-    if (const size_t to_pop = avl_stack.size() - 1; to_pop > 0)
-      avl_stack.popn(static_cast<int>(to_pop));
-  }
-
-  Node *search_and_stack_avl(const Key &key, signed char &cmp_result) noexcept
-  {
-    assert(avl_stack_at_base());
+    assert(at_head(path) and path.base() == head_ptr);
 
     Node *p = root;
     Node *candidate = nullptr;  // Tracks potential duplicate when going right
@@ -149,7 +135,7 @@ private:
       {
         __builtin_prefetch(LLINK(p));
         __builtin_prefetch(RLINK(p));
-        avl_stack.push(p);
+        path.push(p);
         if (cmp(key, KEY(p)))  // key < KEY(p)
           {
             cmp_result = CmpLess;
@@ -158,7 +144,7 @@ private:
         else  // key >= KEY(p), could be equal
           {
             candidate = p;
-            candidate_pos = avl_stack.size();
+            candidate_pos = path.size();
             cmp_result = CmpGreater;
             p = RLINK(p);
           }
@@ -170,18 +156,18 @@ private:
       {
         cmp_result = CmpEqual;
         // Truncate stack: remove nodes pushed after candidate
-        const size_t to_pop = avl_stack.size() > candidate_pos ? avl_stack.size() - candidate_pos : 0;
+        const size_t to_pop = path.size() > candidate_pos ? path.size() - candidate_pos : 0;
         if (to_pop > 0)
-          avl_stack.popn(static_cast<int>(to_pop));
+          path.popn(to_pop);
         return candidate;
       }
 
-    return avl_stack.top();
+    return path.top();
   }
 
-  Node *search_dup_and_stack_avl(const Key &key, signed char &cmp_result) noexcept
+  Node *search_dup_and_stack_avl(const Key &key, signed char &cmp_result, Path &path) noexcept
   {
-    assert(avl_stack_at_base());
+    assert(at_head(path) and path.base() == head_ptr);
     cmp_result = CmpEqual;
 
     Node *p = root;
@@ -189,7 +175,7 @@ private:
       {
         __builtin_prefetch(LLINK(p));
         __builtin_prefetch(RLINK(p));
-        avl_stack.push(p);
+        path.push(p);
         if (cmp(key, KEY(p)))  // key < KEY(p)?
           {
             cmp_result = CmpLess;
@@ -202,7 +188,7 @@ private:
           }
     } while (p != Node::NullPtr);
 
-    return avl_stack.top();
+    return path.top();
   }
 
   [[gnu::always_inline]] static Node *rotateLeft(Node *p) noexcept
@@ -373,25 +359,22 @@ private:
     return nullptr;
   }
 
-  void restore_avl_after_insertion(Node *p) noexcept
+  void restore_avl_after_insertion(Node *p, Path &path) noexcept
   {
-    Node *pp = avl_stack.pop();  // parent of the inserted node
+    Node *pp = path.pop();  // parent of the inserted node
     if (LLINK(pp) == p)          // adjust parent's balance factor
       --DIFF(pp);
     else
       ++DIFF(pp);
 
-    if (DIFF(pp) == 0)
-      {  // in this case, the height of pp's ancestor does not increase
-        clean_avl_stack();
-        return;
-      }
+    if (DIFF(pp) == 0)  // in this case, the height of pp's ancestor does not increase
+      return;
 
-    if (avl_stack_at_base())
+    if (at_head(path))
       return;  // pp is the root
     do         // search a node whose balance factor becomes 0
       {
-        Node *gpp = avl_stack.pop();  // parent of pp
+        Node *gpp = path.pop();  // parent of pp
         // update balance factors
         if (LLINK(gpp) == pp)  // AH_ERROR if (Compare () (key, KEY(gpp)))
           --DIFF(gpp);
@@ -402,39 +385,37 @@ private:
           break;                                // no rebalancing is needed
         if (DIFF(gpp) == -2 or DIFF(gpp) == 2)  // AVL violation?
           {                                     // yes ==> rebalancing is required
-            Node *ggpp = avl_stack.pop();
+            Node *ggpp = path.pop();
             restore_avl(gpp, ggpp);
             break;
           }
 
         pp = gpp;  // AH_ERROR; add
-    } while (not avl_stack_at_base());
-
-    clean_avl_stack();
+    } while (not at_head(path));
   }
 
-  Node *swapWithSuccessor(Node *p, Node *&pp) noexcept
+  Node *swapWithSuccessor(Node *p, Node *&pp, Path &path) noexcept
   {  // Reference to the stack top, since p will be swapped with its
     // successor and the successor will take p's position in the stack
-    Node *&ref_to_stack_top = avl_stack.top();
+    Node *&ref_to_stack_top = path.top();
 
     Node *fSucc = p;        // successor's parent
     Node *succ = RLINK(p);  // search starts from RLINK(p)
 
-    avl_stack.push(succ);
+    path.push(succ);
 
     // find the successor while updating the stack
     while (LLINK(succ) != Node::NullPtr)  // descend as far left as possible
       {
         fSucc = succ;
         succ = LLINK(succ);
-        avl_stack.push(succ);
+        path.push(succ);
       }
 
     // update old stack entry occupied by p: it is equivalent to swapping
     // the old top (before searching succ) with the current one
     ref_to_stack_top = succ;
-    avl_stack.top() = p;
+    path.top() = p;
     if (LLINK(pp) == p)  // update pp's new child (successor)
       LLINK(pp) = succ;
     else
@@ -462,10 +443,10 @@ private:
     return succ;
   }
 
-  void restore_avl_after_deletion(bool left_deficit) noexcept
+  void restore_avl_after_deletion(bool left_deficit, Path &path) noexcept
   {
-    Node *pp = avl_stack.top(1);    // parent of p
-    Node *ppp = avl_stack.popn(3);  // remove from stack p, parent and grandparent
+    Node *pp = path.top(1);    // parent of p
+    Node *ppp = path.popn(3);  // remove from stack p, parent and grandparent
     while (true)
       {                    // update balance factors
         if (left_deficit)  // AH_ERROR Compare () (key, KEY(pp)))
@@ -481,10 +462,8 @@ private:
 
         left_deficit = LLINK(ppp) == pp;
         pp = ppp;  // advance to next ancestor
-        ppp = avl_stack.pop();
+        ppp = path.pop();
       }
-
-    clean_avl_stack();
   }
 
 public:
@@ -503,9 +482,9 @@ public:
   }
 
   Gen_Avl_Tree(Compare _cmp = Compare()) noexcept
-    : avl_stack(Node::MaxHeight), head_ptr(&head_node), root(RLINK(head_ptr)), cmp(_cmp)
+    : head_ptr(&head_node), root(RLINK(head_ptr)), cmp(_cmp)
   {
-    avl_stack.push(head_ptr);
+    // empty
   }
 
   /** Swap in constant time all the items of `this` with the items of
@@ -519,10 +498,7 @@ public:
     std::swap(cmp, tree.cmp);
   }
 
-  virtual ~Gen_Avl_Tree() noexcept
-  {
-    assert(avl_stack_at_base());
-  }
+  virtual ~Gen_Avl_Tree() noexcept = default;
 
   /// Return a modifiable reference to tree's root
   [[nodiscard]] constexpr Node *&getRoot() noexcept
@@ -572,18 +548,17 @@ public:
       return root = p;
 
     signed char cmp_result = CmpEqual;
-    Node *pp = search_and_stack_avl(KEY(p), cmp_result);
+    Path path;
+    path.push(head_ptr);
+    Node *pp = search_and_stack_avl(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(pp) = p;
     else if (cmp_result == CmpGreater)
       RLINK(pp) = p;
     else
-      {  // duplicated key
-        clean_avl_stack();
-        return nullptr;
-      }
+      return nullptr;  // duplicated key
 
-    restore_avl_after_insertion(p);
+    restore_avl_after_insertion(p, path);
 
     return p;
   }
@@ -609,18 +584,17 @@ public:
       return root = p;
 
     signed char cmp_result = CmpEqual;
-    Node *pp = search_and_stack_avl(KEY(p), cmp_result);
+    Path path;
+    path.push(head_ptr);
+    Node *pp = search_and_stack_avl(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(pp) = p;
     else if (cmp_result == CmpGreater)
       RLINK(pp) = p;
     else
-      {  // duplicated key
-        clean_avl_stack();
-        return pp;
-      }
+      return pp;  // duplicated key
 
-    restore_avl_after_insertion(p);
+    restore_avl_after_insertion(p, path);
 
     return p;
   }
@@ -632,13 +606,15 @@ public:
       return root = p;
 
     signed char cmp_result = CmpEqual;
-    Node *pp = search_dup_and_stack_avl(KEY(p), cmp_result);
+    Path path;
+    path.push(head_ptr);
+    Node *pp = search_dup_and_stack_avl(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(pp) = p;
     else
       RLINK(pp) = p;
 
-    restore_avl_after_insertion(p);
+    restore_avl_after_insertion(p, path);
 
     return p;
   }
@@ -651,14 +627,13 @@ public:
       return nullptr;
 
     signed char cmp_result = CmpEqual;
-    Node *p = search_and_stack_avl(key, cmp_result);
+    Path path;
+    path.push(head_ptr);
+    Node *p = search_and_stack_avl(key, cmp_result, path);
     if (cmp_result != CmpEqual)
-      {  // key was not found
-        clean_avl_stack();
-        return nullptr;
-      }
+      return nullptr;  // key was not found
 
-    Node *pp = avl_stack.top(1);  // get parent of p
+    Node *pp = path.top(1);  // get parent of p
     bool left_deficit;            // AH_ERROR Key removed_key = KEY(p);
     while (true)
       {
@@ -682,19 +657,16 @@ public:
           }
 
         // here p is a full node ==> swap with successor
-        swapWithSuccessor(p, pp);
+        swapWithSuccessor(p, pp, path);
         //    removed_key = KEY(succ); // AH_ERROR remove
       }
 
     p->reset();
 
     if (pp == head_ptr)  // check if the root was removed
-      {                  // balance factors unchanged ==> AVL condition is not violated
-        clean_avl_stack();
-        return p;
-      }
+      return p;  // balance factors unchanged ==> AVL condition is not violated
 
-    restore_avl_after_deletion(left_deficit);
+    restore_avl_after_deletion(left_deficit, path);
 
     return p;
   }

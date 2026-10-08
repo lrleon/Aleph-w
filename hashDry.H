@@ -57,6 +57,7 @@
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
+# include <ah-iterator.H>
 
 /** @brief CRTP mixin providing common operations for open addressing hash tables.
 
@@ -861,13 +862,16 @@ public:
     Iterator() noexcept = default;
 
     /** @brief Constructs an iterator positioned at the first entry.
-        @param table The hash table to iterate over.
+        @param table The modifiable hash table to iterate over.
     */
-    Iterator(const HashTbl & table) noexcept
-      : table_ptr(&const_cast<HashTbl&>(table)), curr_idx(0), ordinal(-1)
+    Iterator(HashTbl & table) noexcept
+      : table_ptr(&table), curr_idx(0), ordinal(-1)
     {
       reset_first();
     }
+
+    /// A constant table is iterated through Const_Iterator.
+    Iterator(const HashTbl &) = delete;
 
     /** @brief Deletes the current entry and advances to the next.
         
@@ -891,6 +895,9 @@ public:
       while (table_ptr->table[++curr_idx].status != HashTbl::BUSY);
     }
   };
+
+  /// Read-only iterator: the iterator of a constant table.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 
   /** @brief Returns a list containing all keys in the table.
       

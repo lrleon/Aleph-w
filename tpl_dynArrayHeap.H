@@ -61,6 +61,7 @@
 
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
+#include <ah-iterator.H>
 
 namespace Aleph
 {
@@ -326,7 +327,20 @@ namespace Aleph
       }
 
       [[nodiscard]] long get_pos() const noexcept { return this->Base::get_pos() - 1; }
+
+      /// The current item, read-only: the heap order must not be broken.
+      [[nodiscard]] const T & get_curr() const { return Base::get_curr(); }
+
+      /// \overload get_curr()
+      [[nodiscard]] const T & get_curr_ne() const
+        noexcept(noexcept(std::declval<const Base &>().get_curr_ne()))
+      {
+        return Base::get_curr_ne();
+      }
     };
+
+    /// Read-only iterator: the iterator of a constant container.
+    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 
     /** Traverse all elements in the heap.
      *

@@ -64,6 +64,7 @@
 #include <ahDry.H>
 #include <ah-dry.H>
 #include <ah-errors.H>
+#include <ah-iterator.H>
 
 namespace Aleph
 {
@@ -621,7 +622,19 @@ namespace Aleph
         : Array_Iterator<T>(no_exception_ctor, h.array + 1, h.dim, h.num_items)
       { /* empty */
       }
+
+      /// The current item, read-only: the heap order must not be broken.
+      [[nodiscard]] const T & get_curr() const { return Array_Iterator<T>::get_curr(); }
+
+      /// \overload get_curr()
+      [[nodiscard]] const T & get_curr_ne() const noexcept
+      {
+        return Array_Iterator<T>::get_curr_ne();
+      }
     };
+
+    /// Read-only iterator: the iterator of a constant container.
+    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 
   private:
     // superfast array traversal

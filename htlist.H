@@ -1340,7 +1340,15 @@ public:
 
       \return a modifiable reference to the last item
   */
-  T & get_last_ne() const noexcept
+  T & get_last_ne() noexcept
+  {
+    auto * p = static_cast<Snodenc<T>*> (this->HTList::get_last());
+    return p->get_data();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T & get_last_ne() const noexcept
   {
     auto * p = static_cast<Snodenc<T>*> (this->HTList::get_last());
     return p->get_data();
@@ -1350,7 +1358,14 @@ public:
 
       \return a modifiable reference to the first item
   */
-  T & get_first_ne() const noexcept
+  T & get_first_ne() noexcept
+  {
+    return static_cast<Snodenc<T>*>(this->HTList::get_first())->get_data();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T & get_first_ne() const noexcept
   {
     return static_cast<Snodenc<T>*>(this->HTList::get_first())->get_data();
   }
@@ -1360,7 +1375,16 @@ public:
       \return a modifiable reference to the last item
       \throw underflow_error if the list is empty
   */
-  T & get_last() const
+  T & get_last()
+  {
+    ah_underflow_error_if(is_empty())
+      << "List is empty";
+    return get_last_ne();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T & get_last() const
   {
     ah_underflow_error_if(is_empty())
       << "List is empty";
@@ -1372,7 +1396,16 @@ public:
       \return a modifiable reference to the first item
       \throw underflow_error if the list is empty
   */
-  T & get_first() const
+  T & get_first()
+  {
+    ah_underflow_error_if(is_empty())
+      << "List is empty";
+    return get_first_ne();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T & get_first() const
   {
     ah_underflow_error_if(is_empty())
       << "List is empty";
@@ -1380,7 +1413,14 @@ public:
   }
 
   /// \overload get_first()
-  T & top() const
+  T & top()
+  {
+    return get_first();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T & top() const
   {
     return get_first();
   }
@@ -1428,9 +1468,12 @@ public:
 
     Iterator() noexcept = default;
 
-    /// Initiliaze an iterator on the first item of `list`
-    Iterator(const DynList & list) noexcept
+    /// Iterator on the modifiable list `list`.
+    Iterator(DynList & list) noexcept
       : HTList::Iterator(list) { /* empty */ }
+
+    /// A constant list is iterated through Const_Iterator.
+    Iterator(const DynList &) = delete;
 
         /// Return the current link guaranteeing no exception. Be careful.
     T & get_curr_ne() const noexcept
@@ -1465,6 +1508,9 @@ public:
       return ret_val;
     }
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 
   DynList & reverse() noexcept
   {
@@ -1577,7 +1623,7 @@ public:
 
     empty();
 
-    for (typename DynList::Iterator it(l); it.has_curr(); it.next_ne())
+    for (auto it = l.get_it(); it.has_curr(); it.next_ne())
       append(it.get_curr());
 
     return *this;

@@ -59,7 +59,7 @@ static Geom_Number brute_distance_squared(const DynList<Point> & pts,
                                           Point & out_a, Point & out_b)
 {
   Array<Point> arr;
-  for (DynList<Point>::Iterator it(pts); it.has_curr(); it.next_ne())
+  for (auto it = pts.get_it(); it.has_curr(); it.next_ne())
     arr.append(it.get_curr());
 
   assert(arr.size() >= 2);

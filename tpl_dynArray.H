@@ -60,6 +60,7 @@
 #include <ah-dry.H>
 #include <ah-errors.H>
 #include <tpl_array.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 class BitArray;  // forward needed
@@ -995,7 +996,17 @@ public:
            to read an entry that may never have been written.
       @see exist
   */
-  T &access(const size_t i) const noexcept
+  T &access(const size_t i) noexcept
+  {
+    assert(dir[index_in_dir(i)] != nullptr);
+    assert(dir[index_in_dir(i)][index_in_seg(i)] != nullptr);
+
+    return dir[index_in_dir(i)][index_in_seg(i)][index_in_block(i)];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &access(const size_t i) const noexcept
   {
     assert(dir[index_in_dir(i)] != nullptr);
     assert(dir[index_in_dir(i)][index_in_seg(i)] != nullptr);
@@ -1004,7 +1015,14 @@ public:
   }
 
   /// \overload access(const size_t i)
-  T &operator () (const size_t i) const noexcept
+  T &operator () (const size_t i) noexcept
+  {
+    return access(i);
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &operator () (const size_t i) const noexcept
   {
     return access(i);
   }
@@ -1697,27 +1715,50 @@ public:
   }
 
   /// Return a modifiable reference to the last item of stack
-  T &top() const
+  T &top()
   {
     ensure_not_empty("DynArray::top(): empty array");
-    // A modifiable reference: allocate the entry's block, as a[i] does.
-    return const_cast<DynArray &>(*this).touch(size() - 1);
+    return touch(size() - 1);  // allocates, as a[i] does
+  }
+
+  /// \overload
+  /// A reference to const, it never allocates.
+  const T &top() const
+  {
+    ensure_not_empty("DynArray::top(): empty array");
+    return read(size() - 1);
   }
 
   /// Return a modifiable reference to the first item of array (as if
   /// this was a queue)
-  T &get_first() const
+  T &get_first()
   {
     ensure_not_empty("DynArray::get_first(): empty array");
-    return const_cast<DynArray &>(*this).touch(0);  // allocates, as a[i] does
+    return touch(0);  // allocates, as a[i] does
+  }
+
+  /// \overload
+  /// A reference to const, it never allocates.
+  const T &get_first() const
+  {
+    ensure_not_empty("DynArray::get_first(): empty array");
+    return read(0);
   }
 
   /// Return a modifiable reference to the last item of array (as if
   /// this was a queue)
-  T &get_last() const
+  T &get_last()
   {
     ensure_not_empty("DynArray::get_last(): empty array");
-    return const_cast<DynArray &>(*this).touch(size() - 1);  // allocates, as a[i] does
+    return touch(size() - 1);  // allocates, as a[i] does
+  }
+
+  /// \overload
+  /// A reference to const, it never allocates.
+  const T &get_last() const
+  {
+    ensure_not_empty("DynArray::get_last(): empty array");
+    return read(size() - 1);
   }
 
   /** Iterator on the items of array.
@@ -1773,9 +1814,13 @@ public:
       // empty
     }
 
+  protected:
     /** @brief Iterator on a constant array; it never allocates.
 
-        An entry that was never written is seen as the default value.
+        An entry that was never written is seen as the default value. It is
+        the view of DynArray::Const_Iterator, and of the iterators that
+        derive from this one: a constant array is iterated through
+        Const_Iterator, which hands out references to const.
 
         @param[in] array array to iterate.
     */
@@ -1783,6 +1828,9 @@ public:
     {
       // empty
     }
+    friend class Aleph::Const_Iterator<Iterator>;
+
+  public:
 
     /** @brief Check whether the iterator refers to an item.
 
@@ -1915,6 +1963,9 @@ public:
     }
   };
 
+  /// Read-only iterator: the iterator of a constant array; it never allocates.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
+
   /** @brief Iterator on the modifiable array, positioned on entry 0.
       @return the iterator; reading an entry never written allocates it.
   */
@@ -1926,9 +1977,9 @@ public:
   /** @brief Iterator on the constant array, positioned on entry 0.
       @return the iterator; it never allocates.
   */
-  [[nodiscard]] Iterator get_it() const
+  [[nodiscard]] Const_Iterator get_it() const
   {
-    return Iterator(*this);
+    return Const_Iterator(*this);
   }
 
   /** @brief Iterator on the modifiable array, positioned on entry pos.
@@ -1949,10 +2000,10 @@ public:
       @return the iterator; it never allocates.
       @throw out_of_range if pos >= size().
   */
-  [[nodiscard]] Iterator get_it(const size_t pos) const
+  [[nodiscard]] Const_Iterator get_it(const size_t pos) const
   {
     ah_out_of_range_error_if(pos >= size()) << "DynArray::get_it(pos): pos >= size()";
-    Iterator it(*this);
+    Const_Iterator it(*this);
     it.set_pos(static_cast<long>(pos));
     return it;
   }

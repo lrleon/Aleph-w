@@ -83,7 +83,7 @@ create_table
 {
   typedef HashTable<unsigned long, Aleph::equal_to<unsigned long>> SetType;
   SetType table;
-  for (typename SetType::Iterator it(other); it.has_curr(); it.next())
+  for (auto it = other.get_it(); it.has_curr(); it.next())
     table.insert(it.get_curr());
 
   return table;

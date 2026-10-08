@@ -68,6 +68,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <ah-concepts.H>
 #include <ah-errors.H>
 
 namespace Aleph {
@@ -784,6 +785,7 @@ public:
    *  @return `true` if all elements were visited, `false` if stopped early.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation operation)
   {
     for (size_t i = 0; i < n_; ++i)
@@ -798,10 +800,11 @@ public:
    *  @return `true` if all elements were visited, `false` if stopped early.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation operation) const
   {
     for (size_t i = 0; i < n_; ++i)
-      if (not operation(ptr_[i]))
+      if (not operation(std::as_const(ptr_[i])))
         return false;
     return true;
   }

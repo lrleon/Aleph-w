@@ -512,7 +512,7 @@ public:
    *  @param[in] key The key to search for.
    *  @return Pointer to the key if found, nullptr otherwise.
    */
-  [[nodiscard]] Key * search(const Key & key) const noexcept
+  [[nodiscard]] const Key * search(const Key & key) const noexcept
   {
     Node * x = header;
     
@@ -523,9 +523,16 @@ public:
     x = x->forward[0];
     
     if (x != nullptr and keys_equal(x->key, key))
-      return const_cast<Key*>(&x->key);
+      return &x->key;
 
     return nullptr;
+  }
+
+  /// \overload
+  /// The same key, modifiable.
+  [[nodiscard]] Key * search(const Key & key) noexcept
+  {
+    return const_cast<Key *>(std::as_const(*this).search(key));
   }
 
   /// Return true if the key exists in the set
@@ -753,12 +760,6 @@ public:
 
     [[nodiscard]] const Key & get_curr_ne() const noexcept
     {
-      return curr->key;
-    }
-
-    Key & get_curr()
-    {
-      ah_overflow_error_if(curr == nullptr) << "DynSkipList::Iterator overflow";
       return curr->key;
     }
 

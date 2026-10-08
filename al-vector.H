@@ -375,7 +375,20 @@ namespace Aleph
        @param i Index (must be in domain)
        @return Pointer to value if exists, nullptr otherwise
     */
-    NumType * search_entry(const T & i) const noexcept
+    NumType * search_entry(const T & i) noexcept
+    {
+      assert(domain_ptr->has(i));
+
+      auto *ptr = entries.search(i);
+      if (ptr == nullptr)
+        return nullptr;
+
+      return &ptr->second;
+    }
+
+    /// \overload
+    /// A pointer to const.
+    const NumType * search_entry(const T & i) const noexcept
     {
       assert(domain_ptr->has(i));
 
@@ -693,11 +706,26 @@ namespace Aleph
 
     struct Iterator : public Map::Iterator
     {
-      Iterator(const Vector & vec) : Map::Iterator(vec.entries) {}
+      /// Iterator on the entries of the modifiable vector `vec`.
+      Iterator(Vector & vec) : Map::Iterator(vec.entries) {}
+
+      /// A constant vector is iterated through Const_Iterator.
+      Iterator(const Vector &) = delete;
     };
 
-    Iterator get_itor() const noexcept { return Iterator(*this); }
-    Iterator get_it() const noexcept { return Iterator(*this); }
+    /// Read-only iterator: the iterator of a constant vector.
+    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
+
+    Iterator get_itor() noexcept { return Iterator(*this); }
+    Iterator get_it() noexcept { return Iterator(*this); }
+
+    /// \overload
+    /// Read-only.
+    Const_Iterator get_itor() const noexcept { return Const_Iterator(*this); }
+
+    /// \overload
+    /// Read-only.
+    Const_Iterator get_it() const noexcept { return Const_Iterator(*this); }
 
     // Note: traverse(), for_each(), all(), exists(), maps(), filter(),
     // foldl(), fold(), partition(), take(), drop(), rev(), length(),
