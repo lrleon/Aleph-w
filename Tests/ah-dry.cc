@@ -1000,6 +1000,70 @@ TEST(LocateFunctions, find_item_needs_a_default_constructor_find_opt_does_not)
   EXPECT_FALSE(l.find_opt([] (const No_Default & x) { return x.value == 9; }).has_value());
 }
 
+/* In the next two tests the containers are instantiated before their item
+   type is complete. At that point Clang 14 checked the mixin constraints
+   that depend only on the item type, and cached `false`: the members
+   vanished, and the cached traits also broke later checks. These tests did
+   not compile with Clang 14 until those constraints were deferred to the
+   call. */
+namespace
+{
+  // Item's default member initializer is parsed only when Nested_Items is
+  // complete, so until then Item is not default-constructible.
+  struct Nested_Items
+  {
+    struct Item
+    {
+      int value = 2;
+    };
+
+    Array<Item> array;
+    DynArray<Item> dynarray;
+    DynList<Item> list;
+  };
+
+  // The list is instantiated while Recursive_Item is incomplete, and the
+  // operator == is declared after it.
+  struct Recursive_Item
+  {
+    int value = 2;
+    DynList<Recursive_Item> children;
+
+    bool operator == (const Recursive_Item & o) const { return value == o.value; }
+  };
+}
+
+TEST(IncompleteItemType, nested_type_with_default_member_initializers)
+{
+  // The cached default constructibility also failed the static_asserts of
+  // Array and DynArray.
+  Nested_Items n;
+  n.array.append(Nested_Items::Item());
+  n.dynarray.append(Nested_Items::Item());
+  n.list.append(Nested_Items::Item());
+
+  auto is_two = [] (const Nested_Items::Item & i) { return i.value == 2; };
+  EXPECT_TRUE(get<0>(n.array.find_item(is_two)));
+  EXPECT_TRUE(get<0>(n.dynarray.find_item(is_two)));
+  EXPECT_TRUE(get<0>(n.list.find_item(is_two)));
+}
+
+TEST(IncompleteItemType, recursive_type)
+{
+  // A cached `is_nothrow_destructible` also made the item look not
+  // destructible, so emplace() vanished too.
+  Recursive_Item r;
+  r.children.emplace();
+  r.children.append(Recursive_Item());
+
+  auto is_two = [] (const Recursive_Item & i) { return i.value == 2; };
+  EXPECT_TRUE(get<0>(r.children.find_item(is_two)));
+  EXPECT_TRUE(r.children.find_opt(is_two).has_value());
+  EXPECT_TRUE(r.children.contains(Recursive_Item()));
+  auto keep_first = [] (Recursive_Item a, const Recursive_Item &) { return a; };
+  EXPECT_EQ(r.children.reduce(keep_first)->value, 2);
+}
+
 TEST(EqualityMethods, sequences_compare_order_and_repetitions)
 {
   // Stacks and queues used EqualToMethod, a set equality: [1,2] == [2,1]

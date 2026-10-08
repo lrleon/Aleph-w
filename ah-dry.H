@@ -943,9 +943,9 @@ public:
       when none of them can throw.
       \see find_opt()
   */
-  template <class Operation>
+  template <class Operation, class T = Type>  // T defers the checks on Type to calls (Clang 14)
     requires Aleph::InvocablePredicateWith<Operation &, const Type &>
-             and std::default_initializable<Type> and std::copy_constructible<Type>
+             and std::default_initializable<T> and std::copy_constructible<T>
   [[nodiscard]] std::tuple<bool, Type> find_item(Operation & operation) const
     noexcept(find_item_is_noexcept<Operation>())
   {
@@ -967,9 +967,9 @@ public:
    *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
-  template <class Operation>
+  template <class Operation, class T = Type>
     requires Aleph::InvocablePredicateWith<Operation &, const Type &>
-             and std::default_initializable<Type> and std::copy_constructible<Type>
+             and std::default_initializable<T> and std::copy_constructible<T>
   [[nodiscard]] std::tuple<bool, Type> find_item(Operation && operation) const
     noexcept(find_item_is_noexcept<Operation>())
   {
@@ -988,9 +988,9 @@ public:
    *  @return a copy of the first matching item, or `std::nullopt`.
    *  @throws anything that `operation` or the copy of the item throws.
    */
-  template <class Operation>
+  template <class Operation, class T = Type>  // T defers the checks on Type to calls (Clang 14)
     requires Aleph::InvocablePredicateWith<Operation &, const Type &>
-             and std::copy_constructible<Type>
+             and std::copy_constructible<T>
   [[nodiscard]] std::optional<Type> find_opt(Operation & operation) const
   {
     auto ptr = const_me()->find_ptr(operation);
@@ -1006,9 +1006,9 @@ public:
    *  @return a copy of the first matching item, or `std::nullopt`.
    *  @throws anything that `operation` or the copy of the item throws.
    */
-  template <class Operation>
+  template <class Operation, class T = Type>
     requires Aleph::InvocablePredicateWith<Operation &, const Type &>
-             and std::copy_constructible<Type>
+             and std::copy_constructible<T>
   [[nodiscard]] std::optional<Type> find_opt(Operation && operation) const
   {
     return find_opt<Operation>(operation);
@@ -1035,8 +1035,9 @@ public:
    *  @return true if item is found, false otherwise.
    *  @throws Anything propagated by `operator==` for `Type`.
    */
+  template <class T = Type>  // a template so that Clang 14 checks the constraint on use
+    requires requires(const T & a, const T & b) { { a == b } -> std::convertible_to<bool>; }
   [[nodiscard]] bool contains(const Type & item) const
-    requires requires(const Type & a, const Type & b) { { a == b } -> std::convertible_to<bool>; }
   {
     return contains_if([&item] (const Type & x)
       {
@@ -2105,8 +2106,8 @@ public:
    *  @return the folded value, or `std::nullopt` if the container is empty.
    *  @throws anything that `op` or the copy of `T` throws.
    */
-  template <class Op>
-    requires Aleph::dry_detail::FoldOperation<Op, T, T> and std::copy_constructible<T>
+  template <class Op, class U = T>  // U defers the check on T to calls (Clang 14)
+    requires Aleph::dry_detail::FoldOperation<Op, T, T> and std::copy_constructible<U>
   [[nodiscard]] std::optional<T> reduce(Op & op) const
   {
     std::optional<T> acc;
@@ -2126,8 +2127,8 @@ public:
    *  @return the folded value, or `std::nullopt` if the container is empty.
    *  @throws anything that `op` or the copy of `T` throws.
    */
-  template <class Op>
-    requires Aleph::dry_detail::FoldOperation<Op, T, T> and std::copy_constructible<T>
+  template <class Op, class U = T>
+    requires Aleph::dry_detail::FoldOperation<Op, T, T> and std::copy_constructible<U>
   [[nodiscard]] std::optional<T> reduce(Op && op) const
   {
     return reduce<Op>(op);
