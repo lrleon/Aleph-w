@@ -34,6 +34,12 @@
  * @brief The balanced trees and their iterators allocate nothing but their
  *        nodes: construction, move, iteration and the path stacks of the
  *        operations never allocate, so their noexcept specifications hold.
+ *
+ * The allocations are counted by replacing the global allocation functions.
+ * A sanitizer that brings its own allocator defines them in its runtime
+ * (ThreadSanitizer and MemorySanitizer link them into the program, so a
+ * second definition does not link): under one, the replacement is left out
+ * and the tests that count are skipped.
  */
 
 #include <gtest/gtest.h>
@@ -61,6 +67,24 @@
 
 using namespace Aleph;
 
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__) \
+    || defined(__SANITIZE_HWADDRESS__)
+# define COUNT_ALLOCATIONS 0
+#elif defined(__has_feature)
+# if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer) \
+     || __has_feature(memory_sanitizer) || __has_feature(hwaddress_sanitizer)
+#   define COUNT_ALLOCATIONS 0
+# endif
+#endif
+#ifndef COUNT_ALLOCATIONS
+# define COUNT_ALLOCATIONS 1
+#endif
+
+// Skip a test that counts allocations when they cannot be counted.
+#define SKIP_UNLESS_COUNTING_ALLOCATIONS()                                   \
+  if (not COUNT_ALLOCATIONS)                                                 \
+    GTEST_SKIP() << "a sanitizer provides the allocation functions"
+
 #if defined(__GNUC__) || defined(__clang__)
 # define ALEPH_TEST_NOINLINE [[gnu::noinline]]
 #else
@@ -76,6 +100,7 @@ namespace
   // malloc() and free() with the operators and warn about a mismatch.
   long allocations = 0;
 
+#if COUNT_ALLOCATIONS
   ALEPH_TEST_NOINLINE void *allocate(std::size_t size)
   {
     ++allocations;
@@ -88,6 +113,7 @@ namespace
   {
     std::free(p);
   }
+#endif
 
   template <class Action>
   long allocations_of(Action action)
@@ -98,6 +124,7 @@ namespace
   }
 }
 
+#if COUNT_ALLOCATIONS
 void *operator new(std::size_t size) { return allocate(size); }
 void *operator new[](std::size_t size) { return allocate(size); }
 
@@ -131,9 +158,12 @@ void operator delete(void *p, std::size_t) noexcept { release(p); }
 void operator delete[](void *p, std::size_t) noexcept { release(p); }
 void operator delete(void *p, const std::nothrow_t &) noexcept { release(p); }
 void operator delete[](void *p, const std::nothrow_t &) noexcept { release(p); }
+#endif
 
 TEST(TreeAllocation, constructing_a_tree_does_not_allocate)
 {
+  SKIP_UNLESS_COUNTING_ALLOCATIONS();
+
   EXPECT_EQ(allocations_of([] { Avl_Tree<int> t; (void) t; }), 0);
   EXPECT_EQ(allocations_of([] { Avl_Tree_Rk<int> t; (void) t; }), 0);
   EXPECT_EQ(allocations_of([] { Rb_Tree<int> t; (void) t; }), 0);
@@ -153,6 +183,8 @@ TEST(TreeAllocation, constructing_a_tree_does_not_allocate)
 
 TEST(TreeAllocation, moving_a_tree_does_not_allocate)
 {
+  SKIP_UNLESS_COUNTING_ALLOCATIONS();
+
   DynMapTree<int, int> m;
   for (int i = 0; i < 100; ++i)
     m.insert(i, i);
@@ -195,6 +227,8 @@ namespace
 
 TEST(TreeAllocation, insert_and_remove_allocate_only_the_node)
 {
+  SKIP_UNLESS_COUNTING_ALLOCATIONS();
+
   check_insert_and_remove_allocate_only_the_node<DynSetTree<int, Avl_Tree>>();
   check_insert_and_remove_allocate_only_the_node<DynSetTree<int, Avl_Tree_Rk>>();
   check_insert_and_remove_allocate_only_the_node<DynSetTree<int, Rb_Tree>>();
@@ -217,6 +251,8 @@ TEST(TreeAllocation, insert_and_remove_allocate_only_the_node)
 
 TEST(TreeAllocation, iterating_does_not_allocate)
 {
+  SKIP_UNLESS_COUNTING_ALLOCATIONS();
+
   DynSetTree<int> s;
   for (int i = 0; i < 100; ++i)
     s.insert(i);
@@ -288,6 +324,11 @@ TEST(TreeAllocation, noexcept_specifications_hold)
   static_assert(std::is_nothrow_move_constructible_v<DynSetTree<int>>);
   static_assert(std::is_nothrow_move_constructible_v<DynMapTree<int, int>>);
   using Node = AvlNode<int>;
-  static_assert(std::is_nothrow_constructible_v<BinNodeInfixIterator<Node>, Node *>);
+  // The inorder iterator pushes the left spine when it is built, and both
+  // iterators push while they advance: past Node::MaxHeight pending nodes
+  // they move to the heap, so those operations may throw bad_alloc.
+  static_assert(not std::is_nothrow_constructible_v<BinNodeInfixIterator<Node>, Node *>);
   static_assert(std::is_nothrow_constructible_v<BinNodePrefixIterator<Node>, Node *>);
+  static_assert(not noexcept(std::declval<BinNodeInfixIterator<Node> &>().next_ne()));
+  static_assert(not noexcept(std::declval<BinNodePrefixIterator<Node> &>().next_ne()));
 }

@@ -613,8 +613,11 @@ endif()
 # libgmpxx. Outside macOS the system libgmpxx is built with libstdc++, so it
 # does not link with libc++ (macOS's Homebrew GMP is built with libc++).
 set(_ALEPH_GMPXX_LIBCXX_MISMATCH OFF)
+string(TOUPPER "${CMAKE_BUILD_TYPE}" _ALEPH_BUILD_TYPE_UPPER)
+set(_ALEPH_ACTIVE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_ALEPH_BUILD_TYPE_UPPER}}")
 if(NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"
-   AND (ALEPH_USE_LIBCXX OR CMAKE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+"))
+   AND (ALEPH_USE_LIBCXX OR _ALEPH_ACTIVE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+"))
     set(_ALEPH_GMPXX_LIBCXX_MISMATCH ON)
     list(REMOVE_ITEM TEST_PROGRAMS gmpfrxx_test)
 endif()

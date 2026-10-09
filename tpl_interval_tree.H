@@ -1460,9 +1460,11 @@ namespace Aleph
       void next() { it.next(); }
 
       /** @brief Advance to the next element (no check).
-       *  @throws none
+       *  @throws bad_alloc only if the tree is deeper than its node's
+       *          `MaxHeight` and the iterator's pending nodes cannot be
+       *          moved to the heap.
        */
-      void next_ne() noexcept { it.next_ne(); }
+      void next_ne() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
       /** @brief Go back to the previous element.
        *  @throws ah_invalid_argument if already at the beginning.
@@ -1470,9 +1472,9 @@ namespace Aleph
       void prev() { it.prev(); }
 
       /** @brief Reset to the first element in traversal order.
-       *  @throws none
+       *  @throws bad_alloc as next_ne() does.
        */
-      void reset_first() noexcept { it.reset_first(); }
+      void reset_first() noexcept(noexcept(it.reset_first())) { it.reset_first(); }
 
       /** @brief Move to the position after the last element.
        *  @throws none
