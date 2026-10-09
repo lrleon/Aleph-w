@@ -1824,62 +1824,43 @@ template <class C1, class C2>
   return Pair_Iterator<decltype(i1), decltype(i2)>(i1, i2);
 }
 
-/// @cond INTERNAL
-template <class C>
-inline void insert_in_container(C &, size_t &)
-{}
-
-template <class C, typename T, typename... Args>
-inline void insert_in_container(C &c, size_t &n, const T &item, Args &...args)
-{
-  c.insert(item);
-  ++n;
-  insert_in_container(c, n, args...);
-}
-/// @endcond
-
 /** @brief Insert multiple items into a container.
+
+    Each item is passed to `c.insert()`, in argument order; an rvalue is
+    moved.
     @return Number of items inserted.
 */
 template <class C, typename... Args>
-inline size_t insert_in_container(C &c, Args... args)
+inline size_t insert_in_container(C &c, Args &&... args)
 {
-  size_t n = 0;
-  insert_in_container(c, n, args...);
-  return n;
+  ((void) c.insert(std::forward<Args>(args)), ...);
+  return sizeof...(args);
 }
-
-/// @cond INTERNAL
-template <class C>
-inline void append_in_container(C &, size_t &)
-{}
-
-template <class C, typename T, typename... Args>
-inline void append_in_container(C &c, size_t &n, const T &item, Args &...args)
-{
-  c.append(item);
-  ++n;
-  append_in_container(c, n, args...);
-}
-/// @endcond
 
 /** @brief Append multiple items into a container.
+
+    Each item is passed to `c.append()`, in argument order; an rvalue is
+    moved.
     @return Number of items appended.
 */
 template <class C, typename... Args>
-inline size_t append_in_container(C &c, Args... args)
+inline size_t append_in_container(C &c, Args &&... args)
 {
-  size_t n = 0;
-  append_in_container(c, n, args...);
-  return n;
+  ((void) c.append(std::forward<Args>(args)), ...);
+  return sizeof...(args);
 }
 
-/** @brief Build a container with the given items. */
+/** @brief Build a container with the given items.
+
+    Each item is passed to the `append()` of `C`, in argument order; an
+    rvalue is moved. `C::build()`, when `C` has it, does the same and also
+    converts each item to the item type first.
+*/
 template <class C, typename... Args>
-[[nodiscard]] C build_container(Args... args)
+[[nodiscard]] C build_container(Args &&... args)
 {
   C c;
-  append_in_container(c, args...);
+  append_in_container(c, std::forward<Args>(args)...);
   return c;
 }
 
@@ -1894,11 +1875,11 @@ template <class SrcC, class TgtC>
   return ret;
 }
 
-/** @brief Build a DynList with the given items. */
+/** @brief Build a DynList with the given items; an rvalue is moved. */
 template <typename T, typename... Args>
-[[nodiscard]] DynList<T> build_dynlist(Args... args)
+[[nodiscard]] DynList<T> build_dynlist(Args &&... args)
 {
-  return build_container<DynList<T>>(args...);
+  return build_container<DynList<T>>(std::forward<Args>(args)...);
 }
 
 /// @cond INTERNAL

@@ -1189,6 +1189,22 @@ class FunctionalMethods
     return const_me()->traverse(operation);
   }
 
+  // What insert() and append() receive for an argument of type `Arg`: the
+  // argument itself when it is a T, or else a T converted from it, so that
+  // the container's overload for an item is the one called (DynList, for
+  // instance, also has an append() that concatenates a whole list).
+  template <class Arg>
+  using Item_Arg = std::conditional_t<std::is_same_v<std::remove_cvref_t<Arg>, T>, Arg, T>;
+
+  template <class Arg>
+  static decltype(auto) as_item(Arg && arg)
+  {
+    if constexpr (std::is_same_v<std::remove_cvref_t<Arg>, T>)
+      return std::forward<Arg>(arg);
+    else
+      return static_cast<T>(std::forward<Arg>(arg));
+  }
+
 public:
   /** Appends a new element into the container by constructing it
       from the given args.
@@ -1257,36 +1273,108 @@ public:
 
   /** Insert n variadic items
 
-      @param[in] args items to be inserted
+      @param[in] args items to be inserted, in argument order; an rvalue
+      is moved, and an argument of another type is converted to `T`.
       @return the number of inserted items
       @throw bad_alloc if there is no enough memory; the items inserted
       before stay inserted.
   */
   template <typename... Args>
-    requires (std::convertible_to<const Args &, const T &> and ...)
-             and requires(typename Aleph::concepts_detail::defer<Container, std::tuple<Args...>>::type & c, const T & x)
-               { c.insert(x); }
-  size_t ninsert(const Args &... args)
+    requires (std::convertible_to<Args &&, T> and ...)
+             and (Aleph::InsertableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<Args...>>::type,
+                                 Item_Arg<Args>> and ...)
+  size_t ninsert(Args &&... args)
   {
-    ((void) me()->insert(static_cast<const T &>(args)), ...);
+    ((void) me()->insert(as_item(std::forward<Args>(args))), ...);
     return sizeof...(args);
   }
 
   /** Append n variadic items
 
-      @param[in] args items to be appended
+      @param[in] args items to be appended, in argument order; an rvalue
+      is moved, and an argument of another type is converted to `T`.
       @return the number of appended items
       @throw bad_alloc if there is no enough memory; the items appended
       before stay appended.
   */
   template <typename... Args>
-    requires (std::convertible_to<const Args &, const T &> and ...)
-             and requires(typename Aleph::concepts_detail::defer<Container, std::tuple<Args...>>::type & c, const T & x)
-               { c.append(x); }
-  size_t nappend(const Args &... args)
+    requires (std::convertible_to<Args &&, T> and ...)
+             and (Aleph::AppendableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<Args...>>::type,
+                                 Item_Arg<Args>> and ...)
+  size_t nappend(Args &&... args)
   {
-    ((void) me()->append(static_cast<const T &>(args)), ...);
+    ((void) me()->append(as_item(std::forward<Args>(args))), ...);
     return sizeof...(args);
+  }
+
+  /** @brief Build a container that holds the given items.
+
+      `C::build(a, b, c)` builds the same container as `C{a, b, c}`: an
+      empty container that receives each item, in argument order, through
+      its `append()`. Hence the result follows the rules of the container:
+
+      - a sequence (`DynList`, `Array`, `DynArray`, ...) keeps the order;
+      - a stack ends with the last item on top, and a queue with the first
+        item at its front;
+      - a set or a map keeps one item per key: of two equal keys, the
+        first one stays;
+      - a heap keeps every item, in heap order;
+      - a fixed-capacity container (`FixedStack`, `FixedQueue`,
+        `ArrayHeap`) has its default capacity, as with the braces.
+
+      Unlike the braces, the items are forwarded: an rvalue is moved, so
+      move-only types such as `std::unique_ptr` can be stored, and an item
+      may have any type implicitly convertible to `T`, without the
+      narrowing errors of a braced list. Because build() is a named
+      function and not a constructor, `Array<int>::build(10)` always means
+      the one-element array `{10}`; a capacity is reserved with
+      `create_reserved()`.
+
+      A class derived from a container declares its own build() with
+      `Derived_Build(Name)`, so that it builds the derived class.
+
+      @param[in] items the items, in insertion order.
+      @return the container.
+      @throw anything that the default constructor of the container, the
+             conversion of an item to `T` or `append()` throws; then the
+             partially built container is destroyed and nothing leaks.
+      @see build_as() Derived_Build
+  */
+  template <typename... Items>
+    requires (std::convertible_to<Items &&, T> and ...)
+             and (Aleph::AppendableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<Items...>>::type,
+                                 Item_Arg<Items>> and ...)
+  [[nodiscard]] static Container build(Items &&... items)
+  {
+    return build_as<Container>(std::forward<Items>(items)...);
+  }
+
+  /** @brief Build a `D`, a class derived from the container, holding the
+             given items.
+
+      The items are appended exactly as build() appends them, through the
+      `append()` of the container, even if `D` declares an `append()` with
+      another meaning (as `DynMapTree` does, whose `append(key, data)`
+      takes the data apart). It is what `Derived_Build(Name)` uses.
+
+      @tparam D the class to build; it derives from the container and is
+             default constructible.
+      @param[in] items the items, in insertion order.
+      @return the `D`.
+      @throw anything that build() throws.
+  */
+  template <class D, typename... Items>
+    requires std::derived_from<D, typename Aleph::concepts_detail::defer<Container, D>::type>
+             and std::default_initializable<D>
+             and (std::convertible_to<Items &&, T> and ...)
+             and (Aleph::AppendableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<D, Items...>>::type,
+                                 Item_Arg<Items>> and ...)
+  [[nodiscard]] static D build_as(Items &&... items)
+  {
+    D d;
+    auto & c = static_cast<Container &>(d);
+    ((void) c.append(as_item(std::forward<Items>(items))), ...);
+    return d;
   }
 
   /** Traverse all the container and performs an operation on each
@@ -2702,6 +2790,26 @@ public:
       me()->remove();
   }
 };
+
+/** @brief Declare `build()` in a class derived from a container.
+
+    A class derived from a container inherits FunctionalMethods::build(),
+    which builds the base class. Placed in the public part of class `Name`,
+    `Derived_Build(Name)` declares a build() that builds a `Name` instead,
+    with the items appended as the base container appends them (see
+    FunctionalMethods::build_as()).
+
+    @param Name the derived class; inside a class template, its injected
+           name (`DynSetAvlTree`, not `DynSetAvlTree<Key, Compare>`).
+*/
+# define Derived_Build(Name)                                               \
+  template <typename... Items>                                             \
+    requires requires (Items &&... items)                                  \
+      { Name::template build_as<Name>(std::forward<Items>(items)...); }    \
+  [[nodiscard]] static Name build(Items &&... items)                       \
+  {                                                                        \
+    return Name::template build_as<Name>(std::forward<Items>(items)...);  \
+  }
 
 /** Generic list of items stored in a container.
 

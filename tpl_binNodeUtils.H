@@ -2413,10 +2413,14 @@ class BinNodePrefixIterator
 {
   Node *root = nullptr;
   Node *curr = Node::NullPtr;
-  // Pending nodes. MaxHeight is only an estimate, since the tree may be
-  // unbalanced: up to MaxHeight nodes live inside the iterator, without
-  // allocating, and a deeper tree moves them to the heap.
-  SmallVector<Node *, Node::MaxHeight> s;
+  // Pending nodes. Up to Inline_Depth of them live inside the iterator, so
+  // iterating a tree that is not deeper never allocates; a deeper tree moves
+  // them to the heap. The balanced trees fit (AvlNode::MaxHeight is 40 and
+  // RbNode::MaxHeight 128). The generic BinNode estimates a MaxHeight of
+  // 2048 for unbalanced trees; keeping all of it inline cost 16 KiB per
+  // iterator, so the inline part stops at 128.
+  static constexpr size_t Inline_Depth = Node::MaxHeight < 128 ? Node::MaxHeight : 128;
+  SmallVector<Node *, Inline_Depth> s;
 
 public:
   /// Swap `this`with `it`
@@ -2524,8 +2528,9 @@ public:
   }
 
   /** Move the iterator one position forward without checking it. Be careful.
-      @throw bad_alloc if the tree is deeper than `Node::MaxHeight` and the
-      pending nodes cannot be moved to the heap.
+      @throw bad_alloc if the tree is deeper than the inline capacity of the
+      iterator (`Node::MaxHeight`, at most 128) and the pending nodes cannot
+      be moved to the heap.
   */
   void next_ne()
   {
@@ -2628,10 +2633,14 @@ class BinNodeInfixIterator
   mutable Node *root = Node::NullPtr;
   Node *curr = Node::NullPtr;
   mutable long pos = 0;
-  // Pending nodes. MaxHeight is only an estimate, since the tree may be
-  // unbalanced: up to MaxHeight nodes live inside the iterator, without
-  // allocating, and a deeper tree moves them to the heap.
-  SmallVector<Node *, Node::MaxHeight> s;
+  // Pending nodes. Up to Inline_Depth of them live inside the iterator, so
+  // iterating a tree that is not deeper never allocates; a deeper tree moves
+  // them to the heap. The balanced trees fit (AvlNode::MaxHeight is 40 and
+  // RbNode::MaxHeight 128). The generic BinNode estimates a MaxHeight of
+  // 2048 for unbalanced trees; keeping all of it inline cost 16 KiB per
+  // iterator, so the inline part stops at 128.
+  static constexpr size_t Inline_Depth = Node::MaxHeight < 128 ? Node::MaxHeight : 128;
+  SmallVector<Node *, Inline_Depth> s;
 
   Node *advance_to_min(Node *r)
   {
@@ -2681,8 +2690,9 @@ public:
   BinNodeInfixIterator() = default;
 
   /** Initialize an iterator on the first node inorder.
-      @throw bad_alloc if the tree is deeper than `Node::MaxHeight` and the
-      pending nodes cannot be moved to the heap.
+      @throw bad_alloc if the tree is deeper than the inline capacity of the
+      iterator (`Node::MaxHeight`, at most 128) and the pending nodes cannot
+      be moved to the heap.
   */
   BinNodeInfixIterator(Node *r) : root(r)
   {

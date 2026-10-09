@@ -38,7 +38,9 @@ list, even inside parentheses as in `Array<T>({x})`, is always an element list.
 
 The old variadic item constructors of `Array` were removed because they could
 silently reinterpret a capacity as a value. Migrate parenthesized element lists
-to braces or `build_array()`. Range construction now requires an input iterator
+to braces or to `Array<T>::build(...)`, which every container with the
+functional mixin provides; unlike the braces, it moves rvalue items, so it also
+stores move-only types (`build_array()` remains). Range construction now requires an input iterator
 and a compatible sentinel, so integral count/value arguments cannot be mistaken
 for iterators. The iterator-pair constructor that `Special_Ctors` generates for
 other containers is constrained the same way: an integer pair never selects it.

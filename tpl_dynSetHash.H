@@ -463,6 +463,7 @@ namespace Aleph
   {
     typedef DynHashTable<Key, LhashTable, Cmp> Base;
     using Base::Base;
+    Derived_Build(DynSetLhash);
   };
 
   /**
@@ -475,6 +476,7 @@ namespace Aleph
   {
     typedef DynHashTable<Key, LinearHashTable, Cmp> Base;
     using Base::Base;
+    Derived_Build(DynSetLinHash);
   };
 
   /**
@@ -512,11 +514,20 @@ namespace Aleph
     // This allows heterogeneous search without constructing Data()
     Hash_Fct_Ptr original_hash_fct;
 
-    static constexpr bool has_search_with_custom_hash =
-        requires(const DynMapHashTable *self, Hash_Fct_Ptr hf, const Key & k)
-          {
-            self->search_with_custom_hash(hf, k);
-          };
+    // Whether the hash table can search by Key alone, without building a
+    // Pair (and so without requiring a default-constructible Data). It is a
+    // function, not a static data member: a function body is a
+    // complete-class context, where DynMapHashTable is complete, while the
+    // initializer of a static data member is not. MSVC evaluates such an
+    // initializer while the class is still incomplete, so the member access
+    // below failed there and the search fell back to Pair(key, Data()).
+    static constexpr bool has_search_with_custom_hash() noexcept
+    {
+      return requires(const DynMapHashTable *self, Hash_Fct_Ptr hf, const Key & k)
+        {
+          self->search_with_custom_hash(hf, k);
+        };
+    }
 
   public:
     static Data &get_data(const Key & key)
@@ -533,6 +544,8 @@ namespace Aleph
 
     // using Base::Base;  // no more need. But I don't remember why I put it
     using Base::insert; // in this way, insert with a pair is exported
+
+    Derived_Build(DynMapHashTable);
     using Iterator = typename Base::Iterator;
 
     DynMapHashTable(size_t len = Primes::DefaultPrime,
@@ -579,7 +592,7 @@ namespace Aleph
     */
     Pair * search(const Key & key) noexcept
     {
-      if constexpr (has_search_with_custom_hash)
+      if constexpr (has_search_with_custom_hash())
         {
           auto *bucket = static_cast<Bucket *>(
             this->search_with_custom_hash(original_hash_fct, key));
@@ -593,7 +606,7 @@ namespace Aleph
     /// A pointer to const.
     const Pair * search(const Key & key) const noexcept
     {
-      if constexpr (has_search_with_custom_hash)
+      if constexpr (has_search_with_custom_hash())
         {
           auto *bucket = static_cast<Bucket *>(
             this->search_with_custom_hash(original_hash_fct, key));
@@ -605,7 +618,7 @@ namespace Aleph
 
     Pair * search(Key && key) noexcept
     {
-      if constexpr (has_search_with_custom_hash)
+      if constexpr (has_search_with_custom_hash())
         {
           auto *bucket = static_cast<Bucket *>(
             this->search_with_custom_hash(original_hash_fct, key));
@@ -619,7 +632,7 @@ namespace Aleph
     /// A pointer to const.
     const Pair * search(Key && key) const noexcept
     {
-      if constexpr (has_search_with_custom_hash)
+      if constexpr (has_search_with_custom_hash())
         {
           auto *bucket = static_cast<Bucket *>(
             this->search_with_custom_hash(original_hash_fct, key));

@@ -720,9 +720,9 @@ public:
 };
 
 template <typename T, typename... Args>
-Array<T> build_array(Args... args)
+Array<T> build_array(Args &&... args)
 {
-  return build_container<Array<T>>(args...);
+  return build_container<Array<T>>(std::forward<Args>(args)...);
 }
 
 template <class Container>

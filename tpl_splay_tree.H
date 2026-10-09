@@ -345,8 +345,7 @@ public:
     if (root == Node::NullPtr)
       return nullptr;
 
-    const signed char cmp_result = splay_impl(key);
-    if (cmp_result != CmpEqual)
+    if (const signed char cmp_result = splay_impl(key); cmp_result != CmpEqual)
       return nullptr; /* key not found */
 
     Node *ret_val = root; /* store node to delete */

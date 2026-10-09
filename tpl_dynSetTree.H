@@ -1529,6 +1529,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, BinTree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetBinTree);
   };
 
 
@@ -1544,6 +1545,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Avl_Tree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetAvlTree);
   };
 
 
@@ -1559,6 +1561,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Splay_Tree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetSplayTree);
   };
 
 
@@ -1581,6 +1584,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Splay_Tree_Rk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetSplayRkTree);
     SETTREE_ITOR(Splay_Tree_Rk, Key, Compare);
   };
 
@@ -1597,6 +1601,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Rand_Tree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetRandTree);
 
     class Iterator : public DynSetTree<Key, Rand_Tree, Compare>::Iterator
     {
@@ -1625,6 +1630,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Treap, Compare>;
     using Base::Base;
+    Derived_Build(DynSetTreap);
   };
 
   /** Dynamic set implemented using extended treap binary search trees
@@ -1639,6 +1645,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Treap_Rk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetTreapRk);
     SETTREE_ITOR(Treap_Rk, Key, Compare);
   };
 
@@ -1657,6 +1664,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Avl_Tree_Rk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetAvlRkTree);
     SETTREE_ITOR(Avl_Tree_Rk, Key, Compare);
   };
 
@@ -1673,6 +1681,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Rb_Tree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetRbTree);
   };
 
 
@@ -1692,6 +1701,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, TdRbTree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetTdRbTree);
   };
 
 
@@ -1709,6 +1719,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Rb_Tree_Rk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetRbRkTree);
     SETTREE_ITOR(Rb_Tree_Rk, Key, Compare);
   };
 
@@ -1728,6 +1739,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, TdRbTreeRk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetTdRbRkTree);
     SETTREE_ITOR(TdRbTreeRk, Key, Compare);
   };
 
@@ -1751,6 +1763,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, HtdRbTree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetHtdRbTree);
     SETTREE_ITOR(HtdRbTree, Key, Compare);
   };
 
@@ -1774,6 +1787,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, HtdRbTreeRk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetHtdRbRkTree);
     SETTREE_ITOR(HtdRbTreeRk, Key, Compare);
   };
 

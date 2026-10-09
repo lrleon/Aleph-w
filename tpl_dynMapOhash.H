@@ -128,6 +128,7 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
   using Base::Base;
 #endif
   using Base::insert;
+  Derived_Build(MapOpenHash);
 
   /// @brief Function type for hash functions.
   using Hash_Fct = std::function<size_t(const Key &)>;
@@ -618,6 +619,7 @@ template <typename Key, typename Data, class Cmp = Aleph::equal_to<Key>>
 struct MapOLhash : public MapOpenHash<Key, Data, Cmp, OLhashTable>
 {
   using MapOpenHash<Key, Data, Cmp, OLhashTable>::MapOpenHash;
+  Derived_Build(MapOLhash);
 };
 
 /** @brief Open addressing hash map using double hashing.
@@ -640,6 +642,7 @@ template <typename Key, typename Data, class Cmp = Aleph::equal_to<Key>>
 struct MapODhash : public MapOpenHash<Key, Data, Cmp, ODhashTable>
 {
   using MapOpenHash<Key, Data, Cmp, ODhashTable>::MapOpenHash;
+  Derived_Build(MapODhash);
 };
 
 }  // end namespace Aleph

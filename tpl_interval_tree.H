@@ -1460,9 +1460,9 @@ namespace Aleph
       void next() { it.next(); }
 
       /** @brief Advance to the next element (no check).
-       *  @throws bad_alloc only if the tree is deeper than its node's
-       *          `MaxHeight` and the iterator's pending nodes cannot be
-       *          moved to the heap.
+       *  @throws bad_alloc only if the tree is deeper than the inline
+       *          capacity of the iterator (its node's `MaxHeight`, at most
+       *          128) and the pending nodes cannot be moved to the heap.
        */
       void next_ne() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 

@@ -63,6 +63,7 @@ namespace Aleph
   {
     typedef HashSetTable<Key, Cmp> Base;
     using Base::Base;
+    Derived_Build(HashSet);
 
     void add(const DynList<Key> & l)
     {
@@ -110,6 +111,7 @@ namespace Aleph
   {
     typedef HashMapTable<Key, Data, Cmp> Base;
     using Base::Base;
+    Derived_Build(HashMap);
 
     void add(std::initializer_list<Key> lk, std::initializer_list<Data> ld)
     {

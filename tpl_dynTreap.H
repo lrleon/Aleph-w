@@ -55,7 +55,7 @@ namespace Aleph {
     template <typename Key, typename Type, class Compare = Aleph::less<Key> >
 struct DynTreapTree : public DynMapTree<Key, Type, Treap, Compare>
 {
-  
+  Derived_Build(DynTreapTree);
 };
 
 } // end namespace Aleph

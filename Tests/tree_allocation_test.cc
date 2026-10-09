@@ -325,10 +325,16 @@ TEST(TreeAllocation, noexcept_specifications_hold)
   static_assert(std::is_nothrow_move_constructible_v<DynMapTree<int, int>>);
   using Node = AvlNode<int>;
   // The inorder iterator pushes the left spine when it is built, and both
-  // iterators push while they advance: past Node::MaxHeight pending nodes
-  // they move to the heap, so those operations may throw bad_alloc.
+  // iterators push while they advance: past min(Node::MaxHeight, 128)
+  // pending nodes they move to the heap, so those operations may throw
+  // bad_alloc.
   static_assert(not std::is_nothrow_constructible_v<BinNodeInfixIterator<Node>, Node *>);
   static_assert(std::is_nothrow_constructible_v<BinNodePrefixIterator<Node>, Node *>);
   static_assert(not noexcept(std::declval<BinNodeInfixIterator<Node> &>().next_ne()));
   static_assert(not noexcept(std::declval<BinNodePrefixIterator<Node> &>().next_ne()));
+
+  // The inline stack of pending nodes stops at 128 entries: an iterator over
+  // the generic BinNode (MaxHeight 2048) must not carry 16 KiB again.
+  static_assert(sizeof(BinNodeInfixIterator<BinNode<int>>) <= 128 * sizeof(void *) + 64);
+  static_assert(sizeof(BinNodePrefixIterator<BinNode<int>>) <= 128 * sizeof(void *) + 64);
 }

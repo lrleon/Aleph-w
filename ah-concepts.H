@@ -364,6 +364,34 @@ namespace Aleph
           c.append(v);
         };
 
+  /** @brief A container whose `append()` accepts an argument of type `Item`.
+   *
+   *  `c.append(std::forward<Item>(item))` must be valid: `Item` is the item
+   *  type of `C`, or a type that `append()` converts to it. An rvalue
+   *  argument is moved into the container.
+   *
+   *  @tparam C    candidate container type.
+   *  @tparam Item type of the argument passed to `append()`.
+   */
+  template <typename C, typename Item>
+  concept AppendableWith = requires(C & c, Item && item)
+    {
+      c.append(std::forward<Item>(item));
+    };
+
+  /** @brief A container whose `insert()` accepts an argument of type `Item`.
+   *
+   *  The counterpart of `AppendableWith` for `insert()`.
+   *
+   *  @tparam C    candidate container type.
+   *  @tparam Item type of the argument passed to `insert()`.
+   */
+  template <typename C, typename Item>
+  concept InsertableWith = requires(C & c, Item && item)
+    {
+      c.insert(std::forward<Item>(item));
+    };
+
   /** @brief A container with STL-style `begin()`/`end()` and `value_type`.
    *
    *  `begin()`/`end()` are checked on a `const` container. This is the exact

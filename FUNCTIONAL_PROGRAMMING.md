@@ -54,6 +54,35 @@ int main()
 }
 @endcode
 
+### Building a container from its items: `C::build()`
+
+The containers that inherit the CRTP mixin `FunctionalMethods` (see \ref ah-dry.H): the lists, arrays, stacks, queues, heaps, sets and maps, provide a static `build()` that builds a container from its items:
+
+@code
+#include <htlist.H>
+#include <tpl_arrayStack.H>
+#include <tpl_dynMapTree.H>
+#include <tpl_dynSetTree.H>
+#include <memory>
+#include <string>
+
+using namespace Aleph;
+
+int main()
+{
+  auto list  = DynList<int>::build(3, 1, 2);        // 3 1 2
+  auto set   = DynSetTree<int>::build(3, 1, 2, 1);  // 1 2 3: one item per key
+  auto stack = ArrayStack<int>::build(1, 2, 3);     // 3 on top
+  auto map   = DynMapTree<int, std::string>::build(std::pair{1, "one"},
+                                                   std::pair{2, "two"});
+  auto ptrs  = DynList<std::unique_ptr<int>>::build(std::make_unique<int>(1));
+}
+@endcode
+
+`C::build(a, b, c)` builds the same container as `C{a, b, c}`: each item goes, in argument order, through the `append()` of the container, so its rules apply. A stack ends with the last item on top, a queue with the first item at its front, and a set or a map keeps the first of two equal keys. Unlike the braces, the items are forwarded: an rvalue is moved, so move-only types can be stored, and an item may have any type implicitly convertible to the item type. Being a named function rather than a constructor, `Array<int>::build(10)` is always the one-element array `{10}`; a capacity is reserved with `Array<int>::create_reserved(10)`.
+
+A class derived from a container (`DynSetAvlTree`, `DynMapRbTree`, `MapOLhash`, ...) builds itself rather than its base. A class of your own that derives from a container declares that `build()` with the macro `Derived_Build(Name)`. The free function `build_container<C>(items...)` remains for any type with `append()`.
+
 ### Example: `BitArray` is also a functional container
 
 `BitArray` inherits from `FunctionalMixin`, so it also supports the same family of member functions.
