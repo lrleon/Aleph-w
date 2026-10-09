@@ -260,17 +260,20 @@ TEST(ConstIterator, a_constant_dynarray_is_read_without_allocating)
   for (auto it = ca.get_it(); it.has_curr(); it.next_ne())
     sum += it.get_curr();
   EXPECT_EQ(sum, 16 * 7);
+  EXPECT_EQ(ca.get_first(), 7);
+  EXPECT_EQ(ca.get_last(), 7);
+  EXPECT_EQ(ca.read(3), 7);
   for (size_t i = 0; i < 16; ++i)
     EXPECT_FALSE(ca.exist(i));  // nothing was allocated by reading
 
-  // The modifiable iterator allocates, as a[i] does.
+  // The modifiable iterator allocates (the whole block of the entry), as
+  // a[i] does.
   DynArray<int>::Iterator it(a);
   it.get_curr() = 1;
   EXPECT_TRUE(ca.exist(0));
   EXPECT_EQ(ca(0), 1);
   EXPECT_EQ(ca.get_first(), 1);
-  EXPECT_EQ(ca.get_last(), 7);  // read, not allocated
-  EXPECT_FALSE(ca.exist(15));
+  EXPECT_EQ(ca.get_last(), 7);
 }
 
 TEST(ConstIterator, the_accessors_of_a_constant_container_hand_out_references_to_const)
