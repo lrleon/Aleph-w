@@ -609,6 +609,16 @@ if(WIN32)
     list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})
 endif()
 
+# gmpfrxx_test streams GMP values, which calls the compiled operator<< of
+# libgmpxx. Outside macOS the system libgmpxx is built with libstdc++, so it
+# does not link with libc++ (macOS's Homebrew GMP is built with libc++).
+set(_ALEPH_GMPXX_LIBCXX_MISMATCH OFF)
+if(NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"
+   AND (ALEPH_USE_LIBCXX OR CMAKE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+"))
+    set(_ALEPH_GMPXX_LIBCXX_MISMATCH ON)
+    list(REMOVE_ITEM TEST_PROGRAMS gmpfrxx_test)
+endif()
+
 # Create executable for each test program
 set(_ALEPH_TEST_EXECUTABLE_TARGETS "")
 foreach(test_program ${TEST_PROGRAMS})
@@ -759,6 +769,11 @@ foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
 
     # Skip k2tree_test with clang (GMP/libc++ incompatibility)
     if(_name STREQUAL "k2tree_test" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        continue()
+    endif()
+
+    # Skip gmpfrxx_test with libc++ outside macOS (see above).
+    if(_name STREQUAL "gmpfrxx_test" AND _ALEPH_GMPXX_LIBCXX_MISMATCH)
         continue()
     endif()
 

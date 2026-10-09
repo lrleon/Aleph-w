@@ -46,6 +46,12 @@
 #include <utility>
 #include <vector>
 
+// eepicgeom.C, inside libAleph, declares tiny_keys extern: every program that
+// links it defines the variable. This test does not use eepicgeom, but some
+// linkers (AppleClang) take a GMP template instantiation from eepicgeom.C.o,
+// which then needs tiny_keys.
+bool tiny_keys = false;
+
 using namespace Aleph;
 
 namespace
