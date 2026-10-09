@@ -46,6 +46,7 @@
 
 #include <ahFunction.H>
 #include <tpl_arrayStack.H>
+#include <tpl_small_vector.H>
 #include <tpl_arrayQueue.H>
 #include <tpl_dynListQueue.H>
 #include <bitArray.H>
@@ -2412,7 +2413,10 @@ class BinNodePrefixIterator
 {
   Node *root = nullptr;
   Node *curr = Node::NullPtr;
-  InlineStack<Node *, Node::MaxHeight> s;
+  // Pending nodes. MaxHeight is only an estimate, since the tree may be
+  // unbalanced: up to MaxHeight nodes live inside the iterator, without
+  // allocating, and a deeper tree moves them to the heap.
+  SmallVector<Node *, Node::MaxHeight> s;
 
 public:
   /// Swap `this`with `it`
@@ -2528,7 +2532,7 @@ public:
       {
         curr = l;
         if (r != Node::NullPtr)
-          s.push(r);
+          s.append(r);
         return;
       }
 
@@ -2541,7 +2545,7 @@ public:
     if (s.is_empty())
       curr = Node::NullPtr;
     else
-      curr = s.pop();
+      curr = s.remove_last();
   }
 
   /// Move the iterator one position forward
@@ -2622,13 +2626,16 @@ class BinNodeInfixIterator
   mutable Node *root = Node::NullPtr;
   Node *curr = Node::NullPtr;
   mutable long pos = 0;
-  InlineStack<Node *, Node::MaxHeight> s;
+  // Pending nodes. MaxHeight is only an estimate, since the tree may be
+  // unbalanced: up to MaxHeight nodes live inside the iterator, without
+  // allocating, and a deeper tree moves them to the heap.
+  SmallVector<Node *, Node::MaxHeight> s;
 
   Node *advance_to_min(Node *r) noexcept
   {
     while (LLINK(r) != Node::NullPtr)
       {
-        s.push(r);
+        s.append(r);
         r = LLINK(r);
       }
     return r;
@@ -2778,7 +2785,7 @@ public:
     if (s.is_empty())
       curr = Node::NullPtr;
     else
-      curr = s.pop();
+      curr = s.remove_last();
   }
 
   /// Move the iterator one position forward. Throw `overflow_error` if
