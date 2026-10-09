@@ -63,7 +63,6 @@
 #include <ah-iterator.H>
 
 namespace Aleph {
-class BitArray;  // forward needed
 
 /** Lazy and scalable dynamic array
     ===============================
@@ -110,7 +109,9 @@ class BitArray;  // forward needed
    set_default_initial_value() changed it. On a modifiable array, `a[i]`
    returns a proxy that cannot tell a read from a write, so using it as a
    value allocates the block (it then holds the default value). Traversals
-   and iterators never allocate.
+   and iterators of a constant array never allocate; on a modifiable array
+   they hand out modifiable references, so they allocate the blocks they
+   visit. Use `std::as_const(a)` to traverse or iterate without allocating.
 
    At the contrary, if the first time that a writing is done, some such as:
 
@@ -128,9 +129,10 @@ class BitArray;  // forward needed
    In this case, the registered dimension of array will be 100000000,
    but only two blocks will be allocated. If you only performs reads
    between \f$(0, 100000000)\f$ with read(), on a constant array or by
-   traversing it, always it will be returned the default value and
-   neither a segment nor a block will be allocated, since they have not
-   been written.
+   traversing a constant array (for instance `std::as_const(a)`), always
+   it will be returned the default value and neither a segment nor a
+   block will be allocated, since they have not been written. Traversing
+   the modifiable array instead allocates every block it visits.
 
    Access through [] operator perform bound_min_clock checks and it requires to
    test if the segment and/or block have been allocated and eventually
@@ -213,8 +215,6 @@ class DynArray : public LocateFunctions<DynArray<T>, T>,
                  public EqualSequenceMethod<DynArray<T>>,
                  public StlAlephIterator<DynArray<T>>
 {
-  friend class BitArray;  // for access to __traversal() method
-
   // look at the end of this file for seeing the values
 public:
   using Item_Type = T;  /// The type of element stored in the array

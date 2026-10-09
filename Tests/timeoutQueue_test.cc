@@ -16,6 +16,7 @@
 # include <vector>
 # include <mutex>
 # include <condition_variable>
+# include <memory>
 # include <timeoutQueue.H>
 
 using namespace std;
@@ -964,34 +965,40 @@ TEST(TimeoutQueueTest, EventName)
 
 TEST(TimeoutQueueTest, CompletionCallback)
 {
-  atomic<bool> callback_called{false};
-  atomic<int> final_status{-1};
+  // The callback captures shared state, not this stack frame, so it stays
+  // valid if the test gives up on an event the worker still owns.
+  struct State
+  {
+    atomic<bool> callback_called{false};
+    atomic<int> final_status{-1};
+  };
+  const auto state = make_shared<State>();
 
   auto* e = new TestEvent(time_from_now_ms(50));
-  e->set_completion_callback([&](TimeoutQueue::Event* ev, TimeoutQueue::Event::Execution_Status status) {
+  e->set_completion_callback([state](TimeoutQueue::Event* ev, TimeoutQueue::Event::Execution_Status status) {
     (void) ev;
     // Publish the status before the flag the test waits on, so that once
     // callback_called is observed, final_status is already valid.
-    final_status = static_cast<int>(status);
-    callback_called = true;
+    state->final_status = static_cast<int>(status);
+    state->callback_called = true;
   });
 
   g_queue->schedule_event(e);
 
   // Wait on the callback instead of a fixed sleep: on loaded CI runners the
   // worker may not get CPU within a short window, which made this test flaky.
-  const bool completed =
-    wait_until([&] { return callback_called.load(); }, chrono::seconds(5));
-  if (not completed)
+  const auto callback_done = [&state] { return state->callback_called.load(); };
+  if (not wait_until(callback_done, chrono::seconds(5)))
     {
-      // The event is still owned by the queue and its callback references this
-      // stack frame: cancel it and leak it rather than deleting it under the
-      // worker's feet.
-      g_queue->cancel_event(e);
+      // A successful cancel invokes the callback synchronously. A failed one
+      // means the worker is running the event: wait for its callback before
+      // deleting it, and leak it if the callback never arrives.
+      if (g_queue->cancel_event(e) or wait_until(callback_done, chrono::seconds(5)))
+        delete e;
       FAIL() << "Completion callback was not invoked in time";
     }
 
-  EXPECT_EQ(final_status, static_cast<int>(TimeoutQueue::Event::Executed));
+  EXPECT_EQ(state->final_status, static_cast<int>(TimeoutQueue::Event::Executed));
 
   delete e;
 }

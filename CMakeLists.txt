@@ -516,6 +516,9 @@ target_link_libraries(Aleph PRIVATE aleph_miniz)
 # MemArray annotations affect its layout under ASan. Compile Aleph and all
 # consumers with the same definition and instrumentation, including consumers
 # of an installed target. PUBLIC also exports the definition as INTERFACE.
+# Aleph itself is already instrumented by the directory-wide
+# add_compile_options above; the INTERFACE options carry the instrumentation
+# to consumers outside this directory, where those options do not reach.
 if(ALEPH_USE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     if(ALEPH_ANNOTATE_CONTAINERS)
         target_compile_definitions(Aleph PUBLIC ALEPH_ANNOTATE_CONTAINERS=1)

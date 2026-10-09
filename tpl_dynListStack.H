@@ -489,13 +489,15 @@ public:
    *  @param[in] key The value to search for.
    *  @return true if @p key is found in the stack, false otherwise.
    */
-  [[nodiscard]] bool contains(const T & key) const noexcept
+  [[nodiscard]] bool contains(const T & key) const
+    noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
   {
     return search(key) != nullptr;
   }
 
   /// @brief Alias for contains().
-  [[nodiscard]] bool has(const T & key) const noexcept
+  [[nodiscard]] bool has(const T & key) const
+    noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
   {
     return contains(key);
   }
