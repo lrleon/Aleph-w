@@ -49,7 +49,9 @@
 #include <ah-cpp-compat.H>
 
 using Aleph::expected;
-using Aleph::unexpected;
+// Not `using Aleph::unexpected`: the Windows UCRT declares a global
+// ::unexpected() (the C++98 std::unexpected), which that declaration would
+// conflict with. The uses below are qualified instead.
 
 namespace
 {
@@ -59,24 +61,24 @@ namespace
 expected<int, std::string> parse_positive(const std::string &text)
 {
   if (text.empty())
-    return unexpected<std::string>("empty input");
+    return Aleph::unexpected<std::string>("empty input");
 
   int value = 0;
   for (char c : text)
     {
       if (c < '0' or c > '9')
-        return unexpected<std::string>("not a number: '" + text + "'");
+        return Aleph::unexpected<std::string>("not a number: '" + text + "'");
 
       int digit = c - '0';
       constexpr int max_val = std::numeric_limits<int>::max();
       if (value > (max_val - digit) / 10)
-        return unexpected<std::string>("overflow: '" + text + "'");
+        return Aleph::unexpected<std::string>("overflow: '" + text + "'");
 
       value = value * 10 + digit;
     }
 
   if (value == 0)
-    return unexpected<std::string>("must be > 0");
+    return Aleph::unexpected<std::string>("must be > 0");
 
   return value;
 }
@@ -125,7 +127,7 @@ int main()
       [](int v) -> expected<int, std::string>
       {
         if (v > 1000)
-          return unexpected<std::string>("too large");
+          return Aleph::unexpected<std::string>("too large");
         return v + 100;
       });
   std::cout << "  \"5\"  |> and_then(+100 if <=1000) = "
