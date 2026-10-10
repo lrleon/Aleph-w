@@ -673,8 +673,8 @@ public:
   }
 
   /// Return true if the tree is a valid AVL tree: the balance of every
-  /// node and the order of the keys.
-  [[nodiscard]] bool verify() const noexcept
+  /// node and the order of the keys. It throws what the comparator throws.
+  [[nodiscard]] bool verify() const
   {
     return is_avl(root) and check_bst(root, cmp);
   }

@@ -57,6 +57,8 @@
 #include <tpl_dynBinHeap.H>
 #include <tpl_dynSetTree.H>
 #include <tpl_dynMapTree.H>
+#include <ah-zip.H>
+#include <ahFunctional.H>
 
 #include <cstdlib>
 #include <memory>
@@ -100,10 +102,15 @@ namespace
   // malloc() and free() with the operators and warn about a mismatch.
   long allocations = 0;
 
+  // While it is set, there is no memory: every allocation fails.
+  bool out_of_memory = false;
+
 #if COUNT_ALLOCATIONS
   ALEPH_TEST_NOINLINE void *allocate(std::size_t size)
   {
     ++allocations;
+    if (out_of_memory)
+      throw std::bad_alloc();
     if (void *p = std::malloc(size == 0 ? 1 : size))
       return p;
     throw std::bad_alloc();
@@ -121,6 +128,18 @@ namespace
     const long before = allocations;
     action();
     return allocations - before;
+  }
+
+  // Runs `action` without memory; what it throws goes on to the caller.
+  template <class Action>
+  void without_memory(Action action)
+  {
+    struct Guard
+    {
+      Guard() noexcept { out_of_memory = true; }
+      ~Guard() { out_of_memory = false; }
+    } guard;
+    action();
   }
 }
 
@@ -310,6 +329,79 @@ TEST(TreeAllocation, iterating_does_not_allocate)
     }), 0);
 }
 
+namespace
+{
+  // A tree whose inorder iterator needs `n - 1` pending nodes, and not when
+  // it is built but in its first next_ne(): the minimum is the root, the
+  // maximum is its right child, and all the other keys go down the left
+  // spine of the maximum.
+  DynSetTree<int, BinTree> deep_tree(int n)
+  {
+    DynSetTree<int, BinTree> tree;
+    tree.insert(0);
+    for (int i = n; i > 0; --i)
+      tree.insert(i);
+    return tree;
+  }
+}
+
+TEST(TreeAllocation, advancing_on_a_deep_tree_allocates)
+{
+  SKIP_UNLESS_COUNTING_ALLOCATIONS();
+
+  auto tree = deep_tree(1000);
+  DynSetTree<int, BinTree>::Iterator it(tree);
+  EXPECT_EQ(it.get_curr(), 0);
+  EXPECT_GT(allocations_of([&it] { it.next_ne(); }), 0);
+  EXPECT_EQ(it.get_curr(), 1);
+}
+
+// Out of memory, next_ne() of the iterator of a deep tree throws bad_alloc.
+// The adaptors must let it through: with a noexcept next_ne() they would
+// end the program.
+TEST(TreeAllocation, adaptors_propagate_the_bad_alloc_of_a_deep_tree)
+{
+  SKIP_UNLESS_COUNTING_ALLOCATIONS();
+
+  auto tree = deep_tree(1000);
+  const DynList<int> list = range<int>(0, 1000);
+
+  {
+    DynSetTree<int, BinTree>::Iterator it(tree);
+    EXPECT_THROW(without_memory([&it] { it.next_ne(); }), std::bad_alloc);
+  }
+  {
+    auto it = get_pair_it(tree, list);
+    EXPECT_THROW(without_memory([&it] { it.next_ne(); }), std::bad_alloc);
+  }
+  {
+    auto it = get_pair_it(list, tree);
+    EXPECT_THROW(without_memory([&it] { it.next_ne(); }), std::bad_alloc);
+  }
+  {
+    auto it = zip_it(tree, list);
+    EXPECT_THROW(without_memory([&it] { it.next_ne(); }), std::bad_alloc);
+  }
+  {
+    auto it = zip_it(list, tree);
+    EXPECT_THROW(without_memory([&it] { it.next_ne(); }), std::bad_alloc);
+  }
+  {
+    auto it = enum_zip_it(tree, list);
+    EXPECT_THROW(without_memory([&it] { it.next_ne(); }), std::bad_alloc);
+  }
+  {
+    auto it = enum_zip_it(list, tree);
+    EXPECT_THROW(without_memory([&it] { it.next_ne(); }), std::bad_alloc);
+  }
+
+  // With memory again, the same traversals reach the end.
+  size_t count = 0;
+  for (auto it = zip_it(tree, list); it.has_curr(); it.next_ne())
+    ++count;
+  EXPECT_EQ(count, 1001u);
+}
+
 TEST(TreeAllocation, noexcept_specifications_hold)
 {
   static_assert(std::is_nothrow_default_constructible_v<Avl_Tree<int>>);
@@ -332,6 +424,21 @@ TEST(TreeAllocation, noexcept_specifications_hold)
   static_assert(std::is_nothrow_constructible_v<BinNodePrefixIterator<Node>, Node *>);
   static_assert(not noexcept(std::declval<BinNodeInfixIterator<Node> &>().next_ne()));
   static_assert(not noexcept(std::declval<BinNodePrefixIterator<Node> &>().next_ne()));
+
+  // An adaptor advances with the specification of the iterators it holds.
+  using Tree_It = DynSetTree<int>::Iterator;
+  using List_It = DynList<int>::Iterator;
+  static_assert(noexcept(std::declval<Pair_Iterator<List_It> &>().next_ne()));
+  static_assert(not noexcept(std::declval<Pair_Iterator<Tree_It, List_It> &>().next_ne()));
+  static_assert(not noexcept(std::declval<Pair_Iterator<List_It, Tree_It> &>().next_ne()));
+  using List = DynList<int>;
+  using Tree = DynSetTree<int>;
+  static_assert(noexcept(std::declval<ZipIterator<List, List> &>().next_ne()));
+  static_assert(not noexcept(std::declval<ZipIterator<Tree, List> &>().next_ne()));
+  static_assert(not noexcept(std::declval<ZipIterator<List, Tree> &>().next_ne()));
+  static_assert(noexcept(std::declval<EnumZipIterator<List, List> &>().next_ne()));
+  static_assert(not noexcept(std::declval<EnumZipIterator<Tree, List> &>().next_ne()));
+  static_assert(not noexcept(std::declval<EnumZipIterator<List, Tree> &>().next_ne()));
 
   // The inline stack of pending nodes stops at 128 entries: an iterator over
   // the generic BinNode (MaxHeight 2048) must not carry 16 KiB again.

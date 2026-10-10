@@ -175,11 +175,18 @@ public:
     ZipIterator<TailC...>::next();
   }
 
-  /** Advance all underlying iterators (no-throw variant).
+  /** Advance all underlying iterators (unchecked variant).
 
       Requires `has_curr()`.
+
+      @throw what `next_ne()` of the underlying iterators throws; nothing
+      with most of them. The inorder iterator of a binary tree
+      (Aleph::BinNodeInfixIterator) throws `std::bad_alloc` if the tree is
+      deeper than its inline capacity and the pending nodes cannot be moved
+      to the heap.
   */
-  void next_ne() noexcept
+  void next_ne() noexcept(noexcept(std::declval<Aleph::const_iterator_t<HeadC> &>().next_ne())
+                          and noexcept(std::declval<ZipIterator<TailC...> &>().next_ne()))
   {
     it.next_ne();
     ZipIterator<TailC...>::next_ne();
@@ -1204,11 +1211,15 @@ public:
     return std::tuple_cat(curr, EnumZipIterator<TailC...>::get_curr_ne());
   }
 
-  /** Advance all underlying iterators (no-throw variant).
+  /** Advance all underlying iterators (unchecked variant).
 
       Requires `has_curr()`.
+
+      @throw what `next_ne()` of the underlying iterators throws, as
+      ZipIterator::next_ne() does.
   */
-  void next_ne() noexcept
+  void next_ne() noexcept(noexcept(std::declval<Aleph::const_iterator_t<HeadC> &>().next_ne())
+                          and noexcept(std::declval<EnumZipIterator<TailC...> &>().next_ne()))
   {
     it.next_ne();
     EnumZipIterator<TailC...>::next_ne();
@@ -1234,11 +1245,13 @@ public:
     ++i;
   }
 
-  /** Advance the iterator and increment the associated index (no-throw variant).
+  /** Advance the iterator and increment the associated index (unchecked variant).
 
       Requires `has_curr()`.
+
+      @throw what `next_ne()` of the underlying iterator throws.
   */
-  void next_ne() noexcept
+  void next_ne() noexcept(noexcept(std::declval<Base &>().next_ne()))
   {
     Base::next_ne();
     ++i;

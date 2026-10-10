@@ -1771,8 +1771,14 @@ public:
 
   /** @brief Advance both iterators (no bounds check).
       @note Requires has_curr() to be true.
+      @throw what `next_ne()` of the two iterators throws; nothing with
+      most of them. The inorder iterator of a binary tree
+      (Aleph::BinNodeInfixIterator) throws `std::bad_alloc` if the tree is
+      deeper than its inline capacity and the pending nodes cannot be moved
+      to the heap.
   */
-  void next_ne() noexcept
+  void next_ne() noexcept(noexcept(std::declval<Itor1 &>().next_ne())
+                          and noexcept(std::declval<Itor2 &>().next_ne()))
   {
     it1.next_ne();
     it2.next_ne();

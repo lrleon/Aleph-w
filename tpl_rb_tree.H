@@ -612,8 +612,9 @@ public:
     return p;
   }
 
-  /// Verify that tree satisfies red-black properties
-  bool verify() const noexcept { return is_red_black_bst(root, cmp); }
+  /// Verify that tree satisfies red-black properties and that its keys are
+  /// in order. It throws what the comparator throws.
+  bool verify() const { return is_red_black_bst(root, cmp); }
 
   /** @brief Remove the node containing key.
       

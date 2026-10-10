@@ -743,8 +743,8 @@ public:
   }
 
   /// Return true if the tree is a valid AVL tree with correct counters
-  /// and its keys are in order
-  [[nodiscard]] bool verify() const noexcept
+  /// and its keys are in order. It throws what the comparator throws.
+  [[nodiscard]] bool verify() const
   {
     return is_avl_rk(root) and check_rank_tree(root) and check_bst(root, cmp);
   }

@@ -825,8 +825,9 @@ public:
   /** @brief Verify the red-black properties and the order of the keys.
 
       @return true if the tree is a valid red-black binary search tree.
+      @throw what the comparator throws.
    */
-  bool verify() const noexcept
+  bool verify() const
   {
     return verifyRedBlack() and check_bst(root, cmp);
   }

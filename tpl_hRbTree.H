@@ -981,8 +981,9 @@ namespace Aleph
     /** @brief Verify tree is a valid red-black BST.
         
         @return true if all red-black properties hold
+        @throw what the comparator throws.
     */
-    bool verify() const noexcept
+    bool verify() const
     {
       return is_red_black_bst(const_cast<Node *>(root),
                               const_cast<HtdRbTree *>(this)->cmp);

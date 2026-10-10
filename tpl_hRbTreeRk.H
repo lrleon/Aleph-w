@@ -943,8 +943,9 @@ public:
   /** @brief Verify red-black and rank invariants.
       
       @return true if all invariants hold
+      @throw what the comparator throws.
   */
-  bool verify() const noexcept
+  bool verify() const
   {
     if (root == Node::NullPtr)
       return true;

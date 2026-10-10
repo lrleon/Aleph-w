@@ -731,8 +731,13 @@ namespace Aleph
     /// Set the random number generator seed
     void set_seed(const unsigned long seed) noexcept { gsl_rng_set(r, seed); }
 
-    /// Return the interval comparison functor (over Interval<T> keys)
-    IntervalCmp key_comp() const noexcept { return IntervalCmp(cmp); }
+    /// Return the interval comparison functor (over Interval<T> keys). It
+    /// holds a copy of the endpoint comparator, so it throws what copying
+    /// that comparator throws.
+    IntervalCmp key_comp() const noexcept(std::is_nothrow_copy_constructible_v<Compare>)
+    {
+      return IntervalCmp(cmp);
+    }
 
     /// Return the endpoint comparison functor (const)
     const Compare & endpoint_comp() const noexcept { return cmp; }
@@ -1331,10 +1336,14 @@ namespace Aleph
 
     /** @brief Return the comparator that orders the intervals: by low
      *         endpoint, then by high endpoint.
-     *  @return the interval comparator.
-     *  @throws none
+     *  @return the interval comparator, which holds a copy of the
+     *          endpoint comparator.
+     *  @throws what copying the endpoint comparator throws.
      */
-    [[nodiscard]] auto key_comp() const noexcept { return tree.key_comp(); }
+    [[nodiscard]] auto key_comp() const noexcept(std::is_nothrow_copy_constructible_v<Compare>)
+    {
+      return tree.key_comp();
+    }
 
     /** @brief Return true if the tree contains no intervals.
      *  @return true if empty.

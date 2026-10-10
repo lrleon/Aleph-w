@@ -369,8 +369,9 @@ namespace Aleph
       return p;
     }
 
-    /// Return `true` if `this` is a consistent treap
-    bool verify() const noexcept
+    /// Return `true` if `this` is a consistent treap. It throws what the
+    /// comparator throws.
+    bool verify() const
   {
     return is_treap(tree_root) and check_bst(tree_root, cmp);
   }
