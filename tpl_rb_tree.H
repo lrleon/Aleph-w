@@ -38,9 +38,10 @@
  *
  *  ## Properties
  *  - Every node is red or black
- *  - Root is black
  *  - No two adjacent red nodes
  *  - All paths have same black-height
+ *
+ *  The root can be red (see Aleph::Gen_Rb_Tree).
  *
  *  ## Complexity: O(log n) for all operations
  *
@@ -65,19 +66,24 @@ namespace Aleph
 /** @brief Red-black binary search tree implementation (bottom-up).
 
     A red-black tree is a self-balancing binary search tree where each node
-    has a color (red or black). The tree maintains balance through five
+    has a color (red or black). The tree maintains balance through four
     invariants that guarantee the height is at most 2*log₂(n+1), ensuring
     O(log n) worst-case time for all operations.
 
     @par Red-Black Tree Properties:
     1. Every node is either red or black
-    2. The root is black
-    3. All leaves (null nodes) are black
-    4. Red nodes have only black children
-    5. Every path from root to leaf has the same number of black nodes
+    2. All leaves (null nodes) are black
+    3. Red nodes have only black children
+    4. Every path from root to leaf has the same number of black nodes
 
     These properties ensure the tree remains approximately balanced, with
     the longest path at most twice the length of the shortest path.
+
+    The usual definition adds that the root is black. This tree does not
+    force it, and neither do the other red-black trees of the library: the
+    root can be red, as the only node of a tree is. A red root has black
+    children, so the bound on the height is the same, and verify() accepts
+    it.
 
     This is the bottom-up implementation that uses a stack to track ancestors
     during descent and repairs violations by ascending back to the root.
@@ -137,7 +143,8 @@ private:
   /* The path from the head node to the node an operation works on. Each
      operation builds it, consumes it and drops it: it lives in the frame
      of the operation, so the tree never allocates. */
-  using Path = InlineStack<Node *, Node::MaxHeight>;
+  // The head node, then at most Node::MaxHeight nodes of the tree.
+  using Path = InlineStack<Node *, Node::MaxHeight + 1>;
 
   /// Search for key and stack ancestors (optimistic duplicate detection)
   Node * search_and_stack_rb(const Key & key,

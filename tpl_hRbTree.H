@@ -109,7 +109,8 @@ namespace Aleph
 
        so the tree never allocates. */
 
-    using Path = InlineStack<Node *, Node::MaxHeight>;
+    // The head node, then at most Node::MaxHeight nodes of the tree.
+    using Path = InlineStack<Node *, Node::MaxHeight + 1>;
 
     size_t node_count = 0; ///< Number of nodes in tree
 
@@ -963,60 +964,18 @@ namespace Aleph
     /// Get root pointer (const)
     Node * getRoot() const noexcept { return root; }
 
-  private:
-    /** @brief Verify black height consistency.
-        
-        Recursively checks that all paths to leaves have the same
-        number of black nodes.
-        
-        @param p Node to check from
-        @param max Current maximum black height (initialize to -1)
-        @param bh Current black height count
-    */
-    static void blackHeight(Node *p, int & max, int bh = 0) noexcept
-    {
-      if (COLOR(p) == BLACK)
-        bh++; // Another seen black node
-
-      /* if a leaf is reached, we must verify max with current bh (number of
-       visited black nodes */
-      if (LLINK(p) == Node::NullPtr && RLINK(p) == Node::NullPtr)
-        {
-          if (max == -1) // This is onbly for the first leaf reached
-            max = bh;
-          assert(bh == max);
-          return;
-        }
-
-      if (LLINK(p) != Node::NullPtr) /* continue counting in the left side */
-        blackHeight(LLINK(p), max, bh);
-
-      if (RLINK(p) != Node::NullPtr) /* continue counting in the right side */
-        blackHeight(RLINK(p), max, bh);
-    }
-
-    /// Verify red condition and black height for a node
-    static void testNode(Node *p) noexcept
-    {
-      /* verify red condition */
-      COND_assert(COLOR(p) == RED,
-                  COLOR(LLINK(p)) == BLACK && COLOR(RLINK(p)) == BLACK);
-
-      int max = -1;
-      int bh = 0;
-
-      blackHeight(p, max, bh);
-    }
-
   public:
-    /** @brief Verify red-black tree invariants (DEBUG mode).
-        
-        Checks that each node satisfies red-black conditions.
-        Aborts on violation.
+    /** @brief Verify the red-black properties of every node.
+
+        Checks valid colors, that no red node has a red child, and that
+        every path down to `Node::NullPtr` crosses the same number of black
+        nodes. It does not look at the keys; verify() does.
+
+        @return true if all the red-black properties hold
     */
-    void verifyRedBlack() const
+    bool verifyRedBlack() const noexcept
     {
-      preOrderRec(root, testNode);
+      return is_red_black_tree(root);
     }
 
     /** @brief Verify tree is a valid red-black BST.

@@ -482,16 +482,16 @@ public:
     return *ptr;
   }
 
+  /// \overload append(const Key & key)
   Key & append(Key && key)
   {
-    Key * ptr = insert(std::move(key));
-    if (ptr == nullptr)
-      {
-        // Key was moved but duplicate, need to search again
-        // This is a limitation - we've moved the key
-        ah_domain_error_if(true) << "append: duplicate key after move";
-      }
-    return *ptr;
+    if (Key * ptr = insert(std::move(key)); ptr != nullptr)
+      return *ptr;
+
+    // A repeated key: insert() moves the key only when it inserts it, so
+    // `key` keeps its value here. As append(const Key &) does, return the
+    // key already in the set.
+    return *search(key);
   }
 
   /** @brief Search and insert if not found.
@@ -569,7 +569,7 @@ public:
   /// Const version of find()
   [[nodiscard]] const Key & find(const Key & key) const
   {
-    Key * ptr = search(key);
+    const Key * ptr = search(key);
     ah_domain_error_if(ptr == nullptr)
       << "DynSkipList::find: key not found";
     return *ptr;

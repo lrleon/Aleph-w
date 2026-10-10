@@ -1099,7 +1099,7 @@ namespace Aleph
 
     bool verify() const
     {
-      return tree.verify() and check_bst(tree.getRoot());
+      return tree.verify() and check_bst(tree.getRoot(), tree.get_compare());
     }
 
   private:

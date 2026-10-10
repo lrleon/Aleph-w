@@ -35,6 +35,8 @@
  * @file fixedqueue.cc
  * @brief Tests for Fixedqueue
  */
+# include <vector>
+
 # include <gtest/gtest.h>
 
 # include <tpl_arrayQueue.H>
@@ -398,6 +400,84 @@ TEST(FixedQueue, traverse)
       ASSERT_FALSE(ret);
       ASSERT_EQ(k, N/4);
     }
+}
+
+TEST(FixedQueue, front_reads_across_the_wrap_around)
+{
+  // Once the queue wraps around, front_index + i passes the end of the
+  // buffer: front(i) must apply the circular mask, as rear(i) does.
+  FixedQueue<int> q(8);
+  for (int k = 0; k < 6; ++k)
+    q.put(k);
+  for (int k = 0; k < 5; ++k)
+    (void) q.get();
+  for (int k = 6; k < 12; ++k)
+    q.put(k);  // the items 5 ... 11 occupy slots 5, 6, 7, 0, 1, 2, 3
+
+  ASSERT_EQ(q.size(), 7u);
+  const FixedQueue<int> & cq = q;
+  for (size_t i = 0; i < q.size(); ++i)
+    {
+      EXPECT_EQ(q.front(i), static_cast<int>(5 + i));
+      EXPECT_EQ(cq.front(i), static_cast<int>(5 + i));
+    }
+  EXPECT_EQ(q.rear(), 11);
+}
+
+TEST(FixedQueue, copy_of_wrapped_and_full_queues)
+{
+  // The copy constructor walked from front_index to rear_index without
+  // wrapping: past the buffer for a queue that wraps around, and over no
+  // slot at all for a full queue, whose front_index equals its rear_index.
+  auto items = [] (const FixedQueue<int> & q)
+    {
+      std::vector<int> v;
+      q.for_each([&v] (int x) { v.push_back(x); });
+      return v;
+    };
+
+  FixedQueue<int> wrapped(8);
+  for (int k = 0; k < 6; ++k)
+    wrapped.put(k);
+  for (int k = 0; k < 5; ++k)
+    (void) wrapped.get();
+  for (int k = 6; k < 12; ++k)
+    wrapped.put(k);  // 5 ... 11, around the end of the buffer
+  const FixedQueue<int> wrapped_copy(wrapped);
+  EXPECT_EQ(items(wrapped_copy), (std::vector<int>{5, 6, 7, 8, 9, 10, 11}));
+
+  FixedQueue<int> full(8);
+  for (int k = 0; k < 8; ++k)
+    full.put(k);  // front_index == rear_index
+  const FixedQueue<int> full_copy(full);
+  EXPECT_EQ(items(full_copy), (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7}));
+
+  FixedQueue<int> full_wrapped(8);
+  for (int k = 0; k < 8; ++k)
+    full_wrapped.put(k);
+  for (int k = 0; k < 3; ++k)
+    (void) full_wrapped.get();
+  for (int k = 8; k < 11; ++k)
+    full_wrapped.put(k);  // 3 ... 10: full and around the end
+  FixedQueue<int> copy(full_wrapped);
+  EXPECT_EQ(items(copy), (std::vector<int>{3, 4, 5, 6, 7, 8, 9, 10}));
+
+  // The copy keeps working as a queue.
+  EXPECT_EQ(copy.get(), 3);
+  copy.put(11);
+  EXPECT_EQ(items(copy), (std::vector<int>{4, 5, 6, 7, 8, 9, 10, 11}));
+  EXPECT_EQ(copy.front(), 4);
+  EXPECT_EQ(copy.rear(), 11);
+
+  // Copy assignment goes through the copy constructor.
+  FixedQueue<int> target(8);
+  target.put(100);
+  target = full_wrapped;
+  EXPECT_EQ(items(target), (std::vector<int>{3, 4, 5, 6, 7, 8, 9, 10}));
+
+  const FixedQueue<int> empty(8);
+  const FixedQueue<int> empty_copy(empty);
+  EXPECT_TRUE(empty_copy.is_empty());
 }
 
 TEST(FixedQueue, copy_operations)

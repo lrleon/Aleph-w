@@ -310,7 +310,7 @@ namespace Aleph
   public:
     /** Insert a node in a treap.
 
-        insert(p) inserta el nodo p en el treap this.
+        `insert(p)` inserts the node `p` in this treap.
 
         @param[in] p pointer to the node to be inserted
         @return if `p->get_key()` is not in the tree, then `p` is
@@ -370,7 +370,10 @@ namespace Aleph
     }
 
     /// Return `true` if `this` is a consistent treap
-    bool verify() const noexcept { return is_treap(tree_root); }
+    bool verify() const noexcept
+  {
+    return is_treap(tree_root) and check_bst(tree_root, cmp);
+  }
 
     /** Remove a key from the tree
 

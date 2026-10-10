@@ -2633,6 +2633,7 @@ class BinNodeInfixIterator
   mutable Node *root = Node::NullPtr;
   Node *curr = Node::NullPtr;
   mutable long pos = 0;
+
   // Pending nodes. Up to Inline_Depth of them live inside the iterator, so
   // iterating a tree that is not deeper never allocates; a deeper tree moves
   // them to the heap. The balanced trees fit (AvlNode::MaxHeight is 40 and

@@ -115,7 +115,8 @@ private:
   /* The path from the head node to the node an operation works on. Each
      operation builds it, consumes it and drops it: it lives in the frame
      of the operation, so the tree never allocates. Its base is head_ptr. */
-  using Path = InlineStack<Node *, Node::MaxHeight>;
+  // The head node, then at most Node::MaxHeight nodes of the tree.
+  using Path = InlineStack<Node *, Node::MaxHeight + 1>;
 
   /// `true` when `path` holds only the head node.
   static bool at_head(const Path &path) noexcept
@@ -671,9 +672,11 @@ public:
     return p;
   }
 
+  /// Return true if the tree is a valid AVL tree: the balance of every
+  /// node and the order of the keys.
   [[nodiscard]] bool verify() const noexcept
   {
-    return is_avl(root);
+    return is_avl(root) and check_bst(root, cmp);
   }
 
   /** Iterator over the nodes.

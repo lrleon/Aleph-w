@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /** @file ah-dry-mixin.H
  *  @brief CRTP Mixins for container functionality (DRY principle).
  *
@@ -81,17 +80,17 @@
 #include <ah-iterator.H>
 #include <ah-errors.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 // Forward declarations
-template<typename T> class DynList;
+template <typename T>
+class DynList;
 
 // Dft_Map_Op is defined in ahFunctional.H, we just forward declare here
 // to avoid circular dependency. When ahFunctional.H is included, it provides
 // the actual definition.
-template <typename T, typename R> struct Dft_Map_Op;
-
+template <typename T, typename R>
+struct Dft_Map_Op;
 
 // =============================================================================
 // TraverseMixin - Basic traversal operations
@@ -118,15 +117,15 @@ class TraverseMixin
 {
 protected:
   /// @brief Access the derived class (const version).
-  [[nodiscard]] const Derived& self() const noexcept
+  [[nodiscard]] const Derived &self() const noexcept
   {
-    return static_cast<const Derived&>(*this);
+    return static_cast<const Derived &>(*this);
   }
 
   /// @brief Access the derived class (mutable version).
-  [[nodiscard]] Derived& self() noexcept
+  [[nodiscard]] Derived &self() noexcept
   {
-    return static_cast<Derived&>(*this);
+    return static_cast<Derived &>(*this);
   }
 
 public:
@@ -166,7 +165,7 @@ public:
    */
   template <class Operation>
     requires PredicateWith<Operation &, typename concepts_detail::traverse_arg<Derived, Operation>::type>
-  bool traverse(Operation & operation) const
+  bool traverse(Operation &operation) const
   {
     for (auto it = Aleph::iterator_for(self()); it.has_curr(); it.next_ne())
       if (not operation(it.get_curr()))
@@ -177,7 +176,7 @@ public:
   /// @overload
   template <class Operation>
     requires PredicateWith<Operation &, typename concepts_detail::traverse_arg<Derived, Operation>::type>
-  bool traverse(Operation & operation)
+  bool traverse(Operation &operation)
   {
     for (auto it = Aleph::iterator_for(self()); it.has_curr(); it.next_ne())
       if (not operation(it.get_curr()))
@@ -203,7 +202,6 @@ public:
   }
 };
 
-
 // =============================================================================
 // LocateMixin - Element location operations
 // =============================================================================
@@ -228,14 +226,14 @@ template <typename Derived, typename Type>
 class LocateMixin
 {
 protected:
-  [[nodiscard]] const Derived& self() const noexcept
+  [[nodiscard]] const Derived &self() const noexcept
   {
-    return static_cast<const Derived&>(*this);
+    return static_cast<const Derived &>(*this);
   }
 
-  [[nodiscard]] Derived& self() noexcept
+  [[nodiscard]] Derived &self() noexcept
   {
-    return static_cast<Derived&>(*this);
+    return static_cast<Derived &>(*this);
   }
 
 public:
@@ -259,17 +257,17 @@ public:
    *
    *  @see nth_ne() for unchecked version.
    */
-  Type & nth(const size_t n)
+  Type &nth(const size_t n)
   {
-    Type * ptr = nullptr;
+    Type *ptr = nullptr;
     size_t i = 0;
-    self().traverse([&ptr, &i, n] (Type & item)
-    {
-      if (i++ != n)
-        return true;
-      ptr = &item;
-      return false;
-    });
+    self().traverse([&ptr, &i, n](Type &item)
+      {
+        if (i++ != n)
+          return true;
+        ptr = &item;
+        return false;
+      });
 
     // Test the pointer, not the count: i == n + 1 overflows for n == SIZE_MAX
     ah_out_of_range_error_if(ptr == nullptr) << "index " << n << " out of range";
@@ -278,17 +276,17 @@ public:
 
   /// \overload
   /// A reference to const.
-  const Type & nth(const size_t n) const
+  const Type &nth(const size_t n) const
   {
-    const Type * ptr = nullptr;
+    const Type *ptr = nullptr;
     size_t i = 0;
-    self().traverse([&ptr, &i, n] (const Type & item)
-    {
-      if (i++ != n)
-        return true;
-      ptr = &item;
-      return false;
-    });
+    self().traverse([&ptr, &i, n](const Type &item)
+      {
+        if (i++ != n)
+          return true;
+        ptr = &item;
+        return false;
+      });
 
     // Test the pointer, not the count: i == n + 1 overflows for n == SIZE_MAX
     ah_out_of_range_error_if(ptr == nullptr) << "index " << n << " out of range";
@@ -309,33 +307,33 @@ public:
    *
    *  @see nth() for bounds-checked version.
    */
-  Type & nth_ne(const size_t n) noexcept
+  Type &nth_ne(const size_t n) noexcept
   {
-    Type * ptr = nullptr;
+    Type *ptr = nullptr;
     size_t i = 0;
-    self().traverse([&ptr, &i, &n] (Type & item)
-    {
-      if (i++ < n)
-        return true;
-      ptr = &item;
-      return false;
-    });
+    self().traverse([&ptr, &i, &n](Type &item)
+      {
+        if (i++ < n)
+          return true;
+        ptr = &item;
+        return false;
+      });
     return *ptr;
   }
 
   /// \overload
   /// A reference to const.
-  const Type & nth_ne(const size_t n) const noexcept
+  const Type &nth_ne(const size_t n) const noexcept
   {
-    const Type * ptr = nullptr;
+    const Type *ptr = nullptr;
     size_t i = 0;
-    self().traverse([&ptr, &i, &n] (const Type & item)
-    {
-      if (i++ < n)
-        return true;
-      ptr = &item;
-      return false;
-    });
+    self().traverse([&ptr, &i, &n](const Type &item)
+      {
+        if (i++ < n)
+          return true;
+        ptr = &item;
+        return false;
+      });
     return *ptr;
   }
 
@@ -366,18 +364,18 @@ public:
    */
   template <class Operation>
     requires PredicateWith<Operation &, Type &>
-  Type * find_ptr(Operation & operation)
+  Type *find_ptr(Operation &operation)
   {
-    Type * ptr = nullptr;
-    self().traverse([&ptr, &operation] (Type & item)
-    {
-      if (operation(item))
+    Type *ptr = nullptr;
+    self().traverse([&ptr, &operation](Type &item)
       {
-        ptr = &item;
-        return false;
-      }
-      return true;
-    });
+        if (operation(item))
+          {
+            ptr = &item;
+            return false;
+          }
+        return true;
+      });
     return ptr;
   }
 
@@ -385,18 +383,18 @@ public:
   /// @brief Const version.
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  const Type * find_ptr(Operation & operation) const
+  const Type *find_ptr(Operation &operation) const
   {
-    const Type * ptr = nullptr;
-    self().traverse([&ptr, &operation] (const Type & item)
-    {
-      if (operation(item))
+    const Type *ptr = nullptr;
+    self().traverse([&ptr, &operation](const Type &item)
       {
-        ptr = &item;
-        return false;
-      }
-      return true;
-    });
+        if (operation(item))
+          {
+            ptr = &item;
+            return false;
+          }
+        return true;
+      });
     return ptr;
   }
 
@@ -404,7 +402,7 @@ public:
   /// @brief Version accepting rvalue operation.
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  const Type * find_ptr(Operation and operation = Operation()) const
+  const Type *find_ptr(Operation and operation = Operation()) const
   {
     return find_ptr<Operation>(operation);
   }
@@ -412,7 +410,7 @@ public:
   /// @overload
   template <class Operation>
     requires PredicateWith<Operation &, Type &>
-  Type * find_ptr(Operation and operation = Operation())
+  Type *find_ptr(Operation and operation = Operation())
   {
     return find_ptr<Operation>(operation);
   }
@@ -443,7 +441,7 @@ public:
    */
   template <class Operation>
     requires PredicateWith<Operation &, Type &>
-  std::tuple<bool, Type> find_item(Operation & operation)
+  std::tuple<bool, Type> find_item(Operation &operation)
   {
     auto ptr = find_ptr(operation);
     return ptr ? std::make_tuple(true, *ptr) : std::make_tuple(false, Type());
@@ -452,7 +450,7 @@ public:
   /// @overload
   template <class Operation>
     requires PredicateWith<Operation &, Type &>
-  std::tuple<bool, Type> find_item(Operation & operation) const
+  std::tuple<bool, Type> find_item(Operation &operation) const
   {
     auto ptr = find_ptr(operation);
     return ptr ? std::make_tuple(true, *ptr) : std::make_tuple(false, Type());
@@ -461,7 +459,7 @@ public:
   /// @overload
   template <class Operation>
     requires PredicateWith<Operation &, Type &>
-  std::tuple<bool, Type> find_item(Operation && operation = Operation())
+  std::tuple<bool, Type> find_item(Operation &&operation = Operation())
   {
     return find_item(operation);
   }
@@ -469,12 +467,11 @@ public:
   /// @overload
   template <class Operation>
     requires PredicateWith<Operation &, Type &>
-  std::tuple<bool, Type> find_item(Operation && operation = Operation()) const
+  std::tuple<bool, Type> find_item(Operation &&operation = Operation()) const
   {
     return find_item(operation);
   }
 };
-
 
 // =============================================================================
 // FunctionalMixin - Functional programming operations
@@ -506,18 +503,17 @@ template <typename Derived, typename Type>
 class FunctionalMixin
 {
 protected:
-  [[nodiscard]] const Derived& self() const noexcept
+  [[nodiscard]] const Derived &self() const noexcept
   {
-    return static_cast<const Derived&>(*this);
+    return static_cast<const Derived &>(*this);
   }
 
-  [[nodiscard]] Derived& self() noexcept
+  [[nodiscard]] Derived &self() noexcept
   {
-    return static_cast<Derived&>(*this);
+    return static_cast<Derived &>(*this);
   }
 
 public:
-
   // ---------------------------------------------------------------------------
   // Iteration
   // ---------------------------------------------------------------------------
@@ -540,33 +536,33 @@ public:
    */
   template <class Operation>
     requires CallableWith<Operation &, const Type &>
-  auto for_each(Operation & operation) const -> decltype(self())
+  auto for_each(Operation &operation) const -> decltype(self())
   {
-    self().traverse([&operation] (const Type & item)
-    {
-      operation(item);
-      return true;
-    });
+    self().traverse([&operation](const Type &item)
+      {
+        operation(item);
+        return true;
+      });
     return self();
   }
 
   /// @overload
   template <class Operation>
     requires CallableWith<Operation &, const Type &>
-  auto for_each(Operation & operation) -> decltype(self())
+  auto for_each(Operation &operation) -> decltype(self())
   {
-    self().traverse([&operation] (const Type & item)
-    {
-      operation(item);
-      return true;
-    });
+    self().traverse([&operation](const Type &item)
+      {
+        operation(item);
+        return true;
+      });
     return self();
   }
 
   /// @overload
   template <class Operation>
     requires CallableWith<Operation &, const Type &>
-  auto for_each(Operation && operation = Operation()) const -> decltype(self())
+  auto for_each(Operation &&operation = Operation()) const -> decltype(self())
   {
     return for_each<Operation>(operation);
   }
@@ -574,7 +570,7 @@ public:
   /// @overload
   template <class Operation>
     requires CallableWith<Operation &, const Type &>
-  auto for_each(Operation && operation = Operation()) -> decltype(self())
+  auto for_each(Operation &&operation = Operation()) -> decltype(self())
   {
     return for_each<Operation>(operation);
   }
@@ -596,20 +592,20 @@ public:
    */
   template <class Operation>
     requires CallableWith<Operation &, Type &>
-  auto mutable_for_each(Operation & operation) -> decltype(self())
+  auto mutable_for_each(Operation &operation) -> decltype(self())
   {
-    self().traverse([&operation] (Type & item)
-    {
-      operation(item);
-      return true;
-    });
+    self().traverse([&operation](Type &item)
+      {
+        operation(item);
+        return true;
+      });
     return self();
   }
 
   /// @overload
   template <class Operation>
     requires CallableWith<Operation &, Type &>
-  auto mutable_for_each(Operation && operation = Operation()) -> decltype(self())
+  auto mutable_for_each(Operation &&operation = Operation()) -> decltype(self())
   {
     return mutable_for_each<Operation>(operation);
   }
@@ -637,16 +633,22 @@ public:
    *  @endcode
    */
   template <class Operation>
-    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
-  [[nodiscard]] bool all(Operation & operation) const
+    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c,
+                      Operation &op) {
+      { c.template traverse<Operation>(op) } -> std::convertible_to<bool>;
+    }
+  [[nodiscard]] bool all(Operation &operation) const
   {
     return self().template traverse<Operation>(operation);
   }
 
   /// @overload
   template <class Operation>
-    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
-  [[nodiscard]] bool all(Operation && operation = Operation()) const
+    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c,
+                      Operation &op) {
+      { c.template traverse<Operation>(op) } -> std::convertible_to<bool>;
+    }
+  [[nodiscard]] bool all(Operation &&operation = Operation()) const
   {
     return all<Operation>(operation);
   }
@@ -655,16 +657,22 @@ public:
    *  @see all()
    */
   template <class Operation>
-    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
-  [[nodiscard]] bool forall(Operation & operation) const
+    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c,
+                      Operation &op) {
+      { c.template traverse<Operation>(op) } -> std::convertible_to<bool>;
+    }
+  [[nodiscard]] bool forall(Operation &operation) const
   {
     return all<Operation>(operation);
   }
 
   /// @overload
   template <class Operation>
-    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
-  [[nodiscard]] bool forall(Operation && operation = Operation()) const
+    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c,
+                      Operation &op) {
+      { c.template traverse<Operation>(op) } -> std::convertible_to<bool>;
+    }
+  [[nodiscard]] bool forall(Operation &&operation = Operation()) const
   {
     return all<Operation>(operation);
   }
@@ -689,18 +697,18 @@ public:
    */
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  [[nodiscard]] bool exists(Operation & operation) const
+  [[nodiscard]] bool exists(Operation &operation) const
   {
-    return not self().traverse([&operation] (const Type & item)
-    {
-      return not operation(item);
-    });
+    return not self().traverse([&operation](const Type &item)
+      {
+        return not operation(item);
+      });
   }
 
   /// @overload
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  [[nodiscard]] bool exists(Operation && operation = Operation()) const
+  [[nodiscard]] bool exists(Operation &&operation = Operation()) const
   {
     return exists<Operation>(operation);
   }
@@ -742,32 +750,30 @@ public:
    *  auto longs = nums.maps<long>([](int x) { return x; });
    *  @endcode
    */
-  template <typename R = void,
-            template <typename> class Container = Aleph::DynList,
+  template <typename R = void, template <typename> class Container = Aleph::DynList,
             class Operation = Dft_Map_Op<Type, std::conditional_t<std::is_void_v<R>, Type, R>>>
-    requires std::invocable<Operation &, const Type &>
-             and requires(Container<concepts_detail::map_result_t<R, Operation &, Type>> &l,
-                          Operation &op, const Type &item) { l.append(std::invoke(op, item)); }
-  [[nodiscard]] Container<concepts_detail::map_result_t<R, Operation &, Type>>
-  maps(Operation & operation) const
+    requires std::invocable<Operation &, const Type &> and
+    requires(Container<concepts_detail::map_result_t<R, Operation &, Type>> &l, Operation &op,
+             const Type &item) { l.append(std::invoke(op, item)); }
+  [[nodiscard]] Container<concepts_detail::map_result_t<R, Operation &, Type>> maps(
+    Operation &operation) const
   {
     Container<concepts_detail::map_result_t<R, Operation &, Type>> ret_val;
-    for_each([&ret_val, &operation] (const Type & item)
-    {
-      ret_val.append(std::invoke(operation, item));
-    });
+    for_each([&ret_val, &operation](const Type &item)
+      {
+        ret_val.append(std::invoke(operation, item));
+      });
     return ret_val;
   }
 
   /// @overload
-  template <typename R = void,
-            template <typename> class Container = Aleph::DynList,
+  template <typename R = void, template <typename> class Container = Aleph::DynList,
             class Operation = Dft_Map_Op<Type, std::conditional_t<std::is_void_v<R>, Type, R>>>
-    requires std::invocable<Operation &, const Type &>
-             and requires(Container<concepts_detail::map_result_t<R, Operation &, Type>> &l,
-                          Operation &op, const Type &item) { l.append(std::invoke(op, item)); }
-  [[nodiscard]] Container<concepts_detail::map_result_t<R, Operation &, Type>>
-  maps(Operation && operation = Operation()) const
+    requires std::invocable<Operation &, const Type &> and
+    requires(Container<concepts_detail::map_result_t<R, Operation &, Type>> &l, Operation &op,
+             const Type &item) { l.append(std::invoke(op, item)); }
+  [[nodiscard]] Container<concepts_detail::map_result_t<R, Operation &, Type>> maps(
+    Operation &&operation = Operation()) const
   {
     return maps<R, Container, Operation>(operation);
   }
@@ -802,14 +808,13 @@ public:
    *  @endcode
    */
   template <typename Acc = Type>
-  [[nodiscard]] Acc foldl(const Acc & init,
-                             std::function<Acc(const Acc&, const Type&)> operation) const
+  [[nodiscard]] Acc foldl(const Acc &init, std::function<Acc(const Acc &, const Type &)> operation) const
   {
     auto ret_val = init;
-    for_each([&ret_val, &operation] (const Type & item)
-    {
-      ret_val = operation(ret_val, item);
-    });
+    for_each([&ret_val, &operation](const Type &item)
+      {
+        ret_val = operation(ret_val, item);
+      });
     return ret_val;
   }
 
@@ -817,8 +822,8 @@ public:
    *  @see foldl()
    */
   template <typename Acc = Type>
-  [[nodiscard]] Acc fold_left(std::function<Acc(const Acc&, const Type&)> operation,
-                                 const Acc & init) const
+  [[nodiscard]] Acc fold_left(std::function<Acc(const Acc &, const Type &)> operation,
+                              const Acc &init) const
   {
     return foldl<Acc>(init, operation);
   }
@@ -834,20 +839,20 @@ public:
    */
   template <class Operation>
     requires requires(Type &acc, Operation &op, const Type &item) { acc = op(acc, item); }
-  [[nodiscard]] Type fold(const Type & init, Operation & operation) const
+  [[nodiscard]] Type fold(const Type &init, Operation &operation) const
   {
     auto ret_val = init;
-    for_each([&ret_val, &operation] (const Type & item)
-    {
-      ret_val = operation(ret_val, item);
-    });
+    for_each([&ret_val, &operation](const Type &item)
+      {
+        ret_val = operation(ret_val, item);
+      });
     return ret_val;
   }
 
   /// @overload
   template <class Operation>
     requires requires(Type &acc, Operation &op, const Type &item) { acc = op(acc, item); }
-  [[nodiscard]] Type fold(const Type & init, Operation && operation = Operation()) const
+  [[nodiscard]] Type fold(const Type &init, Operation &&operation = Operation()) const
   {
     return fold<Operation>(init, operation);
   }
@@ -873,21 +878,21 @@ public:
    */
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  [[nodiscard]] DynList<Type> filter(Operation & operation) const
+  [[nodiscard]] DynList<Type> filter(Operation &operation) const
   {
     DynList<Type> ret_val;
-    for_each([&ret_val, &operation] (const Type & item)
-    {
-      if (operation(item))
-        ret_val.append(item);
-    });
+    for_each([&ret_val, &operation](const Type &item)
+      {
+        if (operation(item))
+          ret_val.append(item);
+      });
     return ret_val;
   }
 
   /// @overload
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  [[nodiscard]] DynList<Type> filter(Operation && operation = Operation()) const
+  [[nodiscard]] DynList<Type> filter(Operation &&operation = Operation()) const
   {
     return filter<Operation>(operation);
   }
@@ -909,23 +914,23 @@ public:
    */
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  [[nodiscard]] DynList<std::tuple<Type, size_t>> pfilter(Operation & operation) const
+  [[nodiscard]] DynList<std::tuple<Type, size_t>> pfilter(Operation &operation) const
   {
     DynList<std::tuple<Type, size_t>> ret_val;
     size_t i = 0;
-    for_each([&ret_val, &operation, &i] (const Type & item)
-    {
-      if (operation(item))
-        ret_val.append(std::make_tuple(item, i));
-      ++i;
-    });
+    for_each([&ret_val, &operation, &i](const Type &item)
+      {
+        if (operation(item))
+          ret_val.append(std::make_tuple(item, i));
+        ++i;
+      });
     return ret_val;
   }
 
   /// @overload
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  [[nodiscard]] DynList<std::tuple<Type, size_t>> pfilter(Operation && operation = Operation()) const
+  [[nodiscard]] DynList<std::tuple<Type, size_t>> pfilter(Operation &&operation = Operation()) const
   {
     return pfilter<Operation>(operation);
   }
@@ -948,23 +953,23 @@ public:
    */
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  [[nodiscard]] std::pair<DynList<Type>, DynList<Type>> partition(Operation & op) const
+  [[nodiscard]] std::pair<DynList<Type>, DynList<Type>> partition(Operation &op) const
   {
     std::pair<DynList<Type>, DynList<Type>> ret_val;
-    for_each([&ret_val, &op] (const Type & item)
-    {
-      if (op(item))
-        ret_val.first.append(item);
-      else
-        ret_val.second.append(item);
-    });
+    for_each([&ret_val, &op](const Type &item)
+      {
+        if (op(item))
+          ret_val.first.append(item);
+        else
+          ret_val.second.append(item);
+      });
     return ret_val;
   }
 
   /// @overload
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  [[nodiscard]] std::pair<DynList<Type>, DynList<Type>> partition(Operation && op = Operation()) const
+  [[nodiscard]] std::pair<DynList<Type>, DynList<Type>> partition(Operation &&op = Operation()) const
   {
     return partition<Operation>(op);
   }
@@ -974,23 +979,23 @@ public:
    */
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  [[nodiscard]] std::tuple<DynList<Type>, DynList<Type>> tpartition(Operation & op) const
+  [[nodiscard]] std::tuple<DynList<Type>, DynList<Type>> tpartition(Operation &op) const
   {
     DynList<Type> r1, r2;
-    for_each([&r1, &r2, &op] (const Type & item)
-    {
-      if (op(item))
-        r1.append(item);
-      else
-        r2.append(item);
-    });
+    for_each([&r1, &r2, &op](const Type &item)
+      {
+        if (op(item))
+          r1.append(item);
+        else
+          r2.append(item);
+      });
     return std::make_tuple(r1, r2);
   }
 
   /// @overload
   template <class Operation>
     requires PredicateWith<Operation &, const Type &>
-  [[nodiscard]] std::tuple<DynList<Type>, DynList<Type>> tpartition(Operation && op = Operation()) const
+  [[nodiscard]] std::tuple<DynList<Type>, DynList<Type>> tpartition(Operation &&op = Operation()) const
   {
     return tpartition<Operation>(op);
   }
@@ -1011,7 +1016,10 @@ public:
   [[nodiscard]] size_t length() const noexcept
   {
     size_t count = 0;
-    for_each([&count] (const Type &) { ++count; });
+    for_each([&count](const Type &)
+      {
+        ++count;
+      });
     return count;
   }
 
@@ -1034,10 +1042,10 @@ public:
   [[nodiscard]] Container<Type> rev() const
   {
     Container<Type> ret_val;
-    for_each([&ret_val] (const Type & item)
-    {
-      ret_val.insert(item);
-    });
+    for_each([&ret_val](const Type &item)
+      {
+        ret_val.insert(item);
+      });
     return ret_val;
   }
 
@@ -1066,13 +1074,13 @@ public:
   {
     size_t i = 0;
     Container<Type> ret;
-    self().traverse([&i, &ret, n] (const Type & item)
-    {
-      if (i++ >= n)
-        return false;
-      ret.append(item);
-      return true;
-    });
+    self().traverse([&i, &ret, n](const Type &item)
+      {
+        if (i++ >= n)
+          return false;
+        ret.append(item);
+        return true;
+      });
     return ret;
   }
 
@@ -1097,12 +1105,12 @@ public:
   {
     size_t i = 0;
     Container<Type> ret;
-    self().traverse([&i, &ret, n] (const Type & item)
-    {
-      if (i++ >= n)
-        ret.append(item);
-      return true;
-    });
+    self().traverse([&i, &ret, n](const Type &item)
+      {
+        if (i++ >= n)
+          ret.append(item);
+        return true;
+      });
     return ret;
   }
 
@@ -1128,14 +1136,16 @@ public:
    *  auto offset = list.sum(10);   // 25
    *  @endcode
    */
-  [[nodiscard]] Type sum(const Type & init = Type{}) const
-    requires requires(Type a, Type b) { { a + b } -> std::convertible_to<Type>; }
+  [[nodiscard]] Type sum(const Type &init = Type{}) const
+    requires requires(Type a, Type b) {
+      { a + b } -> std::convertible_to<Type>;
+    }
   {
     Type result = init;
-    for_each([&result] (const Type & item)
-    {
-      result = result + item;
-    });
+    for_each([&result](const Type &item)
+      {
+        result = result + item;
+      });
     return result;
   }
 
@@ -1156,14 +1166,16 @@ public:
    *  auto prod = list.product(1);  // 24
    *  @endcode
    */
-  [[nodiscard]] Type product(const Type & init) const
-    requires requires(Type a, Type b) { { a * b } -> std::convertible_to<Type>; }
+  [[nodiscard]] Type product(const Type &init) const
+    requires requires(Type a, Type b) {
+      { a * b } -> std::convertible_to<Type>;
+    }
   {
     Type result = init;
-    for_each([&result] (const Type & item)
-    {
-      result = result * item;
-    });
+    for_each([&result](const Type &item)
+      {
+        result = result * item;
+      });
     return result;
   }
 
@@ -1183,15 +1195,17 @@ public:
    *  auto min_ptr = list.min();  // points to 1
    *  @endcode
    */
-  [[nodiscard]] const Type * min() const
-    requires requires(Type a, Type b) { { a < b } -> std::convertible_to<bool>; }
+  [[nodiscard]] const Type *min() const
+    requires requires(Type a, Type b) {
+      { a < b } -> std::convertible_to<bool>;
+    }
   {
-    const Type * result = nullptr;
-    for_each([&result] (const Type & item)
-    {
-      if (result == nullptr or item < *result)
-        result = &item;
-    });
+    const Type *result = nullptr;
+    for_each([&result](const Type &item)
+      {
+        if (result == nullptr or item < *result)
+          result = &item;
+      });
     return result;
   }
 
@@ -1211,15 +1225,17 @@ public:
    *  auto max_ptr = list.max();  // points to 5
    *  @endcode
    */
-  [[nodiscard]] const Type * max() const
-    requires requires(Type a, Type b) { { a < b } -> std::convertible_to<bool>; }
+  [[nodiscard]] const Type *max() const
+    requires requires(Type a, Type b) {
+      { a < b } -> std::convertible_to<bool>;
+    }
   {
-    const Type * result = nullptr;
-    for_each([&result] (const Type & item)
-    {
-      if (result == nullptr or *result < item)
-        result = &item;
-    });
+    const Type *result = nullptr;
+    for_each([&result](const Type &item)
+      {
+        if (result == nullptr or *result < item)
+          result = &item;
+      });
     return result;
   }
 
@@ -1235,21 +1251,21 @@ public:
    *  @par Example
    *  @code
    *  DynList<std::string> list = {"apple", "pie", "a"};
-   *  auto shortest = list.min_by([](auto& a, auto& b) { 
-   *    return a.length() < b.length(); 
+   *  auto shortest = list.min_by([](auto& a, auto& b) {
+   *    return a.length() < b.length();
    *  });  // points to "a"
    *  @endcode
    */
   template <class Compare>
     requires PredicateWith<Compare &, const Type &, const Type &>
-  [[nodiscard]] const Type * min_by(Compare cmp) const
+  [[nodiscard]] const Type *min_by(Compare cmp) const
   {
-    const Type * result = nullptr;
-    for_each([&result, &cmp] (const Type & item)
-    {
-      if (result == nullptr or cmp(item, *result))
-        result = &item;
-    });
+    const Type *result = nullptr;
+    for_each([&result, &cmp](const Type &item)
+      {
+        if (result == nullptr or cmp(item, *result))
+          result = &item;
+      });
     return result;
   }
 
@@ -1265,21 +1281,21 @@ public:
    *  @par Example
    *  @code
    *  DynList<std::string> list = {"apple", "pie", "a"};
-   *  auto longest = list.max_by([](auto& a, auto& b) { 
-   *    return a.length() < b.length(); 
+   *  auto longest = list.max_by([](auto& a, auto& b) {
+   *    return a.length() < b.length();
    *  });  // points to "apple"
    *  @endcode
    */
   template <class Compare>
     requires PredicateWith<Compare &, const Type &, const Type &>
-  [[nodiscard]] const Type * max_by(Compare cmp) const
+  [[nodiscard]] const Type *max_by(Compare cmp) const
   {
-    const Type * result = nullptr;
-    for_each([&result, &cmp] (const Type & item)
-    {
-      if (result == nullptr or cmp(*result, item))
-        result = &item;
-    });
+    const Type *result = nullptr;
+    for_each([&result, &cmp](const Type &item)
+      {
+        if (result == nullptr or cmp(*result, item))
+          result = &item;
+      });
     return result;
   }
 
@@ -1308,10 +1324,15 @@ public:
    *  list.has_value(5);  // false
    *  @endcode
    */
-  [[nodiscard]] bool has_value(const Type & val) const
-    requires requires(Type a, Type b) { { a == b } -> std::convertible_to<bool>; }
+  [[nodiscard]] bool has_value(const Type &val) const
+    requires requires(Type a, Type b) {
+      { a == b } -> std::convertible_to<bool>;
+    }
   {
-    return exists([&val] (const Type & item) { return item == val; });
+    return exists([&val](const Type &item)
+      {
+        return item == val;
+      });
   }
 
   /** @brief Check if no element satisfies a predicate.
@@ -1333,7 +1354,7 @@ public:
    */
   template <class Predicate>
     requires PredicateWith<Predicate &, const Type &>
-  [[nodiscard]] bool none(Predicate & pred) const
+  [[nodiscard]] bool none(Predicate &pred) const
   {
     return not exists(pred);
   }
@@ -1341,7 +1362,7 @@ public:
   /// \overload
   template <class Predicate>
     requires PredicateWith<Predicate &, const Type &>
-  [[nodiscard]] bool none(Predicate && pred) const
+  [[nodiscard]] bool none(Predicate &&pred) const
   {
     return not exists(std::forward<Predicate>(pred));
   }
@@ -1366,11 +1387,11 @@ public:
   [[nodiscard]] size_t count_if(Predicate pred) const
   {
     size_t count = 0;
-    for_each([&count, &pred] (const Type & item)
-    {
-      if (pred(item))
-        ++count;
-    });
+    for_each([&count, &pred](const Type &item)
+      {
+        if (pred(item))
+          ++count;
+      });
     return count;
   }
 
@@ -1391,14 +1412,14 @@ public:
    *  auto first_ptr = list.first();  // points to 1
    *  @endcode
    */
-  [[nodiscard]] const Type * first() const
+  [[nodiscard]] const Type *first() const
   {
-    const Type * result = nullptr;
-    self().traverse([&result] (const Type & item)
-    {
-      result = &item;
-      return false;  // stop after first
-    });
+    const Type *result = nullptr;
+    self().traverse([&result](const Type &item)
+      {
+        result = &item;
+        return false;  // stop after first
+      });
     return result;
   }
 
@@ -1416,7 +1437,7 @@ public:
    *  auto val = empty.first_or(-1);  // -1
    *  @endcode
    */
-  [[nodiscard]] Type first_or(const Type & default_val) const
+  [[nodiscard]] Type first_or(const Type &default_val) const
   {
     auto ptr = first();
     return ptr ? *ptr : default_val;
@@ -1435,13 +1456,13 @@ public:
    *  auto last_ptr = list.last();  // points to 3
    *  @endcode
    */
-  [[nodiscard]] const Type * last() const
+  [[nodiscard]] const Type *last() const
   {
-    const Type * result = nullptr;
-    for_each([&result] (const Type & item)
-    {
-      result = &item;
-    });
+    const Type *result = nullptr;
+    for_each([&result](const Type &item)
+      {
+        result = &item;
+      });
     return result;
   }
 
@@ -1459,7 +1480,7 @@ public:
    *  auto val = empty.last_or(-1);  // -1
    *  @endcode
    */
-  [[nodiscard]] Type last_or(const Type & default_val) const
+  [[nodiscard]] Type last_or(const Type &default_val) const
   {
     auto ptr = last();
     return ptr ? *ptr : default_val;
@@ -1490,10 +1511,10 @@ public:
   {
     Container<std::pair<size_t, Type>> ret;
     size_t idx = 0;
-    for_each([&ret, &idx] (const Type & item)
-    {
-      ret.append(std::make_pair(idx++, item));
-    });
+    for_each([&ret, &idx](const Type &item)
+      {
+        ret.append(std::make_pair(idx++, item));
+      });
     return ret;
   }
 
@@ -1519,13 +1540,13 @@ public:
   [[nodiscard]] size_t find_index(Predicate pred) const
   {
     size_t idx = 0;
-    self().traverse([&idx, &pred] (const Type & item)
-    {
-      if (pred(item))
-        return false;
-      ++idx;
-      return true;
-    });
+    self().traverse([&idx, &pred](const Type &item)
+      {
+        if (pred(item))
+          return false;
+        ++idx;
+        return true;
+      });
     return idx;
   }
 
@@ -1547,10 +1568,15 @@ public:
    *  auto bad = list.index_of(99); // 5, list.size()
    *  @endcode
    */
-  [[nodiscard]] size_t index_of(const Type & val) const
-    requires requires(Type a, Type b) { { a == b } -> std::convertible_to<bool>; }
+  [[nodiscard]] size_t index_of(const Type &val) const
+    requires requires(Type a, Type b) {
+      { a == b } -> std::convertible_to<bool>;
+    }
   {
-    return find_index([&val] (const Type & item) { return item == val; });
+    return find_index([&val](const Type &item)
+      {
+        return item == val;
+      });
   }
 
   // ---------------------------------------------------------------------------
@@ -1576,18 +1602,20 @@ public:
    */
   template <template <typename> class Container = Aleph::DynList>
   [[nodiscard]] Container<Type> unique() const
-    requires requires(Type a, Type b) { { a == b } -> std::convertible_to<bool>; }
+    requires requires(Type a, Type b) {
+      { a == b } -> std::convertible_to<bool>;
+    }
   {
     Container<Type> ret;
-    const Type * prev = nullptr;
-    for_each([&ret, &prev] (const Type & item)
-    {
-      if (prev == nullptr or not (*prev == item))
+    const Type *prev = nullptr;
+    for_each([&ret, &prev](const Type &item)
       {
-        ret.append(item);
-        prev = &item;
-      }
-    });
+        if (prev == nullptr or not (*prev == item))
+          {
+            ret.append(item);
+            prev = &item;
+          }
+      });
     return ret;
   }
 
@@ -1614,15 +1642,15 @@ public:
   [[nodiscard]] Container<Type> unique_by(EqPred eq) const
   {
     Container<Type> ret;
-    const Type * prev = nullptr;
-    for_each([&ret, &prev, &eq] (const Type & item)
-    {
-      if (prev == nullptr or not eq(*prev, item))
+    const Type *prev = nullptr;
+    for_each([&ret, &prev, &eq](const Type &item)
       {
-        ret.append(item);
-        prev = &item;
-      }
-    });
+        if (prev == nullptr or not eq(*prev, item))
+          {
+            ret.append(item);
+            prev = &item;
+          }
+      });
     return ret;
   }
 
@@ -1642,17 +1670,17 @@ public:
    *  @endcode
    */
   template <template <typename> class Container = Aleph::DynList>
-  [[nodiscard]] Container<Type> intersperse(const Type & sep) const
+  [[nodiscard]] Container<Type> intersperse(const Type &sep) const
   {
     Container<Type> ret;
     bool first = true;
-    for_each([&ret, &sep, &first] (const Type & item)
-    {
-      if (not first)
-        ret.append(sep);
-      ret.append(item);
-      first = false;
-    });
+    for_each([&ret, &sep, &first](const Type &item)
+      {
+        if (not first)
+          ret.append(sep);
+        ret.append(item);
+        first = false;
+      });
     return ret;
   }
 
@@ -1679,21 +1707,22 @@ public:
   [[nodiscard]] Container<Container<Type>> chunk(size_t n) const
   {
     Container<Container<Type>> ret;
-    if (n == 0) return ret;
+    if (n == 0)
+      return ret;
 
     Container<Type> current;
     size_t count = 0;
 
-    for_each([&ret, &current, &count, n] (const Type & item)
-    {
-      current.append(item);
-      if (++count >= n)
+    for_each([&ret, &current, &count, n](const Type &item)
       {
-        ret.append(std::move(current));
-        current = Container<Type>{};
-        count = 0;
-      }
-    });
+        current.append(item);
+        if (++count >= n)
+          {
+            ret.append(std::move(current));
+            current = Container<Type>{};
+            count = 0;
+          }
+      });
 
     if (count > 0)
       ret.append(std::move(current));
@@ -1722,28 +1751,33 @@ public:
   [[nodiscard]] Container<Container<Type>> sliding(size_t size, size_t step = 1) const
   {
     Container<Container<Type>> ret;
-    if (size == 0 or step == 0) return ret;
+    if (size == 0 or step == 0)
+      return ret;
 
     // Collect all elements first
     Container<Type> all;
-    for_each([&all] (const Type & item) { all.append(item); });
+    for_each([&all](const Type &item)
+      {
+        all.append(item);
+      });
 
     size_t total = all.size();
-    if (total < size) return ret;
+    if (total < size)
+      return ret;
 
     for (size_t start = 0; start + size <= total; start += step)
-    {
-      Container<Type> window;
-      size_t idx = 0;
-      all.traverse([&window, &idx, start, size] (const Type & item)
       {
-        if (idx >= start and idx < start + size)
-          window.append(item);
-        ++idx;
-        return idx < start + size;
-      });
-      ret.append(std::move(window));
-    }
+        Container<Type> window;
+        size_t idx = 0;
+        all.traverse([&window, &idx, start, size](const Type &item)
+          {
+            if (idx >= start and idx < start + size)
+              window.append(item);
+            ++idx;
+            return idx < start + size;
+          });
+        ret.append(std::move(window));
+      }
 
     return ret;
   }
@@ -1770,7 +1804,10 @@ public:
     std::vector<Type> ret;
     if constexpr (requires { self().size(); })
       ret.reserve(self().size());
-    for_each([&ret] (const Type & item) { ret.push_back(item); });
+    for_each([&ret](const Type &item)
+      {
+        ret.push_back(item);
+      });
     return ret;
   }
 
@@ -1796,7 +1833,10 @@ public:
   [[nodiscard]] DynListType to_dynlist() const
   {
     DynListType ret;
-    for_each([&ret] (const Type & item) { ret.append(item); });
+    for_each([&ret](const Type &item)
+      {
+        ret.append(item);
+      });
     return ret;
   }
 
@@ -1818,18 +1858,18 @@ public:
    *  @endcode
    */
   template <typename StringType = std::string>
-  [[nodiscard]] StringType join(const StringType & sep = StringType{", "}) const
+  [[nodiscard]] StringType join(const StringType &sep = StringType{", "}) const
     requires requires(Type a) { std::to_string(a); }
   {
     StringType ret;
     bool first = true;
-    for_each([&ret, &sep, &first] (const Type & item)
-    {
-      if (not first)
-        ret += sep;
-      ret += std::to_string(item);
-      first = false;
-    });
+    for_each([&ret, &sep, &first](const Type &item)
+      {
+        if (not first)
+          ret += sep;
+        ret += std::to_string(item);
+        first = false;
+      });
     return ret;
   }
 
@@ -1847,18 +1887,18 @@ public:
    *  auto s = list.join_str("-");  // "a-b-c"
    *  @endcode
    */
-  [[nodiscard]] std::string join_str(const std::string & sep = ", ") const
+  [[nodiscard]] std::string join_str(const std::string &sep = ", ") const
     requires std::is_convertible_v<Type, std::string>
   {
     std::string ret;
     bool first = true;
-    for_each([&ret, &sep, &first] (const Type & item)
-    {
-      if (not first)
-        ret += sep;
-      ret += static_cast<std::string>(item);
-      first = false;
-    });
+    for_each([&ret, &sep, &first](const Type &item)
+      {
+        if (not first)
+          ret += sep;
+        ret += static_cast<std::string>(item);
+        first = false;
+      });
     return ret;
   }
 
@@ -1886,8 +1926,7 @@ public:
    *  @endcode
    */
   template <class Other, template <typename> class Container = Aleph::DynList>
-  [[nodiscard]] Container<std::pair<Type, typename Other::Item_Type>> 
-  zip_with(const Other & other) const
+  [[nodiscard]] Container<std::pair<Type, typename Other::Item_Type>> zip_with(const Other &other) const
   {
     using OtherType = typename Other::Item_Type;
     Container<std::pair<Type, OtherType>> ret;
@@ -1896,16 +1935,15 @@ public:
     auto it2 = other.get_it();
 
     while (it1.has_curr() and it2.has_curr())
-    {
-      ret.append(std::make_pair(it1.get_curr(), it2.get_curr()));
-      it1.next();
-      it2.next();
-    }
+      {
+        ret.append(std::make_pair(it1.get_curr(), it2.get_curr()));
+        it1.next();
+        it2.next();
+      }
 
     return ret;
   }
 };
-
 
 // =============================================================================
 // KeysMixin - Keys/Items extraction
@@ -1920,9 +1958,9 @@ template <typename Derived, typename Type>
 class KeysMixin
 {
 protected:
-  [[nodiscard]] const Derived& self() const noexcept
+  [[nodiscard]] const Derived &self() const noexcept
   {
-    return static_cast<const Derived&>(*this);
+    return static_cast<const Derived &>(*this);
   }
 
 public:
@@ -1934,10 +1972,10 @@ public:
   template <template <typename> class Container = DynList>
   [[nodiscard]] Container<Type> keys() const
   {
-    return self().template maps<Type, Container>([] (const Type & key)
-    {
-      return key;
-    });
+    return self().template maps<Type, Container>([](const Type &key)
+      {
+        return key;
+      });
   }
 
   /** @brief Alias for keys().
@@ -1950,8 +1988,6 @@ public:
   }
 };
 
+}  // end namespace Aleph
 
-} // end namespace Aleph
-
-#endif // AH_DRY_MIXIN_H
-
+#endif  // AH_DRY_MIXIN_H

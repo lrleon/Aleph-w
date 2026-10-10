@@ -1824,30 +1824,79 @@ template <class C1, class C2>
   return Pair_Iterator<decltype(i1), decltype(i2)>(i1, i2);
 }
 
+/// @cond INTERNAL
+namespace functional_detail {
+
+/* Whether the insert() or append() call that returned `result` added its
+   item. A container that may refuse an item (a set, for a key it already
+   holds) returns a pointer, null when it refuses it; any other result means
+   that the item was added. */
+template <class Result>
+constexpr bool added_item(const Result &result) noexcept
+{
+  if constexpr (std::is_pointer_v<Result>)
+    return result != nullptr;
+  else
+    return true;
+}
+
+/// Append `item` to `c`; return whether `c` added it.
+template <class C, class Item>
+bool append_one(C &c, Item &&item)
+{
+  if constexpr (std::is_void_v<decltype(c.append(std::forward<Item>(item)))>)
+    {
+      c.append(std::forward<Item>(item));
+      return true;
+    }
+  else
+    return added_item(c.append(std::forward<Item>(item)));
+}
+
+/// Insert `item` into `c`; return whether `c` added it.
+template <class C, class Item>
+bool insert_one(C &c, Item &&item)
+{
+  if constexpr (std::is_void_v<decltype(c.insert(std::forward<Item>(item)))>)
+    {
+      c.insert(std::forward<Item>(item));
+      return true;
+    }
+  else
+    return added_item(c.insert(std::forward<Item>(item)));
+}
+
+}  // namespace functional_detail
+/// @endcond
+
 /** @brief Insert multiple items into a container.
 
     Each item is passed to `c.insert()`, in argument order; an rvalue is
     moved.
-    @return Number of items inserted.
+    @return Number of items the container added: a set leaves out a key it
+    already holds (its `insert()` returns a null pointer then).
 */
 template <class C, typename... Args>
 inline size_t insert_in_container(C &c, Args &&... args)
 {
-  ((void) c.insert(std::forward<Args>(args)), ...);
-  return sizeof...(args);
+  size_t n = 0;
+  ((n += (functional_detail::insert_one(c, std::forward<Args>(args)) ? 1 : 0)), ...);
+  return n;
 }
 
 /** @brief Append multiple items into a container.
 
     Each item is passed to `c.append()`, in argument order; an rvalue is
     moved.
-    @return Number of items appended.
+    @return Number of items the container added: a set leaves out a key it
+    already holds (its `append()` returns a null pointer then).
 */
 template <class C, typename... Args>
 inline size_t append_in_container(C &c, Args &&... args)
 {
-  ((void) c.append(std::forward<Args>(args)), ...);
-  return sizeof...(args);
+  size_t n = 0;
+  ((n += (functional_detail::append_one(c, std::forward<Args>(args)) ? 1 : 0)), ...);
+  return n;
 }
 
 /** @brief Build a container with the given items.

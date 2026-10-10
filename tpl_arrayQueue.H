@@ -746,13 +746,29 @@ public:
       delete[] array;
   }
 
-  /// Copy constructor
+  /** Copy constructor: the copy holds the items of `q`, in the same slots.
+
+      @param[in] q the queue to copy.
+      @throw bad_alloc if there is no enough memory, or anything that the
+             copy assignment of `T` throws; nothing leaks then.
+  */
   FixedQueue(const FixedQueue &q)
     : dim(q.dim), array(new T[dim]), front_index(q.front_index), rear_index(q.rear_index),
       mask(q.mask), num_items(q.num_items)
   {
-    for (size_t i = front_index; i != rear_index; ++i)
-      array[i] = q.array[i];
+    try
+      {
+        // num_items slots along the circular index. Comparing with
+        // rear_index copied nothing from a full queue (front_index equals
+        // rear_index then) and ran past the buffer when the queue wraps.
+        for (size_t i = 0, idx = front_index; i < num_items; ++i, increase_index(idx))
+          array[idx] = q.array[idx];
+      }
+    catch (...)
+      {
+        delete[] array;  // the destructor does not run when a constructor throws
+        throw;
+      }
   }
 
   /// Move constructor
@@ -879,7 +895,7 @@ public:
   T &front(const size_t i = 0) noexcept
   {
     assert(i < num_items);
-    return array[front_index + i];
+    return array[(front_index + i) & mask];
   }
 
   /// \overload
@@ -887,7 +903,7 @@ public:
   const T &front(const size_t i = 0) const noexcept
   {
     assert(i < num_items);
-    return array[front_index + i];
+    return array[(front_index + i) & mask];
   }
 
   /** Return the i-th youngest item

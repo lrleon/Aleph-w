@@ -94,13 +94,9 @@ DECLARE_BINNODE_SENTINEL(RbNodeRk, 128, RbNodeRk_Data);
 template <class Node>
 bool test_black_condition_rk(Node *p, int &max, int bh = 0)
 {
+  // A path ends at NullPtr, not at a leaf: a node with a single child
+  // also ends one, through its missing child.
   if (p == Node::NullPtr)
-    return true;
-
-  if (COLOR(p) == BLACK)
-    bh++;
-
-  if (LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr)
     {
       if (max == -1)
         max = bh;
@@ -108,8 +104,53 @@ bool test_black_condition_rk(Node *p, int &max, int bh = 0)
       return bh == max;
     }
 
+  if (COLOR(p) == BLACK)
+    bh++;
+
   return test_black_condition_rk(LLINK(p), max, bh) and
          test_black_condition_rk(RLINK(p), max, bh);
+}
+
+/** Black height of a ranked red-black subtree, checking all its nodes.
+
+    In one traversal, checks every node of the subtree rooted at `p`: its
+    counter is the size of its subtree, its color is RED or BLACK, a red
+    node has no red child, and every path from `p` down to `Node::NullPtr`
+    crosses the same number of black nodes.
+
+    @param p root of subtree
+    @return the number of black nodes of each path, or -1 if a property is
+            violated
+    @note O(n).
+*/
+template <class Node>
+int red_black_height_rk(Node *p) noexcept
+{
+  if (p == Node::NullPtr)
+    return 0;
+
+  if (p->getCount() != LLINK(p)->getCount() + RLINK(p)->getCount() + 1)
+    return -1;
+
+  if (not (COLOR(p) == RED or COLOR(p) == BLACK))
+    return -1;
+
+  if (COLOR(p) == RED)
+    {
+      if (LLINK(p) != Node::NullPtr and COLOR(LLINK(p)) == RED)
+        return -1;
+      if (RLINK(p) != Node::NullPtr and COLOR(RLINK(p)) == RED)
+        return -1;
+    }
+
+  const int left_height = red_black_height_rk(LLINK(p));
+  if (left_height < 0)
+    return -1;
+
+  if (red_black_height_rk(RLINK(p)) != left_height)
+    return -1;
+
+  return left_height + (COLOR(p) == BLACK ? 1 : 0);
 }
 
 /** Verify if tree rooted at node is a valid red-black tree.
@@ -137,27 +178,17 @@ bool is_red_black_rk(Node * node)
 
 /** Verify if tree is a valid red-black tree with correct counters.
 
+    Checks every node: valid colors, no red node with a red child, the same
+    number of black nodes on every path down to `Node::NullPtr`, and the
+    counter of each subtree. `node` itself can be red or black.
+
     @param node root of tree
     @return true if tree is valid
 */
 template <class Node>
 bool is_red_black_tree_rk(Node * node)
 {
-  if (node == Node::NullPtr)
-    return true;
-
-  // Check counter
-  if (node->getCount() != LLINK(node)->getCount() + RLINK(node)->getCount() + 1)
-    return false;
-
-  if (not is_red_black_rk(node))
-    return false;
-
-  if (not is_red_black_tree_rk(LLINK(node)) or
-      not is_red_black_tree_rk(RLINK(node)))
-    return false;
-
-  return true;
+  return red_black_height_rk(node) >= 0;
 }
 
 /** Verify that tree rooted at node is a valid red-black BST with counters.

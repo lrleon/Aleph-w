@@ -235,6 +235,32 @@ TEST_F(DynSkipListTest, Find)
   EXPECT_THROW((void)sl.find(43), std::domain_error);
 }
 
+TEST_F(DynSkipListTest, AppendOfARepeatedKeyReturnsTheKeyInTheSet)
+{
+  // append(Key &&) used to throw for a key already in the set, while
+  // append(const Key &) returned it: `s.append(1); s.append(1);` threw.
+  const int & first = sl.append(1);
+  EXPECT_EQ(&sl.append(1), &first);  // repeated, as an rvalue
+
+  const int one = 1;
+  EXPECT_EQ(&sl.append(one), &first);  // repeated, as an lvalue
+
+  EXPECT_EQ(sl.size(), 1u);
+  EXPECT_EQ(sl.append(2), 2);
+  EXPECT_EQ(sl.size(), 2u);
+}
+
+TEST_F(DynSkipListTest, FindOnConstantList)
+{
+  // The constant find() used to store the const Key * of search() in a
+  // Key *, which did not compile.
+  sl.insert(42);
+  const auto & csl = sl;
+
+  EXPECT_EQ(csl.find(42), 42);
+  EXPECT_THROW((void) csl.find(43), std::domain_error);
+}
+
 // ============================================================================
 // Remove Tests
 // ============================================================================

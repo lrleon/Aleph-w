@@ -64,6 +64,7 @@
 #include <tpl_dynMapTree.H>
 #include <tpl_dynSetHash.H>
 #include <tpl_dynSetTree.H>
+#include <tpl_dynSkipList.H>
 #include <tpl_dynTreap.H>
 #include <tpl_dynarray_set.H>
 #include <tpl_hash.H>
@@ -123,6 +124,18 @@ namespace
   concept Buildable = requires (Items &&... items)
     {
       C::build(std::forward<Items>(items)...);
+    };
+
+  template <class C, class... Items>
+  concept Can_Nappend = requires (C & c, Items &&... items)
+    {
+      c.nappend(std::forward<Items>(items)...);
+    };
+
+  template <class C, class... Items>
+  concept Can_Ninsert = requires (C & c, Items &&... items)
+    {
+      c.ninsert(std::forward<Items>(items)...);
     };
 }
 
@@ -267,6 +280,14 @@ TEST(ContainerBuild, SetsKeepOneItemPerKey)
 
   // DynArray_Set allows repeated items.
   EXPECT_EQ(DynArray_Set<int>::build(3, 1, 3).size(), 3u);
+
+  // A skip list too, for rvalue and for lvalue items: its append() of an
+  // rvalue used to throw for a key already in the set.
+  const auto skip = DynSkipList<int>::build(3, 1, 2, 1);
+  EXPECT_EQ(items_of(skip), (std::vector<int>{1, 2, 3}));
+  EXPECT_EQ(items_of(skip), items_of(DynSkipList<int>{3, 1, 2, 1}));
+  const int one = 1;
+  EXPECT_EQ(DynSkipList<int>::build(one, one).size(), 1u);
 }
 
 TEST(ContainerBuild, MapsKeepTheFirstOfTwoEqualKeys)
@@ -384,6 +405,99 @@ TEST(ContainerBuild, NappendAndNinsertForwardTheirItems)
   ASSERT_EQ(list.size(), 3u);
   EXPECT_EQ(*list.get_first(), 0);
   EXPECT_EQ(*list.get_last(), 2);
+}
+
+TEST(ContainerBuild, NappendKeepsTheArgumentOrderAndNinsertFollowsInsert)
+{
+  DynList<int> appended;
+  EXPECT_EQ(appended.nappend(1, 2, 3), 3u);
+  EXPECT_EQ(items_of(appended), (std::vector<int>{1, 2, 3}));
+
+  // DynList::insert() puts each item first: the last argument ends first.
+  DynList<int> inserted;
+  EXPECT_EQ(inserted.ninsert(1, 2, 3), 3u);
+  EXPECT_EQ(items_of(inserted), (std::vector<int>{3, 2, 1}));
+
+  // ArrayQueue::insert() is put(): the queue keeps the argument order.
+  ArrayQueue<int> queue;
+  EXPECT_EQ(queue.ninsert(1, 2, 3), 3u);
+  EXPECT_EQ(items_of(queue), (std::vector<int>{1, 2, 3}));
+}
+
+TEST(ContainerBuild, NappendAndNinsertCountTheItemsAdded)
+{
+  // They returned the number of arguments, also when a set refused some.
+  DynSetTree<int> tree;
+  EXPECT_EQ(tree.ninsert(1, 1, 2), 2u);
+  EXPECT_EQ(tree.nappend(2, 3, 3), 1u);
+  EXPECT_EQ(items_of(tree), (std::vector<int>{1, 2, 3}));
+
+  DynSetHash<int> hash;
+  EXPECT_EQ(hash.nappend(5, 5, 5), 1u);
+  EXPECT_EQ(hash.ninsert(5, 6), 1u);
+  EXPECT_EQ(hash.size(), 2u);
+
+  using Pair = std::pair<int, std::string>;
+  DynMapTree<int, std::string> map;
+  EXPECT_EQ(map.nappend(Pair{1, "one"}, Pair{1, "uno"}, Pair{2, "two"}), 2u);
+  EXPECT_EQ(map.size(), 2u);
+  EXPECT_EQ(map.find(1), "one");
+
+  // ninsert() of a skip list counts the keys it adds. Its append() returns
+  // the key already in the set, so nappend() cannot tell them apart.
+  DynSkipList<int> skip;
+  EXPECT_EQ(skip.ninsert(1, 1, 2), 2u);
+  (void) skip.nappend(2, 3);
+  EXPECT_EQ(items_of(skip), (std::vector<int>{1, 2, 3}));
+
+  // The free functions follow the same rule.
+  DynSetTree<int> other;
+  EXPECT_EQ(append_in_container(other, 1, 1, 2), 2u);
+  EXPECT_EQ(insert_in_container(other, 2, 3), 1u);
+  EXPECT_EQ(items_of(other), (std::vector<int>{1, 2, 3}));
+
+  // A sequence adds every item.
+  DynList<int> list;
+  EXPECT_EQ(list.nappend(1, 1, 1), 3u);
+  EXPECT_EQ(append_in_container(list, 1, 1), 2u);
+  EXPECT_EQ(list.size(), 5u);
+}
+
+TEST(ContainerBuild, NappendAndNinsertKeepTheItemsAddedBeforeAThrow)
+{
+  DynList<int> appended;
+  EXPECT_THROW((void) appended.nappend(1, 2, Throws_On_Conversion{}, 4), std::runtime_error);
+  EXPECT_EQ(items_of(appended), (std::vector<int>{1, 2}));
+
+  DynList<int> inserted;
+  EXPECT_THROW((void) inserted.ninsert(1, Throws_On_Conversion{}, 3), std::runtime_error);
+  EXPECT_EQ(items_of(inserted), (std::vector<int>{1}));
+}
+
+TEST(ContainerBuild, NappendAndNinsertConvertAndMoveTheirItems)
+{
+  DynList<long> longs;
+  EXPECT_EQ(longs.nappend(1, short{2}, 3L), 3u);
+  EXPECT_EQ(items_of(longs), (std::vector<long>{1, 2, 3}));
+
+  DynList<std::string> strings;
+  EXPECT_EQ(strings.ninsert("b", std::string("a")), 2u);
+  EXPECT_EQ(items_of(strings), (std::vector<std::string>{"a", "b"}));
+
+  Counted::reset();
+  Counted lvalue(1);
+  DynList<Counted> counted;
+  EXPECT_EQ(counted.nappend(lvalue, Counted(2)), 2u);
+  EXPECT_EQ(Counted::copies, 1);  // only the lvalue
+  EXPECT_EQ(counted.ninsert(lvalue, Counted(3)), 2u);
+  EXPECT_EQ(Counted::copies, 2);
+
+  // Only items: neither another type nor a whole list.
+  static_assert(Can_Nappend<DynList<int>, int, long>);
+  static_assert(Can_Ninsert<DynList<int>, int, long>);
+  static_assert(not Can_Nappend<DynList<int>, std::string>);
+  static_assert(not Can_Ninsert<DynList<int>, std::string>);
+  static_assert(not Can_Nappend<DynList<int>, DynList<int> &>);
 }
 
 TEST(ContainerBuild, BuildFunctionsForwardTheirItems)

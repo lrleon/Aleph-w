@@ -808,68 +808,28 @@ public:
   /// Get const root pointer  
   Node* getRoot() const noexcept { return root; }
 
-private:
-  /// Test black height property recursively
-  static bool testBlackHeight(Node *p, int &max, int bh = 0) noexcept
-  {
-    if (p == Node::NullPtr)
-      return true;
-
-    if (COLOR(p) == BLACK)
-      ++bh;
-
-    if (LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr)
-      {
-        if (max == -1)
-          max = bh;
-        return bh == max;
-      }
-
-    return testBlackHeight(LLINK(p), max, bh)
-        and testBlackHeight(RLINK(p), max, bh);
-  }
-
-  /// Test red-black properties for a single node
-  static bool testNode(Node* p) noexcept
-  {
-    if (p == Node::NullPtr)
-      return true;
-      
-    // Red nodes must have black children
-    if (COLOR(p) == RED and
-        not (COLOR(LLINK(p)) == BLACK and COLOR(RLINK(p)) == BLACK))
-      return false;
-
-    int max = -1;
-    int bh  = 0;
-
-    return testBlackHeight(p, max, bh);
-  }
-
-  /// Recursively verify red-black properties
-  static bool verify(Node* p) noexcept
-  {
-    if (p == Node::NullPtr)
-      return true;
-    if (not testNode(p))
-      return false;
-    return verify(LLINK(p)) and verify(RLINK(p));
-  }
-
 public:
   /** @brief Verify that tree satisfies all red-black properties.
-      
+
+      Checks every node: valid colors, no red node with a red child, and
+      the same number of black nodes on every path down to `Node::NullPtr`.
+      It does not look at the keys; verify() does.
+
       @return true if tree is valid, false otherwise.
    */
   bool verifyRedBlack() const noexcept
   {
-    if (root == Node::NullPtr)
-      return true;
-    return verify(root);
+    return is_red_black_tree(root);
   }
 
-  /// Alias for verify
-  bool verify() const noexcept { return verifyRedBlack(); }
+  /** @brief Verify the red-black properties and the order of the keys.
+
+      @return true if the tree is a valid red-black binary search tree.
+   */
+  bool verify() const noexcept
+  {
+    return verifyRedBlack() and check_bst(root, cmp);
+  }
 
   /** @brief Iterator over tree nodes in sorted order.
       

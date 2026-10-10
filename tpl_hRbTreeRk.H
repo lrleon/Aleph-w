@@ -113,7 +113,8 @@ private:
 
      so the tree never allocates. */
 
-  using Path = InlineStack<Node *, Node::MaxHeight>;
+  // The head node, then at most Node::MaxHeight nodes of the tree.
+  using Path = InlineStack<Node *, Node::MaxHeight + 1>;
 
   Compare cmp;
 
@@ -313,15 +314,17 @@ private:
     else
       RLINK(p) = q;
 
-    if (COLOR(p) == RED)
-      restoreRedCondition(q, p, fp, ffp);
-
-    // Update counts bottom-up - O(log n)
+    // Update counts bottom-up - O(log n). This goes before the last
+    // rotations: they keep the counts right only if they find them right,
+    // and a double rotation leaves q, which is not in the path, above p.
     for (size_t i = insertPathLen; i > 0; --i)
       {
         Node* node = insertPath[i - 1];
         COUNT(node) = COUNT(LLINK(node)) + COUNT(RLINK(node)) + 1;
       }
+
+    if (COLOR(p) == RED)
+      restoreRedCondition(q, p, fp, ffp);
 
     return q;
   }
@@ -387,15 +390,16 @@ private:
     else
       RLINK(p) = q;
 
-    if (COLOR(p) == RED)
-      restoreRedCondition(q, p, fp, ffp);
-
-    // Update counts bottom-up
+    // Update counts bottom-up, before the last rotations (see
+    // searchFlipColorsAndInsert())
     for (size_t i = insertPathLen; i > 0; --i)
       {
         Node* node = insertPath[i - 1];
         COUNT(node) = COUNT(LLINK(node)) + COUNT(RLINK(node)) + 1;
       }
+
+    if (COLOR(p) == RED)
+      restoreRedCondition(q, p, fp, ffp);
 
     return q;
   }

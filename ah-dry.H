@@ -1273,38 +1273,53 @@ public:
 
   /** Insert n variadic items
 
-      @param[in] args items to be inserted, in argument order; an rvalue
-      is moved, and an argument of another type is converted to `T`.
-      @return the number of inserted items
+      Each item goes, in argument order, through the `insert()` of the
+      container: a container that inserts at its front, as `DynList`,
+      ends with the last argument first.
+
+      @param[in] args items to be inserted; an rvalue is moved, and an
+      argument of another type is converted to `T`.
+      @return the number of items the container added: a set leaves out a
+      key it already holds, for which its `insert()` returns a null
+      pointer.
       @throw bad_alloc if there is no enough memory; the items inserted
       before stay inserted.
   */
   template <typename... Args>
-    requires (std::convertible_to<Args &&, T> and ...)
-             and (Aleph::InsertableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<Args...>>::type,
-                                 Item_Arg<Args>> and ...)
+    requires ((std::convertible_to<Args &&, T> and ...)
+              and (Aleph::InsertableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<Args...>>::type,
+                                         Item_Arg<Args>> and ...))
   size_t ninsert(Args &&... args)
   {
-    ((void) me()->insert(as_item(std::forward<Args>(args))), ...);
-    return sizeof...(args);
+    size_t n = 0;
+    ((n += (Aleph::functional_detail::insert_one(*me(), as_item(std::forward<Args>(args))) ? 1 : 0)), ...);
+    return n;
   }
 
   /** Append n variadic items
 
-      @param[in] args items to be appended, in argument order; an rvalue
-      is moved, and an argument of another type is converted to `T`.
-      @return the number of appended items
+      Each item goes, in argument order, through the `append()` of the
+      container.
+
+      @param[in] args items to be appended; an rvalue is moved, and an
+      argument of another type is converted to `T`.
+      @return the number of items the container added: a set or a hash
+      table leaves out a key it already holds, for which its `append()`
+      returns a null pointer. `DynSkipList::append()` returns the key it
+      already holds instead, so its nappend() counts every argument; its
+      ninsert() counts the keys it adds.
       @throw bad_alloc if there is no enough memory; the items appended
       before stay appended.
   */
   template <typename... Args>
-    requires (std::convertible_to<Args &&, T> and ...)
-             and (Aleph::AppendableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<Args...>>::type,
-                                 Item_Arg<Args>> and ...)
+    requires ((std::convertible_to<Args &&, T> and ...)
+              and (Aleph::AppendableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<Args...>>::type,
+                                         Item_Arg<Args>> and ...))
   size_t nappend(Args &&... args)
   {
-    ((void) me()->append(as_item(std::forward<Args>(args))), ...);
-    return sizeof...(args);
+    size_t n = 0;
+    ((n += (Aleph::functional_detail::append_one(*me(), as_item(std::forward<Args>(args))) ? 1 : 0)), ...);
+    return n;
   }
 
   /** @brief Build a container that holds the given items.
@@ -1341,9 +1356,9 @@ public:
       @see build_as() Derived_Build
   */
   template <typename... Items>
-    requires (std::convertible_to<Items &&, T> and ...)
-             and (Aleph::AppendableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<Items...>>::type,
-                                 Item_Arg<Items>> and ...)
+    requires ((std::convertible_to<Items &&, T> and ...)
+              and (Aleph::AppendableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<Items...>>::type,
+                                         Item_Arg<Items>> and ...))
   [[nodiscard]] static Container build(Items &&... items)
   {
     return build_as<Container>(std::forward<Items>(items)...);
@@ -1364,11 +1379,11 @@ public:
       @throw anything that build() throws.
   */
   template <class D, typename... Items>
-    requires std::derived_from<D, typename Aleph::concepts_detail::defer<Container, D>::type>
-             and std::default_initializable<D>
-             and (std::convertible_to<Items &&, T> and ...)
-             and (Aleph::AppendableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<D, Items...>>::type,
-                                 Item_Arg<Items>> and ...)
+    requires (std::derived_from<D, typename Aleph::concepts_detail::defer<Container, D>::type>
+              and std::default_initializable<D>
+              and (std::convertible_to<Items &&, T> and ...)
+              and (Aleph::AppendableWith<typename Aleph::concepts_detail::defer<Container, std::tuple<D, Items...>>::type,
+                                         Item_Arg<Items>> and ...))
   [[nodiscard]] static D build_as(Items &&... items)
   {
     D d;

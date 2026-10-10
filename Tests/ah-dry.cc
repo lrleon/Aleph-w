@@ -222,6 +222,31 @@ TYPED_TEST_P(Container, nappend)
   EXPECT_EQ(*ptr, N + 3);
 }
 
+TYPED_TEST_P(Container, nappend_and_ninsert_count_the_items_added)
+{
+  int N = this->N;
+  auto c = this->c;  // holds 0 ... N - 1
+
+  // N and N + 1 are new; the second N and 0 are repeated. A sequence adds
+  // the four items; a set leaves out the keys it already holds.
+  size_t before = c.size();
+  size_t added = c.nappend(N, N, N + 1, 0);
+  EXPECT_EQ(added, c.size() - before);
+  EXPECT_GE(added, 2u);
+  EXPECT_LE(added, 4u);
+
+  before = c.size();
+  added = c.ninsert(N + 2, N + 2, N + 3, 1);
+  EXPECT_EQ(added, c.size() - before);
+  EXPECT_GE(added, 2u);
+  EXPECT_LE(added, 4u);
+
+  before = c.size();
+  EXPECT_EQ(c.nappend(), 0u);
+  EXPECT_EQ(c.ninsert(), 0u);
+  EXPECT_EQ(c.size(), before);
+}
+
 TYPED_TEST_P(Container, ninsert)
 {
   int N = this->N;
@@ -574,7 +599,9 @@ TYPED_TEST_P(Container, unchecked_iteration_matches_the_checked_one)
 
 REGISTER_TYPED_TEST_SUITE_P(Container, traverse, for_each, find_ptr,
                             find_index_nth, find_item, iterator_operations,
-                            nappend, ninsert, all, exists, maps, map_synonyms,
+                            nappend, ninsert,
+                            nappend_and_ninsert_count_the_items_added,
+                            all, exists, maps, map_synonyms,
                             foldl, filter_ops, nth_out_of_range, take_with_step,
                             mutable_drop_needs_remove,
                             find_item_noexcept_for_nothrow_items,

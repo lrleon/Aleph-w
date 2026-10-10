@@ -125,7 +125,8 @@ private:
   /* The path from the head node to the node an operation works on. Each
      operation builds it, consumes it and drops it: it lives in the frame
      of the operation, so the tree never allocates. */
-  using Path = InlineStack<Node *, Node::MaxHeight>;
+  // The head node, then at most Node::MaxHeight nodes of the tree.
+  using Path = InlineStack<Node *, Node::MaxHeight + 1>;
 
   /// Search for key and stack ancestors (optimistic duplicate detection)
   Node * search_and_stack_rb(const Key & key,
