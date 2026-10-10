@@ -29,17 +29,17 @@
   SOFTWARE.
 */
 
+#ifndef AH_ZIP_UTILS_H
+#define AH_ZIP_UTILS_H
 
-# ifndef AH_ZIP_UTILS_H
-# define AH_ZIP_UTILS_H
-
-# include <type_traits>
-# include <tuple>
-# include <iterator>
-# include <utility>
-# include <optional>
-# include <functional>
-# include <ah-concepts.H>
+#include <type_traits>
+#include <tuple>
+#include <iterator>
+#include <utility>
+#include <optional>
+#include <functional>
+#include <ah-concepts.H>
+#include <ah-iterator.H>
 
 /**
  * @file ah-zip-utils.H
@@ -68,8 +68,8 @@
  *   std::cout << num << ": " << str << "\n";
  *
  * // All functional operations work
- * bool all_ok = uni_zip_all([](auto t) { 
- *   return std::get<0>(t) > 0; 
+ * bool all_ok = uni_zip_all([](auto t) {
+ *   return std::get<0>(t) > 0;
  * }, stl_vec, aleph_list);
  * @endcode
  *
@@ -80,26 +80,38 @@
  * @author Leandro Rabindranath Leon
  */
 
-namespace Aleph
-{
+namespace Aleph {
 
 // ============================================================================
 // Type Traits for Container Detection
 // ============================================================================
 
-namespace uni_zip_detail
+namespace uni_zip_detail {
+
+/**
+ * @struct has_stl_iterator
+ * @brief Trait to detect if a type has an STL-style iterator interface (begin/end).
+ */
+template <typename T>
+struct has_stl_iterator : std::bool_constant<StlIterableContainer<T>>
 {
+};
 
-// Detect if type has STL-style begin()/end()
+/**
+ * @struct has_aleph_iterator
+ * @brief Trait to detect if a type has an Aleph-style Iterator interface.
+ * 
+ * Checks for the presence of `has_curr()`, `get_curr()`, and `next_ne()`.
+ */
 template <typename T>
-struct has_stl_iterator : std::bool_constant<StlIterableContainer<T>> {};
+struct has_aleph_iterator : std::bool_constant<AlephIterable<T>>
+{
+};
 
-// Detect if type has Aleph-style Iterator with has_curr()/get_curr()/next_ne()
-// Note: We check for next_ne() which is the non-exception-throwing variant used in Aleph
-template <typename T>
-struct has_aleph_iterator : std::bool_constant<AlephIterable<T>> {};
-
-// Get value type from container
+/**
+ * @struct container_value_type
+ * @brief Type trait to deduce the underlying value type of a container.
+ */
 template <typename T, typename = void>
 struct container_value_type;
 
@@ -110,8 +122,7 @@ struct container_value_type<T, std::enable_if_t<has_stl_iterator<T>::value>>
 };
 
 template <typename T>
-struct container_value_type<T, std::enable_if_t<
-  has_aleph_iterator<T>::value && !has_stl_iterator<T>::value>>
+struct container_value_type<T, std::enable_if_t<has_aleph_iterator<T>::value && !has_stl_iterator<T>::value>>
 {
   using type = std::decay_t<typename T::Item_Type>;
 };
@@ -124,7 +135,16 @@ using container_value_t = typename container_value_type<std::decay_t<T>>::type;
 // ============================================================================
 
 /**
- * @brief Wrapper that provides uniform interface for STL iterators.
+ * @class StlIteratorWrapper
+ * @brief Wrapper that provides a uniform interface for STL iterators.
+ *
+ * This wrapper adapts STL-style iterators (`begin()`, `end()`, `operator++`, `operator*`)
+ * to the Aleph-style iterator interface (`has_curr()`, `get_curr()`, `next()`, etc.).
+ *
+ * @tparam Container The type of the STL-compatible container.
+ *
+ * @ingroup Algorithms
+ * @author Leandro Rabindranath Leon
  */
 template <typename Container>
 class StlIteratorWrapper
@@ -135,61 +155,128 @@ class StlIteratorWrapper
 public:
   using value_type = typename std::decay_t<Container>::value_type;
 
-  explicit StlIteratorWrapper(const Container& c)
-    : curr_(c.begin()), end_(c.end()) {}
+  /** @brief Constructor initializing from container */
+  explicit StlIteratorWrapper(const Container &c) : curr_(c.begin()), end_(c.end()) {}
 
-  [[nodiscard]] bool has_curr() const noexcept { return curr_ != end_; }
-  [[nodiscard]] bool completed() const noexcept { return curr_ == end_; }
-  [[nodiscard]] auto get_curr() const { return *curr_; }
-  void next() noexcept { ++curr_; }
+  /** @brief Check if iterator has a current element */
+  [[nodiscard]] bool has_curr() const noexcept
+  {
+    return curr_ != end_;
+  }
+
+  /** @brief Check if iterator has reached the end */
+  [[nodiscard]] bool completed() const noexcept
+  {
+    return curr_ == end_;
+  }
+
+  /** @brief Get the current element */
+  /** @brief Get the current element */
+  [[nodiscard]] auto get_curr() const
+  {
+    return *curr_;
+  }
+
+  /** @brief Advance to the next element */
+  /** @brief Advance to the next element */
+  /** @brief Advance all iterators */
+  void next() noexcept
+  {
+    ++curr_;
+  }
 
   /** @brief Advance without checking; same as `next()`, which does not check.
    *
    *  Provided so the adaptor satisfies `AlephIterator` and works in generic
    *  code that advances with `next_ne()` under a `has_curr()` guard.
    */
-  void next_ne() noexcept { next(); }
+  void next_ne() noexcept
+  {
+    next();
+  }
 };
 
 /**
- * @brief Wrapper that provides uniform interface for Aleph iterators.
+ * @class AlephIteratorWrapper
+ * @brief Wrapper that provides a uniform interface for Aleph iterators.
+ *
+ * This wrapper adapts Aleph-style iterable containers (which use internal Iterator classes
+ * with `has_curr()`, `get_curr()`, `next_ne()`) to a uniform interface used internally by `UniZipIterator`.
+ *
+ * @tparam Container The type of the Aleph-compatible container.
+ *
+ * @ingroup Algorithms
+ * @author Leandro Rabindranath Leon
  */
 template <typename Container>
 class AlephIteratorWrapper
 {
   // mutable: the wrapper's const accessors forward to the Aleph iterator,
   // whose get_curr() may be non-const (e.g. the chained hash tables).
-  mutable typename std::decay_t<Container>::Iterator it_;
+  mutable Aleph::const_iterator_t<std::decay_t<Container>> it_;
 
 public:
   using value_type = std::decay_t<typename std::decay_t<Container>::Item_Type>;
 
-  explicit AlephIteratorWrapper(const Container& c)
-    : it_(c) {}
+  /** @brief Constructor initializing from container */
+  explicit AlephIteratorWrapper(const Container &c) : it_(c) {}
 
-  [[nodiscard]] bool has_curr() const noexcept { return it_.has_curr(); }
-  [[nodiscard]] bool completed() const noexcept { return !it_.has_curr(); }
-  [[nodiscard]] auto get_curr() const { return it_.get_curr(); }
-  void next() { it_.next_ne(); }
+  /** @brief Check if iterator has a current element */
+  [[nodiscard]] bool has_curr() const noexcept
+  {
+    return it_.has_curr();
+  }
+
+  /** @brief Check if iterator has reached the end */
+  [[nodiscard]] bool completed() const noexcept
+  {
+    return !it_.has_curr();
+  }
+
+  /** @brief Get the current element */
+  /** @brief Get the current element */
+  [[nodiscard]] auto get_curr() const
+  {
+    return it_.get_curr();
+  }
+
+  /** @brief Advance to the next element */
+  /** @brief Advance all iterators */
+  void next()
+  {
+    it_.next_ne();
+  }
 
   /** @brief Advance without checking; same as `next()`, which does not check.
    *
    *  Provided so the adaptor satisfies `AlephIterator` and works in generic
    *  code that advances with `next_ne()` under a `has_curr()` guard.
    */
-  void next_ne() { next(); }
+  void next_ne()
+  {
+    next();
+  }
 };
 
 /**
- * @brief Select appropriate wrapper based on container type.
+ * @class IteratorWrapperSelector
+ * @brief Selects the appropriate iterator wrapper based on the container type.
+ *
+ * This traits class determines whether a given container should be wrapped
+ * using `StlIteratorWrapper` or `AlephIteratorWrapper` by inspecting its available
+ * iterator interface via `has_stl_iterator` and `has_aleph_iterator` traits.
+ *
+ * @tparam Container The type of the container.
+ *
+ * @ingroup Algorithms
+ * @author Leandro Rabindranath Leon
  */
 template <typename Container, typename = void>
 struct IteratorWrapperSelector;
 
 // STL containers (prefer STL if both interfaces exist)
 template <typename Container>
-struct IteratorWrapperSelector<Container, 
-  std::enable_if_t<has_stl_iterator<std::decay_t<Container>>::value>>
+struct IteratorWrapperSelector<Container, std::enable_if_t<has_stl_iterator<std::decay_t<Container>>::value>>
 {
   using type = StlIteratorWrapper<std::decay_t<Container>>;
 };
@@ -197,9 +284,8 @@ struct IteratorWrapperSelector<Container,
 // Aleph-only containers (no STL interface)
 template <typename Container>
 struct IteratorWrapperSelector<Container,
-  std::enable_if_t<
-    has_aleph_iterator<std::decay_t<Container>>::value &&
-    !has_stl_iterator<std::decay_t<Container>>::value>>
+                               std::enable_if_t<has_aleph_iterator<std::decay_t<Container>>::value &&
+                                                !has_stl_iterator<std::decay_t<Container>>::value>>
 {
   using type = AlephIteratorWrapper<std::decay_t<Container>>;
 };
@@ -210,22 +296,27 @@ using iterator_wrapper_t = typename IteratorWrapperSelector<Container>::type;
 // Static assertion helper for unsupported container types
 template <typename T>
 inline constexpr bool is_supported_container_v =
-  has_stl_iterator<std::decay_t<T>>::value ||
-  has_aleph_iterator<std::decay_t<T>>::value;
+  has_stl_iterator<std::decay_t<T>>::value || has_aleph_iterator<std::decay_t<T>>::value;
 
-} // namespace uni_zip_detail
+}  // namespace uni_zip_detail
 
 // ============================================================================
 // Sentinel type for O(1) end()
 // ============================================================================
 
 /**
+ * @class UniZipSentinel
  * @brief Sentinel type for UniZipIterator end comparison.
  *
  * Using a sentinel avoids the O(n) cost of creating an exhausted iterator
- * for end() comparison in range-based for loops.
+ * for `end()` comparison in range-based for loops.
+ *
+ * @ingroup Algorithms
+ * @author Leandro Rabindranath Leon
  */
-struct UniZipSentinel {};
+struct UniZipSentinel
+{
+};
 
 // ============================================================================
 // Unified Zip Iterator
@@ -248,7 +339,7 @@ template <typename... Containers>
 class UniZipIterator
 {
   static_assert((uni_zip_detail::is_supported_container_v<Containers> && ...),
-    "All containers must have either STL (begin/end) or Aleph (Iterator) interface");
+                "All containers must have either STL (begin/end) or Aleph (Iterator) interface");
 
 public:
   using value_type = std::tuple<uni_zip_detail::container_value_t<Containers>...>;
@@ -289,10 +380,13 @@ private:
 public:
   static constexpr size_t num_containers = sizeof...(Containers);
 
-  explicit UniZipIterator(const Containers&... cs)
-    : iters_(uni_zip_detail::iterator_wrapper_t<Containers>(cs)...) {}
+  /** @brief Constructor initializing wrappers for all containers */
+  explicit UniZipIterator(const Containers &...cs)
+    : iters_(uni_zip_detail::iterator_wrapper_t<Containers>(cs)...)
+  {}
 
   /// Returns true if ALL containers have current element (zip continues)
+  /** @brief Check if iterator has a current element */
   [[nodiscard]] bool has_curr() const noexcept
   {
     return has_curr_impl(std::make_index_sequence<num_containers>{});
@@ -311,16 +405,21 @@ public:
   }
 
   /// @deprecated Use all_completed() for clarity. Kept for backward compatibility.
+  /** @brief Check if iterator has reached the end */
   [[nodiscard]] bool completed() const noexcept
   {
     return all_completed();
   }
 
+  /** @brief Get the current element */
+  /** @brief Get tuple of current elements from all containers */
   [[nodiscard]] auto get_curr() const
   {
     return get_curr_impl(std::make_index_sequence<num_containers>{});
   }
 
+  /** @brief Advance to the next element */
+  /** @brief Advance all iterators */
   void next()
   {
     next_impl(std::make_index_sequence<num_containers>{});
@@ -331,36 +430,46 @@ public:
    *  Provided so the adaptor satisfies `AlephIterator` and works in generic
    *  code that advances with `next_ne()` under a `has_curr()` guard.
    */
-  void next_ne() { next(); }
+  void next_ne()
+  {
+    next();
+  }
 
   // STL iterator interface for range-based for
-  [[nodiscard]] auto operator*() const { return get_curr(); }
+  /** @brief Dereference operator for STL compatibility */
+  [[nodiscard]] auto operator * () const
+  {
+    return get_curr();
+  }
 
-  UniZipIterator& operator++()
+  /** @brief Pre-increment operator for STL compatibility */
+  UniZipIterator &operator ++ ()
   {
     next();
     return *this;
   }
 
   /// Comparison with sentinel - iterator is "at end" when any container exhausted
-  [[nodiscard]] bool operator==(UniZipSentinel) const noexcept
+  [[nodiscard]] bool operator == (UniZipSentinel) const noexcept
   {
     return !has_curr();
   }
 
-  [[nodiscard]] bool operator!=(UniZipSentinel s) const noexcept
+  /** @brief Inequality comparison with sentinel */
+  [[nodiscard]] bool operator != (UniZipSentinel s) const noexcept
   {
     return !(*this == s);
   }
 
   /// Comparison with another iterator (for algorithms that need it)
-  [[nodiscard]] bool operator==(const UniZipIterator& other) const noexcept
+  [[nodiscard]] bool operator == (const UniZipIterator &other) const noexcept
   {
     // Both at end (any container exhausted)
     return !has_curr() && !other.has_curr();
   }
 
-  [[nodiscard]] bool operator!=(const UniZipIterator& other) const noexcept
+  /** @brief Inequality comparison with another iterator */
+  [[nodiscard]] bool operator != (const UniZipIterator &other) const noexcept
   {
     return !(*this == other);
   }
@@ -377,21 +486,23 @@ public:
 template <typename... Containers>
 class UniZipView
 {
-  std::tuple<const std::decay_t<Containers>&...> containers_;
+  std::tuple<const std::decay_t<Containers> &...> containers_;
 
 public:
   using iterator = UniZipIterator<std::decay_t<Containers>...>;
   using sentinel = UniZipSentinel;
   using value_type = typename iterator::value_type;
 
-  explicit UniZipView(const Containers&... cs)
-    : containers_(cs...) {}
+  /** @brief Constructor from containers */
+  explicit UniZipView(const Containers &...cs) : containers_(cs...) {}
 
+  /** @brief Returns an iterator to the beginning */
   [[nodiscard]] iterator begin() const
   {
-    return std::apply([](const auto&... cs) {
-      return iterator(cs...);
-    }, containers_);
+    return std::apply([](const auto &...cs)
+      {
+        return iterator(cs...);
+      }, containers_);
   }
 
   /// O(1) end() using sentinel
@@ -400,12 +511,16 @@ public:
     return sentinel{};
   }
 
+  /** @brief Check if the zipped view is empty */
   [[nodiscard]] bool empty() const
   {
     return !begin().has_curr();
   }
 
   /// Note: O(n) - iterates through all elements to count
+  /** @brief Get the number of elements in the zipped view
+   *  @note This is O(n) as it iterates through the shortest container
+   */
   [[nodiscard]] size_t size() const
   {
     size_t count = 0;
@@ -439,10 +554,9 @@ public:
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip(const Containers&... cs)
+[[nodiscard]] auto uni_zip(const Containers &...cs)
 {
-  static_assert(sizeof...(Containers) >= 2,
-                "uni_zip requires at least 2 containers");
+  static_assert(sizeof...(Containers) >= 2, "uni_zip requires at least 2 containers");
   return UniZipView<Containers...>(cs...);
 }
 
@@ -456,7 +570,7 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_it(const Containers&... cs)
+[[nodiscard]] auto uni_zip_it(const Containers &...cs)
 {
   return UniZipIterator<std::decay_t<Containers>...>(cs...);
 }
@@ -476,9 +590,9 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] bool uni_zip_all(Pred&& pred, const Containers&... cs)
+[[nodiscard]] bool uni_zip_all(Pred &&pred, const Containers &...cs)
 {
-  auto& pred_ref = pred;  // Preserve as lvalue to avoid invalidating in loop
+  auto &pred_ref = pred;  // Preserve as lvalue to avoid invalidating in loop
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     if (!pred_ref(it.get_curr()))
       return false;
@@ -492,9 +606,9 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] bool uni_zip_all_eq(Pred&& pred, const Containers&... cs)
+[[nodiscard]] bool uni_zip_all_eq(Pred &&pred, const Containers &...cs)
 {
-  auto& pred_ref = pred;
+  auto &pred_ref = pred;
   auto it = uni_zip_it(cs...);
   for (; it.has_curr(); it.next())
     if (!pred_ref(it.get_curr()))
@@ -513,9 +627,9 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] bool uni_zip_exists(Pred&& pred, const Containers&... cs)
+[[nodiscard]] bool uni_zip_exists(Pred &&pred, const Containers &...cs)
 {
-  auto& pred_ref = pred;
+  auto &pred_ref = pred;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     if (pred_ref(it.get_curr()))
       return true;
@@ -524,7 +638,7 @@ template <typename Pred, typename... Containers>
 
 /// Alias for uni_zip_exists
 template <typename Pred, typename... Containers>
-[[nodiscard]] bool uni_zip_any(Pred&& pred, const Containers&... cs)
+[[nodiscard]] bool uni_zip_any(Pred &&pred, const Containers &...cs)
 {
   return uni_zip_exists(std::forward<Pred>(pred), cs...);
 }
@@ -536,7 +650,7 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] bool uni_zip_none(Pred&& pred, const Containers&... cs)
+[[nodiscard]] bool uni_zip_none(Pred &&pred, const Containers &...cs)
 {
   return !uni_zip_exists(std::forward<Pred>(pred), cs...);
 }
@@ -551,9 +665,9 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
-void uni_zip_for_each(Op&& op, const Containers&... cs)
+void uni_zip_for_each(Op &&op, const Containers &...cs)
 {
-  auto& op_ref = op;
+  auto &op_ref = op;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     op_ref(it.get_curr());
 }
@@ -568,9 +682,9 @@ void uni_zip_for_each(Op&& op, const Containers&... cs)
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
-void uni_zip_for_each_indexed(Op&& op, const Containers&... cs)
+void uni_zip_for_each_indexed(Op &&op, const Containers &...cs)
 {
-  auto& op_ref = op;
+  auto &op_ref = op;
   size_t idx = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next(), ++idx)
     op_ref(idx, it.get_curr());
@@ -588,9 +702,9 @@ void uni_zip_for_each_indexed(Op&& op, const Containers&... cs)
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename... Containers>
-[[nodiscard]] T uni_zip_foldl(T init, Op&& op, const Containers&... cs)
+[[nodiscard]] T uni_zip_foldl(T init, Op &&op, const Containers &...cs)
 {
-  auto& op_ref = op;
+  auto &op_ref = op;
   T acc = std::move(init);
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     acc = op_ref(std::move(acc), it.get_curr());
@@ -599,7 +713,7 @@ template <typename T, typename Op, typename... Containers>
 
 /// Alias for uni_zip_foldl
 template <typename T, typename Op, typename... Containers>
-[[nodiscard]] T uni_zip_reduce(T init, Op&& op, const Containers&... cs)
+[[nodiscard]] T uni_zip_reduce(T init, Op &&op, const Containers &...cs)
 {
   return uni_zip_foldl(std::move(init), std::forward<Op>(op), cs...);
 }
@@ -615,12 +729,12 @@ template <typename T, typename Op, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
-[[nodiscard]] auto uni_zip_map(Op&& op, const Containers&... cs)
+[[nodiscard]] auto uni_zip_map(Op &&op, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
   using ResultType = std::decay_t<decltype(op(std::declval<TupleType>()))>;
 
-  auto& op_ref = op;
+  auto &op_ref = op;
   std::vector<ResultType> result;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     result.push_back(op_ref(it.get_curr()));
@@ -638,11 +752,11 @@ template <typename Op, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] auto uni_zip_filter(Pred&& pred, const Containers&... cs)
+[[nodiscard]] auto uni_zip_filter(Pred &&pred, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
-  auto& pred_ref = pred;
+  auto &pred_ref = pred;
   std::vector<TupleType> result;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     {
@@ -664,11 +778,11 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] auto uni_zip_find_first(Pred&& pred, const Containers&... cs)
+[[nodiscard]] auto uni_zip_find_first(Pred &&pred, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
-  auto& pred_ref = pred;
+  auto &pred_ref = pred;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     {
       auto t = it.get_curr();
@@ -685,9 +799,9 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] size_t uni_zip_count(Pred&& pred, const Containers&... cs)
+[[nodiscard]] size_t uni_zip_count(Pred &&pred, const Containers &...cs)
 {
-  auto& pred_ref = pred;
+  auto &pred_ref = pred;
   size_t count = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     if (pred_ref(it.get_curr()))
@@ -702,7 +816,7 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] size_t uni_zip_length(const Containers&... cs)
+[[nodiscard]] size_t uni_zip_length(const Containers &...cs)
 {
   size_t count = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
@@ -717,7 +831,7 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] bool uni_zip_equal_length(const Containers&... cs)
+[[nodiscard]] bool uni_zip_equal_length(const Containers &...cs)
 {
   auto it = uni_zip_it(cs...);
   while (it.has_curr())
@@ -732,7 +846,7 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_nth(size_t n, const Containers&... cs)
+[[nodiscard]] auto uni_zip_nth(size_t n, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
@@ -750,7 +864,7 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_take(size_t n, const Containers&... cs)
+[[nodiscard]] auto uni_zip_take(size_t n, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
@@ -769,7 +883,7 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_drop(size_t n, const Containers&... cs)
+[[nodiscard]] auto uni_zip_drop(size_t n, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
@@ -791,11 +905,11 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] auto uni_zip_take_while(Pred&& pred, const Containers&... cs)
+[[nodiscard]] auto uni_zip_take_while(Pred &&pred, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
-  auto& pred_ref = pred;
+  auto &pred_ref = pred;
   std::vector<TupleType> result;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     {
@@ -814,11 +928,11 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] auto uni_zip_drop_while(Pred&& pred, const Containers&... cs)
+[[nodiscard]] auto uni_zip_drop_while(Pred &&pred, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
-  auto& pred_ref = pred;
+  auto &pred_ref = pred;
   std::vector<TupleType> result;
   auto it = uni_zip_it(cs...);
 
@@ -837,7 +951,7 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_first(const Containers&... cs)
+[[nodiscard]] auto uni_zip_first(const Containers &...cs)
 {
   return uni_zip_nth(0, cs...);
 }
@@ -849,7 +963,7 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_last(const Containers&... cs)
+[[nodiscard]] auto uni_zip_last(const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
@@ -866,11 +980,11 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] auto uni_zip_partition(Pred&& pred, const Containers&... cs)
+[[nodiscard]] auto uni_zip_partition(Pred &&pred, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
-  auto& pred_ref = pred;
+  auto &pred_ref = pred;
   std::vector<TupleType> matching, non_matching;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     {
@@ -890,7 +1004,7 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_to_vector(const Containers&... cs)
+[[nodiscard]] auto uni_zip_to_vector(const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
@@ -907,9 +1021,9 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] bool uni_zip_traverse(Pred&& pred, const Containers&... cs)
+[[nodiscard]] bool uni_zip_traverse(Pred &&pred, const Containers &...cs)
 {
-  auto& pred_ref = pred;
+  auto &pred_ref = pred;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     if (!pred_ref(it.get_curr()))
       return false;
@@ -931,12 +1045,12 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
-[[nodiscard]] auto uni_zip_mapi(Op&& op, const Containers&... cs)
+[[nodiscard]] auto uni_zip_mapi(Op &&op, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
   using ResultType = std::decay_t<decltype(op(size_t{}, std::declval<TupleType>()))>;
 
-  auto& op_ref = op;
+  auto &op_ref = op;
   std::vector<ResultType> result;
   size_t idx = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next(), ++idx)
@@ -955,11 +1069,11 @@ template <typename Op, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
-[[nodiscard]] auto uni_zip_filteri(Pred&& pred, const Containers&... cs)
+[[nodiscard]] auto uni_zip_filteri(Pred &&pred, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
-  auto& pred_ref = pred;
+  auto &pred_ref = pred;
   std::vector<TupleType> result;
   size_t idx = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next(), ++idx)
@@ -983,9 +1097,9 @@ template <typename Pred, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename... Containers>
-[[nodiscard]] auto uni_zip_scan_left(T init, Op&& op, const Containers&... cs)
+[[nodiscard]] auto uni_zip_scan_left(T init, Op &&op, const Containers &...cs)
 {
-  auto& op_ref = op;
+  auto &op_ref = op;
   std::vector<T> result;
   result.push_back(init);
 
@@ -1009,12 +1123,12 @@ template <typename T, typename Op, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
-[[nodiscard]] auto uni_zip_find_mapi(Op&& op, const Containers&... cs)
+[[nodiscard]] auto uni_zip_find_mapi(Op &&op, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
   using OptType = std::decay_t<decltype(op(size_t{}, std::declval<TupleType>()))>;
 
-  auto& op_ref = op;
+  auto &op_ref = op;
   size_t idx = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next(), ++idx)
     {
@@ -1036,9 +1150,9 @@ template <typename Op, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Eq, typename... Containers>
-[[nodiscard]] bool uni_zip_equal_by(Eq&& eq, const Containers&... cs)
+[[nodiscard]] bool uni_zip_equal_by(Eq &&eq, const Containers &...cs)
 {
-  auto& eq_ref = eq;
+  auto &eq_ref = eq;
   auto it = uni_zip_it(cs...);
   for (; it.has_curr(); it.next())
     if (!eq_ref(it.get_curr()))
@@ -1057,7 +1171,7 @@ template <typename Eq, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Tuple, typename... Containers>
-[[nodiscard]] bool uni_zip_mem(const Tuple& target, const Containers&... cs)
+[[nodiscard]] bool uni_zip_mem(const Tuple &target, const Containers &...cs)
 {
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     if (it.get_curr() == target)
@@ -1076,7 +1190,7 @@ template <typename Tuple, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename Key, typename... Containers>
-[[nodiscard]] auto uni_zip_assoc(const Key& key, const Containers&... cs)
+[[nodiscard]] auto uni_zip_assoc(const Key &key, const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
@@ -1099,7 +1213,7 @@ template <typename Key, typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_min(const Containers&... cs)
+[[nodiscard]] auto uni_zip_min(const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
@@ -1129,7 +1243,7 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_max(const Containers&... cs)
+[[nodiscard]] auto uni_zip_max(const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
@@ -1159,7 +1273,7 @@ template <typename... Containers>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_min_max(const Containers&... cs)
+[[nodiscard]] auto uni_zip_min_max(const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
   using ResultType = std::optional<std::pair<TupleType, TupleType>>;
@@ -1175,8 +1289,10 @@ template <typename... Containers>
   for (; it.has_curr(); it.next())
     {
       auto t = it.get_curr();
-      if (t < min_val) min_val = t;
-      if (t > max_val) max_val = t;
+      if (t < min_val)
+        min_val = t;
+      if (t > max_val)
+        max_val = t;
     }
   return ResultType(std::make_pair(min_val, max_val));
 }
@@ -1185,13 +1301,12 @@ template <typename... Containers>
 // Unzip Operations (returns DynList for mixed containers)
 // ============================================================================
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
 // Need DynList for unzip operations
-# include <htlist.H>
+#include <htlist.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /**
  * @brief Unzip a container of pairs into two DynLists.
@@ -1213,7 +1328,7 @@ namespace Aleph
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
-[[nodiscard]] auto uni_unzip(const Container& c)
+[[nodiscard]] auto uni_unzip(const Container &c)
 {
   using PairType = uni_zip_detail::container_value_t<Container>;
   using T1 = std::decay_t<decltype(std::declval<PairType>().first)>;
@@ -1224,7 +1339,7 @@ template <typename Container>
 
   if constexpr (uni_zip_detail::has_stl_iterator<std::decay_t<Container>>::value)
     {
-      for (const auto& p : c)
+      for (const auto &p : c)
         {
           firsts.append(p.first);
           seconds.append(p.second);
@@ -1234,7 +1349,7 @@ template <typename Container>
     {
       for (auto it = c.get_it(); it.has_curr(); it.next_ne())
         {
-          const auto& p = it.get_curr();
+          const auto &p = it.get_curr();
           firsts.append(p.first);
           seconds.append(p.second);
         }
@@ -1243,8 +1358,7 @@ template <typename Container>
   return std::make_pair(std::move(firsts), std::move(seconds));
 }
 
-namespace uni_unzip_detail
-{
+namespace uni_unzip_detail {
 
 template <typename Tuple, size_t... Is>
 auto make_dynlist_tuple(std::index_sequence<Is...>)
@@ -1253,12 +1367,12 @@ auto make_dynlist_tuple(std::index_sequence<Is...>)
 }
 
 template <typename Tuple, typename ResultTuple, size_t... Is>
-void append_tuple_elements(const Tuple& t, ResultTuple& result, std::index_sequence<Is...>)
+void append_tuple_elements(const Tuple &t, ResultTuple &result, std::index_sequence<Is...>)
 {
   ((std::get<Is>(result).append(std::get<Is>(t))), ...);
 }
 
-} // namespace uni_unzip_detail
+}  // namespace uni_unzip_detail
 
 /**
  * @brief Unzip a container of tuples into a tuple of DynLists.
@@ -1282,25 +1396,22 @@ void append_tuple_elements(const Tuple& t, ResultTuple& result, std::index_seque
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
-[[nodiscard]] auto uni_unzip_tuple(const Container& c)
+[[nodiscard]] auto uni_unzip_tuple(const Container &c)
 {
   using TupleType = uni_zip_detail::container_value_t<Container>;
   constexpr size_t N = std::tuple_size_v<TupleType>;
 
-  auto result = uni_unzip_detail::make_dynlist_tuple<TupleType>(
-    std::make_index_sequence<N>{});
+  auto result = uni_unzip_detail::make_dynlist_tuple<TupleType>(std::make_index_sequence<N>{});
 
   if constexpr (uni_zip_detail::has_stl_iterator<std::decay_t<Container>>::value)
     {
-      for (const auto& t : c)
-        uni_unzip_detail::append_tuple_elements(t, result,
-          std::make_index_sequence<N>{});
+      for (const auto &t : c)
+        uni_unzip_detail::append_tuple_elements(t, result, std::make_index_sequence<N>{});
     }
   else
     {
       for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-        uni_unzip_detail::append_tuple_elements(it.get_curr(), result,
-          std::make_index_sequence<N>{});
+        uni_unzip_detail::append_tuple_elements(it.get_curr(), result, std::make_index_sequence<N>{});
     }
 
   return result;
@@ -1318,7 +1429,7 @@ template <typename Container>
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
-[[nodiscard]] auto uni_zip_to_dynlist(const Containers&... cs)
+[[nodiscard]] auto uni_zip_to_dynlist(const Containers &...cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
@@ -1328,6 +1439,6 @@ template <typename... Containers>
   return result;
 }
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-# endif // AH_ZIP_UTILS_H
+#endif  // AH_ZIP_UTILS_H

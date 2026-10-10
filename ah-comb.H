@@ -74,6 +74,7 @@
 #include <tpl_dynSetTree.H>
 #include <ahFunction.H>
 #include <ahSort.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 /// @cond INTERNAL
@@ -391,7 +392,7 @@ inline void in_place_transpose(DynList<DynList<T>> &l)
 */
 template <typename T, class Op>
 static inline bool traverse_perm_impl(DynList<T> &sample,
-                                      DynList<typename DynList<T>::Iterator> &its, Op &op)
+                                      DynList<Aleph::const_iterator_t<DynList<T>>> &its, Op &op)
 {
   if (its.is_empty())
     return op(sample.template maps<T>([](const T &i)
@@ -440,7 +441,7 @@ template <typename T, class Op>
 inline bool traverse_perm(const DynList<DynList<T>> &l, Op &op)
 
 {
-  using IT = typename DynList<T>::Iterator;
+  using IT = Aleph::const_iterator_t<DynList<T>>;
   DynList<IT> its;
 
   {  // This block allows getting a constant copy of l and then reverse

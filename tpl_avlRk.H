@@ -111,39 +111,26 @@ public:
   using Node = NodeType<Key>;  /// The type of node
 
 private:
-  FixedStack<Node *> avl_stack;
   Node head_node;
   Node *head_ptr;
   Node *&root;
   Compare cmp;
 
-  bool avl_stack_at_base() noexcept
+  /* The path from the head node to the node an operation works on. Each
+     operation builds it, consumes it and drops it: it lives in the frame
+     of the operation, so the tree never allocates. Its base is head_ptr. */
+  // The head node, then at most Node::MaxHeight nodes of the tree.
+  using Path = InlineStack<Node *, Node::MaxHeight + 1>;
+
+  /// `true` when `path` holds only the head node.
+  static bool at_head(const Path &path) noexcept
   {
-    return not avl_stack.is_empty() and avl_stack.size() == 1 and avl_stack.base() == head_ptr;
+    return path.size() == 1;
   }
 
-  void clean_avl_stack() noexcept
+  Node *search_and_stack_avl(const Key &key, signed char &cmp_result, Path &path) noexcept
   {
-    if (avl_stack.is_empty())
-      {
-        avl_stack.push(head_ptr);
-        return;
-      }
-
-    if (avl_stack.base() != head_ptr)
-      {
-        avl_stack.empty();
-        avl_stack.push(head_ptr);
-        return;
-      }
-
-    if (const size_t to_pop = avl_stack.size() - 1; to_pop > 0)
-      avl_stack.popn(static_cast<int>(to_pop));
-  }
-
-  Node *search_and_stack_avl(const Key &key, signed char &cmp_result) noexcept
-  {
-    assert(avl_stack_at_base());
+    assert(at_head(path) and path.base() == head_ptr);
 
     Node *p = root;
     Node *candidate = nullptr;  // Tracks potential duplicate when going right
@@ -153,7 +140,7 @@ private:
       {
         __builtin_prefetch(LLINK(p));
         __builtin_prefetch(RLINK(p));
-        avl_stack.push(p);
+        path.push(p);
         if (cmp(key, KEY(p)))  // key < KEY(p)
           {
             cmp_result = CmpLess;
@@ -162,7 +149,7 @@ private:
         else  // key >= KEY(p), could be equal
           {
             candidate = p;
-            candidate_pos = avl_stack.size();
+            candidate_pos = path.size();
             cmp_result = CmpGreater;
             p = RLINK(p);
           }
@@ -174,18 +161,18 @@ private:
       {
         cmp_result = CmpEqual;
         // Truncate stack: remove nodes pushed after candidate
-        const size_t to_pop = avl_stack.size() > candidate_pos ? avl_stack.size() - candidate_pos : 0;
+        const size_t to_pop = path.size() > candidate_pos ? path.size() - candidate_pos : 0;
         if (to_pop > 0)
-          avl_stack.popn(static_cast<int>(to_pop));
+          path.popn(to_pop);
         return candidate;
       }
 
-    return avl_stack.top();
+    return path.top();
   }
 
-  Node *search_dup_and_stack_avl(const Key &key, signed char &cmp_result) noexcept
+  Node *search_dup_and_stack_avl(const Key &key, signed char &cmp_result, Path &path) noexcept
   {
-    assert(avl_stack_at_base());
+    assert(at_head(path) and path.base() == head_ptr);
     cmp_result = CmpEqual;
 
     Node *p = root;
@@ -193,7 +180,7 @@ private:
       {
         __builtin_prefetch(LLINK(p));
         __builtin_prefetch(RLINK(p));
-        avl_stack.push(p);
+        path.push(p);
         if (cmp(key, KEY(p)))  // key < KEY(p)?
           {
             cmp_result = CmpLess;
@@ -206,7 +193,7 @@ private:
           }
     } while (p != Node::NullPtr);
 
-    return avl_stack.top();
+    return path.top();
   }
 
   // Rotate to left with counter update
@@ -390,26 +377,23 @@ private:
     return nullptr;
   }
 
-  void restore_avl_after_insertion(Node *p) noexcept
+  void restore_avl_after_insertion(Node *p, Path &path) noexcept
   {
-    Node *pp = avl_stack.pop();
+    Node *pp = path.pop();
     if (LLINK(pp) == p)
       --DIFF(pp);
     else
       ++DIFF(pp);
 
     if (DIFF(pp) == 0)
-      {
-        clean_avl_stack();
-        return;
-      }
+      return;
 
-    if (avl_stack_at_base())
+    if (at_head(path))
       return;
 
     do
       {
-        Node *gpp = avl_stack.pop();
+        Node *gpp = path.pop();
         if (LLINK(gpp) == pp)
           --DIFF(gpp);
         else
@@ -419,35 +403,33 @@ private:
           break;
         if (DIFF(gpp) == -2 or DIFF(gpp) == 2)
           {
-            Node *ggpp = avl_stack.pop();
+            Node *ggpp = path.pop();
             restore_avl(gpp, ggpp);
             break;
           }
 
         pp = gpp;
-    } while (not avl_stack_at_base());
-
-    clean_avl_stack();
+    } while (not at_head(path));
   }
 
-  Node *swapWithSuccessor(Node *p, Node *&pp) noexcept
+  Node *swapWithSuccessor(Node *p, Node *&pp, Path &path) noexcept
   {
-    Node *&ref_to_stack_top = avl_stack.top();
+    Node *&ref_to_stack_top = path.top();
 
     Node *fSucc = p;
     Node *succ = RLINK(p);
 
-    avl_stack.push(succ);
+    path.push(succ);
 
     while (LLINK(succ) != Node::NullPtr)
       {
         fSucc = succ;
         succ = LLINK(succ);
-        avl_stack.push(succ);
+        path.push(succ);
       }
 
     ref_to_stack_top = succ;
-    avl_stack.top() = p;
+    path.top() = p;
 
     if (LLINK(pp) == p)
       LLINK(pp) = succ;
@@ -481,10 +463,10 @@ private:
     return succ;
   }
 
-  void restore_avl_after_deletion(bool left_deficit) noexcept
+  void restore_avl_after_deletion(bool left_deficit, Path &path) noexcept
   {
-    Node *pp = avl_stack.top(1);
-    Node *ppp = avl_stack.popn(3);
+    Node *pp = path.top(1);
+    Node *ppp = path.popn(3);
 
     while (true)
       {
@@ -501,28 +483,26 @@ private:
 
         left_deficit = LLINK(ppp) == pp;
         pp = ppp;
-        ppp = avl_stack.pop();
+        ppp = path.pop();
       }
-
-    clean_avl_stack();
   }
 
   // Update counters along the stack after insertion
-  void update_counters_after_insertion() noexcept
+  void update_counters_after_insertion(const Path &path) noexcept
   {
     // Stack contains: [head_ptr, ..., nodes in path, ..., closest to insertion]
     // top(0) = closest node, top(size-1) = head_ptr (don't update)
-    const size_t sz = avl_stack.size();
+    const size_t sz = path.size();
     for (size_t i = 0; i < sz - 1; ++i)
-      ++COUNT(avl_stack.top(i));
+      ++COUNT(path.top(i));
   }
 
   // Update counters along the stack after deletion
-  void update_counters_after_deletion() noexcept
+  void update_counters_after_deletion(const Path &path) noexcept
   {
-    const size_t sz = avl_stack.size();
+    const size_t sz = path.size();
     for (size_t i = 0; i < sz - 1; ++i)
-      --COUNT(avl_stack.top(i));
+      --COUNT(path.top(i));
   }
 
 public:
@@ -541,9 +521,9 @@ public:
   }
 
   Gen_Avl_Tree_Rk(Compare cmf_fct = Compare()) noexcept
-    : avl_stack(Node::MaxHeight), head_ptr(&head_node), root(RLINK(head_ptr)), cmp(cmf_fct)
+    : head_ptr(&head_node), root(RLINK(head_ptr)), cmp(cmf_fct)
   {
-    avl_stack.push(head_ptr);
+    // empty
   }
 
   /** Swap in constant time all the items of `this` with the items of
@@ -557,10 +537,7 @@ public:
     std::swap(cmp, tree.cmp);
   }
 
-  virtual ~Gen_Avl_Tree_Rk() noexcept
-  {
-    assert(avl_stack_at_base());
-  }
+  virtual ~Gen_Avl_Tree_Rk() noexcept = default;
 
   /// Return a modifiable reference to tree's root
   [[nodiscard]] constexpr Node *&getRoot() noexcept
@@ -605,19 +582,18 @@ public:
       return root = p;
 
     signed char cmp_result = CmpEqual;
-    Node *pp = search_and_stack_avl(KEY(p), cmp_result);
+    Path path;
+    path.push(head_ptr);
+    Node *pp = search_and_stack_avl(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(pp) = p;
     else if (cmp_result == CmpGreater)
       RLINK(pp) = p;
     else
-      {
-        clean_avl_stack();
-        return nullptr;
-      }
+      return nullptr;
 
-    update_counters_after_insertion();
-    restore_avl_after_insertion(p);
+    update_counters_after_insertion(path);
+    restore_avl_after_insertion(p, path);
 
     return p;
   }
@@ -635,19 +611,18 @@ public:
       return root = p;
 
     signed char cmp_result = CmpEqual;
-    Node *pp = search_and_stack_avl(KEY(p), cmp_result);
+    Path path;
+    path.push(head_ptr);
+    Node *pp = search_and_stack_avl(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(pp) = p;
     else if (cmp_result == CmpGreater)
       RLINK(pp) = p;
     else
-      {
-        clean_avl_stack();
-        return pp;
-      }
+      return pp;
 
-    update_counters_after_insertion();
-    restore_avl_after_insertion(p);
+    update_counters_after_insertion(path);
+    restore_avl_after_insertion(p, path);
 
     return p;
   }
@@ -659,14 +634,16 @@ public:
       return root = p;
 
     signed char cmp_result = CmpEqual;
-    Node *pp = search_dup_and_stack_avl(KEY(p), cmp_result);
+    Path path;
+    path.push(head_ptr);
+    Node *pp = search_dup_and_stack_avl(KEY(p), cmp_result, path);
     if (cmp_result == CmpLess)
       LLINK(pp) = p;
     else
       RLINK(pp) = p;
 
-    update_counters_after_insertion();
-    restore_avl_after_insertion(p);
+    update_counters_after_insertion(path);
+    restore_avl_after_insertion(p, path);
 
     return p;
   }
@@ -679,14 +656,13 @@ public:
       return nullptr;
 
     signed char cmp_result = CmpEqual;
-    Node *p = search_and_stack_avl(key, cmp_result);
+    Path path;
+    path.push(head_ptr);
+    Node *p = search_and_stack_avl(key, cmp_result, path);
     if (cmp_result != CmpEqual)
-      {
-        clean_avl_stack();
-        return nullptr;
-      }
+      return nullptr;
 
-    Node *pp = avl_stack.top(1);
+    Node *pp = path.top(1);
     bool left_deficit;
 
     while (true)
@@ -710,19 +686,16 @@ public:
             break;
           }
 
-        swapWithSuccessor(p, pp);
+        swapWithSuccessor(p, pp, path);
       }
 
     p->reset();
 
     if (pp == head_ptr)
-      {
-        clean_avl_stack();
-        return p;
-      }
+      return p;
 
-    update_counters_after_deletion();
-    restore_avl_after_deletion(left_deficit);
+    update_counters_after_deletion(path);
+    restore_avl_after_deletion(left_deficit, path);
 
     return p;
   }
@@ -770,9 +743,10 @@ public:
   }
 
   /// Return true if the tree is a valid AVL tree with correct counters
+  /// and its keys are in order
   [[nodiscard]] bool verify() const noexcept
   {
-    return is_avl_rk(root) and check_rank_tree(root);
+    return is_avl_rk(root) and check_rank_tree(root) and check_bst(root, cmp);
   }
 
 private:
@@ -824,7 +798,7 @@ private:
       }
 
     // Stack for rebalancing
-    FixedStack<Node **> stack(Node::MaxHeight);
+    InlineStack<Node **, Node::MaxHeight> stack;
     Node **pp = &p;
 
     while (LLINK(*pp) != Node::NullPtr)
@@ -879,7 +853,7 @@ private:
         return ret;
       }
 
-    FixedStack<Node **> stack(Node::MaxHeight);
+    InlineStack<Node **, Node::MaxHeight> stack;
     Node **pp = &p;
 
     while (RLINK(*pp) != Node::NullPtr)
@@ -975,7 +949,7 @@ private:
   // Join when h1 > h2 + 1: descend right spine of t1
   static Node *join_right(Node *t1, const size_t h1, Node *pivot, Node *t2, const size_t h2) noexcept
   {
-    FixedStack<Node **> stack(Node::MaxHeight);
+    InlineStack<Node **, Node::MaxHeight> stack;
     Node **pp = &t1;
     size_t curr_h = h1;
 
@@ -1026,7 +1000,7 @@ private:
   // Join when h2 > h1 + 1: descend left spine of t2
   static Node *join_left(Node *t1, const size_t h1, Node *pivot, Node *t2, const size_t h2) noexcept
   {
-    FixedStack<Node **> stack(Node::MaxHeight);
+    InlineStack<Node **, Node::MaxHeight> stack;
     Node **pp = &t2;
     size_t curr_h = h2;
 
@@ -1248,7 +1222,7 @@ public:
 
     // Collect nodes from t in preorder and insert them one by one
     // This is O(m log(n+m)) but guarantees correctness
-    FixedStack<Node *> stack(Node::MaxHeight);
+    InlineStack<Node *, Node::MaxHeight> stack;
     stack.push(t.root);
     t.root = Node::NullPtr;
 
@@ -1293,7 +1267,7 @@ public:
 
     // Simple O(n) implementation: iterate through tree and partition
     Node *found = nullptr;
-    FixedStack<Node *> stack(Node::MaxHeight);
+    InlineStack<Node *, Node::MaxHeight> stack;
     stack.push(root);
     root = Node::NullPtr;
 
@@ -1342,7 +1316,7 @@ public:
     if (root == Node::NullPtr)
       return;
 
-    FixedStack<Node *> stack(Node::MaxHeight);
+    InlineStack<Node *, Node::MaxHeight> stack;
     stack.push(root);
     root = Node::NullPtr;
 
@@ -1403,7 +1377,7 @@ public:
 
     // Simple O(n) implementation using inorder traversal
     size_t count = 0;
-    FixedStack<Node *> stack(Node::MaxHeight);
+    InlineStack<Node *, Node::MaxHeight> stack;
     Node *curr = root;
     root = Node::NullPtr;
 

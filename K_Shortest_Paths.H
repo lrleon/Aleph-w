@@ -274,14 +274,12 @@ namespace Aleph
 
       if (g.is_digraph())
         {
-          for (typename DynList<typename GT::Arc *>::Iterator it(state.arcs);
-               it.has_curr(); it.next_ne())
+          for (auto it = state.arcs.get_it(); it.has_curr(); it.next_ne())
             path.append_directed(it.get_curr_ne());
         }
       else
         {
-          for (typename DynList<typename GT::Arc *>::Iterator it(state.arcs);
-               it.has_curr(); it.next_ne())
+          for (auto it = state.arcs.get_it(); it.has_curr(); it.next_ne())
             path.append(it.get_curr_ne());
         }
 
@@ -697,8 +695,7 @@ namespace Aleph
       using Cost_Type = typename Distance::Distance_Type;
 
       Cost_Type total = Cost_Type{0};
-      for (typename DynList<typename GT::Arc *>::Iterator it(arcs);
-           it.has_curr(); it.next_ne())
+      for (auto it = arcs.get_it(); it.has_curr(); it.next_ne())
         total = shortest_path_detail::checked_add(total, distance(it.get_curr_ne()));
       return total;
     }
@@ -719,8 +716,7 @@ namespace Aleph
         candidate.arcs.append(base_path.arcs[i]);
 
       bool first_spur_node = true;
-      for (typename DynList<typename GT::Node *>::Iterator it(spur_state.nodes);
-           it.has_curr(); it.next_ne())
+      for (auto it = spur_state.nodes.get_it(); it.has_curr(); it.next_ne())
         {
           if (first_spur_node)
             {
@@ -731,8 +727,7 @@ namespace Aleph
           candidate.nodes.append(it.get_curr_ne());
         }
 
-      for (typename DynList<typename GT::Arc *>::Iterator it(spur_state.arcs);
-           it.has_curr(); it.next_ne())
+      for (auto it = spur_state.arcs.get_it(); it.has_curr(); it.next_ne())
         candidate.arcs.append(it.get_curr_ne());
 
       return candidate;
@@ -759,8 +754,7 @@ namespace Aleph
       candidate.nodes.append(deviation_next_node);
 
       bool first_suffix_node = true;
-      for (typename DynList<typename GT::Node *>::Iterator it(suffix_state.nodes);
-           it.has_curr(); it.next_ne())
+      for (auto it = suffix_state.nodes.get_it(); it.has_curr(); it.next_ne())
         {
           if (first_suffix_node)
             {
@@ -771,8 +765,7 @@ namespace Aleph
           candidate.nodes.append(it.get_curr_ne());
         }
 
-      for (typename DynList<typename GT::Arc *>::Iterator it(suffix_state.arcs);
-           it.has_curr(); it.next_ne())
+      for (auto it = suffix_state.arcs.get_it(); it.has_curr(); it.next_ne())
         candidate.arcs.append(it.get_curr_ne());
 
       return candidate;

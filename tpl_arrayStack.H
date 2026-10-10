@@ -55,6 +55,7 @@
 #include <ah-dry.H>
 #include <tpl_memArray.H>
 #include <ah-errors.H>
+#include <ah-iterator.H>
 
 namespace Aleph
 {
@@ -80,7 +81,7 @@ namespace Aleph
   class ArrayStack : public LocateFunctions<ArrayStack<T>, T>,
                      public FunctionalMethods<ArrayStack<T>, T>,
                      public GenericKeys<ArrayStack<T>, T>,
-                     public EqualToMethod<ArrayStack<T>>,
+                     public EqualSequenceMethod<ArrayStack<T>>,
                      public StlAlephIterator<ArrayStack<T>>
   {
     MemArray<T> array;
@@ -221,13 +222,20 @@ namespace Aleph
       return array.last();
     }
 
-    /// Return a modifiable reference to first element of array
-    T &base() noexcept
+    /** @brief Return a modifiable reference to the oldest element (the base).
+        @return Reference to the bottom of the stack.
+        @throws std::underflow_error if the stack is empty.
+    */
+    T &base()
     {
       return array.first();
     }
 
-    const T &base() const noexcept
+    /** @brief Return a constant reference to the oldest element (the base).
+        @return Constant reference to the bottom of the stack.
+        @throws std::underflow_error if the stack is empty.
+    */
+    const T &base() const
     {
       return array.first();
     }
@@ -286,28 +294,36 @@ namespace Aleph
         otherwise the traversal stops
      */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation & operation)
+      noexcept(noexcept(array.traverse(operation)))
     {
       return array.traverse(operation);
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation & operation) const
+      noexcept(noexcept(array.traverse(operation)))
     {
       return array.traverse(operation);
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation && operation = Operation()) const
+      noexcept(noexcept(array.traverse(operation)))
     {
       return array.traverse(operation);
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation && operation = Operation())
+      noexcept(noexcept(array.traverse(operation)))
     {
       return array.traverse(operation);
     }
@@ -326,9 +342,15 @@ namespace Aleph
 
       using Base::Base;
 
-      /// Initialize an iterator on stack `s`
-      Iterator(const ArrayStack<T> & s) : Base(s.array) {}
+      /// Iterator on the modifiable stack `s`.
+      Iterator(ArrayStack<T> & s) : Base(s.array) {}
+
+      /// A constant stack is iterated through Const_Iterator.
+      Iterator(const ArrayStack<T> &) = delete;
     };
+
+    /// Read-only iterator: the iterator of a constant container.
+    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
   };
 
   /** Fixed length stack.
@@ -347,7 +369,7 @@ namespace Aleph
   class FixedStack : public LocateFunctions<FixedStack<T>, T>,
                      public FunctionalMethods<FixedStack<T>, T>,
                      public GenericKeys<FixedStack<T>, T>,
-                     public EqualToMethod<FixedStack<T>>,
+                     public EqualSequenceMethod<FixedStack<T>>,
                      public StlAlephIterator<FixedStack<T>>
   {
     T *array = nullptr;
@@ -568,7 +590,9 @@ namespace Aleph
         otherwise the traversal stops
      */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation & operation)
+      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
       for (size_t i = 0; i < head; i++)
         if (not operation(array[i]))
@@ -579,21 +603,30 @@ namespace Aleph
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation & operation) const
+      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
-      return const_cast<FixedStack *>(this)->traverse(operation);
+      for (size_t i = 0; i < head; i++)
+        if (not operation(static_cast<const T &>(array[i])))
+          return false;
+      return true;
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation && operation = Operation()) const
+      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
       return traverse<Operation>(operation);
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation && operation = Operation())
+      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
       return traverse<Operation>(operation);
     }
@@ -611,9 +644,170 @@ namespace Aleph
       using Base::Base;
       using Set_Type = FixedStack;
 
-      Iterator(const FixedStack<T> & s)
+      /// Iterator on the modifiable stack `s`.
+      Iterator(FixedStack<T> & s)
         : Base(no_exception_ctor, s.array, s.dim, s.head) {}
+
+      /// A constant stack is iterated through Const_Iterator.
+      Iterator(const FixedStack<T> &) = delete;
     };
+
+    /// Read-only iterator: the iterator of a constant container.
+    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
+  };
+
+  /** @brief Stack of fixed capacity whose storage is inside the object.
+
+      Unlike FixedStack, it never allocates: the capacity `N` is a
+      compile-time constant and the items live in the object, so
+      construction, copy, move and swap cannot throw. Only the items in use
+      are copied or exchanged, so an empty or short stack costs nothing to
+      copy even when `N` is large.
+
+      It is meant for bounded paths that are built and consumed in place:
+      the path from the root of a balanced tree, whose length is bounded by
+      `Node::MaxHeight`, is the typical one.
+
+      No operation checks its preconditions, except by `assert()`: pushing
+      beyond `N` or popping an empty stack is a logic error.
+
+      @tparam T type of the items; it must be trivially copyable (pointers,
+              indices).
+      @tparam N maximum number of items.
+
+      @see FixedStack ArrayStack
+      @ingroup Sequences
+  */
+  template <typename T, size_t N>
+  class InlineStack
+  {
+    static_assert(N > 0, "InlineStack needs a positive capacity");
+    static_assert(std::is_trivially_copyable_v<T>,
+                  "InlineStack holds trivially copyable items only");
+
+    T array[N];  // only [0, head) holds items; the rest is never read
+    size_t head = 0;
+
+  public:
+    using Item_Type = T;  ///< The type of element
+
+    /// Construct an empty stack. The storage is not initialized.
+    InlineStack() noexcept = default;
+
+    /// Copy the items in use of `s`.
+    InlineStack(const InlineStack & s) noexcept : head(s.head)
+    {
+      for (size_t i = 0; i < head; ++i)
+        array[i] = s.array[i];
+    }
+
+    /// Assign the items in use of `s`.
+    InlineStack & operator = (const InlineStack & s) noexcept
+    {
+      if (this == &s)
+        return *this;
+      head = s.head;
+      for (size_t i = 0; i < head; ++i)
+        array[i] = s.array[i];
+      return *this;
+    }
+
+    /// Exchange the items in use of `s` and `this`, in time O(size()).
+    void swap(InlineStack & s) noexcept
+    {
+      InlineStack tmp(s);
+      s = *this;
+      *this = tmp;
+    }
+
+    /// Maximum number of items.
+    [[nodiscard]] static constexpr size_t capacity() noexcept { return N; }
+
+    /** Push a copy of `data`.
+        @param[in] data item to push; the stack must not be full.
+        @return a modifiable reference to the pushed item.
+    */
+    T & push(const T & data) noexcept
+    {
+      assert(head < N);
+      array[head++] = data;
+      return array[head - 1];
+    }
+
+    /// Pop the top; the stack must not be empty.
+    T pop() noexcept
+    {
+      assert(head > 0);
+      return array[--head];
+    }
+
+    /** Perform `n` pops in constant time.
+        @param[in] n number of items to pop; at most size().
+        @return the last popped item.
+    */
+    T popn(const size_t n) noexcept
+    {
+      assert(n <= head);
+      head -= n;
+      return array[head];
+    }
+
+    /// Return a modifiable reference to the top; the stack must not be empty.
+    [[nodiscard]] T & top() noexcept
+    {
+      assert(head > 0);
+      return array[head - 1];
+    }
+
+    /// \overload top()
+    [[nodiscard]] const T & top() const noexcept
+    {
+      assert(head > 0);
+      return array[head - 1];
+    }
+
+    /** Return a modifiable reference to the item `i` positions below the top.
+        @param[in] i number of positions; `top(0)` is the top.
+        @return a modifiable reference to the item.
+    */
+    [[nodiscard]] T & top(const size_t i) noexcept
+    {
+      assert(i < head);
+      return array[head - i - 1];
+    }
+
+    /// \overload top(const size_t i)
+    [[nodiscard]] const T & top(const size_t i) const noexcept
+    {
+      assert(i < head);
+      return array[head - i - 1];
+    }
+
+    /// Return a modifiable reference to the bottom; the stack must not be empty.
+    [[nodiscard]] T & base() noexcept
+    {
+      assert(head > 0);
+      return array[0];
+    }
+
+    /// \overload base()
+    [[nodiscard]] const T & base() const noexcept
+    {
+      assert(head > 0);
+      return array[0];
+    }
+
+    /// Return `true` if the stack is empty.
+    [[nodiscard]] bool is_empty() const noexcept { return head == 0; }
+
+    /// Return the number of items.
+    [[nodiscard]] size_t size() const noexcept { return head; }
+
+    /// Empty the stack.
+    void empty() noexcept { head = 0; }
+
+    /// \overload empty()
+    void clear() noexcept { head = 0; }
   };
 } // end namespace Aleph
 

@@ -716,7 +716,7 @@ void test_all_constructors_agree()
   TEST("all constructors produce identical query results");
   vector<int> raw = {15, 8, 23, 4, 42, 1, 17, 9, 30, 6};
 
-  Array<int> arr(raw.size());
+  auto arr = Array<int>::create_reserved(raw.size());
   for (size_t i = 0; i < raw.size(); ++i)
     arr.append(raw[i]);
 

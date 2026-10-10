@@ -622,15 +622,14 @@ namespace Aleph
     Array<size_t> compute_ranks(const Array<T> & c)
     {
       const size_t n = c.size();
-      Array<size_t> indexes(n);
+      auto indexes = Array<size_t>::create_reserved(n);
       for (size_t i = 0; i < n; ++i)
         indexes.append(i);  // Use append to grow size
       quicksort_op(indexes, [&c](auto i1, auto i2)
       {
         return c(i1) < c(i2);
       });
-      Array<size_t> ret(n);
-      ret.putn(n);  // Allocate n slots (expands size)
+      auto ret = Array<size_t>::create(n);
       for (size_t i = 0; i < n; ++i)
         ret(indexes(i)) = i;
       return ret;
@@ -652,15 +651,14 @@ namespace Aleph
     Array<P> compute_pair_ranks(const Array<T> & c)
     {
       const size_t n = c.size();
-      Array<size_t> indexes(n);
+      auto indexes = Array<size_t>::create_reserved(n);
       for (size_t i = 0; i < n; ++i)
         indexes.append(i);
       quicksort_op(indexes, [&c](auto i1, auto i2)
       {
         return c(i1) < c(i2);
       });
-      Array<P> ret(n);
-      ret.putn(n);  // Allocate n slots
+      auto ret = Array<P>::create(n);
       for (size_t i = 0; i < n; ++i)
         {
           auto idx = indexes(i);

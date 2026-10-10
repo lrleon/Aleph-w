@@ -57,6 +57,7 @@
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
+# include <ah-iterator.H>
 
 /** @brief CRTP mixin providing common operations for open addressing hash tables.
 
@@ -861,13 +862,16 @@ public:
     Iterator() noexcept = default;
 
     /** @brief Constructs an iterator positioned at the first entry.
-        @param table The hash table to iterate over.
+        @param table The modifiable hash table to iterate over.
     */
-    Iterator(const HashTbl & table) noexcept
-      : table_ptr(&const_cast<HashTbl&>(table)), curr_idx(0), ordinal(-1)
+    Iterator(HashTbl & table) noexcept
+      : table_ptr(&table), curr_idx(0), ordinal(-1)
     {
       reset_first();
     }
+
+    /// A constant table is iterated through Const_Iterator.
+    Iterator(const HashTbl &) = delete;
 
     /** @brief Deletes the current entry and advances to the next.
         
@@ -891,6 +895,9 @@ public:
       while (table_ptr->table[++curr_idx].status != HashTbl::BUSY);
     }
   };
+
+  /// Read-only iterator: the iterator of a constant table.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 
   /** @brief Returns a list containing all keys in the table.
       
@@ -1024,13 +1031,39 @@ private:
   /** @brief Updates chain length histogram.
       @param lens The histogram array to update.
       @param i The chain length to record.
+      @note touch() also extends lens.size() to i + 1, so every recorded
+            length is inside the range that the statistics traverse. New
+            entries start at zero.
   */
   static void update_stat_len(DynArray<size_t> & lens, size_t i)
   {
-    if (lens.exist(i))
-      lens(i) += 1;
+    lens.touch(i) += 1;
+  }
+
+  /** @brief Returns the length of the collision chain of bucket i.
+      @param i Bucket index, smaller than capacity().
+      @return Number of entries stored in bucket i.
+      @note A lazily allocated table (a DynArray, as in linear hashing) may
+            contain buckets that were never written. Such a bucket is empty,
+            so it counts as zero instead of being read, which would throw.
+  */
+  size_t bucket_length(const size_t i) const
+  {
+    const auto & table = const_me()->table;
+    Dlink * list;
+    if constexpr (requires { table.test(i); })
+      {
+        list = table.test(i);
+        if (list == nullptr)
+          return 0;
+      }
     else
-      lens.touch(i) = 1;
+      list = &table[i];
+
+    size_t count = 0;
+    for (typename HashTbl::BucketItor it(*list); it.has_curr(); it.next())
+      ++count;
+    return count;
   }
 
 public:
@@ -1041,22 +1074,17 @@ public:
       of chain lengths, along with mean and variance.
       
       @return Stats object containing chain length statistics.
-      
+
       @par Complexity: O(n + m) where n is entries and m is capacity.
+      @note Buckets that a lazily allocated table never wrote count as
+            empty chains; computing the statistics does not allocate them.
   */
   Stats stats() const
   {
     DynArray<size_t> lens;
-    for (int i = 0; i < const_me()->capacity(); ++i)
-      {
-        Dlink & list = const_me()->table[i];
-        size_t count = 0;
-        for (typename HashTbl::BucketItor it(list); it.has_curr(); 
-             it.next(), ++count)
-          ;
-
-        update_stat_len(lens, count);
-      }
+    for (size_t i = 0; i < const_me()->capacity(); ++i)
+      update_stat_len(lens, bucket_length(i));
+    lens.reserve(lens.size());  // no unwritten gaps: every length is readable
 
     float avg = 0, sum = 0;
     for (size_t i = 0; i < lens.size(); ++i)

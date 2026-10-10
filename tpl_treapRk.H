@@ -371,7 +371,7 @@ public:
 
     /** Insert a node in a treap.
 
-        insert(p) inserta el nodo p en el treap this.
+        `insert(p)` inserts the node `p` in this treap.
 
         @param[in] p pointer to the node to be inserted
         @return if `p->get_key()` is not in the tree, then `p` is
@@ -425,7 +425,11 @@ public:
   }
 
   /// Return `true` if the treap is consistent
-  bool verify() const { return is_treap(tree_root); }
+  bool verify() const
+  {
+    return is_treap(tree_root) and check_rank_tree(tree_root) and
+      check_bst(tree_root, cmp);
+  }
 
 private:
 

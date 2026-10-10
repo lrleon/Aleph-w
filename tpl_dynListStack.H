@@ -48,6 +48,7 @@
 # include <ahIterator.H>
 # include <ah-args-ctor.H>
 # include <htlist.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 
@@ -104,7 +105,7 @@ class DynListStack
       : public LocateFunctions<DynListStack<T>, T>,
         public FunctionalMethods<DynListStack<T>, T>,
         public GenericKeys<DynListStack<T>, T>,
-        public EqualToMethod<DynListStack<T>>,
+        public EqualSequenceMethod<DynListStack<T>>,
         public StlAlephIterator<DynListStack<T>>
 {
   DynList<T> s;
@@ -118,7 +119,7 @@ public:
   /// @brief The type of elements stored in the stack.
   using Item_Type = T;
 
-  /// @brief Alias for Item_Type, required by EqualToMethod mixin.
+  /// @brief Alias for Item_Type.
   using Key_Type = T;
 
   /** @brief Swap the contents of this stack with another.
@@ -424,28 +425,36 @@ public:
    *        popped from the stack.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation & operation)
+    noexcept(noexcept(s.traverse(operation)))
   {
     return s.traverse(operation);
   }
 
   /// @overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation & operation) const
+    noexcept(noexcept(s.traverse(operation)))
   {
     return s.traverse(operation);
   }
 
   /// @overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation && operation = Operation()) const
+    noexcept(noexcept(s.traverse(operation)))
   {
     return s.traverse(std::forward<Operation>(operation));
   }
 
   /// @overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation && operation = Operation())
+    noexcept(noexcept(s.traverse(operation)))
   {
     return s.traverse(std::forward<Operation>(operation));
   }
@@ -460,18 +469,17 @@ public:
    *  @param[in] key The value to search for.
    *  @return Pointer to the item if found, nullptr otherwise.
    *
-   *  @note This method is required by the EqualToMethod mixin.
    *  @warning The returned pointer is invalidated if the element is removed.
    */
-  T * search(const T & key) noexcept
+  T * search(const T & key) noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
   {
     return this->find_ptr([&key](const T & item) { return item == key; });
   }
 
   /// @overload search(const T & key)
-  const T * search(const T & key) const noexcept
+  const T * search(const T & key) const noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
   {
-    return const_cast<DynListStack*>(this)->search(key);
+    return this->find_ptr([&key](const T & item) { return item == key; });
   }
 
   /** @brief Check if the stack contains a specific value.
@@ -481,13 +489,15 @@ public:
    *  @param[in] key The value to search for.
    *  @return true if @p key is found in the stack, false otherwise.
    */
-  [[nodiscard]] bool contains(const T & key) const noexcept
+  [[nodiscard]] bool contains(const T & key) const
+    noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
   {
     return search(key) != nullptr;
   }
 
   /// @brief Alias for contains().
-  [[nodiscard]] bool has(const T & key) const noexcept
+  [[nodiscard]] bool has(const T & key) const
+    noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
   {
     return contains(key);
   }
@@ -534,8 +544,15 @@ public:
      *
      *  @param[in] stack The stack to iterate over.
      */
-    Iterator(const DynListStack<T> & stack) noexcept : Base(stack.s) {}
+    /// Iterator on the modifiable stack `stack`.
+    Iterator(DynListStack<T> & stack) noexcept : Base(stack.s) {}
+
+    /// A constant stack is iterated through Const_Iterator.
+    Iterator(const DynListStack<T> &) = delete;
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 };
 
 } // end namespace Aleph

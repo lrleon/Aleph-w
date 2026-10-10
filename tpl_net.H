@@ -408,8 +408,7 @@ namespace Aleph
     Flow_Type total_source_out_flow() const
     {
       Flow_Type sum = Flow_Type{};
-      for (typename DynSetTree<Node *>::Iterator it(src_nodes);
-           it.has_curr(); it.next_ne())
+      for (auto it = src_nodes.get_it(); it.has_curr(); it.next_ne())
         sum += get_out_flow(it.get_curr());
       return sum;
     }
@@ -418,8 +417,7 @@ namespace Aleph
     Flow_Type total_sink_in_flow() const
     {
       Flow_Type sum = Flow_Type{};
-      for (typename DynSetTree<Node *>::Iterator it(sink_nodes);
-           it.has_curr(); it.next_ne())
+      for (auto it = sink_nodes.get_it(); it.has_curr(); it.next_ne())
         sum += get_in_flow(it.get_curr());
       return sum;
     }
@@ -464,13 +462,11 @@ namespace Aleph
         << "network has no source nodes (it has cycles)";
 
       DynList<Node *> sources;
-      for (typename DynSetTree<Node *>::Iterator it(src_nodes);
-           it.has_curr(); it.next_ne())
+      for (auto it = src_nodes.get_it(); it.has_curr(); it.next_ne())
         sources.append(it.get_curr());
 
       Node *super_source = insert_node();
-      for (typename DynList<Node *>::Iterator it(sources);
-           it.has_curr(); it.next_ne())
+      for (auto it = sources.get_it(); it.has_curr(); it.next_ne())
         insert_arc(super_source, it.get_curr(), get_out_cap(it.get_curr()));
 
       with_super_source = true;
@@ -499,13 +495,11 @@ namespace Aleph
         << "network has no sink nodes (it has cycles)";
 
       DynList<Node *> sinks;
-      for (typename DynSetTree<Node *>::Iterator it(sink_nodes);
-           it.has_curr(); it.next_ne())
+      for (auto it = sink_nodes.get_it(); it.has_curr(); it.next_ne())
         sinks.append(it.get_curr());
 
       Node *super_sink = insert_node();
-      for (typename DynList<Node *>::Iterator it(sinks);
-           it.has_curr(); it.next_ne())
+      for (auto it = sinks.get_it(); it.has_curr(); it.next_ne())
         insert_arc(it.get_curr(), super_sink, get_in_cap(it.get_curr()));
       with_super_sink = true;
     }
@@ -892,8 +886,7 @@ namespace Aleph
         return;
       }
 
-    for (typename DynList<Parc<Net>>::Iterator it(sp); it.has_curr();
-         it.next_ne())
+    for (auto it = sp.get_it(); it.has_curr(); it.next_ne())
       {
         const Parc<Net> & pa = it.get_curr();
         auto a = get<0>(pa);
@@ -966,8 +959,7 @@ namespace Aleph
 	    (void)net; // May be unused when NDEBUG disables assert().
 
 	    // Increase flow along the semi-path.
-	    for (typename DynList<Parc<Net>>::Iterator it(semi_path); it.has_curr();
-	         it.next_ne())
+	    for (auto it = semi_path.get_it(); it.has_curr(); it.next_ne())
 	      {
 	        auto p = it.get_curr();
         auto arc = get<0>(p);
@@ -999,8 +991,7 @@ namespace Aleph
 	    (void)net;
 
 	    // Decrease flow: reverse the direction logic from increase_flow
-	    for (typename DynList<Parc<Net>>::Iterator it(semi_path); it.has_curr();
-	         it.next_ne())
+	    for (auto it = semi_path.get_it(); it.has_curr(); it.next_ne())
 	      {
 	        auto p = it.get_curr();
         auto arc = get<0>(p);

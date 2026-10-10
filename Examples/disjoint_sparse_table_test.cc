@@ -551,7 +551,7 @@ void test_construct_from_array()
 {
   TEST("construct from Array<int>");
   vector<int> raw = {3, 1, 4, 1, 5, 9, 2, 6};
-  Array<int> arr(raw.size());
+  auto arr = Array<int>::create_reserved(raw.size());
   for (size_t i = 0; i < raw.size(); ++i)
     arr.append(raw[i]);
   Sum_Disjoint_Sparse_Table<int> st(arr);
@@ -603,7 +603,7 @@ void test_construct_all_identical()
   TEST("all constructors produce identical query results");
   vector<int> raw = {7, 2, 9, 4, 6, 1, 8, 3, 5};
 
-  Array<int> arr(raw.size());
+  auto arr = Array<int>::create_reserved(raw.size());
   for (size_t i = 0; i < raw.size(); ++i) arr.append(raw[i]);
   DynList<int> dl;
   for (size_t i = 0; i < raw.size(); ++i) dl.append(raw[i]);

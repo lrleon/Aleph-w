@@ -839,7 +839,7 @@ TEST(SortUtilsArraySorts, introsort_array_container_single)
 TEST(SortUtilsArraySorts, introsort_array_container_large)
 {
   const size_t n = 5000;
-  Array<int> arr(n);
+  auto arr = Array<int>::create_reserved(n);
   for (size_t i = 0; i < n; ++i)
     arr.append(static_cast<int>(n - i));  // Reverse sorted
 

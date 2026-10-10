@@ -47,6 +47,7 @@
 
 #include <string>
 #include <concepts>
+#include <functional>
 #include <type_traits>
 #include <aleph.H>
 #include <ahIterator.H>
@@ -55,12 +56,13 @@
 #include <tpl_dynDlist.H>
 #include <ah-args-ctor.H>
 #include <htlist.H>
+#include <ah-concepts.H>
 #include <ah-dry.H>
 #include <ah-errors.H>
 #include <tpl_array.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
-class BitArray;  // forward needed
 
 /** Lazy and scalable dynamic array
     ===============================
@@ -96,15 +98,20 @@ class BitArray;  // forward needed
    --------------------------
 
    For lazy writing, that is to allocate the block just when it is
-   certain that this will be used, the operator `[]` is used. This
-   operator is able to determine whether the i-th entry has been o
-   not written. If for example a reading on a non allocated block is
-   done, some such as:
+   certain that this will be used, the operator `[]` is used. A read of
+   an entry whose block was never allocated, through `read(i)` or `[]` on
+   a constant array, some such as:
 
-       std::cout << a[i] << end;
+       std::cout << a.read(i) << endl;
 
-   Then a default initialization value will be returned. This value
-   corresponds to the resulting of default constructor call.
+   returns the default initialization value without allocating anything.
+   This value is the result of the default constructor call, unless
+   set_default_initial_value() changed it. On a modifiable array, `a[i]`
+   returns a proxy that cannot tell a read from a write, so using it as a
+   value allocates the block (it then holds the default value). Traversals
+   and iterators of a constant array never allocate; on a modifiable array
+   they hand out modifiable references, so they allocate the blocks they
+   visit. Use `std::as_const(a)` to traverse or iterate without allocating.
 
    At the contrary, if the first time that a writing is done, some such as:
 
@@ -121,9 +128,11 @@ class BitArray;  // forward needed
 
    In this case, the registered dimension of array will be 100000000,
    but only two blocks will be allocated. If you only performs reads
-   between \f$(0, 100000000)\f$ always it will be returned the default
-   value and the majority of times neither the segment nor the block
-   will be read, since they have not been written.
+   between \f$(0, 100000000)\f$ with read(), on a constant array or by
+   traversing a constant array (for instance `std::as_const(a)`), always
+   it will be returned the default value and neither a segment nor a
+   block will be allocated, since they have not been written. Traversing
+   the modifiable array instead allocates every block it visits.
 
    Access through [] operator perform bound_min_clock checks and it requires to
    test if the segment and/or block have been allocated and eventually
@@ -206,8 +215,6 @@ class DynArray : public LocateFunctions<DynArray<T>, T>,
                  public EqualSequenceMethod<DynArray<T>>,
                  public StlAlephIterator<DynArray<T>>
 {
-  friend class BitArray;  // for access to __traversal() method
-
   // look at the end of this file for seeing the values
 public:
   using Item_Type = T;  /// The type of element stored in the array
@@ -239,13 +246,25 @@ private:
   // 2^(pow_dir + pow_seg + pow_block) - 1
   unsigned long long max_dim = two_raised(seg_plus_block_pow + pow_dir);
 
-  static size_t two_raised(const size_t n) noexcept
+  /** @brief Return 2^n.
+      @param[in] n Exponent.
+      @return 2 raised to `n`.
+      @throws std::overflow_error if 2^n does not fit in a size_t.
+  */
+  static size_t two_raised(const size_t n)
   {
     ah_overflow_error_if(n >= Max_Bits_Allowed) << "two_raised: exponent " << n << " is too large";
     return static_cast<size_t>(1) << n;
   }
 
-  static size_t compute_dim(size_t d, size_t s, size_t b) noexcept
+  /** @brief Return the number of entries of a d/s/b geometry.
+      @param[in] d Power of two of the directory size.
+      @param[in] s Power of two of the segment size.
+      @param[in] b Power of two of the block size.
+      @return 2^d * 2^s * 2^b.
+      @throws std::overflow_error if a power does not fit in a size_t.
+  */
+  static size_t compute_dim(size_t d, size_t s, size_t b)
   {
     return two_raised(d) * two_raised(s) * two_raised(b);
   }
@@ -255,11 +274,13 @@ public:
       segment and block sizes.
 
       @param[in] n proposed dimension
-      @param[out] d directory size
-      @param[out] s segment size
-      @param[out] b block size
+      @param[out] d power of two of the directory size
+      @param[out] s power of two of the segment size
+      @param[out] b power of two of the block size
+      @throw overflow_error if `n` is greater than 2^63, so that no
+      geometry of `size_t` entries can hold it
   */
-  static void compute_sizes(const size_t n, size_t &d, size_t &s, size_t &b) noexcept
+  static void compute_sizes(const size_t n, size_t &d, size_t &s, size_t &b)
   {
     d = Default_Pow_Dir;
     s = Default_Pow_Seg;
@@ -284,9 +305,11 @@ public:
       segment and block sizes.
 
       @param[in] n proposed dimension
-      @return a 3-tuple with the directory, segment and block sizes
+      @return a 3-tuple with the powers of two of the directory, segment
+      and block sizes
+      @throw overflow_error if `n` is greater than 2^63
   */
-  static std::tuple<size_t, size_t, size_t> compute_sizes(const size_t n) noexcept
+  static std::tuple<size_t, size_t, size_t> compute_sizes(const size_t n)
   {
     size_t d, s, b;
     compute_sizes(n, d, s, b);
@@ -360,9 +383,25 @@ private:
     fill_dir_to_null();
   }
 
+  /** @brief Allocate the directory if the array has none.
+
+      An array that was moved from keeps no directory, so that moving needs
+      no allocation and stays noexcept. Every writer calls this before
+      indexing the directory; readers treat a missing directory as an array
+      without segments.
+
+      @throw bad_alloc if the directory cannot be allocated.
+  */
+  void ensure_dir()
+  {
+    if (dir == nullptr)
+      allocate_dir();
+  }
+
   void resize_dir(const size_t i)  // resize dir to fit index i
   {
     assert(i >= max_dim);
+    ensure_dir();  // realloc() must extend a fully initialized directory
 
     size_t new_pow_dir = pow_dir + 1;
     while (compute_dim(new_pow_dir, pow_seg, pow_block) <= i)
@@ -444,11 +483,10 @@ private:
 
   void release_all_segments_and_blocks() noexcept
   {
-    assert(dir != nullptr);
-
-    for (size_t i = 0; i < dir_size; ++i)
-      if (dir[i] != nullptr)
-        release_blocks_and_segment(dir[i]);
+    if (dir != nullptr)  // a moved-from array has no directory
+      for (size_t i = 0; i < dir_size; ++i)
+        if (dir[i] != nullptr)
+          release_blocks_and_segment(dir[i]);
 
     current_dim = 0;
   }
@@ -500,14 +538,6 @@ private:
         allocate_block(seg[i], src_seg[i]);
   }
 
-  void allocate_dir(T ***src_dir)
-  {
-    allocate_dir();
-    for (size_t i = 0; i < dir_size; i++)
-      if (src_dir[i] != nullptr)
-        allocate_segment(dir[i], src_dir[i]);
-  }
-
   class Proxy
   {
     size_t index;
@@ -528,10 +558,20 @@ private:
         block = ref_seg[pos_in_seg];  // Entry block already exists
     }
 
+    /** @brief Return a modifiable reference to the entry.
+
+        The proxy cannot tell a read (`int x = a[i]`) from a modification
+        (`a[i] += 1`), so it allocates the entry's block, exactly as
+        operator->() does: an entry that was never written then holds the
+        default value and writes through the reference are kept. To read
+        without allocating, use read() or a const array.
+
+        @return Reference to the entry.
+        @throw bad_alloc if the segment or block cannot be allocated.
+    */
     operator T &()
     {
-      ah_invalid_argument_if(block == nullptr) << "accessed entry not been still written";
-      return block[pos_in_block];
+      return *operator->();
     }
 
     T *operator ->()
@@ -605,10 +645,14 @@ private:
 
     Proxy &operator = (const Proxy &proxy)
     {
-      ah_domain_error_if(proxy.block == nullptr) << "right entry has not been still written";
-
       if (&proxy == this)
         return *this;
+
+      // An entry that was never written reads as its array's default value.
+      // Allocating blocks never moves existing ones, so this reference stays
+      // valid while the left entry is allocated below.
+      const T &value = proxy.block != nullptr ? proxy.block[proxy.pos_in_block]
+                                              : proxy.array.default_initial_value;
 
       bool seg_was_allocated_in_current_call = false;
       if (ref_seg == nullptr)  // Is there a segment?
@@ -638,7 +682,7 @@ private:
       if (index >= array.current_dim)
         array.current_dim = index + 1;
 
-      block[pos_in_block] = proxy.block[proxy.pos_in_block];
+      block[pos_in_block] = value;
 
       return *this;
     }
@@ -692,15 +736,23 @@ public:
       returned when entries not still written are accessed.
 
       @param[in] value default value
+      @throw anything that the copy assignment of `T` throws.
+      @note Set it before writing. A block that is already allocated keeps
+            the default value it was filled with; only blocks allocated
+            afterwards, and reads of entries whose block does not exist,
+            use the new value.
    */
-  void set_default_initial_value(const T &value) noexcept
+  void set_default_initial_value(const T &value)
+    noexcept(std::is_nothrow_copy_assignable_v<T>)
   {
     default_initial_value = value;
     default_initial_value_ptr = &default_initial_value;
   }
 
-  /// \overload set_default_initial_value(const T & value)
-  void set_default_initial_value(T &&value = T())
+  /** \overload set_default_initial_value(const T & value)
+      @throw anything that swapping two `T` throws.
+  */
+  void set_default_initial_value(T &&value = T()) noexcept(std::is_nothrow_swappable_v<T>)
   {
     std::swap(default_initial_value, value);
     default_initial_value_ptr = &default_initial_value;
@@ -740,15 +792,34 @@ public:
     allocate_dir();
   }
 
-  /** Default constructor
+  /** @brief Construct an empty array with the default geometry.
+      @throw bad_alloc if the directory cannot be allocated.
+      @note Not explicit, so `DynArray<T> a = {};` and omitted aggregate
+            members still work.
+  */
+  DynArray() : DynArray(size_t{0})
+  { /* empty */
+  }
 
-      @param[in] dim initial dimension of array
-      @throw bad_alloc if there is no enough memory
-      @throw length_error si dim is greater than maximum allowed
+  /** @brief Construct an array of logical size dim without allocating entries.
+
+      Segments and blocks are allocated lazily, on the first write that falls
+      in them. The directory covers the whole logical size from the start,
+      so size() <= max_size(). Like `std::vector<T>(dim)`, append() then
+      writes at index dim. Entries that were never written have no storage;
+      check them with exist() or test() before reading them with access().
+
+      The constructor is explicit: an integer never becomes a DynArray
+      implicitly, so `DynArray<T> a = n;` and passing an integer where a
+      DynArray is expected do not compile.
+
+      @param[in] dim initial logical size; zero builds an empty array.
+      @throw bad_alloc if the directory cannot be allocated.
+      @throw length_error if dim is greater than Max_Dim_Allowed.
       @throw overflow_error if it happens an arithmetic overflow with
       the bits operations
   */
-  DynArray(const size_t dim = 0) : current_dim(dim)
+  explicit DynArray(const size_t dim) : current_dim(dim)
   {
     static_assert(std::is_default_constructible_v<T>, "No default constructor for T");
     static_assert(std::is_copy_constructible_v<T>, "No copy constructor for T");
@@ -757,9 +828,40 @@ public:
     static_assert(std::is_move_assignable_v<T>, "No move assign for T");
     assert(Max_Dim_Allowed > 0);
 
+    ah_length_error_if(dim > Max_Dim_Allowed)
+      << "DynArray: dimension " << dim << " is greater than the maximum allowed "
+      << Max_Dim_Allowed;
+
+    // Grow the directory geometry before allocating it, so that it covers
+    // [0, dim) and nothing is allocated yet if a check fails.
+    while (max_dim < dim)
+      {
+        ++pow_dir;
+        dir_size = two_raised(pow_dir);
+        max_dim = compute_dim(pow_dir, pow_seg, pow_block);
+      }
+
     ah_length_error_if(max_dim > Max_Dim_Allowed) << "Dimension too large";
 
     allocate_dir();
+  }
+
+  /** @brief Construct an array of n copies of value; every entry is allocated.
+      @param[in] n number of entries; size() is n.
+      @param[in] value value copied into each entry.
+      @throw bad_alloc if there is no enough memory.
+      @throw length_error if n is greater than Max_Dim_Allowed.
+      @throws Any exception from copy-assigning T; nothing is leaked.
+      @note O(n), like `std::vector<T>(n, value)`.
+  */
+  DynArray(const size_t n, const T & value) : DynArray(n)
+  {
+    if (n == 0)
+      return;
+
+    reserve(0, n - 1);
+    for (size_t i = 0; i < n; ++i)
+      access(i) = value;
   }
 
   Special_Ctors(DynArray, T);
@@ -780,39 +882,45 @@ public:
         (*this)[i] = src_array.access(i);
   }
 
-  /** Copy constructor
+  /** @brief Copy constructor: build an exact copy of array.
+
+      The copy has the geometry, logical size and default value of `array`
+      and allocates exactly the blocks that `array` has allocated, so an
+      entry that `array` never wrote is not written in the copy either.
 
       @param[in] array source of copy
       @throw bad_alloc if there is no enough memory
+      @throws Any exception from copy-assigning T; nothing is leaked, since
+              the delegated constructor has already completed.
   */
   DynArray(const DynArray<T> &array)
-    : pow_dir(array.pow_dir), pow_seg(array.pow_seg), pow_block(array.pow_block),
-      seg_plus_block_pow(array.seg_plus_block_pow), mask_seg_plus_block(array.mask_seg_plus_block),
-      dir_size(array.dir_size), seg_size(array.seg_size), block_size(array.block_size),
-      max_dim(array.max_dim), mask_seg(array.mask_seg), mask_block(array.mask_block), current_dim(0),
-      num_segs(0), num_blocks(0), dir(nullptr), default_initial_value(array.default_initial_value),
-      default_initial_value_ptr(array.default_initial_value_ptr)
+    : DynArray(array.pow_dir, array.pow_seg, array.pow_block)
   {
-    allocate_dir(array.dir);
-    copy_array(array);
+    default_initial_value = array.default_initial_value;
+    if (array.dir != nullptr)  // an array that was moved from has no directory
+      for (size_t i = 0; i < dir_size; ++i)
+        if (array.dir[i] != nullptr)
+          allocate_segment(dir[i], array.dir[i]);
+    current_dim = array.current_dim;
   }
 
-  /** Copy assignment
+  /** @brief Copy assignment: `*this` becomes an exact copy of array.
 
       @param[in] array source of copy
+      @return `*this`
       @throw bad_alloc if there is no enough memory
+      @note Strong guarantee: the copy is built first and then swapped in,
+            so `*this` is unchanged if copying throws. The default value is
+            copied, and entries that `array` never wrote are not left with
+            the previous contents of `*this`.
    */
   DynArray<T> &operator = (const DynArray<T> &array)
   {
-    if (this == &array)
-      return *this;
-
-    copy_array(array);
-
-    if (array.current_dim < current_dim)
-      cut(array.current_dim);
-
-    current_dim = array.current_dim;
+    if (this != &array)
+      {
+        DynArray<T> copy(array);
+        swap(copy);
+      }
 
     return *this;
   }
@@ -820,9 +928,10 @@ public:
   /** Swap in constant time `array` with `this`
 
       @param[in] array to swap
+      @throw anything that swapping the default values of `T` throws.
       @note The sizes of directory, segment and block are also swapped
    */
-  void swap(DynArray<T> &array) noexcept
+  void swap(DynArray<T> &array) noexcept(std::is_nothrow_swappable_v<T>)
   {
     std::swap(dir, array.dir);
     std::swap(pow_dir, array.pow_dir);
@@ -846,8 +955,14 @@ public:
     array.default_initial_value_ptr = &array.default_initial_value;
   }
 
-  /// Move constructor
-  DynArray(DynArray &&other) noexcept
+  /** @brief Move constructor; allocates nothing.
+      @param[in,out] other source; it is left empty and reusable, without a
+      directory, which its first write allocates again.
+      @throw anything that the default constructor of `T` or swapping two
+             `T` throws.
+  */
+  DynArray(DynArray &&other)
+    noexcept(std::is_nothrow_default_constructible_v<T> and std::is_nothrow_swappable_v<T>)
     : pow_dir(Default_Pow_Dir), pow_seg(Default_Pow_Seg),
       pow_block(std::min(Default_Pow_Block, Max_Pow_Block)), seg_plus_block_pow(pow_seg + pow_block),
       mask_seg_plus_block(two_raised(seg_plus_block_pow) - 1), dir_size(two_raised(pow_dir)),
@@ -859,8 +974,12 @@ public:
     swap(other);
   }
 
-  /// Move assignment
-  DynArray &operator = (DynArray &&other) noexcept
+  /** @brief Move assignment: swap the contents with `other`.
+      @param[in,out] other source; it receives the previous contents.
+      @return `*this`.
+      @throw anything that swapping two `T` throws.
+  */
+  DynArray &operator = (DynArray &&other) noexcept(std::is_nothrow_swappable_v<T>)
   {
     swap(other);
     return *this;
@@ -872,9 +991,22 @@ public:
       fastest possible way. For that, no checks are done.
 
       @param[in] i index of entry to be accessed
+      @pre The block of entry i exists (exist(i) is true), for instance
+           because the entry was written or reserve() covered it. Use read()
+           to read an entry that may never have been written.
       @see exist
   */
-  T &access(const size_t i) const noexcept
+  T &access(const size_t i) noexcept
+  {
+    assert(dir[index_in_dir(i)] != nullptr);
+    assert(dir[index_in_dir(i)][index_in_seg(i)] != nullptr);
+
+    return dir[index_in_dir(i)][index_in_seg(i)][index_in_block(i)];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &access(const size_t i) const noexcept
   {
     assert(dir[index_in_dir(i)] != nullptr);
     assert(dir[index_in_dir(i)][index_in_seg(i)] != nullptr);
@@ -883,7 +1015,14 @@ public:
   }
 
   /// \overload access(const size_t i)
-  T &operator () (const size_t i) const noexcept
+  T &operator () (const size_t i) noexcept
+  {
+    return access(i);
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &operator () (const size_t i) const noexcept
   {
     return access(i);
   }
@@ -897,7 +1036,7 @@ public:
    */
   bool exist(const size_t i) const
   {
-    if (i >= max_dim)
+    if (i >= max_dim or dir == nullptr)
       return false;
 
     const size_t pos_in_dir = index_in_dir(i);
@@ -929,7 +1068,7 @@ public:
    */
   T *test(const size_t i) const noexcept
   {
-    if (i >= max_dim)
+    if (i >= max_dim or dir == nullptr)
       return nullptr;
 
     const size_t pos_in_dir = index_in_dir(i);
@@ -960,6 +1099,7 @@ public:
    */
   T &touch(const size_t i)
   {
+    ensure_dir();
     if (i >= max_dim)
       resize_dir(i);
 
@@ -996,7 +1136,8 @@ public:
 
       `reserve(l, r)` assures that all the entries comprised between
       l and r are allocated. After a successful call, any entry
-      between l and r can be surely accessed with `access()`.
+      between l and r can be surely accessed with `access()`, and
+      size() is at least r + 1 (see the warning of reserve(size_t)).
 
       @param[in] l lower index
       @param[in] r upper index
@@ -1012,6 +1153,7 @@ public:
   {
     ah_domain_error_if(l > r) << "invalid range";
 
+    ensure_dir();
     if (r >= max_dim)
       resize_dir(r);
 
@@ -1100,10 +1242,20 @@ public:
       current_dim = r + 1;
   }
 
-  /** Assure that the range between 0 and dim is allocated
+  /** @brief Allocate the first dim entries and make size() at least dim.
 
-      @param[in] dim upper index
-      @throw bad_alloc if there is no enough memory
+      After the call, every entry in [0, dim) can be accessed with access()
+      or operator()(), which do not check allocation. Entries that were
+      never written hold the default value.
+
+      @param[in] dim number of entries to allocate.
+      @throw bad_alloc if there is no enough memory.
+      @warning Unlike `std::vector::reserve()` and `Array::reserve()`, this
+               does not just reserve capacity: size() becomes dim if it was
+               smaller. Do not follow it with append(), which writes after
+               those dim entries; write them with `a(i) = ...` or
+               `a[i] = ...`. To fill a DynArray with append() there is
+               nothing to reserve: each block is allocated when needed.
    */
   void reserve(const size_t dim)
   {
@@ -1117,6 +1269,12 @@ public:
       {
         release_all_segments_and_blocks();
         current_dim = 0;
+        return;
+      }
+
+    if (dir == nullptr)  // moved from: there is nothing to release
+      {
+        current_dim = std::min(current_dim, new_dim);
         return;
       }
 
@@ -1151,6 +1309,21 @@ public:
         if (idx_block < 0)
           release_segment(dir[idx_seg]);
       }
+
+    // The entries of the last kept block in [new_dim, old_dim) leave the
+    // array: reset them to the default value, so that growing it again shows
+    // unwritten entries instead of stale ones. Entries past old_dim already
+    // hold the default value, so a pop() costs O(1), not O(block_size).
+    if (new_dim < old_dim)
+      if (T * last = test(new_dim - 1); last != nullptr)
+        {
+          const size_t pos = index_in_block(new_dim - 1);
+          const bool same_block = (new_dim - 1) / block_size == (old_dim - 1) / block_size;
+          const size_t end = same_block ? index_in_block(old_dim - 1) + 1 : block_size;
+          T * block = last - pos;
+          for (size_t k = pos + 1; k < end; ++k)
+            block[k] = default_initial_value;
+        }
 
     current_dim = new_dim;  // Updates New Dimension
   }
@@ -1206,19 +1379,195 @@ public:
     empty();
   }
 
-  Proxy operator [] (const size_t i) const
-  {
-    ah_out_of_range_error_if(i >= max_dim) << "index out of maximum range";
+  /** @brief Read entry i without allocating memory.
 
-    return Proxy(const_cast<DynArray<T> &>(*this), i);
+      Neither the directory, nor a segment, nor a block is allocated: an
+      entry whose block was never allocated reads as the default value (see
+      set_default_initial_value()). Every other entry that was never written
+      holds the default value too, since new blocks are filled with it.
+
+      @param[in] i index of the entry, smaller than size().
+      @return Constant reference to the entry or to the default value.
+      @throw out_of_range if i >= size().
+      @note O(1).
+  */
+  [[nodiscard]] const T &read(const size_t i) const
+  {
+    ah_out_of_range_error_if(i >= current_dim)
+      << "DynArray::read(" << i << "): index out of range; size() is " << current_dim;
+
+    if (const T *entry = test(i); entry != nullptr)
+      return *entry;
+
+    return default_initial_value;
   }
 
+  /** @brief Read entry i of a constant array; equivalent to read(i).
+      @param[in] i index of the entry, smaller than size().
+      @return Constant reference to the entry or to the default value.
+      @throw out_of_range if i >= size().
+      @note Never allocates memory. It returns `const T &`, not a proxy, so
+            writing through a constant array does not compile.
+  */
+  [[nodiscard]] const T &operator [] (const size_t i) const
+  {
+    return read(i);
+  }
+
+  /** @brief Access entry i of a modifiable array through a proxy.
+
+      Assigning to the proxy writes the entry and extends size() to i + 1
+      if needed. Converting it to `T &`, as in `a[i] += 1` or
+      `int x = a[i]`, allocates the entry's block, since a read cannot be
+      told apart from a write; read() reads without allocating.
+
+      @param[in] i index of the entry; it may be greater than size().
+      @return Proxy to entry i.
+      @throw bad_alloc if the directory cannot be grown.
+  */
   Proxy operator [] (const size_t i)
   {
+    ensure_dir();
     if (i >= max_dim)
       resize_dir(i);
 
-    return Proxy(const_cast<DynArray<T> &>(*this), i);
+    return Proxy(*this, i);
+  }
+
+  /** @brief Return a modifiable reference to entry n.
+
+      Hides LocateFunctions::nth(), whose traversal would keep the address
+      of the short-lived copy handed out for an entry never written. As
+      a[i] does, this modifiable access allocates the entry's block; the
+      constant overload and read() do not.
+
+      @param[in] n index of the entry.
+      @return Reference to entry n.
+      @throw out_of_range if n >= size().
+      @throw bad_alloc if the block of entry n cannot be allocated.
+      @note O(1), unlike the linear search of the generic method.
+  */
+  T &nth(const size_t n)
+  {
+    ah_out_of_range_error_if(n >= current_dim)
+      << "DynArray::nth(" << n << "): index out of range; size() is " << current_dim;
+    return touch(n);
+  }
+
+  /** @brief Return entry n of a constant array; equivalent to read(n).
+      @param[in] n index of the entry.
+      @return Constant reference to entry n, or to the default value if
+              the entry was never written.
+      @throw out_of_range if n >= size().
+      @note O(1). Never allocates memory.
+  */
+  const T &nth(const size_t n) const
+  {
+    return read(n);
+  }
+
+  /** @brief Return a modifiable reference to entry n without checking n.
+      @param[in] n index of the entry; it must be smaller than size().
+      @return Reference to entry n, whose block is allocated if needed.
+      @throw bad_alloc if the block of entry n cannot be allocated.
+  */
+  T &nth_ne(const size_t n)
+  {
+    assert(n < current_dim);
+    return touch(n);
+  }
+
+  /** @brief Return entry n of a constant array without checking n.
+      @param[in] n index of the entry; it must be smaller than size().
+      @return Constant reference to entry n, or to the default value if
+              the entry was never written.
+      @note Never allocates memory.
+  */
+  const T &nth_ne(const size_t n) const noexcept
+  {
+    assert(n < current_dim);
+    if (const T *entry = test(n); entry != nullptr)
+      return *entry;
+
+    return default_initial_value;
+  }
+
+private:
+  // Index of the first entry satisfying `operation`, found with the
+  // constant traversal, which allocates nothing; size() if none.
+  template <class Operation>
+  size_t index_of_first(Operation &operation) const
+  {
+    size_t i = 0;
+    auto count_until_match = [&i, &operation](const T &item)
+      {
+        if (std::invoke(operation, item))
+          return false;
+        ++i;
+        return true;
+      };
+    const_traverse(count_until_match);
+    return i;
+  }
+
+public:
+  /** @brief Return a pointer to the first entry satisfying a criterion.
+
+      Hides LocateFunctions::find_ptr(), whose modifiable traversal would
+      allocate every block it visits. The search reads the entries without
+      allocating; only if an entry never written matches is its block
+      allocated, as a[i] does, so that the pointer refers to the entry.
+      A criterion that only accepts `T &` is evaluated through the
+      modifiable traversal instead, which allocates the blocks it visits.
+
+      @param[in] operation criterion with signature `bool(const T &)`; it
+                 may also be a pointer to member.
+      @return Pointer to the entry, or `nullptr` if no entry satisfies it.
+      @throw bad_alloc if the block of the found entry cannot be allocated,
+             and anything that `operation` throws.
+      @note O(size()).
+  */
+  template <class Operation>
+    requires Aleph::InvocablePredicateWith<Operation &, T &>
+  [[nodiscard]] T *find_ptr(Operation &operation)
+  {
+    if constexpr (Aleph::InvocablePredicateWith<Operation &, const T &>)
+      {
+        const size_t i = index_of_first(operation);
+        return i < current_dim ? &touch(i) : nullptr;
+      }
+    else
+      return LocateFunctions<DynArray<T>, T>::find_ptr(operation);
+  }
+
+  /** @brief Constant overload of find_ptr(); it never allocates memory.
+      @param[in] operation criterion with signature `bool(const T &)`.
+      @return Pointer to the entry, to the default value if the entry was
+              never written, or `nullptr` if no entry satisfies it.
+      @throw anything that `operation` throws.
+  */
+  template <class Operation>
+    requires Aleph::InvocablePredicateWith<Operation &, const T &>
+  [[nodiscard]] const T *find_ptr(Operation &operation) const
+  {
+    const size_t i = index_of_first(operation);
+    return i < current_dim ? &read(i) : nullptr;
+  }
+
+  /// \overload find_ptr(Operation & operation)
+  template <class Operation>
+    requires Aleph::InvocablePredicateWith<Operation &, T &>
+  [[nodiscard]] T *find_ptr(Operation &&operation)
+  {
+    return find_ptr<Operation>(operation);
+  }
+
+  /// \overload find_ptr(Operation & operation) const
+  template <class Operation>
+    requires Aleph::InvocablePredicateWith<Operation &, const T &>
+  [[nodiscard]] const T *find_ptr(Operation &&operation) const
+  {
+    return find_ptr<Operation>(operation);
   }
 
   /// Allocate a new entry to the end of array. Increase the dimension
@@ -1246,21 +1595,39 @@ public:
     return ref;
   }
 
+  /** @brief Insert a copy of `item` at the beginning of the array.
+      @param[in] item Value to insert; it may be an entry of this array,
+                 as in `a.insert(a.access(1))`.
+      @return Reference to the inserted copy, now entry 0.
+      @throws std::bad_alloc or an exception from T.
+      @note O(n): every entry shifts one position. The array is unchanged
+            if the copy or the allocation throws.
+  */
   T &insert(const T &item)
   {
+    T tmp = item;  // open_gap() shifts the entry that item may be
     this->append();
     open_gap(*this, current_dim);
-    T &ret = access(0);
-    ret = item;
+    T &ret = touch(0);  // the block of entry 0 may not exist in a lazy array
+    ret = std::move(tmp);
     return ret;
   }
 
+  /** @brief Move `item` to the beginning of the array.
+      @param[in] item Value to insert; it may be an entry of this array,
+                 which is then left moved from.
+      @return Reference to the inserted item, now entry 0.
+      @throws std::bad_alloc or an exception from T.
+      @note O(n): every entry shifts one position. `item` is untouched if
+            the allocation throws.
+  */
   T &insert(T &&item)
   {
-    this->append();
+    this->append();          // allocate before item is moved from
+    T tmp = std::move(item); // open_gap() shifts the entry that item may be
     open_gap(*this, current_dim);
-    T &ret = access(0);
-    ret = std::forward<T>(item);
+    T &ret = touch(0);  // the block of entry 0 may not exist in a lazy array
+    ret = std::move(tmp);
     return ret;
   }
 
@@ -1296,7 +1663,7 @@ public:
   void remove(T &item)
   {
     ensure_not_empty("DynArray::remove(): empty array");
-    std::swap(item, this->access(this->size() - 1));
+    std::swap(item, this->touch(this->size() - 1));  // the last entry may be unwritten
     this->cut_ne(this->size() - 1);
   }
 
@@ -1319,7 +1686,7 @@ public:
     Array<T> ret;
     ret.reserve(this->size());
     for (size_t i = 0; i < this->size(); ++i)
-      ret.append(this->access(i));
+      ret.append(this->read(i));  // unwritten entries read as the default value
     return ret;
   }
 
@@ -1339,33 +1706,59 @@ public:
   T pop()
   {
     ensure_not_empty("DynArray::pop(): empty array");
-    T ret_val = std::move(this->access(this->size() - 1));
-    cut(size() - 1);
+    const size_t last = this->size() - 1;
+    T *entry = test(last);  // an unwritten last entry pops the default value
+    T ret_val = entry != nullptr ? std::move(*entry) : default_initial_value;
+    cut(last);
 
     return ret_val;
   }
 
   /// Return a modifiable reference to the last item of stack
-  T &top() const
+  T &top()
   {
     ensure_not_empty("DynArray::top(): empty array");
-    return (*this)[size() - 1];
+    return touch(size() - 1);  // allocates, as a[i] does
+  }
+
+  /// \overload
+  /// A reference to const, it never allocates.
+  const T &top() const
+  {
+    ensure_not_empty("DynArray::top(): empty array");
+    return read(size() - 1);
   }
 
   /// Return a modifiable reference to the first item of array (as if
   /// this was a queue)
-  T &get_first() const
+  T &get_first()
   {
     ensure_not_empty("DynArray::get_first(): empty array");
-    return (*this)[0];
+    return touch(0);  // allocates, as a[i] does
+  }
+
+  /// \overload
+  /// A reference to const, it never allocates.
+  const T &get_first() const
+  {
+    ensure_not_empty("DynArray::get_first(): empty array");
+    return read(0);
   }
 
   /// Return a modifiable reference to the last item of array (as if
   /// this was a queue)
-  T &get_last() const
+  T &get_last()
   {
     ensure_not_empty("DynArray::get_last(): empty array");
-    return (*this)[size() - 1];
+    return touch(size() - 1);  // allocates, as a[i] does
+  }
+
+  /// \overload
+  /// A reference to const, it never allocates.
+  const T &get_last() const
+  {
+    ensure_not_empty("DynArray::get_last(): empty array");
+    return read(size() - 1);
   }
 
   /** Iterator on the items of array.
@@ -1373,8 +1766,19 @@ public:
       The visit order is from the lower index 0 to current dimension
       minus one.
 
-      It is assumed that all the entries between 0 and current dimension
-      have been allocated.
+      What the iterator does with an entry that was never written depends
+      on the array it was built on:
+
+      - on a **constant array**, it never allocates: get_curr() returns the
+        array's default value, whose address is stable while the array
+        lives. The reference must not be used to write.
+      - on a **modifiable array**, get_curr() returns a modifiable
+        reference, so it allocates the entry's block first, as a[i] does:
+        a read cannot be told apart from a write. Writing through it
+        writes the array.
+
+      To read a modifiable array without allocating, iterate it through a
+      constant reference, as `std::as_const(a)` gives.
 
       @ingroup Sequences
   */
@@ -1383,6 +1787,7 @@ public:
   protected:
     DynArray *array_ptr = nullptr;
     long curr_idx = 0;
+    bool modifiable = false;  ///< built on a modifiable array: reading an unwritten entry allocates it
 
   public:
     using Set_Type = DynArray;
@@ -1397,11 +1802,35 @@ public:
     /// Default constructor creates an "end" iterator
     Iterator() noexcept = default;
 
-    /// Initializes an iterator on `array`
+    /** @brief Iterator on a modifiable array.
+
+        Reading an entry that was never written through get_curr()
+        allocates its block, as a[i] does.
+
+        @param[in] array array to iterate.
+    */
+    Iterator(DynArray &array) noexcept : array_ptr(&array), modifiable(true)
+    {
+      // empty
+    }
+
+  protected:
+    /** @brief Iterator on a constant array; it never allocates.
+
+        An entry that was never written is seen as the default value. It is
+        the view of DynArray::Const_Iterator, and of the iterators that
+        derive from this one: a constant array is iterated through
+        Const_Iterator, which hands out references to const.
+
+        @param[in] array array to iterate.
+    */
     Iterator(const DynArray &array) noexcept : array_ptr(const_cast<DynArray *>(&array))
     {
       // empty
     }
+    friend class Aleph::Const_Iterator<Iterator>;
+
+  public:
 
     /** @brief Check whether the iterator refers to an item.
 
@@ -1426,19 +1855,39 @@ public:
       return has_curr() and curr_idx == n - 1;
     }
 
-    /// Return the current link guaranteeing no exception. Be careful.
-    T &get_curr_ne() const noexcept
+    /** @brief Return the current item without checking the position.
+
+        Same as get_curr(), without the check of the position, for the
+        pattern `for (...; it.has_curr(); it.next_ne())`.
+
+        @return Reference to the current entry. For an entry that was never
+                written, on a modifiable array its block is allocated first;
+                on a constant array it is the default value.
+        @throws std::bad_alloc only on a modifiable array, if the block of
+                an entry never written cannot be allocated.
+        @note Be careful: the position is not checked.
+    */
+    [[nodiscard]] T &get_curr_ne() const
     {
-      return array_ptr->access(curr_idx);
+      const auto i = static_cast<size_t>(curr_idx);
+      if (T *entry = array_ptr->test(i); entry != nullptr)
+        return *entry;
+
+      if (modifiable)
+        return array_ptr->touch(i);  // a modifiable reference: allocate, as a[i] does
+
+      return array_ptr->default_initial_value;
     }
 
     /** @brief Return the current item.
 
-        @return Reference to the current item.
+        @return Reference to the current item; see get_curr_ne().
         @throws std::underflow_error if positioned before the first item.
         @throws std::overflow_error if singular or at or past the end.
+        @throws std::bad_alloc only on a modifiable array, if the block of
+                an entry never written cannot be allocated.
     */
-    T &get_curr() const
+    [[nodiscard]] T &get_curr() const
     {
       ah_underflow_error_if(curr_idx < 0) << "not current item in iterator";
       ah_overflow_error_if(array_ptr == nullptr or
@@ -1474,7 +1923,7 @@ public:
       next_ne();
     }
 
-    // Move the iterator one position backward guaranteeing no
+    /// Move the iterator one position backward guaranteeing no
     /// exception. Be careful.
     void prev_ne() noexcept
     {
@@ -1507,23 +1956,38 @@ public:
       curr_idx = 0;
     }
 
+    /// Put the iterator on position `pos`, without checking it
     void set_pos(const long pos) noexcept
     {
       curr_idx = pos;
     }
   };
 
-  Iterator get_it()
+  /// Read-only iterator: the iterator of a constant array; it never allocates.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
+
+  /** @brief Iterator on the modifiable array, positioned on entry 0.
+      @return the iterator; reading an entry never written allocates it.
+  */
+  [[nodiscard]] Iterator get_it()
   {
     return Iterator(*this);
   }
 
-  Iterator get_it() const
+  /** @brief Iterator on the constant array, positioned on entry 0.
+      @return the iterator; it never allocates.
+  */
+  [[nodiscard]] Const_Iterator get_it() const
   {
-    return Iterator(*this);
+    return Const_Iterator(*this);
   }
 
-  Iterator get_it(const size_t pos)
+  /** @brief Iterator on the modifiable array, positioned on entry pos.
+      @param[in] pos position of the iterator.
+      @return the iterator.
+      @throw out_of_range if pos >= size().
+  */
+  [[nodiscard]] Iterator get_it(const size_t pos)
   {
     ah_out_of_range_error_if(pos >= size()) << "DynArray::get_it(pos): pos >= size()";
     Iterator it(*this);
@@ -1531,38 +1995,69 @@ public:
     return it;
   }
 
-  Iterator get_it(const size_t pos) const
+  /** @brief Iterator on the constant array, positioned on entry pos.
+      @param[in] pos position of the iterator.
+      @return the iterator; it never allocates.
+      @throw out_of_range if pos >= size().
+  */
+  [[nodiscard]] Const_Iterator get_it(const size_t pos) const
   {
-    return const_cast<DynArray *>(this)->get_it(pos);
+    ah_out_of_range_error_if(pos >= size()) << "DynArray::get_it(pos): pos >= size()";
+    Const_Iterator it(*this);
+    it.set_pos(static_cast<long>(pos));
+    return it;
   }
 
 private:
-  // superfast array traversal
+  // Constant traversal, block by block. It never allocates memory: the
+  // entries of a block that does not exist are handed to `operation` as
+  // the default value, whose address is stable while the array lives.
   template <class Operation>
-  bool __traverse(Operation &operation)
+  bool const_traverse(Operation &operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
-    size_t dir_idx = 0, seg_idx = 0, block_idx = 0;
-    for (size_t i = 0; i < current_dim; ++i)
+    size_t i = 0;
+    while (i < current_dim)
       {
-        if (not operation(dir[dir_idx][seg_idx][block_idx]))
-          return false;
-
-        if (++block_idx == block_size)
+        const size_t count = std::min(block_size - index_in_block(i), current_dim - i);
+        if (const T *entry = test(i); entry != nullptr)
           {
-            block_idx = 0;
-            if (++seg_idx == seg_size)
-              {
-                seg_idx = 0;
-                ++dir_idx;
-              }
+            for (size_t k = 0; k < count; ++k)
+              if (not operation(entry[k]))
+                return false;
           }
+        else
+          for (size_t k = 0; k < count; ++k)
+            if (not operation(static_cast<const T &>(default_initial_value)))
+              return false;
+        i += count;
+      }
+    return true;
+  }
+
+  // Modifiable traversal, block by block. `operation` receives modifiable
+  // references, so the block of an entry never written is allocated before
+  // it is visited, as a[i] does: whatever `operation` writes stays in the
+  // array.
+  template <class Operation>
+  bool mutable_traverse(Operation &operation)
+  {
+    size_t i = 0;
+    while (i < current_dim)
+      {
+        const size_t count = std::min(block_size - index_in_block(i), current_dim - i);
+        T *entry = &touch(i);  // the count entries from i lie in the same block
+        for (size_t k = 0; k < count; ++k)
+          if (not operation(entry[k]))
+            return false;
+        i += count;
       }
     return true;
   }
 
 public:
-  /** Traverse all the array and execute a conditioned operation
-       must have the signature:
+  /** Traverse a constant array and execute a conditioned operation,
+      which must have the signature:
 
       \code
       bool operation(const T & item)
@@ -1573,32 +2068,134 @@ public:
 
       @param[in] operation
       @return `true` if all items are traversed; `false` otherwise
+      @throw anything that `operation` throws.
+      @note It never allocates memory. Entries that were never written are
+            passed as the default value.
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
-    return const_cast<DynArray &>(*this).__traverse(operation);
+    return const_traverse(operation);
   }
 
-  /// \overload traverse(Operation & operation)
+  /** Traverse a modifiable array; `operation` receives modifiable
+      references, with the signature `bool operation(T & item)`.
+
+      @param[in] operation
+      @return `true` if all items are traversed; `false` otherwise
+      @throw bad_alloc if the block of an entry never written cannot be
+             allocated, and anything that `operation` throws.
+      @note The block of an entry never written is allocated before it is
+            visited, as a[i] does, so whatever `operation` writes stays in
+            the array. To read without allocating, traverse a constant
+            reference, as `std::as_const(a).traverse(op)`.
+  */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation &operation)
   {
-    return __traverse(operation);
+    return mutable_traverse(operation);
   }
 
-  /// \overload traverse(Operation & operation)
+  /// \overload traverse(Operation & operation) const
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &&operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
     return traverse<Operation>(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation &&operation)
   {
     return traverse<Operation>(operation);
+  }
+
+  // DynArray declares each(pos, slice, op) to allocate only the visited
+  // entries; that hides every FunctionalMethods::each, so the constant
+  // ones are forwarded here.
+
+  /** @brief Alias of for_each(); see FunctionalMethods::for_each().
+      @param[in] operation operation with signature `void(const T &)`.
+      @throw anything that `operation` throws.
+  */
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, const T &>
+  void each(Operation &operation) const
+  {
+    this->for_each(operation);
+  }
+
+  /// \overload each(Operation & operation) const
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, const T &>
+  void each(Operation &&operation) const
+  {
+    this->for_each(operation);
+  }
+
+  /** @brief Visit the entries at positions pos, pos + slice, ... of a
+             constant array; see FunctionalMethods::each(). It never
+             allocates memory.
+      @param[in] pos position of the first visited entry.
+      @param[in] slice distance between two consecutive visited entries.
+      @param[in] operation operation with signature `void(const T &)`.
+      @throw anything that `operation` throws.
+  */
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, const T &>
+  void each(const size_t pos, const size_t slice, Operation &operation) const
+  {
+    FunctionalMethods<DynArray<T>, T>::each(pos, slice, operation);
+  }
+
+  /// \overload each(size_t pos, size_t slice, Operation & operation) const
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, const T &>
+  void each(const size_t pos, const size_t slice, Operation &&operation) const
+  {
+    FunctionalMethods<DynArray<T>, T>::each(pos, slice, operation);
+  }
+
+  /** @brief Visit, and possibly modify, the entries at positions pos,
+             pos + slice, pos + 2 slice, ... of a modifiable array.
+
+      Unlike the generic FunctionalMethods::each(pos, slice, op), whose
+      modifiable traversal would allocate every block of the array, only
+      the blocks of the visited entries are allocated, as a[i] does.
+
+      @param[in] pos position of the first visited entry.
+      @param[in] slice distance between two consecutive visited entries;
+                 nothing is visited if it is zero.
+      @param[in] operation operation with signature `void(T &)`.
+      @throw bad_alloc if the block of a visited entry cannot be allocated,
+             and anything that `operation` throws.
+  */
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, T &>
+  void each(const size_t pos, const size_t slice, Operation &operation)
+  {
+    if (slice == 0)
+      return;
+    for (size_t i = pos; i < current_dim; i += slice)
+      {
+        std::invoke(operation, touch(i));
+        if (current_dim - i <= slice)  // the next position is past the end
+          break;
+      }
+  }
+
+  /// \overload each(size_t pos, size_t slice, Operation & operation)
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, T &>
+  void each(const size_t pos, const size_t slice, Operation &&operation)
+  {
+    each<Operation>(pos, slice, operation);
   }
 };
 

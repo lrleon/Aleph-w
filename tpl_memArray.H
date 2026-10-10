@@ -104,6 +104,25 @@
 #include <array_it.H>
 #include <array_utils.H>
 
+// Opt-in AddressSanitizer container annotations for MemArray. Define
+// ALEPH_ANNOTATE_CONTAINERS for the whole program, Aleph included, when it is
+// built with -fsanitize=address: the macro changes the layout of MemArray, so
+// every translation unit must agree on it. Without AddressSanitizer, or
+// without the macro, the annotations compile to nothing.
+#if defined(ALEPH_ANNOTATE_CONTAINERS)
+#  if defined(__SANITIZE_ADDRESS__)
+#    define ALEPH_MEMARRAY_ANNOTATIONS 1
+#  elif defined(__has_feature)
+#    if __has_feature(address_sanitizer)
+#      define ALEPH_MEMARRAY_ANNOTATIONS 1
+#    endif
+#  endif
+#endif
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+#  include <sanitizer/common_interface_defs.h>
+#include <ah-iterator.H>
+#endif
+
 namespace Aleph {
 /** Simple, scalable and fast dynamic array.
 
@@ -141,12 +160,28 @@ protected:
   T *ptr = nullptr;
   size_t dim = Min_Dim;
   size_t n = 0;
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+  bool annotated = true;  // false while the live items are not the prefix [0, n)
+#endif
 
 public:
+  /** Number of items at or below which contract() halves the capacity.
+
+      It is recomputed as a quarter of the capacity whenever the array is
+      reallocated. Changing it only changes when the array contracts:
+      contract() never shrinks the capacity below the number of items, so
+      no item can be lost. `ArrayQueue` exports it with a using-declaration.
+  */
   mutable size_t contract_threshold;
 
   /// Return the current base of array.
-  T *get_ptr() const noexcept
+  T *get_ptr() noexcept
+  {
+    return ptr;
+  }
+
+  /// \overload get_ptr()
+  const T *get_ptr() const noexcept
   {
     return ptr;
   }
@@ -158,6 +193,38 @@ public:
   }
 
 protected:
+  /** Tell AddressSanitizer that the live items, previously the prefix
+      [0, old_n), are now [0, new_n): accesses to the slots in [new_n, dim)
+      are then reported as container-overflow. The whole buffer must be
+      accessible again before it is deleted. No-op unless the annotations
+      are in effect (ALEPH_ANNOTATE_CONTAINERS with AddressSanitizer).
+
+      @param[in] old_n previous end of the accessible prefix
+      @param[in] new_n new end of the accessible prefix
+  */
+  void annotate(const size_t old_n, const size_t new_n) const noexcept
+  {
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+    if (annotated and ptr != nullptr and old_n != new_n)
+      __sanitizer_annotate_contiguous_container(ptr, ptr + dim, ptr + old_n, ptr + new_n);
+#else
+    (void) old_n;
+    (void) new_n;
+#endif
+  }
+
+  /** Make the whole buffer accessible and stop annotating it. For users
+      that keep their items in a circular layout (ArrayQueue), where the
+      live items are not a prefix of the buffer.
+  */
+  void disable_annotations() noexcept
+  {
+    annotate(n, dim);
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+    annotated = false;
+#endif
+  }
+
   static size_t next_power_of_two(const size_t requested)
   {
     size_t ret = 1;
@@ -173,50 +240,88 @@ protected:
   /// Allocate memory for the current dimension
   void allocate()
   {
+    static_assert(std::is_default_constructible_v<T>,
+                  "MemArray<T> requires a default-constructible T (storage is new T[dim])");
     assert(is_power_of_2(dim));
     ptr = new T[dim];
     contract_threshold = dim / 4;
+    annotate(dim, n);
   }
 
-  /** Test is array is full and if affrimative, then expand the array
-      twice as long and copy the content by swapping.
+  /** @brief Relocate the logical sequence into a new buffer.
+      @param[in] cap Requested capacity, at least size().
+      @param[in] first Physical index of the first logical element.
+      @throws std::bad_alloc or any exception from constructing/assigning T.
+      @note O(cap + n) time. A temporary owns the allocation on all paths;
+            throwing moves may leave some source elements moved from.
+  */
+  void reallocate(const size_t cap, const size_t first = 0)
+  {
+    assert(cap >= n);
+    MemArray replacement(cap);
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+    if (not annotated)
+      replacement.disable_annotations();
+#endif
+    replacement.putn(n);
+    for (size_t i = 0; i < n; ++i)
+      replacement.ptr[i] = std::move(ptr[(first + i) & (dim - 1)]);
+    swap(replacement);
+  }
 
-      This method first allocates a chunck of 2*dim and then copies from
-      `first` index the `n` contained entries to the new chunck.
-
-      @param[in] first index where is found the first item of array
-      @return `true` if the array was full and then a new twice as long
-      was allocated
-      @throw bad_alloc if there is no enough memory
+  /** @brief Grow a full array, including an empty moved-from array.
+      @param[in] first Physical index of the first logical element.
+      @return true if storage was allocated and the sequence starts at zero.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note O(dim) on growth; otherwise O(1). Zero capacity grows to Min_Dim.
   */
   bool expand(const size_t first = 0)
   {
-    assert(ptr);
-    assert(is_power_of_2(dim));
+    assert((ptr != nullptr and is_power_of_2(dim)) or (dim == 0 and n == 0));
     if (n < dim)
       return false;
 
     ah_overflow_error_if(dim > (std::numeric_limits<size_t>::max() >> 1))
       << "MemArray::expand(): capacity overflow";
-    const size_t newsz = dim << 1;  // 2*dim
-    const size_t mask = dim - 1;
-    // Value-initialize (not just default-initialize): for scalar T,
-    // `new T[newsz]` alone leaves every slot indeterminate, and the
-    // std::swap() below reads new_ptr[i] before this loop ever writes a
-    // real value into it -- an uninitialized-read even though the stale
-    // bits end up discarded a few lines later (Coverity CID 412651).
-    T *new_ptr = new T[newsz]();
-    for (size_t i = 0; i < dim; ++i)
-      {
-        assert(((i + first) & mask) == ((i + first) % dim));
-        std::swap(ptr[(i + first) & mask], new_ptr[i]);
-      }
-    delete[] ptr;
-    ptr = new_ptr;
-    dim = newsz;
-    contract_threshold = dim / 4;
+    reallocate(dim == 0 ? Min_Dim : dim << 1, first);
 
     return true;
+  }
+
+  /** @brief Grow a full array and insert one item into the new buffer.
+
+      The item is assigned before any element leaves the current buffer,
+      so it may be one of those elements: growth never reads freed memory
+      and inserts the value that `item` had on entry.
+
+      @param[in] pos Logical position of the new item, at most size().
+      @param[in] item Value to insert; it may be an element of this array.
+      @param[in] first Physical index of the first logical element.
+      @return Reference to the inserted item, at physical index `pos`.
+      @throws std::overflow_error, std::bad_alloc or an exception from T.
+      @note O(dim). Requires size() == capacity(). The array is unchanged
+            if the allocation or the assignment of `item` throws; a throwing
+            move may leave some elements moved from, as in reallocate().
+  */
+  template <class U>
+  T &grow_and_insert(const size_t pos, U &&item, const size_t first = 0)
+  {
+    assert(n == dim and pos <= n);
+    ah_overflow_error_if(dim > (std::numeric_limits<size_t>::max() >> 1))
+      << "MemArray::grow_and_insert(): capacity overflow";
+
+    MemArray replacement(dim == 0 ? Min_Dim : dim << 1);
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+    if (not annotated)
+      replacement.disable_annotations();
+#endif
+    replacement.putn(n + 1);
+    replacement.ptr[pos] = std::forward<U>(item);  // the old buffer is still alive
+    for (size_t i = 0; i < n; ++i)
+      replacement.ptr[i < pos ? i : i + 1] = std::move(ptr[(first + i) & (dim - 1)]);
+    swap(replacement);
+
+    return ptr[pos];
   }
 
   /** Test if `n` is lesser than `contract_threshold` and eventually
@@ -237,24 +342,10 @@ protected:
 
     const size_t newsz = dim >> 1;  // dim/2
 
-    if (newsz <= Min_Dim)
+    if (newsz <= Min_Dim or n > newsz)
       return false;
 
-    // Same rationale as expand(): value-initialize so the std::swap()
-    // below never reads an indeterminate scalar out of new_ptr[i].
-    T *new_ptr = new T[newsz]();
-
-    const size_t mask = dim - 1;
-    for (size_t i = 0; i < newsz; ++i)
-      {
-        assert(((first + i) & mask) == ((first + i) % dim));
-        std::swap(ptr[(first + i) & mask], new_ptr[i]);
-      }
-
-    delete[] ptr;
-    ptr = new_ptr;
-    dim = newsz;
-    contract_threshold = dim / 4;
+    reallocate(newsz, first);
 
     return true;
   }
@@ -314,6 +405,7 @@ public:
   {
     if (ptr != nullptr)
       {
+        annotate(n, dim);
         delete[] ptr;
         ptr = nullptr;
       }
@@ -326,22 +418,28 @@ public:
     std::swap(dim, a.dim);
     std::swap(n, a.n);
     std::swap(contract_threshold, a.contract_threshold);
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+    std::swap(annotated, a.annotated);  // the flag describes the buffer
+#endif
   }
 
   /// Construct a copy of `a`
   MemArray(const MemArray &a)
     requires(std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
-    : ptr(nullptr), dim(a.dim), n(a.n)
+    : MemArray(a.dim)
   {
-    allocate();
+    putn(a.n);
     for (size_t i = 0; i < n; ++i)
       ptr[i] = a.ptr[i];
   }
 
-  /// Construct an array moved of rvalue `a`
+  /** @brief Transfer storage without allocation.
+      @param[in,out] a Source; left empty with zero capacity and reusable.
+      @note O(1). The next insertion into a allocates storage lazily.
+      @throws Nothing.
+  */
   MemArray(MemArray &&a) noexcept : ptr(nullptr), dim(0), n(0), contract_threshold(0)
   {
-    assert(a.ptr);
     swap(a);
   }
 
@@ -352,18 +450,8 @@ public:
     if (this == &a)
       return *this;
 
-    assert(a.ptr);
-
-    T *newptr = new T[a.dim];         // allocate a new array
-    for (size_t i = 0; i < a.n; ++i)  // copy items to a new array
-      newptr[i] = a.ptr[i];
-
-    if (ptr != nullptr)
-      delete[] ptr;
-    ptr = newptr;
-    dim = a.dim;
-    n = a.n;
-    contract_threshold = dim / 4;
+    MemArray copy(a);
+    swap(copy);
 
     return *this;
   }
@@ -380,9 +468,15 @@ public:
       The array size is set to zero, but the allocated memory is not released.
 
       @throws none
+      @note Unlike `std::vector::clear()`, the items are not destroyed: the
+            storage is an array of `T` built with `new T[dim]`, so the
+            objects stay alive, with their last values, until they are
+            overwritten or the array is released. Use empty_and_release()
+            or the destructor to release them.
   */
   void empty() noexcept
   {
+    annotate(n, 0);
     n = 0;
   }
 
@@ -396,46 +490,91 @@ public:
     empty();
   }
 
-  /// Empty the array and release all memory
+  /** @brief Clear the array and reduce allocated storage to Min_Dim.
+      @throws std::bad_alloc or an exception from default construction of T.
+      @note Allocation failure leaves the original array unchanged.
+            An already small or moved-from array simply becomes empty.
+  */
   void empty_and_release()
   {
-    n = 0;
     if (dim <= Min_Dim)
-      return;
+      {
+        empty();
+        return;
+      }
 
-    assert(ptr);
-    delete[] ptr;
-    ptr = nullptr;
-    dim = Min_Dim;
-    allocate();
+    MemArray replacement(Min_Dim);
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+    if (not annotated)
+      replacement.disable_annotations();
+#endif
+    swap(replacement);
   }
 
-  /// Put a copy of `item` at the end of sequence. The array expands if
-  /// this is already full
+  /** @brief Put a copy of `item` at the end of the sequence.
+      @param[in] item Value to append; it may be an element of this array,
+                 as in `a.put(a(0))`, even when the array must grow.
+      @return Reference to the appended copy.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note Amortized O(1); O(n) when the array is full and grows. The array
+            is unchanged if the allocation or the copy throws.
+  */
   T &put(const T &item)
     requires std::is_copy_assignable_v<T>
   {
-    assert(ptr);
-    expand();
-
-    ptr[n] = item;
-    T &ret = ptr[n++];
-    return ret;
+    return put_item(item);
   }
 
-  /// Move `item` at the end of sequence. The array expands if
-  /// this is already full
+  /** @brief Move `item` to the end of the sequence.
+      @param[in] item Value to append; it may be an element of this array,
+                 as in `a.put(std::move(a(0)))`, which leaves that element
+                 moved from.
+      @return Reference to the appended item.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note Amortized O(1); O(n) when the array is full and grows. `item`
+            is untouched if the allocation throws.
+  */
   T &put(T &&item)
   {
-    assert(ptr);
-    expand();
-
-    ptr[n] = std::forward<T>(item);
-    T &ret = ptr[n++];
-    return ret;
+    return put_item(std::move(item));
   }
 
 private:
+  /// Shared body of both put() overloads.
+  template <class U>
+  T &put_item(U &&item)
+  {
+    if (n == dim)  // growing frees the buffer that item may live in
+      return grow_and_insert(n, std::forward<U>(item));
+
+    annotate(n, n + 1);
+    try
+      {
+        ptr[n] = std::forward<U>(item);
+      }
+    catch (...)
+      {
+        annotate(n + 1, n);
+        throw;
+      }
+    T &ret = ptr[n++];
+    return ret;
+  }
+
+  /// Shared body of both push() overloads.
+  template <class U>
+  T &push_item(U &&item)
+  {
+    if (n == dim)  // growing frees the buffer that item may live in
+      return grow_and_insert(0, std::forward<U>(item));
+
+    T tmp(std::forward<U>(item));  // open_gap() shifts the element item may be
+    open_gap();
+    ptr[0] = std::move(tmp);
+    T &ret = ptr[0];
+    return ret;
+  }
+
   void open_gap(size_t pos = 0, size_t num_entries = 1)
   {
     putn(num_entries);
@@ -444,37 +583,54 @@ private:
 
   void close_gap(size_t pos, size_t num_entries = 1)
   {
+    ah_underflow_error_if(num_entries == 0) << "MemArray::close_gap(): no entries to remove";
     Aleph::close_gap(ptr, n, pos, num_entries);
-    get(num_entries);
+    // The last num_entries items are now moved-from: drop them without
+    // moving them out again, as get() would do.
+    const size_t old_n = n;
+    n -= num_entries;
+    annotate(old_n, n);
+    contract();
   }
 
 public:
-  /// Push a copy of `item` at the beginning of sequence. The array expands if
-  /// this is already full
+  /** @brief Push a copy of `item` at the beginning of the sequence.
+      @param[in] item Value to insert; it may be an element of this array,
+                 as in `a.push(a(1))`, even when the array must grow.
+      @return Reference to the inserted copy, now the first element.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note O(n): every element shifts one position. The array is unchanged
+            if the allocation or the copy throws.
+  */
   T &push(const T &item)
     requires std::is_copy_assignable_v<T>
   {
-    assert(ptr);
-    open_gap();
-
-    ptr[0] = item;
-    T &ret = ptr[0];
-    return ret;
+    return push_item(item);
   }
 
-  /// Push a copy of `item` at the beginning of sequence. The array expands if
-  /// this is already full
+  /** @brief Move `item` to the beginning of the sequence.
+      @param[in] item Value to insert; it may be an element of this array,
+                 as in `a.push(std::move(a(1)))`, which leaves that element
+                 moved from.
+      @return Reference to the inserted item, now the first element.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note O(n): every element shifts one position.
+  */
   T &push(T &&item)
   {
-    assert(ptr);
-    open_gap(0, 1);
-
-    ptr[0] = std::forward<T>(item);
-    T &ret = ptr[0];
-    return ret;
+    return push_item(std::move(item));
   }
 
-  T &top() const
+  T &top()
+  {
+    ah_underflow_error_if(n == 0) << "top(): MemArray is empty";
+
+    return ptr[0];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &top() const
   {
     ah_underflow_error_if(n == 0) << "top(): MemArray is empty";
 
@@ -501,14 +657,12 @@ public:
   T &append(const T &item)
     requires std::is_copy_assignable_v<T>
   {
-    assert(ptr);
     return put(item);
   }
 
   /// \overload put(T && item)
   T &append(T &&item)
   {
-    assert(ptr);
     return put(std::forward<T>(item));
   }
 
@@ -516,14 +670,12 @@ public:
   T &insert(const T &item)
     requires std::is_copy_assignable_v<T>
   {
-    assert(ptr);
     return push(item);
   }
 
   /// \overload push(T && item)
   T &insert(T &&item)
   {
-    assert(ptr);
     return push(std::forward<T>(item));
   }
 
@@ -539,17 +691,17 @@ public:
   */
   void putn(const size_t more)
   {
-    assert(ptr);
     ah_overflow_error_if(more > std::numeric_limits<size_t>::max() - n)
       << "MemArray::putn(): size overflow";
     const size_t new_n = n + more;
     if (new_n <= dim)
       {
+        annotate(n, new_n);
         n = new_n;
         return;
       }
 
-    size_t new_dim = dim;
+    size_t new_dim = dim == 0 ? Min_Dim : dim;
     while (new_dim < new_n)
       {
         ah_overflow_error_if(new_dim > (std::numeric_limits<size_t>::max() >> 1))
@@ -557,15 +709,9 @@ public:
         new_dim <<= 1;  // dim = 2*dim
       }
 
-    T *new_ptr = new T[new_dim];
-    for (size_t i = 0; i < n; ++i)
-      std::swap(ptr[i], new_ptr[i]);
-
-    delete[] ptr;
-    ptr = new_ptr;
-    dim = new_dim;
+    reallocate(new_dim);
+    annotate(n, new_n);
     n = new_n;
-    contract_threshold = dim / 4;
   }
 
   MemArray &append(const MemArray &a)
@@ -587,32 +733,24 @@ public:
   */
   void reserve(const size_t cap)
   {
-    assert(ptr);
-    if (cap < dim)
+    if (cap <= dim)
       return;
 
     const size_t new_dim = is_power_of_2(cap) ? cap : next_power_of_two(cap);
-
-    T *new_ptr = new T[new_dim];
-    for (size_t i = 0; i < n; ++i)
-      std::swap(ptr[i], new_ptr[i]);
-
-    delete[] ptr;
-    ptr = new_ptr;
-    dim = new_dim;
-    contract_threshold = dim / 4;
+    reallocate(new_dim);
   }
 
   /// Remove `i` elements from the end. Return the value of the last
   /// removed element
   T get(const size_t i = 1)
   {
-    assert(ptr);
     ah_underflow_error_if(i == 0 or i > n)
       << "MemArray::get(): invalid number of entries";
 
+    const size_t old_n = n;
+    T ret = std::move(ptr[n - i]);
     n -= i;
-    T ret = std::move(ptr[n]);
+    annotate(old_n, n);
 
     contract();
 
@@ -624,8 +762,10 @@ public:
     assert(ptr);
     assert(i > 0);
     assert(i <= n);
+    const size_t old_n = n;
+    T ret = std::move(ptr[n - i]);
     n -= i;
-    T ret = std::move(ptr[n]);
+    annotate(old_n, n);
 
     contract();
 
@@ -639,27 +779,57 @@ public:
   }
 
   /// Return a modifiable reference to the last element
-  T &last() const
+  T &last()
+  {
+    ah_underflow_error_if(n == 0) << "MemArray::last(): empty array";
+    return ptr[n - 1];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &last() const
   {
     ah_underflow_error_if(n == 0) << "MemArray::last(): empty array";
     return ptr[n - 1];
   }
 
   /// Return a modifiable reference to the first element
-  T &first() const
+  T &first()
+  {
+    ah_underflow_error_if(n == 0) << "MemArray::first(): empty array";
+    return ptr[0];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &first() const
   {
     ah_underflow_error_if(n == 0) << "MemArray::first(): empty array";
     return ptr[0];
   }
 
   /// \overload first
-  T &get_first() const
+  T &get_first()
+  {
+    return first();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &get_first() const
   {
     return first();
   }
 
   /// \overload last
-  T &get_last() const
+  T &get_last()
+  {
+    return last();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &get_last() const
   {
     return last();
   }
@@ -677,7 +847,15 @@ public:
 
   /// Return a modifiable reference to the ith element. No bound_statics check
   /// is performed
-  T &access(const size_t i) const noexcept
+  T &access(const size_t i) noexcept
+  {
+    assert(ptr);
+    return ptr[i];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &access(const size_t i) const noexcept
   {
     assert(ptr);
     return ptr[i];
@@ -685,33 +863,56 @@ public:
 
   /// Return a reference to the ith element. Throws
   /// `out_of_range` if `i` is out of range
-  T &operator[](const size_t i) const
+  T &operator[](const size_t i)
   {
-    assert(ptr);
+    ah_out_of_range_error_if(i >= n) << "access out of range";
+
+    return ptr[i];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &operator[](const size_t i) const
+  {
     ah_out_of_range_error_if(i >= n) << "access out of range";
 
     return ptr[i];
   }
 
   /// \overload access(const size_t i)
-  T &operator()(const size_t i) const noexcept
+  ///
+  /// Unlike `access()`, which also reaches the reserved slots beyond the
+  /// logical size, debug builds assert that `i` is a live item (`i < n`).
+  T &operator()(const size_t i) noexcept
   {
     assert(ptr);
-    assert(i < dim);
+    assert(i < n);
+    return ptr[i];
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &operator()(const size_t i) const noexcept
+  {
+    assert(ptr);
+    assert(i < n);
     return ptr[i];
   }
 
   /** Traverse all the elements from index 0 to `n - 1` and execute
       `operation` on each on them.
 
-      @param[in] operation to be performed on each element
+      @param[in] operation to be performed on each element; it receives
+                 a modifiable reference.
       @return `true` if `operation` was executed on all elements;
       `false` otherwise.
+      @throw anything that `operation` throws.
   */
   template <class Operation>
-  bool traverse(Operation &operation)
+    requires Aleph::PredicateWith<Operation &, T &>
+  bool traverse(Operation &operation) noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
   {
-    assert(ptr);
+    assert(ptr or n == 0);
     for (size_t i = 0; i < n; i++)
       if (not operation(ptr[i]))
         return false;
@@ -719,23 +920,41 @@ public:
     return true;
   }
 
-  /// \overload traverse(Operation & operation)
+  /** Traverse a constant array; each element is handed out as a
+      constant reference.
+
+      @param[in] operation to be performed on each element; it must accept
+                 `const T &`.
+      @return `true` if `operation` was executed on all elements;
+      `false` otherwise.
+      @throw anything that `operation` throws.
+  */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
-    return const_cast<MemArray *>(this)->traverse(operation);
+    assert(ptr or n == 0);
+    for (size_t i = 0; i < n; i++)
+      if (not operation(static_cast<const T &>(ptr[i])))
+        return false;
+
+    return true;
   }
 
-  /// \overload traverse(Operation & operation)
+  /// \overload traverse(Operation & operation) const
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &&operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
     return traverse<Operation>(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation &&operation)
+    requires Aleph::PredicateWith<Operation &, T &>
+  bool traverse(Operation &&operation) noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
   {
     return traverse<Operation>(operation);
   }
@@ -754,13 +973,17 @@ public:
     using Base = Array_Iterator<T>;
     using Base::Base;
 
-    /// Construct an iterator on array `a`
-    Iterator(const MemArray<T> &a) noexcept
-      : Array_Iterator<T>(no_exception_ctor, a.ptr, a.dim, a.n)
-    {
-      assert(a.ptr != nullptr);
-    }
+    /// Iterator on the modifiable array `a`.
+    Iterator(MemArray<T> &a) noexcept
+      : Array_Iterator<T>(a.ptr, a.dim, a.n)
+    {}
+
+    /// A constant array is iterated through Const_Iterator.
+    Iterator(const MemArray<T> &) = delete;
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 };
 }  // end namespace Aleph
 

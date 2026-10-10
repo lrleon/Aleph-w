@@ -306,7 +306,15 @@ namespace Aleph
         @note This method is noexcept if the hash function and comparison
         function do not throw exceptions.
     */
-    Key * search(const Key & key) const noexcept
+    Key * search(const Key & key) noexcept
+    {
+      auto *bucket = static_cast<Bucket *>(this->Base::search(key));
+      return bucket != nullptr ? &bucket->get_key() : nullptr;
+    }
+
+    /// \overload
+    /// A pointer to const.
+    const Key * search(const Key & key) const noexcept
     {
       auto *bucket = static_cast<Bucket *>(this->Base::search(key));
       return bucket != nullptr ? &bucket->get_key() : nullptr;
@@ -388,7 +396,11 @@ namespace Aleph
       /// Default constructor creates an "end" iterator
       Iterator() noexcept = default;
 
-      Iterator(const DynHashTable & table) : Base::Iterator(table) {}
+      /// Iterator on the modifiable table `table`.
+      Iterator(DynHashTable & table) : Base::Iterator(table) {}
+
+      /// A constant table is iterated through Const_Iterator.
+      Iterator(const DynHashTable &) = delete;
 
       Key &get_curr_ne() noexcept
       {
@@ -412,6 +424,9 @@ namespace Aleph
 
       void del() { delete this->Base::Iterator::del(); }
     };
+
+    /// Read-only iterator: the iterator of a constant table.
+    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 
     const Key &get_first() const
     {
@@ -448,6 +463,7 @@ namespace Aleph
   {
     typedef DynHashTable<Key, LhashTable, Cmp> Base;
     using Base::Base;
+    Derived_Build(DynSetLhash);
   };
 
   /**
@@ -460,6 +476,7 @@ namespace Aleph
   {
     typedef DynHashTable<Key, LinearHashTable, Cmp> Base;
     using Base::Base;
+    Derived_Build(DynSetLinHash);
   };
 
   /**
@@ -497,11 +514,20 @@ namespace Aleph
     // This allows heterogeneous search without constructing Data()
     Hash_Fct_Ptr original_hash_fct;
 
-    static constexpr bool has_search_with_custom_hash =
-        requires(const DynMapHashTable *self, Hash_Fct_Ptr hf, const Key & k)
-          {
-            self->search_with_custom_hash(hf, k);
-          };
+    // Whether the hash table can search by Key alone, without building a
+    // Pair (and so without requiring a default-constructible Data). It is a
+    // function, not a static data member: a function body is a
+    // complete-class context, where DynMapHashTable is complete, while the
+    // initializer of a static data member is not. MSVC evaluates such an
+    // initializer while the class is still incomplete, so the member access
+    // below failed there and the search fell back to Pair(key, Data()).
+    static constexpr bool has_search_with_custom_hash() noexcept
+    {
+      return requires(const DynMapHashTable *self, Hash_Fct_Ptr hf, const Key & k)
+        {
+          self->search_with_custom_hash(hf, k);
+        };
+    }
 
   public:
     static Data &get_data(const Key & key)
@@ -518,6 +544,8 @@ namespace Aleph
 
     // using Base::Base;  // no more need. But I don't remember why I put it
     using Base::insert; // in this way, insert with a pair is exported
+
+    Derived_Build(DynMapHashTable);
     using Iterator = typename Base::Iterator;
 
     DynMapHashTable(size_t len = Primes::DefaultPrime,
@@ -562,9 +590,9 @@ namespace Aleph
         @note This method uses heterogeneous search and does NOT require Data
         to have a default constructor. It searches by Key only.
     */
-    Pair * search(const Key & key) const noexcept
+    Pair * search(const Key & key) noexcept
     {
-      if constexpr (has_search_with_custom_hash)
+      if constexpr (has_search_with_custom_hash())
         {
           auto *bucket = static_cast<Bucket *>(
             this->search_with_custom_hash(original_hash_fct, key));
@@ -574,9 +602,37 @@ namespace Aleph
         return Base::search(Pair(key, Data()));
     }
 
-    Pair * search(Key && key) const noexcept
+    /// \overload
+    /// A pointer to const.
+    const Pair * search(const Key & key) const noexcept
     {
-      if constexpr (has_search_with_custom_hash)
+      if constexpr (has_search_with_custom_hash())
+        {
+          auto *bucket = static_cast<Bucket *>(
+            this->search_with_custom_hash(original_hash_fct, key));
+          return bucket != nullptr ? &bucket->get_key() : nullptr;
+        }
+      else
+        return Base::search(Pair(key, Data()));
+    }
+
+    Pair * search(Key && key) noexcept
+    {
+      if constexpr (has_search_with_custom_hash())
+        {
+          auto *bucket = static_cast<Bucket *>(
+            this->search_with_custom_hash(original_hash_fct, key));
+          return bucket != nullptr ? &bucket->get_key() : nullptr;
+        }
+      else
+        return Base::search(Pair(std::forward<Key>(key), Data()));
+    }
+
+    /// \overload
+    /// A pointer to const.
+    const Pair * search(Key && key) const noexcept
+    {
+      if constexpr (has_search_with_custom_hash())
         {
           auto *bucket = static_cast<Bucket *>(
             this->search_with_custom_hash(original_hash_fct, key));

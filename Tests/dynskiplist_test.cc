@@ -42,6 +42,9 @@
 #include <algorithm>
 #include <tpl_dynSkipList.H>
 
+#include <limits>
+#include <stdexcept>
+
 using namespace Aleph;
 
 namespace {
@@ -230,6 +233,32 @@ TEST_F(DynSkipListTest, Find)
   EXPECT_EQ(sl.find(42), 42);
   
   EXPECT_THROW((void)sl.find(43), std::domain_error);
+}
+
+TEST_F(DynSkipListTest, AppendOfARepeatedKeyReturnsTheKeyInTheSet)
+{
+  // append(Key &&) used to throw for a key already in the set, while
+  // append(const Key &) returned it: `s.append(1); s.append(1);` threw.
+  const int & first = sl.append(1);
+  EXPECT_EQ(&sl.append(1), &first);  // repeated, as an rvalue
+
+  const int one = 1;
+  EXPECT_EQ(&sl.append(one), &first);  // repeated, as an lvalue
+
+  EXPECT_EQ(sl.size(), 1u);
+  EXPECT_EQ(sl.append(2), 2);
+  EXPECT_EQ(sl.size(), 2u);
+}
+
+TEST_F(DynSkipListTest, FindOnConstantList)
+{
+  // The constant find() used to store the const Key * of search() in a
+  // Key *, which did not compile.
+  sl.insert(42);
+  const auto & csl = sl;
+
+  EXPECT_EQ(csl.find(42), 42);
+  EXPECT_THROW((void) csl.find(43), std::domain_error);
 }
 
 // ============================================================================
@@ -602,6 +631,20 @@ TEST_F(DynSkipListTest, SearchOrInsertExisting)
 }
 
 } // anonymous namespace
+
+// The probability was not validated: with p >= 1 every node got the
+// maximum level and with p <= 0 level 1, both degrading to linear time.
+TEST(DynSkipListProbability, MustBeBetweenZeroAndOne)
+{
+  EXPECT_THROW(DynSkipList<int>(1, 0.0), std::domain_error);
+  EXPECT_THROW(DynSkipList<int>(1, 1.0), std::domain_error);
+  EXPECT_THROW(DynSkipList<int>(1, -0.5), std::domain_error);
+  EXPECT_THROW(DynSkipList<int>(1, 7.0), std::domain_error);
+  EXPECT_THROW(DynSkipList<int>(1, std::numeric_limits<double>::quiet_NaN()), std::domain_error);
+  EXPECT_THROW(DynSkipList<int>(1.5), std::domain_error);
+  EXPECT_NO_THROW(DynSkipList<int>(1, 0.25));
+  EXPECT_NO_THROW(DynSkipList<int>(0.75));
+}
 
 int main(int argc, char** argv)
 {

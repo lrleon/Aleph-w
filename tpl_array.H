@@ -48,6 +48,8 @@
 #include <utility>
 #include <vector>
 #include <concepts>
+#include <iterator>
+#include <initializer_list>
 #include <type_traits>
 #include <aleph.H>
 #include <htlist.H>
@@ -55,6 +57,7 @@
 #include <ah-dry.H>
 #include <ah-args-ctor.H>
 #include <tpl_memArray.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 
@@ -95,12 +98,12 @@ namespace Aleph {
 
     @par Example:
     @code
-    Array<int> arr(10);  // Initial capacity of 10
+    auto arr = Array<int>::create_reserved(10);  // Empty, room for 10 items
 
     // Add elements
-    arr.push(42);
-    arr.push(17);
-    arr.push(99);
+    arr.append(42);
+    arr.append(17);
+    arr.append(99);
 
     // Indexed access (O(1))
     std::cout << arr[1] << '\n';  // 17
@@ -112,7 +115,7 @@ namespace Aleph {
     auto evens = arr.filter([](int x) { return x % 2 == 0; });
 
     // Convert to vector
-    std::vector<int> vec = arr.asVector();
+    std::vector<int> vec(arr.begin(), arr.end());
 
     // Range-based for
     for (int x : arr)
@@ -138,26 +141,73 @@ class Array : public LocateFunctions<Array<T>, T>,
 {
   MemArray<T> array;
 
+  /// Tag that selects the capacity constructor used by create_reserved().
+  struct Reserve_Tag {};
+
+  /** @brief Construct an empty array with at least cap slots of capacity.
+      @param[in] cap Requested capacity; size() remains zero.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note O(capacity()) default constructions. Private: reached only
+            through create_reserved().
+  */
+  Array(Reserve_Tag, const size_t cap) : array(cap)
+  { /* empty */
+  }
+
 public:
   using Item_Type = T;  /// The type of element
   using Key_Type = T;   /// The type of key
 
-  /// Initializes an array with a capacity of `dim`
-  Array(size_t dim = 32) : array(dim)
+  /** @brief Construct an empty array with the default capacity (32 slots).
+      @throws std::bad_alloc or an exception from default construction of T.
+      @note O(capacity()) default constructions.
+  */
+  Array() : array(32)
   { /* empty */
+  }
+
+  /** @brief Deleted: a single integer argument is not accepted.
+
+      Until Aleph-w 7.0, `Array<T> a(n)` built an empty array with capacity
+      for n items, except that a variadic element constructor could win the
+      overload resolution and build the one-element array {n}, depending on
+      `T` and on the exact type of the argument. Readers familiar with
+      `std::vector` expect n elements instead. To remove the ambiguity, every
+      construction from one integer, including `Array<T> a = n;` and the
+      implicit conversion of an integer argument, is a compile error. Say
+      what is meant:
+
+      - empty, room for n items: `auto a = Array<T>::create_reserved(n);`
+      - n copies of value:       `Array<T> a(n, value);`
+      - n slots to assign later: `auto a = Array<T>::create(n);`
+      - the single element n:    `Array<T> a{n};`
+  */
+  Array(size_t) = delete;
+
+  /** @brief Build an empty array with room for at least cap items.
+      @param[in] cap Requested capacity; size() is zero.
+      @return The empty array, with capacity() >= cap.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note O(capacity()) default constructions. Use it instead of the
+            removed one-argument constructor when only capacity is meant.
+  */
+  [[nodiscard]] static Array create_reserved(const size_t cap)
+  {
+    return Array(Reserve_Tag{}, cap);
   }
 
   /** @brief Construct an array with `n` copies of `value`.
    *
    *  Creates an array of size `n` where each element is initialized by
-   *  copy-constructing from `value`.
+   *  copy-assigning from `value` into default-constructed storage.
    *
    *  @param[in] n Number of elements to create.
    *  @param[in] value The value to copy into each element.
    *  @throws std::bad_alloc if memory allocation fails.
    *  @note Complexity: O(n) copies.
-   *  @note Exception safety: Strong guarantee (if allocation fails or T's copy constructor throws,
-   *        no memory is leaked).
+   *  @note Exception safety: if the allocation or the copy assignment of `T` throws, no
+   *        array is built and no memory is leaked. The entries are default-constructed
+   *        storage that receives copies of `value` by assignment.
    *  @note Thread safety: Safe to call concurrently on different instances; not thread-safe on the
    *        same instance.
    */
@@ -174,13 +224,12 @@ public:
    *  This static factory creates an array and then grows it with
    *  `ret.putn(n)`. `putn()` delegates to `MemArray::putn()`, which only
    *  adjusts logical size (and backing storage if needed): it does NOT
-   *  value-initialize new entries for any `T`.
-   *
-   *  All new elements are therefore uninitialized, and the caller MUST assign
-   *  each position before reading it.
+   *  value-initialize new entries. Scalar entries are uninitialized and MUST
+   *  be assigned before reading; class types retain their default-constructed
+   *  state.
    *
    *  @param[in] n Number of elements to create.
-   *  @return Array with `n` logical elements (all uninitialized).
+   *  @return Array with `n` logical elements (scalars are uninitialized).
    *  @throws std::bad_alloc if there is not enough memory.
    *  @note Complexity: O(n) for allocation; logical growth via `putn()` is O(1) here.
    *  @note Exception safety: Strong guarantee.
@@ -195,7 +244,7 @@ public:
    */
   static Array create(size_t n)
   {
-    Array ret(n);
+    Array ret = create_reserved(n);
     ret.putn(n);
     return ret;
   }
@@ -212,9 +261,41 @@ public:
   { /* empty */
   }
 
-  Special_Ctors(Array, T);
+  /** @brief Copy elements from an Aleph container in traversal order.
+      @param[in] items Container providing for_each().
+      @throws Any exception from allocation or copying T.
+      @note O(items.size()) insertions.
+  */
+  template <template <typename> class List>
+  Array(const List<T> &items) : Array()
+  {
+    items.for_each([this](const T &item) { append(item); });
+  }
 
-  Args_Ctor(Array, T);
+  /** @brief Construct from an input iterator range [first, last).
+      @param[in] first Iterator to the first item.
+      @param[in] last Sentinel after the last item.
+      @throws Any exception from allocation, iteration or copying/moving T.
+      @note Linear in the number of items. Integral arguments select the
+            count/value constructor, never this overload.
+  */
+  template <std::input_iterator It, std::sentinel_for<It> Sentinel>
+  Array(It first, Sentinel last) : Array()
+  {
+    for (; first != last; ++first)
+      append(*first);
+  }
+
+  /** @brief Construct from the listed elements in order.
+      @param[in] items Values to copy.
+      @throws Any exception from allocation or copying T.
+      @note O(items.size()) insertions. Use braces for element lists.
+  */
+  Array(std::initializer_list<T> items) : Array()
+  {
+    for (const auto &item : items)
+      append(item);
+  }
 
   /// Assign by copy `s` to `this`
   Array &operator = (const Array &s)
@@ -273,7 +354,8 @@ public:
   Array append(const Array &a) const
   {
     Array ret = *this;
-    return ret.append(a);
+    ret.append(a);
+    return ret;  // returning ret.append(a), a reference, would copy ret again
   }
 
   /** insert a copy of `data` at the beginning of the array. All the
@@ -337,6 +419,9 @@ public:
 
   /** @brief Empties the container.
       @throws none
+      @note Like MemArray::empty(), and unlike `std::vector::clear()`, the
+            items are not destroyed: they stay alive in the capacity until
+            they are overwritten or the array is released.
   */
   void empty() noexcept
   {
@@ -373,30 +458,38 @@ public:
     return array.capacity();
   }
 
-  /// return a modifiable reference to the first element. No bound_statics check
-  /// is performed
-  [[nodiscard]] T &get_first() noexcept
+  /** @brief Return a modifiable reference to the first element.
+      @return Reference to element 0.
+      @throws std::underflow_error if the array is empty.
+  */
+  [[nodiscard]] T &get_first()
   {
     return array.first();
   }
 
-  /// return a constant reference to the first element. No bound_statics check
-  /// is performed
-  [[nodiscard]] const T &get_first() const noexcept
+  /** @brief Return a constant reference to the first element.
+      @return Constant reference to element 0.
+      @throws std::underflow_error if the array is empty.
+  */
+  [[nodiscard]] const T &get_first() const
   {
     return array.first();
   }
 
-  /// return a modifiable reference to the last element. No bound_statics check
-  /// is performed
-  [[nodiscard]] T &get_last() noexcept
+  /** @brief Return a modifiable reference to the last element.
+      @return Reference to element size() - 1.
+      @throws std::underflow_error if the array is empty.
+  */
+  [[nodiscard]] T &get_last()
   {
     return array.last();
   }
 
-  /// return a constant reference to the last element. No bound_statics check
-  /// is performed
-  [[nodiscard]] const T &get_last() const noexcept
+  /** @brief Return a constant reference to the last element.
+      @return Constant reference to element size() - 1.
+      @throws std::underflow_error if the array is empty.
+  */
+  [[nodiscard]] const T &get_last() const
   {
     return array.last();
   }
@@ -425,13 +518,13 @@ public:
     return array[i];
   }
 
-  /// Return a reference to the ith element. It does not perform bound_statics checks
+  /// Return element i; requires i < size(), asserted in Debug builds.
   [[nodiscard]] constexpr T &operator () (const size_t i) noexcept
   {
     return array(i);
   }
 
-  /// Return a constant reference to the ith element. It does not perform bound_statics checks
+  /// Return const element i; requires i < size(), asserted in Debug builds.
   [[nodiscard]] constexpr const T &operator () (const size_t i) const noexcept
   {
     return array(i);
@@ -462,7 +555,7 @@ public:
   Array reverse() const
   {
     const size_t &n = array.size();
-    Array ret(n);
+    Array ret = create_reserved(n);
     for (size_t i = 0; i < n; ++i)
       ret.append(array(n - i - 1));
     return ret;
@@ -615,15 +708,21 @@ public:
     /// logical position is consistent and random access is safe.
     using aleph_random_access_iterator = Iterator;
 
-    /// Initialize an iterator on array `s`
-    Iterator(const Array<T> &s) noexcept : Base(s.array) {}
+    /// Iterator on the modifiable array `s`.
+    Iterator(Array<T> &s) noexcept : Base(s.array) {}
+
+    /// A constant array is iterated through Const_Iterator.
+    Iterator(const Array<T> &) = delete;
   };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 };
 
 template <typename T, typename... Args>
-Array<T> build_array(Args... args)
+Array<T> build_array(Args &&... args)
 {
-  return build_container<Array<T>>(args...);
+  return build_container<Array<T>>(std::forward<Args>(args)...);
 }
 
 template <class Container>

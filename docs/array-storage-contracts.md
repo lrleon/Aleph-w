@@ -6,23 +6,44 @@ them to moved-from containers, constructor overloads, and out-of-source tests.
 
 ## Array construction
 
-Parentheses with one capacity argument always construct an empty array:
+`Array` no longer accepts a single integer argument. Up to 6.x, `Array<T> a(n)`
+meant an empty array with capacity for `n` items, except that a variadic
+element constructor could win the overload resolution and build the
+one-element array `{n}`, depending on `T` and on the exact argument type.
+Readers familiar with `std::vector` expect `n` elements instead. The
+constructor is now deleted, so every old use, including `Array<T> a = n;` and
+the implicit conversion of an integer argument, fails to compile and must say
+what it means:
 
 ```cpp
-Aleph::Array<int> reserved(10);       // size() == 0, capacity() >= 10
-Aleph::Array<int> repeated(10, 0);    // ten zeroes
-Aleph::Array<int> item{10};           // one element whose value is 10
-auto slots = Aleph::Array<int>::create(10); // ten uninitialized scalar slots
+auto reserved = Aleph::Array<int>::create_reserved(10); // size() == 0, capacity() >= 10
+Aleph::Array<int> repeated(10, 0);                      // ten zeroes
+auto slots = Aleph::Array<int>::create(10);             // ten slots to assign
+Aleph::Array<int> item{10};                             // one element whose value is 10
+Aleph::Array<int> empty;                                // default capacity (32 slots)
 ```
 
+Migration of the removed `Array<T> a(n)`:
+
+| Old code | Replacement |
+|---|---|
+| `Array<T> a(n);` followed by `append()` | `auto a = Array<T>::create_reserved(n);` |
+| `Array<T> a(n); a.putn(n);` | `auto a = Array<T>::create(n);` |
+| `Array<T> a(n);` followed by `a(i) = ...` | `auto a = Array<T>::create(n);` or `Array<T> a(n, value);` (the old code wrote past `size()`) |
+| member `Array<T> m = Array<T>(0);` | `Array<T> m = Array<T>::create_reserved(0);` |
+
 `create(n)` makes the positions logical elements; assign scalar entries before
-reading them. Class types retain their default-constructed values.
+reading them. Class types retain their default-constructed values. A braced
+list, even inside parentheses as in `Array<T>({x})`, is always an element list.
 
 The old variadic item constructors of `Array` were removed because they could
 silently reinterpret a capacity as a value. Migrate parenthesized element lists
-to braces or `build_array()`. Range construction now requires an input iterator
+to braces or to `Array<T>::build(...)`, which every container with the
+functional mixin provides; unlike the braces, it moves rvalue items, so it also
+stores move-only types (`build_array()` remains). Range construction now requires an input iterator
 and a compatible sentinel, so integral count/value arguments cannot be mistaken
-for iterators. Other containers' constructor macros are unchanged.
+for iterators. The iterator-pair constructor that `Special_Ctors` generates for
+other containers is constrained the same way: an integer pair never selects it.
 
 ## Moved-from storage
 
@@ -37,6 +58,24 @@ own the new allocation. It neither swaps uninitialized scalar slots nor reads
 unused slots during contraction. If an element assignment throws, temporary
 storage is released. Throwing moves can still leave earlier source elements in
 a moved-from state; relocation does not promise a strong exception guarantee.
+
+## Inserting an element of the same container
+
+`put()`, `append()`, `push()` and `insert()` of `MemArray`, `Array`,
+`ArrayStack` and `ArrayQueue`, and `insert()` of `DynArray`, accept an element
+of the container itself, as in `a.append(a[0])` or `q.put(q.front())`, even
+when the container is full and must grow. Before 7.0, growth freed that element
+before reading it (a heap-use-after-free), and insertion at the front shifted
+it before copying it, so `{10, 20, 30}` followed by `insert(a[1])` gave
+`10 10 20 30` instead of `20 10 20 30`.
+
+When a full array grows, the new item is assigned into the new buffer before
+any element leaves the old one. A failed allocation or copy therefore leaves
+the container unchanged, and a moved argument, as in `a.append(std::move(x))`,
+keeps its value if the allocation fails. With free capacity, a front insertion
+first copies or moves its argument to a temporary, because the shift
+overwrites the slot the argument may occupy. Passing `std::move(a[i])` leaves
+element `i` moved from.
 
 ## ArrayQueue
 

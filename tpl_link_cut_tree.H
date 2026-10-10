@@ -1070,8 +1070,7 @@ namespace Aleph
           lct_nodes.append(nd);
       });
 
-      Array<TN *> tree_nodes(lct_nodes.size());
-      tree_nodes.putn(lct_nodes.size());
+      auto tree_nodes = Array<TN *>::create(lct_nodes.size());
       for (size_t i = 0; i < tree_nodes.size(); ++i)
         tree_nodes(i) = nullptr;
 

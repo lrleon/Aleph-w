@@ -127,7 +127,7 @@ int main(int argc, char * argv[])
       tikz_points_style("red"));
 
   size_t path_nodes = 0;
-  for (DynList<Point>::Iterator it(shortest_debug.path); it.has_curr(); it.next_ne())
+  for (auto it = shortest_debug.path.get_it(); it.has_curr(); it.next_ne())
     ++path_nodes;
 
   put_in_plane(shortest_plane,

@@ -1354,8 +1354,7 @@ inline bool south_offset(EepicNode<long> *root,
   const DynDlist<EepicNode<long> *> deepest_nodes =
       compute_nodes_in_level(root, level);
 
-  for (DynDlist<EepicNode<long> *>::Iterator it(deepest_nodes);
-       it.has_curr(); it.next())
+  for (auto it = deepest_nodes.get_it(); it.has_curr(); it.next())
     {
       EepicNode<long> *p = it.get_curr();
 

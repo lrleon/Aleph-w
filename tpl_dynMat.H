@@ -50,6 +50,8 @@
 #ifndef TPL_DYNMAT_H
 #define TPL_DYNMAT_H
 
+#include <limits>
+#include <memory>
 #include <ah-errors.H>
 #include <ahDry.H>
 #include <tpl_dynArray.H>
@@ -217,23 +219,34 @@ public:
    *  @param[in] num_rows The new number of rows.
    *  @param[in] num_cols The new number of columns.
    *
+   *  @throw std::overflow_error If `num_rows * num_cols` does not fit in
+   *         `size_t`.
+   *  @throw std::length_error If the number of entries exceeds what a
+   *         DynArray can hold.
    *  @throw std::bad_alloc If memory allocation fails.
+   *
+   *  @note Strong guarantee: the new storage is built before the old one
+   *        is released, so if anything throws the matrix is unchanged.
    *
    *  @warning This operation discards all existing data. If you need to
    *           preserve data, copy it before resizing.
    */
   void set_dimension(const size_t num_rows, const size_t num_cols)
   {
-    delete array_ptr;
+    ah_overflow_error_if(num_cols != 0 and num_rows > std::numeric_limits<size_t>::max() / num_cols)
+      << "DynMatrix::set_dimension(" << num_rows << ", " << num_cols
+      << "): the number of entries overflows size_t";
 
+    size_t d, s, b;
+    DynArray<T>::compute_sizes(num_rows * num_cols, d, s, b);
+    auto fresh = std::make_unique<DynArray<T>>(d, s, b);
+    fresh->set_default_initial_value(default_value);
+
+    // Nothing below can throw
+    delete array_ptr;
+    array_ptr = fresh.release();
     n = num_rows;
     m = num_cols;
-    size_t d, s, b;
-    const size_t N = n * m;
-    DynArray<T>::compute_sizes(N, d, s, b);
-
-    array_ptr = new DynArray<T>(d, s, b);
-    array_ptr->set_default_initial_value(default_value);
   }
 
   /** @brief Pre-allocate memory for the entire matrix.
@@ -696,6 +709,7 @@ public:
    *  @return true if all elements were visited, false if stopped early.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation & operation) const
   {
     for (size_t i = 0; i < n * m; ++i)
@@ -706,6 +720,7 @@ public:
 
   /// @overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation & operation)
   {
     return const_cast<const DynMatrix*>(this)->traverse(operation);
@@ -713,6 +728,7 @@ public:
 
   /// @overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation && operation) const
   {
     return traverse<Operation>(operation);
@@ -720,6 +736,7 @@ public:
 
   /// @overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation && operation)
   {
     return traverse<Operation>(operation);

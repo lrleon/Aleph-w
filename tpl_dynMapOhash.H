@@ -128,6 +128,7 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
   using Base::Base;
 #endif
   using Base::insert;
+  Derived_Build(MapOpenHash);
 
   /// @brief Function type for hash functions.
   using Hash_Fct = std::function<size_t(const Key &)>;
@@ -314,7 +315,16 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @param[in] key The key to search for.
    *  @return Pointer to the pair if found, nullptr otherwise.
    */
-  [[nodiscard]] Pair *search(const Key &key) const noexcept
+  [[nodiscard]] Pair *search(const Key &key) noexcept
+  {
+    static_assert(std::is_default_constructible<Data>::value,
+                  "MapOpenHash::search() requires Data to be default-constructible");
+    return this->Base::search(Pair(key, Data()));
+  }
+
+  /// \overload
+  /// A pointer to const.
+  [[nodiscard]] const Pair *search(const Key &key) const noexcept
   {
     static_assert(std::is_default_constructible<Data>::value,
                   "MapOpenHash::search() requires Data to be default-constructible");
@@ -326,7 +336,16 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @param[in] key The key to search for.
    *  @return Pointer to the pair if found, nullptr otherwise.
    */
-  [[nodiscard]] Pair *search(Key &&key) const noexcept
+  [[nodiscard]] Pair *search(Key &&key) noexcept
+  {
+    static_assert(std::is_default_constructible<Data>::value,
+                  "MapOpenHash::search() requires Data to be default-constructible");
+    return this->Base::search(Pair(std::move(key), Data()));
+  }
+
+  /// \overload
+  /// A pointer to const.
+  [[nodiscard]] const Pair *search(Key &&key) const noexcept
   {
     static_assert(std::is_default_constructible<Data>::value,
                   "MapOpenHash::search() requires Data to be default-constructible");
@@ -600,6 +619,7 @@ template <typename Key, typename Data, class Cmp = Aleph::equal_to<Key>>
 struct MapOLhash : public MapOpenHash<Key, Data, Cmp, OLhashTable>
 {
   using MapOpenHash<Key, Data, Cmp, OLhashTable>::MapOpenHash;
+  Derived_Build(MapOLhash);
 };
 
 /** @brief Open addressing hash map using double hashing.
@@ -622,6 +642,7 @@ template <typename Key, typename Data, class Cmp = Aleph::equal_to<Key>>
 struct MapODhash : public MapOpenHash<Key, Data, Cmp, ODhashTable>
 {
   using MapOpenHash<Key, Data, Cmp, ODhashTable>::MapOpenHash;
+  Derived_Build(MapODhash);
 };
 
 }  // end namespace Aleph

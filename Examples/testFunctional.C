@@ -49,7 +49,7 @@ gsl_rng * r;
 template <template <class> class C, typename T>
 void print_seq(const C<T> & c)
 {
-  for (typename C<T>::Iterator it(c); it.has_curr(); it.next())
+  for (auto it = c.get_it(); it.has_curr(); it.next())
     cout << it.get_curr() << " ";
 
   cout << endl;
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 
   DynList<std::pair<int, int>> lz1 = zip(DynList<int>(l1), DynDlist<int>(l2));
 
-  for (DynList<std::pair<int,int>>::Iterator it(lz1); it.has_curr(); it.next())
+  for (auto it = lz1.get_it(); it.has_curr(); it.next())
     cout << it.get_curr().first << "," << it.get_curr().second << endl;
 
   {

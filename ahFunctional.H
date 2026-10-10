@@ -69,6 +69,7 @@
 #include <ah-ranges.H>
 #include <ah-concepts.H>
 #include <hash-dry.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 /** @brief Abstract base class for optional-like results.
@@ -1717,7 +1718,8 @@ public:
       @param c2 Second container.
   */
   template <class C1, class C2>
-  Pair_Iterator(const C1 &c1, const C2 &c2) : Pair_Iterator(c1.get_it(), c2.get_it())
+    requires (not std::same_as<std::remove_cvref_t<C1>, Itor1>)
+  Pair_Iterator(C1 &c1, C2 &c2) : it1(Aleph::iterator_for(c1)), it2(Aleph::iterator_for(c2))
   {}
 
   /** @brief Check if both iterators have current elements.
@@ -1801,92 +1803,113 @@ public:
     @ingroup Algorithms
 */
 template <class C1, class C2>
-[[nodiscard]] Pair_Iterator<typename C1::Iterator, typename C2::Iterator> inline get_pair_it(
-  const C1 &c1,
-  const C2 &c2)
+[[nodiscard]] inline auto get_pair_it(C1 &c1, C2 &c2)
 {
-  using I1 = typename C1::Iterator;
-  using I2 = typename C2::Iterator;
-  auto i1 = c1.get_it();
-  auto i2 = c2.get_it();
-  return Pair_Iterator<I1, I2>(i1, i2);
+  auto i1 = Aleph::iterator_for(c1);
+  auto i2 = Aleph::iterator_for(c2);
+  return Pair_Iterator<decltype(i1), decltype(i2)>(i1, i2);
 }
 
 /** @overload get_pair_it with start position. */
 template <class C1, class C2>
-[[nodiscard]] Pair_Iterator<typename C1::Iterator, typename C2::Iterator> inline get_pair_it(
-  const C1 &c1,
-  const C2 &c2,
-  const size_t pos)
+[[nodiscard]] inline auto get_pair_it(C1 &c1, C2 &c2, const size_t pos)
 {
-  using I1 = typename C1::Iterator;
-  using I2 = typename C2::Iterator;
-  auto i1 = c1.get_it();
-  auto i2 = c2.get_it();
+  auto i1 = Aleph::iterator_for(c1);
+  auto i2 = Aleph::iterator_for(c2);
   for (size_t i = 0; i < pos; ++i)
     {
       i1.next();
       i2.next();
     }
-  return Pair_Iterator<I1, I2>(i1, i2);
+  return Pair_Iterator<decltype(i1), decltype(i2)>(i1, i2);
 }
 
 /// @cond INTERNAL
-template <class C>
-inline void insert_in_container(C &, size_t &)
-{}
+namespace functional_detail {
 
-template <class C, typename T, typename... Args>
-inline void insert_in_container(C &c, size_t &n, const T &item, Args &...args)
+/* Whether the insert() or append() call that returned `result` added its
+   item. A container that may refuse an item (a set, for a key it already
+   holds) returns a pointer, null when it refuses it; any other result means
+   that the item was added. */
+template <class Result>
+constexpr bool added_item(const Result &result) noexcept
 {
-  c.insert(item);
-  ++n;
-  insert_in_container(c, n, args...);
+  if constexpr (std::is_pointer_v<Result>)
+    return result != nullptr;
+  else
+    return true;
 }
+
+/// Append `item` to `c`; return whether `c` added it.
+template <class C, class Item>
+bool append_one(C &c, Item &&item)
+{
+  if constexpr (std::is_void_v<decltype(c.append(std::forward<Item>(item)))>)
+    {
+      c.append(std::forward<Item>(item));
+      return true;
+    }
+  else
+    return added_item(c.append(std::forward<Item>(item)));
+}
+
+/// Insert `item` into `c`; return whether `c` added it.
+template <class C, class Item>
+bool insert_one(C &c, Item &&item)
+{
+  if constexpr (std::is_void_v<decltype(c.insert(std::forward<Item>(item)))>)
+    {
+      c.insert(std::forward<Item>(item));
+      return true;
+    }
+  else
+    return added_item(c.insert(std::forward<Item>(item)));
+}
+
+}  // namespace functional_detail
 /// @endcond
 
 /** @brief Insert multiple items into a container.
-    @return Number of items inserted.
+
+    Each item is passed to `c.insert()`, in argument order; an rvalue is
+    moved.
+    @return Number of items the container added: a set leaves out a key it
+    already holds (its `insert()` returns a null pointer then).
 */
 template <class C, typename... Args>
-inline size_t insert_in_container(C &c, Args... args)
+inline size_t insert_in_container(C &c, Args &&... args)
 {
   size_t n = 0;
-  insert_in_container(c, n, args...);
+  ((n += (functional_detail::insert_one(c, std::forward<Args>(args)) ? 1 : 0)), ...);
   return n;
 }
-
-/// @cond INTERNAL
-template <class C>
-inline void append_in_container(C &, size_t &)
-{}
-
-template <class C, typename T, typename... Args>
-inline void append_in_container(C &c, size_t &n, const T &item, Args &...args)
-{
-  c.append(item);
-  ++n;
-  append_in_container(c, n, args...);
-}
-/// @endcond
 
 /** @brief Append multiple items into a container.
-    @return Number of items appended.
+
+    Each item is passed to `c.append()`, in argument order; an rvalue is
+    moved.
+    @return Number of items the container added: a set leaves out a key it
+    already holds (its `append()` returns a null pointer then).
 */
 template <class C, typename... Args>
-inline size_t append_in_container(C &c, Args... args)
+inline size_t append_in_container(C &c, Args &&... args)
 {
   size_t n = 0;
-  append_in_container(c, n, args...);
+  ((n += (functional_detail::append_one(c, std::forward<Args>(args)) ? 1 : 0)), ...);
   return n;
 }
 
-/** @brief Build a container with the given items. */
+/** @brief Build a container with the given items.
+
+    Each item is passed to the `append()` of `C`, in argument order; an
+    rvalue is moved. `C::build()`, when `C` has it, does the same and also
+    converts each item to the item type first.
+*/
 template <class C, typename... Args>
-[[nodiscard]] C build_container(Args... args)
+[[nodiscard]] C build_container(Args &&... args)
 {
   C c;
-  append_in_container(c, args...);
+  append_in_container(c, std::forward<Args>(args)...);
   return c;
 }
 
@@ -1901,11 +1924,11 @@ template <class SrcC, class TgtC>
   return ret;
 }
 
-/** @brief Build a DynList with the given items. */
+/** @brief Build a DynList with the given items; an rvalue is moved. */
 template <typename T, typename... Args>
-[[nodiscard]] DynList<T> build_dynlist(Args... args)
+[[nodiscard]] DynList<T> build_dynlist(Args &&... args)
 {
-  return build_container<DynList<T>>(args...);
+  return build_container<DynList<T>>(std::forward<Args>(args)...);
 }
 
 /// @cond INTERNAL
@@ -2171,7 +2194,9 @@ template <class Container, class Pred>
 [[nodiscard]] inline typename Container::Item_Type *find_ptr(Container &container, Pred &pred)
 {
   typename Container::Item_Type *result = nullptr;
-  container.traverse([&result, &pred](auto &item)
+  // Not a generic lambda: with `auto &` the constant traverse() overload,
+  // which hands out `const Item_Type &`, would instantiate this body.
+  container.traverse([&result, &pred](typename Container::Item_Type &item)
   {
     if (pred(item))
       {

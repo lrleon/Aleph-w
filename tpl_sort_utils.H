@@ -109,6 +109,7 @@
 #include <utility>
 #include <cmath>
 #include <algorithm>
+#include <ah-iterator.H>
 
 namespace Aleph {
 /** @brief Threshold for switching to insertion sort in hybrid algorithms.
@@ -165,7 +166,7 @@ template <template <typename> class Container, typename T, StrictWeakOrder<T> Co
   if (cont.is_empty())
     return true;
 
-  typename Container<T>::Iterator it(cont);
+  Aleph::const_iterator_t<Container<T>> it(cont);
   const T &first = it.get_curr();
   const T *prev = &first;
   it.next_ne();
@@ -208,7 +209,7 @@ template <template <typename> class Container, typename T, StrictWeakOrder<T> Co
   if (cont.is_empty())
     return std::make_pair(true, 0);
 
-  typename Container<T>::Iterator it(cont);
+  Aleph::const_iterator_t<Container<T>> it(cont);
   const T &first = it.get_curr();
   const T *prev = &first;
   size_t i = 1;
@@ -249,7 +250,7 @@ template <template <typename> class Container, typename T, StrictWeakOrder<T> Co
   if (cont.is_empty())
     return true;
 
-  typename Container<T>::Iterator it(cont);
+  Aleph::const_iterator_t<Container<T>> it(cont);
   const T &first = it.get_curr();
   const T *prev = &first;
   it.next_ne();
@@ -292,7 +293,7 @@ template <template <typename> class Container, typename T, StrictWeakOrder<T> Co
   if (cont.is_empty())
     return {true, 0};
 
-  typename Container<T>::Iterator it(cont);
+  Aleph::const_iterator_t<Container<T>> it(cont);
   const T &first = it.get_curr();
   const T *prev = &first;
   size_t i = 1;
@@ -1167,7 +1168,7 @@ inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
 template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void merge(T *a, const long l, const long m, const long r, const Compare &cmp = Compare())
 {
-  Array<T> buf(static_cast<size_t>(r - l + 1));
+  auto buf = Array<T>::create_reserved(static_cast<size_t>(r - l + 1));
   merge(a, l, m, r, buf, cmp);
 }
 
@@ -1235,7 +1236,7 @@ inline void mergesort(T *a, const long l, const long r, const Compare &cmp = Com
   if (l >= r)
     return;
 
-  Array<T> buf(static_cast<size_t>(r - l + 1));
+  auto buf = Array<T>::create_reserved(static_cast<size_t>(r - l + 1));
   mergesort(a, l, r, buf, cmp);
 }
 

@@ -60,6 +60,7 @@
 # include <graph-dry.H>
 # include <ah-graph-concepts.H>
 # include <ah-errors.H>
+# include <ah-iterator.H>
 
 using namespace Aleph;
 
@@ -3307,23 +3308,27 @@ namespace Aleph
           @ingroup Graphs
           @see Path
       */
-    class Iterator : public DynDlist<Path_Desc>::Iterator
+    class Iterator : public Aleph::const_iterator_t<DynDlist<Path_Desc>>
     {
+      // The path hands out its nodes and arcs, never its entries: a
+      // read-only view of the list is all it needs.
+      using Base = Aleph::const_iterator_t<DynDlist<Path_Desc>>;
+
     public:
       /// Create an iterator on the first node of `path`
       Iterator(const Path & path) noexcept
-        : DynDlist<Path_Desc>::Iterator(path.list)
+        : Base(path.list)
       {}
 
     private:
-      Path_Desc &get_curr_path_desc_ne() const noexcept
+      const Path_Desc &get_curr_path_desc_ne() const noexcept
       {
-        return this->DynDlist<Path_Desc>::Iterator::get_curr_ne();
+        return this->Base::get_curr_ne();
       }
 
-      Path_Desc &get_curr_path_desc() const
+      const Path_Desc &get_curr_path_desc() const
       {
-        return this->DynDlist<Path_Desc>::Iterator::get_curr();
+        return this->Base::get_curr();
       }
 
     public:

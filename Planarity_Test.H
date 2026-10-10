@@ -102,6 +102,7 @@
 #include <tpl_dynMapTree.H>
 #include <tpl_dynSetTree.H>
 #include <tpl_graph.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 /** @brief Non-planarity witness classification.
@@ -635,28 +636,22 @@ void collect_certificate_nodes(const Planarity_Test_Result<GT> &result,
     nodes.append(node);
   };
 
-  for (typename Array<Node *>::Iterator it(result.certificate_branch_nodes); it.has_curr();
-       it.next_ne())
+  for (auto it = result.certificate_branch_nodes.get_it(); it.has_curr(); it.next_ne())
     add_node(it.get_curr_ne());
 
-  for (typename Array<typename Planarity_Test_Result<GT>::Edge_Witness>::Iterator it(
-         result.certificate_obstruction_edges);
-       it.has_curr(); it.next_ne())
+  for (auto it = result.certificate_obstruction_edges.get_it(); it.has_curr(); it.next_ne())
     {
       add_node(it.get_curr_ne().src);
       add_node(it.get_curr_ne().tgt);
     }
 
-  for (typename Array<typename Planarity_Test_Result<GT>::Path_Witness>::Iterator pit(
-         result.certificate_paths);
-       pit.has_curr(); pit.next_ne())
+  for (auto pit = result.certificate_paths.get_it(); pit.has_curr(); pit.next_ne())
     {
       const auto &path = pit.get_curr_ne();
-      for (typename Array<Node *>::Iterator nit(path.nodes); nit.has_curr(); nit.next_ne())
+      for (auto nit = path.nodes.get_it(); nit.has_curr(); nit.next_ne())
         add_node(nit.get_curr_ne());
 
-      for (typename Array<typename Planarity_Test_Result<GT>::Edge_Witness>::Iterator eit(path.edges);
-           eit.has_curr(); eit.next_ne())
+      for (auto eit = path.edges.get_it(); eit.has_curr(); eit.next_ne())
         {
           add_node(eit.get_curr_ne().src);
           add_node(eit.get_curr_ne().tgt);
@@ -840,7 +835,7 @@ class LR_Planarity_Checker
           {
             const size_t v = stack.remove_last();
 
-            for (typename Array<size_t>::Iterator it(incident_edges_[v]); it.has_curr(); it.next_ne())
+            for (auto it = incident_edges_[v].get_it(); it.has_curr(); it.next_ne())
               {
                 const size_t eid = it.get_curr_ne();
                 const size_t w = other_endpoint(eid, v);
@@ -903,7 +898,7 @@ class LR_Planarity_Checker
 
     DynMapTree<Dart_Key, size_t> dart_id;
 
-    for (typename Array<Simple_Edge>::Iterator it(edges_); it.has_curr(); it.next_ne())
+    for (auto it = edges_.get_it(); it.has_curr(); it.next_ne())
       {
         const Simple_Edge &e = it.get_curr_ne();
         const size_t d1 = dart_src.size();
@@ -993,7 +988,7 @@ class LR_Planarity_Checker
 
         const auto &ord = order[v];
         re.cw_neighbors.reserve(ord.size());
-        for (typename Array<size_t>::Iterator it(ord); it.has_curr(); it.next_ne())
+        for (auto it = ord.get_it(); it.has_curr(); it.next_ne())
           re.cw_neighbors.append(nodes_[it.get_curr_ne()]);
 
         result_.embedding_rotation.append(std::move(re));
@@ -1001,12 +996,12 @@ class LR_Planarity_Checker
 
     result_.embedding_faces.empty();
     result_.embedding_faces.reserve(face_idx.size());
-    for (typename Array<Array<size_t>>::Iterator fit(face_idx); fit.has_curr(); fit.next_ne())
+    for (auto fit = face_idx.get_it(); fit.has_curr(); fit.next_ne())
       {
         const auto &f = fit.get_curr_ne();
         Array<Node *> mapped;
         mapped.reserve(f.size());
-        for (typename Array<size_t>::Iterator it(f); it.has_curr(); it.next_ne())
+        for (auto it = f.get_it(); it.has_curr(); it.next_ne())
           mapped.append(nodes_[it.get_curr_ne()]);
         result_.embedding_faces.append(std::move(mapped));
       }
@@ -1042,7 +1037,7 @@ class LR_Planarity_Checker
     if (not planar_)
       return;
 
-    for (typename Array<size_t>::Iterator it(incident_edges_[v]); it.has_curr(); it.next_ne())
+    for (auto it = incident_edges_[v].get_it(); it.has_curr(); it.next_ne())
       {
         const size_t uedge = it.get_curr_ne();
         if (undirected_edge_seen_[uedge])
@@ -1105,7 +1100,7 @@ class LR_Planarity_Checker
         E[j] = key;
       }
 
-    for (typename Array<size_t>::Iterator it(E); it.has_curr(); it.next_ne())
+    for (auto it = E.get_it(); it.has_curr(); it.next_ne())
       {
         const size_t ei = it.get_curr_ne();
         stack_bottom_[ei] = stack_.get_last();
@@ -1278,7 +1273,7 @@ class LR_Planarity_Checker
             ++num_vertices;
             degree_sum += incident_edges_[v].size();
 
-            for (typename Array<size_t>::Iterator it(incident_edges_[v]); it.has_curr(); it.next_ne())
+            for (auto it = incident_edges_[v].get_it(); it.has_curr(); it.next_ne())
               {
                 const size_t uedge = it.get_curr_ne();
                 const size_t w = other_endpoint(uedge, v);
@@ -1384,7 +1379,7 @@ class LR_Planarity_Checker
         orient_dfs(v);
       }
 
-    for (typename Array<size_t>::Iterator it(roots_); it.has_curr(); it.next_ne())
+    for (auto it = roots_.get_it(); it.has_curr(); it.next_ne())
       {
         const size_t root = it.get_curr_ne();
         stack_.empty();
@@ -1408,7 +1403,7 @@ class LR_Planarity_Checker
     for (size_t i = 0; i < result_.simplified_num_nodes; ++i)
       tmp_nodes[i] = tg.insert_node(i);
 
-    for (typename Array<Simple_Edge>::Iterator it(simple_edges); it.has_curr(); it.next_ne())
+    for (auto it = simple_edges.get_it(); it.has_curr(); it.next_ne())
       {
         const Simple_Edge &e = it.get_curr_ne();
         tg.insert_arc(tmp_nodes[e.u], tmp_nodes[e.v], 1);
@@ -1439,7 +1434,7 @@ class LR_Planarity_Checker
 
     Array<size_t> deg(static_cast<size_t>(5), static_cast<size_t>(0));
 
-    for (typename Array<Compressed_Path>::Iterator it(paths); it.has_curr(); it.next_ne())
+    for (auto it = paths.get_it(); it.has_curr(); it.next_ne())
       {
         const Compressed_Path &p = it.get_curr_ne();
         const size_t iu = find_in_array(branches, p.u);
@@ -1486,7 +1481,7 @@ class LR_Planarity_Checker
 
     Array<size_t> deg(static_cast<size_t>(6), static_cast<size_t>(0));
 
-    for (typename Array<Compressed_Path>::Iterator it(paths); it.has_curr(); it.next_ne())
+    for (auto it = paths.get_it(); it.has_curr(); it.next_ne())
       {
         const Compressed_Path &p = it.get_curr_ne();
         const size_t iu = find_in_array(branches, p.u);
@@ -1522,7 +1517,7 @@ class LR_Planarity_Checker
         while (not stack.is_empty())
           {
             const size_t u = stack.remove_last();
-            for (typename Array<size_t>::Iterator it(adj[u]); it.has_curr(); it.next_ne())
+            for (auto it = adj[u].get_it(); it.has_curr(); it.next_ne())
               {
                 const size_t v = it.get_curr_ne();
                 if (color[v] == -1)
@@ -1590,7 +1585,7 @@ class LR_Planarity_Checker
       w.representative_input_arc = arcs[0];
 
     w.input_arcs.reserve(arcs.size());
-    for (typename Array<Arc *>::Iterator it(arcs); it.has_curr(); it.next_ne())
+    for (auto it = arcs.get_it(); it.has_curr(); it.next_ne())
       w.input_arcs.append(it.get_curr_ne());
 
     return w;
@@ -1602,16 +1597,16 @@ class LR_Planarity_Checker
     result_.certificate_paths.empty();
 
     result_.certificate_branch_nodes.reserve(branches.size());
-    for (typename Array<size_t>::Iterator it(branches); it.has_curr(); it.next_ne())
+    for (auto it = branches.get_it(); it.has_curr(); it.next_ne())
       result_.certificate_branch_nodes.append(nodes_[it.get_curr_ne()]);
 
     result_.certificate_paths.reserve(paths.size());
-    for (typename Array<Compressed_Path>::Iterator it(paths); it.has_curr(); it.next_ne())
+    for (auto it = paths.get_it(); it.has_curr(); it.next_ne())
       {
         const Compressed_Path &p = it.get_curr_ne();
         typename Planarity_Test_Result<GT>::Path_Witness witness;
         witness.nodes.reserve(p.nodes.size());
-        for (typename Array<size_t>::Iterator pit(p.nodes); pit.has_curr(); pit.next_ne())
+        for (auto pit = p.nodes.get_it(); pit.has_curr(); pit.next_ne())
           witness.nodes.append(nodes_[pit.get_curr_ne()]);
 
         if (p.nodes.size() >= 2)
@@ -1670,7 +1665,7 @@ class LR_Planarity_Checker
               }
 
             Array<size_t> degree(result_.simplified_num_nodes, static_cast<size_t>(0));
-            for (typename Array<Simple_Edge>::Iterator it(witness); it.has_curr(); it.next_ne())
+            for (auto it = witness.get_it(); it.has_curr(); it.next_ne())
               {
                 const auto &e = it.get_curr_ne();
                 ++degree[e.u];
@@ -1688,7 +1683,7 @@ class LR_Planarity_Checker
 
                 Array<Simple_Edge> trial;
                 trial.reserve(witness.size());
-                for (typename Array<Simple_Edge>::Iterator it(witness); it.has_curr(); it.next_ne())
+                for (auto it = witness.get_it(); it.has_curr(); it.next_ne())
                   {
                     const auto &e = it.get_curr_ne();
                     if (e.u == v or e.v == v)
@@ -1710,8 +1705,7 @@ class LR_Planarity_Checker
                     changed = true;
 
                     degree = Array<size_t>(result_.simplified_num_nodes, static_cast<size_t>(0));
-                    for (typename Array<Simple_Edge>::Iterator wit(witness); wit.has_curr();
-                         wit.next_ne())
+                    for (auto wit = witness.get_it(); wit.has_curr(); wit.next_ne())
                       {
                         const auto &e = wit.get_curr_ne();
                         ++degree[e.u];
@@ -1738,7 +1732,7 @@ class LR_Planarity_Checker
 
     result_.certificate_obstruction_edges.empty();
     result_.certificate_obstruction_edges.reserve(witness.size());
-    for (typename Array<Simple_Edge>::Iterator it(witness); it.has_curr(); it.next_ne())
+    for (auto it = witness.get_it(); it.has_curr(); it.next_ne())
       {
         const Simple_Edge &e = it.get_curr_ne();
         result_.certificate_obstruction_edges.append(make_edge_witness(e.u, e.v));
@@ -1774,17 +1768,17 @@ class LR_Planarity_Checker
       }
 
     Array<char> is_branch(result_.simplified_num_nodes, static_cast<char>(0));
-    for (typename Array<size_t>::Iterator it(branches); it.has_curr(); it.next_ne())
+    for (auto it = branches.get_it(); it.has_curr(); it.next_ne())
       is_branch[it.get_curr_ne()] = 1;
 
     Array<char> used(witness.size(), static_cast<char>(0));
     Array<Compressed_Path> paths;
 
-    for (typename Array<size_t>::Iterator bit(branches); bit.has_curr(); bit.next_ne())
+    for (auto bit = branches.get_it(); bit.has_curr(); bit.next_ne())
       {
         const size_t b = bit.get_curr_ne();
 
-        for (typename Array<size_t>::Iterator eit(inc[b]); eit.has_curr(); eit.next_ne())
+        for (auto eit = inc[b].get_it(); eit.has_curr(); eit.next_ne())
           {
             const size_t first_edge = eit.get_curr_ne();
             if (used[first_edge])
@@ -2034,7 +2028,7 @@ class LR_Planarity_Checker
         if (incident_edges_[v].is_empty())
           ++isolated_vertices;
 
-        for (typename Array<size_t>::Iterator it(incident_edges_[v]); it.has_curr(); it.next_ne())
+        for (auto it = incident_edges_[v].get_it(); it.has_curr(); it.next_ne())
           ord.append(it.get_curr_ne());
 
         auto less_local = [&](const size_t ue_a, const size_t ue_b) -> bool
@@ -2118,7 +2112,7 @@ class LR_Planarity_Checker
 
     auto append_unique_order = [&](Array<Array<size_t>> &opts, const Array<size_t> &cand)
     {
-      for (typename Array<Array<size_t>>::Iterator it(opts); it.has_curr(); it.next_ne())
+      for (auto it = opts.get_it(); it.has_curr(); it.next_ne())
         if (same_order(it.get_curr_ne(), cand))
           return;
 
@@ -2295,7 +2289,7 @@ class LR_Planarity_Checker
         {
           bool improved = false;
 
-          for (typename Array<size_t>::Iterator vit(vars); vit.has_curr(); vit.next_ne())
+          for (auto vit = vars.get_it(); vit.has_curr(); vit.next_ne())
             {
               const size_t v = vit.get_curr_ne();
               const size_t prev_opt = selected[v];
@@ -2376,7 +2370,7 @@ class LR_Planarity_Checker
         return false;
       }
 
-    for (typename Array<size_t>::Iterator vit(vars); vit.has_curr(); vit.next_ne())
+    for (auto vit = vars.get_it(); vit.has_curr(); vit.next_ne())
       {
         const size_t v = vit.get_curr_ne();
         for (size_t i = 1; i < repair_options[v].size(); ++i)
@@ -2441,7 +2435,7 @@ class LR_Planarity_Checker
       {
         Array<size_t> ng;
         ng.reserve(incident_edges_[v].size());
-        for (typename Array<size_t>::Iterator it(incident_edges_[v]); it.has_curr(); it.next_ne())
+        for (auto it = incident_edges_[v].get_it(); it.has_curr(); it.next_ne())
           ng.append(other_endpoint(it.get_curr_ne(), v));
 
         sort_size_t_array(ng);
@@ -2755,7 +2749,7 @@ Planar_Dual_Metadata<GT> planar_dual_metadata(const Planarity_Test_Result<GT> &r
     {
       DynSetTree<size_t> seen;
       const auto &re = result.embedding_rotation[i];
-      for (typename Array<Node *>::Iterator it(re.cw_neighbors); it.has_curr(); it.next_ne())
+      for (Aleph::const_iterator_t<Array<Node *>> it(re.cw_neighbors); it.has_curr(); it.next_ne())
         {
           Node *neigh = it.get_curr_ne();
           ah_runtime_error_unless(neigh != nullptr) << "embedding_rotation contains null neighbor";
@@ -2791,7 +2785,7 @@ Planar_Dual_Metadata<GT> planar_dual_metadata(const Planarity_Test_Result<GT> &r
       while (not stack.is_empty())
         {
           const size_t u = stack.remove_last();
-          for (typename Array<size_t>::Iterator it(order[u]); it.has_curr(); it.next_ne())
+          for (auto it = order[u].get_it(); it.has_curr(); it.next_ne())
             {
               const size_t v = it.get_curr_ne();
               if (comp_id[v] != -1)
@@ -2814,7 +2808,7 @@ Planar_Dual_Metadata<GT> planar_dual_metadata(const Planarity_Test_Result<GT> &r
   DynMapTree<Dart_Key, size_t> dart_id;
   for (size_t u = 0; u < n; ++u)
     {
-      for (typename Array<size_t>::Iterator it(order[u]); it.has_curr(); it.next_ne())
+      for (auto it = order[u].get_it(); it.has_curr(); it.next_ne())
         {
           const size_t v = it.get_curr_ne();
           const Dart_Key key{u, v};
@@ -2966,8 +2960,7 @@ DGT build_planar_dual_graph(const Planar_Dual_Metadata<GT> &md)
   for (size_t f = 0; f < md.num_faces_local; ++f)
     face_nodes.append(dual.insert_node(f));
 
-  for (typename Array<Planar_Dual_Edge_Info<GT>>::Iterator it(md.dual_edges); it.has_curr();
-       it.next_ne())
+  for (auto it = md.dual_edges.get_it(); it.has_curr(); it.next_ne())
     {
       const auto &e = it.get_curr_ne();
       dual.insert_arc(face_nodes[e.face_a], face_nodes[e.face_b], e);
@@ -3054,7 +3047,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
     {
       DynSetTree<size_t> seen;
       const auto &re = result.embedding_rotation[i];
-      for (typename Array<Node *>::Iterator it(re.cw_neighbors); it.has_curr(); it.next_ne())
+      for (Aleph::const_iterator_t<Array<Node *>> it(re.cw_neighbors); it.has_curr(); it.next_ne())
         {
           Node *neigh = it.get_curr_ne();
           ah_runtime_error_unless(neigh != nullptr) << "embedding_rotation contains null neighbor";
@@ -3084,7 +3077,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
       while (not stack.is_empty())
         {
           const size_t u = stack.remove_last();
-          for (typename Array<size_t>::Iterator it(order[u]); it.has_curr(); it.next_ne())
+          for (auto it = order[u].get_it(); it.has_curr(); it.next_ne())
             {
               const size_t v = it.get_curr_ne();
               if (comp_id[v] != -1)
@@ -3116,7 +3109,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
   Array<Drawing_Edge> edges;
   edges.reserve(result.simplified_num_edges);
   for (size_t u = 0; u < n; ++u)
-    for (typename Array<size_t>::Iterator it(order[u]); it.has_curr(); it.next_ne())
+    for (auto it = order[u].get_it(); it.has_curr(); it.next_ne())
       {
         const size_t v = it.get_curr_ne();
         if (u < v)
@@ -3150,8 +3143,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
 
       Array<size_t> raw;
       raw.reserve(face.darts.size());
-      for (typename Array<typename Face_Metadata::Face_Dart>::Iterator it(face.darts);
-           it.has_curr(); it.next_ne())
+      for (auto it = face.darts.get_it(); it.has_curr(); it.next_ne())
         {
           const auto &d = it.get_curr_ne();
           ah_runtime_error_unless(node_to_idx.contains(d.src))
@@ -3174,7 +3166,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
       DynSetTree<size_t> seen;
       Array<size_t> unique_cycle;
       unique_cycle.reserve(cleaned.size());
-      for (typename Array<size_t>::Iterator it(cleaned); it.has_curr(); it.next_ne())
+      for (auto it = cleaned.get_it(); it.has_curr(); it.next_ne())
         {
           const size_t u = it.get_curr_ne();
           if (seen.contains(u))
@@ -3246,7 +3238,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
     const auto &cnodes = comp_nodes[comp];
     Array<char> fixed(n, static_cast<char>(0));
 
-    for (typename Array<size_t>::Iterator it(cnodes); it.has_curr(); it.next_ne())
+    for (auto it = cnodes.get_it(); it.has_curr(); it.next_ne())
       {
         const size_t u = it.get_curr_ne();
         px[u] = 0;
@@ -3257,7 +3249,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
     if (use_boundary.size() < 3 and cnodes.size() >= 1)
       {
         use_boundary.empty();
-        for (typename Array<size_t>::Iterator it(cnodes); it.has_curr(); it.next_ne())
+        for (auto it = cnodes.get_it(); it.has_curr(); it.next_ne())
           use_boundary.append(it.get_curr_ne());
       }
 
@@ -3280,7 +3272,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
         fixed[u] = 1;
       }
 
-    for (typename Array<size_t>::Iterator it(cnodes); it.has_curr(); it.next_ne())
+    for (auto it = cnodes.get_it(); it.has_curr(); it.next_ne())
       {
         const size_t u = it.get_curr_ne();
         if (fixed[u])
@@ -3289,7 +3281,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
         double sx = 0;
         double sy = 0;
         size_t cnt = 0;
-        for (typename Array<size_t>::Iterator nt(order[u]); nt.has_curr(); nt.next_ne())
+        for (auto nt = order[u].get_it(); nt.has_curr(); nt.next_ne())
           {
             const size_t v = nt.get_curr_ne();
             if (comp_id[v] != static_cast<long>(comp))
@@ -3317,7 +3309,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
         ++iterations;
         double max_delta = 0;
 
-        for (typename Array<size_t>::Iterator it(cnodes); it.has_curr(); it.next_ne())
+        for (auto it = cnodes.get_it(); it.has_curr(); it.next_ne())
           {
             const size_t u = it.get_curr_ne();
             if (fixed[u])
@@ -3326,7 +3318,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
             double sx = 0;
             double sy = 0;
             size_t cnt = 0;
-            for (typename Array<size_t>::Iterator nt(order[u]); nt.has_curr(); nt.next_ne())
+            for (auto nt = order[u].get_it(); nt.has_curr(); nt.next_ne())
               {
                 const size_t v = nt.get_curr_ne();
                 if (comp_id[v] != static_cast<long>(comp))
@@ -3416,7 +3408,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
         return crossings == 0;
       };
 
-      for (typename Array<size_t>::Iterator fit(candidates); fit.has_curr(); fit.next_ne())
+      for (auto fit = candidates.get_it(); fit.has_curr(); fit.next_ne())
         {
           const size_t idx = fit.get_curr_ne();
           if (evaluate_boundary(face_candidates[idx].boundary_nodes, face_candidates[idx].face_id))
@@ -3426,7 +3418,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
       if (not has_best)
         {
           Array<size_t> fallback;
-          for (typename Array<size_t>::Iterator it(comp_nodes[c]); it.has_curr(); it.next_ne())
+          for (auto it = comp_nodes[c].get_it(); it.has_curr(); it.next_ne())
             fallback.append(it.get_curr_ne());
           (void) evaluate_boundary(fallback, Null);
         }
@@ -3435,7 +3427,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
 
       double min_x = std::numeric_limits<double>::max();
       double max_x = -std::numeric_limits<double>::max();
-      for (typename Array<size_t>::Iterator it(comp_nodes[c]); it.has_curr(); it.next_ne())
+      for (auto it = comp_nodes[c].get_it(); it.has_curr(); it.next_ne())
         {
           const size_t u = it.get_curr_ne();
           min_x = std::min(min_x, best_x[u]);
@@ -3443,7 +3435,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
         }
 
       const double shift_x = offset_x - min_x;
-      for (typename Array<size_t>::Iterator it(comp_nodes[c]); it.has_curr(); it.next_ne())
+      for (auto it = comp_nodes[c].get_it(); it.has_curr(); it.next_ne())
         {
           const size_t u = it.get_curr_ne();
           gx[u] = best_x[u] + shift_x;
@@ -3648,8 +3640,7 @@ std::string nonplanar_certificate_to_dot(
   planarity_detail::collect_certificate_nodes(result, nodes, node_to_id);
 
   DynSetTree<size_t> branch_ids;
-  for (typename Array<Node *>::Iterator it(result.certificate_branch_nodes); it.has_curr();
-       it.next_ne())
+  for (auto it = result.certificate_branch_nodes.get_it(); it.has_curr(); it.next_ne())
     {
       Node *node = it.get_curr_ne();
       if (node != nullptr and node_to_id.contains(node))
@@ -3741,8 +3732,7 @@ NonPlanar_Certificate_Validation<GT> validate_nonplanar_certificate(
   report.num_nodes = nodes.size();
 
   DynSetTree<size_t> branch_ids;
-  for (typename Array<Node *>::Iterator it(result.certificate_branch_nodes); it.has_curr();
-       it.next_ne())
+  for (auto it = result.certificate_branch_nodes.get_it(); it.has_curr(); it.next_ne())
     {
       Node *node = it.get_curr_ne();
       if (node == nullptr or not node_to_id.contains(node))
@@ -3776,9 +3766,7 @@ NonPlanar_Certificate_Validation<GT> validate_nonplanar_certificate(
   };
 
   DynSetTree<planarity_detail::Edge_Key> obstruction_keys;
-  for (typename Array<typename Planarity_Test_Result<GT>::Edge_Witness>::Iterator it(
-         result.certificate_obstruction_edges);
-       it.has_curr(); it.next_ne())
+  for (auto it = result.certificate_obstruction_edges.get_it(); it.has_curr(); it.next_ne())
     {
       const auto &e = it.get_curr_ne();
       planarity_detail::Edge_Key key;
@@ -3790,13 +3778,11 @@ NonPlanar_Certificate_Validation<GT> validate_nonplanar_certificate(
       obstruction_keys.insert(key);
     }
 
-  for (typename Array<typename Planarity_Test_Result<GT>::Path_Witness>::Iterator pit(
-         result.certificate_paths);
-       pit.has_curr(); pit.next_ne())
+  for (auto pit = result.certificate_paths.get_it(); pit.has_curr(); pit.next_ne())
     {
       const auto &path = pit.get_curr_ne();
 
-      for (typename Array<Node *>::Iterator nit(path.nodes); nit.has_curr(); nit.next_ne())
+      for (auto nit = path.nodes.get_it(); nit.has_curr(); nit.next_ne())
         if (nit.get_curr_ne() == nullptr)
           ++report.null_path_nodes;
 
@@ -3882,8 +3868,7 @@ std::string nonplanar_certificate_to_graphml(
   planarity_detail::collect_certificate_nodes(result, nodes, node_to_id);
 
   DynSetTree<size_t> branch_ids;
-  for (typename Array<Node *>::Iterator it(result.certificate_branch_nodes); it.has_curr();
-       it.next_ne())
+  for (auto it = result.certificate_branch_nodes.get_it(); it.has_curr(); it.next_ne())
     {
       Node *node = it.get_curr_ne();
       if (node != nullptr and node_to_id.contains(node))
@@ -3986,8 +3971,7 @@ std::string nonplanar_certificate_to_gexf(
   planarity_detail::collect_certificate_nodes(result, nodes, node_to_id);
 
   DynSetTree<size_t> branch_ids;
-  for (typename Array<Node *>::Iterator it(result.certificate_branch_nodes); it.has_curr();
-       it.next_ne())
+  for (auto it = result.certificate_branch_nodes.get_it(); it.has_curr(); it.next_ne())
     {
       Node *node = it.get_curr_ne();
       if (node != nullptr and node_to_id.contains(node))

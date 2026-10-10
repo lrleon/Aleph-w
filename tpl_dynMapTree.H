@@ -104,6 +104,8 @@ namespace Aleph {
 
     DynMapTree() = default;
 
+    Derived_Build(DynMapTree);
+
     using Key_Type = Key;
 
     using Item_Type = Pair;
@@ -250,14 +252,32 @@ namespace Aleph {
      * @param[in] key Key to search.
      * @return Pointer to the stored pair if found; nullptr otherwise.
      */
-    Pair * search(const Key & key) const noexcept
+    Pair * search(const Key & key) noexcept
     {
       static_assert(std::is_default_constructible_v<Data>,
                     "DynMapTree::search() requires Data to be default-constructible");
       return this->Base::search(Pair(key, Data()));
     }
 
-    Pair * search(Key && key) const noexcept
+    /// \overload
+    /// A pointer to const.
+    const Pair * search(const Key & key) const noexcept
+    {
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::search() requires Data to be default-constructible");
+      return this->Base::search(Pair(key, Data()));
+    }
+
+    Pair * search(Key && key) noexcept
+    {
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::search() requires Data to be default-constructible");
+      return this->Base::search(Pair(std::move(key), Data()));
+    }
+
+    /// \overload
+    /// A pointer to const.
+    const Pair * search(Key && key) const noexcept
     {
       static_assert(std::is_default_constructible_v<Data>,
                     "DynMapTree::search() requires Data to be default-constructible");
@@ -318,6 +338,9 @@ namespace Aleph {
 
     using Iterator = typename Base::Iterator;
 
+    /// Read-only iterator: the iterator of a constant map.
+    using Const_Iterator = typename Base::Const_Iterator;
+
     DynList<Key> keys() const
     {
       return this->template maps<Key>([] (auto p) { return p.first; });
@@ -373,21 +396,32 @@ namespace Aleph {
    * @ingroup Trees
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
-  class DynMapBinTree : public DynMapTree<Key, Type, BinTree, Compare> {};
+  class DynMapBinTree : public DynMapTree<Key, Type, BinTree, Compare>
+  {
+  public:
+    Derived_Build(DynMapBinTree);
+  };
 
   /** @brief Dynamic map implemented with an AVL tree.
    * @see Avl_Tree DynMapTree
    * @ingroup Trees
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
-  class DynMapAvlTree : public DynMapTree<Key, Type, Avl_Tree, Compare> {};
+  class DynMapAvlTree : public DynMapTree<Key, Type, Avl_Tree, Compare>
+  {
+  public:
+    Derived_Build(DynMapAvlTree);
+  };
   /** @brief Dynamic map implemented with a red-black tree.
    * @see Rb_Tree DynMapTree
    * @ingroup Trees
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapRbTree : public DynMapTree<Key, Type, Rb_Tree, Compare>
-  { /* empty */ };
+  {
+  public:
+    Derived_Build(DynMapRbTree);
+  };
 
   /** @brief Dynamic map implemented with a randomized BST.
    * @see Rand_Tree DynMapTree
@@ -395,7 +429,10 @@ namespace Aleph {
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapRandTree : public DynMapTree<Key, Type, Rand_Tree, Compare>
-  { /* empty */ };
+  {
+  public:
+    Derived_Build(DynMapRandTree);
+  };
 
   /** @brief Dynamic map implemented with a treap.
    * @see Treap DynMapTree
@@ -403,7 +440,10 @@ namespace Aleph {
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapTreap : public DynMapTree<Key, Type, Treap, Compare>
-  { /* empty */ };
+  {
+  public:
+    Derived_Build(DynMapTreap);
+  };
 
   /** @brief Dynamic map implemented with a ranked treap.
    *
@@ -415,7 +455,10 @@ namespace Aleph {
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapTreapRk : public DynMapTree<Key, Type, Treap_Rk, Compare>
-  { /* empty */ };
+  {
+  public:
+    Derived_Build(DynMapTreapRk);
+  };
 
   /** @brief Dynamic map implemented with a splay tree.
    * @see Splay_Tree DynMapTree
@@ -423,7 +466,10 @@ namespace Aleph {
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapSplayTree : public DynMapTree<Key, Type, Splay_Tree, Compare>
-  { /* empty */ };
+  {
+  public:
+    Derived_Build(DynMapSplayTree);
+  };
 
   template <typename T, class Op, class C>
   DynMapTree<typename C::Item_Type, T> map_unify(const C & c, Op op)

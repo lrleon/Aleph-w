@@ -142,16 +142,15 @@ TEST(StreamingAlgorithms, MinHash)
   // Set 2: [50..149] -> Intersection 50, Union 150 -> Jaccard = 1/3
   // Set 3: [200..299] -> Jaccard with 1 = 0
   DynArray<int> set1, set2, set3;
-  set1.reserve(100);
-  set2.reserve(100);
-  set3.reserve(100);
-
   for (int i = 0; i < 100; ++i)
     {
       set1.append(i);
       set2.append(i + 50);
       set3.append(i + 200);
     }
+  ASSERT_EQ(set1.size(), 100u);
+  ASSERT_EQ(set2.size(), 100u);
+  ASSERT_EQ(set3.size(), 100u);
 
   for (int i = 0; i < 100; ++i) mh1.update(i);
   for (int i = 50; i < 150; ++i) mh2.update(i);
@@ -191,9 +190,9 @@ TEST(StreamingAlgorithms, MinHash)
   // Merge contract: returns *this and corresponds to union of sets.
   MinHash<int> mh_union_expected(K);
   DynArray<int> union12;
-  union12.reserve(150);
   for (int i = 0; i < 150; ++i)
     union12.append(i);
+  ASSERT_EQ(union12.size(), 150u);
   mh_union_expected.update(union12.begin(), union12.end());
 
   MinHash<int> mh_merged = mh1;

@@ -1028,7 +1028,7 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
     requires StrictWeakOrder<Compare, T>
   class DynIntervalTree
-      : public EqualToMethod<DynIntervalTree<T, Compare>>,
+      : public EqualSortedMethod<DynIntervalTree<T, Compare>>,
         public FunctionalMethods<DynIntervalTree<T, Compare>, Interval<T>>,
         public GenericKeys<DynIntervalTree<T, Compare>, Interval<T>>,
         public StlAlephIterator<DynIntervalTree<T, Compare>>
@@ -1329,6 +1329,13 @@ namespace Aleph
      */
     [[nodiscard]] size_t size() const noexcept { return tree.size(); }
 
+    /** @brief Return the comparator that orders the intervals: by low
+     *         endpoint, then by high endpoint.
+     *  @return the interval comparator.
+     *  @throws none
+     */
+    [[nodiscard]] auto key_comp() const noexcept { return tree.key_comp(); }
+
     /** @brief Return true if the tree contains no intervals.
      *  @return true if empty.
      *  @throws none
@@ -1356,6 +1363,7 @@ namespace Aleph
      *  @throws anything that `op` throws.
      */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const Key &>
     bool traverse(Operation & op)
     {
       return Aleph::traverse(tree.getRoot(), [&op](const Node *p)
@@ -1371,6 +1379,7 @@ namespace Aleph
      *  @throws anything that `op` throws.
      */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const Key &>
     bool traverse(Operation && op = Operation())
     {
       return traverse<Operation>(op);
@@ -1383,6 +1392,7 @@ namespace Aleph
      *  @throws anything that `op` throws.
      */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const Key &>
     bool traverse(Operation & op) const
     {
       return Aleph::traverse(tree.getRoot(), [&op](const Node *p)
@@ -1398,6 +1408,7 @@ namespace Aleph
      *  @throws anything that `op` throws.
      */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const Key &>
     bool traverse(Operation && op = Operation()) const
     {
       return traverse<Operation>(op);
@@ -1449,9 +1460,11 @@ namespace Aleph
       void next() { it.next(); }
 
       /** @brief Advance to the next element (no check).
-       *  @throws none
+       *  @throws bad_alloc only if the tree is deeper than the inline
+       *          capacity of the iterator (its node's `MaxHeight`, at most
+       *          128) and the pending nodes cannot be moved to the heap.
        */
-      void next_ne() noexcept { it.next_ne(); }
+      void next_ne() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
       /** @brief Go back to the previous element.
        *  @throws ah_invalid_argument if already at the beginning.
@@ -1459,9 +1472,9 @@ namespace Aleph
       void prev() { it.prev(); }
 
       /** @brief Reset to the first element in traversal order.
-       *  @throws none
+       *  @throws bad_alloc as next_ne() does.
        */
-      void reset_first() noexcept { it.reset_first(); }
+      void reset_first() noexcept(noexcept(it.reset_first())) { it.reset_first(); }
 
       /** @brief Move to the position after the last element.
        *  @throws none

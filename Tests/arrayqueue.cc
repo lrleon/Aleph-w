@@ -36,6 +36,12 @@
  * @brief Tests for Arrayqueue
  */
 # include <gtest/gtest.h>
+# include <memory>
+# include <deque>
+# include <new>
+# include <random>
+# include <string>
+# include <type_traits>
 
 # include <tpl_arrayQueue.H>
 
@@ -473,3 +479,340 @@ TEST(ArrayQueue, copy_operations)
   }
 }
 
+// Regression tests for queues whose front advanced past slot 0. Copy
+// construction and copy assignment used to copy the raw buffer prefix, so the
+// copy kept the indices of the source but not its items; empty() and
+// reserve() also ignored the circular layout.
+
+/// @brief Place g/h at slots 6/7 and wrap i/j around to slots 0/1.
+static void fill_wrapped(ArrayQueue<string> &q)
+{
+  for (const char *item : {"a", "b", "c", "d", "e", "f", "g", "h"})
+    q.put(item);
+  for (int i = 0; i < 6; ++i)
+    (void) q.get();
+  q.put("i");
+  q.put("j");
+}
+
+/// @brief Check the logical FIFO sequence against the expected values.
+static void expect_order(const ArrayQueue<string> &q, initializer_list<const char *> expected)
+{
+  ASSERT_EQ(q.size(), expected.size());
+  size_t i = 0;
+  for (const char *item : expected)
+    EXPECT_EQ(q.front(i++), item);
+}
+
+TEST(ArrayQueue, copy_keeps_the_items_of_a_wrapped_queue)
+{
+  ArrayQueue<string> q(8);
+  fill_wrapped(q);
+
+  ArrayQueue<string> copy(q);
+  expect_order(copy, {"g", "h", "i", "j"});
+
+  ArrayQueue<string> assigned;
+  assigned.put("stale");
+  assigned = q;
+  expect_order(assigned, {"g", "h", "i", "j"});
+  expect_order(q, {"g", "h", "i", "j"});
+
+  // The copy keeps working as a queue.
+  copy.put("k");
+  EXPECT_EQ(copy.get(), "g");
+  EXPECT_EQ(copy.rear(), "k");
+  expect_order(copy, {"h", "i", "j", "k"});
+}
+
+TEST(ArrayQueue, empty_restarts_both_ends)
+{
+  ArrayQueue<int> q(8);
+  for (int i = 1; i <= 5; ++i)
+    q.put(i);
+  (void) q.get();
+  (void) q.get();
+  q.empty();
+  EXPECT_TRUE(q.is_empty());
+  q.put(42);
+  EXPECT_EQ(q.front(), 42);
+  EXPECT_EQ(q.rear(), 42);
+
+  q.put(43);
+  (void) q.get();
+  q.clear();
+  q.put(7);
+  EXPECT_EQ(q.front(), 7);
+
+  for (int i = 0; i < 40; ++i)
+    q.put(i);
+  for (int i = 0; i < 30; ++i)
+    (void) q.get();
+  q.empty_and_release();
+  EXPECT_TRUE(q.is_empty());
+  q.put(9);
+  EXPECT_EQ(q.front(), 9);
+  EXPECT_EQ(q.rear(), 9);
+}
+
+TEST(ArrayQueue, reserve_keeps_the_order_of_a_wrapped_queue)
+{
+  ArrayQueue<string> q(8);
+  fill_wrapped(q);
+  q.reserve(64);
+  EXPECT_GE(q.capacity(), 64U);
+  expect_order(q, {"g", "h", "i", "j"});
+  q.put("k");
+  EXPECT_EQ(q.rear(), "k");
+  EXPECT_EQ(q.get(), "g");
+  expect_order(q, {"h", "i", "j", "k"});
+
+  // A capacity that is already available leaves the queue untouched.
+  q.reserve(4);
+  expect_order(q, {"h", "i", "j", "k"});
+}
+
+static_assert(not std::is_convertible_v<ArrayQueue<int> *, MemArray<int> *>);
+static_assert(std::is_nothrow_move_constructible_v<ArrayQueue<int>>);
+
+TEST(ArrayQueue, public_accessors_and_removals_use_fifo_order)
+{
+  ArrayQueue<string> q(8);
+  fill_wrapped(q);
+  EXPECT_EQ(q.first(), "g");
+  EXPECT_EQ(q.last(), "j");
+  EXPECT_EQ(q.get_first(), "g");
+  EXPECT_EQ(q.get_last(), "j");
+  EXPECT_EQ(q.top(), "g");
+  EXPECT_EQ(q[0], "g");
+  EXPECT_EQ(q(1), "h");
+  EXPECT_THROW(q[q.size()], out_of_range);
+  EXPECT_EQ(q.remove_first(), "g");
+  expect_order(q, {"h", "i", "j"});
+  EXPECT_EQ(q.rear(), "j");
+  EXPECT_EQ(q.remove_last(), "j");
+  q.push("k");
+  expect_order(q, {"h", "i", "k"});
+  q.reverse();
+  expect_order(q, {"k", "i", "h"});
+  EXPECT_EQ(q.pop(), "k");
+  expect_order(q, {"i", "h"});
+}
+
+TEST(ArrayQueue, copied_full_queue_wraps_the_next_insertion)
+{
+  ArrayQueue<int> q(8);
+  for (int i = 0; i < 8; ++i)
+    q.put(i);
+  ArrayQueue<int> copy(q);
+  EXPECT_EQ(copy.get(), 0);
+  copy.put(8);
+  for (int i = 1; i <= 8; ++i)
+    EXPECT_EQ(copy.get(), i);
+}
+
+TEST(ArrayQueue, moved_from_queue_can_be_iterated_copied_and_reused)
+{
+  ArrayQueue<string> q(8);
+  fill_wrapped(q);
+  ArrayQueue<string> moved(std::move(q));
+  EXPECT_TRUE(q.is_empty());
+  EXPECT_FALSE(q.get_it().has_curr());
+  EXPECT_EQ(q.begin(), q.end());
+  ArrayQueue<string> empty_copy(q);
+  EXPECT_TRUE(empty_copy.is_empty());
+  ArrayQueue<string> empty_moved(std::move(q));
+  EXPECT_TRUE(empty_moved.is_empty());
+
+  q.put("again");
+  EXPECT_EQ(q.front(), "again");
+  EXPECT_EQ(q.get(), "again");
+  q.reserve(64);
+  q.put("reserved");
+  EXPECT_EQ(q.front(), "reserved");
+  empty_moved.putn(2);
+  empty_moved[0] = "first";
+  empty_moved[1] = "last";
+  expect_order(empty_moved, {"first", "last"});
+  expect_order(moved, {"g", "h", "i", "j"});
+  EXPECT_THROW(empty_copy.putn(0), underflow_error);
+}
+
+TEST(ArrayQueue, reserve_preserves_wrapped_move_only_elements)
+{
+  ArrayQueue<std::unique_ptr<int>> q(8);
+  for (int i = 0; i < 8; ++i)
+    q.put(std::make_unique<int>(i));
+  for (int i = 0; i < 6; ++i)
+    EXPECT_EQ(*q.get(), i);
+  q.put(std::make_unique<int>(8));
+  q.put(std::make_unique<int>(9));
+  q.reserve(64);
+  for (int i = 6; i < 10; ++i)
+    EXPECT_EQ(*q.get(), i);
+}
+
+TEST(ArrayQueue, release_then_insert_reproduces_the_reported_capacity_64_case)
+{
+  ArrayQueue<int> q(64);
+  for (int i = 0; i < 40; ++i)
+    q.put(i);
+  for (int i = 0; i < 30; ++i)
+    EXPECT_EQ(q.get(), i);
+  q.empty_and_release();
+  EXPECT_EQ(q.capacity(), 4u);
+  q.put(9);
+  EXPECT_EQ(q.front(), 9);
+  EXPECT_EQ(q.rear(), 9);
+  EXPECT_EQ(q.get(), 9);
+}
+
+TEST(ArrayQueue, state_transitions_match_a_fifo_reference)
+{
+  std::mt19937 random(0xa1e9);
+  std::deque<int> reference;
+  ArrayQueue<int> q(8);
+  for (int step = 0; step < 2500; ++step)
+    {
+      SCOPED_TRACE(step);
+      switch (random() % 10)
+        {
+        case 0: case 1: case 2:
+          q.put(step);
+          reference.push_back(step);
+          break;
+        case 3:
+          if (not reference.empty())
+            {
+              EXPECT_EQ(q.get(), reference.front());
+              reference.pop_front();
+            }
+          break;
+        case 4:
+          {
+            ArrayQueue<int> copy(q);
+            q = copy;
+            break;
+          }
+        case 5:
+          {
+            ArrayQueue<int> moved(std::move(q));
+            q.put(-1);  // exercise the moved-from source before assignment
+            q = std::move(moved);
+            break;
+          }
+        case 6: q.reserve(16 + random() % 64); break;
+        case 7:
+          q.clear();
+          reference.clear();
+          break;
+        case 8:
+          q.empty_and_release();
+          reference.clear();
+          break;
+        case 9:
+          if (not reference.empty())
+            {
+              EXPECT_EQ(q.remove_last(), reference.back());
+              reference.pop_back();
+            }
+          break;
+        }
+      ASSERT_EQ(q.size(), reference.size());
+      size_t i = 0;
+      for (int value : q)
+        {
+          ASSERT_LT(i, reference.size());
+          EXPECT_EQ(value, reference[i]);
+          EXPECT_EQ(q(i), reference[i]);
+          ++i;
+        }
+      EXPECT_EQ(i, reference.size());
+    }
+}
+
+/// @brief A string too long for the small-string buffer.
+static string long_string(const char c)
+{
+  return string(40, c);
+}
+
+/// @brief Element whose default construction, that of every slot of a new
+/// buffer, can fail as an allocation does.
+struct Failing_Slot
+{
+  static inline int constructions_left = -1;
+  string value;
+
+  /// @brief Fail at the configured default construction.
+  Failing_Slot()
+  {
+    if (constructions_left == 0)
+      throw bad_alloc();
+    if (constructions_left > 0)
+      --constructions_left;
+  }
+
+  /// @brief Build an element that holds `v`.
+  explicit Failing_Slot(string v) : value(std::move(v)) {}
+};
+
+// The argument of put() may be an item of the queue itself, which growth
+// used to free before reading it.
+
+TEST(ArrayQueue, put_of_own_item_copies_it_before_growing)
+{
+  ArrayQueue<int> q(4);
+  for (int i : {10, 20, 30, 40})
+    q.put(i);
+  ASSERT_EQ(q.size(), q.capacity());
+
+  EXPECT_EQ(q.put(q.front()), 10);
+  EXPECT_EQ(q.put(q.rear()), 10);  // with free capacity
+  ASSERT_EQ(q.size(), 6u);
+  for (int i : {10, 20, 30, 40, 10, 10})
+    EXPECT_EQ(q.get(), i);
+}
+
+TEST(ArrayQueue, put_of_own_item_of_a_full_wrapped_queue)
+{
+  ArrayQueue<string> q(4);
+  for (char c : {'a', 'b', 'c', 'd'})
+    q.put(long_string(c));
+  EXPECT_EQ(q.get(), long_string('a'));
+  q.put(long_string('e'));  // the rear wraps around to slot 0
+  ASSERT_EQ(q.size(), q.capacity());
+
+  EXPECT_EQ(q.put(std::move(q.front(1))), long_string('c'));
+  ASSERT_EQ(q.size(), 5u);
+  EXPECT_EQ(q.front(), long_string('b'));
+  EXPECT_EQ(q.front(3), long_string('e'));
+  EXPECT_EQ(q.rear(), long_string('c'));
+
+  EXPECT_EQ(q.put(q.front(3)), long_string('e'));  // with free capacity
+  EXPECT_EQ(q.rear(1), long_string('c'));
+}
+
+TEST(ArrayQueue, failed_growth_leaves_the_queue_and_the_argument_untouched)
+{
+  ArrayQueue<Failing_Slot> q(4);
+  for (char c : {'a', 'b', 'c', 'd'})
+    q.put(Failing_Slot(long_string(c)));
+  (void) q.get();
+  q.put(Failing_Slot(long_string('e')));  // full and wrapped
+  ASSERT_EQ(q.size(), q.capacity());
+
+  Failing_Slot x(long_string('x'));
+  Failing_Slot::constructions_left = 0;  // the new buffer cannot be built
+  EXPECT_THROW(q.put(std::move(x)), bad_alloc);
+  EXPECT_THROW(q.put(q.front()), bad_alloc);
+  Failing_Slot::constructions_left = -1;
+
+  EXPECT_EQ(x.value, long_string('x'));
+  ASSERT_EQ(q.size(), 4u);
+  for (size_t i = 0; i < 4; ++i)
+    EXPECT_EQ(q.front(i).value, long_string(static_cast<char>('b' + i)));
+
+  EXPECT_EQ(q.put(std::move(x)).value, long_string('x'));
+  EXPECT_EQ(q.front().value, long_string('b'));
+}
