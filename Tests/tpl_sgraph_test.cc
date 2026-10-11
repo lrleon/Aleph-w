@@ -38,6 +38,8 @@
 #include <gtest/gtest.h>
 #include <tpl_sgraph.H>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace Aleph;
@@ -336,6 +338,43 @@ TEST(ListSGraph, ArcIterator)
 
   EXPECT_EQ(count, 2);
   EXPECT_EQ(sum, 30);  // 10 + 20
+}
+
+// The sets of nodes and arcs of the graph are ordered by the stored pointers.
+// The iterators hand those pointers out by value, so that the sets cannot be
+// written through them, in particular from a constant graph.
+TEST(ListSGraph, IteratorsHandOutPointersByValue)
+{
+  static_assert(std::is_same_v<decltype(std::declval<IntGraph::Node_Iterator &>().get_curr()),
+                               IntGraph::Node *>);
+  static_assert(std::is_same_v<decltype(std::declval<IntGraph::Node_Iterator &>().get_curr_ne()),
+                               IntGraph::Node *>);
+  static_assert(std::is_same_v<decltype(std::declval<IntGraph::Arc_Iterator &>().get_curr()),
+                               IntGraph::Arc *>);
+  static_assert(std::is_same_v<decltype(std::declval<IntGraph::Arc_Iterator &>().get_curr_ne()),
+                               IntGraph::Arc *>);
+
+  IntGraph g;
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  auto a = g.insert_arc(n1, n2, 10);
+  const IntGraph & cg = g;
+
+  int sum = 0;
+  for (IntGraph::Node_Iterator it(cg); it.has_curr(); it.next_ne())
+  {
+    EXPECT_TRUE(it.get_curr() == n1 or it.get_curr() == n2);
+    EXPECT_EQ(it.get_curr(), it.get_curr_ne());
+    EXPECT_EQ(it.get_curr(), it.get_current_node());
+    sum += it.get_curr()->get_info();
+  }
+  EXPECT_EQ(sum, 3);  // 1 + 2
+
+  IntGraph::Arc_Iterator ait(cg);
+  ASSERT_TRUE(ait.has_curr());
+  EXPECT_EQ(ait.get_curr(), a);
+  EXPECT_EQ(ait.get_curr_ne(), a);
+  EXPECT_EQ(ait.get_current_arc(), a);
 }
 
 TEST(ListSGraph, NodeArcIterator)
