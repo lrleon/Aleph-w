@@ -3261,7 +3261,7 @@ namespace Aleph
       ah_domain_error_if(list.is_unitarian())
         << "Path with only a node (without any arc)";
 
-      typename DynDlist<Path_Desc>::Iterator it(list);
+      typename DynDlist<Path_Desc>::Const_Iterator it(list);
       it.reset_last();
       it.prev();
       return it.get_curr().arc;

@@ -407,7 +407,7 @@ inline const T *search_extreme(const DynList<T> &list, const Compare &cmp = Comp
     return nullptr;
 
   /// Iterator positioned at the first element, used as the initial extreme.
-  typename DynList<T>::Iterator it(list);
+  typename DynList<T>::Const_Iterator it(list);
   const T *extreme = &it.get_curr();
   it.next_ne();
   for (; it.has_curr(); it.next_ne())
@@ -744,7 +744,7 @@ inline T *sequential_search(DynList<T> &list, const T &x, Equal eq = Equal())
 template <typename T, class Equal = Aleph::equal_to<T>>
 inline const T *sequential_search(const DynList<T> &list, const T &x, Equal eq = Equal())
 {
-  for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
+  for (typename DynList<T>::Const_Iterator it(list); it.has_curr(); it.next_ne())
     {
       const T &curr = it.get_curr_ne();
       if (eq(curr, x))

@@ -795,7 +795,7 @@ TEST(ArrayEdgeCases, SingleElement)
 
 TEST(ArrayEdgeCases, BoundaryAccess)
 {
-  // Ten live items; the single-argument constructor only reserves capacity.
+  // Ten live items; create_reserved(10) would only reserve capacity.
   auto arr = Array<int>::create(10);
   arr(0) = 1;
   arr(9) = 10;
