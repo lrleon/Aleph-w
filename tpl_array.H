@@ -242,7 +242,7 @@ public:
    *  arr[0] = 42; // Assign before read
    *  @endcode
    */
-  static Array create(size_t n)
+  static Array create(const size_t n)
   {
     Array ret = create_reserved(n);
     ret.putn(n);
