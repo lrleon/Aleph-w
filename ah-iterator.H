@@ -345,6 +345,14 @@ class Const_Iterator : public const_iterator_detail::item_type_of<It>,
       return It(const_cast<C &>(c));
   }
 
+protected:
+  /** @brief The underlying iterator, for the views that extend the reading
+      protocol with members of their own (the read-only iterators of the
+      graphs do it with `get_src_node()` and `get_tgt_node()`).
+      @return a reference to the underlying iterator.
+  */
+  [[nodiscard]] It & underlying() const noexcept { return it; }
+
 public:
   /// The underlying iterator.
   using Itor = It;

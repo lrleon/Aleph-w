@@ -1,0 +1,5 @@
+# `git archive` (release tarballs, GitHub source downloads) replaces the
+# placeholder in this file with the commit hash, so that a source tree
+# without .git still knows its revision. See "Package identity" in
+# CMakeLists.txt.
+cmake/AlephSourceRevision.cmake export-subst

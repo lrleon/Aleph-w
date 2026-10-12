@@ -1056,4 +1056,66 @@ TEST(DynArrayNoexcept, DependsOnT)
   EXPECT_EQ(b.size(), 1u);
 }
 
+// cut() resets the entries that leave the last kept block, which assigns a
+// T and may throw. A cut that fails must leave the array as it was: it used
+// to release the blocks above first and keep the old dimension.
+struct Assignment_Throws
+{
+  static inline int assignments_left = -1;  // negative: never throws
+
+  int value = 0;
+
+  Assignment_Throws() = default;
+  Assignment_Throws(const int v) : value(v) {}
+  Assignment_Throws(const Assignment_Throws &) = default;
+  Assignment_Throws & operator = (const Assignment_Throws & o)
+  {
+    if (assignments_left == 0)
+      throw std::runtime_error("assignment");
+    if (assignments_left > 0)
+      --assignments_left;
+    value = o.value;
+    return *this;
+  }
+};
+
+TEST(DynArrayCut, a_cut_that_fails_releases_nothing_and_keeps_the_dimension)
+{
+  DynArray<Assignment_Throws> a(4, 4, 2);  // blocks of four entries
+  for (int i = 0; i < 12; ++i)
+    a.touch(i) = Assignment_Throws(i + 1);
+
+  // cut(6) resets the entries 6 and 7 of the second block and releases the
+  // third one; the second reset throws.
+  Assignment_Throws::assignments_left = 1;
+  EXPECT_THROW(a.cut(6), std::runtime_error);
+  Assignment_Throws::assignments_left = -1;
+
+  EXPECT_EQ(a.size(), 12u);
+  for (size_t i = 0; i < 12; ++i)
+    ASSERT_TRUE(a.exist(i)) << i;  // no block was released
+  for (int i = 0; i < 6; ++i)
+    EXPECT_EQ(a.access(i).value, i + 1);
+  for (int i = 8; i < 12; ++i)
+    EXPECT_EQ(a.access(i).value, i + 1);  // the third block is intact
+
+  // The cut can be retried, and growing again shows unwritten entries.
+  a.cut(6);
+  EXPECT_EQ(a.size(), 6u);
+  EXPECT_FALSE(a.exist(8));
+  for (int i = 0; i < 6; ++i)
+    EXPECT_EQ(a.access(i).value, i + 1);
+  a.touch(11);
+  EXPECT_EQ(a.size(), 12u);
+  for (size_t i = 6; i < 12; ++i)
+    EXPECT_EQ(a.read(i).value, 0) << i;
+
+  // pop() and remove() shrink through the same code.
+  Assignment_Throws::assignments_left = 0;
+  EXPECT_THROW(a.cut(10), std::runtime_error);
+  Assignment_Throws::assignments_left = -1;
+  EXPECT_EQ(a.size(), 12u);
+  EXPECT_TRUE(a.exist(11));
+}
+
 } // namespace

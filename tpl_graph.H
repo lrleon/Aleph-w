@@ -596,7 +596,7 @@ namespace Aleph
       */
     Arc * get_first_arc(Node *node) const
     {
-      ah_range_error_if(get_num_arcs (node) == 0) << "node has not arcs";
+      ah_range_error_if(this->get_num_arcs(node) == 0) << "node has not arcs";
 
       void *arc = dlink_to_arc_node(node->arc_list.get_next())->arc;
       return reinterpret_cast<Arc *>(arc);

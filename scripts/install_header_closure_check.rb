@@ -7,19 +7,21 @@ require 'set'
 
 INCLUDE_RE = /^\s*#\s*include\s*[<"]([^>"]+)[>"]/
 
-def parse_hlist(cmake_path)
+# Tokens of the CMake list `set(<name> ...)`, without comments.
+def parse_cmake_list(cmake_path, name)
   tokens = []
   inside = false
+  opening = "set(#{name}"
 
   cmake_path.each_line do |line|
     stripped = line.sub(/#.*/, '').strip
     next if stripped.empty? and !inside
 
     if !inside
-      next unless stripped.start_with?('set(HLIST')
+      next unless stripped == opening or stripped.start_with?("#{opening} ")
 
       inside = true
-      stripped = stripped.sub(/^set\(HLIST/, '').strip
+      stripped = stripped.delete_prefix(opening).strip
     end
 
     done = false
@@ -92,8 +94,10 @@ repo_root = Pathname.new(options[:repo]).realpath
 cmake_path = repo_root / 'CMakeLists.txt'
 fail_with("CMakeLists.txt not found at #{cmake_path}") unless cmake_path.file?
 
-hlist = parse_hlist(cmake_path)
+hlist = parse_cmake_list(cmake_path, 'HLIST')
 fail_with('Could not parse HLIST from CMakeLists.txt') if hlist.empty?
+
+not_installed = parse_cmake_list(cmake_path, 'ALEPH_HEADERS_NOT_INSTALLED')
 
 header_map = repo_header_map(repo_root)
 
@@ -102,6 +106,41 @@ unless missing_files.empty?
   fail_with(
     "HLIST references missing headers:\n" \
     "#{missing_files.sort.map { |name| "  - #{name}" }.join("\n")}"
+  )
+end
+
+duplicated = hlist.tally.select { |_, count| count > 1 }.keys
+unless duplicated.empty?
+  fail_with(
+    "HLIST lists headers more than once:\n" \
+    "#{duplicated.sort.map { |name| "  - #{name}" }.join("\n")}"
+  )
+end
+
+missing_exclusions = not_installed.reject { |name| header_map.key?(name) }
+unless missing_exclusions.empty?
+  fail_with(
+    "ALEPH_HEADERS_NOT_INSTALLED references missing headers:\n" \
+    "#{missing_exclusions.sort.map { |name| "  - #{name}" }.join("\n")}"
+  )
+end
+
+both = hlist & not_installed
+unless both.empty?
+  fail_with(
+    "Headers listed both in HLIST and in ALEPH_HEADERS_NOT_INSTALLED:\n" \
+    "#{both.sort.map { |name| "  - #{name}" }.join("\n")}"
+  )
+end
+
+# Every top-level header is public API unless it is explicitly excluded, so a
+# header that is in neither list was left out of the installation by accident.
+unlisted = header_map.keys - hlist - not_installed
+unless unlisted.empty?
+  fail_with(
+    "Top-level headers that are neither installed (HLIST) nor excluded " \
+    "(ALEPH_HEADERS_NOT_INSTALLED) in CMakeLists.txt:\n" \
+    "#{unlisted.sort.map { |name| "  - #{name}" }.join("\n")}"
   )
 end
 
@@ -115,4 +154,5 @@ unless missing_closure.empty?
   )
 end
 
-puts "HLIST closure check passed: #{hlist.size} install headers, #{closure.size} reachable local headers."
+puts "HLIST closure check passed: #{hlist.size} install headers, #{closure.size} reachable local headers, " \
+     "#{not_installed.size} top-level headers excluded on purpose."

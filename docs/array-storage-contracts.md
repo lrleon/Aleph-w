@@ -128,6 +128,18 @@ Consumers that bypass the target must apply the same settings manually and
 rebuild their dependencies. With annotations enabled, `MemArray::access()` also
 cannot read a slot outside the logical size; it remains unchecked otherwise.
 
+An installed package says whether it was built this way: `find_package(Aleph)`
+sets `Aleph_SANITIZERS` and `Aleph_CONTAINER_ANNOTATIONS`, and the installed
+header `aleph-version.H` has the matching macros
+(`ALEPH_BUILT_WITH_CONTAINER_ANNOTATIONS`); including it in a translation unit
+that lacks the annotation settings of such a package is a compile error.
+`scripts/installed_package_check.sh` checks all of this from an external
+consumer that uses only `Aleph::Aleph`, in Release: after every operation that
+changes the size or the buffer (growth, shrink, reserve, copy, move, swap,
+reuse) exactly the reserved slots are poisoned, a read beyond the logical size
+is reported as a container-overflow, and a queue whose storage has wrapped
+around works without reports.
+
 ## Tests outside the source tree
 
 The planarity test target receives the absolute source directory from CMake.

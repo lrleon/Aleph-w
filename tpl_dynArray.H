@@ -1280,6 +1280,24 @@ public:
 
     const size_t old_dim = current_dim;  // old dimension
 
+    // The entries of the last kept block in [new_dim, old_dim) leave the
+    // array: reset them to the default value, so that growing it again shows
+    // unwritten entries instead of stale ones. Entries past old_dim already
+    // hold the default value, so a pop() costs O(1), not O(block_size).
+    // This is the only step that can throw (the assignment of T), so it goes
+    // first: if it does, no block has been released and the dimension is the
+    // old one.
+    if (new_dim < old_dim)
+      if (T * last = test(new_dim - 1); last != nullptr)
+        {
+          const size_t pos = index_in_block(new_dim - 1);
+          const bool same_block = (new_dim - 1) / block_size == (old_dim - 1) / block_size;
+          const size_t end = same_block ? index_in_block(old_dim - 1) + 1 : block_size;
+          T * block = last - pos;
+          for (size_t k = pos + 1; k < end; ++k)
+            block[k] = default_initial_value;
+        }
+
     // segment and block first indexes
     const long idx_first_seg = index_in_dir(old_dim - 1);
     const long idx_first_block = index_in_seg(old_dim - 1);
@@ -1309,21 +1327,6 @@ public:
         if (idx_block < 0)
           release_segment(dir[idx_seg]);
       }
-
-    // The entries of the last kept block in [new_dim, old_dim) leave the
-    // array: reset them to the default value, so that growing it again shows
-    // unwritten entries instead of stale ones. Entries past old_dim already
-    // hold the default value, so a pop() costs O(1), not O(block_size).
-    if (new_dim < old_dim)
-      if (T * last = test(new_dim - 1); last != nullptr)
-        {
-          const size_t pos = index_in_block(new_dim - 1);
-          const bool same_block = (new_dim - 1) / block_size == (old_dim - 1) / block_size;
-          const size_t end = same_block ? index_in_block(old_dim - 1) + 1 : block_size;
-          T * block = last - pos;
-          for (size_t k = pos + 1; k < end; ++k)
-            block[k] = default_initial_value;
-        }
 
     current_dim = new_dim;  // Updates New Dimension
   }
