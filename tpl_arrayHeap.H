@@ -47,6 +47,7 @@
 #ifndef TPL_ARRAYHEAP_H
 #define TPL_ARRAYHEAP_H
 
+#include <ah-concepts.H>
 #include <algorithm>
 #include <cstddef>
 #include <stdexcept>
@@ -63,6 +64,7 @@
 #include <ahDry.H>
 #include <ah-dry.H>
 #include <ah-errors.H>
+#include <ah-iterator.H>
 
 namespace Aleph
 {
@@ -180,6 +182,7 @@ namespace Aleph
       @ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   inline
   void heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
@@ -211,6 +214,7 @@ namespace Aleph
       @ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   inline
   void faster_heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
@@ -238,6 +242,7 @@ namespace Aleph
       @ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   bool valid_heap(T *array, const size_t l, const size_t r,
                   const Compare & cmp = Compare())
   {
@@ -261,10 +266,10 @@ namespace Aleph
       @ingroup Trees
   */
   template <typename T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   class ArrayHeap : public LocateFunctions<ArrayHeap<T, Compare>, T>,
                     public FunctionalMethods<ArrayHeap<T, Compare>, T>,
                     public GenericItems<ArrayHeap<T, Compare>, T>,
-                    public EqualToMethod<ArrayHeap<T, Compare>>,
                     public StlAlephIterator<ArrayHeap<T, Compare>>
   {
     T *array = nullptr;
@@ -617,7 +622,19 @@ namespace Aleph
         : Array_Iterator<T>(no_exception_ctor, h.array + 1, h.dim, h.num_items)
       { /* empty */
       }
+
+      /// The current item, read-only: the heap order must not be broken.
+      [[nodiscard]] const T & get_curr() const { return Array_Iterator<T>::get_curr(); }
+
+      /// \overload get_curr()
+      [[nodiscard]] const T & get_curr_ne() const noexcept
+      {
+        return Array_Iterator<T>::get_curr_ne();
+      }
     };
+
+    /// Read-only iterator: the iterator of a constant container.
+    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 
   private:
     // superfast array traversal
@@ -626,6 +643,17 @@ namespace Aleph
     {
       for (size_t i = 1; i <= num_items; ++i)
         if (not operation(array[i]))
+          return false;
+
+      return true;
+    }
+
+    // Constant traversal: each item is handed out as a constant reference
+    template <class Operation>
+    bool const_traverse_impl(Operation & operation) const
+    {
+      for (size_t i = 1; i <= num_items; ++i)
+        if (not operation(static_cast<const T &>(array[i])))
           return false;
 
       return true;
@@ -642,9 +670,11 @@ namespace Aleph
         @return false if traversal was stopped early, true otherwise
     */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation & operation) const
+      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
-      return const_cast<ArrayHeap &>(*this).traverse_impl(operation);
+      return const_traverse_impl(operation);
     }
 
     /** Traverse all elements.
@@ -654,7 +684,9 @@ namespace Aleph
         @return false if traversal was stopped early, true otherwise
     */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation & operation)
+      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
       return traverse_impl(operation);
     }
@@ -666,9 +698,11 @@ namespace Aleph
         @return false if traversal was stopped early, true otherwise
     */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation && operation = Operation()) const
+      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
-      return const_cast<ArrayHeap &>(*this).traverse_impl(operation);
+      return const_traverse_impl(operation);
     }
 
     /** Traverse all elements (forwarding overload).
@@ -678,7 +712,9 @@ namespace Aleph
         @return false if traversal was stopped early, true otherwise
     */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation && operation = Operation())
+      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
       return traverse_impl(operation);
     }

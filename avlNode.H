@@ -98,6 +98,41 @@ public:
 DECLARE_BINNODE(AvlNode, 40, AvlNode_Data);
 
 /**
+ * @brief Height of an AVL subtree, checking all its nodes.
+ *
+ * In one traversal, checks at every node of the subtree rooted at `p` that
+ * the heights of its two subtrees differ by at most one and that its stored
+ * balance factor is that difference.
+ *
+ * @tparam Node AVL node type
+ * @param p Root of subtree to validate
+ * @return the height of the subtree, or -1 if a node violates the AVL
+ *         properties
+ * @note O(n).
+ */
+    template <class Node>
+int checked_avl_height(Node* p) noexcept
+{
+  if (p == Node::NullPtr)
+    return 0;
+
+  const int hL = checked_avl_height(LLINK(p));
+  if (hL < 0)
+    return -1;
+
+  const int hR = checked_avl_height(RLINK(p));
+  if (hR < 0)
+    return -1;
+
+  // Heights differ by at most 1, and the stored factor matches reality
+  const int diff = hR - hL;
+  if (diff > 1 or diff < -1 or static_cast<int>(DIFF(p)) != diff)
+    return -1;
+
+  return 1 + (hL > hR ? hL : hR);
+}
+
+/**
  * @brief Validate that a tree satisfies AVL properties.
  *
  * Checks that:
@@ -105,12 +140,14 @@ DECLARE_BINNODE(AvlNode, 40, AvlNode_Data);
  * - The balance factor is in range [-1, +1]
  * - All subtrees also satisfy AVL properties
  *
+ * It does not look at the keys; Gen_Avl_Tree::verify() also checks their
+ * order.
+ *
  * @tparam Node AVL node type
  * @param p Root of subtree to validate
  * @return true if tree is a valid AVL tree
  *
- * @note This function computes heights recursively, so it's O(n²).
- *       Use only for testing/debugging.
+ * @note O(n).
  *
  * @par Example
  * @code
@@ -122,30 +159,7 @@ DECLARE_BINNODE(AvlNode, 40, AvlNode_Data);
     template <class Node>
 bool is_avl(Node* p)
 {
-  if (p == Node::NullPtr) 
-    return true;
-
-  // Balance factor must be in valid range
-  if (DIFF(p) < -1 or DIFF(p) > 1)
-    return false;
-      
-  // Compute actual heights
-  const int hL = computeHeightRec(LLINK(p));
-  const int hR = computeHeightRec(RLINK(p));
-
-  // Verify AVL property: heights differ by at most 1
-  if (const int diff = hR - hL; diff > 1 or diff < -1)
-    return false;
-
-  // Verify stored balance factor matches reality
-  if (static_cast<int>(DIFF(p)) != hR - hL)
-    return false;
-
-  // Recursively check subtrees
-  if (not is_avl(LLINK(p)))
-    return false;
-
-  return is_avl(RLINK(p));
+  return checked_avl_height(p) >= 0;
 }
 
 # endif // AVLNODE_H

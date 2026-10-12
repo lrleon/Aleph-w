@@ -75,6 +75,7 @@
 # include <memory>
 # include <type_traits>
 # include <utility>
+# include <ah-concepts.H>
 # include <tpl_array.H>
 # include <tpl_arrayStack.H>
 # include <tpl_tree_node.H>
@@ -88,17 +89,13 @@ namespace Aleph
 
   /** @brief Concept for a monoidal combiner over path values.
    *
-   *  A Monoid requires an identity element and an associative binary
+   *  Alias of `Aleph::StaticMonoid` kept for source compatibility. A
+   *  Monoid requires an identity element and an associative binary
    *  operation `combine(a, b)`. It dictates how values on a path
    *  are aggregated together (e.g., finding the sum or minimum).
    */
   template <typename M, typename T>
-  concept LCTMonoid =
-      requires(const M & m, const T & a, const T & b)
-        {
-          { M::identity() } -> std::convertible_to<T>;
-          { M::combine(a, b) } -> std::convertible_to<T>;
-        };
+  concept LCTMonoid = Aleph::StaticMonoid<M, T>;
 
   /** @brief Concept for a lazy-tag policy used in deferred path updates.
    *
@@ -1073,8 +1070,7 @@ namespace Aleph
           lct_nodes.append(nd);
       });
 
-      Array<TN *> tree_nodes(lct_nodes.size());
-      tree_nodes.putn(lct_nodes.size());
+      auto tree_nodes = Array<TN *>::create(lct_nodes.size());
       for (size_t i = 0; i < tree_nodes.size(); ++i)
         tree_nodes(i) = nullptr;
 

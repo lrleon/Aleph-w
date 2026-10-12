@@ -90,6 +90,8 @@
 # ifndef PRIM_H
 # define PRIM_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_agraph.H>
 # include <tpl_graph_utils.H>
 # include <archeap.H>
@@ -100,11 +102,11 @@ namespace Aleph
 {
   using namespace Aleph;
 
-  template <class GT>
+  template <AlephGraph GT>
   struct Prim_Info
   {
-    typename GT::Node *tree_node = nullptr; // imagen en el árbol abarcador
-    void *heap_node = nullptr; // puntero en el heap exclusivo
+    typename GT::Node *tree_node = nullptr; // image in the spanning tree
+    void *heap_node = nullptr; // pointer into the dedicated heap
 
     Prim_Info() : tree_node(nullptr), heap_node(nullptr)
     { /* empty */
@@ -153,7 +155,7 @@ namespace Aleph
     }
   };
 
-  template <class GT>
+  template <AlephGraph GT>
   struct Uninit_Prim_Info
   {
     void operator ()(const GT &, typename GT::Node *p)
@@ -165,51 +167,50 @@ namespace Aleph
   };
 
 
-  /** Calcula el árbol abarcador mínimo de un grafo según el
-      algoritmo de Prim.
+  /** Computes the minimum spanning tree of a graph using
+      Prim's algorithm.
 
-      Esta clase emplea el algoritmo de Prim para
-      calcular el árbol abarcador mínimo de un grafo y almacenarlo
-      en otro grafo.
+      This class uses Prim's algorithm to compute the minimum
+      spanning tree of a graph and stores it in another graph.
 
-      El árbol abarcador mínimo tree completamente mapeado con el grafo.
+      The resulting minimum spanning tree is fully mapped to the graph.
 
-      El algoritmo utiliza una cola interna cuya longitud máxima es
-      proporcional número de nodos del grafo.
+      The algorithm uses an internal queue whose maximum length is
+      proportional to the number of nodes of the graph.
 
-      El algoritmo de Prim es el recomendado para grafos densos.
+      Prim's algorithm is recommended for dense graphs.
 
-      El procedimiento es parametrizado con las siguientes
-      especificaciones:
-      -# GT: el tipo de grafo basado en List_Graph.
-      -# Distance<GT>: La clase de lectura del peso del arco  que debe
-      exportar los siguientes atributos:
-        -# typedef Distance<GT>::Distance_Type: el tipo de dato que
-        representa un peso en un arco.
+      The procedure is parameterized with the following
+      specifications:
+      -# GT: the graph type, based on List_Graph.
+      -# Distance<GT>: the class that reads an arc's weight, which must
+      export the following members:
+        -# typedef Distance<GT>::Distance_Type: the data type that
+        represents an arc's weight.
         -# Distance<GT>::Distance_Type operator()(typename GT::Arc *a):
-        que retorna el valor del peso en el arco a.
-        -# Distance<GT>::Max_Distance: constante estática
-        correspondiente al valor de distancia máximo que un algoritmo
-        consideraría como valor infinito.
-        -# typename Distance<GT>::Zero_Distance: constante estática
-        correspondiente al elemento neutro de la suma. Tradicionalmente,
-        en la inmensa mayoría de casos, este será el cero.
+        returns the weight value of arc a.
+        -# Distance<GT>::Max_Distance: static constant
+        corresponding to the maximum distance value an algorithm
+        would consider as infinite.
+        -# typename Distance<GT>::Zero_Distance: static constant
+        corresponding to the neutral element of the sum. Traditionally,
+        in the vast majority of cases, this will be zero.
         .
-      -# Compare<GT>: clase que realiza la comparación entre dos
-         pesos y cuyo prototipo es:
+      -# Compare<GT>: class that compares two
+         weights and whose prototype is:
          - bool operator () (const typename
            Distance<GT>::Distance_Type & op1,
            const typename Distance<GT>::Distance_Type & op2) const
-         . Por omisión, esta clase implanta el operador relacional
-         menor que.
-      -# SA: filtro de arcos
+         . By default, this class implements the less-than relational
+         operator.
+      -# SA: arc filter
 
       @see Kruskal_Min_Spanning_Tree
       @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Prim_Min_Spanning_Tree
   {
     typedef Prim_Heap_Info<GT, Distance> Acc_Heap;
@@ -226,8 +227,8 @@ namespace Aleph
   public:
     /** Constructor.
 
-        \param[in] __dist acceso a la distancia de cada arco
-        \param[in] __sa filtro de iterador de arcos
+        \param[in] __dist access to each arc's distance
+        \param[in] __sa arc iterator filter
     */
     Prim_Min_Spanning_Tree(Distance __dist = Distance(), SA __sa = SA())
       : dist(__dist), sa(__sa)
@@ -243,7 +244,7 @@ namespace Aleph
       g.reset_nodes();
       g.reset_arcs();
 
-      NODE_BITS(first).set_bit(Aleph::Spanning_Tree, true); // visitado
+      NODE_BITS(first).set_bit(Aleph::Spanning_Tree, true); // visited
 
       Simple_Heap heap(dist, Acc_Simple_Heap());
       for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next_ne())
@@ -256,7 +257,7 @@ namespace Aleph
       size_t count = 0;
 
       while (count < V1 and not heap.is_empty())
-        { // obtenga siguiente menor arco
+        { // get the next smallest arc
           typename GT::Arc *min_arc = heap.get_min_arc();
           if (IS_ARC_VISITED(min_arc, Aleph::Spanning_Tree))
             continue;
@@ -267,14 +268,14 @@ namespace Aleph
           typename GT::Node *tgt = g.get_tgt_node(min_arc);
           if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and
               IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-            continue; // este arco cerraría un ciclo en el árbol
+            continue; // this arc would close a cycle in the tree
 
           typename GT::Node *tgt_node =
               IS_NODE_VISITED(src, Aleph::Spanning_Tree) ? tgt : src;
 
           NODE_BITS(tgt_node).set_bit(Aleph::Spanning_Tree, true);
 
-          // insertar en heap arcos no visitados de tgt_node
+          // insert tgt_node's unvisited arcs into the heap
           for (Node_Arc_Iterator<GT, SA> it(tgt_node, sa); it.has_curr();
                it.next_ne())
             {
@@ -284,7 +285,7 @@ namespace Aleph
 
               typename GT::Node *tgt = it.get_tgt_node_ne();
               if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-                continue; // nodo visitado ==> causará ciclo
+                continue; // node visited ==> would cause a cycle
 
               heap.put_arc(arc, tgt);
             }
@@ -309,10 +310,10 @@ namespace Aleph
         Operate_On_Nodes<GT, Uninit_Prim_Info<GT>>()(graph);
       });
 
-      NODE_BITS(first).set_bit(Aleph::Spanning_Tree, true); // visitado
+      NODE_BITS(first).set_bit(Aleph::Spanning_Tree, true); // visited
 
       Heap heap(dist, Acc_Heap());
-      // meter en heap arcos iniciales del primer nodo
+      // insert the first node's initial arcs into the heap
       for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next_ne())
         {
           typename GT::Arc *arc = it.get_current_arc_ne();
@@ -322,7 +323,7 @@ namespace Aleph
       const size_t V1 = g.get_num_nodes() - 1;
 
       while (tree.get_num_arcs() < V1 and not heap.is_empty())
-        { // obtenga siguiente menor arco
+        { // get the next smallest arc
           typename GT::Arc *min_arc = heap.get_min_arc();
           if (IS_ARC_VISITED(min_arc, Aleph::Spanning_Tree))
             continue;
@@ -333,14 +334,14 @@ namespace Aleph
           typename GT::Node *tgt = g.get_tgt_node(min_arc);
           if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and
               IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-            continue; // este arco cerraría un ciclo en el árbol
+            continue; // this arc would close a cycle in the tree
 
           typename GT::Node *tgt_node =
               IS_NODE_VISITED(src, Aleph::Spanning_Tree) ? tgt : src;
 
           NODE_BITS(tgt_node).set_bit(Aleph::Spanning_Tree, true);
 
-          // insertar en heap arcos no visitados de tgt_node
+          // insert tgt_node's unvisited arcs into the heap
           for (Node_Arc_Iterator<GT, SA> it(tgt_node, sa); it.has_curr();
                it.next_ne())
             {
@@ -350,12 +351,12 @@ namespace Aleph
 
               typename GT::Node *tgt = it.get_tgt_node_ne();
               if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-                continue; // nodo visitado ==> causará ciclo
+                continue; // node visited ==> would cause a cycle
 
               heap.put_arc(arc, tgt);
             }
 
-          // insertar nuevo arco en tree y mapearlo
+          // insert the new arc into tree and map it
           typename GT::Arc *tree_arc =
               tree.insert_arc(TREENODE(src), TREENODE(tgt), min_arc->get_info());
           GT::map_arcs(min_arc, tree_arc);
@@ -365,35 +366,35 @@ namespace Aleph
     }
 
   public:
-    /** Invoca al cálculo del árbol abarcador mínimo por el algoritmo de
-        Prim.
+    /** Invokes the computation of the minimum spanning tree using
+        Prim's algorithm.
 
-        @param[in] g el grafo al cual se desea calcular el árbol
-        abarcador mínimo.
-        @param[out] tree el grafo donde se desea guardar el árbol
-        abarcador mínimo resultado. Este grafo es limpiado antes del
-        comienzo del algoritmo.
-        @throw bad_alloc si no hay suficiente memoria para construir
-        tree. En este caso el valor de tree es indeterminado y no está
-        limpio.
+        @param[in] g the graph whose minimum spanning tree is to be
+        computed.
+        @param[out] tree the graph where the resulting minimum
+        spanning tree is to be stored. This graph is cleared before
+        the algorithm starts.
+        @throw bad_alloc if there is not enough memory to build
+        tree. In this case tree's value is indeterminate and it is
+        not clean.
     */
     void operator ()(const GT & g, GT & tree)
     {
       min_spanning_tree(g, g.get_first_node(), tree);
     }
 
-    /** Invoca al cálculo del árbol abarcador mínimo por el algoritmo de
-        Prim.
+    /** Invokes the computation of the minimum spanning tree using
+        Prim's algorithm.
 
-        @param[in] g el grafo al cual se desea calcular el árbol
-        abarcador mínimo.
-        @param[in] start nodo desde el cual se inicia elalgoritmo.
-        @param[out] tree el grafo donde se desea guardar el árbol
-        abarcador mínimo resultado. Este grafo es limpiado antes del
-        comienzo del algoritmo.
-        @throw bad_alloc si no hay suficiente memoria para construir
-        tree. En este caso el valor de tree es indeterminado y no está
-        limpio.
+        @param[in] g the graph whose minimum spanning tree is to be
+        computed.
+        @param[in] start the node from which the algorithm starts.
+        @param[out] tree the graph where the resulting minimum
+        spanning tree is to be stored. This graph is cleared before
+        the algorithm starts.
+        @throw bad_alloc if there is not enough memory to build
+        tree. In this case tree's value is indeterminate and it is
+        not clean.
     */
     void operator ()(const GT & g, typename GT::Node *start, GT & tree)
     {

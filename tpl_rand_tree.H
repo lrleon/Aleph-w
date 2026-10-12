@@ -381,7 +381,9 @@ namespace Aleph
       if (result == Node::NullPtr)
         return nullptr;
 
-      return tree_root = result;
+      tree_root = result; // the new root, which is p only now and then
+
+      return p;
     }
 
     /** Insert a node in the tree.
@@ -397,7 +399,9 @@ namespace Aleph
       assert((LLINK(p) == Node::NullPtr) and (RLINK(p) == Node::NullPtr));
       assert(COUNT(p) == 1);
 
-      return tree_root = random_insert_dup(tree_root, p);
+      tree_root = random_insert_dup(tree_root, p);
+
+      return p;
     }
 
   private:
@@ -503,7 +507,7 @@ namespace Aleph
     /// Return `true` if this is a consistent randomized tree
     [[nodiscard]] bool verify() const
     {
-      return check_rank_tree(tree_root);
+      return check_rank_tree(tree_root) and check_bst(tree_root, cmp);
     }
 
     /// Return the tree's root

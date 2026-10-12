@@ -87,6 +87,7 @@ MA 02110-1301, USA. */
 #include <new>
 #include <string>
 #include <stdexcept>
+#include <utility>
 #include <gmp.h>
 #include <mpfr.h>
 #include "mpfr_mul_d.h"
@@ -1878,6 +1879,16 @@ __GMPN_DECLARE_COMPOUND_OPERATOR(fun)
   inline __gmp_expr fun(int);
 
 
+/* Since GMP 6.2, mpz_init does not allocate: the first limb is allocated
+   lazily. The mpz_class operations that only call it cannot throw there.
+   gmpxx.h marks them noexcept unconditionally because it ships with its
+   GMP; this header is compiled against whatever GMP is installed. */
+#if __GNU_MP_VERSION > 6 || (__GNU_MP_VERSION == 6 && __GNU_MP_VERSION_MINOR >= 2)
+#define __GMPFRXX_MPZ_INIT_NOEXCEPT noexcept
+#else
+#define __GMPFRXX_MPZ_INIT_NOEXCEPT
+#endif
+
 /**************** mpz_class -- wrapper for mpz_t ****************/
 
 template <>
@@ -1890,9 +1901,16 @@ public:
   unsigned long int get_prec() const { return mpfr_get_default_prec(); }
 
   // constructors and destructor
-  __gmp_expr() { mpz_init(mp); }
+  /// @brief Zero. With GMP 6.2 or later it does not allocate.
+  __gmp_expr() __GMPFRXX_MPZ_INIT_NOEXCEPT { mpz_init(mp); }
 
   __gmp_expr(const __gmp_expr &z) { mpz_init_set(mp, z.mp); }
+  /** @brief Move constructor: takes the limbs of `z`, which is left zero.
+   *  @note `noexcept` with GMP 6.2 or later, where re-initializing `z` does
+   *        not allocate.
+   */
+  __gmp_expr(__gmp_expr &&z) __GMPFRXX_MPZ_INIT_NOEXCEPT
+  { *mp = *z.mp; mpz_init(z.mp); }
   template <class T, class U>
   __gmp_expr(const __gmp_expr<T, U> &expr)
   { mpz_init(mp); __gmp_set_expr(mp, expr); }
@@ -1950,9 +1968,14 @@ public:
 
   ~__gmp_expr() { mpz_clear(mp); }
 
+  /// @brief Exchange the values in constant time, without allocating.
+  void swap(__gmp_expr &z) noexcept { mpz_swap(mp, z.mp); }
+
   // assignment operators
   __gmp_expr & operator=(const __gmp_expr &z)
   { mpz_set(mp, z.mp); return *this; }
+  /// @brief Move assignment, by exchange: `z` receives the old value.
+  __gmp_expr & operator=(__gmp_expr &&z) noexcept { swap(z); return *this; }
   template <class T, class U>
   __gmp_expr<value_type, value_type> & operator=(const __gmp_expr<T, U> &expr)
   { __gmp_set_expr(mp, expr); return *this; }
@@ -2061,6 +2084,18 @@ public:
   __gmp_expr() { mpq_init(mp); }
 
   __gmp_expr(const __gmp_expr &q) { mpq_init(mp); mpq_set(mp, q.mp); }
+  /** @brief Move constructor: takes the limbs of `q`, which is left `0/1`.
+   *  @note Not `noexcept`: re-initializing `q` allocates the limb of its
+   *        denominator (one allocation, whatever the size of the value).
+   */
+  __gmp_expr(__gmp_expr &&q) { *mp = *q.mp; mpq_init(q.mp); }
+  /// @brief Integer to rational, taking the limbs of `z`, which is left zero.
+  __gmp_expr(mpz_class &&z)
+  {
+    mpz_init_set_ui(mpq_denref(mp), 1);
+    *mpq_numref(mp) = *z.get_mpz_t();
+    mpz_init(z.get_mpz_t());
+  }
   template <class T, class U>
   __gmp_expr(const __gmp_expr<T, U> &expr)
   { mpq_init(mp); __gmp_set_expr(mp, expr); }
@@ -2128,9 +2163,19 @@ public:
 
   ~__gmp_expr() { mpq_clear(mp); }
 
+  /// @brief Exchange the values in constant time, without allocating.
+  void swap(__gmp_expr &q) noexcept { mpq_swap(mp, q.mp); }
+
   // assignment operators
   __gmp_expr & operator=(const __gmp_expr &q)
   { mpq_set(mp, q.mp); return *this; }
+  /// @brief Move assignment, by exchange: `q` receives the old value.
+  __gmp_expr & operator=(__gmp_expr &&q) noexcept { swap(q); return *this; }
+  /** @brief Assign an integer, by exchange with the numerator: `z` receives
+   *  the old numerator.
+   */
+  __gmp_expr & operator=(mpz_class &&z) noexcept
+  { get_num() = std::move(z); get_den() = 1u; return *this; }
   template <class T, class U>
   __gmp_expr<value_type, value_type> & operator=(const __gmp_expr<T, U> &expr)
   { __gmp_set_expr(mp, expr); return *this; }
@@ -2247,6 +2292,12 @@ public:
 
   __gmp_expr(const __gmp_expr &f)
   { mpfr_init2(mp, f.get_prec()); mpfr_set(mp, f.mp, MpFrC::get_rnd()); }
+  /** @brief Move constructor: takes the significand of `f`, which is left
+   *  zero with its precision.
+   *  @note Not `noexcept`: re-initializing `f` allocates its significand.
+   */
+  __gmp_expr(__gmp_expr &&f)
+  { *mp = *f.mp; mpfr_init2(f.mp, mpfr_get_prec(mp)); mpfr_set_zero(f.mp, 1); }
   __gmp_expr(const __gmp_expr &f, unsigned long int prec)
   { mpfr_init2(mp, prec); mpfr_set(mp, f.mp, MpFrC::get_rnd()); }
   template <class T, class U>
@@ -2348,9 +2399,17 @@ public:
 
   ~__gmp_expr() { mpfr_clear(mp); }
 
+  /// @brief Exchange values and precisions in constant time, without allocating.
+  void swap(__gmp_expr &f) noexcept { mpfr_swap(mp, f.mp); }
+
   // assignment operators
   __gmp_expr & operator=(const __gmp_expr &f)
   { mpfr_set(mp, f.mp, MpFrC::get_rnd()); return *this; }
+  /** @brief Move assignment, by exchange: `*this` takes the value and the
+   *  precision of `f` (copy assignment keeps its own precision and rounds),
+   *  and `f` receives the old value and precision.
+   */
+  __gmp_expr & operator=(__gmp_expr &&f) noexcept { swap(f); return *this; }
   template <class T, class U>
   __gmp_expr<value_type, value_type> & operator=(const __gmp_expr<T, U> &expr)
   { __gmp_set_expr(mp, expr); return *this; }
@@ -2456,6 +2515,14 @@ public:
 
 typedef __gmp_expr<mpfr_t, mpfr_t> mpfr_class;
 
+
+
+/**************** Swap ****************/
+
+/// @brief Exchange two numbers of the same class without allocating.
+template <class T>
+inline void swap(__gmp_expr<T, T> &x, __gmp_expr<T, T> &y) noexcept
+{ x.swap(y); }
 
 
 /**************** I/O operators ****************/

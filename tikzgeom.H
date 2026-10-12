@@ -746,7 +746,7 @@ namespace Aleph
     void draw_segment(const Segment & s, const Tikz_Style & style, Out & output,
                       const Geom_Box & box, const Mapping & map) const
     {
-      Array<Point> vertices(2);
+      auto vertices = Array<Point>::create_reserved(2);
       vertices.append(s.get_src_point());
       vertices.append(s.get_tgt_point());
       draw_polyline(output, vertices, false, style, box, map);
@@ -756,7 +756,7 @@ namespace Aleph
     void draw_triangle(const Triangle & t, const Tikz_Style & style, Out & output,
                        const Geom_Box & box, const Mapping & map) const
     {
-      Array<Point> vertices(3);
+      auto vertices = Array<Point>::create_reserved(3);
       vertices.append(t.get_p1());
       vertices.append(t.get_p2());
       vertices.append(t.get_p3());
@@ -1498,19 +1498,23 @@ namespace Aleph
     }
   };
 
+  /** @brief A geometry type that `Tikz_Plane::Object` can wrap.
+   *
+   *  @tparam Geom Candidate geometry type.
+   */
+  template <typename Geom>
+  concept TikzDrawable =
+      std::is_constructible_v<Tikz_Plane::Object, std::decay_t<Geom>>;
+
   /** @brief Insert any supported geometry type in a @ref Tikz_Plane. */
-  template <typename Geom,
-            typename = std::enable_if_t<
-              std::is_constructible_v<Tikz_Plane::Object, std::decay_t<Geom>>>>
+  template <TikzDrawable Geom>
   inline void put_in_plane(Tikz_Plane & plane, const Geom & geom_obj)
   {
     plane.put(Tikz_Plane::Object(geom_obj));
   }
 
   /** @brief Insert any supported geometry type with style/layer. */
-  template <typename Geom,
-            typename = std::enable_if_t<
-              std::is_constructible_v<Tikz_Plane::Object, std::decay_t<Geom>>>>
+  template <TikzDrawable Geom>
   inline void put_in_plane(Tikz_Plane & plane, const Geom & geom_obj,
                            const Tikz_Style & style,
                            const int layer = Tikz_Plane::Layer_Default)

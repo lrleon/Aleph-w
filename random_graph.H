@@ -44,6 +44,8 @@
 # ifndef RANDOM_GRAPH_H
 # define RANDOM_GRAPH_H
 
+# include <ah-graph-concepts.H>
+
 # include <gsl/gsl_rng.h>
 # include <memory>
 # include <tpl_indexArc.H>
@@ -94,7 +96,7 @@ namespace Aleph
 
   // TODO: consider replacing Init_Node and Init_Arc classes with lambdas
 
-  template <class GT, class Init_Node, class Init_Arc>
+  template <AlephGraph GT, class Init_Node, class Init_Arc>
   class Random_Graph_Base
   {
   protected:
@@ -362,7 +364,7 @@ namespace Aleph
       @author Leandro Rabindranath Leon
       @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Init_Node = Dft_Init_Rand_Node<GT>,
             class Init_Arc = Dft_Init_Rand_Arc<GT>>
   class Random_Graph : public Random_Graph_Base<GT, Init_Node, Init_Arc>
@@ -733,7 +735,7 @@ namespace Aleph
       @author Leandro Rabindranath Leon
       @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Init_Node = Dft_Init_Rand_Node<GT>,
             class Init_Arc = Dft_Init_Rand_Arc<GT>>
   class Random_Digraph : public Random_Graph_Base<GT, Init_Node, Init_Arc>

@@ -50,6 +50,8 @@
 # ifndef KOSARAJU_H
 # define KOSARAJU_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_graph_utils.H>
 
 namespace Aleph {
@@ -67,7 +69,7 @@ namespace Aleph {
  *  @param[in] p Starting node for the DFS.
  *  @param[out] df Array where nodes are stored in postorder (finish time order).
  */
-template <class GT>
+template <AlephGraph GT>
 inline static void __dfp_phase1(const GT & g,
                                  typename GT::Node * p,
                                  DynArray<typename GT::Node*> & df)
@@ -107,7 +109,7 @@ inline static void __dfp_phase1(const GT & g,
  *  @param[out] blk Subgraph where nodes of this SCC are inserted.
  *  @param[in] color Component ID assigned to all nodes in this SCC.
  */
-template <class GT>
+template <AlephGraph GT>
 inline static void __dfp_phase2_subgraph(const GT & g,
                                           typename GT::Node * p,
                                           GT & blk,
@@ -145,7 +147,7 @@ inline static void __dfp_phase2_subgraph(const GT & g,
  *  @param[in] p Starting node for the DFS.
  *  @param[out] list List where nodes of this SCC are appended.
  */
-template <class GT>
+template <AlephGraph GT>
 inline static void __dfp_phase2_list(const GT & g,
                                       typename GT::Node * p,
                                       DynList<typename GT::Node *> & list)
@@ -206,7 +208,7 @@ inline static void __dfp_phase2_list(const GT & g,
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
-template <class GT>
+template <AlephGraph GT>
 inline void kosaraju_connected_components(const GT & g,
                                           DynList<GT> & blk_list,
                                           DynList<typename GT::Arc *> & arc_list)
@@ -294,7 +296,7 @@ inline void kosaraju_connected_components(const GT & g,
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
-template <class GT>
+template <AlephGraph GT>
 inline DynList<DynList<typename GT::Node*>>
 kosaraju_connected_components(const GT & g)
 {
@@ -338,7 +340,7 @@ kosaraju_connected_components(const GT & g)
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
-template <class GT>
+template <AlephGraph GT>
 struct Kosaraju_Connected_Components
 {
   /** @brief Compute SCCs returning subgraphs and cross-arcs.
@@ -377,7 +379,7 @@ struct Kosaraju_Connected_Components
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
-template <class GT>
+template <AlephGraph GT>
 inline size_t kosaraju_scc_count(const GT & g)
 {
   return kosaraju_connected_components(g).size();
@@ -398,7 +400,7 @@ inline size_t kosaraju_scc_count(const GT & g)
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
-template <class GT>
+template <AlephGraph GT>
 inline bool is_strongly_connected(const GT & g)
 {
   if (g.get_num_nodes() <= 1)

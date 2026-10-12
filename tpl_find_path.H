@@ -52,6 +52,8 @@
 # ifndef TPL_FIND_PATH_H
 # define TPL_FIND_PATH_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_dynListStack.H>
 # include <tpl_dynListQueue.H>
 # include <tpl_graph_utils.H>
@@ -65,22 +67,22 @@ namespace Aleph
     bool operator ()(typename GT::Node *) const noexcept { return false; }
   };
 
-  /** Busca en profundidad un camino entre un par de nodos.
+  /** Performs a depth-first search for a path between a pair of nodes.
 
-      Find_Path_Depth_First busca en profundidad un camino entre
-      start_node y end_node, a la vez que va construyendo un camino
-      equivalente a la profundidad recursiva de la búsqueda. Si el se
-      encuentra un camino, entonces el método retorna true y el parámetro
-      path alberga el camino en cuestión; de lo contrario, la función
-      retorna false y valor del camino es indeterminado.
+      Find_Path_Depth_First searches depth-first for a path between
+      start_node and end_node, building a path equivalent to the
+      recursive depth of the search as it goes. If a path is found,
+      the method returns true and the path parameter holds the path
+      in question; otherwise, the function returns false and the
+      path's value is indeterminate.
 
-      La clase toma dos parámetros tipo:
-      -# GT: el tipo de grafo, el cual debe ser derivado de List_Graph
-      -# SA: clase que se encarga de mostrar el arco. Internamente, la
-      función emplea el iterador filtro Node_Arc_Iterator (basado
-      en Filter_Iterator) para recorrer los arcos de cada nodo. SA es
-      el la clase que determina si el arco debe o no mostrarse al
-      recorrido
+      The class takes two type parameters:
+      -# GT: the graph type, which must be derived from List_Graph
+      -# SA: class in charge of showing the arc. Internally, the
+      function uses the filter iterator Node_Arc_Iterator (based
+      on Filter_Iterator) to traverse the arcs of each node. SA is
+      the class that determines whether or not the arc should be
+      shown to the traversal
       .
 
       @see find_path_breadth_first()
@@ -88,9 +90,9 @@ namespace Aleph
       @see bellman_ford_min_spanning_tree() q_bellman_ford_min_spanning_tree()
       @ingroup Graphs
   */
-  template <class GT,
+  template <AlephGraph GT,
             template <class, class> class Itor = Node_Arc_Iterator,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Find_Path_Depth_First
   {
     SA & sa;
@@ -106,13 +108,13 @@ namespace Aleph
           return true;
         }
 
-      if (IS_NODE_VISITED(curr, Find_Path)) // ¿ha sido visitado?
-        return false; // sí ==> desde él no hay camino
+      if (IS_NODE_VISITED(curr, Find_Path)) // has it been visited?
+        return false; // yes ==> there is no path from it
 
-      path.append(arc); // añadir curr_arc al camino
+      path.append(arc); // add curr_arc to the path
       NODE_BITS(curr).set_bit(Find_Path, true);
 
-      // buscar recursivamente a través de arcos de curr_node
+      // recursively search through curr_node's arcs
       for (Itor<GT, SA> i(curr, sa); i.has_curr(); i.next())
         {
           auto next_arc = i.get_curr();
@@ -122,7 +124,7 @@ namespace Aleph
           ARC_BITS(next_arc).set_bit(Find_Path, true);
           auto next_node = g_ptr->get_connected_node(next_arc, curr);
           if (find_path(next_node, next_arc, path, op))
-            return true; // se encontró camino
+            return true; // a path was found
         }
 
       path.remove_last_node();
@@ -144,7 +146,7 @@ namespace Aleph
 
       NODE_BITS(start).set_bit(Find_Path, true);
 
-      // explorar recursivamente cada arco de start
+      // recursively explore each of start's arcs
       for (Itor<GT, SA> i(start, sa); i.has_curr(); i.next())
         {
           auto arc = i.get_curr();
@@ -180,15 +182,15 @@ namespace Aleph
     { /* empty */
     }
 
-    /** Invoca a la búsqueda de camino en profundidad.
+    /** Invokes the depth-first path search.
 
-        @param[in] g el grafo sobre el cual se desea buscar el camino.
-        @param[in] start puntero al nodo inicio del camino.
-        @param[in] end puntero al nodo destino del camino.
-        @param[out] path el camino visto durante la búsqueda en
-        profundidad; sólo tiene sentido si el valor de retorno es true.
-        @throw bad_alloc si no hay memoria para continuar construyendo
-        el camino
+        @param[in] g the graph on which the path is to be searched.
+        @param[in] start pointer to the path's starting node.
+        @param[in] end pointer to the path's destination node.
+        @param[out] path the path seen during the depth-first
+        search; only meaningful if the return value is true.
+        @throw bad_alloc if there is not enough memory to keep
+        building the path
     */
     bool operator ()(const GT & g,
                      typename GT::Node *start, typename GT::Node *end,
@@ -197,14 +199,14 @@ namespace Aleph
       return find(g, start, path, [end](auto p) { return p == end; });
     }
 
-    /** Invoca a la búsqueda de camino en profundidad.
+    /** Invokes the depth-first path search.
 
-        @param[in] g el grafo sobre el cual se desea buscar el camino.
-        @param[in] start puntero al nodo inicio del camino.
-        @param[in] end puntero al nodo destino del camino.
+        @param[in] g the graph on which the path is to be searched.
+        @param[in] start pointer to the path's starting node.
+        @param[in] end pointer to the path's destination node.
         @return path reaching `end` if this one was found;  `false` otherwise
-        @throw bad_alloc si no hay memoria para continuar construyendo
-        el camino
+        @throw bad_alloc if there is not enough memory to keep
+        building the path
     */
     Path<GT> operator ()(const GT & g,
                          typename GT::Node *start,
@@ -215,17 +217,17 @@ namespace Aleph
       return ret;
     }
 
-    /** Invoca a la búsqueda de camino en profundidad.
+    /** Invokes the depth-first path search.
 
-        @param[in] g el grafo sobre el cual se desea buscar el camino.
-        @param[in] start puntero al nodo inicio del camino.
-        @param[in] op functor que implementa el criterio de búsqueda. El
-        functor ecibe como parámetro el nodo y debe retornar `true` si el
-        nodo satisface el criterio `false` de lo contrario.
-        @return path el camino visto durante la búsqueda en
-        profundidad; si no existe tal camino entonces el camino es va
-        @throw bad_alloc si no hay memoria para continuar construyendo
-        el camino
+        @param[in] g the graph on which the path is to be searched.
+        @param[in] start pointer to the path's starting node.
+        @param[in] op functor that implements the search criterion. The
+        functor receives the node as a parameter and must return `true`
+        if the node satisfies the criterion, `false` otherwise.
+        @return path the path seen during the depth-first
+        search; if no such path exists then the path is empty
+        @throw bad_alloc if there is not enough memory to keep
+        building the path
     */
     template <class Op>
     Path<GT> operator ()(const GT & g, typename GT::Node *start, Op & op)
@@ -245,22 +247,21 @@ namespace Aleph
   };
 
 
-  /** Busca en amplitud un camino entre un par de nodos.
+  /** Performs a breadth-first search for a path between a pair of nodes.
 
-Find_Path_Breadth_First busca en amplitud un camino entre
-start_node y end_node, a la vez que va construyendo un camino
-hacia el nodo destino. Si se encuentra un camino, entonces el
-método retorna true y el parámetro path alberga el camino en
-cuestión; de lo contrario, la función retorna false y valor del
-camino es indeterminado.
+Find_Path_Breadth_First searches breadth-first for a path between
+start_node and end_node, building a path toward the destination
+node as it goes. If a path is found, the method returns true and
+the path parameter holds the path in question; otherwise, the
+function returns false and the path's value is indeterminate.
 
-La clase toma dos parámetros tipo:
--# GT: el tipo de grafo, el cual debe ser derivado de List_Graph
--# SA: clase que se encarga de mostrar el arco. Internamente, la
-función emplea el iterador filtro Node_Arc_Iterator (basado en
-Filter_Iterator) para recorrer los arcos de cada nodo. SA es el
-la clase que determina si el arco debe o no mostrarse al
-recorrido
+The class takes two type parameters:
+-# GT: the graph type, which must be derived from List_Graph
+-# SA: class in charge of showing the arc. Internally, the
+function uses the filter iterator Node_Arc_Iterator (based on
+Filter_Iterator) to traverse the arcs of each node. SA is
+the class that determines whether or not the arc should be
+shown to the traversal
 .
 
 @see find_path_depth_first()
@@ -268,9 +269,9 @@ recorrido
 @see bellman_ford_min_spanning_tree() q_bellman_ford_min_spanning_tree()
 @ingroup Graphs
   */
-  template <class GT,
+  template <AlephGraph GT,
             template <typename, class> class Itor = Node_Arc_Iterator,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Find_Path_Breadth_First
   {
     SA & sa;
@@ -282,7 +283,7 @@ recorrido
       if (not path.inside_graph(g))
         ah_invalid_argument_if(true) << "Path does not belong to graph";
 
-      path.empty(); // limpiamos cualquier cosa que esté en path
+      path.empty(); // clear anything that may be in path
       g.reset_nodes();
       g.reset_arcs();
 
@@ -291,11 +292,11 @@ recorrido
       for (Itor<GT, SA> i(start, sa); i.has_curr(); i.next())
         q.put(i.get_current_arc());
 
-      NODE_BITS(start).set_bit(Find_Path, true); // márquelo visitado
+      NODE_BITS(start).set_bit(Find_Path, true); // mark it visited
 
       typename GT::Node *end = nullptr;
 
-      while (not q.is_empty()) // mientras queden arcos por visitar
+      while (not q.is_empty()) // while arcs remain to be visited
         {
           auto arc = q.get();
           auto src = g.get_src_node(arc);
@@ -311,7 +312,7 @@ recorrido
           NODE_BITS(tgt).set_bit(Find_Path, true);
           NODE_COOKIE(tgt) = src;
 
-          if (op(tgt)) // ¿se encontró un camino que satisfaga op?
+          if (op(tgt)) // was a path satisfying op found?
             {
               end = tgt;
               break;
@@ -320,13 +321,13 @@ recorrido
           for (Itor<GT, SA> i(tgt); i.has_curr(); i.next())
             {
               auto a = i.get_current_arc();
-              if (IS_ARC_VISITED(a, Find_Path)) // ¿arco visitado?
-                continue; // sí ==> avanzar al siguiente
+              if (IS_ARC_VISITED(a, Find_Path)) // arc visited?
+                continue; // yes ==> move on to the next one
 
-              // revise nodos del arco para ver si han sido visitados
+              // check the arc's nodes to see whether they were visited
               if (IS_NODE_VISITED(g.get_src_node(a), Find_Path) and
                   IS_NODE_VISITED(g.get_tgt_node(a), Find_Path))
-                continue; // nodos ya visitados ==> no  meter arco
+                continue; // nodes already visited ==> do not enqueue the arc
 
               q.put(a);
             }
@@ -365,14 +366,14 @@ recorrido
     { /* Empty */
     }
 
-    /** Invoca a la búsqueda de camino en amplitud.
+    /** Invokes the breadth-first path search.
 
-    @param[in] g el grafo sobre el cual se desea buscar el camino.
-    @param[in] start puntero al nodo inicio del camino.
-    @param[in] op criterio de fin de búsqueda sobre el nodo visitado
-    @return el camino visto durante la búsqueda en amplitud
-    @throw bad_alloc si no hay memoria para continuar construyendo
-    el camino o para la cola interna del recorrido en amplitud.
+    @param[in] g the graph on which the path is to be searched.
+    @param[in] start pointer to the path's starting node.
+    @param[in] op the end-of-search criterion on the visited node
+    @return the path seen during the breadth-first search
+    @throw bad_alloc if there is not enough memory to keep building
+    the path or for the breadth-first traversal's internal queue.
     */
     template <class Op>
     Path<GT> operator ()(const GT & g, typename GT::Node *start, Op & op)
@@ -390,15 +391,15 @@ recorrido
       return ret;
     }
 
-    /** Invoca a la búsqueda de camino en amplitud.
+    /** Invokes the breadth-first path search.
 
-        @param[in] g el grafo sobre el cual se desea buscar el camino.
-        @param[in] start puntero al nodo inicio del camino.
-        @param[in] end puntero al nodo destino del camino.
-        @param[out] path el camino visto durante la búsqueda en
-        amplitud; sólo tiene sentido si el valor de retorno es true.
-        @throw bad_alloc si no hay memoria para continuar construyendo
-        el camino o para la cola interna del recorrido en amplitud.
+        @param[in] g the graph on which the path is to be searched.
+        @param[in] start pointer to the path's starting node.
+        @param[in] end pointer to the path's destination node.
+        @param[out] path the path seen during the breadth-first
+        search; only meaningful if the return value is true.
+        @throw bad_alloc if there is not enough memory to keep building
+        the path or for the breadth-first traversal's internal queue.
     */
     bool operator ()(const GT & g, typename GT::Node *start,
                      typename GT::Node *end, Path<GT> & path)
@@ -406,14 +407,14 @@ recorrido
       return find_path(g, start, path, [end](auto p) { return p == end; });
     }
 
-    /** Invoca a la búsqueda de camino en amplitud.
+    /** Invokes the breadth-first path search.
 
-        @param[in] g el grafo sobre el cual se desea buscar el camino.
-        @param[in] start puntero al nodo inicio del camino.
-        @param[in] end puntero al nodo destino del camino.
-        @return path el camino visto durante la búsqueda en amplitud
-        @throw bad_alloc si no hay memoria para continuar construyendo
-        el camino o para la cola interna del recorrido en amplitud.
+        @param[in] g the graph on which the path is to be searched.
+        @param[in] start pointer to the path's starting node.
+        @param[in] end pointer to the path's destination node.
+        @return path the path seen during the breadth-first search
+        @throw bad_alloc if there is not enough memory to keep building
+        the path or for the breadth-first traversal's internal queue.
     */
     Path<GT> operator ()(const GT & g,
                          typename GT::Node *start, typename GT::Node *end)
@@ -424,14 +425,14 @@ recorrido
     }
   };
 
-  /** Búsqueda de caminos sobre grafos dirigidos definidos mediante una
-      clase grafo (no digrafo).
+  /** Path search on directed graphs defined through a graph class
+      (not a digraph).
 
      @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             template <typename, class> class Itor = Out_Iterator,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Directed_Find_Path
   {
     const GT & g;

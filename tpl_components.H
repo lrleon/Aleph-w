@@ -51,6 +51,8 @@
 # ifndef TPL_COMPONENTS_H
 # define TPL_COMPONENTS_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_agraph.H>
 # include <ah-errors.H>
 
@@ -98,7 +100,7 @@ namespace Aleph {
  *
  * @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Build_Subgraph
 {
   SA sa;
@@ -310,7 +312,7 @@ public:
  *
  * @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Unconnected_Components
 {
   SA sa;

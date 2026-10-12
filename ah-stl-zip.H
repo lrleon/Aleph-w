@@ -252,6 +252,13 @@ namespace Aleph
       advance_impl(std::make_index_sequence<num_containers>{});
     }
 
+    /** @brief Advance without checking; same as `next()`, which does not check.
+     *
+     *  Provided so the iterator satisfies `AlephIterator` and works in
+     *  generic code that advances with `next_ne()` under a `has_curr()` guard.
+     */
+    constexpr void next_ne() noexcept { next(); }
+
     // STL iterator interface
 
     /** @brief Dereference operator for range-based for.
@@ -1067,6 +1074,13 @@ namespace Aleph
       ++curr_;
       ++index_;
     }
+
+    /** @brief Advance without checking; same as `next()`, which does not check.
+     *
+     *  Provided so the iterator satisfies `AlephIterator` and works in
+     *  generic code that advances with `next_ne()` under a `has_curr()` guard.
+     */
+    constexpr void next_ne() noexcept { next(); }
 
     [[nodiscard]] constexpr auto operator*() const { return get_curr(); }
 

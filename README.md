@@ -2457,9 +2457,13 @@ The result reports:
 - witness walk information (`cycle_nodes`, `cycle_arcs`, `cycle_total_cost`, `cycle_length`)
 
 Witness semantics:
-- `cycle_nodes` is a closed walk (first node repeated at the end).
-- In tie-heavy graphs it may contain repeated internal vertices; it is a valid
-  witness of the minimum mean value, not necessarily a canonical simple cycle.
+- `cycle_nodes` is a simple cycle (first node repeated at the end): the walk
+  of the table is decomposed into simple cycles and the one of smallest mean is
+  reported. With floating-point costs it attains `minimum_mean` up to rounding.
+- Only the cost of the reported cycle has to fit the cost type: integer means
+  are compared exactly, and among cycles of the same mean one whose cost fits
+  is preferred. The call throws `std::overflow_error` only when none does.
+- `witness_node` is the vertex that walk ends at, not necessarily on the cycle.
 
 ```cpp
 #include <tpl_graph.H>
@@ -2483,6 +2487,83 @@ int main() {
     }
 }
 ```
+
+#### Howard's policy iteration
+
+`Howard_Min_Mean_Cycle.H` solves the same problem with `howard_minimum_mean_cycle()`
+(and `howard_minimum_mean_cycle_value()`). Its result is a `Min_Mean_Cycle_Result`
+plus `iterations` and `used_karp`, so it can replace Karp's in client code.
+
+| | Karp | Howard |
+|---|---|---|
+| Time | `O(VE)` worst case | `O(V + E)` per iteration; no polynomial bound on the iterations, typically 6 to 25 in the tests |
+| Memory | `O(V^2)` | `O(V + E)` |
+| Integer costs | exact | exact (reduced fractions; `unsigned long long` where 128-bit integers exist) |
+| Witness | simple cycle | simple cycle |
+
+On the market graphs of `bench_negative_cycles` (hubs plus random pairs) it takes 0.16 ms
+against 3.3 ms for Karp with 300 assets, and 0.6 ms against 41 ms with 1000, using 5 to 9
+times less memory (12 to 24 times when the witness cycle is requested). After `V + 64`
+iterations, or if the scaled bias of an integer problem leaves the range of `long long`, it
+returns Karp's answer (`used_karp`), and `fallback_reason` says why. That fallback runs Karp on
+each strongly connected component, whose tables take `O(V_c^2)` memory; an optional last
+argument, `max_fallback_bytes`, bounds them, and above it the call throws `std::length_error`
+instead of reserving the tables. Like Karp, it ranks cycles by *mean*; for arbitrage, the
+cycle to execute still comes from `Negative_Cycles.H`.
+
+```cpp
+// At most 256 MiB for Karp's tables, if the fallback runs.
+const auto r = howard_minimum_mean_cycle(g, Dft_Dist<Graph>(), Dft_Show_Arc<Graph>(),
+                                         size_t{256} << 20);
+if (r.used_karp and r.fallback_reason == Howard_Fallback_Reason::Iteration_Limit)
+  { /* Howard needed too many iterations */ }
+```
+
+Results carry `numeric_quality`. With floating-point weights Howard iterates in `long double`
+and then finishes in exact arithmetic when the weights, scaled to integers, fit 64 or 128 bits
+(`Exact`, the exact optimum); otherwise it still chooses among the cycles of its policy with
+exact sums (`Rounded`). Reported costs are the exact sums of the weights, rounded once, so their
+sign is exact.
+
+#### Negative cycles and arbitrage
+
+`Negative_Cycles.H` finds profitable loops in a market graph whose arcs weigh
+`-log(rate * (1 - fee))`: a cycle of negative total cost multiplies the money that goes around
+it. Every function takes the graph as `const GT &` (it is not modified), a distance accessor
+and an arc filter. The searches that select a minimum cycle use *total* cost, not mean as Karp and
+Howard do; `find_disjoint_negative_cycles()` returns its cycles in discovery order, not ranked.
+
+| Need | Function | What it guarantees |
+|---|---|---|
+| One to three trades | `most_negative_cycle_up_to_3(g, L)` | The exact minimum total, fewest arcs on ties |
+| Up to `L` trades | `most_negative_cycle_bounded(g, L)` | A simple cycle of at most `L` arcs, with `optimality_gap` |
+| Several opportunities at once | `find_disjoint_negative_cycles(g, k)` | Up to `k` distinct cycles, each exactly negative; arc-disjoint with `Negative_Cycle_Exclusion::All_Arcs` (the default excludes only the cheapest arc of each) |
+
+For three trades or fewer, prefer `most_negative_cycle_up_to_3()`: it is exact and, on the
+market graphs of `bench_negative_cycles` with 300 assets, 17 to 24 times faster than the
+bounded search with `L = 3`.
+
+With `-log` weights in `double`, the `is_exact` flag of the bounded search is practically never
+true: such weights leave its exact regime. Read `optimality_gap` instead, a rigorous bound of how
+much cheaper than the reported cycle the best cycle of at most `L` arcs can be (`is_exact` when
+it is zero). On a day of real Binance quotes it stayed around `1e-14` with `L <= 4`, far below any
+fee.
+
+The arc filter is where stale or unconfirmed quotes belong: an arc it rejects does not exist for
+the search, and its weight is not read. Detection is not execution: these functions see the top
+of the book only; quantities, depth and fees charged in another asset are the application's.
+
+`most_negative_cycle_up_to_3(g, max_length)` independently finds the exact minimum-total-cost simple cycle,
+including self-loops and parallel arcs. `max_length` defaults to 3; zero returns an
+empty result and values above 3 throw. Its `Short_Cycle_Result` exposes `has_cycle`,
+`total_cost`, `length`, `cycle_nodes`, `cycle_arcs` and `is_negative()`. Equal exact
+costs prefer fewer arcs. Floating-point weights are ranked as exact binary values;
+the published total is rounded within one ulp and preserves the exact sign.
+This requires round-to-nearest arithmetic without fast-math. Only the total of the
+reported cycle has to fit the cost type: a cycle whose total is above it is skipped,
+and the call throws only when the best cycle's total does not fit. The search uses O(V + E) space and O(V + E) time for bounds 1–2, or
+O(V + E + Σ d_in(v) · d_out(v)) time for bound 3, with distinct-neighbour degrees
+inside the cyclic core. The existing bounded DP and its certificates are unchanged.
 
 <a id="readme-minimum-spanning-trees"></a>
 ### Minimum Spanning Trees
@@ -4661,6 +4742,7 @@ cmake --build build
 | Dijkstra | `dijkstra_example.cc` | Single-source |
 | Bellman-Ford | `bellman_ford_example.cc` | Negative weights |
 | Johnson | `johnson_example.cc` | All-pairs sparse |
+| Arbitrage cycles | `crypto_arbitrage_example.cc` | Triangular arbitrage as negative cycles of `-log(rate * (1 - fee))`: several arc-disjoint opportunities (`find_disjoint_negative_cycles`), the most profitable cycle of at most `L` trades (`most_negative_cycle_bounded`), a minimum margin in the distance functor, and Karp for comparison |
 | A* | `astar_example.cc` | Heuristic search |
 | K shortest paths | `k_shortest_paths_example.cc` | Yen (loopless) vs Eppstein-style general alternatives |
 | **String Algorithms** | | |

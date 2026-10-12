@@ -44,6 +44,8 @@
 #ifndef DIJKSTRA_H
 #define DIJKSTRA_H
 
+# include <ah-graph-concepts.H>
+
 #include <ahFunction.H>
 #include <ah-errors.H>
 #include <archeap.H>
@@ -91,10 +93,10 @@ namespace Aleph
 
 @ingroup Graphs
 */
-template <class GT,
-          class Distance = Dft_Dist<GT>,
+template <AlephGraph GT,
+          ArcDistance<GT> Distance = Dft_Dist<GT>,
           template <typename, class> class Itor = Node_Arc_Iterator,
-          class SA = Dft_Show_Arc<GT>,
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>,
           template <class, class, class> class HeapT = ArcHeap>
 class Dijkstra_Min_Paths
   : public Shortest_Path_Base<GT, Distance, Itor, SA, HeapT>

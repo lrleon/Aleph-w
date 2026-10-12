@@ -42,7 +42,9 @@
 #include <ah-cpp-compat.H>
 
 using Aleph::expected;
-using Aleph::unexpected;
+// Not `using Aleph::unexpected`: the Windows UCRT declares a global
+// ::unexpected() (the C++98 std::unexpected), which that declaration would
+// conflict with. The uses below are qualified instead.
 
 namespace
 {
@@ -50,7 +52,7 @@ namespace
 expected<int, std::string> parse_positive(int raw)
 {
   if (raw <= 0)
-    return unexpected<std::string>("must be positive");
+    return Aleph::unexpected<std::string>("must be positive");
   return raw * 2;
 }
 }  // namespace
@@ -76,7 +78,7 @@ TEST(AhCppCompat, HoldsValue)
 
 TEST(AhCppCompat, HoldsError)
 {
-  expected<int, std::string> e = unexpected<std::string>("boom");
+  expected<int, std::string> e = Aleph::unexpected<std::string>("boom");
   ASSERT_FALSE(e.has_value());
   ASSERT_FALSE(static_cast<bool>(e));
   EXPECT_EQ(e.error(), "boom");
@@ -85,7 +87,7 @@ TEST(AhCppCompat, HoldsError)
 
 TEST(AhCppCompat, ValueOnErrorThrows)
 {
-  expected<int, std::string> e = unexpected<std::string>("nope");
+  expected<int, std::string> e = Aleph::unexpected<std::string>("nope");
   EXPECT_THROW((void) e.value(), Aleph::bad_expected_access<std::string>);
 }
 
@@ -107,7 +109,7 @@ TEST(AhCppCompat, Transform)
   ASSERT_TRUE(doubled.has_value());
   EXPECT_EQ(*doubled, 42);
 
-  expected<int, std::string> err = unexpected<std::string>("e");
+  expected<int, std::string> err = Aleph::unexpected<std::string>("e");
   auto still_err = err.transform([](int v) { return v * 2; });
   ASSERT_FALSE(still_err.has_value());
   EXPECT_EQ(still_err.error(), "e");
@@ -121,7 +123,7 @@ TEST(AhCppCompat, AndThen)
   ASSERT_TRUE(chained.has_value());
   EXPECT_EQ(*chained, 105);
 
-  expected<int, std::string> err = unexpected<std::string>("x");
+  expected<int, std::string> err = Aleph::unexpected<std::string>("x");
   auto skipped = err.and_then(
       [](int v) -> expected<int, std::string> { return v + 100; });
   ASSERT_FALSE(skipped.has_value());
@@ -130,7 +132,7 @@ TEST(AhCppCompat, AndThen)
 
 TEST(AhCppCompat, OrElse)
 {
-  expected<int, std::string> err = unexpected<std::string>("recoverable");
+  expected<int, std::string> err = Aleph::unexpected<std::string>("recoverable");
   auto recovered = err.or_else(
       [](const std::string &) -> expected<int, std::string> { return 7; });
   ASSERT_TRUE(recovered.has_value());
@@ -144,13 +146,13 @@ TEST(AhCppCompat, CopyAndMovePreserveState)
   ASSERT_TRUE(copy.has_value());
   EXPECT_EQ(*copy, "hello");
 
-  expected<std::string, int> e = unexpected<int>(404);
+  expected<std::string, int> e = Aleph::unexpected<int>(404);
   auto moved = std::move(e);           // move of an error
   ASSERT_FALSE(moved.has_value());
   EXPECT_EQ(moved.error(), 404);
 
   // Assignment that switches the active member (value -> error).
-  copy = unexpected<int>(500);
+  copy = Aleph::unexpected<int>(500);
   ASSERT_FALSE(copy.has_value());
   EXPECT_EQ(copy.error(), 500);
 }
@@ -162,7 +164,7 @@ TEST(AhCppCompat, VoidExpectedBasic)
   ASSERT_TRUE(static_cast<bool>(ok));
   EXPECT_NO_THROW(ok.value());
 
-  expected<void, std::string> err = unexpected<std::string>("fail");
+  expected<void, std::string> err = Aleph::unexpected<std::string>("fail");
   ASSERT_FALSE(err.has_value());
   ASSERT_FALSE(static_cast<bool>(err));
   EXPECT_EQ(err.error(), "fail");
@@ -176,7 +178,7 @@ TEST(AhCppCompat, VoidExpectedMonadic)
   ASSERT_TRUE(chained.has_value());
   EXPECT_EQ(*chained, 42);
 
-  expected<void, std::string> err = unexpected<std::string>("e");
+  expected<void, std::string> err = Aleph::unexpected<std::string>("e");
   auto recovered = err.or_else(
       [](const std::string &) -> expected<void, std::string> { return {}; });
   ASSERT_TRUE(recovered.has_value());
@@ -200,7 +202,7 @@ TEST(AhCppCompat, AssignmentExceptionSafety)
   expected<int, ThrowOnCopy> original = 100;
   ASSERT_TRUE(original.has_value());
 
-  expected<int, ThrowOnCopy> other = unexpected<ThrowOnCopy>(ThrowOnCopy(42));
+  expected<int, ThrowOnCopy> other = Aleph::unexpected<ThrowOnCopy>(ThrowOnCopy(42));
   ASSERT_FALSE(other.has_value());
 
   EXPECT_THROW(original = other, std::runtime_error);

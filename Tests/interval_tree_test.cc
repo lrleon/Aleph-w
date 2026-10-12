@@ -848,3 +848,67 @@ TEST(IntervalTreeStressTest, AllOverlapsBruteForce)
         << "Mismatch for query [" << a << "," << b << "]";
     }
 }
+
+// ─────────────────────────────────────────────────────────────────
+// key_comp() with a comparator whose copy may throw
+// ─────────────────────────────────────────────────────────────────
+
+namespace
+{
+  struct Copy_Error {};
+
+  // Compares as less<int> does; its copy throws when it is told to fail.
+  struct LessWithFallibleCopy
+  {
+    static inline bool copy_fails = false;
+
+    LessWithFallibleCopy() = default;
+
+    LessWithFallibleCopy(const LessWithFallibleCopy &)
+    {
+      if (copy_fails)
+        throw Copy_Error();
+    }
+
+    LessWithFallibleCopy & operator = (const LessWithFallibleCopy &) = default;
+
+    bool operator ()(const int a, const int b) const noexcept { return a < b; }
+  };
+
+  // While one lives, copying a LessWithFallibleCopy throws.
+  struct Failing_Copies
+  {
+    Failing_Copies() noexcept { LessWithFallibleCopy::copy_fails = true; }
+    ~Failing_Copies() { LessWithFallibleCopy::copy_fails = false; }
+  };
+}
+
+// The comparator of intervals that key_comp() returns holds a copy of the
+// comparator of endpoints. What that copy throws has to reach the caller: a
+// noexcept key_comp() would end the program instead.
+TEST(IntervalTreeComparator, KeyCompThrowsWhatCopyingTheComparatorThrows)
+{
+  static_assert(noexcept(std::declval<const Interval_Tree<int> &>().key_comp()));
+  static_assert(noexcept(std::declval<const DynIntervalTree<int> &>().key_comp()));
+
+  using Raw_Tree = Interval_Tree<int, LessWithFallibleCopy>;
+  using Tree = DynIntervalTree<int, LessWithFallibleCopy>;
+  static_assert(not noexcept(std::declval<const Raw_Tree &>().key_comp()));
+  static_assert(not noexcept(std::declval<const Tree &>().key_comp()));
+
+  Tree tree;
+  tree.insert(1, 5);
+  tree.insert(3, 8);
+
+  const auto less = tree.key_comp();
+  EXPECT_TRUE(less(Interval<int>(1, 5), Interval<int>(3, 8)));
+  EXPECT_FALSE(less(Interval<int>(3, 8), Interval<int>(1, 5)));
+
+  {
+    const Failing_Copies failing;
+    EXPECT_THROW((void) tree.key_comp(), Copy_Error);
+  }
+
+  EXPECT_TRUE(tree.verify());
+  EXPECT_EQ(tree.size(), 2u);
+}

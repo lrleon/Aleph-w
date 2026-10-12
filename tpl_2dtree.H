@@ -647,13 +647,13 @@ private:
     const size_t mid = lo + (hi - lo) / 2;
 
     if (split_x)
-      std::nth_element(&pts(lo), &pts(mid), &pts(hi),
+      std::nth_element(&pts(lo), &pts(lo) + (mid - lo), &pts(lo) + (hi - lo),
                        [](const Point & a, const Point & b)
                          {
                            return a.get_x() < b.get_x();
                          });
     else
-      std::nth_element(&pts(lo), &pts(mid), &pts(hi),
+      std::nth_element(&pts(lo), &pts(lo) + (mid - lo), &pts(lo) + (hi - lo),
                        [](const Point & a, const Point & b)
                          {
                            return a.get_y() < b.get_y();

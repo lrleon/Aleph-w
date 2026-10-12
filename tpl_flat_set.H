@@ -68,6 +68,7 @@
 
 #include <algorithm>
 #include <initializer_list>
+#include <iterator>
 #include <utility>
 
 #include <ah-errors.H>
@@ -251,7 +252,7 @@ public:
    *  @throws std::bad_alloc if memory allocation fails.
    *  @note On duplicate (equivalent) inputs the first occurrence wins.
    */
-  template <class It, class = std::enable_if_t<not std::is_integral_v<It>>>
+  template <std::input_iterator It>
   FlatSet(It first, It last, const Compare &cmp = Compare())
     : keys_(MemArray<Key>::Min_Dim), cmp_(cmp)
   {

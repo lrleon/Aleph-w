@@ -839,7 +839,7 @@ TEST(SortUtilsArraySorts, introsort_array_container_single)
 TEST(SortUtilsArraySorts, introsort_array_container_large)
 {
   const size_t n = 5000;
-  Array<int> arr(n);
+  auto arr = Array<int>::create_reserved(n);
   for (size_t i = 0; i < n; ++i)
     arr.append(static_cast<int>(n - i));  // Reverse sorted
 
@@ -1063,6 +1063,17 @@ TEST(SortUtilsSearchSequential, sequential_search_dynlist)
   EXPECT_EQ(p, nullptr);
 }
 
+TEST(SortUtilsSearchSequential, sequential_search_const_dynlist)
+{
+  const DynList<int> l = make_dynlist({4, 1, 3, 2, 0, 2});
+  const int * p = sequential_search(l, 3);
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(*p, 3);
+
+  p = sequential_search(l, 99);
+  EXPECT_EQ(p, nullptr);
+}
+
 TEST(SortUtilsSearchSequential, sequential_search_dyndlist)
 {
   DynDlist<int> l = make_dyndlist({4, 1, 3, 2, 0, 2});
@@ -1130,6 +1141,20 @@ TEST(SortUtilsSearchExtreme, search_extreme_dynlist_min_max)
   ASSERT_NE(mx, nullptr);
   EXPECT_EQ(*mn, 0);
   EXPECT_EQ(*mx, 4);
+}
+
+TEST(SortUtilsSearchExtreme, search_extreme_const_dynlist_min_max)
+{
+  const DynList<int> l = make_dynlist({4, 1, 3, 2, 0, 2});
+  const int * mn = search_extreme(l);
+  const int * mx = search_extreme(l, Aleph::greater<int>());
+  ASSERT_NE(mn, nullptr);
+  ASSERT_NE(mx, nullptr);
+  EXPECT_EQ(*mn, 0);
+  EXPECT_EQ(*mx, 4);
+
+  const DynList<int> empty;
+  EXPECT_EQ(search_extreme(empty), nullptr);
 }
 
 TEST(SortUtilsSearchExtreme, search_min_max_dynlist)

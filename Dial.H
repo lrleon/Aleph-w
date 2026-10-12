@@ -82,6 +82,8 @@
 # ifndef DIAL_H
 # define DIAL_H
 
+# include <ah-graph-concepts.H>
+
 # include <limits>
 # include <type_traits>
 # include <tpl_array.H>
@@ -118,10 +120,10 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
             template <typename, class> class Itor = Node_Arc_Iterator,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Dial_Min_Paths
   {
   public:

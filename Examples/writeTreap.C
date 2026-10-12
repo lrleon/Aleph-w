@@ -152,12 +152,12 @@ int main(int argc, char *argv[])
   for (i = 0; i < n; i++)
     {
       while (true)
-	{
-	  value = 1 + (int) (10.0*n*rand()/(RAND_MAX+1.0));
-	  node = tree.search(value);
-	  if (node == nullptr)
-	    break;
-	}
+        {
+          value = 1 + static_cast<int>(10.0 * n * rand() / (RAND_MAX + 1.0));
+          node = tree.search(value);
+          if (node == nullptr)
+            break;
+        }
       node = new Treap<int>::Node (value);
       tree.insert(node);
     }
@@ -179,17 +179,18 @@ int main(int argc, char *argv[])
   inOrderRec(tree.getRoot(), print_pair); 
   tex_file << "~\\ ";
 
-  destroyRec(tree.getRoot()); 
-  tree.getRoot() = nullptr; // Reset tree state after destruction 
+  // destroyRec() leaves the root as Node::NullPtr, the treap's sentinel.
+  // Do not reset it to nullptr: the tree would no longer be empty but broken.
+  destroyRec(tree.getRoot());
   tree.set_seed(t);
 
   for (i = 0; i < n; i++)
     {
-      value = (int) (n*10.0*rand()/(RAND_MAX+1.0));
+      value = static_cast<int>(n * 10.0 * rand() / (RAND_MAX + 1.0));
       node = tree.search(value);
       if (node == nullptr)
-	{
-          node = new Treap<int>::Node (value); 
+        {
+          node = new Treap<int>::Node (value);
           tree.insert(node);
         }
     }

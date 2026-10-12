@@ -1,15 +1,14 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -30,145 +29,110 @@
   SOFTWARE.
 */
 
-# include <iostream>
-# include <memory>
-# include <string>
-# include <stdexcept>
-# include <ah-errors.H>
-# include <tpl_tree_node.H>
-# include <tpl_dynArray.H>
+#include <iostream>
+#include <string>
+#include <stdexcept>
+#include <ah-errors.H>
+#include <tpl_tree_node.H>
+#include <tpl_dynArray.H>
 
-# include <cassert>
+#include <cassert>
 using namespace std;
+using namespace Aleph;
 
-void print_node(Tree_Node<int> * node, int level, int index)
+using Node = Tree_Node<string>;
+
+static void print_node(Node *node, int level, int index)
 {
-  cout << node->get_data() << " level = " << level << " index = " 
-       << index << endl;
+  cout << "  [" << index << "] " << string(2 * level, ' ') << node->get_data() << '\n';
 }
 
-
-bool is_string_an_int(const string& str)
+static Node *append_child(Node *parent, const string &name)
 {
-  string::size_type len = str.size();
-
-  for (string::size_type i = 0; i < len; i++)
-    if (not std::isdigit(static_cast<unsigned char>(str[i])))
-      return false;
-
-  return true;
+  auto *child = new Node(name);
+  parent->insert_rightmost_child(child);
+  return child;
 }
 
-
-int * string_to_deway(const string& str, size_t & size) 
+static void draw_children(Node *node, const string &prefix)
 {
-  DynArray<int> a;
-
-  const string delimiters(".");
-  string::size_type begin_index, end_index, number_str_len;
-
-  begin_index = str.find_first_not_of(delimiters);
-  while (begin_index not_eq string::npos)
+  for (Node *child = node->get_left_child(); child != nullptr;
+       child = child->get_right_sibling())
     {
-      end_index = str.find_first_of(delimiters, begin_index);
-
-      number_str_len = end_index - begin_index;
-
-      const string number_str = 
-	str.substr(begin_index, number_str_len).c_str();
-
-      ah_invalid_argument_if(not is_string_an_int(number_str))
-        << "character is not a digit";
-      
-      a[a.size()] = atoi(number_str.c_str());
-
-      begin_index = str.find_first_not_of(delimiters, end_index);
+      const bool is_last = child->get_right_sibling() == nullptr;
+      cout << prefix << (is_last ? "`-- " : "|-- ") << child->get_data() << '\n';
+      draw_children(child, prefix + (is_last ? "    " : "|   "));
     }
-
-  int * ret_val = new int [a.size() + 1];
-
-  for (int i = 0; i < a.size(); i++)
-    ret_val[i] = a[i];
-  ret_val[a.size()] = -1;
-
-  size = a.size();
-
-  return ret_val;
 }
 
+static void draw_tree(Node *root)
+{
+  cout << root->get_data() << '\n';
+  draw_children(root, "");
+}
+
+/** Print every node with its Dewey number and depth indentation.
+
+    @param[in] node current node.
+    @param[in] dewey Dewey number of `node`.
+    @param[in] level depth of `node`.
+ */
+static void print_dewey_view(Node *node, const string &dewey, size_t level)
+{
+  cout << string(2 * level, ' ') << dewey << "  " << node->get_data() << '\n';
+
+  size_t child_index = 0;
+  for (Node *child = node->get_left_child(); child != nullptr;
+       child = child->get_right_sibling(), ++child_index)
+    print_dewey_view(child, dewey + "." + to_string(child_index), level + 1);
+}
 
 int main()
 {
-  int number;
-  cout << "Enter the root value: ";
-  if (not (cin >> number))
-    {
-      cout << "Error: Invalid input for root value." << endl;
-      return 1;
-    }
+  auto *root = new Node("Aleph-w");
 
-  Tree_Node<int> * root = new Tree_Node<int> (number);
+  Node *containers = append_child(root, "Containers");
+  Node *trees = append_child(root, "Trees");
+  Node *graphs = append_child(root, "Graphs");
 
-  cout << "Entering tree nodes (deway then number) (any letter to finish)" 
-       << endl;
+  append_child(containers, "Array");
+  append_child(containers, "DynList");
+  append_child(containers, "Hash tables");
 
-  while (true)
-    {
-      try
-	{
-	  cout << "    Parent Deway number = ";
-	  string deway_string;
-	  size_t deway_size;
-	  if (not (cin >> deway_string))
-            break;
+  Node *binary_trees = append_child(trees, "Binary trees");
+  append_child(trees, "General trees");
+  append_child(binary_trees, "AVL");
+  append_child(binary_trees, "Red-black");
+  append_child(binary_trees, "Treap");
 
-	  unique_ptr<int[]> deway(string_to_deway(deway_string, deway_size));
+  append_child(graphs, "Traversal");
+  append_child(graphs, "Shortest paths");
 
-	  Tree_Node<int> * node = deway_search(root, deway.get(), deway_size);
+  //      assert(check_tree(root));
 
-	  if (node == NULL)
-	    {
-	      cout << "Node " << deway_string << " does not exist" << endl;
-	      continue;
-	    }
+  cout << "Aleph-w data-structure tree\n"
+       << "===========================\n";
+  draw_tree(root);
 
-	  cout << "    Inserting rightmost child in " << deway_string 
-	       << " - " << node->get_data() << endl
-	       << "    New node key = ";
+  cout << "\nDewey-numbered view\n"
+       << "--------------------\n";
+  print_dewey_view(root, "0", 0);
 
-	  int key;
-	  if (not (cin >> key))
-            break;
-
-	  Tree_Node<int> * p = new Tree_Node<int> (key);
-	  node->insert_rightmost_child(p);
-
-	  //	  assert(check_tree(root));
-
-	  cout << endl;
-	}
-      catch (invalid_argument & e)
-	{
-	  cout << e.what() << endl
-	       << "Finishing " << endl;
-	  break;
-	}      
-      catch (bad_alloc)
-	{
-	  cout << "Out of memory";
-	}
-    }
-
-  cout << "    preorder" << endl;
+  cout << "\nPreorder traversal\n";
   tree_preorder_traversal(root, &print_node);
 
-  cout << "    postorder" << endl;
+  cout << "\nPostorder traversal\n";
   tree_postorder_traversal(root, &print_node);
 
-  auto aux = clone_tree(root);
+  int treap_path[] = {0, 1, 0, 2, -1};
+  Node *treap = deway_search(root, treap_path, 5);
+  assert(treap != nullptr);
+  cout << "\nDewey path 0.1.0.2 points to: " << treap->get_data() << '\n';
 
-  assert(are_tree_equal(root, aux));
+  Node *copy = clone_tree(root);
+  assert(are_tree_equal(root, copy));
+  cout << "Clone verification: passed\n";
 
   destroy_tree(root);
-  destroy_tree(aux);
+  destroy_tree(copy);
 }

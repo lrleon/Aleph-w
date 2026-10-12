@@ -325,7 +325,7 @@ private:
   template <class Op>
   void for_each_term_desc(Op &&op) const
   {
-    Array<const Term *> desc_terms(coeffs.size());
+    auto desc_terms = Array<const Term *>::create_reserved(coeffs.size());
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
         const auto &p = it.get_curr();

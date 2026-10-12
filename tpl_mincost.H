@@ -69,6 +69,8 @@
 #ifndef TPL_MINCOST_H
 #define TPL_MINCOST_H
 
+# include <ah-graph-concepts.H>
+
 #include <limits>
 #include <queue>
 #include <functional>
@@ -382,7 +384,7 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
   return true;
 }
 
-template <class Net>
+template <FlowNetwork Net>
 std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_paths(Net &net)
 {
   using Node = typename Net::Node;

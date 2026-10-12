@@ -83,20 +83,6 @@ struct SVG_Render_Options
 
 namespace ca_svg_detail {
 
-template <typename Lattice>
-concept HexRenderable = requires(const Lattice &lat) {
-  lat.rows();
-  lat.cols();
-  lat.at_axial(Hex_Axial{});
-};
-
-template <typename Lattice>
-concept TriRenderable = requires(const Lattice &lat) {
-  lat.rows();
-  lat.cols();
-  lat.at_tri(Tri_Coord{});
-};
-
 [[nodiscard]] inline std::string rgb_hex(const RGB8 c)
 {
   constexpr char digits[] = "0123456789abcdef";
@@ -160,7 +146,7 @@ inline void write_points(std::ostream &out, const Array<std::array<double, 2>> &
 [[nodiscard]] inline Array<std::array<double, 2>> hex_points(Hex_Axial a, const double radius)
 {
   const auto centre = axial_to_pixel_pointy(a, radius);
-  Array<std::array<double, 2>> pts(6);
+  auto pts = Array<std::array<double, 2>>::create_reserved(6);
   for (int k = 0; k < 6; ++k)
     {
       constexpr double pi = 3.14159265358979323846;
@@ -176,10 +162,10 @@ inline void write_points(std::ostream &out, const Array<std::array<double, 2>> &
   constexpr double sqrt3 = 1.7320508075688772;
   const double h = side * sqrt3 / 2.0;
   const auto centre = tri_pixel_centre(c, side);
-  // Built with explicit appends: Array(3) preallocates exact capacity,
+  // Built with explicit appends: create_reserved(3) preallocates exact capacity,
   // and the three vertices read clearer than a braced list-init.
   using Pt = std::array<double, 2>;
-  Array<Pt> pts(3);
+  auto pts = Array<Pt>::create_reserved(3);
   if (tri_is_up(c))
     {
       pts.append(Pt{centre[0], centre[1] - (2.0 * h / 3.0)});
@@ -231,7 +217,7 @@ inline void render_lattice_svg(std::ostream &out,
   ah_domain_error_if(opts.cell_size <= 0.0) << "render_lattice_svg: cell_size must be positive";
 
   ca_svg_detail::Bounds b;
-  if constexpr (ca_svg_detail::HexRenderable<Lattice>)
+  if constexpr (HexRenderable<Lattice>)
     {
       for (ca_size_t r = 0; r < frame.rows(); ++r)
         for (ca_size_t q = 0; q < frame.cols(); ++q)
@@ -247,7 +233,7 @@ inline void render_lattice_svg(std::ostream &out,
                     static_cast<double>(frame.rows()) * opts.cell_size);
         }
     }
-  else if constexpr (ca_svg_detail::TriRenderable<Lattice>)
+  else if constexpr (TriRenderable<Lattice>)
     {
       for (ca_size_t r = 0; r < frame.rows(); ++r)
         for (ca_size_t c = 0; c < frame.cols(); ++c)
@@ -269,7 +255,7 @@ inline void render_lattice_svg(std::ostream &out,
     }
 
   ca_svg_detail::write_svg_header(out, b, opts);
-  if constexpr (ca_svg_detail::HexRenderable<Lattice>)
+  if constexpr (HexRenderable<Lattice>)
     {
       for (ca_size_t r = 0; r < frame.rows(); ++r)
         for (ca_size_t q = 0; q < frame.cols(); ++q)
@@ -285,7 +271,7 @@ inline void render_lattice_svg(std::ostream &out,
             out << "/>\n";
           }
     }
-  else if constexpr (ca_svg_detail::TriRenderable<Lattice>)
+  else if constexpr (TriRenderable<Lattice>)
     {
       for (ca_size_t r = 0; r < frame.rows(); ++r)
         for (ca_size_t c = 0; c < frame.cols(); ++c)

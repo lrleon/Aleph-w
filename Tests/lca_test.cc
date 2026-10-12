@@ -144,8 +144,7 @@ namespace
       ah_runtime_error_if(edges.size() != n_ - 1)
         << "Naive_Tree_Oracle: edges.size() must be n-1";
 
-      for (typename Array<std::pair<size_t, size_t>>::Iterator it(edges);
-           it.has_curr(); it.next_ne())
+      for (auto it = edges.get_it(); it.has_curr(); it.next_ne())
         {
           const auto & e = it.get_curr();
           const size_t u = e.first;

@@ -85,12 +85,6 @@ struct is_tile<Tile<W, H>> : std::true_type
 template <typename O>
 inline constexpr bool is_tile_v = is_tile<O>::value;
 
-/// Detect whether a lattice exposes a `refresh_halo()` method (the
-/// hallmark of a `Ghost_Lattice` or any other halo-aware variant).
-/// Used by the engine to keep the halo synchronised automatically.
-template <typename L>
-concept HasRefreshHalo = requires(L &l) { l.refresh_halo(); };
-
 /// 1D row-major iteration callback `f(coord)`.
 template <typename Coord, typename F>
 inline void iterate_1d(ca_size_t n0, F &&f)

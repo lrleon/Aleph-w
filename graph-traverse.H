@@ -43,6 +43,8 @@
 # ifndef GRAPH_TRAVERSE_H
 # define GRAPH_TRAVERSE_H
 
+# include <ah-graph-concepts.H>
+
 # include <tuple>
 # include <cassert>
 # include <tpl_agraph.H>
@@ -77,9 +79,9 @@ namespace // local constants to avoid collisions with aleph-graph.H
 
     @ingroup Graphs
  */
-template <class GT, class Itor,
+template <AlephGraph GT, class Itor,
           template <typename T> class Q = DynListStack,
-          class Show_Arc = Dft_Show_Arc<GT>>
+          ArcFilter<GT> Show_Arc = Dft_Show_Arc<GT>>
 class Graph_Traverse
 {
   GT & g;

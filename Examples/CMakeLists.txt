@@ -27,8 +27,6 @@ file(GLOB EXAMPLE_SOURCES CONFIGURE_DEPENDS
 set(EXCLUDED_EXAMPLES
     "${CMAKE_CURRENT_SOURCE_DIR}/fft_benchmark.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/fft_reference_probe.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/polynomial_benchmark.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/polynomial_reference_probe.cc"
 )
 
 foreach(excluded_file IN LISTS EXCLUDED_EXAMPLES)
@@ -46,12 +44,6 @@ foreach(source_file IN LISTS EXAMPLE_SOURCES)
         set_source_files_properties("${source_file}" PROPERTIES LANGUAGE CXX)
     endif()
 endforeach()
-
-add_executable(polynomial_benchmark "${CMAKE_CURRENT_SOURCE_DIR}/polynomial_benchmark.cc")
-target_link_libraries(polynomial_benchmark PRIVATE Aleph ${ALEPH_SYSTEM_LIBS})
-
-add_executable(polynomial_reference_probe "${CMAKE_CURRENT_SOURCE_DIR}/polynomial_reference_probe.cc")
-target_link_libraries(polynomial_reference_probe PRIVATE Aleph ${ALEPH_SYSTEM_LIBS})
 
 if(BUILD_TESTS)
     set(_VERIFY_REFERENCE_EXAMPLE
@@ -144,6 +136,16 @@ if(BUILD_TESTS)
         )
     endif()
 
+    if(TARGET crypto_arbitrage_example)
+        add_test(
+            NAME GraphExamples.CryptoArbitrage
+            COMMAND ${CMAKE_COMMAND}
+                    -DEXAMPLE_PATH=$<TARGET_FILE:crypto_arbitrage_example>
+                    "-DEXPECT_SUBSTRINGS=Crypto arbitrage reference example\;Market: 6 assets, 10 pairs\;BTC -> USDT -> ETH -> BTC  (3 trades, gain +0.697%)\;ADA -> BNB -> USDT -> ADA  (3 trades, gain +0.498%)\;Opportunities found: 2\;Opportunities found: 1\;at most 2 trades: no profitable cycle\;of the best in log terms, a rigorous bound\;Karp minimum mean cycle"
+                    -P ${_VERIFY_REFERENCE_EXAMPLE}
+        )
+    endif()
+
     if(TARGET state_search_benchmark)
         add_test(
             NAME StateSearchBenchmark.Validate
@@ -152,6 +154,5 @@ if(BUILD_TESTS)
     endif()
 endif()
 
-list(LENGTH EXAMPLE_SOURCES _examples_count)
-math(EXPR _total_examples "${_examples_count} + 2")
+list(LENGTH EXAMPLE_SOURCES _total_examples)
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} examples (${_total_examples} targets)")

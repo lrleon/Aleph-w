@@ -166,6 +166,25 @@ TEST(FlatMap, RangeConstructorAcceptsIteratorsWithoutArrow)
   EXPECT_EQ(m.at(3), "three");
 }
 
+// The map's own iterators yield a (key, value) proxy with no common
+// reference with std::pair, so they do not model std::input_iterator; the
+// range constructor must still accept them.
+TEST(FlatMap, RangeConstructorAcceptsOwnIteratorAndConstIterator)
+{
+  FlatMap<int, std::string> src = {{2, "two"}, {1, "one"}, {3, "three"}};
+  const FlatMap<int, std::string> &csrc = src;
+
+  FlatMap<int, std::string> from_it(src.begin(), src.end());
+  FlatMap<int, std::string> from_cit(csrc.begin(), csrc.end());
+  FlatMap<int, std::string> from_tail(src.begin() + 1, src.end());
+
+  EXPECT_EQ(from_it, src);
+  EXPECT_EQ(from_cit, src);
+  ASSERT_EQ(from_tail.size(), 2u);
+  EXPECT_FALSE(from_tail.contains(1));
+  EXPECT_EQ(from_tail.at(3), "three");
+}
+
 TEST(FlatMap, InsertRejectsDuplicateInsertOrAssignOverwrites)
 {
   FlatMap<int, int> m;

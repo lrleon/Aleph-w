@@ -249,7 +249,7 @@ namespace
     const uint64_t full_mask = (uint64_t{1} << n) - 1;
     const size_t state_count = static_cast<size_t>(full_mask + 1);
 
-    Array<Objective> memo(state_count);
+    auto memo = Array<Objective>::create(state_count);
     Array<char> seen(state_count, 0);
 
     std::function<Objective(uint64_t)> solve = [&](uint64_t mask) -> Objective

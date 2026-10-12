@@ -39,6 +39,8 @@
 # ifndef TPL_TEST_ACYCLIQUE_H
 # define TPL_TEST_ACYCLIQUE_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_graph_utils.H>
 # include <ah-errors.H>
 
@@ -62,7 +64,7 @@ namespace Aleph
 
       @ingroup Graphs
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Is_Graph_Acyclique
   {
     SA & sa;
@@ -186,7 +188,7 @@ many arcs satisfy the criterion.
 
        @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Has_Cycle
   {
     SA & sa;

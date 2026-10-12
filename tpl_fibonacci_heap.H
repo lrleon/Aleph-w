@@ -44,6 +44,7 @@
 # ifndef TPL_FIBONACCI_HEAP_H
 # define TPL_FIBONACCI_HEAP_H
 
+# include <ah-concepts.H>
 # include <ahUtils.H>
 # include <ah-errors.H>
 # include <ahFunctional.H>
@@ -108,6 +109,7 @@ namespace Aleph
    * @see BinHeap DynBinHeap
    */
   template <typename T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   class Fibonacci_Heap
   {
   public:
@@ -150,10 +152,10 @@ namespace Aleph
        * @param arg First argument forwarded to the stored value.
        * @param args Remaining arguments forwarded to the stored value.
        */
-      template <typename Arg, typename... Args,
-                std::enable_if_t<(sizeof...(Args) >= 1) ||
-                                 (!std::is_same_v<std::decay_t<Arg>, T> &&
-                                  !std::is_same_v<std::decay_t<Arg>, Node>), int> = 0>
+      template <typename Arg, typename... Args>
+        requires ((sizeof...(Args) >= 1) or
+                  (not std::is_same_v<std::decay_t<Arg>, T> and
+                   not std::is_same_v<std::decay_t<Arg>, Node>))
       explicit Node(Arg&& arg, Args&&... args)
         : data(std::forward<Arg>(arg), std::forward<Args>(args)...) {}
     };

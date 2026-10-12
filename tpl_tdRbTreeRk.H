@@ -966,8 +966,8 @@ private:
   }
 
 public:
-  /// Verify tree properties
-  bool verify() const noexcept
+  /// Verify tree properties. It throws what the comparator throws.
+  bool verify() const
   {
     return is_red_black_bst_rk(root, cmp) and check_rank_tree(root);
   }

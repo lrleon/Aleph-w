@@ -332,6 +332,16 @@ public:
     goto_first_valid_item();
   }
 
+  /** @brief Filter over the modifiable container `c`.
+      @param[in] c the container.
+      @param[in] si the filter.
+  */
+  Filter_Iterator(Container & c, Show_Item si = Show_Item())
+    : It(c), show_item(si), container_ptr(&c)
+  {
+    goto_first_valid_item();
+  }
+
   /** @brief Constructs a filter iterator with a cookie.
    *
    *  The cookie is a user-defined pointer that can be used to attach
@@ -343,6 +353,14 @@ public:
    *  @throw std::bad_alloc if there is not enough memory.
    */
   Filter_Iterator(const Container & c, void *__cookie,
+                  Show_Item si = Show_Item())
+    : Filter_Iterator(c, si)
+  {
+    cookie = __cookie;
+  }
+
+  /// \overload Filter_Iterator(const Container &, void *, Show_Item), over a modifiable container.
+  Filter_Iterator(Container & c, void *__cookie,
                   Show_Item si = Show_Item())
     : Filter_Iterator(c, si)
   {

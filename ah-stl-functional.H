@@ -83,6 +83,7 @@
 # include <stdexcept>
 # include <unordered_set>
 # include <unordered_map>
+# include <ah-concepts.H>
 # include <ah-ranges.H>
 
 namespace Aleph
@@ -97,37 +98,26 @@ namespace Aleph
     inline constexpr size_t ADAPTIVE_THRESHOLD = 64;
 
     /// Detect if a type has a size() method
-    template <typename T, typename = void>
-    struct has_size : std::false_type {};
-
     template <typename T>
-    struct has_size<T, std::void_t<decltype(std::declval<T>().size())>>
-      : std::true_type {};
+    struct has_size : std::bool_constant<requires { std::declval<T>().size(); }> {};
 
     template <typename T>
     inline constexpr bool has_size_v = has_size<T>::value;
 
     /// Detect if a type is hashable via std::hash
-    template <typename T, typename = void>
-    struct is_std_hashable : std::false_type {};
-
     template <typename T>
-    struct is_std_hashable<T,
-      std::void_t<decltype(std::hash<T>{}(std::declval<T>()))>>
-      : std::true_type {};
+    struct is_std_hashable : std::bool_constant<requires { std::hash<T>{}(std::declval<T>()); }> {};
 
     template <typename T>
     inline constexpr bool is_std_hashable_v = is_std_hashable<T>::value;
 
     /// Detect if a container has reverse iterators
-    template <typename T, typename = void>
-    struct has_reverse_iterators : std::false_type {};
-
     template <typename T>
-    struct has_reverse_iterators<T,
-      std::void_t<decltype(std::declval<T>().rbegin()),
-                  decltype(std::declval<T>().rend())>>
-      : std::true_type {};
+    struct has_reverse_iterators : std::bool_constant<requires
+      {
+        std::declval<T>().rbegin();
+        std::declval<T>().rend();
+      }> {};
 
     template <typename T>
     inline constexpr bool has_reverse_iterators_v = has_reverse_iterators<T>::value;

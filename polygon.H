@@ -343,6 +343,14 @@ namespace Aleph
         return *Vertex::dlink_to_vertex(dit_.get_curr());
       }
 
+      /** @brief Current vertex, without checking that there is one.
+          @return the current point; the iterator must have a current item.
+      */
+      [[nodiscard]] const Point &get_curr_ne() const noexcept
+      {
+        return *Vertex::dlink_to_vertex(dit_.get_curr_ne());
+      }
+
       [[nodiscard]] Dlink * get_pos() const noexcept
       {
         return dit_.get_curr_ne();

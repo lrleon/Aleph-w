@@ -69,6 +69,7 @@
 #include <ah-ranges.H>
 #include <ah-concepts.H>
 #include <hash-dry.H>
+#include <ah-iterator.H>
 
 namespace Aleph {
 /** @brief Abstract base class for optional-like results.
@@ -164,6 +165,24 @@ template <typename Key, class Cmp>
 struct DynSetLhash;
 
 namespace functional_detail {
+/** @brief Type of `auto it = c.get_it()` for a `const C &c`.
+ *  @tparam C container type.
+ */
+template <class C>
+using get_it_t = std::decay_t<decltype(std::declval<const C &>().get_it())>;
+
+/** @brief Type of `it.get_curr()` on a `get_it_t<C>` lvalue.
+ *  @tparam C container type.
+ */
+template <class C>
+using get_curr_t = decltype(std::declval<get_it_t<C> &>().get_curr());
+
+/** @brief Type of `const auto &item = it.get_curr()`.
+ *  @tparam C container type.
+ */
+template <class C>
+using get_curr_cref_t = const std::remove_reference_t<get_curr_t<C>> &;
+
 /** @brief Trait: false if DynSetLhash<T,Eq> is not yet complete. @cond INTERNAL */
 template <typename T, class Eq, typename = void>
 struct Dyn_Set_Lhash_Available : public std::false_type
@@ -557,6 +576,7 @@ DynList<const typename Container::Item_Type *> pointers_list(const Container &c)
     @ingroup Algorithms
 */
 template <class Op>
+  requires CallableWith<Op &>
 void each(const size_t start, const size_t end, Op &op)
 {
   for (size_t i = start; i <= end; ++i)
@@ -565,6 +585,7 @@ void each(const size_t start, const size_t end, Op &op)
 
 /** @overload each */
 template <class Op>
+  requires CallableWith<Op &>
 void each(size_t start, size_t end, Op &&op)
 {
   each(start, end, op);
@@ -572,6 +593,7 @@ void each(size_t start, size_t end, Op &&op)
 
 /** @overload each */
 template <class Op>
+  requires CallableWith<Op &>
 void each(const size_t n, Op &op)
 {
   if (n == 0)
@@ -581,6 +603,7 @@ void each(const size_t n, Op &op)
 
 /** @overload each */
 template <class Op>
+  requires CallableWith<Op &>
 void each(size_t n, Op &&op)
 {
   each(n, op);
@@ -708,6 +731,7 @@ inline const Container &for_each(const Container &container, Operation &&operati
     @ingroup Algorithms
 */
 template <class Container, class Operation>
+  requires CallableWith<Operation &, functional_detail::get_curr_t<Container>, std::size_t &>
 inline void enum_for_each(const Container &container, Operation &operation)
 {
   size_t i = 0;
@@ -717,6 +741,7 @@ inline void enum_for_each(const Container &container, Operation &operation)
 
 /** @overload enum_for_each */
 template <class Container, class Operation>
+  requires CallableWith<Operation &, functional_detail::get_curr_t<Container>, std::size_t &>
 inline void enum_for_each(const Container &container, Operation &&operation)
 {
   enum_for_each(container, operation);
@@ -746,6 +771,7 @@ inline void enum_for_each(const Container &container, Operation &&operation)
     @ingroup Algorithms
 */
 template <class Container, class Operation>
+  requires requires(Container &c, Operation &op) { { c.traverse(op) } -> std::convertible_to<bool>; }
 inline bool all(Container &container, Operation &operation)
 {
   return container.traverse(operation);
@@ -753,6 +779,7 @@ inline bool all(Container &container, Operation &operation)
 
 /** @overload all */
 template <class Container, class Operation>
+  requires requires(const Container &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
 inline bool all(const Container &container, Operation &operation)
 {
   return container.template traverse<Operation>(operation);
@@ -760,6 +787,7 @@ inline bool all(const Container &container, Operation &operation)
 
 /** @overload all */
 template <class Container, class Operation>
+  requires requires(Container &c, Operation &op) { { c.traverse(op) } -> std::convertible_to<bool>; }
 inline bool all(Container &container, Operation &&operation = Operation())
 {
   return all<Container, Operation>(container, operation);
@@ -767,6 +795,7 @@ inline bool all(Container &container, Operation &&operation = Operation())
 
 /** @overload all */
 template <class Container, class Operation>
+  requires requires(const Container &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
 inline bool all(const Container &container, Operation &&operation = Operation())
 {
   return all<Container, Operation>(container, operation);
@@ -907,6 +936,7 @@ template <class Container1,
     @ingroup Algorithms
 */
 template <typename T, class C, class Op>
+  requires requires(DynList<T> &ret, Op &op) { ret.append(op(std::declval<functional_detail::get_curr_t<C>>())); }
 [[nodiscard]] DynList<T> maps(const C &c, Op op)
 {
   DynList<T> ret;
@@ -1688,7 +1718,8 @@ public:
       @param c2 Second container.
   */
   template <class C1, class C2>
-  Pair_Iterator(const C1 &c1, const C2 &c2) : Pair_Iterator(c1.get_it(), c2.get_it())
+    requires (not std::same_as<std::remove_cvref_t<C1>, Itor1>)
+  Pair_Iterator(C1 &c1, C2 &c2) : it1(Aleph::iterator_for(c1)), it2(Aleph::iterator_for(c2))
   {}
 
   /** @brief Check if both iterators have current elements.
@@ -1740,8 +1771,14 @@ public:
 
   /** @brief Advance both iterators (no bounds check).
       @note Requires has_curr() to be true.
+      @throw what `next_ne()` of the two iterators throws; nothing with
+      most of them. The inorder iterator of a binary tree
+      (Aleph::BinNodeInfixIterator) throws `std::bad_alloc` if the tree is
+      deeper than its inline capacity and the pending nodes cannot be moved
+      to the heap.
   */
-  void next_ne() noexcept
+  void next_ne() noexcept(noexcept(std::declval<Itor1 &>().next_ne())
+                          and noexcept(std::declval<Itor2 &>().next_ne()))
   {
     it1.next_ne();
     it2.next_ne();
@@ -1772,92 +1809,113 @@ public:
     @ingroup Algorithms
 */
 template <class C1, class C2>
-[[nodiscard]] Pair_Iterator<typename C1::Iterator, typename C2::Iterator> inline get_pair_it(
-  const C1 &c1,
-  const C2 &c2)
+[[nodiscard]] inline auto get_pair_it(C1 &c1, C2 &c2)
 {
-  using I1 = typename C1::Iterator;
-  using I2 = typename C2::Iterator;
-  auto i1 = c1.get_it();
-  auto i2 = c2.get_it();
-  return Pair_Iterator<I1, I2>(i1, i2);
+  auto i1 = Aleph::iterator_for(c1);
+  auto i2 = Aleph::iterator_for(c2);
+  return Pair_Iterator<decltype(i1), decltype(i2)>(i1, i2);
 }
 
 /** @overload get_pair_it with start position. */
 template <class C1, class C2>
-[[nodiscard]] Pair_Iterator<typename C1::Iterator, typename C2::Iterator> inline get_pair_it(
-  const C1 &c1,
-  const C2 &c2,
-  const size_t pos)
+[[nodiscard]] inline auto get_pair_it(C1 &c1, C2 &c2, const size_t pos)
 {
-  using I1 = typename C1::Iterator;
-  using I2 = typename C2::Iterator;
-  auto i1 = c1.get_it();
-  auto i2 = c2.get_it();
+  auto i1 = Aleph::iterator_for(c1);
+  auto i2 = Aleph::iterator_for(c2);
   for (size_t i = 0; i < pos; ++i)
     {
       i1.next();
       i2.next();
     }
-  return Pair_Iterator<I1, I2>(i1, i2);
+  return Pair_Iterator<decltype(i1), decltype(i2)>(i1, i2);
 }
 
 /// @cond INTERNAL
-template <class C>
-inline void insert_in_container(C &, size_t &)
-{}
+namespace functional_detail {
 
-template <class C, typename T, typename... Args>
-inline void insert_in_container(C &c, size_t &n, const T &item, Args &...args)
+/* Whether the insert() or append() call that returned `result` added its
+   item. A container that may refuse an item (a set, for a key it already
+   holds) returns a pointer, null when it refuses it; any other result means
+   that the item was added. */
+template <class Result>
+constexpr bool added_item(const Result &result) noexcept
 {
-  c.insert(item);
-  ++n;
-  insert_in_container(c, n, args...);
+  if constexpr (std::is_pointer_v<Result>)
+    return result != nullptr;
+  else
+    return true;
 }
+
+/// Append `item` to `c`; return whether `c` added it.
+template <class C, class Item>
+bool append_one(C &c, Item &&item)
+{
+  if constexpr (std::is_void_v<decltype(c.append(std::forward<Item>(item)))>)
+    {
+      c.append(std::forward<Item>(item));
+      return true;
+    }
+  else
+    return added_item(c.append(std::forward<Item>(item)));
+}
+
+/// Insert `item` into `c`; return whether `c` added it.
+template <class C, class Item>
+bool insert_one(C &c, Item &&item)
+{
+  if constexpr (std::is_void_v<decltype(c.insert(std::forward<Item>(item)))>)
+    {
+      c.insert(std::forward<Item>(item));
+      return true;
+    }
+  else
+    return added_item(c.insert(std::forward<Item>(item)));
+}
+
+}  // namespace functional_detail
 /// @endcond
 
 /** @brief Insert multiple items into a container.
-    @return Number of items inserted.
+
+    Each item is passed to `c.insert()`, in argument order; an rvalue is
+    moved.
+    @return Number of items the container added: a set leaves out a key it
+    already holds (its `insert()` returns a null pointer then).
 */
 template <class C, typename... Args>
-inline size_t insert_in_container(C &c, Args... args)
+inline size_t insert_in_container(C &c, Args &&... args)
 {
   size_t n = 0;
-  insert_in_container(c, n, args...);
+  ((n += (functional_detail::insert_one(c, std::forward<Args>(args)) ? 1 : 0)), ...);
   return n;
 }
-
-/// @cond INTERNAL
-template <class C>
-inline void append_in_container(C &, size_t &)
-{}
-
-template <class C, typename T, typename... Args>
-inline void append_in_container(C &c, size_t &n, const T &item, Args &...args)
-{
-  c.append(item);
-  ++n;
-  append_in_container(c, n, args...);
-}
-/// @endcond
 
 /** @brief Append multiple items into a container.
-    @return Number of items appended.
+
+    Each item is passed to `c.append()`, in argument order; an rvalue is
+    moved.
+    @return Number of items the container added: a set leaves out a key it
+    already holds (its `append()` returns a null pointer then).
 */
 template <class C, typename... Args>
-inline size_t append_in_container(C &c, Args... args)
+inline size_t append_in_container(C &c, Args &&... args)
 {
   size_t n = 0;
-  append_in_container(c, n, args...);
+  ((n += (functional_detail::append_one(c, std::forward<Args>(args)) ? 1 : 0)), ...);
   return n;
 }
 
-/** @brief Build a container with the given items. */
+/** @brief Build a container with the given items.
+
+    Each item is passed to the `append()` of `C`, in argument order; an
+    rvalue is moved. `C::build()`, when `C` has it, does the same and also
+    converts each item to the item type first.
+*/
 template <class C, typename... Args>
-[[nodiscard]] C build_container(Args... args)
+[[nodiscard]] C build_container(Args &&... args)
 {
   C c;
-  append_in_container(c, args...);
+  append_in_container(c, std::forward<Args>(args)...);
   return c;
 }
 
@@ -1872,11 +1930,11 @@ template <class SrcC, class TgtC>
   return ret;
 }
 
-/** @brief Build a DynList with the given items. */
+/** @brief Build a DynList with the given items; an rvalue is moved. */
 template <typename T, typename... Args>
-[[nodiscard]] DynList<T> build_dynlist(Args... args)
+[[nodiscard]] DynList<T> build_dynlist(Args &&... args)
 {
-  return build_container<DynList<T>>(args...);
+  return build_container<DynList<T>>(std::forward<Args>(args)...);
 }
 
 /// @cond INTERNAL
@@ -2142,7 +2200,9 @@ template <class Container, class Pred>
 [[nodiscard]] inline typename Container::Item_Type *find_ptr(Container &container, Pred &pred)
 {
   typename Container::Item_Type *result = nullptr;
-  container.traverse([&result, &pred](auto &item)
+  // Not a generic lambda: with `auto &` the constant traverse() overload,
+  // which hands out `const Item_Type &`, would instantiate this body.
+  container.traverse([&result, &pred](typename Container::Item_Type &item)
   {
     if (pred(item))
       {
@@ -2244,6 +2304,7 @@ template <class Container, class Pred>
     @ingroup Algorithms
 */
 template <typename T, class Container, class Operation>
+  requires requires(T &acc, Operation &op, T &x) { acc = op(x, acc); }
 [[nodiscard]] inline T foldr(const Container &container, const T &init, Operation operation)
 {
   DynList<T> reversed;
@@ -2328,6 +2389,7 @@ template <class C1, class C2>
     @ingroup Algorithms
 */
 template <class Container, class Pred>
+  requires PredicateWith<Pred &, functional_detail::get_curr_cref_t<Container>>
 [[nodiscard]] inline DynList<typename Container::Item_Type> take_while(const Container &c, Pred pred)
 {
   DynList<typename Container::Item_Type> result;
@@ -2349,6 +2411,7 @@ template <class Container, class Pred>
     @ingroup Algorithms
 */
 template <class Container, class Pred>
+  requires PredicateWith<Pred &, functional_detail::get_curr_cref_t<Container>>
 [[nodiscard]] inline DynList<typename Container::Item_Type> drop_while(const Container &c, Pred pred)
 {
   DynList<typename Container::Item_Type> result;
@@ -2423,6 +2486,7 @@ template <typename T, class Container>
     @ingroup Algorithms
 */
 template <typename T, class Container, class Op>
+  requires requires(T &acc, Op &op) { acc = op(acc, std::declval<functional_detail::get_curr_t<Container>>()); }
 [[nodiscard]] inline DynList<T> scanl(const Container &container, const T &init, Op op)
 {
   DynList<T> result;
@@ -2444,6 +2508,7 @@ template <typename T, class Container, class Op>
     @ingroup Algorithms
 */
 template <class Container, class Cmp = std::less<typename Container::Item_Type>>
+  requires PredicateWith<Cmp &, functional_detail::get_curr_cref_t<Container>, const typename Container::Item_Type &>
 [[nodiscard]] inline const typename Container::Item_Type *min_ptr(const Container &container,
                                                                   Cmp cmp = Cmp())
 {
@@ -2469,6 +2534,7 @@ template <class Container, class Cmp = std::less<typename Container::Item_Type>>
     @ingroup Algorithms
 */
 template <class Container, class Cmp = std::less<typename Container::Item_Type>>
+  requires PredicateWith<Cmp &, const typename Container::Item_Type &, functional_detail::get_curr_cref_t<Container>>
 [[nodiscard]] inline const typename Container::Item_Type *max_ptr(const Container &container,
                                                                   Cmp cmp = Cmp())
 {
@@ -2494,6 +2560,8 @@ template <class Container, class Cmp = std::less<typename Container::Item_Type>>
     @ingroup Algorithms
 */
 template <class Container, class Cmp = std::less<typename Container::Item_Type>>
+  requires PredicateWith<Cmp &, functional_detail::get_curr_cref_t<Container>, const typename Container::Item_Type &> and
+           PredicateWith<Cmp &, const typename Container::Item_Type &, functional_detail::get_curr_cref_t<Container>>
 [[nodiscard]] inline std::pair<const typename Container::Item_Type *, const typename Container::Item_Type *>
 minmax_ptr(const Container &container, Cmp cmp = Cmp())
 {
@@ -2523,6 +2591,7 @@ minmax_ptr(const Container &container, Cmp cmp = Cmp())
     @ingroup Algorithms
 */
 template <class Container, class Pred>
+  requires PredicateWith<Pred &, functional_detail::get_curr_t<Container>>
 [[nodiscard]] inline size_t count_if(const Container &container, Pred pred)
 {
   size_t count = 0;

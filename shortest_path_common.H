@@ -48,6 +48,8 @@
 #ifndef SHORTEST_PATH_COMMON_H
 #define SHORTEST_PATH_COMMON_H
 
+# include <ah-graph-concepts.H>
+
 #include <limits>
 #include <type_traits>
 #include <ah-errors.H>
@@ -156,10 +158,10 @@ template <typename T>
  *
  *  @ingroup Graphs
  */
-template <class GT,
-          class Distance,
+template <AlephGraph GT,
+          ArcDistance<GT> Distance,
           template <typename, class> class Itor,
-          class SA,
+          ArcFilter<GT> SA,
           template <class, class, class> class HeapT>
 class Shortest_Path_Base
 {

@@ -807,8 +807,7 @@ public:
     if (n == 0)
       return Array<T>();
 
-    Array<T> ret(n);
-    ret.putn(n);
+    auto ret = Array<T>::create(n);
     assert(ret.capacity() >= n);
     read(&ret.base(), n);
     return ret;

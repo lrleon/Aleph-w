@@ -72,6 +72,8 @@
 #ifndef BELLMAN_FORD_H
 #define BELLMAN_FORD_H
 
+# include <ah-graph-concepts.H>
+
 #include <type_traits>
 #include <limits>
 #include <vector>
@@ -99,7 +101,9 @@ namespace Aleph {
     Template parameters:
     - `GT`: Graph type (typically `List_Digraph`).
     - `Distance`: Arc weight accessor. Must define `Distance_Type` and provide
-      `Distance_Type operator()(typename GT::Arc *a)`.
+      `Distance_Type operator()(typename GT::Arc *a)`. It should have no side
+      effects: how many times it is called per arc is unspecified (the
+      relaxation passes stop as soon as one relaxes nothing).
     - `Ait`: Arc iterator template for traversing all arcs.
     - `NAit`: Node arc iterator template for traversing arcs from a node.
     - `SA`: Arc filter for the internal iterators.
@@ -151,11 +155,11 @@ namespace Aleph {
     @ingroup Graphs
     @see Dijkstra_Min_Paths Johnson Floyd_All_Shortest_Paths
  */
-template <class GT,
-          class Distance = Dft_Dist<GT>,
+template <AlephGraph GT,
+          ArcDistance<GT> Distance = Dft_Dist<GT>,
           template <class, class> class Ait = Arc_Iterator,
           template <class, class> class NAit = Out_Iterator,
-          class SA = Dft_Show_Arc<GT>>
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Bellman_Ford
 {
   typedef typename Distance::Distance_Type Distance_Type;
@@ -420,7 +424,10 @@ public:
   }
 
 private:
-  /// Relax all arcs n-1 times (standard Bellman-Ford).
+  /// Relax all arcs up to n-1 times (standard Bellman-Ford). Stops as soon
+  /// as a pass relaxes no arc: the distances have reached their fixed point
+  /// and no later pass (including the extra negative-cycle check) can relax
+  /// anything.
   void relax_arcs() noexcept
   {
     const size_t &n = g_.vsize();
@@ -428,25 +435,31 @@ private:
       return;  // Nothing to relax for empty or single-node graphs
 
     for (size_t i = 0; i < n - 1; ++i)
-      for (Ait<GT, SA> it(g_, sa_); it.has_curr(); it.next_ne())
-        {
-          auto arc = it.get_curr();
-          auto src = g_.get_src_node(arc);
-          const auto &accum_src = accum(src);
-          if (accum_src == Inf)
-            continue;
+      {
+        bool relaxed = false;
+        for (Ait<GT, SA> it(g_, sa_); it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_curr();
+            auto src = g_.get_src_node(arc);
+            const auto &accum_src = accum(src);
+            if (accum_src == Inf)
+              continue;
 
-          auto tgt = it.get_tgt_node_ne();
-          auto w = dist_(arc);
-          auto sum = checked_add(accum_src, w);
-          auto &accum_tgt = accum(tgt);
-          if (sum < accum_tgt)  // Relax Arc
-            {
-              const auto &index = idx(tgt);
-              arcs_(index) = arc;
-              accum_tgt = sum;
-            }
-        }
+            auto tgt = it.get_tgt_node_ne();
+            auto w = dist_(arc);
+            auto sum = checked_add(accum_src, w);
+            auto &accum_tgt = accum(tgt);
+            if (sum < accum_tgt)  // Relax Arc
+              {
+                const auto &index = idx(tgt);
+                arcs_(index) = arc;
+                accum_tgt = sum;
+                relaxed = true;
+              }
+          }
+        if (not relaxed)
+          return;  // converged early
+      }
   }
 
   /// Insert a node into the queue if not already present (SPFA optimization).
@@ -1346,11 +1359,11 @@ public:
 
     @ingroup Graphs
  */
-template <class GT,
-          class Distance = Dft_Dist<GT>,
+template <AlephGraph GT,
+          ArcDistance<GT> Distance = Dft_Dist<GT>,
           template <class, class> class Ait = Arc_Iterator,
           template <class, class> class NAit = Node_Arc_Iterator,
-          class SA = Dft_Show_Arc<GT>>
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 struct Bellman_Ford_Negative_Cycle
 {
   /** Invokes the detection and calculation of a negative cycle.

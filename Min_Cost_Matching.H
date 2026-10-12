@@ -79,6 +79,8 @@
 #ifndef MIN_COST_MATCHING_H
 #define MIN_COST_MATCHING_H
 
+# include <ah-graph-concepts.H>
+
 #include <cstddef>
 #include <limits>
 #include <type_traits>
@@ -221,7 +223,7 @@ public:
  *
  *  @ingroup Graphs
  */
-template <class GT, class Cost = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, class Cost = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 Min_Cost_Matching_Result<long long> compute_minimum_cost_general_matching(
   const GT &g,
   DynDlist<typename GT::Arc *> &matching,
@@ -279,7 +281,7 @@ Min_Cost_Matching_Result<long long> compute_minimum_cost_general_matching(
  *
  *  @ingroup Graphs
  */
-template <class GT, class Cost = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, class Cost = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 Min_Cost_Matching_Result<long long> blossom_minimum_cost_matching(const GT &g,
                                                                   DynDlist<typename GT::Arc *> &matching,
                                                                   Cost cost = Cost(),
@@ -318,7 +320,7 @@ Min_Cost_Matching_Result<long long> blossom_minimum_cost_matching(const GT &g,
  *
  *  @ingroup Graphs
  */
-template <class GT, class Cost = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, class Cost = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 Min_Cost_Perfect_Matching_Result<long long> compute_minimum_cost_perfect_general_matching(
   const GT &g,
   DynDlist<typename GT::Arc *> &matching,
@@ -356,7 +358,7 @@ Min_Cost_Perfect_Matching_Result<long long> compute_minimum_cost_perfect_general
  *
  *  @ingroup Graphs
  */
-template <class GT, class Cost = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, class Cost = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 Min_Cost_Perfect_Matching_Result<long long> blossom_minimum_cost_perfect_matching(
   const GT &g,
   DynDlist<typename GT::Arc *> &matching,
@@ -371,7 +373,7 @@ Min_Cost_Perfect_Matching_Result<long long> blossom_minimum_cost_perfect_matchin
  *
  *  @ingroup Graphs
  */
-template <class GT, class Cost = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, class Cost = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Compute_Minimum_Cost_General_Matching
 {
   Cost cost_;
@@ -398,7 +400,7 @@ public:
  *
  *  @ingroup Graphs
  */
-template <class GT, class Cost = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, class Cost = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Compute_Minimum_Cost_Perfect_General_Matching
 {
   Cost cost_;

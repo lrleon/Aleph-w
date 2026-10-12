@@ -54,7 +54,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
   const std::string s(reinterpret_cast<const char *>(data), size);
   try
     {
-      const RLE_Pattern pattern = read_rle_string(s);
+      // A small live-cell budget keeps each execution fast; the default
+      // budget is covered by Tests/ca_io_test.cc.
+      const RLE_Pattern pattern = read_rle_string(s, ca_size_t{1} << 16);
       (void) pattern;
     }
   catch (...)

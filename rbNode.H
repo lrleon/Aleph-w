@@ -40,10 +40,14 @@
  *  ## Red-Black Tree Properties
  *
  *  1. Every node is either red or black
- *  2. The root is black
- *  3. All leaves (NIL) are black
- *  4. Red nodes have only black children
- *  5. All paths from a node to leaves have same black height
+ *  2. All leaves (NIL) are black
+ *  3. Red nodes have only black children
+ *  4. All paths from a node to leaves have same black height
+ *
+ *  The usual definition adds that the root is black. The red-black trees of
+ *  the library do not force it: the root can be red, as the only node of a
+ *  tree is. A red root has black children, so the height is still at most
+ *  2 log2(n + 1), and the validation functions accept it.
  *
  *  ## Validation Functions
  *
@@ -114,34 +118,73 @@ DECLARE_BINNODE_SENTINEL(RbNode, 128, RbNode_Data);
 /**
  * @brief Test the black-height property of an RB tree.
  *
- * Verifies that all paths from node p to leaves have the same
- * number of black nodes (black-height).
+ * Verifies that all paths from node p down to `Node::NullPtr` have the
+ * same number of black nodes (black-height).
  *
  * @tparam Node RB node type
  * @param p Root of subtree to test
  * @param max Reference to store/compare black heights (-1 initially)
  * @param bh Current black height along this path (default 0)
- * @return true if all leaf paths have equal black height
+ * @return true if all the paths have equal black height
  */
     template <class Node>
 bool test_black_condition(Node *p, int &max, int bh = 0)
 {
+  // A path ends at NullPtr, not at a leaf: a node with a single child
+  // also ends one, through its missing child.
   if (p == Node::NullPtr)
-    return true;
+    {
+      if (max == -1) // first path end reached
+        max = bh;
+
+      return bh == max;
+    }
 
   if (COLOR(p) == BLACK)
     bh++; // count this black node
 
-  if (LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr)
-    {
-      if (max == -1) // first leaf reached
-        max = bh;
-      
-      return bh == max;
-    }
-    
   return test_black_condition(LLINK(p), max, bh) and 
          test_black_condition(RLINK(p), max, bh);
+}
+
+/**
+ * @brief Black height of a red-black subtree, checking all its nodes.
+ *
+ * In one traversal, checks every node of the subtree rooted at `p`: its
+ * color is RED or BLACK, a red node has no red child, and every path from
+ * `p` down to `Node::NullPtr` crosses the same number of black nodes.
+ *
+ * @tparam Node RB node type
+ * @param p Root of subtree to test
+ * @return the number of black nodes of each path, or -1 if a property is
+ *         violated
+ * @note O(n).
+ */
+    template <class Node>
+int red_black_height(Node *p) noexcept
+{
+  if (p == Node::NullPtr)
+    return 0;
+
+  if (not (COLOR(p) == RED or COLOR(p) == BLACK))
+    return -1;
+
+  if (COLOR(p) == RED)
+    {
+      if (LLINK(p) != Node::NullPtr and COLOR(LLINK(p)) == RED)
+        return -1;
+      if (RLINK(p) != Node::NullPtr and COLOR(RLINK(p)) == RED)
+        return -1;
+    }
+
+  const int left_height = red_black_height(LLINK(p));
+  if (left_height < 0)
+    return -1;
+
+  if (red_black_height(RLINK(p)) != left_height)
+    return -1;
+
+  return left_height + (COLOR(p) == BLACK ? 1 : 0);
 }
 
 /**
@@ -178,22 +221,19 @@ bool is_red_black(Node * node)
 /**
  * @brief Test RB properties for entire subtree.
  *
- * Recursively validates RB properties for node and all descendants.
+ * Validates the RB properties of node and of all its descendants: valid
+ * colors, no red node with a red child, and the same number of black nodes
+ * on every path down to `Node::NullPtr`. `node` itself can be red or black.
  *
  * @tparam Node RB node type
  * @param node Root of subtree to test
  * @return true if entire subtree is a valid RB tree
+ * @note O(n).
  */
     template <class Node>
 bool is_red_black_tree(Node * node)
 {
-  if (not is_red_black(node))
-    return false;
-
-  if (not is_red_black(LLINK(node)) or not is_red_black(RLINK(node)))
-    return false;
-
-  return true;
+  return red_black_height(node) >= 0;
 }
 
 /**

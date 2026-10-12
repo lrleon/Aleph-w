@@ -386,10 +386,17 @@ namespace
   }
 
 
+  /// @brief Locate source assets independently of the test working directory.
   std::optional<std::filesystem::path>
   find_repo_root()
   {
     namespace fs = std::filesystem;
+#ifdef ALEPH_TEST_SOURCE_DIR
+    const fs::path configured_root(ALEPH_TEST_SOURCE_DIR);
+    if (fs::exists(configured_root / "Planarity_Test.H")
+        and fs::is_directory(configured_root / "scripts"))
+      return configured_root;
+#endif
     fs::path p = fs::current_path();
 
     for (size_t i = 0; i < 12; ++i)
@@ -742,8 +749,7 @@ TEST(PlanarityTest, CertificateObstructionEdgesMapToOriginalInputArcs)
   ASSERT_EQ(r.certificate_obstruction_edges.size(), 10u);
 
   bool found_01 = false;
-  for (typename Array<Planarity_Test_Result<UGraph>::Edge_Witness>::Iterator
-       it(r.certificate_obstruction_edges); it.has_curr(); it.next_ne())
+  for (auto it = r.certificate_obstruction_edges.get_it(); it.has_curr(); it.next_ne())
     {
       const auto & w = it.get_curr_ne();
       EXPECT_NE(w.representative_input_arc, nullptr);
@@ -786,8 +792,7 @@ TEST(PlanarityTest, CertificatePathsExposeTraceableOriginalEdges)
   ASSERT_FALSE(r.certificate_paths.is_empty());
 
   bool found_subdivided_path = false;
-  for (typename Array<Planarity_Test_Result<UGraph>::Path_Witness>::Iterator
-       pit(r.certificate_paths); pit.has_curr(); pit.next_ne())
+  for (auto pit = r.certificate_paths.get_it(); pit.has_curr(); pit.next_ne())
     {
       const auto & p = pit.get_curr_ne();
       ASSERT_GE(p.nodes.size(), 2u);
@@ -796,8 +801,7 @@ TEST(PlanarityTest, CertificatePathsExposeTraceableOriginalEdges)
       if (p.nodes.size() > 2)
         found_subdivided_path = true;
 
-      for (typename Array<Planarity_Test_Result<UGraph>::Edge_Witness>::Iterator
-           eit(p.edges); eit.has_curr(); eit.next_ne())
+      for (auto eit = p.edges.get_it(); eit.has_curr(); eit.next_ne())
         {
           const auto & e = eit.get_curr_ne();
           EXPECT_NE(e.representative_input_arc, nullptr);
@@ -887,8 +891,7 @@ TEST(PlanarityTest, PlanarDualMetadataTreeHasSingleFaceAndLoops)
   EXPECT_EQ(md.num_faces_global, 1u);
   EXPECT_EQ(md.dual_edges.size(), 3u);
 
-  for (typename Array<Planar_Dual_Edge_Info<UGraph>>::Iterator
-       it(md.dual_edges); it.has_curr(); it.next_ne())
+  for (auto it = md.dual_edges.get_it(); it.has_curr(); it.next_ne())
     {
       const auto & e = it.get_curr_ne();
       EXPECT_EQ(e.face_a, 0u);
@@ -1387,8 +1390,7 @@ TEST(PlanarityTest, PlanarGeometricDrawingDisconnectedComponentsAreSeparated)
   double min_x_b = std::numeric_limits<double>::max();
   double max_x_b = -std::numeric_limits<double>::max();
 
-  for (typename Array<typename Planar_Geometric_Drawing<UGraph>::Node_Position>::Iterator
-       it(d.node_positions); it.has_curr(); it.next_ne())
+  for (auto it = d.node_positions.get_it(); it.has_curr(); it.next_ne())
     {
       const auto & p = it.get_curr_ne();
       if (p.node == built.nodes[0] or p.node == built.nodes[1] or p.node == built.nodes[2])
@@ -2428,6 +2430,34 @@ TEST(PlanarityTest, ExternalCertificateFixtureGraphmlIsValid)
 
   const int rc = run_external_certificate_validator({fixture.string()});
   EXPECT_EQ(rc, 0);
+}
+
+
+TEST(PlanarityTest, FindRepoRootUsesConfiguredSourceDirOutsideTheTree)
+{
+#ifndef ALEPH_TEST_SOURCE_DIR
+  GTEST_SKIP() << "Skipped: ALEPH_TEST_SOURCE_DIR is not defined for this build";
+#else
+  namespace fs = std::filesystem;
+
+  // Restore the working directory even when an assertion below fails.
+  struct Cwd_Guard
+  {
+    fs::path saved = fs::current_path();
+    ~Cwd_Guard() { fs::current_path(saved); }
+  } guard;
+
+  const fs::path outside = fs::temp_directory_path();
+  const fs::path configured(ALEPH_TEST_SOURCE_DIR);
+  ASSERT_FALSE(fs::exists(outside / "Planarity_Test.H"));
+
+  fs::current_path(outside);
+  const auto root = find_repo_root();
+
+  ASSERT_TRUE(root.has_value());
+  EXPECT_TRUE(fs::equivalent(*root, configured));
+  EXPECT_TRUE(fs::equivalent(fs::current_path(), outside));
+#endif
 }
 
 

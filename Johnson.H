@@ -64,6 +64,8 @@
 #ifndef JOHNSON_H
 #define JOHNSON_H
 
+# include <ah-graph-concepts.H>
+
 #include <Dijkstra.H>
 #include <Bellman_Ford.H>
 #include <tpl_graph.H>
@@ -116,11 +118,11 @@ namespace Aleph
 
     @ingroup Graphs
  */
-template <class GT,
-          class Distance = Dft_Dist<GT>,
+template <AlephGraph GT,
+          ArcDistance<GT> Distance = Dft_Dist<GT>,
           template <class, class> class Ait = Arc_Iterator,
           template <class, class> class NAit = Node_Arc_Iterator,
-          class SA = Dft_Show_Arc<GT>>
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Johnson
 {
 public:
@@ -141,9 +143,6 @@ private:
   struct Reweighted_Dist
   {
     using Distance_Type = typename Johnson::Distance_Type;
-
-    static_assert(std::is_convertible_v<typename GT::Arc_Type, Distance_Type>,
-                  "Reweighted_Dist requires arc info convertible to Distance_Type");
 
     Distance_Type operator()(Arc* arc) const
     {
@@ -318,6 +317,7 @@ public:
       @throw std::domain_error if not initialized or nodes not found.
    */
   Distance_Type get_distance(Node* src, Node* tgt)
+    requires std::is_convertible_v<typename GT::Arc_Type, Distance_Type>
   {
     ah_domain_error_if(!initialized) << "Johnson not initialized";
     ah_domain_error_if(src == nullptr or tgt == nullptr) << "Source or target node is null";
@@ -358,6 +358,7 @@ public:
       @throw std::domain_error if not initialized or nodes not found.
    */
   Path<GT> find_path(Node* src, Node* tgt)
+    requires std::is_convertible_v<typename GT::Arc_Type, Distance_Type>
   {
     ah_domain_error_if(!initialized) << "Johnson not initialized";
     ah_domain_error_if(src == nullptr or tgt == nullptr) << "Source or target node is null";
@@ -389,6 +390,7 @@ public:
    */
   DynMapTree<std::pair<Node*, Node*>, Distance_Type> 
   compute_all_pairs_distances()
+    requires std::is_convertible_v<typename GT::Arc_Type, Distance_Type>
   {
     ah_domain_error_if(!initialized) << "Johnson not initialized";
     

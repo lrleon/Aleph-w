@@ -105,6 +105,8 @@
 # ifndef STOER_WAGNER_H
 # define STOER_WAGNER_H
 
+# include <ah-graph-concepts.H>
+
 # include <limits>
 # include <vector>
 # include <queue>
@@ -197,9 +199,9 @@ namespace Aleph
 
       @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Stoer_Wagner_Min_Cut
   {
   public:
@@ -538,7 +540,7 @@ namespace Aleph
       size_t num_cut_edges = solver(g, S, T, cut_arcs);
       @endcode
    */
-  template <class GT>
+  template <AlephGraph GT>
   struct Unit_Weight
   {
     using Distance_Type = size_t;

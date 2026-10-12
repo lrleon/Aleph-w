@@ -87,6 +87,8 @@
 # ifndef TPL_CUT_NODES_H
 # define TPL_CUT_NODES_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_graph_utils.H>
 
 namespace Aleph
@@ -147,7 +149,7 @@ components as well as the cross arcs.
 
       @ingroup Graphs
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Compute_Cut_Nodes
   {
     SA sa;
@@ -648,7 +650,7 @@ components as well as the cross arcs.
    *  @ingroup Graphs
    *  @see Compute_Cut_Nodes, find_bridges(), is_an_cut_arc()
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Compute_Bridges
   {
     SA sa;
@@ -802,7 +804,7 @@ components as well as the cross arcs.
    *  @ingroup Graphs
    *  @see Compute_Bridges
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Arc *>
   find_bridges(const GT & g, typename GT::Node *start, SA sa = SA())
   {
@@ -813,7 +815,7 @@ components as well as the cross arcs.
    *
    *  Starts from the first node of the graph.
    */
-  template <class GT>
+  template <AlephGraph GT>
   DynList<typename GT::Arc *> find_bridges(const GT & g)
   {
     return Compute_Bridges<GT>(g).find_bridges();

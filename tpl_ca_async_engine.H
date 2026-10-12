@@ -86,11 +86,6 @@ namespace CA {
 
 namespace ca_async_engine_detail {
 
-/// Detect whether a lattice exposes a `refresh_halo()` method (the
-/// hallmark of a `Ghost_Lattice` or any other halo-aware variant).
-template <typename L>
-concept HasRefreshHalo = requires(L &l) { l.refresh_halo(); };
-
 /// Detect whether the scheme exposes `apply_with_origin(engine, rule, origin)`
 /// (Margolus). When present the engine can drive `step_back()` by
 /// re-applying the active partition with the same parity that produced
@@ -350,7 +345,7 @@ public:
    */
   void step()
   {
-    if constexpr (ca_async_engine_detail::HasRefreshHalo<Lattice>)
+    if constexpr (HasRefreshHalo<Lattice>)
       cur_.refresh_halo();
 
     if (pre_hook_)
@@ -382,7 +377,7 @@ public:
     ah_out_of_range_error_if(step_count_ == 0) << "Async_Engine::step_back: no step to reverse";
 
     --step_count_;
-    if constexpr (ca_async_engine_detail::HasRefreshHalo<Lattice>)
+    if constexpr (HasRefreshHalo<Lattice>)
       cur_.refresh_halo();
 
     if (pre_hook_)

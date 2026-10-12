@@ -70,6 +70,8 @@
 #ifndef GRAPH_TRAVERSE_GENERATORS_H
 #define GRAPH_TRAVERSE_GENERATORS_H
 
+# include <ah-graph-concepts.H>
+
 #include <cassert>
 
 #include <ah-errors.H>
@@ -125,9 +127,9 @@ enum class Traverse_State : unsigned char
  *
  *  @ingroup Graphs
  */
-template <class GT, class Itor,
+template <AlephGraph GT, class Itor,
           template <typename T> class Q = DynListStack,
-          class Show_Arc = Dft_Show_Arc<GT>>
+          ArcFilter<GT> Show_Arc = Dft_Show_Arc<GT>>
 class Graph_Traverse_Generator
 {
   using State = graph_traverse_generator_detail::Traverse_State;

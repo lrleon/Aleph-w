@@ -923,6 +923,38 @@ TEST(BellmanFordTest, SingleNodePositiveSelfLoop) {
   ASSERT_FALSE(has_neg_cycle);
 }
 
+// ========== Cycle Closed Only by the Checking Pass ==========
+TEST(BellmanFordTest, CycleClosedByTheCheckingPassIsReturned) {
+  // Final independent review of the arbitrage branch, mutation M45: the
+  // checking pass must record the arc it relaxes, which closes the cycle in
+  // the predecessor graph. With two nodes, the single regular pass relaxes
+  // only 0 -> 1, because the arc out of 1 comes first.
+  for (const bool loop : {false, true})
+    {
+      GT g;
+      Node* n0 = g.insert_node(0);
+      Node* n1 = g.insert_node(1);
+      if (loop)
+        {
+          g.insert_arc(n1, n1, -4);   // negative loop at 1
+          g.insert_arc(n0, n1, 4);
+        }
+      else
+        {
+          g.insert_arc(n1, n0, -2);   // 2-cycle of total -4
+          g.insert_arc(n0, n1, -2);
+        }
+
+      Bellman_Ford<GT> bf(g);
+      Path<GT> cycle = bf.test_negative_cycle(n0);
+      ASSERT_FALSE(cycle.is_empty()) << (loop ? "loop" : "2-cycle");
+      EXPECT_TRUE(cycle.is_cycle());
+      int total = 0;
+      cycle.for_each_arc([&total](Arc* a) { total += a->get_info(); });
+      EXPECT_LT(total, 0);
+    }
+}
+
 // ========== TEST 40: Faster Version with Negative Cycle ==========
 TEST(BellmanFordTest, FasterVersionWithNegativeCycle) {
 

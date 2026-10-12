@@ -271,7 +271,7 @@ namespace Aleph
       : public LocateFunctions<DynSetTree<Key, Tree, Compare>, Key>,
         public FunctionalMethods<DynSetTree<Key, Tree, Compare>, Key>,
         public GenericKeys<DynSetTree<Key, Tree, Compare>, Key>,
-        public EqualToMethod<DynSetTree<Key, Tree, Compare>>,
+        public EqualSortedMethod<DynSetTree<Key, Tree, Compare>>,
         public StlAlephIterator<DynSetTree<Key, Tree, Compare>>
   {
   public:
@@ -285,91 +285,21 @@ namespace Aleph
     template <typename T>
     struct Has_Range_Methods
     {
-      // Test for const select (RB, AVL, etc.)
-      template <typename U>
-      static auto test_select_const(int)
-        -> decltype(std::declval<const U &>().select(std::declval<size_t>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_select_const(...);
-
-      // Test for non-const select (Splay tree - mutates on access)
-      template <typename U>
-      static auto test_select_nonconst(int)
-        -> decltype(std::declval<U &>().select(std::declval<size_t>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_select_nonconst(...);
-
-      template <typename U>
-      static auto test_remove_pos(int)
-        -> decltype(std::declval<U &>().remove_pos(std::declval<size_t>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_remove_pos(...);
-
-      template <typename U>
-      static auto test_split_pos(int)
-        -> decltype(std::declval<U &>().split_pos(std::declval<size_t>(),
-                                                  std::declval<U &>(),
-                                                  std::declval<U &>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_split_pos(...);
-
-      // Test for const position
-      template <typename U>
-      static auto test_position_const(int)
-        -> decltype(std::declval<const U &>().position(std::declval<const Key &>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_position_const(...);
-
-      // Test for non-const position (Splay tree)
-      template <typename U>
-      static auto test_position_nonconst(int)
-        -> decltype(std::declval<U &>().position(std::declval<const Key &>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_position_nonconst(...);
-
-      // Test for const find_position
-      template <typename U>
-      static auto test_find_position_const(int)
-        -> decltype(std::declval<const U &>().find_position(std::declval<const Key &>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_find_position_const(...);
-
-      // Test for non-const find_position (Splay tree)
-      template <typename U>
-      static auto test_find_position_nonconst(int)
-        -> decltype(std::declval<U &>().find_position(std::declval<const Key &>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_find_position_nonconst(...);
-
+      // The const forms cover RB, AVL, etc.; the non-const ones cover the
+      // splay tree, whose lookups restructure the tree.
       static constexpr bool has_select =
-          std::is_same_v<decltype(test_select_const<T>(0)), std::true_type> or
-          std::is_same_v<decltype(test_select_nonconst<T>(0)), std::true_type>;
+          requires(const T & t) { t.select(std::declval<size_t>()); } or
+          requires(T & t) { t.select(std::declval<size_t>()); };
       static constexpr bool has_remove_pos =
-          std::is_same_v<decltype(test_remove_pos<T>(0)), std::true_type>;
+          requires(T & t) { t.remove_pos(std::declval<size_t>()); };
       static constexpr bool has_split_pos =
-          std::is_same_v<decltype(test_split_pos<T>(0)), std::true_type>;
+          requires(T & t, T & l, T & r) { t.split_pos(std::declval<size_t>(), l, r); };
       static constexpr bool has_position =
-          std::is_same_v<decltype(test_position_const<T>(0)), std::true_type> or
-          std::is_same_v<decltype(test_position_nonconst<T>(0)), std::true_type>;
+          requires(const T & t, const Key & k) { t.position(k); } or
+          requires(T & t, const Key & k) { t.position(k); };
       static constexpr bool has_find_position =
-          std::is_same_v<decltype(test_find_position_const<T>(0)), std::true_type> or
-          std::is_same_v<decltype(test_find_position_nonconst<T>(0)), std::true_type>;
+          requires(const T & t, const Key & k) { t.find_position(k); } or
+          requires(T & t, const Key & k) { t.find_position(k); };
     };
 
     // call_select for const trees (RB, AVL, etc.)
@@ -923,13 +853,21 @@ namespace Aleph
         @note Be very careful with altering the search order,
         since the reference is modifiable.
     */
-    Key &find(const Key & key) const
+    Key &find(const Key & key)
     {
       Node *node = static_cast<Node *>(tree.search(key));
-
       ah_domain_error_if(node == nullptr)
         << "key not found";
+      return node->get_key();
+    }
 
+    /// \overload
+    /// A reference to const.
+    const Key &find(const Key & key) const
+    {
+      Node *node = static_cast<Node *>(tree.search(key));
+      ah_domain_error_if(node == nullptr)
+        << "key not found";
       return node->get_key();
     }
 
@@ -977,13 +915,21 @@ namespace Aleph
         @note Be very careful with altering the search order,
         because through the pointer the key is modifiable.
     */
-    Key * search(const Key & key) const
+    Key * search(const Key & key)
     {
       Node *node = static_cast<Node *>(tree.search(key));
-
       if (node == nullptr)
         return nullptr;
+      return &(node->get_key());
+    }
 
+    /// \overload
+    /// A pointer to const.
+    const Key * search(const Key & key) const
+    {
+      Node *node = static_cast<Node *>(tree.search(key));
+      if (node == nullptr)
+        return nullptr;
       return &(node->get_key());
     }
 
@@ -1153,7 +1099,7 @@ namespace Aleph
 
     bool verify() const
     {
-      return tree.verify() and check_bst(tree.getRoot());
+      return tree.verify() and check_bst(tree.getRoot(), tree.get_compare());
     }
 
   private:
@@ -1464,9 +1410,13 @@ namespace Aleph
       /// Default constructor creates an "end" iterator
       Iterator() noexcept = default;
 
-      Iterator(const DynSetTree & tree) : Base(tree.tree)
+      /// Iterator on the modifiable set `tree`.
+      Iterator(DynSetTree & tree) : Base(tree.tree)
       { /* empty */
       }
+
+      /// A constant set is iterated through Const_Iterator.
+      Iterator(const DynSetTree &) = delete;
 
       const Key &get_curr_ne() const noexcept
       {
@@ -1480,6 +1430,9 @@ namespace Aleph
       Key &get_curr() { return Base::get_curr()->get_key(); }
     };
 
+    /// Read-only iterator: the iterator of a constant set.
+    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
+
     /** Traverse all the set of pairs and for each key executes the operation op.
 
         Operation must have the signature
@@ -1491,10 +1444,14 @@ namespace Aleph
         If \code operation() \endcode returns false then the traversal is
         aborted; otherwise the routine advance and so on
 
-        @param[in] op operation to execute for each key
+        @param[in] op operation to execute for each key; it receives a
+                   modifiable reference. Modifying a key so that its order
+                   changes corrupts the tree.
         @return true if all items are traversed; false otherwise
+        @throw anything that `op` throws.
     */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, Key &>
     bool traverse(Operation & op)
     {
       return Aleph::traverse(tree.getRoot(), [&op](Node *p)
@@ -1503,25 +1460,46 @@ namespace Aleph
                                });
     }
 
+    /// \overload traverse(Operation & op)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, Key &>
     bool traverse(Operation && op = Operation())
     {
       return traverse<Operation>(op);
     }
 
+    /** @brief Traverse a constant set in order; each key is handed out as
+               a constant reference.
+        @param[in] op operation to execute for each key; it must accept
+                   `const Key &`.
+        @return true if all items are traversed; false otherwise
+        @throw anything that `op` throws.
+    */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const Key &>
     bool traverse(Operation & op) const
     {
       return Aleph::traverse(tree.getRoot(), [&op](Node *p)
                                {
-                                 return op(p->get_key());
+                                 return op(static_cast<const Key &>(p->get_key()));
                                });
     }
 
+    /// \overload traverse(Operation & op) const
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const Key &>
     bool traverse(Operation && op = Operation()) const
     {
       return traverse<Operation>(op);
+    }
+
+    /** @brief Return a copy of the comparator that orders the keys.
+        @return the comparator, as `std::set::key_comp()` does.
+        @throw anything that the copy of `Compare` throws.
+    */
+    [[nodiscard]] Compare key_comp() const
+    {
+      return tree.get_compare();
     }
   };
 
@@ -1551,6 +1529,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, BinTree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetBinTree);
   };
 
 
@@ -1566,6 +1545,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Avl_Tree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetAvlTree);
   };
 
 
@@ -1581,6 +1561,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Splay_Tree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetSplayTree);
   };
 
 
@@ -1603,6 +1584,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Splay_Tree_Rk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetSplayRkTree);
     SETTREE_ITOR(Splay_Tree_Rk, Key, Compare);
   };
 
@@ -1619,6 +1601,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Rand_Tree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetRandTree);
 
     class Iterator : public DynSetTree<Key, Rand_Tree, Compare>::Iterator
     {
@@ -1647,6 +1630,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Treap, Compare>;
     using Base::Base;
+    Derived_Build(DynSetTreap);
   };
 
   /** Dynamic set implemented using extended treap binary search trees
@@ -1661,6 +1645,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Treap_Rk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetTreapRk);
     SETTREE_ITOR(Treap_Rk, Key, Compare);
   };
 
@@ -1679,6 +1664,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Avl_Tree_Rk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetAvlRkTree);
     SETTREE_ITOR(Avl_Tree_Rk, Key, Compare);
   };
 
@@ -1695,6 +1681,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Rb_Tree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetRbTree);
   };
 
 
@@ -1714,6 +1701,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, TdRbTree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetTdRbTree);
   };
 
 
@@ -1731,6 +1719,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Rb_Tree_Rk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetRbRkTree);
     SETTREE_ITOR(Rb_Tree_Rk, Key, Compare);
   };
 
@@ -1750,6 +1739,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, TdRbTreeRk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetTdRbRkTree);
     SETTREE_ITOR(TdRbTreeRk, Key, Compare);
   };
 
@@ -1773,6 +1763,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, HtdRbTree, Compare>;
     using Base::Base;
+    Derived_Build(DynSetHtdRbTree);
     SETTREE_ITOR(HtdRbTree, Key, Compare);
   };
 
@@ -1796,6 +1787,7 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, HtdRbTreeRk, Compare>;
     using Base::Base;
+    Derived_Build(DynSetHtdRbRkTree);
     SETTREE_ITOR(HtdRbTreeRk, Key, Compare);
   };
 

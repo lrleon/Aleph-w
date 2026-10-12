@@ -45,7 +45,12 @@
 
 # include <tpl_dynArray.H>
 # include <tpl_graph.H>
+# include <ah-graph-concepts.H>
 # include <tpl_dynMapTree.H>
+# include <ah-errors.H>
+# include <optional>
+# include <type_traits>
+# include <utility>
 
 # include <libxml++/libxml++.h>
 # include <libxml++/parsers/textreader.h>
@@ -98,20 +103,20 @@ namespace Aleph
     }
   };
 
-  /* TODO: le debo la explicación de los detalles de cada una de las clases de
-     lectura y escritura
+  /* TODO: still owe an explanation of the details of each of the
+     reader and writer classes
   */
 
-  /** Clase que escribe y lee un grafo (de forma muy elemental) en XML.
-   * 
-   *  @param GT el tipo de grafo.
-   *  @param Node_Reader la función de lectura de los atributos de un nodo.
-   *  @param Arc_Reader la función de lectura de los atributos de un arco.
-   *  @param Node_Writer la función de escritura de los atributos de un nodo.
-   *  @param Arc_Writer la función de escritura de los atributos de un arco.
+  /** Class that writes and reads a graph (in a very elementary way) as XML.
+   *
+   *  @param GT the graph type.
+   *  @param Node_Reader the function that reads a node's attributes.
+   *  @param Arc_Reader the function that reads an arc's attributes.
+   *  @param Node_Writer the function that writes a node's attributes.
+   *  @param Arc_Writer the function that writes an arc's attributes.
    *  @author Alejandro J. Mujica
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Node_Reader = Dft_Node_Reader<GT>,
             class Arc_Reader = Dft_Arc_Reader<GT>,
             class Node_Writer = Dft_Node_Writer<GT>,
@@ -124,6 +129,14 @@ namespace Aleph
     std::string node_name;
 
     std::string arc_name;
+
+    // Functors received as rvalues (including the defaults) are owned here, so
+    // the references below never outlive them. Functors received as lvalues
+    // are not copied: the references share them with the caller.
+    std::optional<Node_Reader> own_node_reader;
+    std::optional<Arc_Reader> own_arc_reader;
+    std::optional<Node_Writer> own_node_writer;
+    std::optional<Arc_Writer> own_arc_writer;
 
     Node_Reader & node_reader;
 
@@ -272,6 +285,16 @@ namespace Aleph
     }
 
   public:
+    /** @brief Build a reader/writer that shares the caller's functors.
+
+        The functors are neither copied nor owned: they must outlive this
+        object, and any state they accumulate is visible to the caller.
+
+        @param[in] _node_reader reads the attributes of a node
+        @param[in] _arc_reader reads the attributes of an arc
+        @param[in] _node_writer writes the attributes of a node
+        @param[in] _arc_writer writes the attributes of an arc
+    */
     Xml_Graph(Node_Reader & _node_reader, Arc_Reader & _arc_reader,
               Node_Writer & _node_writer, Arc_Writer & _arc_writer)
       : graph_name("graph"), node_name("node"), arc_name("arc"),
@@ -281,13 +304,80 @@ namespace Aleph
       // Empty
     }
 
+    /** @brief Build a reader/writer that owns its functors.
+
+        The functors (by default, the `Dft_*` ones) are moved into this
+        object. Before, only a reference to these temporaries was kept, and
+        it dangled as soon as the constructor returned.
+
+        @param[in] _node_reader reads the attributes of a node
+        @param[in] _arc_reader reads the attributes of an arc
+        @param[in] _node_writer writes the attributes of a node
+        @param[in] _arc_writer writes the attributes of an arc
+    */
     Xml_Graph(Node_Reader && _node_reader = Node_Reader(),
               Arc_Reader && _arc_reader = Arc_Reader(),
               Node_Writer && _node_writer = Node_Writer(),
               Arc_Writer && _arc_writer = Arc_Writer())
       : graph_name("graph"), node_name("node"), arc_name("arc"),
-        node_reader(_node_reader), arc_reader(_arc_reader),
-        node_writer(_node_writer), arc_writer(_arc_writer)
+        own_node_reader(std::move(_node_reader)),
+        own_arc_reader(std::move(_arc_reader)),
+        own_node_writer(std::move(_node_writer)),
+        own_arc_writer(std::move(_arc_writer)),
+        node_reader(*own_node_reader), arc_reader(*own_arc_reader),
+        node_writer(*own_node_writer), arc_writer(*own_arc_writer)
+    {
+      // Empty
+    }
+
+    /** @brief Copy an `other` reader/writer whose functor may not be
+        copy-constructible.
+
+        @tparam F the functor's own type (`Node_Reader`, ...).
+        @param[in] src the corresponding `own_*` member of `other`.
+        @return a copy of `src`, if `F` is copy-constructible.
+        @throw std::runtime_error if `F` is not copy-constructible and
+        `src` holds a value (a copyable `other` can still always be
+        shared, even if it owns a non-copy-constructible functor: only
+        copying such an owned functor is impossible).
+    */
+    template <class F>
+    static std::optional<F> copy_own(const std::optional<F> & src)
+    {
+      if constexpr (std::is_copy_constructible_v<F>)
+        return src;
+      else
+        {
+          ah_runtime_error_if(src.has_value())
+            << "Xml_Graph: cannot copy a reader/writer that owns a "
+               "non-copy-constructible functor; share it instead "
+               "(construct from an lvalue)";
+          return std::nullopt;
+        }
+    }
+
+    /** @brief Copy constructor.
+
+        Owned functors are copied, so the copy does not refer to `other`'s;
+        shared functors stay shared with the caller. A functor type that is
+        movable but not copy-constructible is only a problem if `other`
+        actually owns it (see `copy_own`); merely being of such a type does
+        not stop `other` from being copied while it shares its functors.
+
+        @param[in] other reader/writer to copy
+        @throw std::runtime_error see `copy_own`
+    */
+    Xml_Graph(const Xml_Graph & other)
+      : graph_name(other.graph_name), node_name(other.node_name),
+        arc_name(other.arc_name),
+        own_node_reader(copy_own(other.own_node_reader)),
+        own_arc_reader(copy_own(other.own_arc_reader)),
+        own_node_writer(copy_own(other.own_node_writer)),
+        own_arc_writer(copy_own(other.own_arc_writer)),
+        node_reader(own_node_reader ? *own_node_reader : other.node_reader),
+        arc_reader(own_arc_reader ? *own_arc_reader : other.arc_reader),
+        node_writer(own_node_writer ? *own_node_writer : other.node_writer),
+        arc_writer(own_arc_writer ? *own_arc_writer : other.arc_writer)
     {
       // Empty
     }

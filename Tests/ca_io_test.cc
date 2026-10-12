@@ -162,6 +162,27 @@ TEST(CAIO, RleParserRejectsMalformedInput)
   EXPECT_THROW(read_rle_string("x = 2, y = 1\nbo?\n"), std::domain_error);
 }
 
+// Regression (fuzz_rle_parser out-of-memory): a 34-byte document declared a
+// huge row and a live run of 999999999 cells, so read_rle() tried to store
+// about 16 GB of coordinates. The live-cell budget rejects it before any
+// coordinate is stored.
+TEST(CAIO, RleParserBoundsTheNumberOfLiveCells)
+{
+  const std::string hostile = "x = 1000000000, y = 1\n999999999o!\n";
+  EXPECT_THROW((void) read_rle_string(hostile), std::length_error);
+
+  auto r = try_read_rle_string(hostile);
+  EXPECT_FALSE(r.has_value());
+
+  // The budget is cumulative across runs and rows, and configurable.
+  EXPECT_THROW((void) read_rle_string("x = 3, y = 2\n2o$2o!\n", 3), std::length_error);
+  EXPECT_EQ(read_rle_string("x = 3, y = 2\n2o$o!\n", 3).alive.size(), 3u);
+
+  // A sparse pattern may declare a huge area: only live cells are stored.
+  const RLE_Pattern sparse = read_rle_string("x = 1000000000, y = 1000000000\no!\n");
+  EXPECT_EQ(sparse.alive, (Array<Coord_Vec<2>>{{0, 0}}));
+}
+
 TEST(CAIO, PlaintextRoundTripPreservesFullFrame)
 {
   const Grid src = make_grid(3, 4, {{0, 1}, {1, 2}, {2, 0}, {2, 1}, {2, 2}});

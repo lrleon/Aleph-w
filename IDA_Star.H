@@ -96,6 +96,8 @@
 # ifndef IDA_STAR_H
 # define IDA_STAR_H
 
+# include <ah-graph-concepts.H>
+
 # include <limits>
 # include <cmath>
 # include <type_traits>
@@ -119,7 +121,7 @@ namespace Aleph
  *
  *  @ingroup Graphs
  */
-template <class GT, class Distance = Dft_Dist<GT>>
+template <AlephGraph GT, ArcDistance<GT> Distance = Dft_Dist<GT>>
 struct Chebyshev_Heuristic
 {
   using Distance_Type = typename Distance::Distance_Type;
@@ -166,11 +168,11 @@ struct Chebyshev_Heuristic
  *
  *  @ingroup Graphs
  */
-template <class GT,
-          class Distance = Dft_Dist<GT>,
+template <AlephGraph GT,
+          ArcDistance<GT> Distance = Dft_Dist<GT>,
           class Heuristic = Zero_Heuristic<GT, Distance>,
           template <typename, class> class Itor = Node_Arc_Iterator,
-          class SA = Dft_Show_Arc<GT>>
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class IDA_Star
 {
 public:

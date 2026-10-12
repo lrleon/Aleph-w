@@ -52,6 +52,8 @@
 #ifndef TOPOLOGICAL_SORT_H
 #define TOPOLOGICAL_SORT_H
 
+# include <ah-graph-concepts.H>
+
 #include <tpl_dynListQueue.H>
 #include <tpl_graph.H>
 
@@ -72,9 +74,9 @@ namespace Aleph {
 
     @ingroup Graphs
 */
-template <class GT,
+template <AlephGraph GT,
           template <typename, class> class Itor = Out_Iterator,
-          class SA = Dft_Show_Arc<GT>>
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Topological_Sort
 {
   SA & sa;
@@ -185,9 +187,9 @@ public:
 
     @ingroup Graphs
 */
-template <class GT,
+template <AlephGraph GT,
           template <typename, class> class Itor = Out_Iterator,
-          class SA = Dft_Show_Arc<GT>>
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Q_Topological_Sort
 {
   SA & sa;

@@ -103,6 +103,7 @@
 # include <primes.H>
 # include <dlink.H>
 # include <ahDry.H>
+# include <utility>
 # include <hash-dry.H>
 # include <hashDry.H>
 # include <hash-fct.H>
@@ -348,9 +349,16 @@ namespace Aleph
       return *this;
     }
 
+    /// \overload
+    /// The same record, modifiable.
+    [[nodiscard]] Key * search(const Key & key) noexcept
+    {
+      return const_cast<Key *>(std::as_const(*this).search(key));
+    }
+
     /// Finds the key and returns the associated record if key is
     /// find inside the table; otherwise, nullptr is returned.
-    [[nodiscard]] Key *search(const Key &key) const noexcept
+    [[nodiscard]] const Key *search(const Key &key) const noexcept
     {
       size_t i = hash_fct(key) % len;
       for (size_t c = 0; c < len; ++c)

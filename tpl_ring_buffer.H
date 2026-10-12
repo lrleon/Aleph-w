@@ -199,7 +199,7 @@ public:
     basic_iterator(BufPtr rb, const size_t idx) noexcept : rb_(rb), idx_(idx) {}
 
     /// Convert a mutable iterator into a const iterator.
-    template <bool B, class = std::enable_if_t<IsConst and not B>>
+    template <bool B> requires (IsConst and not B)
     basic_iterator(const basic_iterator<B> &it) noexcept : rb_(it.buffer()), idx_(it.index())
     {}
 

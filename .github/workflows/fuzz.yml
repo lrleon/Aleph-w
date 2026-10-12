@@ -36,6 +36,22 @@ jobs:
             corpus: csv
           - target: fuzz_checkpoint_loader
             corpus: checkpoint
+          # max_len matches MAX_LENGTHS in Tests/run_fuzz.rb.
+          - target: fuzz_dynarray
+            corpus: dynarray
+            max_len: 256
+          - target: fuzz_sort
+            corpus: sort
+            max_len: 256
+          - target: fuzz_csv_utility
+            corpus: csv_utility
+            max_len: 512
+          - target: fuzz_compiler_lexer
+            corpus: compiler_lexer
+            max_len: 2049
+          - target: fuzz_compiler_parser
+            corpus: compiler_parser
+            max_len: 513
     env:
       CC: clang
       CXX: clang++
@@ -73,12 +89,18 @@ jobs:
           set -euo pipefail
           BIN=build-fuzz/Tests/fuzz/${{ matrix.target }}
           CORPUS=Tests/fuzz/corpus/${{ matrix.corpus }}
-          mkdir -p artifacts
+          MAX_LEN_ARG=()
+          if [ -n "${{ matrix.max_len }}" ]; then
+            MAX_LEN_ARG=(-max_len="${{ matrix.max_len }}")
+          fi
+          # libFuzzer requires the corpus directory to exist.
+          mkdir -p artifacts "$CORPUS"
           echo "Fuzzing ${{ matrix.target }} for ${FUZZ_SECONDS}s"
           ASAN_OPTIONS=detect_leaks=0 \
           UBSAN_OPTIONS=print_stacktrace=1 \
           "$BIN" \
             -max_total_time="${FUZZ_SECONDS}" \
+            "${MAX_LEN_ARG[@]}" \
             -rss_limit_mb=4096 \
             -timeout=25 \
             -print_final_stats=1 \

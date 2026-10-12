@@ -296,26 +296,56 @@ public:
   }
 
   /// Return a modifiable reference to first item in the list
-  T &get_first_ne() const noexcept
+  T &get_first_ne() noexcept
+  {
+    return this->get_next()->get_data();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &get_first_ne() const noexcept
   {
     return this->get_next()->get_data();
   }
 
   /// Return a modifiable reference to last item in the list
-  T &get_last_ne() const noexcept
+  T &get_last_ne() noexcept
+  {
+    return this->get_prev()->get_data();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &get_last_ne() const noexcept
   {
     return this->get_prev()->get_data();
   }
 
   /// Return a modifiable reference to first item in the list
-  T &get_first() const
+  T &get_first()
+  {
+    ah_underflow_error_if(this->is_empty()) << "DynDlist is empty";
+    return get_first_ne();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &get_first() const
   {
     ah_underflow_error_if(this->is_empty()) << "DynDlist is empty";
     return get_first_ne();
   }
 
   /// Return a modifiable reference to last item in the list
-  T &get_last() const
+  T &get_last()
+  {
+    ah_underflow_error_if(this->is_empty()) << "DynDlist is empty";
+    return get_last_ne();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &get_last() const
   {
     ah_underflow_error_if(this->is_empty()) << "DynDlist is empty";
     return get_last_ne();
@@ -422,7 +452,14 @@ public:
   }
 
   /// \overload get_first()
-  T &top() const
+  T &top()
+  {
+    return get_first();
+  }
+
+  /// \overload
+  /// A reference to const.
+  const T &top() const
   {
     return get_first();
   }
@@ -582,12 +619,15 @@ public:
       put_itor_at_the_end(*this);
     }
 
-    /// Initialize the iterator to the first item of `list`
-    Iterator(const DynDlist<T> &list) noexcept
-      : Base(list), list_ptr(&const_cast<DynDlist &>(list)), pos(0)
+    /// Iterator on the first item of the modifiable list `list`.
+    Iterator(DynDlist<T> &list) noexcept
+      : Base(list), list_ptr(&list), pos(0)
     {
       // empty
     }
+
+    /// A constant list is iterated through Const_Iterator.
+    Iterator(const DynDlist<T> &) = delete;
 
     Iterator() noexcept : list_ptr(nullptr)
     { /* empty */
@@ -760,6 +800,9 @@ public:
     }
   };
 
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
+
   /** Assignment by copy.
 
       In this assignment `this` is emptied and the the items of
@@ -826,7 +869,20 @@ public:
 
   /// Return a modifiable reference to the i-th item of the list.
   /// @throw out_of_range if `n` is greater than or equal to the list size.
-  T &operator[](const size_t n) const
+  T &operator[](const size_t n)
+  {
+    auto it = this->get_it();
+    for (size_t i = 0; i < n && it.has_curr(); ++i)
+      it.next_ne();
+
+    ah_out_of_range_error_if(not it.has_curr()) << "DynDlist index out of range";
+
+    return it.get_curr();
+  }
+
+  /// Return a reference to const to the i-th item of the list.
+  /// @throw out_of_range if `n` is greater than or equal to the list size.
+  const T &operator[](const size_t n) const
   {
     auto it = this->get_it();
     for (size_t i = 0; i < n && it.has_curr(); ++i)

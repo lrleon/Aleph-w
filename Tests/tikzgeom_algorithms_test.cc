@@ -176,7 +176,7 @@ Polygon make_visibility_polygon()
 size_t count_points(const DynList<Point> & pts)
 {
   size_t n = 0;
-  for (DynList<Point>::Iterator it(pts); it.has_curr(); it.next_ne())
+  for (auto it = pts.get_it(); it.has_curr(); it.next_ne())
     ++n;
   return n;
 }
@@ -538,7 +538,7 @@ TEST(TikzGeomAlgorithmsTest, VisualizeMonotoneTriangulation)
 
   const DynList<Triangle> tris = visualize_monotone_triangulation(plane, concave);
   size_t tri_count = 0;
-  for (DynList<Triangle>::Iterator it(tris); it.has_curr(); it.next_ne())
+  for (auto it = tris.get_it(); it.has_curr(); it.next_ne())
     ++tri_count;
   EXPECT_GT(tri_count, 0U);
 

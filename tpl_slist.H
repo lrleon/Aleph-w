@@ -219,6 +219,17 @@ namespace Aleph {
 
         current = current->get_next();
       }
+
+      /** Advance the iterator to the next node without checking.
+
+          Unchecked counterpart of `next()`: use it only where the iterator
+          is known to be positioned on a node, e.g. under a `has_curr()`
+          guard. It makes the iterator satisfy `AlephIterator`.
+      */
+      void next_ne() noexcept
+      {
+        current = current->get_next();
+      }
       /// Reset the iterator to the first node of the list.
       void reset_first() noexcept
       {

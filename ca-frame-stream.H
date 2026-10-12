@@ -267,6 +267,8 @@ public:
   template <typename Lattice>
   void accept(const std::size_t step, const Lattice &frame)
   {
+    static_assert((Frame_Sink<Sinks, Lattice> and ...),
+                  "Every child sink must satisfy Frame_Sink<Sink, Lattice>");
     std::apply([&](auto &...sink)
     {
       (sink.accept(step, frame), ...);

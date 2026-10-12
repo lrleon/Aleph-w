@@ -358,6 +358,64 @@ g++ -std=c++20 -I/usr/local/include/aleph test.cpp \
 ./test
 ```
 
+### Identificar un paquete instalado
+
+El número de versión no distingue dos commits de una misma versión, ni un
+paquete compilado con sanitizers de uno compilado sin ellos. El paquete
+instalado registra ambas cosas. Desde CMake, después de `find_package(Aleph)`:
+
+| Variable | Significado |
+|----------|-------------|
+| `Aleph_VERSION` | Número de versión (`VERSION.txt`) |
+| `Aleph_SOURCE_REVISION` | Hash del commit de las fuentes, con `-dirty` al final si había archivos versionados modificados, o `unknown` |
+| `Aleph_SANITIZERS` | `TRUE` si se compiló con `ALEPH_USE_SANITIZERS` |
+| `Aleph_CONTAINER_ANNOTATIONS` | `TRUE` si se compiló con las anotaciones de AddressSanitizer de `MemArray`, que cambian su layout |
+
+```cmake
+find_package(Aleph 7 REQUIRED)
+if(NOT Aleph_SOURCE_REVISION STREQUAL "0123456789abcdef0123456789abcdef01234567")
+    message(FATAL_ERROR "Aleph-w inesperado: ${Aleph_SOURCE_REVISION} (${Aleph_DIR})")
+endif()
+target_link_libraries(your_target PRIVATE Aleph::Aleph)
+```
+
+Desde C++, la cabecera `aleph-version.H` de la misma instalación da los
+mismos valores como macros (`ALEPH_VERSION_STRING`, `ALEPH_SOURCE_REVISION`,
+`ALEPH_BUILT_WITH_SANITIZERS`, `ALEPH_BUILT_WITH_CONTAINER_ANNOTATIONS`) y como
+`Aleph::Build_Info`.
+
+La revisión se lee al configurar el árbol de compilación: de
+`-DALEPH_SOURCE_REVISION=<id>` si el empaquetador la pasa, del commit que
+`git archive` escribe en un tarball de fuentes, o de `git rev-parse HEAD` en
+un checkout. Nunca se usa la red. Configura desde un árbol limpio para
+obtener una revisión sin `-dirty`.
+
+Un paquete compilado con `ALEPH_USE_SANITIZERS=ON` debe consumirse mediante
+`Aleph::Aleph`, que lleva las opciones de los sanitizers y la macro de
+anotaciones que entonces necesita cada unidad de traducción del programa.
+
+### Verificar un paquete instalado
+
+`scripts/installed_package_check.sh` compila e instala la biblioteca en un
+prefijo privado, normal y con sanitizers, y verifica cada paquete desde un
+consumidor externo (`consumer/package-check`): su identidad, la configuración
+de sanitizers que publica, y que cada cabecera instalada compila por sí sola
+con la instalación como única fuente de cabeceras de Aleph.
+
+```bash
+scripts/installed_package_check.sh                 # ambas variantes, en un directorio temporal
+scripts/installed_package_check.sh --variant plain --work /tmp/aleph-check
+```
+
+Para verificar un paquete ya instalado:
+
+```bash
+cmake -S consumer/package-check -B build-package-check \
+      -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/ruta/al/prefijo
+cmake --build build-package-check --parallel
+ctest --test-dir build-package-check --output-on-failure
+```
+
 ---
 
 <a id="install-es-solucion-de-problemas"></a>

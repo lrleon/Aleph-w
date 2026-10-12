@@ -83,7 +83,7 @@ create_table
 {
   typedef HashTable<unsigned long, Aleph::equal_to<unsigned long>> SetType;
   SetType table;
-  for (typename SetType::Iterator it(other); it.has_curr(); it.next())
+  for (auto it = other.get_it(); it.has_curr(); it.next())
     table.insert(it.get_curr());
 
   return table;
@@ -271,7 +271,11 @@ unsigned long insert_n_random_items_in_map(HashTable & table,
     {
       keys[i] = gsl_rng_get(r);
       if (not table.has(keys(i)))
-        assert(table.insert(keys(i), i));
+        {
+          // Keep the insertion out of assert(): NDEBUG would remove it.
+          [[maybe_unused]] const auto inserted = table.insert(keys(i), i);
+          assert(inserted != nullptr);
+        }
       else
         ++dup_counter;
     }

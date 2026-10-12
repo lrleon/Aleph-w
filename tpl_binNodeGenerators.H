@@ -93,10 +93,11 @@ namespace Aleph
  *  @return A lazy sequence of `Node *`, one per visited node, in in-order.
  *  @note Complexity: O(1) amortized per yielded node; O(depth) explicit
  *        stack entries in the wrapped `BinNodeInfixIterator`.
- *  @note Exception safety: basic guarantee. Constructing the wrapped
- *        `BinNodeInfixIterator` may throw `std::bad_alloc`; once
- *        construction succeeds, the traversal itself does not throw (it
- *        only follows existing `getL()`/`getR()` links).
+ *  @note Exception safety: basic guarantee. Constructing or advancing the
+ *        wrapped `BinNodeInfixIterator` may throw `std::bad_alloc`, when
+ *        the tree is deeper than the iterator's inline capacity
+ *        (`Node::MaxHeight`, at most 128) and its pending nodes
+ *        move to the heap.
  *  @note Thread safety: read-only traversal via raw pointers, with no
  *        internal synchronization. Traversing *different* trees
  *        concurrently is safe; traversing or mutating the *same* tree
@@ -127,9 +128,10 @@ Aleph::Generator<Node *> lazy_in_order(Node *root)
  *  @return A lazy sequence of `Node *`, one per visited node, in pre-order.
  *  @note Complexity: O(1) amortized per yielded node; O(depth) explicit
  *        stack entries in the wrapped `BinNodePrefixIterator`.
- *  @note Exception safety: basic guarantee. Constructing the wrapped
- *        `BinNodePrefixIterator` may throw `std::bad_alloc`; once
- *        construction succeeds, the traversal itself does not throw.
+ *  @note Exception safety: basic guarantee. Advancing the wrapped
+ *        `BinNodePrefixIterator` may throw `std::bad_alloc`, when the tree
+ *        is deeper than the iterator's inline capacity (`Node::MaxHeight`,
+ *        at most 128) and its pending nodes move to the heap.
  *  @note Thread safety: same as `lazy_in_order` — read-only, no internal
  *        synchronization; safe across different trees, not safe on a
  *        shared or concurrently-mutated tree.

@@ -156,7 +156,7 @@ template <class L>
 bool check_list(const L & l)
 {
   int i = l.get_first();
-  for (typename L::Iterator it(l); it.has_curr(); it.next())
+  for (auto it = l.get_it(); it.has_curr(); it.next())
     if (it.get_curr() != i++)
       {
 	cout << "Inconsistencia en el nodo " << i - 1 
@@ -170,7 +170,7 @@ bool check_list(const L & l)
 template <class L>
 void print_list(const L & l)
 {
-  for (typename L::Iterator it(l); it.has_curr(); it.next())
+  for (auto it = l.get_it(); it.has_curr(); it.next())
     cout << it.get_curr() << " ";
   cout << endl;
 }

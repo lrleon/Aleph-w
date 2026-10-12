@@ -63,6 +63,8 @@
 #ifndef GENERATE_DF_TREE_H
 #define GENERATE_DF_TREE_H
 
+# include <ah-graph-concepts.H>
+
 #include <tpl_graph_utils.H>
 #include <tpl_tree_node.H>
 #include <generate_tree.H>
@@ -214,7 +216,7 @@ inline void visitar_low(Grafo &, Grafo::Node * nodo, Grafo::Arc *)
  *
  *  @ingroup Graphs
  */
-template <class GT, class Key>
+template <AlephGraph GT, class Key>
 void write_df_low_tree(GT & g, typename GT::Node * src, std::ofstream & f)
 {
   // Compute cut nodes (articulation points)

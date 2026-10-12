@@ -80,6 +80,8 @@
 #ifndef TPL_MAXFLOW_H
 #define TPL_MAXFLOW_H
 
+# include <ah-graph-concepts.H>
+
 #include <cassert>
 #include <limits>
 #include <sstream>
@@ -453,7 +455,7 @@ namespace Aleph
    *  @see edmonds_karp_maximum_flow
    *  @ingroup Networks
    */
-  template <class Net>
+  template <FlowNetwork Net>
   typename Net::Flow_Type dinic_maximum_flow(Net & net)
   {
     using Node = typename Net::Node;
@@ -490,7 +492,7 @@ namespace Aleph
   /** @brief Functor wrapper for Dinic's algorithm.
    *  @ingroup Networks
    */
-  template <class Net>
+  template <FlowNetwork Net>
   struct Dinic_Maximum_Flow
   {
     /** @brief Invoke Dinic's maximum flow algorithm on the given network.
@@ -553,7 +555,7 @@ namespace Aleph
    *
    *  @ingroup Networks
    */
-  template <class Net>
+  template <FlowNetwork Net>
   typename Net::Flow_Type capacity_scaling_maximum_flow(Net & net)
   {
     using Node = typename Net::Node;
@@ -679,7 +681,7 @@ namespace Aleph
   /** @brief Functor wrapper for capacity scaling.
    *  @ingroup Networks
    */
-  template <class Net>
+  template <FlowNetwork Net>
   struct Capacity_Scaling_Maximum_Flow
   {
     /** @brief Invoke capacity scaling maximum flow algorithm on the given network.
@@ -856,7 +858,7 @@ namespace Aleph
    *  @see dinic_maximum_flow
    *  @ingroup Networks
    */
-  template <class Net>
+  template <FlowNetwork Net>
   FlowDecomposition<Net> decompose_flow(const Net & net)
   {
     using Node = typename Net::Node;
@@ -1109,7 +1111,7 @@ namespace Aleph
   /** @brief Functor wrapper for flow decomposition.
    *  @ingroup Networks
    */
-  template <class Net>
+  template <FlowNetwork Net>
   struct Decompose_Flow
   {
     /** @brief Invoke flow decomposition on the given network.
@@ -1179,7 +1181,7 @@ namespace Aleph
    *
    *  @ingroup Networks
    */
-  template <class Net>
+  template <FlowNetwork Net>
   typename Net::Flow_Type hlpp_maximum_flow(Net & net)
   {
     using Node = typename Net::Node;
@@ -1351,7 +1353,7 @@ namespace Aleph
   /** @brief Functor wrapper for HLPP.
    *  @ingroup Networks
    */
-  template <class Net>
+  template <FlowNetwork Net>
   struct HLPP_Maximum_Flow
   {
     /** @brief Invoke the Highest-Label Preflow-Push algorithm on the given network.

@@ -111,6 +111,8 @@
 # ifndef TREE_DECOMPOSITION_H
 # define TREE_DECOMPOSITION_H
 
+# include <ah-graph-concepts.H>
+
 # include <algorithm>
 # include <concepts>
 # include <cstddef>
@@ -148,7 +150,7 @@ namespace Aleph
      *  - build simple undirected adjacency from filtered arcs
      *  - validate the filtered graph is a tree
      */
-    template <class GT, class SA>
+    template <AlephGraph GT, ArcFilter<GT> SA>
     class Rooted_Tree_Topology
     {
     public:
@@ -388,7 +390,7 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Gen_Heavy_Light_Decomposition
   {
   public:
@@ -804,10 +806,10 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             typename T = typename GT::Node::Node_Type,
             class Op = Aleph::plus<T>,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Gen_HLD_Path_Query
   {
   public:
@@ -1019,7 +1021,7 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Gen_Centroid_Decomposition
   {
   public:

@@ -48,6 +48,8 @@
 #ifndef TPL_BIPARTITE_H
 #define TPL_BIPARTITE_H
 
+# include <ah-graph-concepts.H>
+
 #include <tpl_dynDlist.H>
 #include <tpl_dynMapTree.H>
 #include <tpl_dynListQueue.H>
@@ -64,13 +66,13 @@ enum Bipartite_Color
   Bp_Blue
 };
 
-template <class GT>
+template <AlephGraph GT>
 static long &color(typename GT::Node *p)
 {
   return NODE_COUNTER(p);
 }
 
-template <class GT>
+template <AlephGraph GT>
 static long &color(typename GT::Arc *a)
 {
   return ARC_COUNTER(a);
@@ -93,7 +95,7 @@ the graph is not bipartite.
 @exception bad_alloc if there is not enough memory.
 @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 void compute_bipartite(const GT &g, DynDlist<typename GT::Node *> &l, DynDlist<typename GT::Node *> &r)
 {
   g.reset_nodes();  // initialize counters to White
@@ -164,7 +166,7 @@ vice versa.
 
 @ingroup Graphs
   */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Compute_Bipartite
 {
 public:
@@ -204,7 +206,7 @@ The routine handles two type parameters:
 
 @ingroup Graphs
  */
-template <class GT, template <class> class Max_Flow = Ford_Fulkerson_Maximum_Flow, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, template <class> class Max_Flow = Ford_Fulkerson_Maximum_Flow, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 void compute_maximum_cardinality_bipartite_matching(const GT &g,
                                                     DynDlist<typename GT::Arc *> &matching)
 {
@@ -288,7 +290,7 @@ By default, the Ford-Fulkerson algorithm is used.
 
 @ingroup Graphs
  */
-template <class GT, template <class> class Max_Flow = Ford_Fulkerson_Maximum_Flow, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, template <class> class Max_Flow = Ford_Fulkerson_Maximum_Flow, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Compute_Maximum_Cardinality_Bipartite_Matching
 {
 public:
@@ -324,7 +326,7 @@ graphs correctly by running BFS from each unvisited node.
 @return true if the graph is bipartite, false otherwise.
 @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 bool compute_bipartite_all_components(const GT &g,
                                       DynDlist<typename GT::Node *> &l,
                                       DynDlist<typename GT::Node *> &r)
@@ -373,7 +375,7 @@ bool compute_bipartite_all_components(const GT &g,
 // Helper: DFS for augmenting path in Hopcroft-Karp.
 // Returns true if an augmenting path from u to a free right-node
 // was found and the matching was augmented along it.
-template <class GT, class SA>
+template <AlephGraph GT, ArcFilter<GT> SA>
 static bool hopcroft_karp_dfs(const GT &g, typename GT::Node *u)
 {
   using Node = typename GT::Node;
@@ -428,7 +430,7 @@ This implementation handles disconnected graphs correctly.
 @exception domain_error if the graph is not bipartite.
 @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 void hopcroft_karp_matching(const GT &g, DynDlist<typename GT::Arc *> &matching)
 {
   using Node = typename GT::Node;
@@ -530,7 +532,7 @@ void hopcroft_karp_matching(const GT &g, DynDlist<typename GT::Arc *> &matching)
 @tparam SA arc filter (default: Dft_Show_Arc<GT>).
 @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Hopcroft_Karp_Matching
 {
 public:

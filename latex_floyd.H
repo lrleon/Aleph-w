@@ -83,6 +83,8 @@
 #ifndef LATEX_FLOYD_H
 #define LATEX_FLOYD_H
 
+# include <ah-graph-concepts.H>
+
 #include <ahFunction.H>
 #include <tpl_matgraph.H>
 #include <mat_latex.H>
@@ -167,7 +169,7 @@ struct Initialize_Dist
  *
  *  @ingroup Graphs
  */
-template <class GT, class Compare, class Plus> 
+template <AlephGraph GT, class Compare, class Plus> 
 void floyd_all_shortest_paths(
     GT &                                                g, 
     Ady_Mat<GT, typename GT::Arc_Type::Distance_Type> & dist,
@@ -204,7 +206,7 @@ void floyd_all_shortest_paths(
 
 /// @brief Overload using default comparison (less) and addition (plus).
 /// @see floyd_all_shortest_paths()
-template <class GT> 
+template <AlephGraph GT> 
 void floyd_all_shortest_paths(
     GT &                                                g, 
     Ady_Mat<GT, typename GT::Arc_Type::Distance_Type> & dist,
@@ -301,7 +303,7 @@ void find_min_path(Mat &                           p,
  *
  *  @ingroup Graphs
  */
-template <class GT, class Compare, class Plus, 
+template <AlephGraph GT, class Compare, class Plus, 
           template <class> class P_i,   // Row/column index format for dist and path
           template <class> class P_ij,  // Path matrix entry format
           template <class> class D_ij>  // Distance matrix entry format
@@ -378,7 +380,7 @@ void floyd_all_shortest_paths_latex(
 
 /// @brief Overload using default comparison (less) and addition (plus).
 /// @see floyd_all_shortest_paths_latex()
-template <class GT, 
+template <AlephGraph GT, 
           template <class> class P_i,   // Row/column index format
           template <class> class P_ij,  // Path matrix entry format
           template <class> class D_ij>  // Distance matrix entry format

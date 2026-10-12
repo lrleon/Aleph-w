@@ -90,6 +90,8 @@
 #ifndef HLD_H
 #define HLD_H
 
+# include <ah-graph-concepts.H>
+
 # include <algorithm>
 # include <cstddef>
 # include <limits>
@@ -115,7 +117,7 @@ namespace Aleph
      *  flat-array positions such that each heavy chain maps to a
      *  contiguous segment.
      */
-    template <class GT, class SA>
+    template <AlephGraph GT, ArcFilter<GT> SA>
     class HLD_Tree_Data
     {
     public:
@@ -521,7 +523,7 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT, typename T, class Op, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, typename T, class Op, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
     requires SegmentTreeOp<Op, T>
   class Gen_HLD
   {
@@ -937,7 +939,7 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, typename T, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   struct HLD_Sum : public Gen_HLD<GT, T, Aleph::plus<T>, SA>
   {
     using Base = Gen_HLD<GT, T, Aleph::plus<T>, SA>;
@@ -964,7 +966,7 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, typename T, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   struct HLD_Max : public Gen_HLD<GT, T, Max_Op<T>, SA>
   {
     using Base = Gen_HLD<GT, T, Max_Op<T>, SA>;
@@ -991,7 +993,7 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, typename T, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   struct HLD_Min : public Gen_HLD<GT, T, Min_Op<T>, SA>
   {
     using Base = Gen_HLD<GT, T, Min_Op<T>, SA>;

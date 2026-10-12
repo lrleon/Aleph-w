@@ -61,12 +61,14 @@
 
 #include <cstddef>
 #include <initializer_list>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
 
+#include <ah-concepts.H>
 #include <ah-errors.H>
 
 namespace Aleph {
@@ -296,7 +298,7 @@ public:
    *  @param last End of the range.
    *  @throws std::bad_alloc if the heap buffer cannot be allocated.
    */
-  template <class It, class = std::enable_if_t<not std::is_integral_v<It>>>
+  template <std::input_iterator It>
   SmallVector(It first, It last) : ptr_(inline_ptr())
   {
     try
@@ -783,6 +785,7 @@ public:
    *  @return `true` if all elements were visited, `false` if stopped early.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation operation)
   {
     for (size_t i = 0; i < n_; ++i)
@@ -797,10 +800,11 @@ public:
    *  @return `true` if all elements were visited, `false` if stopped early.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation operation) const
   {
     for (size_t i = 0; i < n_; ++i)
-      if (not operation(ptr_[i]))
+      if (not operation(std::as_const(ptr_[i])))
         return false;
     return true;
   }

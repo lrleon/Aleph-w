@@ -58,6 +58,8 @@
 # ifndef TWO_SAT_H
 # define TWO_SAT_H
 
+# include <ah-graph-concepts.H>
+
 # include <cassert>
 # include <utility>
 # include <limits>
@@ -78,7 +80,7 @@ namespace Aleph {
  *  @tparam GT Directed graph type for the internal implication graph.
  *             Defaults to `List_Digraph`.
  */
-template <class GT = List_Digraph<Graph_Node<Empty_Class>,
+template <AlephGraph GT = List_Digraph<Graph_Node<Empty_Class>,
                                   Graph_Arc<Empty_Class>>>
 class Two_Sat
 {

@@ -189,8 +189,7 @@ int main(int argc, char *argv[])
   cout << endl;
 
   destroyRec(removed_tree); 
-  destroyRec(tree.getRoot()); 
-  tree.getRoot() = nullptr;
+  destroyRec(tree.getRoot()); // leaves the root as Node::NullPtr (sentinel)
 
   cout << endl << "testTreap_Rk " << n << " " << t << endl;
 }

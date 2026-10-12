@@ -80,6 +80,8 @@
 # ifndef HAMILTONIAN_H
 # define HAMILTONIAN_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_graph.H>
 
 namespace Aleph 
@@ -124,9 +126,9 @@ namespace Aleph
  * @ingroup Graphs
  * @author Leandro R. León
  */
-template <class GT, 
-	  class SN = Dft_Show_Node<GT>,
-	  class SA = Dft_Show_Arc<GT> >
+template <AlephGraph GT, 
+	  NodeFilter<GT> SN = Dft_Show_Node<GT>,
+	  ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Test_Hamiltonian_Sufficiency
 {
   SN & sn;
@@ -342,9 +344,9 @@ public:
  * @ingroup Graphs
  * @author Leandro R. León
  */
-template <class GT, 
-          class SN = Dft_Show_Node<GT>,
-          class SA = Dft_Show_Arc<GT> >
+template <AlephGraph GT, 
+          NodeFilter<GT> SN = Dft_Show_Node<GT>,
+          ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Test_Dirac_Condition
 {
   SN & sn;

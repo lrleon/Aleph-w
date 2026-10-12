@@ -141,6 +141,11 @@ if(ALEPH_USE_MEMORY_SANITIZER)
     return()
 endif()
 
+# Phase 26 — libFuzzer targets (opt-in via ALEPH_BUILD_FUZZERS, Clang-only).
+# They do not use GoogleTest, so register them before the GoogleTest gate:
+# a fuzzing build must configure even when GoogleTest is unavailable.
+add_subdirectory(fuzz)
+
 # Allow automatically fetching GoogleTest if it is not present system-wide.
 option(ALEPH_FETCH_GTEST "Download GoogleTest automatically when not found" ON)
 
@@ -169,7 +174,12 @@ if(NOT GTest_FOUND AND ALEPH_FETCH_GTEST)
 endif()
 
 if(NOT GTest_FOUND)
-    if(DEFINED ALEPH_ALLOW_TESTS_WITHOUT_GTEST AND ALEPH_ALLOW_TESTS_WITHOUT_GTEST)
+    if(ALEPH_BUILD_FUZZERS)
+        # A fuzzing build: the fuzz targets above are already registered.
+        message(WARNING
+            "GoogleTest was not found; configuring only the fuzz targets.")
+        return()
+    elseif(DEFINED ALEPH_ALLOW_TESTS_WITHOUT_GTEST AND ALEPH_ALLOW_TESTS_WITHOUT_GTEST)
         message(WARNING
             "GoogleTest was not found; skipping Aleph tests. "
             "Install GTest or set BUILD_TESTS=OFF to silence this warning.")
@@ -420,6 +430,13 @@ set(TEST_PROGRAMS
     johnson_test
     k_shortest_paths_test
     min_mean_cycle_test
+    howard_min_mean_cycle_test
+    howard_fallback_memory_test
+    negative_cycles_test
+    bounded_negative_cycle_test
+    short_negative_cycle_test
+    negative_cycles_numeric_test
+    negative_cycles_market_test
     planarity_test
     graph_copy_test
     thread_pool_test
@@ -569,6 +586,8 @@ set(ALEPH_POSIX_ONLY_TESTS
     robust_predicates_test
     tikzgeom_test
     tikzgeom_algorithms_test
+    # gmpfrxx_test exercises gmpfrxx.h directly (MpFrC::rnd from gmpfrxx.C).
+    gmpfrxx_test
     # geom_algorithms_test is a combined executable that links ALL sub-test .cc
     # files into one binary. A second GLOB loop also builds each sub-test .cc as
     # a standalone target. All of them call mpfr_class functions (square_root,
@@ -588,6 +607,19 @@ set(ALEPH_POSIX_ONLY_TESTS
 )
 if(WIN32)
     list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})
+endif()
+
+# gmpfrxx_test streams GMP values, which calls the compiled operator<< of
+# libgmpxx. Outside macOS the system libgmpxx is built with libstdc++, so it
+# does not link with libc++ (macOS's Homebrew GMP is built with libc++).
+set(_ALEPH_GMPXX_LIBCXX_MISMATCH OFF)
+string(TOUPPER "${CMAKE_BUILD_TYPE}" _ALEPH_BUILD_TYPE_UPPER)
+set(_ALEPH_ACTIVE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_ALEPH_BUILD_TYPE_UPPER}}")
+if(NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"
+   AND (ALEPH_USE_LIBCXX OR _ALEPH_ACTIVE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+"))
+    set(_ALEPH_GMPXX_LIBCXX_MISMATCH ON)
+    list(REMOVE_ITEM TEST_PROGRAMS gmpfrxx_test)
 endif()
 
 # Create executable for each test program
@@ -708,12 +740,43 @@ endforeach()
 set(_ALEPH_KNOWN_TEST_TARGETS "${TEST_PROGRAMS};${EXHAUSTIVE_TESTS}")
 list(APPEND _ALEPH_KNOWN_TEST_TARGETS regular_polygon_msan_probe)
 
+# xml_graph.H needs libxml++ 2.6, located through pkg-config. Hosts without it
+# (e.g. CI) do not build xml_graph_test; it is always kept out of the glob below.
+list(APPEND _ALEPH_KNOWN_TEST_TARGETS xml_graph_test)
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(ALEPH_LIBXMLXX QUIET IMPORTED_TARGET libxml++-2.6)
+endif()
+if(TARGET PkgConfig::ALEPH_LIBXMLXX)
+    add_executable(xml_graph_test xml_graph_test.cc)
+    list(APPEND _ALEPH_TEST_EXECUTABLE_TARGETS xml_graph_test)
+    target_link_libraries(xml_graph_test PRIVATE
+        Aleph
+        GTest::gtest_main
+        GTest::gtest
+        ${ALEPH_SYSTEM_LIBS}
+        PkgConfig::ALEPH_LIBXMLXX
+    )
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(xml_graph_test PRIVATE -Wno-unused-result)
+    endif()
+    gtest_discover_tests(xml_graph_test DISCOVERY_MODE PRE_TEST)
+    message(STATUS "libxml++-2.6 found: building xml_graph_test")
+else()
+    message(STATUS "libxml++-2.6 not found: xml_graph_test is not built")
+endif()
+
 file(GLOB _ALEPH_ALL_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cc")
 foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
     get_filename_component(_name "${_src}" NAME_WE)
 
     # Skip k2tree_test with clang (GMP/libc++ incompatibility)
     if(_name STREQUAL "k2tree_test" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        continue()
+    endif()
+
+    # Skip gmpfrxx_test with libc++ outside macOS (see above).
+    if(_name STREQUAL "gmpfrxx_test" AND _ALEPH_GMPXX_LIBCXX_MISMATCH)
         continue()
     endif()
 
@@ -754,6 +817,12 @@ foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
         gtest_discover_tests(${_auto_target} DISCOVERY_MODE PRE_TEST)
     endif()
 endforeach()
+
+if(TARGET planarity_test)
+    get_filename_component(_ALEPH_TEST_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+    target_compile_definitions(planarity_test PRIVATE
+        ALEPH_TEST_SOURCE_DIR="${_ALEPH_TEST_SOURCE_DIR}")
+endif()
 
 # Enable generated-document smoke tests only when the complete local TikZ
 # toolchain used by them is available. The GoogleTest case remains present and
@@ -871,9 +940,6 @@ add_test(
             -DSMOKE_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cc
             -P ${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cmake
 )
-
-# Phase 26 — libFuzzer targets (opt-in via ALEPH_BUILD_FUZZERS, Clang-only).
-add_subdirectory(fuzz)
 
 # Phase 25 — C ABI smoke test: a pure-C (C99) consumer that links the flat
 # C ABI shared library and drives a Game of Life through it.

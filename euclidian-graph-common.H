@@ -43,6 +43,8 @@
 # ifndef EUCLIDIAN_GRAPH_COMMON_H
 # define  EUCLIDIAN_GRAPH_COMMON_H
 
+# include <ah-graph-concepts.H>
+
 # include <cmath>
 # include <cstddef>
 # include <limits>
@@ -172,7 +174,7 @@ namespace Aleph
   };
 
 
-  template <class GT>
+  template <AlephGraph GT>
   inline
   GT gen_random_euclidian_graph(size_t n, size_t m, int w, int h,
                                 unsigned int seed)

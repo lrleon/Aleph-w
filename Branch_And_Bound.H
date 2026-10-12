@@ -273,12 +273,17 @@ concept OptimizationEvaluator = requires(Domain &domain, const typename Domain::
  *          normal backtracking or exception stack unwinding.
  *  - `is_complete(state)` marks an accepted solution,
  *  - `bound(state)` returns an optimistic estimate of the final objective.
+ *
+ *  Unlike the other engines, `State` must also be default-constructible:
+ *  solution snapshots are default-built and then filled.
  */
 template <typename Domain>
 concept BranchAndBoundDomain
   = SuccessorGenerator<Domain> and CompleteSolutionPredicate<Domain> and OptimizationEvaluator<Domain>
 and requires(Domain &domain, typename Domain::State &state, const typename Domain::Move &move) {
       requires SearchState<typename Domain::State>;
+      // The engine default-constructs its solution snapshots before filling them.
+      requires std::default_initializable<typename Domain::State>;
       requires SearchMove<typename Domain::Move>;
       { domain.apply(state, move) } -> std::same_as<void>;
       { domain.undo(state, move) } -> std::same_as<void>;

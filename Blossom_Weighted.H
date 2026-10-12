@@ -80,6 +80,8 @@
 #ifndef BLOSSOM_WEIGHTED_H
 #define BLOSSOM_WEIGHTED_H
 
+# include <ah-graph-concepts.H>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -172,7 +174,7 @@ long long to_ll_checked(T value)
  *
  *  @ingroup Graphs
  */
-template <class GT, class Weight = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, class Weight = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 Blossom_Weighted_Result<long long> compute_maximum_weight_general_matching(
   const GT &g,
   DynDlist<typename GT::Arc *> &matching,
@@ -368,7 +370,7 @@ Blossom_Weighted_Result<long long> compute_maximum_weight_general_matching(
  *
  *  @ingroup Graphs
  */
-template <class GT, class Weight = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, class Weight = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 Blossom_Weighted_Result<long long> blossom_maximum_weight_matching(const GT &g,
                                                                    DynDlist<typename GT::Arc *> &matching,
                                                                    Weight weight = Weight(),
@@ -383,7 +385,7 @@ Blossom_Weighted_Result<long long> blossom_maximum_weight_matching(const GT &g,
  *
  *  @ingroup Graphs
  */
-template <class GT, class Weight = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, class Weight = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Compute_Maximum_Weight_General_Matching
 {
   Weight weight_;

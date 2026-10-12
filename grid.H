@@ -70,6 +70,8 @@
 #ifndef GRID_H
 #define GRID_H
 
+# include <ah-graph-concepts.H>
+
 #include <ah-errors.H>
 #include <aleph-graph.H>
 #include <tpl_array.H>
@@ -170,7 +172,7 @@ struct Default_Operation_On_Arc
  * @ingroup Graphs
  * @author Alejandro Mujica
  */
-template <class GT, class Operation_On_Node = Default_Operation_On_Node<GT>,
+template <AlephGraph GT, class Operation_On_Node = Default_Operation_On_Node<GT>,
           class Operation_On_Arc = Default_Operation_On_Arc<GT>>
 class Build_Grid
 {

@@ -44,6 +44,8 @@
 # ifndef KRUSKAL_H
 # define KRUSKAL_H
 
+# include <ah-graph-concepts.H>
+
 # include <ahFunction.H>
 # include <tpl_agraph.H>
 # include <tpl_graph_utils.H>
@@ -83,9 +85,9 @@ namespace Aleph
       @see Prim_Min_Spanning_Tree
       @ingroup Graphs
   */
-  template <class GT,
+  template <AlephGraph GT,
             class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Kruskal_Min_Spanning_Tree
   {
     Distance dist_val;
