@@ -1110,12 +1110,67 @@ TEST(DynArrayCut, a_cut_that_fails_releases_nothing_and_keeps_the_dimension)
   for (size_t i = 6; i < 12; ++i)
     EXPECT_EQ(a.read(i).value, 0) << i;
 
-  // pop() and remove() shrink through the same code.
+  // A cut inside one block has nothing to release.
   Assignment_Throws::assignments_left = 0;
   EXPECT_THROW(a.cut(10), std::runtime_error);
   Assignment_Throws::assignments_left = -1;
   EXPECT_EQ(a.size(), 12u);
   EXPECT_TRUE(a.exist(11));
+}
+
+// pop() and remove() take one entry out through the same code. The entry is
+// reset only when its block stays, and a block is released only when nothing
+// is reset, so a reset that throws leaves the dimension and the blocks as
+// they were, whatever the position of the last entry in its block.
+TEST(DynArrayCut, a_pop_or_a_remove_that_fails_keeps_the_dimension)
+{
+  const auto make = [] (const int n)
+  {
+    DynArray<Assignment_Throws> a(4, 4, 2);  // blocks of four entries
+    for (int i = 0; i < n; ++i)
+      a.touch(i) = Assignment_Throws(i + 1);
+    return a;
+  };
+
+  for (int n = 5; n <= 12; ++n)
+    {
+      // The last entry is reset unless it is the first one of its block,
+      // whose block is released instead.
+      const bool resets = (n - 1) % 4 != 0;
+      const auto size_after = static_cast<size_t>(resets ? n : n - 1);
+
+      auto a = make(n);
+      Assignment_Throws::assignments_left = 0;
+      if (resets)
+        EXPECT_THROW((void) a.pop(), std::runtime_error) << n;
+      else
+        EXPECT_EQ(a.pop().value, n);
+      Assignment_Throws::assignments_left = -1;
+
+      ASSERT_EQ(a.size(), size_after) << n;
+      for (size_t i = 0; i < a.size(); ++i)
+        {
+          ASSERT_TRUE(a.exist(i)) << n << " " << i;
+          EXPECT_EQ(a.access(i).value, static_cast<int>(i) + 1) << n;
+        }
+
+      // remove() swaps the entry with the last one, which assigns twice, and
+      // then shrinks: the swap is done when the reset throws.
+      auto b = make(n);
+      Assignment_Throws::assignments_left = 2;
+      if (resets)
+        EXPECT_THROW(b.remove(b.access(0)), std::runtime_error) << n;
+      else
+        EXPECT_NO_THROW(b.remove(b.access(0))) << n;
+      Assignment_Throws::assignments_left = -1;
+
+      ASSERT_EQ(b.size(), size_after) << n;
+      for (size_t i = 0; i < b.size(); ++i)
+        ASSERT_TRUE(b.exist(i)) << n << " " << i;
+      EXPECT_EQ(b.access(0).value, n);
+      if (resets)
+        EXPECT_EQ(b.access(b.size() - 1).value, 1) << n;  // pop() completes the removal
+    }
 }
 
 } // namespace
