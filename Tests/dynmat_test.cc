@@ -50,6 +50,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <limits>
 #include <stdexcept>
 #include <cmath>
 
@@ -1054,6 +1055,31 @@ TEST(DynMatrix, regression_move_assignment_returns_reference)
 // =============================================================================
 // Main
 // =============================================================================
+
+// set_dimension() released the old storage before building the new one: if
+// building threw, the matrix kept a dangling pointer that the destructor
+// released again (heap-use-after-free). n * m could also overflow.
+TEST(DynMatrixSetDimension, StrongGuaranteeWhenItThrows)
+{
+  DynMatrix<int> m(2, 3, -1);
+  m.allocate();
+  m.write(1, 2, 12);
+
+  EXPECT_THROW(m.set_dimension(size_t(1) << 40, size_t(1) << 40), std::overflow_error);
+  EXPECT_THROW(m.set_dimension(std::numeric_limits<size_t>::max(), 2), std::overflow_error);
+  EXPECT_THROW(m.set_dimension(size_t(1) << 62, 1), std::length_error);
+
+  // Unchanged: same dimensions, values and default value
+  EXPECT_EQ(m.rows(), 2u);
+  EXPECT_EQ(m.cols(), 3u);
+  EXPECT_EQ(m.read(1, 2), 12);
+  EXPECT_EQ(m.read(0, 0), -1);
+
+  m.set_dimension(4, 5);
+  EXPECT_EQ(m.rows(), 4u);
+  EXPECT_EQ(m.cols(), 5u);
+  EXPECT_EQ(m.read(3, 4), -1);  // the default value is kept
+}
 
 int main(int argc, char **argv)
 {

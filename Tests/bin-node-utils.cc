@@ -682,6 +682,48 @@ TEST(BinNodeUtils, InfixIteratorTraversesInSortedOrder)
   EXPECT_EQ(got, (std::vector<int>{2, 3, 4, 5, 6, 7, 8}));
 }
 
+TEST(BinNodeUtils, IteratorsHandleTreesDeeperThanMaxHeight)
+{
+  // MaxHeight is only an estimate: an unbalanced tree can be deeper. Build a
+  // left spine s_0 ... s_{n-1}, deeper than MaxHeight, where each s_i also has
+  // a right leaf r_i. Key of s_i is 2 i and key of r_i is 2 i + 1.
+  const int n = 2 * static_cast<int>(BinNode<int>::MaxHeight) + 1;
+  NodePool pool;
+  std::vector<BinNode<int> *> spine(n);
+  for (int i = 0; i < n; ++i)
+    {
+      spine[i] = pool.make(2 * i);
+      RLINK(spine[i]) = pool.make(2 * i + 1);
+      if (i > 0)
+        LLINK(spine[i - 1]) = spine[i];
+    }
+
+  // Preorder: s_0 ... s_{n-1}, then r_{n-1} ... r_0
+  std::vector<int> expected;
+  for (int i = 0; i < n; ++i)
+    expected.push_back(2 * i);
+  for (int i = n - 1; i >= 0; --i)
+    expected.push_back(2 * i + 1);
+
+  std::vector<int> got;
+  for (BinNodePrefixIterator<BinNode<int>> it(spine[0]); it.has_curr(); it.next_ne())
+    got.push_back(KEY(it.get_curr_ne()));
+  EXPECT_EQ(got, expected);
+
+  // Inorder: s_{n-1}, r_{n-1}, s_{n-2}, r_{n-2}, ..., s_0, r_0
+  expected.clear();
+  for (int i = n - 1; i >= 0; --i)
+    {
+      expected.push_back(2 * i);
+      expected.push_back(2 * i + 1);
+    }
+
+  got.clear();
+  for (BinNodeInfixIterator<BinNode<int>> it(spine[0]); it.has_curr(); it.next_ne())
+    got.push_back(KEY(it.get_curr_ne()));
+  EXPECT_EQ(got, expected);
+}
+
 TEST(BinNodeUtils, RotationsPreserveInorder)
 {
   NodePool pool;

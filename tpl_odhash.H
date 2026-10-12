@@ -110,6 +110,7 @@
 # include <tpl_dynArray.H>
 # include <array_it.H>
 # include <ahDry.H>
+# include <utility>
 # include <hash-dry.H>
 # include <hashDry.H>
 # include <hash-fct.H>
@@ -538,9 +539,16 @@ namespace Aleph
 
     OHASH_COMMON(ODhashTable);
 
+    /// \overload
+    /// The same record, modifiable.
+    [[nodiscard]] Key * search(const Key & key) noexcept
+    {
+      return const_cast<Key *>(std::as_const(*this).search(key));
+    }
+
     /// searches the table for the key. Return a pointer to the record
     /// associated with key within the table; nullptr otherwise.
-    [[nodiscard]] Key * search(const Key & key) const noexcept
+    [[nodiscard]] const Key * search(const Key & key) const noexcept
     {
       const size_t i_fst = hash_fct(key) % len; // 1st probe (1st hash function)
       if (table[i_fst].status == EMPTY) [[unlikely]]

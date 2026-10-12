@@ -39,6 +39,7 @@
 #include <htlist.H>
 #include <ahFunctional.H>
 #include <tpl_dynSkipList.H>
+#include <ah-iterator.H>
 
 /**
  * @file ah-zip.H
@@ -100,7 +101,7 @@ template <class HeadC, class... TailC>
 class ZipIterator : public ZipIterator<TailC...>
 /// @endcond
 {
-  typename HeadC::Iterator it;
+  Aleph::const_iterator_t<HeadC> it;
 
   using T = std::decay_t<typename HeadC::Item_Type>;
 
@@ -174,21 +175,38 @@ public:
     ZipIterator<TailC...>::next();
   }
 
-  /** Advance all underlying iterators (no-throw variant).
+  /** Advance all underlying iterators (unchecked variant).
 
       Requires `has_curr()`.
+
+      @throw what `next_ne()` of the underlying iterators throws; nothing
+      with most of them. The inorder iterator of a binary tree
+      (Aleph::BinNodeInfixIterator) throws `std::bad_alloc` if the tree is
+      deeper than its inline capacity and the pending nodes cannot be moved
+      to the heap.
   */
-  void next_ne() noexcept
+  void next_ne() noexcept(noexcept(std::declval<Aleph::const_iterator_t<HeadC> &>().next_ne())
+                          and noexcept(std::declval<ZipIterator<TailC...> &>().next_ne()))
   {
     it.next_ne();
     ZipIterator<TailC...>::next_ne();
   }
 };
 
+/** @brief Base case of ZipIterator: the read-only iterator of the last
+    container.
+
+    The zipped containers are never modified: the iterator of each one is
+    its `Aleph::const_iterator_t`, whose `get_curr()` hands out a reference
+    to const.
+
+    @tparam C the last container.
+*/
 template <class C>
-class ZipIterator<C> : public C::Iterator
+class ZipIterator<C> : public Aleph::const_iterator_t<C>
 {
 public:
+  using Base = Aleph::const_iterator_t<C>;
   using T = std::decay_t<typename C::Item_Type>;
 
   /// The tuple type returned by get_curr() and get_curr_ne()
@@ -203,7 +221,7 @@ public:
 
       @param[in] c Container to iterate.
   */
-  ZipIterator(const C &c) : C::Iterator(c) {}
+  ZipIterator(const C &c) : Base(c) {}
 
   /** Return the current tuple (bounds-checked).
 
@@ -211,7 +229,7 @@ public:
   */
   std::tuple<T> get_curr() const
   {
-    return std::tuple<T>(C::Iterator::get_curr());
+    return std::tuple<T>(Base::get_curr());
   }
 
   /** Return the current tuple (no-throw variant).
@@ -220,13 +238,13 @@ public:
   */
   std::tuple<T> get_curr_ne() const noexcept
   {
-    return std::tuple<T>(C::Iterator::get_curr_ne());
+    return std::tuple<T>(Base::get_curr_ne());
   }
 
   DynList<T> get_curr_list() const
   {
     DynList<T> l;
-    l.append(C::Iterator::get_curr());
+    l.append(Base::get_curr());
     return l;
   }
 
@@ -1145,7 +1163,7 @@ template <class HeadC, class... TailC>
 class EnumZipIterator : public EnumZipIterator<TailC...>
 /// @endcond
 {
-  typename HeadC::Iterator it;
+  Aleph::const_iterator_t<HeadC> it;
 
   using T = std::decay_t<typename HeadC::Item_Type>;
 
@@ -1193,37 +1211,49 @@ public:
     return std::tuple_cat(curr, EnumZipIterator<TailC...>::get_curr_ne());
   }
 
-  /** Advance all underlying iterators (no-throw variant).
+  /** Advance all underlying iterators (unchecked variant).
 
       Requires `has_curr()`.
+
+      @throw what `next_ne()` of the underlying iterators throws, as
+      ZipIterator::next_ne() does.
   */
-  void next_ne() noexcept
+  void next_ne() noexcept(noexcept(std::declval<Aleph::const_iterator_t<HeadC> &>().next_ne())
+                          and noexcept(std::declval<EnumZipIterator<TailC...> &>().next_ne()))
   {
     it.next_ne();
     EnumZipIterator<TailC...>::next_ne();
   }
 };
 
+/** @brief Base case of EnumZipIterator: the read-only iterator of the last
+    container, which also counts the position.
+
+    @tparam C the last container.
+*/
 template <class C>
-class EnumZipIterator<C> : public C::Iterator
+class EnumZipIterator<C> : public Aleph::const_iterator_t<C>
 {
+  using Base = Aleph::const_iterator_t<C>;
   size_t i = 0;
 
 public:
   /** Advance the iterator and increment the associated index (bounds-checked). */
   void next()
   {
-    C::Iterator::next();
+    Base::next();
     ++i;
   }
 
-  /** Advance the iterator and increment the associated index (no-throw variant).
+  /** Advance the iterator and increment the associated index (unchecked variant).
 
       Requires `has_curr()`.
+
+      @throw what `next_ne()` of the underlying iterator throws.
   */
-  void next_ne() noexcept
+  void next_ne() noexcept(noexcept(std::declval<Base &>().next_ne()))
   {
-    C::Iterator::next_ne();
+    Base::next_ne();
     ++i;
   }
 
@@ -1233,12 +1263,12 @@ public:
 
       @param[in] c Container to iterate.
   */
-  EnumZipIterator(const C &c) : C::Iterator(c) {}
+  EnumZipIterator(const C &c) : Base(c) {}
 
   /** Return the current tuple `(value, index)` (bounds-checked). */
   std::tuple<T, size_t> get_curr() const
   {
-    return std::tuple<T, size_t>(C::Iterator::get_curr(), i);
+    return std::tuple<T, size_t>(Base::get_curr(), i);
   }
 
   /** Return the current tuple `(value, index)` (no-throw variant).
@@ -1247,7 +1277,7 @@ public:
   */
   std::tuple<T, size_t> get_curr_ne() const noexcept
   {
-    return std::tuple<T, size_t>(C::Iterator::get_curr_ne(), i);
+    return std::tuple<T, size_t>(Base::get_curr_ne(), i);
   }
 
   /** Return `true` if the underlying iterator has reached the end. */

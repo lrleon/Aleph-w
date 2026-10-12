@@ -77,7 +77,6 @@ namespace Aleph {
                      public LocateFunctions<DynBinHeap<T, Compare>, T>,
                      public FunctionalMethods<DynBinHeap<T, Compare>, T>,
                      public GenericKeys<DynBinHeap<T, Compare>, T>,
-                     public EqualToMethod<DynBinHeap<T, Compare>>,
                      public StlAlephIterator<DynBinHeap<T, Compare>>
   {
   public:
@@ -251,7 +250,7 @@ namespace Aleph {
     }
 
     /// Return a reference to the smallest element.
-    T & top() const
+    const T & top() const
     {
       return BinHeap<T, Compare>::top()->get_key();
     }
@@ -277,6 +276,7 @@ namespace Aleph {
     }
 
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation & op)
     {
       return this->preorder_traverse([&op] (Node * p)
@@ -284,19 +284,22 @@ namespace Aleph {
     }
 
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation && op = Operation())
     {
       return traverse(op);
     }
 
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation & op) const
     {
       return this->preorder_traverse([&op] (Node * p)
-                                     { return op(p->get_key()); });
+                                     { return op(static_cast<const T &>(p->get_key())); });
     }
 
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation && op = Operation()) const
     {
       return traverse<Operation>(op);

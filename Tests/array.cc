@@ -41,14 +41,116 @@
 #include <ah-unique.H>
 
 #include <array>
+#include <cstdint>
+#include <initializer_list>
+#include <iterator>
 #include <numeric>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace Aleph;
 
 namespace {
+
+// A single integer argument used to mean capacity, or one element when a
+// variadic constructor won the overload resolution. It is now rejected.
+static_assert(not std::is_constructible_v<Array<int>, int>);
+static_assert(not std::is_constructible_v<Array<int>, size_t>);
+static_assert(not std::is_constructible_v<Array<int>, long>);
+static_assert(not std::is_constructible_v<Array<int>, unsigned>);
+static_assert(not std::is_constructible_v<Array<int>, double>);
+static_assert(not std::is_constructible_v<Array<int>, bool>);
+static_assert(not std::is_constructible_v<Array<size_t>, size_t>);
+static_assert(not std::is_constructible_v<Array<double>, int>);
+static_assert(not std::is_convertible_v<int, Array<int>>);
+static_assert(not std::is_convertible_v<size_t, Array<int>>);
+
+// The other constructors are unaffected.
+static_assert(std::is_default_constructible_v<Array<int>>);
+static_assert(std::is_copy_constructible_v<Array<int>>);
+static_assert(std::is_nothrow_move_constructible_v<Array<int>>);
+static_assert(std::is_constructible_v<Array<int>, size_t, int>);
+static_assert(std::is_constructible_v<Array<int>, std::initializer_list<int>>);
+
+TEST(ArrayCtors, FactoriesAndBracesSayWhatIsMeant)
+{
+  const Array<int> by_default;
+  EXPECT_TRUE(by_default.is_empty());
+  EXPECT_GE(by_default.capacity(), 32u);
+
+  auto reserved = Array<int>::create_reserved(100);
+  EXPECT_TRUE(reserved.is_empty());
+  EXPECT_GE(reserved.capacity(), 100u);
+  reserved.append(5);
+  EXPECT_EQ(reserved[0], 5);
+
+  auto small = Array<int>::create_reserved(0);
+  EXPECT_TRUE(small.is_empty());
+  small.append(1);
+  small.append(2);
+  EXPECT_EQ(small.size(), 2u);
+
+  auto slots = Array<int>::create(3);
+  EXPECT_EQ(slots.size(), 3u);
+
+  const Array<int> item{10};
+  ASSERT_EQ(item.size(), 1u);
+  EXPECT_EQ(item[0], 10);
+
+  // A parenthesized braced list is still an element list.
+  const Array<uint64_t> braced_in_parens({0});
+  ASSERT_EQ(braced_in_parens.size(), 1u);
+  EXPECT_EQ(braced_in_parens[0], 0u);
+
+  const Array<int> repeated(10, 7);
+  ASSERT_EQ(repeated.size(), 10u);
+  for (int value : repeated)
+    EXPECT_EQ(value, 7);
+  const Array<size_t> repeated_size(size_t{3}, size_t{8});
+  ASSERT_EQ(repeated_size.size(), 3u);
+  EXPECT_EQ(repeated_size[2], 8u);
+}
+
+TEST(ArrayCtors, InputRangesSupportSinglePassIteratorsAndSentinels)
+{
+  std::istringstream input("3 5 8");
+  Array<int> streamed{std::istream_iterator<int>(input),
+                      std::istream_iterator<int>()};
+  ASSERT_EQ(streamed.size(), 3u);
+  EXPECT_EQ(streamed[2], 8);
+
+  int values[] = {11, 13, 17};
+  Array<int> counted(std::counted_iterator(values, 3), std::default_sentinel);
+  EXPECT_EQ(to_stdvector(counted), (std::vector<int>{11, 13, 17}));
+}
+
+TEST(ArrayCopyMove, MovedFromArraysRemainEmptyAndReusable)
+{
+  Array<int> original = {1, 2, 3};
+  Array<int> moved(std::move(original));
+  EXPECT_TRUE(original.is_empty());
+  EXPECT_EQ(original.begin(), original.end());
+  Array<int> empty_copy(original);
+  EXPECT_TRUE(empty_copy.is_empty());
+  Array<int> moved_twice(std::move(original));
+  EXPECT_TRUE(moved_twice.is_empty());
+  EXPECT_THROW(original[0], std::out_of_range);
+  EXPECT_THROW(original.remove_last(), std::underflow_error);
+
+  original.append(9);
+  original.insert(8);
+  original.reserve(64);
+  original.putn(1);
+  original[2] = 10;
+  EXPECT_EQ(to_stdvector(original), (std::vector<int>{8, 9, 10}));
+  EXPECT_EQ(to_stdvector(moved), (std::vector<int>{1, 2, 3}));
+  moved_twice.insert(42);
+  EXPECT_EQ(moved_twice[0], 42);
+}
 
 TEST(ArrayBasics, DefaultConstructionAndBase)
 {
@@ -425,6 +527,179 @@ TEST(ArraySearch, ContainsEmpty)
   Array<int> empty;
   EXPECT_FALSE(empty.contains(10));
   EXPECT_FALSE(empty.contains_if([](int) { return true; }));
+}
+
+
+/// @brief Expect the elements of `a`, in order.
+template <class T>
+void expect_items(const Array<T> &a, std::initializer_list<T> expected)
+{
+  ASSERT_EQ(a.size(), expected.size());
+  size_t i = 0;
+  for (const T &item : expected)
+    {
+      EXPECT_EQ(a[i], item) << "at position " << i;
+      ++i;
+    }
+}
+
+/// @brief A string too long for the small-string buffer.
+std::string long_string(const char c)
+{
+  return std::string(40, c);
+}
+
+// The argument of append() and insert() may be an element of the array
+// itself. Growth used to free it before reading it, and the gap opened by
+// insert() used to overwrite it.
+
+TEST(ArraySelfInsertion, AppendOwnElement)
+{
+  auto a = Array<int>::create_reserved(4);
+  for (int i : {10, 20, 30, 40})
+    a.append(i);
+  ASSERT_EQ(a.size(), a.capacity());
+
+  EXPECT_EQ(a.append(a[0]), 10);
+  expect_items(a, {10, 20, 30, 40, 10});
+  EXPECT_EQ(a.append(a[3]), 40);  // with free capacity
+  expect_items(a, {10, 20, 30, 40, 10, 40});
+}
+
+TEST(ArraySelfInsertion, AppendOwnMovedElement)
+{
+  auto a = Array<std::string>::create_reserved(4);
+  for (char c : {'a', 'b', 'c', 'd'})
+    a.append(long_string(c));
+  ASSERT_EQ(a.size(), a.capacity());
+
+  EXPECT_EQ(a.append(std::move(a[0])), long_string('a'));
+  ASSERT_EQ(a.size(), 5u);
+  EXPECT_EQ(a[3], long_string('d'));
+  EXPECT_EQ(a[4], long_string('a'));
+}
+
+TEST(ArraySelfInsertion, InsertOwnElement)
+{
+  auto a = Array<int>::create_reserved(4);
+  for (int i : {10, 20, 30})
+    a.append(i);
+
+  EXPECT_EQ(a.insert(a[1]), 20);
+  expect_items(a, {20, 10, 20, 30});
+  ASSERT_EQ(a.size(), a.capacity());
+  EXPECT_EQ(a.insert(a[3]), 30);
+  expect_items(a, {30, 20, 10, 20, 30});
+}
+
+TEST(ArraySelfInsertion, InsertOwnMovedElement)
+{
+  auto a = Array<std::string>::create_reserved(4);
+  for (char c : {'a', 'b', 'c'})
+    a.append(long_string(c));
+
+  EXPECT_EQ(a.insert(std::move(a[2])), long_string('c'));
+  EXPECT_EQ(a[1], long_string('a'));
+  ASSERT_EQ(a.size(), a.capacity());
+  EXPECT_EQ(a.insert(std::move(a[2])), long_string('b'));
+  ASSERT_EQ(a.size(), 5u);
+  EXPECT_EQ(a[1], long_string('c'));
+  EXPECT_EQ(a[2], long_string('a'));
+}
+
+
+// get_first() and get_last() were noexcept, so the underflow_error thrown
+// on an empty array called std::terminate.
+static_assert(not noexcept(std::declval<Array<int> &>().get_first()));
+static_assert(not noexcept(std::declval<const Array<int> &>().get_first()));
+static_assert(not noexcept(std::declval<Array<int> &>().get_last()));
+static_assert(not noexcept(std::declval<const Array<int> &>().get_last()));
+
+TEST(ArrayAccess, GetFirstAndGetLastOfEmptyArrayThrow)
+{
+  Array<int> a;
+  const Array<int> &ca = a;
+  EXPECT_THROW((void) a.get_first(), std::underflow_error);
+  EXPECT_THROW((void) ca.get_first(), std::underflow_error);
+  EXPECT_THROW((void) a.get_last(), std::underflow_error);
+  EXPECT_THROW((void) ca.get_last(), std::underflow_error);
+
+  a.append(10);
+  a.append(20);
+  EXPECT_EQ(ca.get_first(), 10);
+  EXPECT_EQ(ca.get_last(), 20);
+  a.get_first() = 1;
+  a.get_last() = 2;
+  expect_items(a, {1, 2});
+}
+
+
+/// Counts its copies and moves.
+struct Copy_Move_Counted
+{
+  static inline size_t copies = 0;
+  static inline size_t moves = 0;
+  static inline size_t move_constructions = 0;
+  int value = 0;
+
+  Copy_Move_Counted() = default;
+  explicit Copy_Move_Counted(int v) : value(v) {}
+  Copy_Move_Counted(const Copy_Move_Counted & o) : value(o.value) { ++copies; }
+  Copy_Move_Counted(Copy_Move_Counted && o) noexcept : value(o.value)
+  {
+    ++moves;
+    ++move_constructions;
+  }
+  Copy_Move_Counted & operator = (const Copy_Move_Counted & o)
+  {
+    value = o.value;
+    ++copies;
+    return *this;
+  }
+  Copy_Move_Counted & operator = (Copy_Move_Counted && o) noexcept
+  {
+    value = o.value;
+    ++moves;
+    return *this;
+  }
+};
+
+TEST(ArrayAppend, ConstantConcatenationCopiesEachItemOnce)
+{
+  // append(a) const returned ret.append(a), a reference, so the whole
+  // result was copied a second time.
+  Array<Copy_Move_Counted> a, b;
+  for (int i = 0; i < 5; ++i)
+    a.append(Copy_Move_Counted(i));
+  for (int i = 0; i < 3; ++i)
+    b.append(Copy_Move_Counted(10 + i));
+
+  Copy_Move_Counted::copies = 0;
+  const Array<Copy_Move_Counted> & ca = a;
+  const Array<Copy_Move_Counted> joined = ca.append(b);
+  EXPECT_EQ(joined.size(), 8u);
+  EXPECT_EQ(joined[7].value, 12);
+  EXPECT_LE(Copy_Move_Counted::copies, 5u + 3u);  // the 5 items of a and the 3 of b
+}
+
+TEST(ArrayRemoveFirst, MovesEachItemOnce)
+{
+  // remove_first() moved the vacated last slot out once more, into a
+  // temporary that was discarded: one move construction too many.
+  Array<Copy_Move_Counted> a;
+  for (int i = 0; i < 20; ++i)  // enough items for the array not to contract
+    a.append(Copy_Move_Counted(i));
+  const size_t capacity = a.capacity();
+  Copy_Move_Counted::moves = 0;
+  Copy_Move_Counted::move_constructions = 0;
+  const Copy_Move_Counted first = a.remove_first();
+  ASSERT_EQ(a.capacity(), capacity);
+  EXPECT_EQ(first.value, 0);
+  EXPECT_EQ(a.size(), 19u);
+  EXPECT_EQ(a[0].value, 1);
+  EXPECT_EQ(a[18].value, 19);
+  EXPECT_EQ(Copy_Move_Counted::move_constructions, 1u);  // only the returned item
+  EXPECT_EQ(Copy_Move_Counted::moves, 1u + 19u);         // and the 19 shifts
 }
 
 } // namespace

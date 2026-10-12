@@ -599,15 +599,82 @@ TEST(EmptyContainerTests, all_empty)
 // Test noexcept guarantees for _ne methods
 TEST_F(CompleteGroup, noexcept_methods)
 {
-  auto it = zip_it(l1, l2);
+  auto it = zip_it(l1, l4);
 
   // These should be noexcept
   EXPECT_TRUE(noexcept(it.get_curr_ne()));
   EXPECT_TRUE(noexcept(it.next_ne()));
 
-  auto enum_it = enum_zip_it(l1, l2);
+  auto enum_it = enum_zip_it(l1, l4);
   EXPECT_TRUE(noexcept(enum_it.get_curr_ne()));
   EXPECT_TRUE(noexcept(enum_it.next_ne()));
+
+  // The iterator of a binary tree may move its pending nodes to the heap
+  // while it advances, so next_ne() is not noexcept once a tree is zipped,
+  // whatever its place among the containers.
+  EXPECT_FALSE(noexcept(std::declval<DynSetTree<int>::Iterator &>().next_ne()));
+
+  auto tree_first = zip_it(l2, l1);
+  auto tree_last = zip_it(l1, l2);
+  EXPECT_TRUE(noexcept(tree_first.get_curr_ne()));
+  EXPECT_FALSE(noexcept(tree_first.next_ne()));
+  EXPECT_FALSE(noexcept(tree_last.next_ne()));
+
+  auto enum_tree_first = enum_zip_it(l2, l1);
+  auto enum_tree_last = enum_zip_it(l1, l2);
+  EXPECT_TRUE(noexcept(enum_tree_first.get_curr_ne()));
+  EXPECT_FALSE(noexcept(enum_tree_first.next_ne()));
+  EXPECT_FALSE(noexcept(enum_tree_last.next_ne()));
+
+  auto pair_it = get_pair_it(l1, l4);
+  auto pair_tree_first = get_pair_it(l2, l1);
+  auto pair_tree_last = get_pair_it(l1, l2);
+  EXPECT_TRUE(noexcept(pair_it.next_ne()));
+  EXPECT_FALSE(noexcept(pair_tree_first.next_ne()));
+  EXPECT_FALSE(noexcept(pair_tree_last.next_ne()));
+}
+
+// The inorder iterator of a tree keeps inline up to 128 pending nodes. In
+// this tree it needs many more, and not when it is built but in its first
+// next_ne(): the minimum is the root, the maximum is its right child, and
+// all the other keys go down the left spine of the maximum.
+TEST(DeepTree, zip_iterators_advance_past_the_inline_capacity)
+{
+  constexpr int n = 1000;
+  DynSetTree<int, BinTree> tree;
+  tree.insert(0);
+  for (int i = n; i > 0; --i)
+    tree.insert(i);
+  ASSERT_EQ(tree.height(), static_cast<size_t>(n) + 1);
+
+  const DynList<int> list = range<int>(0, n);
+
+  int expected = 0;
+  for (auto it = zip_it(tree, list); it.has_curr(); it.next_ne(), ++expected)
+    ASSERT_EQ(it.get_curr_ne(), make_tuple(expected, expected));
+  EXPECT_EQ(expected, n + 1);
+
+  expected = 0;
+  for (auto it = zip_it(list, tree); it.has_curr(); it.next_ne(), ++expected)
+    ASSERT_EQ(it.get_curr_ne(), make_tuple(expected, expected));
+  EXPECT_EQ(expected, n + 1);
+
+  size_t index = 0;
+  for (auto it = enum_zip_it(tree, list); it.has_curr(); it.next_ne(), ++index)
+    ASSERT_EQ(it.get_curr_ne(),
+              make_tuple(static_cast<int>(index), static_cast<int>(index), index));
+  EXPECT_EQ(index, static_cast<size_t>(n) + 1);
+
+  index = 0;
+  for (auto it = enum_zip_it(list, tree); it.has_curr(); it.next_ne(), ++index)
+    ASSERT_EQ(it.get_curr_ne(),
+              make_tuple(static_cast<int>(index), static_cast<int>(index), index));
+  EXPECT_EQ(index, static_cast<size_t>(n) + 1);
+
+  expected = 0;
+  for (auto it = get_pair_it(tree, list); it.has_curr(); it.next_ne(), ++expected)
+    ASSERT_EQ(it.get_curr_ne(), make_pair(expected, expected));
+  EXPECT_EQ(expected, n + 1);
 }
 
 // Stress test with larger containers

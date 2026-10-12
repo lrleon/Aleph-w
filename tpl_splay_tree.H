@@ -208,6 +208,33 @@ private:
     return cmp_result;
   }
 
+  /// Brings the maximum of the subtree of root `r` to its root, with the
+  /// zig-zig rotations of a splay. The new root has no right child.
+  static Node * splay_max(Node *r) noexcept
+  {
+    assert(r != Node::NullPtr);
+
+    Node headNode;
+    Node *l = &headNode;
+    Node *t = r;
+
+    while (RLINK(t) != Node::NullPtr)
+      {
+        if (RLINK(RLINK(t)) != Node::NullPtr)  // zig-zig case
+          t = rotate_to_left(t);
+
+        RLINK(l) = t;
+        l = t;
+        t = RLINK(t);
+      }
+
+    /* reassembling: what was left behind goes at the left of the maximum */
+    RLINK(l) = LLINK(t);
+    LLINK(t) = headNode.getR();
+
+    return t;
+  }
+
 public:
   /// The key type stored in the node
   using key_type = Key;
@@ -345,8 +372,7 @@ public:
     if (root == Node::NullPtr)
       return nullptr;
 
-    const signed char cmp_result = splay_impl(key);
-    if (cmp_result != CmpEqual)
+    if (const signed char cmp_result = splay_impl(key); cmp_result != CmpEqual)
       return nullptr; /* key not found */
 
     Node *ret_val = root; /* store node to delete */
@@ -356,8 +382,11 @@ public:
     else
       {
         Node *p = RLINK(root);
-        root = LLINK(root);
-        splay_impl(key);
+
+        // The maximum of the left subtree, and not a search of the key:
+        // with repeated keys that search stops at a node of the same key,
+        // which can have others at its right, and they would be lost
+        root = splay_max(LLINK(root));
         RLINK(root) = p;
       }
 

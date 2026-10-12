@@ -37,6 +37,8 @@
  */
 #include <gtest/gtest.h>
 
+#include <limits>
+#include <stdexcept>
 #include <vector>
 #include <string>
 #include <htlist.H>
@@ -133,6 +135,50 @@ TEST(TraverseMixin, TraverseEmpty)
 
   bool completed = v.traverse([](int) { return true; });
   EXPECT_TRUE(completed);
+}
+
+// A constant container hands out constant items. An operation that takes a
+// modifiable reference must be rejected by the constraint of traverse(), and
+// of the constant members that ask it (all()), instead of failing inside
+// their body.
+template <class C, class Op>
+concept TraversesWith = requires(C & c, Op & op) { c.template traverse<Op>(op); };
+
+template <class C, class Op>
+concept TraversesWithTemporary = requires(C & c) { c.traverse(Op()); };
+
+template <class C, class Op>
+concept TestsAllWith = requires(C & c, Op & op) { c.template all<Op>(op); };
+
+struct TakesModifiableItem { bool operator () (int & x) const { return x > 0; } };
+struct TakesConstantItem { bool operator () (const int & x) const { return x > 0; } };
+
+TEST(TraverseMixin, ConstantContainerRejectsModifyingOperation)
+{
+  using V = MixinVector<int>;
+
+  static_assert(TraversesWith<V, TakesModifiableItem>);
+  static_assert(TraversesWith<V, TakesConstantItem>);
+  static_assert(TraversesWith<const V, TakesConstantItem>);
+  static_assert(not TraversesWith<const V, TakesModifiableItem>);
+
+  static_assert(TraversesWithTemporary<V, TakesModifiableItem>);
+  static_assert(TraversesWithTemporary<const V, TakesConstantItem>);
+  static_assert(not TraversesWithTemporary<const V, TakesModifiableItem>);
+
+  static_assert(TestsAllWith<V, TakesConstantItem>);
+  static_assert(not TestsAllWith<V, TakesModifiableItem>);
+
+  V v = {1, 2, 3};
+  EXPECT_TRUE(v.traverse([] (int & x) { x *= 2; return true; }));
+
+  const V & cv = v;
+  int sum = 0;
+  EXPECT_TRUE(cv.traverse([&sum] (const int & x) { sum += x; return true; }));
+  EXPECT_EQ(sum, 12);
+  TakesConstantItem positive;
+  EXPECT_TRUE(cv.traverse(positive));
+  EXPECT_TRUE(cv.all(positive));
 }
 
 
@@ -342,6 +388,19 @@ TEST(LocateMixin, Nth)
 
   EXPECT_THROW(v.nth(5), std::out_of_range);
   EXPECT_THROW(v.nth(100), std::out_of_range);
+}
+
+TEST(LocateMixin, NthWithLargestIndexThrows)
+{
+  // The check compared the count with n + 1, which overflows to zero for
+  // n == SIZE_MAX: on an empty container nth() returned a null reference.
+  constexpr size_t largest = std::numeric_limits<size_t>::max();
+  MixinVector<int> empty;
+  EXPECT_THROW((void) empty.nth(largest), std::out_of_range);
+  EXPECT_THROW((void) empty.nth(0), std::out_of_range);
+
+  MixinVector<int> v = {10, 20, 30};
+  EXPECT_THROW((void) v.nth(largest), std::out_of_range);
 }
 
 TEST(LocateMixin, NthNe)
@@ -766,13 +825,13 @@ TEST(FunctionalMixin, FindIndex)
 
   EXPECT_EQ(v.find_index([](int x) { return x == 30; }), 2);
   EXPECT_EQ(v.find_index([](int x) { return x > 35; }), 3);  // first > 35 is 40
-  EXPECT_EQ(v.find_index([](int x) { return x > 100; }), static_cast<size_t>(-1));
+  EXPECT_EQ(v.find_index([](int x) { return x > 100; }), v.size());
 }
 
 TEST(FunctionalMixin, FindIndexEmpty)
 {
   MixinVector<int> v;
-  EXPECT_EQ(v.find_index([](int) { return true; }), static_cast<size_t>(-1));
+  EXPECT_EQ(v.find_index([](int) { return true; }), 0u);  // empty: size()
 }
 
 TEST(FunctionalMixin, IndexOf)
@@ -782,7 +841,7 @@ TEST(FunctionalMixin, IndexOf)
   EXPECT_EQ(v.index_of(10), 0);
   EXPECT_EQ(v.index_of(30), 2);
   EXPECT_EQ(v.index_of(50), 4);
-  EXPECT_EQ(v.index_of(99), static_cast<size_t>(-1));
+  EXPECT_EQ(v.index_of(99), v.size());
 }
 
 TEST(FunctionalMixin, IndexOfStrings)
@@ -790,7 +849,7 @@ TEST(FunctionalMixin, IndexOfStrings)
   MixinVector<string> v = {"apple", "banana", "cherry"};
 
   EXPECT_EQ(v.index_of("banana"), 1);
-  EXPECT_EQ(v.index_of("grape"), static_cast<size_t>(-1));
+  EXPECT_EQ(v.index_of("grape"), v.size());
 }
 
 

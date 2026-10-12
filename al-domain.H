@@ -90,6 +90,7 @@ public:
 
   using Base = Aleph::HashSet<T, SetODhash>;
   using Base::Base;
+  Derived_Build(AlDomain);
 
   /**
    * @brief Get sorted list of all elements in the domain.

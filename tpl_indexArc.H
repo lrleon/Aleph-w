@@ -198,7 +198,7 @@ namespace Aleph
       arc.src_node = src;
       arc.tgt_node = tgt;
 
-      GT_Arc ** ret_val = index.search(&arc);
+      GT_Arc * const * ret_val = index.search(&arc);
 
       return ret_val != nullptr ? *ret_val : nullptr;
     }
@@ -219,7 +219,7 @@ namespace Aleph
       arc.src_node = src;
       arc.tgt_node = tgt;
 
-      GT_Arc ** ret_val = index.search(&arc);
+      GT_Arc * const * ret_val = index.search(&arc);
 
       return ret_val != nullptr ? *ret_val : nullptr;
     }

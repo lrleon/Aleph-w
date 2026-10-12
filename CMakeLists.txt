@@ -44,6 +44,7 @@ option(BUILD_TESTS "Build tests" ON)
 option(BUILD_REPRODUCTIONS "Build weekly cellular-automata reproductions" OFF)
 option(BUILD_BENCHMARKS "Build cellular-automata performance-gate benchmarks" OFF)
 option(ALEPH_USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
+option(ALEPH_ANNOTATE_CONTAINERS "Annotate MemArray logical bounds when using ASan" ON)
 option(ALEPH_USE_MEMORY_SANITIZER "Enable Clang MemorySanitizer" OFF)
 option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 option(ALEPH_DISABLE_RANGES "Force C++20 std::ranges support off (portability escape hatch)" OFF)
@@ -442,6 +443,123 @@ set(HLIST
     ca-dot.H
     ca-ascii.H
     ca-x11-viewer.H
+    # Public top-level headers that this list had left out of the installation
+    # (VERSIONING.md: every documented top-level header is public API).
+    ah-chronos-utils.H
+    ah-compat.H
+    ah-convert.H
+    ah-date.H
+    ah-dispatcher.H
+    ah-map-arena.H
+    ah-mapping.H
+    ah-msg.H
+    ah-parallel.H
+    ah-signal.H
+    ah-stl-functional.H
+    ah-stl-utils.H
+    ah-stl-zip.H
+    ah-trace.H
+    ah-uni-functional.H
+    ah-zip-utils.H
+    ahDaemonize.H
+    ahField.H
+    ahNow.H
+    aleph-exceptions.H
+    AStar.H
+    Bidirectional_BFS.H
+    compact-cuckoo-filter.H
+    compact-quotient-filter.H
+    concurrency_utils.H
+    count-min-sketch.H
+    cuckoo-filter.H
+    Dial.H
+    eepicgeom.H
+    experimental_async.H
+    fft.H
+    Floyd_Warshall.H
+    future_utils.H
+    Graph_Coloring.H
+    graph_to_tree.H
+    hashPars.H
+    Huffman.H
+    huffman_btreepic.H
+    huffman_tree.h
+    hyperloglog.H
+    IDA_Star.H
+    Johnson.H
+    Karger_Stein.H
+    Kruskal.H
+    latex_floyd.H
+    lfit.H
+    load_digraph.H
+    minhash.H
+    modular_arithmetic.H
+    modular_combinatorics.H
+    modular_linalg.H
+    net_apps.H
+    net_utils.H
+    ntt.H
+    opBinTree.H
+    parse-csv.H
+    point_utils.H
+    pollard_rho.H
+    prefix-tree.H
+    Prim.H
+    primality.H
+    quadnode.H
+    quadtree.H
+    quotient-filter.H
+    random_tree.H
+    reservoir-sampling.H
+    ringfilecache.H
+    simhash.H
+    Simplex.H
+    slink_nc.H
+    stat_utils.H
+    Stoer_Wagner.H
+    tpl_balanceXt.H
+    tpl_const_graph_view.H
+    tpl_disjoint_sparse_table.H
+    tpl_dyn_slist_nc.H
+    tpl_dynArrayHeap.H
+    tpl_dynSlist.H
+    tpl_euclidian_graph.H
+    tpl_graph_indexes.H
+    tpl_link_cut_tree.H
+    tpl_link_cut_tree_with_edges.H
+    tpl_maxflow.H
+    tpl_mincost.H
+    tpl_mo_algorithm.H
+    tpl_mo_on_trees.H
+    tpl_multi_polynomial.H
+    tpl_multicommodity.H
+    tpl_netcapgraph.H
+    tpl_polynomial.H
+    tpl_rbNode.H
+    tpl_snode_nc.H
+    tpl_spanning_tree.H
+    tpl_test_acyclique.H
+    tpl_test_connectivity.H
+    tpl_test_cycle.H
+    tpl_test_path.H
+    Two_Sat.H
+    uid.H
+    warshall.H
+    worker_pool.H
+    xml_graph.H
+    Zero_One_BFS.H
+)
+
+# Top-level headers that are deliberately not installed. Every other top-level
+# header must be in HLIST; scripts/install_header_closure_check.rb enforces it
+# (CTest: CompilerSdk.InstallHeaderClosure), so a new header cannot be left out
+# of the installation by accident.
+set(ALEPH_HEADERS_NOT_INSTALLED
+    doxygen_groups.H  # Doxygen group definitions; no code
+    btreepic_avl.H    # legacy; uses std::ofstream without including <fstream>
+    deque.H           # legacy; includes Vector.H, which is not in the tree
+    fmmd.H            # legacy; includes tpl_tree.H and tpl_dlist.H, which are not in the tree
+    tpl_binNodeAux.H  # legacy; includes ahNew.H, which is not in the tree
 )
 
 # C++ source files
@@ -511,6 +629,154 @@ endif()
 # Create static library
 add_library(Aleph STATIC ${LIBCCCSRCS} ${LIBCSRCS})
 target_link_libraries(Aleph PRIVATE aleph_miniz)
+
+# MemArray annotations affect its layout under ASan. Compile Aleph and all
+# consumers with the same definition and instrumentation, including consumers
+# of an installed target. PUBLIC also exports the definition as INTERFACE.
+# Aleph itself is already instrumented by the directory-wide
+# add_compile_options above; the INTERFACE options carry the instrumentation
+# to consumers outside this directory, where those options do not reach.
+if(ALEPH_USE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    if(ALEPH_ANNOTATE_CONTAINERS)
+        target_compile_definitions(Aleph PUBLIC ALEPH_ANNOTATE_CONTAINERS=1)
+    endif()
+    target_compile_options(Aleph INTERFACE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(Aleph INTERFACE -fsanitize=address,undefined)
+endif()
+
+# ------------------------------------------------------------------------------
+# Package identity: release number, source revision and build configuration
+# ------------------------------------------------------------------------------
+# VERSION.txt alone does not identify what was built: every commit between two
+# releases carries the same number, and a library built with the container
+# annotations has another MemArray layout than one built without them. The
+# generated header aleph-version.H records the three things; AlephConfig.cmake
+# reads them back from the installed header, so that the CMake package and the
+# header cannot disagree.
+#
+# The source revision comes, in this order, from:
+#   1. -DALEPH_SOURCE_REVISION=<id>, for packagers;
+#   2. cmake/AlephSourceRevision.cmake, which `git archive` fills in
+#      (export-subst in .gitattributes): a source tarball without .git still
+#      knows its commit;
+#   3. `git rev-parse HEAD` when this directory is the top of a git checkout,
+#      with "-dirty" appended when tracked files are modified;
+#   4. "unknown".
+# It is read when the build tree is configured, never from the network, and
+# the build tree is configured again when HEAD moves.
+set(ALEPH_SOURCE_REVISION "" CACHE STRING
+    "Source revision recorded in the installed package (empty: detect it)")
+
+set(ALEPH_RESOLVED_SOURCE_REVISION "${ALEPH_SOURCE_REVISION}")
+
+if(ALEPH_RESOLVED_SOURCE_REVISION STREQUAL "")
+    set(ALEPH_ARCHIVED_SOURCE_REVISION "")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/AlephSourceRevision.cmake" OPTIONAL)
+    # In a checkout the file still holds the placeholder, which is ignored.
+    if(ALEPH_ARCHIVED_SOURCE_REVISION MATCHES "^[0-9a-f]+$")
+        set(ALEPH_RESOLVED_SOURCE_REVISION "${ALEPH_ARCHIVED_SOURCE_REVISION}")
+    endif()
+endif()
+
+if(ALEPH_RESOLVED_SOURCE_REVISION STREQUAL "")
+    find_package(Git QUIET)
+    if(GIT_FOUND)
+        # Only when this directory is itself the top of a checkout: inside
+        # another repository (a vendored copy) HEAD would be someone else's.
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" rev-parse --show-toplevel
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            OUTPUT_VARIABLE _aleph_git_top
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE _aleph_git_rc
+            ERROR_QUIET
+        )
+        if(_aleph_git_rc EQUAL 0 AND NOT _aleph_git_top STREQUAL "")
+            get_filename_component(_aleph_git_top "${_aleph_git_top}" REALPATH)
+            get_filename_component(_aleph_source_top "${CMAKE_CURRENT_SOURCE_DIR}" REALPATH)
+        endif()
+        if(_aleph_git_rc EQUAL 0 AND _aleph_git_top STREQUAL _aleph_source_top)
+            execute_process(
+                COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                OUTPUT_VARIABLE _aleph_git_head
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                RESULT_VARIABLE _aleph_git_rc
+                ERROR_QUIET
+            )
+            if(_aleph_git_rc EQUAL 0 AND _aleph_git_head MATCHES "^[0-9a-f]+$")
+                set(ALEPH_RESOLVED_SOURCE_REVISION "${_aleph_git_head}")
+                execute_process(
+                    COMMAND "${GIT_EXECUTABLE}" status --porcelain --untracked-files=no
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                    OUTPUT_VARIABLE _aleph_git_changes
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    RESULT_VARIABLE _aleph_git_rc
+                    ERROR_QUIET
+                )
+                if(NOT _aleph_git_rc EQUAL 0 OR NOT _aleph_git_changes STREQUAL "")
+                    string(APPEND ALEPH_RESOLVED_SOURCE_REVISION "-dirty")
+                endif()
+
+                # Configure again when HEAD moves (commit, checkout, reset...).
+                execute_process(
+                    COMMAND "${GIT_EXECUTABLE}" rev-parse --git-path logs/HEAD
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                    OUTPUT_VARIABLE _aleph_git_reflog
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    RESULT_VARIABLE _aleph_git_rc
+                    ERROR_QUIET
+                )
+                if(_aleph_git_rc EQUAL 0 AND NOT _aleph_git_reflog STREQUAL "")
+                    get_filename_component(_aleph_git_reflog "${_aleph_git_reflog}"
+                        ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+                    if(EXISTS "${_aleph_git_reflog}")
+                        set_property(DIRECTORY APPEND PROPERTY
+                            CMAKE_CONFIGURE_DEPENDS "${_aleph_git_reflog}")
+                    endif()
+                endif()
+            endif()
+        endif()
+    endif()
+endif()
+
+if(ALEPH_RESOLVED_SOURCE_REVISION STREQUAL "")
+    set(ALEPH_RESOLVED_SOURCE_REVISION "unknown")
+endif()
+
+# The revision ends inside a string literal and inside a CMake string.
+if(NOT ALEPH_RESOLVED_SOURCE_REVISION MATCHES "^[A-Za-z0-9._+-]+$")
+    message(FATAL_ERROR
+        "ALEPH_SOURCE_REVISION='${ALEPH_RESOLVED_SOURCE_REVISION}' is not valid: "
+        "use letters, digits, '.', '_', '+' and '-' only")
+endif()
+
+# The same conditions under which the annotations are compiled in (above).
+set(ALEPH_BUILT_WITH_SANITIZERS 0)
+set(ALEPH_BUILT_WITH_CONTAINER_ANNOTATIONS 0)
+if(ALEPH_USE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set(ALEPH_BUILT_WITH_SANITIZERS 1)
+    if(ALEPH_ANNOTATE_CONTAINERS)
+        set(ALEPH_BUILT_WITH_CONTAINER_ANNOTATIONS 1)
+    endif()
+endif()
+
+set(ALEPH_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/aleph-version.H.in"
+    "${ALEPH_GENERATED_INCLUDE_DIR}/aleph-version.H"
+    @ONLY
+)
+target_include_directories(Aleph PUBLIC
+    $<BUILD_INTERFACE:${ALEPH_GENERATED_INCLUDE_DIR}>)
+
+# The installed package sets the same properties on Aleph::Aleph (see
+# cmake/AlephConfig.cmake.in); these serve the consumers of the build tree.
+set_target_properties(Aleph PROPERTIES
+    ALEPH_SOURCE_REVISION "${ALEPH_RESOLVED_SOURCE_REVISION}"
+    ALEPH_SANITIZERS "${ALEPH_BUILT_WITH_SANITIZERS}"
+    ALEPH_CONTAINER_ANNOTATIONS "${ALEPH_BUILT_WITH_CONTAINER_ANNOTATIONS}")
 
 # Homebrew lives outside the default compiler search path on macOS — and on
 # Apple Silicon it lives at `/opt/homebrew`, not `/usr/local`. The gmp /
@@ -716,6 +982,9 @@ install(TARGETS Aleph Aleph_CA aleph_miniz
 install(FILES ${HLIST}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph
 )
+install(FILES "${ALEPH_GENERATED_INCLUDE_DIR}/aleph-version.H"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph
+)
 install(FILES third_party/miniz/miniz.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph/third_party/miniz
 )
@@ -748,6 +1017,7 @@ configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AlephConfig.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/AlephConfig.cmake"
     INSTALL_DESTINATION ${ALEPH_INSTALL_CMAKEDIR}
+    PATH_VARS CMAKE_INSTALL_INCLUDEDIR
 )
 
 write_basic_package_version_file(
@@ -797,6 +1067,8 @@ message(STATUS "  Build tests: ${BUILD_TESTS}")
 message(STATUS "  Build reproductions: ${BUILD_REPRODUCTIONS}")
 message(STATUS "  Build benchmarks: ${BUILD_BENCHMARKS}")
 message(STATUS "  Build Python bindings: ${ALEPH_BUILD_PYTHON}")
+message(STATUS "  Version: ${PROJECT_VERSION}")
+message(STATUS "  Source revision: ${ALEPH_RESOLVED_SOURCE_REVISION}")
 message(STATUS "  Sanitizers: ${ALEPH_USE_SANITIZERS}")
 message(STATUS "  MemorySanitizer: ${ALEPH_USE_MEMORY_SANITIZER}")
 message(STATUS "  Disable ranges: ${ALEPH_DISABLE_RANGES}")

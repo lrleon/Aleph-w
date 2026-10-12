@@ -89,7 +89,7 @@ namespace
     for (size_t i = 0; i < s.num_nodes; ++i)
       nodes.append(g.insert_node(static_cast<int>(i)));
 
-    for (typename Array<Edge>::Iterator it(s.edges); it.has_curr(); it.next_ne())
+    for (auto it = s.edges.get_it(); it.has_curr(); it.next_ne())
       {
         const Edge & e = it.get_curr();
         g.insert_arc(nodes[e.u], nodes[e.v], e.w);
@@ -137,7 +137,7 @@ namespace
   {
     cout << title << '\n';
     size_t rank = 1;
-    for (DynList<Result_Item>::Iterator it(results); it.has_curr(); it.next_ne(), ++rank)
+    for (auto it = results.get_it(); it.has_curr(); it.next_ne(), ++rank)
       {
         const auto & item = it.get_curr();
         cout << std::format("  #{}  cost={}  path={}\n",

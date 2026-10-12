@@ -329,10 +329,26 @@ namespace Aleph
 
       Node_Iterator() = default;
 
+      // The iterator hands out pointers to nodes and never modifies the
+      // set of the graph: it is built on the set through a const_cast, and
+      // get_curr() and get_curr_ne() hide the accessors of the set iterator,
+      // which hand out a modifiable reference to the stored pointer.
       Node_Iterator(const List_SGraph & g) noexcept
-        : DynSetNode::Iterator(g.node_list)
+        : DynSetNode::Iterator(const_cast<DynSetNode &>(g.node_list))
       {
         // empty
+      }
+
+      /// Returns the current node without checking that there is one
+      Node * get_curr_ne() const noexcept
+      {
+        return this->DynSetNode::Iterator::get_curr_ne();
+      }
+
+      /// Returns the current node
+      Node * get_curr() const
+      {
+        return this->DynSetNode::Iterator::get_curr();
       }
 
       /// Returns the current node
@@ -430,10 +446,26 @@ namespace Aleph
 
       Arc_Iterator() = default;
 
+      // The iterator hands out pointers to arcs and never modifies the set
+      // of the graph: it is built on the set through a const_cast, and
+      // get_curr() and get_curr_ne() hide the accessors of the set iterator,
+      // which hand out a modifiable reference to the stored pointer.
       Arc_Iterator(const List_SGraph & _g) noexcept
-        : DynSetArc::Iterator(_g.arc_list)
+        : DynSetArc::Iterator(const_cast<DynSetArc &>(_g.arc_list))
       {
         // empty
+      }
+
+      /// Returns the current arc without checking that there is one
+      Arc * get_curr_ne() const noexcept
+      {
+        return this->DynSetArc::Iterator::get_curr_ne();
+      }
+
+      /// Returns the current arc
+      Arc * get_curr() const
+      {
+        return this->DynSetArc::Iterator::get_curr();
       }
 
       /// Returns a pointer to the current arc

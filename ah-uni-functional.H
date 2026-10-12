@@ -77,6 +77,7 @@
 # include <tuple>
 # include <iterator>
 # include <ah-concepts.H>
+#include <ah-iterator.H>
 
 namespace Aleph
 {
@@ -102,7 +103,7 @@ namespace Aleph
     template <typename C>
     [[nodiscard]] auto aleph_iterator(const C & c)
     {
-      return typename C::Iterator(c);
+      return Aleph::const_iterator_t<C>(c);
     }
 
     // Detect if type has reverse iterators (rbegin/rend)

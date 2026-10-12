@@ -83,6 +83,7 @@ namespace Aleph
     using Key_Type = T;
 
     using Base::Base;
+    Derived_Build(DynArray_Set);
 
     /** Construct an empty set using a custom equality predicate.
 

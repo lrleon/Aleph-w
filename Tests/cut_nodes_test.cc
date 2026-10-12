@@ -61,7 +61,7 @@ namespace
   DynSetTree<int> cut_infos(const DynDlist<Graph::Node *> & list)
   {
     DynSetTree<int> s;
-    for (typename DynDlist<Graph::Node *>::Iterator it(list); it.has_curr(); it.next_ne())
+    for (auto it = list.get_it(); it.has_curr(); it.next_ne())
       s.insert(it.get_curr()->get_info());
     return s;
   }
@@ -198,7 +198,7 @@ TEST(CutNodes, PaintSubgraphsAndMapCutGraphOnStar)
   EXPECT_EQ(cut_graph.get_num_arcs(), 0U);
 
   EXPECT_EQ(cross.size(), g.get_num_arcs());
-  for (typename DynDlist<Graph::Arc *>::Iterator it(cross); it.has_curr(); it.next_ne())
+  for (auto it = cross.get_it(); it.has_curr(); it.next_ne())
     EXPECT_TRUE(is_a_cross_arc<Graph>(it.get_curr()));
 }
 
@@ -954,7 +954,7 @@ namespace
   DynSetTree<Graph::Arc *> bridge_set(const DynList<Graph::Arc *> & lst)
   {
     DynSetTree<Graph::Arc *> s;
-    for (typename DynList<Graph::Arc *>::Iterator it(lst); it.has_curr(); it.next_ne())
+    for (auto it = lst.get_it(); it.has_curr(); it.next_ne())
       s.insert(it.get_curr());
     return s;
   }

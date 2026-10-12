@@ -242,7 +242,11 @@ insert_n_random_items_in_map(DynMapTree<unsigned long, long> & table,
     {
       keys[i] = gsl_rng_get(r);
       if (not table.has(keys(i)))
-        assert(table.insert(keys(i), i));
+        {
+          // Keep the insertion out of assert(): NDEBUG would remove it.
+          [[maybe_unused]] const auto inserted = table.insert(keys(i), i);
+          assert(inserted != nullptr);
+        }
       else
         ++dup_counter;
     }

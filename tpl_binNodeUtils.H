@@ -46,6 +46,7 @@
 
 #include <ahFunction.H>
 #include <tpl_arrayStack.H>
+#include <tpl_small_vector.H>
 #include <tpl_arrayQueue.H>
 #include <tpl_dynListQueue.H>
 #include <bitArray.H>
@@ -2412,7 +2413,14 @@ class BinNodePrefixIterator
 {
   Node *root = nullptr;
   Node *curr = Node::NullPtr;
-  ArrayStack<Node *> s;
+  // Pending nodes. Up to Inline_Depth of them live inside the iterator, so
+  // iterating a tree that is not deeper never allocates; a deeper tree moves
+  // them to the heap. The balanced trees fit (AvlNode::MaxHeight is 40 and
+  // RbNode::MaxHeight 128). The generic BinNode estimates a MaxHeight of
+  // 2048 for unbalanced trees; keeping all of it inline cost 16 KiB per
+  // iterator, so the inline part stops at 128.
+  static constexpr size_t Inline_Depth = Node::MaxHeight < 128 ? Node::MaxHeight : 128;
+  SmallVector<Node *, Inline_Depth> s;
 
 public:
   /// Swap `this`with `it`
@@ -2427,7 +2435,7 @@ public:
 
   /// Initialize an iterator on the first node in preorder for the tree
   /// with root `r`
-  BinNodePrefixIterator(Node *r) noexcept : root(r), curr(root), s(Node::MaxHeight)
+  BinNodePrefixIterator(Node *r) noexcept : root(r), curr(root)
   {
     // empty
   }
@@ -2519,16 +2527,19 @@ public:
     return get_curr_ne();
   }
 
-  /// Move the iterator one position forward guaranteeing no
-  /// exception. Be careful.
-  void next_ne() noexcept
+  /** Move the iterator one position forward without checking it. Be careful.
+      @throw bad_alloc if the tree is deeper than the inline capacity of the
+      iterator (`Node::MaxHeight`, at most 128) and the pending nodes cannot
+      be moved to the heap.
+  */
+  void next_ne()
   {
     auto l = LLINK(curr), r = RLINK(curr);
     if (l != Node::NullPtr)
       {
         curr = l;
         if (r != Node::NullPtr)
-          s.push(r);
+          s.append(r);
         return;
       }
 
@@ -2541,7 +2552,7 @@ public:
     if (s.is_empty())
       curr = Node::NullPtr;
     else
-      curr = s.pop();
+      curr = s.remove_last();
   }
 
   /// Move the iterator one position forward
@@ -2622,13 +2633,21 @@ class BinNodeInfixIterator
   mutable Node *root = Node::NullPtr;
   Node *curr = Node::NullPtr;
   mutable long pos = 0;
-  ArrayStack<Node *> s;
 
-  Node *advance_to_min(Node *r) noexcept
+  // Pending nodes. Up to Inline_Depth of them live inside the iterator, so
+  // iterating a tree that is not deeper never allocates; a deeper tree moves
+  // them to the heap. The balanced trees fit (AvlNode::MaxHeight is 40 and
+  // RbNode::MaxHeight 128). The generic BinNode estimates a MaxHeight of
+  // 2048 for unbalanced trees; keeping all of it inline cost 16 KiB per
+  // iterator, so the inline part stops at 128.
+  static constexpr size_t Inline_Depth = Node::MaxHeight < 128 ? Node::MaxHeight : 128;
+  SmallVector<Node *, Inline_Depth> s;
+
+  Node *advance_to_min(Node *r)
   {
     while (LLINK(r) != Node::NullPtr)
       {
-        s.push(r);
+        s.append(r);
         r = LLINK(r);
       }
     return r;
@@ -2642,7 +2661,7 @@ class BinNodeInfixIterator
     return r;
   }
 
-  void init() noexcept
+  void init()
   {
     if (root != Node::NullPtr)
       curr = advance_to_min(root);
@@ -2671,8 +2690,12 @@ public:
 
   BinNodeInfixIterator() = default;
 
-  /// Initialize an iterator on the first node inorder
-  BinNodeInfixIterator(Node *r) noexcept : root(r), s(Node::MaxHeight)
+  /** Initialize an iterator on the first node inorder.
+      @throw bad_alloc if the tree is deeper than the inline capacity of the
+      iterator (`Node::MaxHeight`, at most 128) and the pending nodes cannot
+      be moved to the heap.
+  */
+  BinNodeInfixIterator(Node *r) : root(r)
   {
     init();
   }
@@ -2688,8 +2711,9 @@ public:
     swap(it);
   }
 
-  /// Reset the iterator to the first node inorder
-  void reset_first() noexcept
+  /// Reset the iterator to the first node inorder; it may throw bad_alloc,
+  /// as the constructor does.
+  void reset_first()
   {
     s.empty();
     init();
@@ -2762,7 +2786,9 @@ public:
     return pos;
   }
 
-  void next_ne() noexcept
+  /// Move forward without checking the position; it may throw bad_alloc,
+  /// as the constructor does.
+  void next_ne()
   {
     if (pos < 0)  // resolve the position left pending by reset_last()
       pos = static_cast<long>(size(root)) - 1;
@@ -2778,7 +2804,7 @@ public:
     if (s.is_empty())
       curr = Node::NullPtr;
     else
-      curr = s.pop();
+      curr = s.remove_last();
   }
 
   /// Move the iterator one position forward. Throw `overflow_error` if

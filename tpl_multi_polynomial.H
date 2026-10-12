@@ -1646,7 +1646,7 @@ public:
       }
 
     // Solve via Gaussian elimination with pivoting
-    Array<Coefficient> c(b);
+    Array<Coefficient> c(b, Coefficient{});
     for (size_t col = 0; col < b; ++col)
       {
         // Partial pivoting
@@ -1762,7 +1762,7 @@ public:
       }
 
     // Solve via Gaussian elimination
-    Array<Coefficient> c(b);
+    Array<Coefficient> c(b, Coefficient{});
     for (size_t col = 0; col < b; ++col)
       {
         // Partial pivoting
@@ -1900,7 +1900,7 @@ public:
           sys(i)(i) += lambda_try;
 
         // Gaussian elimination with pivoting
-        Array<Coefficient> c(b);
+        Array<Coefficient> c(b, Coefficient{});
         bool singular = false;
 
         for (size_t col = 0; col < b; ++col)
@@ -1981,7 +1981,7 @@ public:
     for (size_t i = 0; i < b; ++i)
       final_sys(i)(i) += best_lambda;
 
-    Array<Coefficient> c_final(b);
+    Array<Coefficient> c_final(b, Coefficient{});
     for (size_t col = 0; col < b; ++col)
       {
         size_t prow = col;
@@ -2213,7 +2213,7 @@ public:
       }
 
     // Initialize table: polynomials for each point (flat indexing)
-    Array<Gen_MultiPolynomial> table(total);
+    auto table = Array<Gen_MultiPolynomial>::create(total);
     for (size_t f = 0; f < total; ++f)
       table(f) = Gen_MultiPolynomial(nvars, values(f));
 
@@ -2249,7 +2249,7 @@ public:
               }
 
             // Collect divided-differences table for this slice
-            Array<Gen_MultiPolynomial> dd(m);
+            auto dd = Array<Gen_MultiPolynomial>::create(m);
             for (size_t i = 0; i < m; ++i)
               dd(i) = table(slice_flat + i * stride);
 
@@ -2521,7 +2521,7 @@ public:
     });
 
     // Normal equations (sequential — bottleneck is row construction)
-    Array<Array<Coefficient>> A(m);
+    auto A = Array<Array<Coefficient>>::create(m);
     Array<Coefficient> y(m, Coefficient{});
     for (size_t i = 0; i < m; ++i)
       {
@@ -2548,7 +2548,7 @@ public:
       }
 
     // Gaussian elimination with pivoting
-    Array<Coefficient> c(b);
+    Array<Coefficient> c(b, Coefficient{});
     for (size_t col = 0; col < b; ++col)
       {
         size_t prow = col;

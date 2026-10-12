@@ -55,6 +55,14 @@ definition") with TSan's own strong `operator new`/`delete` replacements
 so the whole binary still links; the 4 cases that depend on them report
 `SKIPPED` at run time instead.
 
+`tree_allocation_test` follows the same pattern: it counts allocations by
+replacing the global allocation functions, so under TSan (and under ASan,
+MSan and HWASan, which also bring their own allocator) the replacement is
+compiled out and the 4 cases that count allocations
+(`constructing_a_tree_does_not_allocate`, `moving_a_tree_does_not_allocate`,
+`insert_and_remove_allocate_only_the_node`, `iterating_does_not_allocate`)
+report `SKIPPED`. `noexcept_specifications_hold` still runs.
+
 ### `ubsan` (UndefinedBehaviorSanitizer)
 
 | Test (CTest regex)                              | Reason for skip |
@@ -66,6 +74,9 @@ so the whole binary still links; the 4 cases that depend on them report
 | Test (CTest regex)                              | Reason for skip |
 |-------------------------------------------------|-----------------|
 | `hash_statistical_test`                         | Same rationale as above. |
+
+The 4 allocation-counting cases of `tree_allocation_test` report `SKIPPED`
+here too (see the `tsan` section).
 
 ### `memory-sanitizer` (MemorySanitizer, clang)
 
@@ -125,6 +136,14 @@ Two skip levels exist on Windows:
 | `net_utils_test`                                | BSD sockets (`socket_wrappers.H`). |
 | `ringfilecache`                                 | `ringfilecache.H` uses `<sys/time.h>`. |
 | `timeoutQueue_test`                             | Uses `<sys/select.h>` for timing assertions. |
+| `skiplist_test`                                 | `tpl_skipList.H` derives from a class with a zero-sized trailing array (`forward[0]`), which MSVC rejects (C2503). |
+| `ntt_test`                                      | `ntt.H` requires `__uint128_t`. |
+| `montgomery_test`                               | clang-cl defines `__SIZEOF_INT128__` but lacks the `__umodti3` runtime. |
+| `gmpfrxx_test` and the geometry tests (`point_test`, `line_test`, `segment_test`, `polygon_test`, `quadtree_test`, `eepicgeom_test`, `euclidian_graph_test`, `robust_predicates_test`, `tikzgeom_test`, `tikzgeom_algorithms_test`, `geom_algorithms_test*`) | Need `gmpfrxx.C` (not built on Windows) or the compiled C++ operators of `libgmpxx` (`operator<<` on `mpq`/`mpz`), whose MinGW mangling `link.exe`/`lld-link` cannot resolve. |
+
+A test that only needs to *print* a GMP value on failure (through
+GoogleTest) can stay on Windows by asserting a `bool` instead, as
+`point_utils_header_test` does.
 
 2. **Run-level** (`ctest -E` filter in `ci-platform.yml`): tests that
    compile but cannot run on the CI runner.
@@ -137,6 +156,16 @@ Two skip levels exist on Windows:
 The Windows job sets `-DALEPH_BUILD_X11_VIEWER=OFF` so the library does
 not pull `libX11`. `ca-x11-viewer.H` is then compiled as a no-op stub
 guarded by `__has_include(<X11/Xlib.h>)`.
+
+### Clang with libc++ outside macOS (`ci.yml` clang jobs, `build-arm64-linux` clang)
+
+The system `libgmpxx` is built with libstdc++, so its compiled C++
+operators do not link with libc++. `Tests/CMakeLists.txt` therefore skips:
+
+| Test | Condition |
+|------|-----------|
+| `k2tree_test`  | Built only with GCC. |
+| `gmpfrxx_test` | Skipped when Clang uses libc++ (`ALEPH_USE_LIBCXX`, or `-stdlib=libc++` in `CMAKE_CXX_FLAGS` or in the flags of the active build type) on a non-Apple host. Homebrew's GMP on macOS is built with libc++, so the test runs there. |
 
 ## Re-enabling a skipped test
 

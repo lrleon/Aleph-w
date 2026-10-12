@@ -638,6 +638,19 @@ TEST_F(PathTest, BuildFullPath)
   EXPECT_EQ(path.get_last_node(), nodes[4]);
 }
 
+TEST_F(PathTest, FirstAndLastArc)
+{
+  Path<Graph> path(g, nodes[0]);
+  EXPECT_THROW(path.get_last_arc(), std::domain_error);
+
+  for (size_t i = 0; i < arcs.size(); ++i)
+    path.append(arcs[i]);
+
+  const Path<Graph> & cpath = path;
+  EXPECT_EQ(cpath.get_first_arc(), arcs[0]);
+  EXPECT_EQ(cpath.get_last_arc(), arcs[3]);
+}
+
 TEST_F(PathTest, PathContainsNode)
 {
   Path<Graph> path(g, nodes[0]);

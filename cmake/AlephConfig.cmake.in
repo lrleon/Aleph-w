@@ -23,6 +23,47 @@ include("${CMAKE_CURRENT_LIST_DIR}/AlephTargets.cmake")
 # the CA component request is always satisfiable.
 set(Aleph_CA_FOUND TRUE)
 
+# Identity of the build that produced this package, beyond Aleph_VERSION:
+#
+#   Aleph_SOURCE_REVISION        the revision of the sources (a commit hash,
+#                                "-dirty" appended if the tree was modified,
+#                                what the packager passed, or "unknown");
+#   Aleph_SANITIZERS             TRUE if built with ALEPH_USE_SANITIZERS;
+#   Aleph_CONTAINER_ANNOTATIONS  TRUE if built with the AddressSanitizer
+#                                annotations of MemArray, which change its
+#                                layout (Aleph::Aleph publishes the options
+#                                every consumer then needs).
+#
+# They are read from the installed aleph-version.H, so that the package and
+# the header cannot disagree, and are also set as properties of Aleph::Aleph
+# (ALEPH_SOURCE_REVISION, ALEPH_SANITIZERS, ALEPH_CONTAINER_ANNOTATIONS).
+set(Aleph_SOURCE_REVISION "unknown")
+set(Aleph_SANITIZERS FALSE)
+set(Aleph_CONTAINER_ANNOTATIONS FALSE)
+
+set(_aleph_version_header "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/aleph/aleph-version.H")
+if(EXISTS "${_aleph_version_header}")
+    file(STRINGS "${_aleph_version_header}" _aleph_version_lines
+         REGEX "^# define ALEPH_(SOURCE_REVISION|BUILT_WITH_SANITIZERS|BUILT_WITH_CONTAINER_ANNOTATIONS) ")
+    foreach(_aleph_version_line IN LISTS _aleph_version_lines)
+        if(_aleph_version_line MATCHES "^# define ALEPH_SOURCE_REVISION \"([^\"]*)\"")
+            set(Aleph_SOURCE_REVISION "${CMAKE_MATCH_1}")
+        elseif(_aleph_version_line MATCHES "^# define ALEPH_BUILT_WITH_SANITIZERS 1")
+            set(Aleph_SANITIZERS TRUE)
+        elseif(_aleph_version_line MATCHES "^# define ALEPH_BUILT_WITH_CONTAINER_ANNOTATIONS 1")
+            set(Aleph_CONTAINER_ANNOTATIONS TRUE)
+        endif()
+    endforeach()
+    unset(_aleph_version_lines)
+    unset(_aleph_version_line)
+endif()
+unset(_aleph_version_header)
+
+set_target_properties(Aleph::Aleph PROPERTIES
+    ALEPH_SOURCE_REVISION "${Aleph_SOURCE_REVISION}"
+    ALEPH_SANITIZERS "${Aleph_SANITIZERS}"
+    ALEPH_CONTAINER_ANNOTATIONS "${Aleph_CONTAINER_ANNOTATIONS}")
+
 # GMP, MPFR and GSL are consumed as plain `-l` link flags in the exported
 # interface; they must be present on the system at link time. They have no
 # canonical CMake config packages, so they are deliberately not resolved here.

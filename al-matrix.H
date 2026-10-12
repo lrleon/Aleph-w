@@ -583,7 +583,7 @@ namespace Aleph
                            const Trow & row = p.first.first;
                            const Tcol & col = p.first.second;
                            const NumType & entry_val = p.second;
-                           NumType *vec_entry = vec.search_entry(col);
+                           const NumType *vec_entry = vec.search_entry(col);
                            if (vec_entry != nullptr)
                              ret_val.set_entry(row, ret_val.get_entry(row) +
                                                     entry_val * *vec_entry);

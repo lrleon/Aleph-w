@@ -590,7 +590,7 @@ int main(int argc, char * argv[])
     const auto debug = visualize_shortest_path_with_portals(
         plane, make_corridor_polygon(), source, target, ShortestPathInPolygon());
     size_t path_nodes = 0;
-    for (DynList<Point>::Iterator it(debug.path); it.has_curr(); it.next_ne())
+    for (auto it = debug.path.get_it(); it.has_curr(); it.next_ne())
       ++path_nodes;
     add_caption(plane, Point(-1, 26),
                "Shortest Path + Portals: path nodes=" + std::to_string(path_nodes) +

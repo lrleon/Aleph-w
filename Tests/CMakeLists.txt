@@ -586,6 +586,8 @@ set(ALEPH_POSIX_ONLY_TESTS
     robust_predicates_test
     tikzgeom_test
     tikzgeom_algorithms_test
+    # gmpfrxx_test exercises gmpfrxx.h directly (MpFrC::rnd from gmpfrxx.C).
+    gmpfrxx_test
     # geom_algorithms_test is a combined executable that links ALL sub-test .cc
     # files into one binary. A second GLOB loop also builds each sub-test .cc as
     # a standalone target. All of them call mpfr_class functions (square_root,
@@ -605,6 +607,19 @@ set(ALEPH_POSIX_ONLY_TESTS
 )
 if(WIN32)
     list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})
+endif()
+
+# gmpfrxx_test streams GMP values, which calls the compiled operator<< of
+# libgmpxx. Outside macOS the system libgmpxx is built with libstdc++, so it
+# does not link with libc++ (macOS's Homebrew GMP is built with libc++).
+set(_ALEPH_GMPXX_LIBCXX_MISMATCH OFF)
+string(TOUPPER "${CMAKE_BUILD_TYPE}" _ALEPH_BUILD_TYPE_UPPER)
+set(_ALEPH_ACTIVE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_ALEPH_BUILD_TYPE_UPPER}}")
+if(NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"
+   AND (ALEPH_USE_LIBCXX OR _ALEPH_ACTIVE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+"))
+    set(_ALEPH_GMPXX_LIBCXX_MISMATCH ON)
+    list(REMOVE_ITEM TEST_PROGRAMS gmpfrxx_test)
 endif()
 
 # Create executable for each test program
@@ -757,6 +772,11 @@ foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
 
     # Skip k2tree_test with clang (GMP/libc++ incompatibility)
     if(_name STREQUAL "k2tree_test" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        continue()
+    endif()
+
+    # Skip gmpfrxx_test with libc++ outside macOS (see above).
+    if(_name STREQUAL "gmpfrxx_test" AND _ALEPH_GMPXX_LIBCXX_MISMATCH)
         continue()
     endif()
 

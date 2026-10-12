@@ -763,7 +763,7 @@ public:
 
       \return A pointer to an arc in the graph
   */
-  Node * get_arc() const { return const_me()->get_first_arc(); }
+  Arc * get_arc() const { return const_me()->get_first_arc(); }
 
   /** Return any arc adjacent to a node.
 
@@ -773,7 +773,7 @@ public:
 
       \return A pointer to an arc adjacent to `p`
   */
-  Node * get_arc(Node *p) { return const_me()->get_first_arc(p); }
+  Arc * get_arc(Node *p) const { return const_me()->get_first_arc(p); }
 
   /// Return the source node of `arc` (only for directed graphs)
   Node * get_src_node(Arc *arc) const noexcept

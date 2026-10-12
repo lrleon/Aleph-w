@@ -37,6 +37,10 @@
  */
 # include <gtest/gtest.h>
 
+# include <stdexcept>
+# include <string>
+# include <utility>
+
 # include <tpl_arrayStack.H>
 # include <ahFunctional.H>
 
@@ -386,4 +390,53 @@ TEST_F(ComplexStack, traverse)
 	     });
   EXPECT_TRUE(ret);
   EXPECT_EQ(i, n);
+}
+
+// The argument of push() may be an item of the stack itself, which growth
+// used to free before reading it.
+
+TEST(ArrayStack, push_of_own_item_copies_it_before_growing)
+{
+  ArrayStack<int> s(4);
+  for (int i : {10, 20, 30, 40})
+    s.push(i);
+  ASSERT_EQ(s.size(), s.capacity());
+
+  EXPECT_EQ(s.push(s.top()), 40);
+  EXPECT_EQ(s.push(s.top(4)), 10);  // with free capacity
+  ASSERT_EQ(s.size(), 6u);
+  for (int i : {10, 40, 40, 30, 20, 10})
+    EXPECT_EQ(s.pop(), i);
+}
+
+TEST(ArrayStack, push_of_own_moved_item_inserts_its_value)
+{
+  ArrayStack<string> s(4);
+  for (char c : {'a', 'b', 'c', 'd'})
+    s.push(string(40, c));
+  ASSERT_EQ(s.size(), s.capacity());
+
+  EXPECT_EQ(s.push(std::move(s.top(3))), string(40, 'a'));
+  ASSERT_EQ(s.size(), 5u);
+  EXPECT_EQ(s.top(1), string(40, 'd'));
+  EXPECT_EQ(s.top(3), string(40, 'b'));
+}
+
+// base() was noexcept, so the underflow_error thrown on an empty stack
+// called std::terminate.
+static_assert(not noexcept(std::declval<ArrayStack<int> &>().base()));
+static_assert(not noexcept(std::declval<const ArrayStack<int> &>().base()));
+
+TEST(ArrayStack, base_of_empty_stack_throws)
+{
+  ArrayStack<int> s;
+  const ArrayStack<int> &cs = s;
+  EXPECT_THROW((void) s.base(), std::underflow_error);
+  EXPECT_THROW((void) cs.base(), std::underflow_error);
+
+  s.push(10);
+  s.push(20);
+  EXPECT_EQ(cs.base(), 10);
+  s.base() = 1;
+  EXPECT_EQ(s.top(1), 1);
 }

@@ -80,6 +80,41 @@ DECLARE_BINNODE_SENTINEL(AvlNodeRk, 40, AvlNodeRk_Data);
 
 # define DIFF(p) ((p)->getDiff())
 
+/** Height of a ranked AVL subtree, checking all its nodes.
+
+    In one traversal, checks at every node of the subtree rooted at `p`
+    that the heights of its two subtrees differ by at most one, that its
+    stored balance factor is that difference, and that its counter is the
+    size of its subtree.
+
+    @param p root of subtree to validate
+    @return the height of the subtree, or -1 if a node violates a property
+    @note O(n).
+*/
+template <class Node>
+int checked_avl_height_rk(Node* p) noexcept
+{
+  if (p == Node::NullPtr)
+    return 0;
+
+  if (p->getCount() != LLINK(p)->getCount() + RLINK(p)->getCount() + 1)
+    return -1;
+
+  const int hL = checked_avl_height_rk(LLINK(p));
+  if (hL < 0)
+    return -1;
+
+  const int hR = checked_avl_height_rk(RLINK(p));
+  if (hR < 0)
+    return -1;
+
+  const int diff = hR - hL;
+  if (diff > 1 or diff < -1 or static_cast<int>(DIFF(p)) != diff)
+    return -1;
+
+  return 1 + (hL > hR ? hL : hR);
+}
+
 /** Verify if tree rooted at p is a valid AVL tree with correct counters.
 
     @param p root of tree to verify
@@ -88,29 +123,7 @@ DECLARE_BINNODE_SENTINEL(AvlNodeRk, 40, AvlNodeRk_Data);
 template <class Node>
 bool is_avl_rk(Node* p)
 {
-  if (p == Node::NullPtr)
-    return true;
-
-  if (DIFF(p) < -1 or DIFF(p) > 1)
-    return false;
-
-  const int hL = computeHeightRec(LLINK(p));
-  const int hR = computeHeightRec(RLINK(p));
-
-  if (const int diff = hR - hL; diff > 1 or diff < -1)
-    return false;
-
-  if (static_cast<int>(DIFF(p)) != hR - hL)
-    return false;
-
-  // Verify counter
-  if (p->getCount() != LLINK(p)->getCount() + RLINK(p)->getCount() + 1)
-    return false;
-
-  if (not is_avl_rk(LLINK(p)))
-    return false;
-
-  return is_avl_rk(RLINK(p));
+  return checked_avl_height_rk(p) >= 0;
 }
 
 } // end namespace Aleph

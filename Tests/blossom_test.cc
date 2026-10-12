@@ -109,9 +109,9 @@ namespace
                  int arc_info = 1)
   {
     DynArray<std::pair<size_t, size_t>> aleph_edges;
-    aleph_edges.reserve(edges.size());
     for (const auto & edge : edges)
       aleph_edges.append(edge);
+    EXPECT_EQ(aleph_edges.size(), edges.size());
 
     return build_graph<GT>(n, aleph_edges, arc_info);
   }
@@ -332,10 +332,10 @@ TYPED_TEST(BlossomMatchingTypedTest, CompleteGraphK6)
   using Graph = TypeParam;
 
   DynArray<std::pair<size_t, size_t>> edges;
-  edges.reserve(15); // For K6, there are 6*5/2 = 15 edges
   for (size_t i = 0; i < 6; ++i)
     for (size_t j = i + 1; j < 6; ++j)
       edges.append(std::make_pair(i, j));
+  ASSERT_EQ(edges.size(), 15u);
 
   auto g = build_graph<Graph>(6, edges);
   DynDlist<typename Graph::Arc *> matching;
@@ -421,11 +421,11 @@ TYPED_TEST(BlossomMatchingTypedTest, RandomGraphsAgreeWithExactDP)
         const double p = 0.10 + 0.03 * static_cast<double>(sample);
 
         DynArray<std::pair<size_t, size_t>> edges;
-        edges.reserve(n * (n - 1) / 2);
         for (size_t u = 0; u < n; ++u)
           for (size_t v = u + 1; v < n; ++v)
             if (coin(rng) < p)
               edges.append(std::make_pair(u, v));
+        ASSERT_TRUE(edges.all([] (const auto & e) { return e.first < e.second; }));
 
         auto g = build_graph<Graph>(n, edges);
 
@@ -455,12 +455,15 @@ TYPED_TEST(BlossomMatchingTypedTest, AgreesWithHopcroftKarpOnBipartiteGraphs)
         {
           const double p = 0.15 + 0.07 * static_cast<double>(sample);
           DynArray<std::pair<size_t, size_t>> edges_lr;
-          edges_lr.reserve(left * right);
-
+          size_t appended = 0;
           for (size_t l = 0; l < left; ++l)
             for (size_t r = 0; r < right; ++r)
               if (coin(rng) < p)
-                edges_lr.append(std::make_pair(l, r));
+                {
+                  edges_lr.append(std::make_pair(l, r));
+                  ++appended;
+                }
+          ASSERT_EQ(edges_lr.size(), appended);
 
           auto g = build_bipartite_graph<Graph>(left, right, edges_lr);
 
@@ -548,11 +551,11 @@ TYPED_TEST(BlossomMatchingTypedTest, DenseRandomStressCrossBackendAgreement)
       const double p = 0.16 + 0.01 * static_cast<double>(sample);
 
       DynArray<std::pair<size_t, size_t>> edges;
-      edges.reserve(n * (n - 1) / 2);
       for (size_t u = 0; u < n; ++u)
         for (size_t v = u + 1; v < n; ++v)
           if (coin(rng) < p)
             edges.append(std::make_pair(u, v));
+      ASSERT_TRUE(edges.all([] (const auto & e) { return e.first < e.second; }));
 
       auto g = build_graph<Graph>(n, edges);
       DynDlist<typename Graph::Arc *> matching;
@@ -588,7 +591,6 @@ TYPED_TEST(BlossomMatchingTypedTest, BlossomMatchingPerfRegression)
   std::uniform_real_distribution<double> coin(0.0, 1.0);
 
   DynArray<std::pair<size_t, size_t>> edges;
-  edges.reserve(static_cast<size_t>(n * n * p));
   for (size_t u = 0; u < n; ++u)
     for (size_t v = u + 1; v < n; ++v)
       if (coin(rng) < p)
@@ -596,6 +598,7 @@ TYPED_TEST(BlossomMatchingTypedTest, BlossomMatchingPerfRegression)
 
   if (edges.is_empty())
     edges.append(std::make_pair(0, 1));
+  EXPECT_TRUE(edges.all([] (const auto & e) { return e.first < e.second; }));
 
   auto g = build_graph<Graph>(n, edges);
   DynDlist<typename Graph::Arc *> matching;

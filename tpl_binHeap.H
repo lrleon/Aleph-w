@@ -888,16 +888,16 @@ This class is not intended for public use. Its purpose is to provide
       static const size_t Stack_Size = 64;
 
       GenBinHeap *heap_ptr = nullptr;
-      FixedStack<Node *> s;
+      InlineStack<Node *, Stack_Size> s;
       Node *curr = nullptr;
       size_t pos = 0;
 
     public:
       /// Default constructor creates an "end" iterator
-      Iterator() noexcept : s(Stack_Size) {}
+      Iterator() noexcept {}
 
       Iterator(const GenBinHeap & h)
-        : heap_ptr(&const_cast<GenBinHeap &>(h)), s(Stack_Size)
+        : heap_ptr(&const_cast<GenBinHeap &>(h))
       {
         if (h.is_empty())
           return;

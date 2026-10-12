@@ -420,7 +420,7 @@ class Array_Container : public GenericTraverse<Array_Container<T>>,
                         public LocateFunctions<Array_Container<T>, T>,
                         public FunctionalMethods<Array_Container<T>, T>,
                         public GenericKeys<Array_Container<T>, T>,
-                        public EqualToMethod<Array_Container<T>>,
+                        public EqualSequenceMethod<Array_Container<T>>,
                         public StlAlephIterator<Array_Container<T>>
 {
   T *base = nullptr;

@@ -292,7 +292,7 @@ void scenario_construction()
   const vector<int> raw = {5, 3, 7, 1, 9, 2, 8, 4, 6};
 
   // From Array<int>
-  Array<int> arr(raw.size());
+  auto arr = Array<int>::create_reserved(raw.size());
   for (size_t i = 0; i < raw.size(); ++i)
     arr.append(raw[i]);
   Sum_Disjoint_Sparse_Table<int> from_arr(arr);

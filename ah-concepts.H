@@ -298,12 +298,14 @@ namespace Aleph
   /** @brief A type that yields an `AlephIterator` over its `Item_Type`s.
    *
    *  Requires `Item_Type` and a nested `Iterator` satisfying `AlephIterator`
-   *  that can be built from a `const` container, `Iterator it(c)`. That is
-   *  how the library obtains iterators (`get_it()`, where it exists, is a
-   *  wrapper around it; `MemArray` and the raw hash tables only offer the
-   *  constructor). This is the single test both functional layers
-   *  (`ah-uni-functional.H`, `ah-zip-utils.H`) use to decide whether to
-   *  iterate a container the Aleph way.
+   *  that can be built from a modifiable container, `Iterator it(c)`. That
+   *  is how the library obtains iterators (`get_it()`, where it exists, is
+   *  a wrapper around it; `MemArray` and the raw hash tables only offer the
+   *  constructor); a constant container is iterated through
+   *  `Aleph::const_iterator_t<C>`, the read-only view of the same iterator.
+   *  This is the single test both functional layers (`ah-uni-functional.H`,
+   *  `ah-zip-utils.H`) use to decide whether to iterate a container the
+   *  Aleph way.
    *
    *  @tparam C candidate container type.
    */
@@ -315,7 +317,7 @@ namespace Aleph
           typename C::Iterator;
         } and
       AlephIterator<typename C::Iterator> and
-      std::constructible_from<typename C::Iterator, const C &>;
+      std::constructible_from<typename C::Iterator, C &>;
 
   /** @brief A container whose items can be visited with `traverse()`.
    *
@@ -361,6 +363,34 @@ namespace Aleph
         {
           c.append(v);
         };
+
+  /** @brief A container whose `append()` accepts an argument of type `Item`.
+   *
+   *  `c.append(std::forward<Item>(item))` must be valid: `Item` is the item
+   *  type of `C`, or a type that `append()` converts to it. An rvalue
+   *  argument is moved into the container.
+   *
+   *  @tparam C    candidate container type.
+   *  @tparam Item type of the argument passed to `append()`.
+   */
+  template <typename C, typename Item>
+  concept AppendableWith = requires(C & c, Item && item)
+    {
+      c.append(std::forward<Item>(item));
+    };
+
+  /** @brief A container whose `insert()` accepts an argument of type `Item`.
+   *
+   *  The counterpart of `AppendableWith` for `insert()`.
+   *
+   *  @tparam C    candidate container type.
+   *  @tparam Item type of the argument passed to `insert()`.
+   */
+  template <typename C, typename Item>
+  concept InsertableWith = requires(C & c, Item && item)
+    {
+      c.insert(std::forward<Item>(item));
+    };
 
   /** @brief A container with STL-style `begin()`/`end()` and `value_type`.
    *
@@ -484,6 +514,54 @@ namespace Aleph
           static_cast<bool>(std::forward<F>(f)(std::forward<Args>(args)...));
         };
 
+  /** @brief `std::invoke(f, args...)` is valid.
+   *
+   *  Like `CallableWith`, but the call goes through `std::invoke`, so a
+   *  pointer to member also qualifies: `&Point::get_x` can be passed where
+   *  an operation on a `Point` is expected. Constrain with it only the
+   *  functions that make the call with `std::invoke`; a plain call
+   *  `f(args...)` cannot use a member pointer.
+   *
+   *  @tparam F callable type, including its reference/`const` category.
+   *  @tparam Args argument types, including their reference/`const` category.
+   */
+  template <typename F, typename... Args>
+  concept InvocableWith = std::invocable<F, Args...>;
+
+  /** @brief `std::invoke(f, args...)` is valid and usable as a condition.
+   *
+   *  The `std::invoke` counterpart of `PredicateWith`: the result only
+   *  needs to be contextually convertible to `bool`, and a pointer to
+   *  member also qualifies, as in `c.filter(&Item::is_valid)`.
+   *
+   *  @tparam F callable type, including its reference/`const` category.
+   *  @tparam Args argument types, including their reference/`const` category.
+   */
+  template <typename F, typename... Args>
+  concept InvocablePredicateWith =
+      InvocableWith<F, Args...> and
+      requires(F && f, Args &&... args)
+        {
+          static_cast<bool>(std::invoke(std::forward<F>(f), std::forward<Args>(args)...));
+        };
+
+  /** @brief `PredicateWith<F, Args...>`, and neither the call nor the
+   *         conversion of its result to `bool` can throw.
+   *
+   *  For the `noexcept` specifications of traversals: a traversal is
+   *  `noexcept` only if its operation, called as written, is.
+   *
+   *  @tparam F callable type, including its reference/`const` category.
+   *  @tparam Args argument types, including their reference/`const` category.
+   */
+  template <typename F, typename... Args>
+  concept NothrowPredicateWith =
+      PredicateWith<F, Args...> and
+      requires(F && f, Args &&... args)
+        {
+          { static_cast<bool>(std::forward<F>(f)(std::forward<Args>(args)...)) } noexcept;
+        };
+
   namespace concepts_detail
   {
     /// Unqualified form of `BinNodeLike`, applied to a cv-free node type.
@@ -567,6 +645,46 @@ namespace Aleph
     {
       using type = decltype(std::declval<typename defer<Container, Deferred>::type::Iterator &>().get_curr());
     };
+
+    /** @brief What a constant iterator-driven `traverse()` passes to its
+     *         operation: the item as a constant lvalue reference, deferred.
+     *
+     *  @tparam Container the CRTP-derived container.
+     *  @tparam Deferred any type dependent on the member template.
+     */
+    template <class Container, class Deferred>
+    struct traverse_carg
+    {
+      using type = const std::remove_reference_t<typename traverse_arg<Container, Deferred>::type> &;
+    };
+
+    /** @brief The result of `std::invoke(op, item)` with `item` a
+     *         `const T &`, without references and `const`.
+     *
+     *  @tparam Op the mapping operation.
+     *  @tparam T the item type of the source container.
+     */
+    template <class Op, class T>
+    struct decayed_invoke_result
+    {
+      using type = std::decay_t<std::invoke_result_t<Op, const T &>>;
+    };
+
+    /** @brief Item type of a mapping: `R`, or the decayed type that `Op`
+     *         returns when `R` is `void`.
+     *
+     *  The `maps()` members of the mixins take `R` as their first template
+     *  parameter with `void` as default, so that `c.maps(op)` deduces the
+     *  item type from `op` while `c.maps<R>(op)` still forces one.
+     *
+     *  @tparam R the item type the caller asked for, or `void` to deduce it.
+     *  @tparam Op the mapping operation.
+     *  @tparam T the item type of the source container.
+     */
+    template <class R, class Op, class T>
+    using map_result_t =
+        typename std::conditional_t<std::is_void_v<R>, decayed_invoke_result<Op, T>,
+                                    std::type_identity<R>>::type;
 
     template <class Sig>
     struct invoke_as;

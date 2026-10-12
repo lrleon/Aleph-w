@@ -39,6 +39,7 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
+#include <type_traits>
 #include <gtest/gtest.h>
 
 #include <tpl_dynSetHash.H>
@@ -671,6 +672,41 @@ TEST(DynMapHashTable, FindByKey)
 
   EXPECT_EQ(map.find(1), "one");
   EXPECT_THROW(map.find(99), domain_error);
+}
+
+namespace
+{
+  // Mapped type without a default constructor.
+  struct No_Default_Data
+  {
+    int value;
+    explicit No_Default_Data(const int v) : value(v) {}
+  };
+}
+
+// search(), has() and contains() look a key up without building a
+// Pair(key, Data()), so they compile when Data has no default constructor.
+// MSVC once took the Pair(key, Data()) fallback for every map.
+TEST(DynMapHashTable, SearchWithoutDefaultConstructibleData)
+{
+  static_assert(not std::is_default_constructible_v<No_Default_Data>);
+
+  DynMapHash<int, No_Default_Data> map;
+  map.insert(1, No_Default_Data(10));
+  map.insert(2, No_Default_Data(20));
+
+  ASSERT_NE(map.search(1), nullptr);
+  EXPECT_EQ(map.search(1)->second.value, 10);
+  EXPECT_EQ(map.search(3), nullptr);
+  EXPECT_NE(map.search(2 + 0), nullptr);  // rvalue key
+
+  const auto & const_map = map;
+  ASSERT_NE(const_map.search(2), nullptr);
+  EXPECT_EQ(const_map.search(2)->second.value, 20);
+  EXPECT_TRUE(const_map.has(1));
+  EXPECT_FALSE(const_map.has(3));
+  EXPECT_TRUE(const_map.contains(2));
+  EXPECT_FALSE(const_map.contains(4));
 }
 
 TEST(DynMapHashTable, OperatorBracketInsert)

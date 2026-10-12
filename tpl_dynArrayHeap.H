@@ -61,6 +61,7 @@
 
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
+#include <ah-iterator.H>
 
 namespace Aleph
 {
@@ -148,7 +149,6 @@ namespace Aleph
   class DynArrayHeap : public LocateFunctions<DynArrayHeap<T, Compare>, T>,
                        public FunctionalMethods<DynArrayHeap<T, Compare>, T>,
                        public GenericKeys<DynArrayHeap<T, Compare>, T>,
-                       public EqualToMethod<DynArrayHeap<T, Compare>>,
                        public StlAlephIterator<DynArrayHeap<T, Compare>>
   {
     DynArray<T> array;
@@ -327,7 +327,20 @@ namespace Aleph
       }
 
       [[nodiscard]] long get_pos() const noexcept { return this->Base::get_pos() - 1; }
+
+      /// The current item, read-only: the heap order must not be broken.
+      [[nodiscard]] const T & get_curr() const { return Base::get_curr(); }
+
+      /// \overload get_curr()
+      [[nodiscard]] const T & get_curr_ne() const
+        noexcept(noexcept(std::declval<const Base &>().get_curr_ne()))
+      {
+        return Base::get_curr_ne();
+      }
     };
+
+    /// Read-only iterator: the iterator of a constant container.
+    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
 
     /** Traverse all elements in the heap.
      *
@@ -336,27 +349,36 @@ namespace Aleph
      * The traversal stops early if the operation returns false.
      */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation & operation)
+      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
-      for (Iterator it(*this); it.has_curr(); it.next_ne())
-        if (not operation(it.get_curr()))
+      for (size_t i = 1; i <= num_items; ++i)  // the items are entries 1 to num_items
+        if (not operation(array.access(i)))
           return false;
       return true;
     }
 
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation & operation) const
+      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
-      return const_cast<DynArrayHeap &>(*this).traverse<Operation>(operation);
+      for (size_t i = 1; i <= num_items; ++i)
+        if (not operation(static_cast<const T &>(array.access(i))))
+          return false;
+      return true;
     }
 
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation && operation = Operation()) const
     {
       return traverse<Operation>(operation);
     }
 
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation && operation = Operation())
     {
       return traverse<Operation>(operation);
