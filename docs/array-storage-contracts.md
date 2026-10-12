@@ -133,12 +133,21 @@ sets `Aleph_SANITIZERS` and `Aleph_CONTAINER_ANNOTATIONS`, and the installed
 header `aleph-version.H` has the matching macros
 (`ALEPH_BUILT_WITH_CONTAINER_ANNOTATIONS`); including it in a translation unit
 that lacks the annotation settings of such a package is a compile error.
-`scripts/installed_package_check.sh` checks all of this from an external
-consumer that uses only `Aleph::Aleph`, in Release: after every operation that
-changes the size or the buffer (growth, shrink, reserve, copy, move, swap,
-reuse) exactly the reserved slots are poisoned, a read beyond the logical size
-is reported as a container-overflow, and a queue whose storage has wrapped
-around works without reports.
+
+`scripts/installed_package_check.sh` checks, from an external consumer that
+uses only `Aleph::Aleph` and in Release by default, that those variables, the
+properties of the target and the header agree, and that the target alone gives
+the consumer the annotation macro. It does not try every operation: it runs
+one representative sequence on a `MemArray` (put, growth, shrink, `putn()`,
+reserve, copy, move, swap, and reuse of a moved-from and of a released array).
+When the package has container annotations, it verifies through
+AddressSanitizer, after each of those steps, that exactly the reserved slots
+beyond `size()` are poisoned, and it reads the first slot beyond the logical
+size at six points of the sequence (the cases `after_put`, `after_growth`,
+`after_shrink`, `after_move`, `after_swap` and `after_reuse`): each read must
+be reported as a container-overflow. An `ArrayQueue` whose circular storage
+has wrapped around is copied, reserved, grown, moved and reused, and must do
+so without reports.
 
 ## Tests outside the source tree
 
