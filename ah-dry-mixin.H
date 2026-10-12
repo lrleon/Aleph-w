@@ -164,7 +164,7 @@ public:
    *  @endcode
    */
   template <class Operation>
-    requires PredicateWith<Operation &, typename concepts_detail::traverse_arg<Derived, Operation>::type>
+    requires PredicateWith<Operation &, typename concepts_detail::traverse_carg<Derived, Operation>::type>
   bool traverse(Operation &operation) const
   {
     for (auto it = Aleph::iterator_for(self()); it.has_curr(); it.next_ne())
@@ -187,7 +187,7 @@ public:
   /// @overload
   /// @brief Version accepting rvalue operation (temporary lambdas).
   template <class Operation>
-    requires PredicateWith<Operation &, typename concepts_detail::traverse_arg<Derived, Operation>::type>
+    requires PredicateWith<Operation &, typename concepts_detail::traverse_carg<Derived, Operation>::type>
   bool traverse(Operation and operation = Operation()) const
   {
     return traverse<Operation>(operation);

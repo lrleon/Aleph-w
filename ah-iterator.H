@@ -296,9 +296,13 @@ namespace const_iterator_detail
     using Item_Type = typename It::Item_Type;
   };
 
-  /// Carries the `Set_Type` of the iterator `It`, when it has one.
-  template <class It, class = void> struct set_type_of { };
-  template <class It> struct set_type_of<It, std::void_t<typename It::Set_Type>>
+  /// Carries the `Set_Type` of the iterator `It`, when it has one, on top of
+  /// its `Item_Type`. They form a single chain of empty bases: with two
+  /// separate ones, the Microsoft ABI gives the view storage for the second
+  /// and the view is larger than the iterator that it wraps.
+  template <class It, class = void> struct member_types_of : item_type_of<It> { };
+  template <class It> struct member_types_of<It, std::void_t<typename It::Set_Type>>
+    : item_type_of<It>
   {
     /// The type of the container, as in the underlying iterator.
     using Set_Type = typename It::Set_Type;
@@ -329,8 +333,7 @@ namespace const_iterator_detail
     @ingroup Sequences
 */
 template <class It>
-class Const_Iterator : public const_iterator_detail::item_type_of<It>,
-                       public const_iterator_detail::set_type_of<It>
+class Const_Iterator : public const_iterator_detail::member_types_of<It>
 {
   // The cursor moves and is read through a constant view: some iterators
   // read through non-const members, so the view keeps it mutable.

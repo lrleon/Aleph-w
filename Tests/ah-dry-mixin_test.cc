@@ -137,6 +137,50 @@ TEST(TraverseMixin, TraverseEmpty)
   EXPECT_TRUE(completed);
 }
 
+// A constant container hands out constant items. An operation that takes a
+// modifiable reference must be rejected by the constraint of traverse(), and
+// of the constant members that ask it (all()), instead of failing inside
+// their body.
+template <class C, class Op>
+concept TraversesWith = requires(C & c, Op & op) { c.template traverse<Op>(op); };
+
+template <class C, class Op>
+concept TraversesWithTemporary = requires(C & c) { c.traverse(Op()); };
+
+template <class C, class Op>
+concept TestsAllWith = requires(C & c, Op & op) { c.template all<Op>(op); };
+
+struct TakesModifiableItem { bool operator () (int & x) const { return x > 0; } };
+struct TakesConstantItem { bool operator () (const int & x) const { return x > 0; } };
+
+TEST(TraverseMixin, ConstantContainerRejectsModifyingOperation)
+{
+  using V = MixinVector<int>;
+
+  static_assert(TraversesWith<V, TakesModifiableItem>);
+  static_assert(TraversesWith<V, TakesConstantItem>);
+  static_assert(TraversesWith<const V, TakesConstantItem>);
+  static_assert(not TraversesWith<const V, TakesModifiableItem>);
+
+  static_assert(TraversesWithTemporary<V, TakesModifiableItem>);
+  static_assert(TraversesWithTemporary<const V, TakesConstantItem>);
+  static_assert(not TraversesWithTemporary<const V, TakesModifiableItem>);
+
+  static_assert(TestsAllWith<V, TakesConstantItem>);
+  static_assert(not TestsAllWith<V, TakesModifiableItem>);
+
+  V v = {1, 2, 3};
+  EXPECT_TRUE(v.traverse([] (int & x) { x *= 2; return true; }));
+
+  const V & cv = v;
+  int sum = 0;
+  EXPECT_TRUE(cv.traverse([&sum] (const int & x) { sum += x; return true; }));
+  EXPECT_EQ(sum, 12);
+  TakesConstantItem positive;
+  EXPECT_TRUE(cv.traverse(positive));
+  EXPECT_TRUE(cv.all(positive));
+}
+
 
 // =============================================================================
 // FunctionalMixin Tests

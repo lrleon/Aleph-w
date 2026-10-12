@@ -185,6 +185,31 @@ TEST(ConstIterator, get_it_depends_on_the_constness_of_the_container)
   EXPECT_EQ(cl.get_it(2).get_curr(), 3);
 }
 
+// The view adds nothing to the iterator that it wraps, in any ABI: its
+// typedefs come from a single chain of empty bases, which the Microsoft
+// layout also optimizes away (it does not with two separate empty bases).
+template <class C>
+constexpr bool const_iterator_is_as_large_as_the_iterator =
+  sizeof(const_iterator_t<C>) == sizeof(typename C::Iterator);
+
+TEST(ConstIterator, is_as_large_as_the_iterator_that_it_wraps)
+{
+  static_assert(const_iterator_is_as_large_as_the_iterator<MemArray<int>>);
+  static_assert(const_iterator_is_as_large_as_the_iterator<Array<int>>);
+  static_assert(const_iterator_is_as_large_as_the_iterator<ArrayQueue<int>>);
+  static_assert(const_iterator_is_as_large_as_the_iterator<DynArray<int>>);
+  static_assert(const_iterator_is_as_large_as_the_iterator<DynList<int>>);
+  static_assert(const_iterator_is_as_large_as_the_iterator<DynDlist<int>>);
+  static_assert(const_iterator_is_as_large_as_the_iterator<DynSetTree<int>>);
+  static_assert(const_iterator_is_as_large_as_the_iterator<DynSetHash<int>>);
+
+  // The typedefs of the underlying iterator are still there.
+  static_assert(std::is_same_v<DynList<int>::Const_Iterator::Item_Type,
+                               DynList<int>::Iterator::Item_Type>);
+  static_assert(std::is_same_v<DynList<int>::Const_Iterator::Set_Type,
+                               DynList<int>::Iterator::Set_Type>);
+}
+
 TEST(ConstIterator, reads_the_container_like_the_iterator)
 {
   DynDlist<int> l;

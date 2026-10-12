@@ -101,6 +101,7 @@
 #include <ahUtils.H>
 #include <ahDry.H>
 #include <ahIterator.H>
+#include <ah-iterator.H>
 #include <array_it.H>
 #include <array_utils.H>
 
@@ -120,7 +121,6 @@
 #endif
 #ifdef ALEPH_MEMARRAY_ANNOTATIONS
 #  include <sanitizer/common_interface_defs.h>
-#include <ah-iterator.H>
 #endif
 
 namespace Aleph {
