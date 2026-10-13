@@ -37,6 +37,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <functional>
+#include <new>
 #include <random>
 #include <sstream>
 #include <set>
@@ -976,4 +978,447 @@ TEST(BinNodeUtils, Property_InsertRemoveRandom_StableInvariants)
         }
       assert_bst_and_inorder_sorted(root);
     }
+}
+
+namespace
+{
+  // Key that counts the instances alive and whose copies throw once a budget
+  // of them is spent.
+  struct Counted_Key
+  {
+    static inline long alive = 0;
+    static inline long copies_left = -1; // -1 means that copies never throw
+
+    int value = 0;
+
+    Counted_Key() { ++alive; }
+    Counted_Key(const int v) : value(v) { ++alive; }
+    Counted_Key(const Counted_Key & key) : value(key.value)
+    {
+      if (copies_left == 0)
+        throw std::runtime_error("copy of key");
+      if (copies_left > 0)
+        --copies_left;
+      ++alive;
+    }
+    Counted_Key & operator = (const Counted_Key &) = default;
+    ~Counted_Key() { --alive; }
+
+    bool operator < (const Counted_Key & key) const noexcept
+    {
+      return value < key.value;
+    }
+  };
+
+  // Chain of n nodes with the keys 0, 1, ..., n - 1 from the root down.
+  // Node i hangs on the left of node i - 1 if goes_left(i), else on its right.
+  BinNode<int> * build_chain(const int n, const std::function<bool(int)> & goes_left)
+  {
+    auto * root = new BinNode<int>(0);
+    auto * last = root;
+    for (int i = 1; i < n; ++i)
+      {
+        auto * p = new BinNode<int>(i);
+        (goes_left(i) ? LLINK(last) : RLINK(last)) = p;
+        last = p;
+      }
+    return root;
+  }
+
+  // Number of nodes of a chain that differ, in key or in side, from the
+  // chain that build_chain(n, goes_left) builds. Walks without recursion.
+  size_t chain_mismatches(BinNode<int> * root, const int n,
+                          const std::function<bool(int)> & goes_left)
+  {
+    size_t mismatches = 0;
+    auto * p = root;
+    for (int i = 0; i < n; ++i)
+      {
+        if (p == BinNode<int>::NullPtr)
+          return mismatches + static_cast<size_t>(n - i);
+        if (KEY(p) != i)
+          ++mismatches;
+        const bool left = i + 1 < n and goes_left(i + 1);
+        const bool right = i + 1 < n and not goes_left(i + 1);
+        if ((LLINK(p) != BinNode<int>::NullPtr) != left or
+            (RLINK(p) != BinNode<int>::NullPtr) != right)
+          ++mismatches;
+        p = left ? LLINK(p) : RLINK(p);
+      }
+    return mismatches;
+  }
+} // namespace
+
+// A recursion as deep as the tree exhausts the call stack with degenerate
+// trees of this size, and the destruction is in the path of the destructors.
+TEST(BinNodeUtils, DegenerateTreesAreMeasuredCopiedAndDestroyedWithoutRecursion)
+{
+  constexpr int n = 1'000'000;
+  const std::function<bool(int)> shapes[] =
+    {
+      [] (int) { return true; },           // left chain
+      [] (int) { return false; },          // right chain
+      [] (const int i) { return i % 2 == 0; } // zigzag
+    };
+
+  for (const auto & goes_left : shapes)
+    {
+      auto * root = build_chain(n, goes_left);
+      EXPECT_EQ(computeHeightRec(root), static_cast<size_t>(n));
+
+      auto * copy = copyRec(root);
+      EXPECT_EQ(chain_mismatches(copy, n, goes_left), 0u);
+      EXPECT_EQ(chain_mismatches(root, n, goes_left), 0u); // the source is intact
+      EXPECT_EQ(computeHeightRec(copy), static_cast<size_t>(n));
+
+      destroyRec(copy);
+      EXPECT_EQ(copy, BinNode<int>::NullPtr);
+      destroyRec(root);
+      EXPECT_EQ(root, BinNode<int>::NullPtr);
+    }
+}
+
+// A right spine with a leaf on the left of every node. It is much taller
+// than the bound of the recursions, and a traversal that follows the spine
+// defers one subtree per level, many more than the stacks keep inline.
+TEST(BinNodeUtils, CombTreeIsTallerThanTheBoundOfTheRecursions)
+{
+  constexpr int levels = 100'000;
+  ASSERT_GT(static_cast<size_t>(levels), Bin_Tree_Depth_Bound);
+
+  auto * root = new BinNode<int>(0);
+  auto * spine = root;
+  for (int i = 0; i < levels; ++i)
+    {
+      LLINK(spine) = new BinNode<int>(-i - 1);
+      if (i + 1 < levels)
+        {
+          RLINK(spine) = new BinNode<int>(i + 1);
+          spine = RLINK(spine);
+        }
+    }
+
+  EXPECT_EQ(computeHeightRec(root), static_cast<size_t>(levels) + 1);
+
+  auto * copy = copyRec(root);
+  size_t mismatches = 0;
+  auto * p = copy;
+  for (int i = 0; i < levels; ++i)
+    {
+      ASSERT_NE(p, BinNode<int>::NullPtr);
+      auto * leaf = LLINK(p);
+      if (KEY(p) != i or leaf == BinNode<int>::NullPtr or KEY(leaf) != -i - 1 or
+          LLINK(leaf) != BinNode<int>::NullPtr or RLINK(leaf) != BinNode<int>::NullPtr)
+        ++mismatches;
+      p = RLINK(p);
+    }
+  EXPECT_EQ(mismatches, 0u);
+  EXPECT_EQ(p, BinNode<int>::NullPtr);
+
+  destroyRec(copy);
+  destroyRec(root);
+  EXPECT_EQ(copy, BinNode<int>::NullPtr);
+  EXPECT_EQ(root, BinNode<int>::NullPtr);
+}
+
+TEST(BinNodeUtils, CopyAndDestroyAccountForEveryNode)
+{
+  using Node = BinNode<Counted_Key>;
+  ASSERT_EQ(Counted_Key::alive, 0);
+
+  std::mt19937 rng(20261013);
+  std::vector<int> keys(63);
+  for (size_t i = 0; i < keys.size(); ++i)
+    keys[i] = static_cast<int>(i);
+  std::shuffle(keys.begin(), keys.end(), rng);
+
+  Node * root = Node::NullPtr;
+  for (const int k : keys)
+    ASSERT_NE(insert_in_bst(root, new Node(Counted_Key(k))), Node::NullPtr);
+  const long nodes = static_cast<long>(keys.size());
+  ASSERT_EQ(Counted_Key::alive, nodes);
+
+  // a copy interrupted at any node frees the nodes that it had built
+  for (long budget = 0; budget < nodes; ++budget)
+    {
+      Counted_Key::copies_left = budget;
+      EXPECT_THROW((void) copyRec(root), std::runtime_error) << "budget " << budget;
+      Counted_Key::copies_left = -1;
+      EXPECT_EQ(Counted_Key::alive, nodes) << "budget " << budget;
+    }
+
+  Node * copy = copyRec(root);
+  EXPECT_EQ(Counted_Key::alive, 2 * nodes);
+  EXPECT_TRUE(areSimilar(root, copy));
+  EXPECT_EQ(computeHeightRec(copy), computeHeightRec(root));
+  std::vector<int> copied;
+  infix_for_each<Node>(copy, [&copied] (Node * p) { copied.push_back(KEY(p).value); });
+  std::sort(keys.begin(), keys.end());
+  EXPECT_EQ(copied, keys);
+
+  destroyRec(copy);
+  EXPECT_EQ(copy, Node::NullPtr);
+  EXPECT_EQ(Counted_Key::alive, nodes);
+  destroyRec(root);
+  EXPECT_EQ(root, Node::NullPtr);
+  EXPECT_EQ(Counted_Key::alive, 0);
+}
+
+// The nodes live in storage that the test owns, as the nodes of an arena
+// do: only the destructors of the keys must run, once each.
+TEST(BinNodeUtils, KeyDestructorsRunOnceOnADegenerateTreeWithoutRecursion)
+{
+  using Node = BinNode<Counted_Key>;
+  constexpr int n = 1'000'000;
+  ASSERT_EQ(Counted_Key::alive, 0);
+
+  std::vector<void *> storage;
+  storage.reserve(n);
+  Node * root = Node::NullPtr;
+  Node * last = nullptr;
+  for (int i = 0; i < n; ++i)
+    {
+      storage.push_back(::operator new(sizeof(Node)));
+      auto * p = new (storage.back()) Node(Counted_Key(i));
+      if (last == nullptr)
+        root = p;
+      else if (i % 3 == 0)
+        RLINK(last) = p;
+      else
+        LLINK(last) = p;
+      last = p;
+    }
+  ASSERT_EQ(Counted_Key::alive, n);
+
+  callKeyDestructorsRec(root);
+
+  EXPECT_EQ(root, Node::NullPtr);
+  EXPECT_EQ(Counted_Key::alive, 0);
+  for (void * mem : storage)
+    ::operator delete(mem);
+}
+
+namespace
+{
+  // Key whose destructor records its value, to observe the order in which
+  // the nodes of a tree are destroyed.
+  struct Recorded_Key
+  {
+    static inline std::vector<int> destroyed;
+
+    int value = 0;
+
+    Recorded_Key() = default;
+    Recorded_Key(const int v) : value(v) {}
+    ~Recorded_Key() { destroyed.push_back(value); }
+  };
+
+  int key_value(const int key) { return key; }
+
+  int key_value(const Recorded_Key & key) { return key.value; }
+
+  // The nodes of a tree in postorder, found without recursion: the order
+  // node, right, left is the reverse one.
+  template <class Node>
+  std::vector<Node *> postorder_nodes(Node * root)
+  {
+    std::vector<Node *> nodes;
+    std::vector<Node *> pending;
+    if (root != Node::NullPtr)
+      pending.push_back(root);
+    while (not pending.empty())
+      {
+        Node * p = pending.back();
+        pending.pop_back();
+        nodes.push_back(p);
+        if (LLINK(p) != Node::NullPtr)
+          pending.push_back(LLINK(p));
+        if (RLINK(p) != Node::NullPtr)
+          pending.push_back(RLINK(p));
+      }
+    std::reverse(nodes.begin(), nodes.end());
+    return nodes;
+  }
+
+  template <class Node>
+  std::vector<int> keys_of(const std::vector<Node *> & nodes)
+  {
+    std::vector<int> keys;
+    keys.reserve(nodes.size());
+    for (Node * p : nodes)
+      keys.push_back(key_value(KEY(p)));
+    return keys;
+  }
+
+  // Trees whose nodes hang, most of them, deeper than the bound of the
+  // recursions. The keys are distinct; the trees need not be ordered.
+  template <class Node>
+  std::vector<Node *> deep_trees()
+  {
+    constexpr int depth = 3 * static_cast<int>(Bin_Tree_Depth_Bound);
+    int next_key = 0;
+    const auto chain = [&next_key] (const int n, const std::function<bool(int)> & goes_left,
+                                    Node *& last)
+      {
+        auto * root = new Node(next_key++);
+        last = root;
+        for (int i = 1; i < n; ++i)
+          {
+            auto * p = new Node(next_key++);
+            (goes_left(i) ? LLINK(last) : RLINK(last)) = p;
+            last = p;
+          }
+        return root;
+      };
+    const auto left = [] (int) { return true; };
+    const auto right = [] (int) { return false; };
+    const auto zigzag = [] (const int i) { return i % 2 == 0; };
+
+    std::vector<Node *> trees;
+    Node * last = nullptr;
+    trees.push_back(chain(depth, left, last));
+    trees.push_back(chain(depth, right, last));
+    trees.push_back(chain(depth, zigzag, last));
+
+    // a right spine with a leaf on the left of every node, and its mirror
+    for (const bool leaves_on_left : {true, false})
+      {
+        auto * root = new Node(next_key++);
+        auto * spine = root;
+        for (int i = 0; i < depth; ++i)
+          {
+            auto * leaf = new Node(next_key++);
+            auto * below = new Node(next_key++);
+            LLINK(spine) = leaves_on_left ? leaf : below;
+            RLINK(spine) = leaves_on_left ? below : leaf;
+            spine = below;
+          }
+        trees.push_back(root);
+      }
+
+    // a tree of random shape below each kind of chain
+    std::mt19937 rng(20261013);
+    for (const auto & goes_left : {std::function<bool(int)>(left),
+                                   std::function<bool(int)>(right),
+                                   std::function<bool(int)>(zigzag)})
+      {
+        auto * root = chain(depth, goes_left, last);
+        std::vector<Node *> open = {last}; // nodes with a free link
+        for (int i = 0; i < 2000; ++i)
+          {
+            const size_t at = std::uniform_int_distribution<size_t>(0, open.size() - 1)(rng);
+            Node * parent = open[at];
+            auto * p = new Node(next_key++);
+            const bool free_left = LLINK(parent) == Node::NullPtr;
+            const bool free_right = RLINK(parent) == Node::NullPtr;
+            const bool on_left = free_left and (not free_right or rng() % 2 == 0);
+            (on_left ? LLINK(parent) : RLINK(parent)) = p;
+            if (LLINK(parent) != Node::NullPtr and RLINK(parent) != Node::NullPtr)
+              {
+                open[at] = open.back();
+                open.pop_back();
+              }
+            open.push_back(p);
+          }
+        trees.push_back(root);
+      }
+
+    return trees;
+  }
+} // namespace
+
+// The recursions of 7.0.0 disposed of a node after the nodes below it, the
+// left subtree first, and with its links already cleared. A node whose
+// destructor looks at its links, or at what hung from them, depends on it.
+TEST(BinNodeUtils, NodesAreDisposedInPostorderWithClearedLinksWhateverTheDepth)
+{
+  using Node = BinNode<int>;
+
+  for (const size_t levels : {Bin_Tree_Depth_Bound, size_t(0), size_t(1), size_t(7)})
+    {
+      const auto trees = deep_trees<Node>();
+      for (size_t t = 0; t < trees.size(); ++t)
+        {
+          const auto nodes = postorder_nodes(trees[t]);
+          const auto expected = keys_of(nodes);
+
+          std::vector<int> disposed;
+          size_t with_links = 0;
+          const auto dispose = [&] (Node * p) noexcept
+            {
+              if (LLINK(p) != Node::NullPtr or RLINK(p) != Node::NullPtr)
+                ++with_links;
+              disposed.push_back(KEY(p));
+            };
+          dispose_tree_nodes(trees[t], dispose, levels);
+
+          EXPECT_EQ(disposed, expected) << "tree " << t << ", levels " << levels;
+          EXPECT_EQ(with_links, 0u) << "tree " << t << ", levels " << levels;
+          for (Node * p : nodes)
+            delete p;
+        }
+    }
+
+  // the method of the deep subtrees, on its own
+  const auto trees = deep_trees<Node>();
+  for (size_t t = 0; t < trees.size(); ++t)
+    {
+      const auto nodes = postorder_nodes(trees[t]);
+      std::vector<int> disposed;
+      const auto dispose = [&disposed] (Node * p) noexcept { disposed.push_back(KEY(p)); };
+      dispose_tree_by_link_inversion(trees[t], dispose);
+      EXPECT_EQ(disposed, keys_of(nodes)) << "tree " << t;
+      for (Node * p : nodes)
+        delete p;
+    }
+
+  size_t calls = 0;
+  const auto count = [&calls] (Node *) noexcept { ++calls; };
+  dispose_tree_by_link_inversion(Node::NullPtr, count);
+  dispose_tree_nodes(Node::NullPtr, count);
+  EXPECT_EQ(calls, 0u);
+}
+
+TEST(BinNodeUtils, DestroyRecFreesTheNodesInPostorderWhateverTheDepth)
+{
+  using Node = BinNode<Recorded_Key>;
+
+  auto trees = deep_trees<Node>();
+  for (size_t t = 0; t < trees.size(); ++t)
+    {
+      const auto expected = keys_of(postorder_nodes(trees[t]));
+      Recorded_Key::destroyed.clear();
+      destroyRec(trees[t]);
+      EXPECT_EQ(trees[t], Node::NullPtr);
+      EXPECT_EQ(Recorded_Key::destroyed, expected) << "tree " << t;
+    }
+  Recorded_Key::destroyed.clear();
+}
+
+// With the nodes in an arena only the keys are destroyed, and the nodes
+// stay where they are: their links must not be left pointing to each other.
+TEST(BinNodeUtils, KeyDestructorsRunInPostorderAndLeaveTheLinksCleared)
+{
+  using Node = BinNode<Recorded_Key>;
+
+  auto trees = deep_trees<Node>();
+  for (size_t t = 0; t < trees.size(); ++t)
+    {
+      const auto nodes = postorder_nodes(trees[t]);
+      const auto expected = keys_of(nodes);
+      Recorded_Key::destroyed.clear();
+      callKeyDestructorsRec(trees[t]);
+      EXPECT_EQ(trees[t], Node::NullPtr);
+      EXPECT_EQ(Recorded_Key::destroyed, expected) << "tree " << t;
+
+      size_t with_links = 0;
+      for (Node * p : nodes)
+        {
+          if (LLINK(p) != Node::NullPtr or RLINK(p) != Node::NullPtr)
+            ++with_links;
+          ::operator delete(p); // the key is already destroyed
+        }
+      EXPECT_EQ(with_links, 0u) << "tree " << t;
+    }
+  Recorded_Key::destroyed.clear();
 }

@@ -70,6 +70,7 @@
 #include <algorithm>
 #include <initializer_list>
 #include <iterator>
+#include <type_traits>
 #include <utility>
 
 #include <ah-errors.H>
@@ -103,10 +104,32 @@ namespace Aleph {
  *  container and `is_empty()` is the emptiness predicate.
  *
  *  @par Exception Safety
- *  `insert` and `operator[]` offer the strong guarantee up to the element
- *  shift; if a key/value assignment throws mid-shift the guarantee degrades
- *  to basic (the map remains valid). `erase` always removes the entry; a
- *  failed shrinking reallocation is ignored.
+ *  If `Key` and `T` can be move-constructed and move-assigned without
+ *  throwing, `insert`, `insert_or_assign`, `emplace`, `operator[]` and
+ *  `reserve` offer the strong guarantee: the arguments are copied before
+ *  the arrays change, so the only possible failure afterwards is an
+ *  allocation that leaves the entries untouched. `erase` then always
+ *  removes the entry; a failed shrinking reallocation is ignored.
+ *
+ *  If moving a key or a value can throw, an exception thrown while entries
+ *  are shifted or relocated would leave a moved-from or duplicated entry.
+ *  The map is then **emptied**, which restores its invariants as
+ *  `std::flat_map` does, and the exception is rethrown: the guarantee is
+ *  basic. This applies to the operations above and to `erase`.
+ *
+ *  A failed allocation or a capacity out of range is not such an
+ *  exception: the insertions and `reserve` obtain the new buffers before
+ *  they move any entry, so the map keeps its contents whatever the types.
+ *  This does not hold for `erase` when moving can throw: there a shrinking
+ *  reallocation that fails cannot be told apart from a move that throws,
+ *  and it empties the map as well.
+ *
+ *  Copy assignment offers the strong guarantee for every type.
+ *
+ *  @par Arguments that belong to the map
+ *  A key or a value passed to an insertion may be an entry of the same map,
+ *  as in `m.insert(k, m.at(j))`: the value it has on entry is the one
+ *  stored, also when the insertion reallocates.
  *
  *  @par Thread Safety
  *  Distinct instances may be used from distinct threads. Concurrent access
@@ -166,15 +189,86 @@ class FlatMap
     return pos < keys_.size() and not cmp_(k, keys_(pos));
   }
 
-  // Opens one slot at pos in both arrays. reserve() is invoked before any
-  // logical size change, so allocation failures preserve the map's logical
-  // contents even though one backing array may already have grown.
+  // True if keys and values can be moved without throwing. A shift or a
+  // relocation then always completes, and the only way an insertion can
+  // fail is an allocation that leaves the entries untouched.
+  static constexpr bool nothrow_relocation =
+    std::is_nothrow_move_constructible_v<Key> and
+    std::is_nothrow_move_assignable_v<Key> and
+    std::is_nothrow_move_constructible_v<T> and
+    std::is_nothrow_move_assignable_v<T>;
+
+  // Runs op, which moves entries inside the arrays. If such a move can
+  // throw, an exception may leave an entry moved from, duplicated or apart
+  // from its value. The map is then emptied, which restores its invariants
+  // as std::flat_map does, and the exception continues.
+  template <class Op>
+  void keeping_invariants(Op &&op)
+  {
+    if constexpr (nothrow_relocation)
+      op();
+    else
+      try
+        {
+          op();
+        }
+      catch (...)
+        {
+          empty();
+          throw;
+        }
+  }
+
+  // Moves the entries of arr to fresh, which is empty and has room for
+  // them, and leaves fresh as the buffer of arr.
+  template <class U>
+  static void relocate(MemArray<U> &arr, MemArray<U> &fresh)
+  {
+    const size_t n = arr.size();
+    fresh.putn(n);
+    U *from = arr.get_ptr();
+    U *to = fresh.get_ptr();
+    for (size_t i = 0; i < n; ++i)
+      to[i] = std::move(from[i]);
+    arr.swap(fresh);
+  }
+
+  // Gives arr room for cap entries. If the entries cannot throw when moved,
+  // MemArray::reserve() either completes or fails before it moves any.
+  // Otherwise the new buffer is obtained here first, so that a cap out of
+  // range or an allocation that fails leaves the entries untouched; only a
+  // move that throws afterwards is left to keeping_invariants().
+  template <class U>
+  void grow_array(MemArray<U> &arr, const size_t cap)
+  {
+    if (cap <= arr.capacity())
+      return;
+
+    if constexpr (nothrow_relocation)
+      arr.reserve(cap);
+    else
+      {
+        MemArray<U> fresh(cap);
+        keeping_invariants([&]
+          {
+            relocate(arr, fresh);
+          });
+      }
+  }
+
+  // Gives both arrays room for cap entries. Nothing changes but the
+  // capacity, so if the second array fails the map still holds its entries
+  // even though the first one has already grown.
+  void grow_to(const size_t cap)
+  {
+    grow_array(keys_, cap);
+    grow_array(vals_, cap);
+  }
+
+  // Opens one slot at pos in both arrays. They have room for it: growing
+  // is a matter of grow_to(), which runs before any logical size change.
   void make_room(const size_t pos)
   {
-    if (keys_.size() == keys_.capacity())
-      keys_.reserve(keys_.capacity() << 1);
-    if (vals_.size() == vals_.capacity())
-      vals_.reserve(vals_.capacity() << 1);
     keys_.putn(1);
     vals_.putn(1);
     Key *kp = keys_.get_ptr();
@@ -186,32 +280,74 @@ class FlatMap
       }
   }
 
-  // Removes the slot at pos from both arrays. Failed shrinking
-  // reallocations are ignored: the logical removal always succeeds.
-  void remove_at(const size_t pos)
+  // Stores (k, v) in a new slot at pos. Both are built before the arrays
+  // change, so they may be entries of this map: opening the slot shifts the
+  // entries and may free the buffers they live in. Building them first also
+  // means that a copy that throws leaves the map untouched.
+  template <class K, class V>
+  void insert_at(const size_t pos, K &&k, V &&v)
   {
-    Key *kp = keys_.get_ptr();
-    T *vp = vals_.get_ptr();
-    const size_t last = keys_.size() - 1;
-    for (size_t i = pos; i < last; ++i)
+    Key key(std::forward<K>(k));
+    T val(std::forward<V>(v));
+
+    // A full array doubles. One emptied by a move has no storage at all and
+    // starts again at the minimum, as MemArray does on its own.
+    if (const size_t n = keys_.size(); n == keys_.capacity() or n == vals_.capacity())
+      grow_to(std::max(n + 1, MemArray<Key>::Min_Dim));
+
+    keeping_invariants([&]
       {
-        kp[i] = std::move(kp[i + 1]);
-        vp[i] = std::move(vp[i + 1]);
+        make_room(pos);
+        keys_.get_ptr()[pos] = std::move(key);
+        vals_.get_ptr()[pos] = std::move(val);
+      });
+  }
+
+  // Drops the last slot of both arrays. If the entries cannot throw when
+  // moved, a shrinking reallocation can only fail before it moves anything,
+  // and that failure is ignored: the slot is already gone. Otherwise the
+  // exception may come from an entry and is left to keeping_invariants().
+  void drop_last()
+  {
+    if constexpr (nothrow_relocation)
+      {
+        try
+          {
+            (void) keys_.get();
+          }
+        catch (...)
+          { /* shrink failed; logical removal already done */
+          }
+        try
+          {
+            (void) vals_.get();
+          }
+        catch (...)
+          { /* shrink failed; logical removal already done */
+          }
       }
-    try
+    else
       {
         (void) keys_.get();
-      }
-    catch (const std::bad_alloc &)
-      { /* shrink failed; logical removal already done */
-      }
-    try
-      {
         (void) vals_.get();
       }
-    catch (const std::bad_alloc &)
-      { /* shrink failed; logical removal already done */
-      }
+  }
+
+  // Removes the slot at pos from both arrays.
+  void remove_at(const size_t pos)
+  {
+    keeping_invariants([&]
+      {
+        Key *kp = keys_.get_ptr();
+        T *vp = vals_.get_ptr();
+        const size_t last = keys_.size() - 1;
+        for (size_t i = pos; i < last; ++i)
+          {
+            kp[i] = std::move(kp[i + 1]);
+            vp[i] = std::move(vp[i + 1]);
+          }
+        drop_last();
+      });
   }
 
   // Sorts freshly loaded parallel arrays by key and drops duplicate keys,
@@ -518,8 +654,24 @@ public:
   /// Move constructor. The source is left valid but unspecified.
   FlatMap(FlatMap &&) noexcept = default;
 
-  /// Copy assignment (requires copyable `Key` and `T`).
-  FlatMap &operator = (const FlatMap &) = default;
+  /** @brief Copy assignment (requires copyable `Key` and `T`).
+   *
+   *  The copy is built apart and then swapped in, so a failure while copying
+   *  the keys or the values leaves this map as it was.
+   *
+   *  @param m Map to copy.
+   *  @return `*this`.
+   *  @throws std::bad_alloc or any exception thrown by copying an entry.
+   */
+  FlatMap &operator = (const FlatMap &m)
+  {
+    if (this != &m)
+      {
+        FlatMap tmp(m);
+        swap(tmp);
+      }
+    return *this;
+  }
 
   /// Move assignment. The source is left valid but unspecified.
   FlatMap &operator = (FlatMap &&) noexcept = default;
@@ -558,12 +710,16 @@ public:
 
   /** @brief Reserve capacity for at least `cap` entries.
    *  @param cap Desired capacity (rounded up to a power of two).
-   *  @throws std::bad_alloc if memory allocation fails.
+   *  @throws std::bad_alloc if memory allocation fails; the map keeps its
+   *          entries.
+   *  @throws std::overflow_error if `cap` cannot be rounded up to a power
+   *          of two; the map keeps its entries.
+   *  @throws Any exception thrown by moving an entry; the map is then left
+   *          empty (see the class notes on exception safety).
    */
   void reserve(size_t cap)
   {
-    keys_.reserve(cap);
-    vals_.reserve(cap);
+    grow_to(cap);
   }
 
   /** @brief Remove all entries (Aleph convention). Capacity is kept.
@@ -702,9 +858,7 @@ public:
     const size_t pos = lower_idx(k);
     if (match_at(pos, k))
       return vals_(pos);
-    make_room(pos);
-    keys_.get_ptr()[pos] = k;
-    vals_.get_ptr()[pos] = T();
+    insert_at(pos, k, T());
     return vals_(pos);
   }
 
@@ -721,9 +875,7 @@ public:
     const size_t pos = lower_idx(k);
     if (match_at(pos, k))
       return vals_(pos);
-    make_room(pos);
-    keys_.get_ptr()[pos] = std::move(k);
-    vals_.get_ptr()[pos] = T();
+    insert_at(pos, std::move(k), T());
     return vals_(pos);
   }
 
@@ -765,16 +917,18 @@ public:
    *  @return Pair of (iterator to the entry, `true` if inserted / `false`
    *          if the key was already mapped — the existing value is kept).
    *  @throws std::bad_alloc if a growing reallocation fails.
-   *  @note Complexity: O(log n) search + O(n) shift.
+   *  @throws Any exception thrown by copying `k` or `v` (the map is left
+   *          untouched) or by moving an entry (see the class notes on
+   *          exception safety).
+   *  @note Complexity: O(log n) search + O(n) shift. `k` and `v` may be
+   *        entries of this map.
    */
   std::pair<iterator, bool> insert(const Key &k, const T &v)
   {
     const size_t pos = lower_idx(k);
     if (match_at(pos, k))
       return {begin() + pos, false};
-    make_room(pos);
-    keys_.get_ptr()[pos] = k;
-    vals_.get_ptr()[pos] = v;
+    insert_at(pos, k, v);
     return {begin() + pos, true};
   }
 
@@ -784,9 +938,7 @@ public:
     const size_t pos = lower_idx(k);
     if (match_at(pos, k))
       return {begin() + pos, false};
-    make_room(pos);
-    keys_.get_ptr()[pos] = std::move(k);
-    vals_.get_ptr()[pos] = std::move(v);
+    insert_at(pos, std::move(k), std::move(v));
     return {begin() + pos, true};
   }
 
@@ -822,9 +974,7 @@ public:
         vals_(pos) = v;
         return {begin() + pos, false};
       }
-    make_room(pos);
-    keys_.get_ptr()[pos] = k;
-    vals_.get_ptr()[pos] = v;
+    insert_at(pos, k, v);
     return {begin() + pos, true};
   }
 
@@ -837,9 +987,7 @@ public:
         vals_(pos) = std::move(v);
         return {begin() + pos, false};
       }
-    make_room(pos);
-    keys_.get_ptr()[pos] = std::move(k);
-    vals_.get_ptr()[pos] = std::move(v);
+    insert_at(pos, std::move(k), std::move(v));
     return {begin() + pos, true};
   }
 
@@ -862,8 +1010,11 @@ public:
   /** @brief Remove the entry with key `k`, if present.
    *  @param k Key to remove.
    *  @return Number of removed entries (0 or 1).
-   *  @note Complexity: O(log n) search + O(n) shift. Never throws on the
-   *        removal itself; failed shrinking reallocations are ignored.
+   *  @throws Any exception thrown by moving an entry; the map is then left
+   *          empty (see the class notes on exception safety).
+   *  @note Complexity: O(log n) search + O(n) shift. If keys and values
+   *        cannot throw when moved, the removal itself never throws and a
+   *        failed shrinking reallocation is ignored.
    */
   size_t erase(const Key &k)
   {
