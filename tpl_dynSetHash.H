@@ -198,13 +198,23 @@ namespace Aleph
     */
     bool is_empty() const noexcept { return this->Base::is_empty(); }
 
+    /** @brief Copy assignment.
+
+        Leaves this table as a copy of `other`: the same keys, hash
+        function, comparator and load thresholds.
+
+        @param[in] other Table to copy.
+        @return A reference to this table.
+        @throw std::bad_alloc If there is no memory for the copy. This table
+               is left as it was.
+    */
     DynHashTable &operator =(const DynHashTable & other)
     {
       if (this == &other)
         return *this;
 
-      this->empty();
-      copy(other);
+      DynHashTable tmp(other);
+      this->swap(tmp);
 
       return *this;
     }
@@ -558,6 +568,44 @@ namespace Aleph
              Dft_Pair_Cmp<Key, Data, Cmp>(cmp), lower_alpha, upper_alpha),
         original_hash_fct(hash_fct) {}
 
+    /// Copy constructor: the same pairs and the same configuration.
+    DynMapHashTable(const DynMapHashTable &) = default;
+
+    /// Move constructor: takes the pairs of the other map, which is left
+    /// empty and keeps its configuration.
+    DynMapHashTable(DynMapHashTable &&) noexcept = default;
+
+    /// Copy assignment: the same pairs and the same configuration.
+    DynMapHashTable &operator =(const DynMapHashTable &) = default;
+
+    /** @brief Move assignment.
+
+        Takes the pairs and the configuration of `other`.
+
+        @param[in,out] other Map to take the pairs from. It is left empty
+        and with the configuration that this map had.
+        @return A reference to this map.
+    */
+    DynMapHashTable &operator =(DynMapHashTable && other) noexcept
+    {
+      Base::operator =(std::move(other));
+      std::swap(original_hash_fct, other.original_hash_fct);
+      return *this;
+    }
+
+    /** @brief Swaps this map with `other` in constant time.
+
+        The pairs travel with their hash function, so each map keeps
+        finding its keys.
+
+        @param[in,out] other Map to swap with.
+    */
+    void swap(DynMapHashTable & other) noexcept
+    {
+      Base::swap(other);
+      std::swap(original_hash_fct, other.original_hash_fct);
+    }
+
     /// Inserts into the hash map the pair (key, record) indexed by key.
     /// Returns a pointer to the pair stored inside the table.
     /// Throws bad_alloc if there is not enough memory.
@@ -753,7 +801,13 @@ namespace Aleph
       return this->template maps<Key>([](auto p) { return p.first; });
     }
 
-    DynList<Key> values() const
+    /** @brief Returns the values of the map.
+
+        @return A list with a copy of the value of every pair, in the order
+        in which the table is traversed.
+        @throw std::bad_alloc If there is no memory for the list.
+    */
+    DynList<Data> values() const
     {
       return this->template maps<Data>([](auto p) { return p.second; });
     }

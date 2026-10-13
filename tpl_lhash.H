@@ -229,12 +229,22 @@ namespace Aleph
                       lower_alpha, upper_alpha, remove_all_buckets, with_resize)
     {}
 
+    /** @brief Swaps this table with `other` in constant time.
+
+        The buckets travel with everything that rules them: the hash
+        function, the comparator, the load thresholds and the resizing
+        policy.
+
+        @param[in,out] other Table to swap with.
+    */
     void swap(GenLhashTable & other) noexcept
     {
       std::swap(hash_fct, other.hash_fct);
       std::swap(table, other.table);
       std::swap(len, other.len);
       std::swap(cmp, other.cmp);
+      std::swap(lower_alpha, other.lower_alpha);
+      std::swap(upper_alpha, other.upper_alpha);
       std::swap(N, other.N);
       std::swap(busy_slots_counter, other.busy_slots_counter);
       std::swap(remove_all_buckets, other.remove_all_buckets);
@@ -365,12 +375,22 @@ namespace Aleph
   public:
     Hash_Fct get_hash_fct() const noexcept { return hash_fct; }
 
-    /// Set the internal hash function
+    /** @brief Sets the hash function.
+
+        The buckets already in the table are not moved to the lists that
+        the new function assigns to them.
+
+        @param[in] fct The new hash function.
+        @warning If the table is not empty, call `resize(capacity())` right
+        after: it places every bucket again with the new function. Until
+        then the keys already stored may not be found.
+    */
     void set_hash_fct(Hash_Fct fct) noexcept
     {
       hash_fct = fct;
     }
 
+    /// @overload
     void set_hash_fct(Hash_Fct_Ptr fct) noexcept
     {
       hash_fct = Hash_Fct(fct);

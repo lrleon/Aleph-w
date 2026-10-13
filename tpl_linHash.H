@@ -308,12 +308,20 @@ private:
 
 public:
 
-  /// Set the internal hash function
+  /** @brief Sets the hash function.
+
+      @param[in] fct The new hash function.
+      @pre The table is empty. The buckets already stored are not moved to
+      the lists that the new function assigns to them, and linear hashing
+      has no operation that places them again, so their keys may not be
+      found afterwards.
+  */
   void set_hash_fct(Hash_Fct fct) noexcept
   {
     hash_fct = fct;
   }
 
+  /// @overload
   void set_hash_fct(Hash_Fct_Ptr fct) noexcept
   {
     hash_fct = Hash_Fct(fct);
