@@ -37,6 +37,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <functional>
+#include <new>
 #include <random>
 #include <sstream>
 #include <set>
@@ -976,4 +978,222 @@ TEST(BinNodeUtils, Property_InsertRemoveRandom_StableInvariants)
         }
       assert_bst_and_inorder_sorted(root);
     }
+}
+
+namespace
+{
+  // Key that counts the instances alive and whose copies throw once a budget
+  // of them is spent.
+  struct Counted_Key
+  {
+    static inline long alive = 0;
+    static inline long copies_left = -1; // -1 means that copies never throw
+
+    int value = 0;
+
+    Counted_Key() { ++alive; }
+    Counted_Key(const int v) : value(v) { ++alive; }
+    Counted_Key(const Counted_Key & key) : value(key.value)
+    {
+      if (copies_left == 0)
+        throw std::runtime_error("copy of key");
+      if (copies_left > 0)
+        --copies_left;
+      ++alive;
+    }
+    Counted_Key & operator = (const Counted_Key &) = default;
+    ~Counted_Key() { --alive; }
+
+    bool operator < (const Counted_Key & key) const noexcept
+    {
+      return value < key.value;
+    }
+  };
+
+  // Chain of n nodes with the keys 0, 1, ..., n - 1 from the root down.
+  // Node i hangs on the left of node i - 1 if goes_left(i), else on its right.
+  BinNode<int> * build_chain(const int n, const std::function<bool(int)> & goes_left)
+  {
+    auto * root = new BinNode<int>(0);
+    auto * last = root;
+    for (int i = 1; i < n; ++i)
+      {
+        auto * p = new BinNode<int>(i);
+        (goes_left(i) ? LLINK(last) : RLINK(last)) = p;
+        last = p;
+      }
+    return root;
+  }
+
+  // Number of nodes of a chain that differ, in key or in side, from the
+  // chain that build_chain(n, goes_left) builds. Walks without recursion.
+  size_t chain_mismatches(BinNode<int> * root, const int n,
+                          const std::function<bool(int)> & goes_left)
+  {
+    size_t mismatches = 0;
+    auto * p = root;
+    for (int i = 0; i < n; ++i)
+      {
+        if (p == BinNode<int>::NullPtr)
+          return mismatches + static_cast<size_t>(n - i);
+        if (KEY(p) != i)
+          ++mismatches;
+        const bool left = i + 1 < n and goes_left(i + 1);
+        const bool right = i + 1 < n and not goes_left(i + 1);
+        if ((LLINK(p) != BinNode<int>::NullPtr) != left or
+            (RLINK(p) != BinNode<int>::NullPtr) != right)
+          ++mismatches;
+        p = left ? LLINK(p) : RLINK(p);
+      }
+    return mismatches;
+  }
+} // namespace
+
+// A recursion as deep as the tree exhausts the call stack with degenerate
+// trees of this size, and the destruction is in the path of the destructors.
+TEST(BinNodeUtils, DegenerateTreesAreMeasuredCopiedAndDestroyedWithoutRecursion)
+{
+  constexpr int n = 1'000'000;
+  const std::function<bool(int)> shapes[] =
+    {
+      [] (int) { return true; },           // left chain
+      [] (int) { return false; },          // right chain
+      [] (const int i) { return i % 2 == 0; } // zigzag
+    };
+
+  for (const auto & goes_left : shapes)
+    {
+      auto * root = build_chain(n, goes_left);
+      EXPECT_EQ(computeHeightRec(root), static_cast<size_t>(n));
+
+      auto * copy = copyRec(root);
+      EXPECT_EQ(chain_mismatches(copy, n, goes_left), 0u);
+      EXPECT_EQ(chain_mismatches(root, n, goes_left), 0u); // the source is intact
+      EXPECT_EQ(computeHeightRec(copy), static_cast<size_t>(n));
+
+      destroyRec(copy);
+      EXPECT_EQ(copy, BinNode<int>::NullPtr);
+      destroyRec(root);
+      EXPECT_EQ(root, BinNode<int>::NullPtr);
+    }
+}
+
+// A right spine with a leaf on the left of every node. It is much taller
+// than the bound of the recursions, and a traversal that follows the spine
+// defers one subtree per level, many more than the stacks keep inline.
+TEST(BinNodeUtils, CombTreeIsTallerThanTheBoundOfTheRecursions)
+{
+  constexpr int levels = 100'000;
+  ASSERT_GT(static_cast<size_t>(levels), Bin_Tree_Depth_Bound);
+
+  auto * root = new BinNode<int>(0);
+  auto * spine = root;
+  for (int i = 0; i < levels; ++i)
+    {
+      LLINK(spine) = new BinNode<int>(-i - 1);
+      if (i + 1 < levels)
+        {
+          RLINK(spine) = new BinNode<int>(i + 1);
+          spine = RLINK(spine);
+        }
+    }
+
+  EXPECT_EQ(computeHeightRec(root), static_cast<size_t>(levels) + 1);
+
+  auto * copy = copyRec(root);
+  size_t mismatches = 0;
+  auto * p = copy;
+  for (int i = 0; i < levels; ++i)
+    {
+      ASSERT_NE(p, BinNode<int>::NullPtr);
+      auto * leaf = LLINK(p);
+      if (KEY(p) != i or leaf == BinNode<int>::NullPtr or KEY(leaf) != -i - 1 or
+          LLINK(leaf) != BinNode<int>::NullPtr or RLINK(leaf) != BinNode<int>::NullPtr)
+        ++mismatches;
+      p = RLINK(p);
+    }
+  EXPECT_EQ(mismatches, 0u);
+  EXPECT_EQ(p, BinNode<int>::NullPtr);
+
+  destroyRec(copy);
+  destroyRec(root);
+  EXPECT_EQ(copy, BinNode<int>::NullPtr);
+  EXPECT_EQ(root, BinNode<int>::NullPtr);
+}
+
+TEST(BinNodeUtils, CopyAndDestroyAccountForEveryNode)
+{
+  using Node = BinNode<Counted_Key>;
+  ASSERT_EQ(Counted_Key::alive, 0);
+
+  std::mt19937 rng(20261013);
+  std::vector<int> keys(63);
+  for (size_t i = 0; i < keys.size(); ++i)
+    keys[i] = static_cast<int>(i);
+  std::shuffle(keys.begin(), keys.end(), rng);
+
+  Node * root = Node::NullPtr;
+  for (const int k : keys)
+    ASSERT_NE(insert_in_bst(root, new Node(Counted_Key(k))), Node::NullPtr);
+  const long nodes = static_cast<long>(keys.size());
+  ASSERT_EQ(Counted_Key::alive, nodes);
+
+  // a copy interrupted at any node frees the nodes that it had built
+  for (long budget = 0; budget < nodes; ++budget)
+    {
+      Counted_Key::copies_left = budget;
+      EXPECT_THROW((void) copyRec(root), std::runtime_error) << "budget " << budget;
+      Counted_Key::copies_left = -1;
+      EXPECT_EQ(Counted_Key::alive, nodes) << "budget " << budget;
+    }
+
+  Node * copy = copyRec(root);
+  EXPECT_EQ(Counted_Key::alive, 2 * nodes);
+  EXPECT_TRUE(areSimilar(root, copy));
+  EXPECT_EQ(computeHeightRec(copy), computeHeightRec(root));
+  std::vector<int> copied;
+  infix_for_each<Node>(copy, [&copied] (Node * p) { copied.push_back(KEY(p).value); });
+  std::sort(keys.begin(), keys.end());
+  EXPECT_EQ(copied, keys);
+
+  destroyRec(copy);
+  EXPECT_EQ(copy, Node::NullPtr);
+  EXPECT_EQ(Counted_Key::alive, nodes);
+  destroyRec(root);
+  EXPECT_EQ(root, Node::NullPtr);
+  EXPECT_EQ(Counted_Key::alive, 0);
+}
+
+// The nodes live in storage that the test owns, as the nodes of an arena
+// do: only the destructors of the keys must run, once each.
+TEST(BinNodeUtils, KeyDestructorsRunOnceOnADegenerateTreeWithoutRecursion)
+{
+  using Node = BinNode<Counted_Key>;
+  constexpr int n = 1'000'000;
+  ASSERT_EQ(Counted_Key::alive, 0);
+
+  std::vector<void *> storage;
+  storage.reserve(n);
+  Node * root = Node::NullPtr;
+  Node * last = nullptr;
+  for (int i = 0; i < n; ++i)
+    {
+      storage.push_back(::operator new(sizeof(Node)));
+      auto * p = new (storage.back()) Node(Counted_Key(i));
+      if (last == nullptr)
+        root = p;
+      else if (i % 3 == 0)
+        RLINK(last) = p;
+      else
+        LLINK(last) = p;
+      last = p;
+    }
+  ASSERT_EQ(Counted_Key::alive, n);
+
+  callKeyDestructorsRec(root);
+
+  EXPECT_EQ(root, Node::NullPtr);
+  EXPECT_EQ(Counted_Key::alive, 0);
+  for (void * mem : storage)
+    ::operator delete(mem);
 }

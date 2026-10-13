@@ -518,18 +518,26 @@ namespace Aleph
       return *this = DynSetTree(list);
     }
 
-    /// assigns this to the dynamic array srctree
+    /** Assign a copy of `srcTree` to this set.
+
+        The keys are copied together with the comparison criterion of
+        `srcTree`, as the copy constructor does, so that a criterion with
+        state orders this set as it orders `srcTree`. The copy is built
+        apart and then swapped in: if it fails, this set is left as it was.
+
+        @param[in] srcTree the set to copy
+        @return a reference to this set
+        @throw bad_alloc if there is no enough memory
+        @note The copy allocates its nodes with `new`. A set that was using
+        an arena allocator releases its arena and no longer uses one.
+    */
     DynSetTree &operator =(const DynSetTree & srcTree)
     {
       if (this == &srcTree)
         return *this;
 
-      Node *src_root = srcTree.tree.getRoot();
-
-      empty();
-
-      tree.getRoot() = copyRec(src_root);
-      num_nodes = srcTree.num_nodes;
+      DynSetTree copy(srcTree);
+      swap(copy);
 
       return *this;
     }

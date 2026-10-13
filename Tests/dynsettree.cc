@@ -2357,6 +2357,199 @@ TEST(DynSetTreeStress, AllTypesLargeScale)
   }
 }
 
+// ============================================================================
+// Copies carry the comparison criteria; degenerate trees
+// ============================================================================
+
+namespace
+{
+  // Orders ascending or descending according to its state.
+  struct Switchable_Order
+  {
+    bool descending = false;
+
+    bool operator () (const int a, const int b) const noexcept
+    {
+      return descending ? b < a : a < b;
+    }
+  };
+
+  // Key that moves freely but whose copies throw on demand.
+  struct Throwing_Copy_Key
+  {
+    static inline bool fail = false;
+
+    int value = 0;
+
+    Throwing_Copy_Key() = default;
+    Throwing_Copy_Key(const int v) : value(v) {}
+    Throwing_Copy_Key(const Throwing_Copy_Key & key) : value(key.value)
+    {
+      if (fail)
+        throw std::runtime_error("copy of key");
+    }
+    Throwing_Copy_Key(Throwing_Copy_Key &&) noexcept = default;
+    Throwing_Copy_Key & operator = (const Throwing_Copy_Key &) = default;
+    Throwing_Copy_Key & operator = (Throwing_Copy_Key &&) noexcept = default;
+
+    bool operator < (const Throwing_Copy_Key & key) const noexcept
+    {
+      return value < key.value;
+    }
+  };
+
+  template <class Set>
+  vector<int> keys_in_order(const Set & s)
+  {
+    vector<int> keys;
+    for (auto it = s.get_it(); it.has_curr(); it.next_ne())
+      keys.push_back(it.get_curr());
+    return keys;
+  }
+
+  // A set that received the keys of a descending set must order, search and
+  // grow as that set does, whatever the criteria it had before.
+  template <class Set>
+  void expect_descending(Set & s, const char * how)
+  {
+    SCOPED_TRACE(how);
+    EXPECT_EQ(keys_in_order(s), (vector<int>{5, 4, 3, 2, 1}));
+    EXPECT_TRUE(s.verify());
+    for (const int k : {1, 2, 3, 4, 5})
+      EXPECT_TRUE(s.contains(k)) << "key " << k;
+    EXPECT_FALSE(s.contains(0));
+
+    s.insert(0);
+    s.insert(6);
+    EXPECT_EQ(keys_in_order(s), (vector<int>{6, 5, 4, 3, 2, 1, 0}));
+    EXPECT_TRUE(s.verify());
+  }
+
+  template <template <typename, class> class Tree>
+  void check_that_copies_carry_the_order(const char * tree_name)
+  {
+    SCOPED_TRACE(tree_name);
+    using Set = DynSetTree<int, Tree, Switchable_Order>;
+
+    Set source(Switchable_Order{true});
+    for (const int k : {3, 1, 5, 2, 4})
+      source.insert(k);
+    ASSERT_EQ(keys_in_order(source), (vector<int>{5, 4, 3, 2, 1}));
+
+    Set assigned(Switchable_Order{false});
+    for (const int k : {10, 20})
+      assigned.insert(k);
+    assigned = source;
+    expect_descending(assigned, "copy assignment");
+
+    Set copied(source);
+    expect_descending(copied, "copy construction");
+
+    Set to_move(source);
+    Set moved(std::move(to_move));
+    expect_descending(moved, "move construction");
+
+    Set move_assigned(Switchable_Order{false});
+    move_assigned.insert(10);
+    move_assigned = Set(source);
+    expect_descending(move_assigned, "move assignment");
+
+    Set swapped(Switchable_Order{false});
+    swapped.insert(10);
+    Set other(source);
+    swapped.swap(other);
+    expect_descending(swapped, "swap");
+    EXPECT_EQ(keys_in_order(other), (vector<int>{10}));
+
+    // the source did not change
+    EXPECT_EQ(keys_in_order(source), (vector<int>{5, 4, 3, 2, 1}));
+    EXPECT_TRUE(source.verify());
+  }
+} // namespace
+
+TEST(DynSetTree, CopiesAssignmentsAndSwapsCarryAStatefulComparator)
+{
+  check_that_copies_carry_the_order<BinTree>("BinTree");
+  check_that_copies_carry_the_order<Avl_Tree>("Avl_Tree");
+  check_that_copies_carry_the_order<Splay_Tree>("Splay_Tree");
+  check_that_copies_carry_the_order<Rand_Tree>("Rand_Tree");
+  check_that_copies_carry_the_order<Treap>("Treap");
+  check_that_copies_carry_the_order<Treap_Rk>("Treap_Rk");
+  check_that_copies_carry_the_order<Rb_Tree>("Rb_Tree");
+}
+
+TEST(DynSetTree, CopyAssignmentThatThrowsLeavesTheTargetUntouched)
+{
+  DynSetTree<Throwing_Copy_Key> source, target;
+  for (const int k : {1, 2, 3, 4, 5})
+    source.insert(Throwing_Copy_Key(k));
+  for (const int k : {10, 20})
+    target.insert(Throwing_Copy_Key(k));
+
+  Throwing_Copy_Key::fail = true;
+  EXPECT_THROW(target = source, std::runtime_error);
+  Throwing_Copy_Key::fail = false;
+
+  EXPECT_EQ(target.size(), 2u);
+  EXPECT_TRUE(target.contains(Throwing_Copy_Key(10)));
+  EXPECT_TRUE(target.contains(Throwing_Copy_Key(20)));
+  EXPECT_TRUE(target.verify());
+
+  target = source;
+  EXPECT_EQ(target.size(), 5u);
+  EXPECT_TRUE(target.contains(Throwing_Copy_Key(3)));
+}
+
+// The copy allocates with new. A target that kept its arena would later
+// release those nodes as if they belonged to the arena.
+TEST(DynSetTree, CopyAssignmentToASetWithArenaLeavesItWithoutArena)
+{
+  DynSetTree<int> target(static_cast<size_t>(1) << 16);
+  for (const int k : {1, 2, 3})
+    target.insert(k);
+  ASSERT_TRUE(target.uses_arena());
+
+  DynSetTree<int> source;
+  for (const int k : {10, 20, 30, 40})
+    source.insert(k);
+
+  target = source;
+
+  EXPECT_FALSE(target.uses_arena());
+  EXPECT_EQ(keys_in_order(target), (vector<int>{10, 20, 30, 40}));
+  target.remove(10);
+  target.insert(50);
+  EXPECT_EQ(keys_in_order(target), (vector<int>{20, 30, 40, 50}));
+  EXPECT_TRUE(target.verify());
+}
+
+// Keys inserted in order leave a splay tree as a chain as tall as its size.
+// Destroying, copying or measuring it by a recursion as deep as the tree
+// exhausted the call stack.
+TEST(DynSetTree, DegenerateSplayTreeIsCopiedMeasuredAndDestroyed)
+{
+  constexpr long n = 1'000'000;
+  DynSetTree<long, Splay_Tree> set;
+  for (long i = 0; i < n; ++i)
+    set.insert(i);
+  ASSERT_EQ(set.size(), static_cast<size_t>(n));
+  EXPECT_EQ(set.height(), static_cast<size_t>(n));
+
+  DynSetTree<long, Splay_Tree> copied(set);
+  EXPECT_EQ(copied.size(), static_cast<size_t>(n));
+  EXPECT_EQ(copied.height(), static_cast<size_t>(n));
+
+  DynSetTree<long, Splay_Tree> assigned;
+  assigned.insert(-1);
+  assigned = set;
+  EXPECT_EQ(assigned.size(), static_cast<size_t>(n));
+  EXPECT_EQ(assigned.min(), 0);
+  EXPECT_EQ(assigned.max(), n - 1);
+
+  assigned.empty();
+  EXPECT_TRUE(assigned.is_empty());
+} // the three sets are destroyed here
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

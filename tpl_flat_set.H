@@ -69,6 +69,7 @@
 #include <algorithm>
 #include <initializer_list>
 #include <iterator>
+#include <type_traits>
 #include <utility>
 
 #include <ah-errors.H>
@@ -104,10 +105,17 @@ namespace Aleph {
  *  container and `is_empty()` is the emptiness predicate.
  *
  *  @par Exception Safety
- *  `insert` offers the strong guarantee up to the element shift: if the key
- *  copy/move assignment throws mid-shift, the guarantee degrades to basic
- *  (the container remains valid, contents unspecified). `erase` always
+ *  If `Key` can be move-constructed and move-assigned without throwing,
+ *  `insert`, `emplace` and `reserve` offer the strong guarantee: the key is
+ *  copied before the array changes, so the only possible failure afterwards
+ *  is an allocation that leaves the keys untouched. `erase` then always
  *  removes the element; a failed shrinking reallocation is ignored.
+ *
+ *  If moving a key can throw, an exception thrown while keys are shifted or
+ *  relocated would leave a moved-from or duplicated key. The set is then
+ *  **emptied**, which restores its invariants as `std::flat_set` does, and
+ *  the exception is rethrown: the guarantee is basic. This applies to the
+ *  operations above and to `erase`.
  *
  *  @par Thread Safety
  *  Distinct instances may be used from distinct threads. Concurrent access
@@ -161,6 +169,34 @@ class FlatSet
     return pos < keys_.size() and not cmp_(k, keys_(pos));
   }
 
+  // True if keys can be moved without throwing. A shift or a relocation
+  // then always completes, and the only way an insertion can fail is an
+  // allocation that leaves the keys untouched.
+  static constexpr bool nothrow_relocation =
+    std::is_nothrow_move_constructible_v<Key> and
+    std::is_nothrow_move_assignable_v<Key>;
+
+  // Runs op, which moves keys inside the array. If such a move can throw,
+  // an exception may leave a key moved from or duplicated. The set is then
+  // emptied, which restores its invariants as std::flat_set does, and the
+  // exception continues.
+  template <class Op>
+  void keeping_invariants(Op &&op)
+  {
+    if constexpr (nothrow_relocation)
+      op();
+    else
+      try
+        {
+          op();
+        }
+      catch (...)
+        {
+          empty();
+          throw;
+        }
+  }
+
   // Opens one slot at pos by shifting [pos, n) one place right.
   void make_room(const size_t pos)
   {
@@ -170,23 +206,42 @@ class FlatSet
       p[i] = std::move(p[i - 1]);
   }
 
-  // Removes the slot at pos by shifting (pos, n) one place left. A failed
-  // shrinking reallocation is ignored: the logical removal always succeeds.
+  // Stores k in a new slot at pos. The key is built before the array
+  // changes, so a copy that throws leaves the set untouched.
+  template <class K>
+  void insert_at(const size_t pos, K &&k)
+  {
+    Key key(std::forward<K>(k));
+    keeping_invariants([&]
+      {
+        make_room(pos);
+        keys_.get_ptr()[pos] = std::move(key);
+      });
+  }
+
+  // Removes the slot at pos by shifting (pos, n) one place left.
   void remove_at(const size_t pos)
   {
-    Key *p = keys_.get_ptr();
-    const size_t last = keys_.size() - 1;
-    for (size_t i = pos; i < last; ++i)
-      p[i] = std::move(p[i + 1]);
-    try
+    keeping_invariants([&]
       {
-        (void) keys_.get();
-      }
-    catch (const std::bad_alloc &)
-      {
-        // Shrinking reallocation can fail; the logical removal already
-        // took effect because the element count was decremented first.
-      }
+        Key *p = keys_.get_ptr();
+        const size_t last = keys_.size() - 1;
+        for (size_t i = pos; i < last; ++i)
+          p[i] = std::move(p[i + 1]);
+        if constexpr (nothrow_relocation)
+          try
+            {
+              (void) keys_.get();
+            }
+          catch (...)
+            {
+              // A shrinking reallocation can only fail before it moves a
+              // key; the logical removal already took effect because the
+              // element count was decremented first.
+            }
+        else
+          (void) keys_.get();
+      });
   }
 
   // Sorts the freshly loaded backing array and drops duplicates, keeping
@@ -317,10 +372,15 @@ public:
   /** @brief Reserve capacity for at least `cap` keys.
    *  @param cap Desired capacity (rounded up to a power of two).
    *  @throws std::bad_alloc if memory allocation fails.
+   *  @throws Any exception thrown by moving a key; the set is then left
+   *          empty (see the class notes on exception safety).
    */
   void reserve(size_t cap)
   {
-    keys_.reserve(cap);
+    keeping_invariants([&]
+      {
+        keys_.reserve(cap);
+      });
   }
 
   /** @brief Remove all keys (Aleph convention). Capacity is kept.
@@ -467,8 +527,7 @@ public:
     const size_t pos = lower_idx(k);
     if (match_at(pos, k))
       return {begin() + pos, false};
-    make_room(pos);
-    keys_.get_ptr()[pos] = k;
+    insert_at(pos, k);
     return {begin() + pos, true};
   }
 
@@ -483,8 +542,7 @@ public:
     const size_t pos = lower_idx(k);
     if (match_at(pos, k))
       return {begin() + pos, false};
-    make_room(pos);
-    keys_.get_ptr()[pos] = std::move(k);
+    insert_at(pos, std::move(k));
     return {begin() + pos, true};
   }
 
@@ -508,8 +566,11 @@ public:
   /** @brief Remove the key equivalent to `k`, if present.
    *  @param k Key to remove.
    *  @return Number of removed elements (0 or 1).
-   *  @note Complexity: O(log n) search + O(n) shift. Never throws on the
-   *        removal itself; a failed shrinking reallocation is ignored.
+   *  @throws Any exception thrown by moving a key; the set is then left
+   *          empty (see the class notes on exception safety).
+   *  @note Complexity: O(log n) search + O(n) shift. If keys cannot throw
+   *        when moved, the removal itself never throws and a failed
+   *        shrinking reallocation is ignored.
    */
   size_t erase(const Key &k)
   {

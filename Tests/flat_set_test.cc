@@ -49,6 +49,79 @@
 
 using Aleph::FlatSet;
 
+namespace
+{
+// A key whose move assignment throws once a budget of them is spent, to
+// interrupt a shift or a relocation half way. Nothing else throws.
+struct Throwing_Move_Key
+{
+  static inline int moves_left = -1; // -1 means that it never throws
+
+  int value = 0;
+
+  Throwing_Move_Key() = default;
+  Throwing_Move_Key(const int v) : value(v) {}
+  Throwing_Move_Key(const Throwing_Move_Key &) = default;
+  Throwing_Move_Key(Throwing_Move_Key &&) = default;
+  Throwing_Move_Key &operator = (const Throwing_Move_Key &) = default;
+  Throwing_Move_Key &operator = (Throwing_Move_Key &&other)
+  {
+    if (moves_left == 0)
+      throw std::runtime_error("move assignment");
+    if (moves_left > 0)
+      --moves_left;
+    value = other.value;
+    return *this;
+  }
+
+  bool operator < (const Throwing_Move_Key &other) const noexcept
+  {
+    return value < other.value;
+  }
+};
+
+// A key that moves without throwing but whose copies throw on demand.
+struct Throwing_Copy_Key
+{
+  static inline bool fail = false;
+
+  int value = 0;
+
+  Throwing_Copy_Key() = default;
+  Throwing_Copy_Key(const int v) : value(v) {}
+  Throwing_Copy_Key(const Throwing_Copy_Key &other) : value(other.value)
+  {
+    if (fail)
+      throw std::runtime_error("copy");
+  }
+  Throwing_Copy_Key(Throwing_Copy_Key &&) noexcept = default;
+  Throwing_Copy_Key &operator = (const Throwing_Copy_Key &other)
+  {
+    if (fail)
+      throw std::runtime_error("copy assignment");
+    value = other.value;
+    return *this;
+  }
+  Throwing_Copy_Key &operator = (Throwing_Copy_Key &&) noexcept = default;
+
+  bool operator < (const Throwing_Copy_Key &other) const noexcept
+  {
+    return value < other.value;
+  }
+};
+
+template <class Set>
+::testing::AssertionResult is_strictly_sorted(const Set &s)
+{
+  for (size_t i = 1; i < s.size(); ++i)
+    if (not (s.nth(i - 1) < s.nth(i)))
+      return ::testing::AssertionFailure()
+        << "keys " << s.nth(i - 1).value << " and " << s.nth(i).value
+        << " at " << i - 1 << " are not strictly increasing";
+  return ::testing::AssertionSuccess();
+}
+} // namespace
+
 TEST(FlatSet, EmptySetBasics)
 {
   FlatSet<int> s;
@@ -276,4 +349,85 @@ TEST(FlatSet, RandomizedParityWithStdSet)
   size_t i = 0;
   for (const int k : ref)
     EXPECT_EQ(fs.nth(i++), k);
+}
+
+TEST(FlatSet, CopyThatThrowsLeavesTheSetUntouched)
+{
+  FlatSet<Throwing_Copy_Key> s;
+  for (const int k : {1, 3, 5, 7})
+    s.insert(Throwing_Copy_Key(k));
+  const Throwing_Copy_Key first(0), middle(4);
+
+  Throwing_Copy_Key::fail = true;
+  EXPECT_THROW(s.insert(first), std::runtime_error);
+  EXPECT_THROW(s.insert(middle), std::runtime_error);
+  Throwing_Copy_Key::fail = false;
+
+  ASSERT_EQ(s.size(), 4u);
+  EXPECT_TRUE(is_strictly_sorted(s));
+  EXPECT_FALSE(s.contains(first));
+  EXPECT_FALSE(s.contains(middle));
+  EXPECT_TRUE(s.contains(Throwing_Copy_Key(5)));
+}
+
+// If moving a key can throw, an insertion, a removal or a reservation
+// interrupted at any of its moves must leave a valid set: either the
+// operation took effect or the set was emptied, never a duplicated key.
+TEST(FlatSet, MoveThatThrowsAtAnyPointLeavesAValidSet)
+{
+  const auto build = []
+    {
+      FlatSet<Throwing_Move_Key> s;
+      for (const int k : {1, 3, 5, 7, 9})
+        s.insert(Throwing_Move_Key(k));
+      return s;
+    };
+
+  enum class Operation { insert_first, insert_middle, erase_first, reserve };
+  for (const auto operation : {Operation::insert_first, Operation::insert_middle,
+                               Operation::erase_first, Operation::reserve})
+    for (int budget = 0; budget < 12; ++budget)
+      {
+        SCOPED_TRACE(testing::Message() << "operation " << static_cast<int>(operation)
+                                        << ", moves allowed " << budget);
+        auto s = build();
+        bool thrown = false;
+        Throwing_Move_Key::moves_left = budget;
+        try
+          {
+            switch (operation)
+              {
+              case Operation::insert_first: s.insert(Throwing_Move_Key(0)); break;
+              case Operation::insert_middle: s.insert(Throwing_Move_Key(4)); break;
+              case Operation::erase_first: s.erase(Throwing_Move_Key(1)); break;
+              case Operation::reserve: s.reserve(4 * s.capacity()); break;
+              }
+          }
+        catch (const std::runtime_error &)
+          {
+            thrown = true;
+          }
+        Throwing_Move_Key::moves_left = -1;
+
+        EXPECT_TRUE(is_strictly_sorted(s));
+        if (thrown)
+          EXPECT_TRUE(s.is_empty());
+        else if (operation == Operation::erase_first)
+          EXPECT_EQ(s.size(), 4u);
+        else if (operation == Operation::reserve)
+          EXPECT_EQ(s.size(), 5u);
+        else
+          EXPECT_EQ(s.size(), 6u);
+
+        // the set remains usable in both cases
+        s.insert(Throwing_Move_Key(100));
+        EXPECT_TRUE(s.contains(Throwing_Move_Key(100)));
+        EXPECT_TRUE(is_strictly_sorted(s));
+      }
+
+  // the sweep reached the point where nothing throws
+  auto s = build();
+  Throwing_Move_Key::moves_left = 11;
+  EXPECT_NO_THROW(s.insert(Throwing_Move_Key(0)));
+  Throwing_Move_Key::moves_left = -1;
 }
