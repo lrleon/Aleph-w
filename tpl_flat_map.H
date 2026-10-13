@@ -117,6 +117,13 @@ namespace Aleph {
  *  `std::flat_map` does, and the exception is rethrown: the guarantee is
  *  basic. This applies to the operations above and to `erase`.
  *
+ *  A failed allocation or a capacity out of range is not such an
+ *  exception: the insertions and `reserve` obtain the new buffers before
+ *  they move any entry, so the map keeps its contents whatever the types.
+ *  This does not hold for `erase` when moving can throw: there a shrinking
+ *  reallocation that fails cannot be told apart from a move that throws,
+ *  and it empties the map as well.
+ *
  *  Copy assignment offers the strong guarantee for every type.
  *
  *  @par Arguments that belong to the map
@@ -212,15 +219,56 @@ class FlatMap
         }
   }
 
-  // Opens one slot at pos in both arrays. reserve() is invoked before any
-  // logical size change, so allocation failures preserve the map's logical
-  // contents even though one backing array may already have grown.
+  // Moves the entries of arr to fresh, which is empty and has room for
+  // them, and leaves fresh as the buffer of arr.
+  template <class U>
+  static void relocate(MemArray<U> &arr, MemArray<U> &fresh)
+  {
+    const size_t n = arr.size();
+    fresh.putn(n);
+    U *from = arr.get_ptr();
+    U *to = fresh.get_ptr();
+    for (size_t i = 0; i < n; ++i)
+      to[i] = std::move(from[i]);
+    arr.swap(fresh);
+  }
+
+  // Gives arr room for cap entries. If the entries cannot throw when moved,
+  // MemArray::reserve() either completes or fails before it moves any.
+  // Otherwise the new buffer is obtained here first, so that a cap out of
+  // range or an allocation that fails leaves the entries untouched; only a
+  // move that throws afterwards is left to keeping_invariants().
+  template <class U>
+  void grow_array(MemArray<U> &arr, const size_t cap)
+  {
+    if (cap <= arr.capacity())
+      return;
+
+    if constexpr (nothrow_relocation)
+      arr.reserve(cap);
+    else
+      {
+        MemArray<U> fresh(cap);
+        keeping_invariants([&]
+          {
+            relocate(arr, fresh);
+          });
+      }
+  }
+
+  // Gives both arrays room for cap entries. Nothing changes but the
+  // capacity, so if the second array fails the map still holds its entries
+  // even though the first one has already grown.
+  void grow_to(const size_t cap)
+  {
+    grow_array(keys_, cap);
+    grow_array(vals_, cap);
+  }
+
+  // Opens one slot at pos in both arrays. They have room for it: growing
+  // is a matter of grow_to(), which runs before any logical size change.
   void make_room(const size_t pos)
   {
-    if (keys_.size() == keys_.capacity())
-      keys_.reserve(keys_.capacity() << 1);
-    if (vals_.size() == vals_.capacity())
-      vals_.reserve(vals_.capacity() << 1);
     keys_.putn(1);
     vals_.putn(1);
     Key *kp = keys_.get_ptr();
@@ -241,6 +289,12 @@ class FlatMap
   {
     Key key(std::forward<K>(k));
     T val(std::forward<V>(v));
+
+    // A full array doubles. One emptied by a move has no storage at all and
+    // starts again at the minimum, as MemArray does on its own.
+    if (const size_t n = keys_.size(); n == keys_.capacity() or n == vals_.capacity())
+      grow_to(std::max(n + 1, MemArray<Key>::Min_Dim));
+
     keeping_invariants([&]
       {
         make_room(pos);
@@ -656,17 +710,16 @@ public:
 
   /** @brief Reserve capacity for at least `cap` entries.
    *  @param cap Desired capacity (rounded up to a power of two).
-   *  @throws std::bad_alloc if memory allocation fails.
+   *  @throws std::bad_alloc if memory allocation fails; the map keeps its
+   *          entries.
+   *  @throws std::overflow_error if `cap` cannot be rounded up to a power
+   *          of two; the map keeps its entries.
    *  @throws Any exception thrown by moving an entry; the map is then left
    *          empty (see the class notes on exception safety).
    */
   void reserve(size_t cap)
   {
-    keeping_invariants([&]
-      {
-        keys_.reserve(cap);
-        vals_.reserve(cap);
-      });
+    grow_to(cap);
   }
 
   /** @brief Remove all entries (Aleph convention). Capacity is kept.

@@ -37,6 +37,8 @@
  * check against std::set as the reference implementation.
  */
 
+#include <limits>
+#include <new>
 #include <random>
 #include <set>
 #include <stdexcept>
@@ -105,6 +107,36 @@ struct Throwing_Copy_Key
   Throwing_Copy_Key &operator = (Throwing_Copy_Key &&) noexcept = default;
 
   bool operator < (const Throwing_Copy_Key &other) const noexcept
+  {
+    return value < other.value;
+  }
+};
+
+// A key whose default construction fails on demand, as the allocation of a
+// buffer does: a new buffer is filled with default keys before any key is
+// moved to it. Its moves are not declared noexcept, and never throw.
+struct Failing_Default_Key
+{
+  static inline bool fail = false;
+
+  int value = 0;
+
+  Failing_Default_Key()
+  {
+    if (fail)
+      throw std::bad_alloc();
+  }
+  Failing_Default_Key(const int v) : value(v) {}
+  Failing_Default_Key(const Failing_Default_Key &) = default;
+  Failing_Default_Key(Failing_Default_Key &&other) : value(other.value) {}
+  Failing_Default_Key &operator = (const Failing_Default_Key &) = default;
+  Failing_Default_Key &operator = (Failing_Default_Key &&other)
+  {
+    value = other.value;
+    return *this;
+  }
+
+  bool operator < (const Failing_Default_Key &other) const noexcept
   {
     return value < other.value;
   }
@@ -430,4 +462,85 @@ TEST(FlatSet, MoveThatThrowsAtAnyPointLeavesAValidSet)
   Throwing_Move_Key::moves_left = 11;
   EXPECT_NO_THROW(s.insert(Throwing_Move_Key(0)));
   Throwing_Move_Key::moves_left = -1;
+}
+
+// The set is emptied only when a move may have left a key half way. A
+// failure that comes before, while the new buffer is obtained, must not
+// cost the keys, whatever the moves of their type declare.
+TEST(FlatSet, FailureBeforeAnyKeyMovesKeepsTheSet)
+{
+  using Key = Failing_Default_Key;
+  ASSERT_FALSE(std::is_nothrow_move_assignable_v<Key>);
+
+  FlatSet<Key> s;
+  for (int k = 0; k < 4; ++k)
+    s.insert(Key(k));
+  ASSERT_EQ(s.size(), s.capacity()); // the next insertion has to grow
+
+  const auto holds_the_four_keys = [&s]
+    {
+      if (s.size() != 4)
+        return false;
+      for (int k = 0; k < 4; ++k)
+        if (s.nth(k).value != k)
+          return false;
+      return true;
+    };
+
+  // a capacity that cannot be rounded up
+  EXPECT_THROW(s.reserve(std::numeric_limits<size_t>::max()), std::overflow_error);
+  EXPECT_TRUE(holds_the_four_keys());
+
+  // the new buffer cannot be built
+  Key::fail = true;
+  EXPECT_THROW(s.reserve(64), std::bad_alloc);
+  EXPECT_THROW(s.insert(Key(9)), std::bad_alloc);
+  Key::fail = false;
+  EXPECT_TRUE(holds_the_four_keys());
+
+  s.insert(Key(9));
+  s.reserve(64);
+  EXPECT_EQ(s.size(), 5u);
+  EXPECT_GE(s.capacity(), 64u);
+  EXPECT_TRUE(s.contains(Key(9)));
+  EXPECT_TRUE(is_strictly_sorted(s));
+}
+
+// An insertion that grows relocates the keys before it shifts them. A move
+// that throws during that relocation empties the set, as one that throws
+// during the shift does.
+TEST(FlatSet, MoveThatThrowsWhileAnInsertionGrowsLeavesAValidSet)
+{
+  bool completed = false;
+  for (int budget = 0; not completed; ++budget)
+    {
+      ASSERT_LT(budget, 64);
+      SCOPED_TRACE(testing::Message() << "moves allowed " << budget);
+      FlatSet<Throwing_Move_Key> s;
+      for (int k = 1; k <= 4; ++k)
+        s.insert(Throwing_Move_Key(k));
+      ASSERT_EQ(s.size(), s.capacity());
+
+      Throwing_Move_Key::moves_left = budget;
+      try
+        {
+          s.insert(Throwing_Move_Key(0));
+          completed = true;
+        }
+      catch (const std::runtime_error &)
+        {
+          EXPECT_TRUE(s.is_empty());
+        }
+      Throwing_Move_Key::moves_left = -1;
+
+      EXPECT_TRUE(is_strictly_sorted(s));
+      if (completed)
+        {
+          EXPECT_EQ(s.size(), 5u);
+          EXPECT_GT(budget, 4); // the four keys were relocated and then shifted
+        }
+      s.insert(Throwing_Move_Key(100));
+      EXPECT_TRUE(s.contains(Throwing_Move_Key(100)));
+      EXPECT_TRUE(is_strictly_sorted(s));
+    }
 }

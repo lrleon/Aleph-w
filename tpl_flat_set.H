@@ -117,6 +117,13 @@ namespace Aleph {
  *  the exception is rethrown: the guarantee is basic. This applies to the
  *  operations above and to `erase`.
  *
+ *  A failed allocation or a capacity out of range is not such an
+ *  exception: the insertions and `reserve` obtain the new buffer before
+ *  they move any key, so the set keeps its contents whatever the type.
+ *  This does not hold for `erase` when moving can throw: there a shrinking
+ *  reallocation that fails cannot be told apart from a move that throws,
+ *  and it empties the set as well.
+ *
  *  @par Thread Safety
  *  Distinct instances may be used from distinct threads. Concurrent access
  *  to the same instance requires external synchronization.
@@ -197,7 +204,36 @@ class FlatSet
         }
   }
 
-  // Opens one slot at pos by shifting [pos, n) one place right.
+  // Gives the array room for cap keys. If the keys cannot throw when
+  // moved, MemArray::reserve() either completes or fails before it moves
+  // any. Otherwise the new buffer is obtained here first, so that a cap out
+  // of range or an allocation that fails leaves the keys untouched; only a
+  // move that throws afterwards is left to keeping_invariants().
+  void grow_to(const size_t cap)
+  {
+    if (cap <= keys_.capacity())
+      return;
+
+    if constexpr (nothrow_relocation)
+      keys_.reserve(cap);
+    else
+      {
+        MemArray<Key> fresh(cap);
+        keeping_invariants([&]
+          {
+            const size_t n = keys_.size();
+            fresh.putn(n);
+            Key *from = keys_.get_ptr();
+            Key *to = fresh.get_ptr();
+            for (size_t i = 0; i < n; ++i)
+              to[i] = std::move(from[i]);
+            keys_.swap(fresh);
+          });
+      }
+  }
+
+  // Opens one slot at pos by shifting [pos, n) one place right. The array
+  // has room for it: growing is a matter of grow_to().
   void make_room(const size_t pos)
   {
     keys_.putn(1);
@@ -212,6 +248,12 @@ class FlatSet
   void insert_at(const size_t pos, K &&k)
   {
     Key key(std::forward<K>(k));
+
+    // A full array doubles. One emptied by a move has no storage at all and
+    // starts again at the minimum, as MemArray does on its own.
+    if (const size_t n = keys_.size(); n == keys_.capacity())
+      grow_to(std::max(n + 1, MemArray<Key>::Min_Dim));
+
     keeping_invariants([&]
       {
         make_room(pos);
@@ -371,16 +413,16 @@ public:
 
   /** @brief Reserve capacity for at least `cap` keys.
    *  @param cap Desired capacity (rounded up to a power of two).
-   *  @throws std::bad_alloc if memory allocation fails.
+   *  @throws std::bad_alloc if memory allocation fails; the set keeps its
+   *          keys.
+   *  @throws std::overflow_error if `cap` cannot be rounded up to a power
+   *          of two; the set keeps its keys.
    *  @throws Any exception thrown by moving a key; the set is then left
    *          empty (see the class notes on exception safety).
    */
   void reserve(size_t cap)
   {
-    keeping_invariants([&]
-      {
-        keys_.reserve(cap);
-      });
+    grow_to(cap);
   }
 
   /** @brief Remove all keys (Aleph convention). Capacity is kept.

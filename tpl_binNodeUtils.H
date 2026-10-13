@@ -606,50 +606,89 @@ inline size_t computeHeightRec(Node *root) noexcept
   return compute_height_bounded(root, Bin_Tree_Depth_Bound);
 }
 
-/** Dispose of every node of a tree with \f$O(1)\f$ additional memory.
+/** Dispose of every node of a tree in postorder with \f$O(1)\f$ additional
+    memory.
 
-    While the root has a left child, that child is rotated up; a root
-    without a left child is disposed of and its right subtree takes its
-    place. Neither the call stack nor the heap is used, whatever the shape
-    of the tree.
+    The way back from the node in course to the root is kept in the tree
+    itself: while the subtrees of a node are disposed of, its left link
+    points to its parent, and its right link is cleared as soon as the right
+    subtree is entered. Neither the call stack nor the heap is used,
+    whatever the shape of the tree.
 
     @param[in] root of the tree
-    @param[in] dispose operation invoked once on each node, after its links
-    were read; it must not throw
-    @note \f$O(n)\f$: each node is rotated up at most once. The links of the
-    nodes are rewritten, so the tree must be abandoned by the caller.
+    @param[in] dispose operation invoked once on each node, when the nodes
+    below it are gone and both its links are `Node::NullPtr`; it must not
+    throw
+    @note \f$O(n)\f$: each link is read and written a constant number of
+    times. The links of the nodes are rewritten, so the tree must be
+    abandoned by the caller.
     @ingroup Trees
  */
 template <BinNodeLike Node, class Dispose>
-inline void dispose_tree_by_rotations(Node *root, Dispose & dispose) noexcept
+inline void dispose_tree_by_link_inversion(Node *root, Dispose & dispose) noexcept
 {
-  while (root != Node::NullPtr)
-    if (Node *l = LLINK(root); l == Node::NullPtr)
-      {
-        Node *r = RLINK(root);
-        dispose(root);
-        root = r;
-      }
-    else
-      { // rotate l up; the tree only has to stay connected
-        LLINK(root) = RLINK(l);
-        RLINK(l) = root;
-        root = l;
-      }
+  if (root == Node::NullPtr)
+    return;
+
+  Node *parent = Node::NullPtr; // of p; each ancestor keeps its own in LLINK
+  Node *p = root;
+  while (true)
+    {
+      // Go down to a leaf, first by the left, leaving in each node the way
+      // back to its parent.
+      while (true)
+        {
+          Node *child = LLINK(p);
+          if (child == Node::NullPtr)
+            {
+              child = RLINK(p);
+              if (child == Node::NullPtr)
+                break;
+              RLINK(p) = Node::NullPtr; // the right subtree is the one in course
+            }
+          LLINK(p) = parent;
+          parent = p;
+          p = child;
+        }
+
+      // Nothing hangs from p. Dispose of it and go up while the node reached
+      // has no right subtree left; otherwise that subtree is the next one.
+      while (true)
+        {
+          dispose(p);
+          if (parent == Node::NullPtr)
+            return;
+
+          p = parent;
+          parent = LLINK(p);
+          Node *r = RLINK(p);
+          LLINK(p) = Node::NullPtr;
+          if (r == Node::NullPtr)
+            continue;
+
+          RLINK(p) = Node::NullPtr;
+          LLINK(p) = parent;
+          parent = p;
+          p = r;
+          break;
+        }
+    }
 }
 
 /** Dispose of every node of a tree in postorder.
 
     The recursion is bounded: a subtree that hangs deeper than `levels` is
-    disposed of by dispose_tree_by_rotations(). A degenerate tree therefore
-    exhausts neither the call stack nor the memory, which matters because
-    the destructors pass here.
+    disposed of by dispose_tree_by_link_inversion(), which keeps the order.
+    A degenerate tree therefore exhausts neither the call stack nor the
+    memory, which matters because the destructors pass here.
 
     @param[in] root of the tree
     @param[in] dispose operation invoked once on each node, when the nodes
-    below it are gone; it must not throw
+    below it are gone and both its links are `Node::NullPtr`; it must not
+    throw
     @param[in] levels number of levels that the recursion may still go down
-    @note \f$O(n)\f$. The tree must be abandoned by the caller.
+    @note \f$O(n)\f$. The left subtree of a node is disposed of before the
+    right one. The tree must be abandoned by the caller.
     @ingroup Trees
  */
 template <BinNodeLike Node, class Dispose>
@@ -661,19 +700,23 @@ inline void dispose_tree_nodes(Node *root, Dispose & dispose,
 
   if (levels == 0) [[unlikely]]
     {
-      dispose_tree_by_rotations(root, dispose);
+      dispose_tree_by_link_inversion(root, dispose);
       return;
     }
 
   dispose_tree_nodes(LLINK(root), dispose, levels - 1);
   dispose_tree_nodes(RLINK(root), dispose, levels - 1);
+  LLINK(root) = RLINK(root) = Node::NullPtr; // what hung from them is gone
   dispose(root);
 }
 
 /** Free all the memory occupied by the tree `root`
 
-    The depth of the recursion is bounded and nothing is allocated, whatever
-    the height of the tree; see dispose_tree_nodes().
+    The nodes are freed in postorder: a node is freed after the nodes of
+    its left subtree and of its right subtree, in that order, and with both
+    its links already set to `Node::NullPtr`. The depth of the recursion is
+    bounded and nothing is allocated, whatever the height of the tree; see
+    dispose_tree_nodes().
 
     \note It is assumed that the nodes were allocated with `new`
     operator.
@@ -694,9 +737,9 @@ inline void destroyRec(Node *&root) noexcept
 
 /** Traverses the tree and calls key's destructors
 
-    The depth of the recursion is bounded and nothing is allocated, as in
-    destroyRec(). Below that depth the links of the nodes are rewritten,
-    which is harmless because the caller is about to abandon them.
+    The keys are destroyed in postorder and the links of every node are
+    left as `Node::NullPtr`, as in destroyRec(). The depth of the recursion
+    is bounded and nothing is allocated.
 
         @param[in,out] root of tree whose keys are destroyed; it is left as
         `Node::NullPtr`
