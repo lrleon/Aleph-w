@@ -299,6 +299,15 @@ namespace Aleph
       deallocate_bucket_with_record(bucket, [](Bucket *) {});
     }
 
+    /// Undoes what allocate_bucket() or hard_allocate_bucket() did when
+    /// they reserved `bucket` for `key`, which was never stored in it. The
+    /// probe counters are walked back with `key`, not with whatever the
+    /// bucket holds.
+    void undo_allocate_bucket(Bucket *bucket, const Key & key) noexcept
+    {
+      release_bucket(bucket, key, [](Bucket *) {});
+    }
+
     size_t index_forward(size_t & i) const noexcept
     {
       assert(i < len);
@@ -368,15 +377,27 @@ namespace Aleph
     void deallocate_bucket_with_record(Bucket *bucket,
                                        RecordBucket && record_bucket) noexcept
     {
+      release_bucket(bucket, bucket->key,
+                     std::forward<RecordBucket>(record_bucket));
+    }
+
+    /// Frees `bucket`, which was reached with the probe sequence of `key`,
+    /// and walks that sequence back: every bucket that the insertion of
+    /// `key` counted is counted down. `key` is the key stored in the
+    /// bucket, or the key that the bucket was reserved for when storing it
+    /// failed. `record_bucket` is called on each bucket before its counter
+    /// goes down.
+    template <typename RecordBucket>
+    void release_bucket(Bucket *bucket, const Key & key,
+                        RecordBucket && record_bucket) noexcept
+    {
       assert(bucket->status == BUSY);
 
       bucket->status = DELETED;
-      const Key & key = bucket->key;
 
       const size_t i_fst = hash_fct(key) % len;
       if (&table[i_fst] == bucket)
         {
-          assert(Cmp () (table[i_fst].key, key));
           assert(table[i_fst].probe_type == FIRST_PROBE);
         }
       else
@@ -384,7 +405,6 @@ namespace Aleph
           const size_t i_snd = second_hash_fct(key) % len;
           if (&table[i_snd] == bucket)
             {
-              assert(Cmp () (table[i_snd].key, key));
               assert(table[i_snd].probe_type == SECOND_PROBE);
               record_bucket(&table[i_fst]);
               decrease_probe_counter(&table[i_fst]);
@@ -402,7 +422,6 @@ namespace Aleph
                   record_bucket(&table[i]);
                   decrease_probe_counter(&table[i]);
                 }
-              assert(Cmp () (table[i].key, key));
               assert(table[i].probe_type == LINEAR_PROBE);
             }
         }

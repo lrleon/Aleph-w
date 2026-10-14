@@ -223,6 +223,11 @@ namespace Aleph
     Hash_Fct hash_fct;
     bool with_resize;
 
+    // Whether the bucket that allocate_bucket() or hard_allocate_bucket()
+    // reserved last was the one of a removed key; otherwise it was empty.
+    // undo_allocate_bucket() needs it to leave that bucket as it was.
+    bool reserved_bucket_was_deleted = false;
+
     [[nodiscard]] bool is_valid_bucket(Bucket *bucket) const noexcept
     {
       if (table == nullptr)
@@ -478,6 +483,7 @@ namespace Aleph
           auto & b = table[i];
           if (b.status == EMPTY) [[likely]]
             {
+              reserved_bucket_was_deleted = first_deleted != nullptr;
               Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
               bucket->status = BUSY;
               ++N;
@@ -500,6 +506,7 @@ namespace Aleph
 
       if (first_deleted != nullptr) [[unlikely]]
         {
+          reserved_bucket_was_deleted = true;
           first_deleted->status = BUSY;
           ++N;
           return first_deleted;
@@ -525,6 +532,7 @@ namespace Aleph
           auto & b = table[i];
           if (b.status == EMPTY) [[likely]]
             {
+              reserved_bucket_was_deleted = first_deleted != nullptr;
               Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
               bucket->status = BUSY;
               ++N;
@@ -547,6 +555,7 @@ namespace Aleph
 
       if (first_deleted != nullptr) [[unlikely]]
         {
+          reserved_bucket_was_deleted = true;
           first_deleted->status = BUSY;
           ++N;
           return {first_deleted, false};
@@ -610,6 +619,19 @@ namespace Aleph
       const auto idx = static_cast<size_t>(bucket - &table[0]);
       table[idx].status = DELETED;
       cleanup_deleted_chain(idx);
+    }
+
+    /// Undoes what allocate_bucket() or hard_allocate_bucket() did when
+    /// they reserved `bucket` for a key that is not to stay in it. It must
+    /// come before any other bucket is reserved. The bucket goes back to
+    /// what it was, empty or the one of a removed key: an empty bucket that
+    /// became a removed one would make the searches that reach it go on.
+    void undo_allocate_bucket(Bucket *bucket, const Key &) noexcept
+    {
+      assert(is_valid_bucket(bucket) and bucket->status == BUSY);
+
+      --N;
+      bucket->status = reserved_bucket_was_deleted ? DELETED : EMPTY;
     }
 
    public:
