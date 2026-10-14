@@ -54,19 +54,39 @@
                                                                         \
 private:                                                                \
                                                                         \
+ /* Grows the table if the key just stored in curr_bucket took it over */ \
+ /* the upper threshold, and returns where the key is.                */ \
  Key * test_resize(Bucket * curr_bucket, const Key & key)               \
  {                                                                      \
    if (not ((with_resize and this->current_alpha() >= upper_alpha)))	\
      return &curr_bucket->key;                                          \
                                                                         \
-   Key key_copy = key;                                                  \
-   this->resize(Primes::next_prime(2*len));                             \
+   return grow_after_insertion(curr_bucket, key);                       \
+ }                                                                      \
                                                                         \
-   Key * key_ptr = search(key_copy);                                    \
-   assert(key_ptr != nullptr);                                          \
-   assert(cmp(*key_ptr, key_copy));                                     \
+ /* The growth itself, apart from the test that every insertion runs. */ \
+ /* If the table cannot grow, the key is taken out again and the      */ \
+ /* exception goes on: an insertion that throws leaves the table as   */ \
+ /* it was.                                                           */ \
+ Key * grow_after_insertion(Bucket * curr_bucket, const Key & key)      \
+ {                                                                      \
+   try                                                                  \
+     {                                                                  \
+       Key key_copy = key;                                              \
+       this->resize(Primes::next_prime(2*len));                         \
                                                                         \
-   return key_ptr;                                                      \
+       Key * key_ptr = search(key_copy);                                \
+       assert(key_ptr != nullptr);                                      \
+       assert(cmp(*key_ptr, key_copy));                                 \
+                                                                        \
+       return key_ptr;                                                  \
+     }                                                                  \
+   catch (...)                                                          \
+     {                                                                  \
+       /* resize() leaves the buckets as they were when it fails */     \
+       this->undo_allocate_bucket(curr_bucket, curr_bucket->key);       \
+       throw;                                                           \
+     }                                                                  \
  }                                                                      \
                                                                         \
  static void update_stat_len(DynArray<size_t> & lens, size_t i)         \

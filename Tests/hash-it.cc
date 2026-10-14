@@ -44,9 +44,12 @@
 # include <tpl_odhash.H>
 # include <tpl_lhash.H>
 # include <tpl_hash.H>
+# include <algorithm>
 # include <stdexcept>
 # include <functional>
 # include <ostream>
+# include <random>
+# include <set>
 # include <type_traits>
 # include <utility>
 # include <vector>
@@ -204,9 +207,10 @@ TEST(OLhashTable, NoResizeFillAndSearchMiss)
 {
   OLhashTable<int> tbl(5, Aleph::dft_hash_fct<int>, Aleph::equal_to<int>(),
                        hash_default_lower_alpha, hash_default_upper_alpha, false);
-  for (int i = 0; i < 5; ++i)
+  for (int i = 0; i < 4; ++i)
     ASSERT_NE(tbl.insert(i), nullptr);
-  EXPECT_EQ(tbl.size(), static_cast<size_t>(5));
+  EXPECT_EQ(tbl.insert(4), nullptr); // full: one bucket stays empty
+  EXPECT_EQ(tbl.size(), static_cast<size_t>(4));
   EXPECT_EQ(tbl.search(42), nullptr); // miss should terminate
 }
 
@@ -254,15 +258,16 @@ TEST(OLhashTable, ConstantHashCollisionsNoResize)
   auto const_hash = [](int) { return static_cast<size_t>(0); };
   OLhashTable<int> tbl(5, const_hash, Aleph::equal_to<int>(),
                        hash_default_lower_alpha, hash_default_upper_alpha, false);
-  for (int i = 0; i < 5; ++i)
+  for (int i = 0; i < 4; ++i)
     ASSERT_NE(tbl.insert(i), nullptr);
+  EXPECT_EQ(tbl.insert(4), nullptr); // full: one bucket stays empty
 
-  for (int i = 0; i < 5; ++i)
+  for (int i = 0; i < 4; ++i)
     EXPECT_NE(tbl.search(i), nullptr);
 
   auto stats = tbl.stats();
-  EXPECT_EQ(stats.num_busy, static_cast<size_t>(5));
-  EXPECT_GE(stats.max_len, static_cast<size_t>(5)); // long collision chain
+  EXPECT_EQ(stats.num_busy, static_cast<size_t>(4));
+  EXPECT_GE(stats.max_len, static_cast<size_t>(4)); // long collision chain
 }
 
 TEST(OLhashTable, RehashAfterDeletesPreservesLiveKeys)
@@ -357,9 +362,10 @@ TEST(OLhashTable, StatsExtremes)
   OLhashTable<int> tbl_full(5, const_hash, Aleph::equal_to<int>(),
                             hash_default_lower_alpha, hash_default_upper_alpha, false);
   for (int i = 0; i < 5; ++i)
-    tbl_full.insert(i);
+    (void) tbl_full.insert(i); // the last one does not fit
   auto stats_full = tbl_full.stats();
-  EXPECT_EQ(stats_full.num_busy, static_cast<size_t>(5));
+  EXPECT_EQ(stats_full.num_busy, static_cast<size_t>(4));
+  EXPECT_EQ(stats_full.num_empty, static_cast<size_t>(1));
   EXPECT_EQ(stats_full.num_deleted, static_cast<size_t>(0));
   EXPECT_FALSE(std::isnan(stats_full.avg));
   EXPECT_FALSE(std::isnan(stats_full.var));
@@ -381,9 +387,11 @@ TEST(OLhashTable, InsertFailsWhenFullNoResize)
                        hash_default_lower_alpha, hash_default_upper_alpha, false);
   ASSERT_NE(tbl.insert(1), nullptr);
   ASSERT_NE(tbl.insert(2), nullptr);
-  ASSERT_NE(tbl.insert(3), nullptr);
+  // Two keys fill three buckets, since one must stay empty
+  EXPECT_EQ(tbl.insert(3), nullptr);
   // With a full table and no resize, inserting a duplicate returns nullptr
   EXPECT_EQ(tbl.insert(2), nullptr);
+  EXPECT_EQ(tbl.size(), static_cast<size_t>(2));
 }
 
 TEST(OLhashTable, ResizeIncreasesCapacity)
@@ -427,8 +435,9 @@ TEST(ODhashTable, RemoveMissingInFullTableDoesNotHang)
                        hash_default_lower_alpha,
                        hash_default_upper_alpha,
                        /*with_resize*/false);
-  for (int i = 0; i < 5; ++i)
+  for (int i = 0; i < 4; ++i)
     ASSERT_NE(tbl.insert(i), nullptr);
+  EXPECT_EQ(tbl.insert(4), nullptr); // full: one bucket stays empty
 
   // Missing key must throw in finite time (no infinite loop)
   EXPECT_THROW(tbl.remove(99), std::domain_error);
@@ -1532,7 +1541,8 @@ namespace
   // A key whose copies can be made to throw.
   struct Fragile_Key
   {
-    static inline bool fail = false;
+    // How many copies still succeed. Negative: none fails.
+    static inline long copies_before_failure = -1;
 
     long value = 0;
 
@@ -1558,11 +1568,12 @@ namespace
 
     bool operator==(const Fragile_Key &) const = default;
 
-  private:
     static void may_throw()
     {
-      if (fail)
+      if (copies_before_failure == 0)
         throw std::runtime_error("no copy");
+      if (copies_before_failure > 0)
+        --copies_before_failure;
     }
   };
 
@@ -1576,10 +1587,15 @@ namespace
     return second_hash_a(key.value);
   }
 
+  // While it lives, copying a key throws after `successful` copies.
   struct Failing_Copies
   {
-    Failing_Copies() { Fragile_Key::fail = true; }
-    ~Failing_Copies() { Fragile_Key::fail = false; }
+    explicit Failing_Copies(const long successful = 0)
+    {
+      Fragile_Key::copies_before_failure = successful;
+    }
+
+    ~Failing_Copies() { Fragile_Key::copies_before_failure = -1; }
   };
 
   template <class Table>
@@ -1770,5 +1786,685 @@ namespace
     EXPECT_EQ(lambda_second.get_second_hash_fct()(1), 11u);
     const OD with_defaults(11, plus_ten, plus_ten);
     EXPECT_EQ(with_defaults.get_second_hash_fct()(1), 11u);
+  }
+
+  // -------------------------------------------------------------------------
+  // An insertion that throws leaves an open addressing table as it was
+  // -------------------------------------------------------------------------
+
+  // A key with copy operations only, as many older classes are. Moving it
+  // copies it, so swapping two of them can throw.
+  struct Copy_Only_Key
+  {
+    long value = 0;
+
+    Copy_Only_Key() = default;
+
+    Copy_Only_Key(const long v) : value(v) {}
+
+    Copy_Only_Key(const Copy_Only_Key & other) : value(other.value)
+    {
+      Fragile_Key::may_throw();
+    }
+
+    Copy_Only_Key & operator=(const Copy_Only_Key & other)
+    {
+      Fragile_Key::may_throw();
+      value = other.value;
+      return *this;
+    }
+
+    bool operator==(const Copy_Only_Key &) const = default;
+  };
+
+  static_assert(noexcept(std::swap(std::declval<Fragile_Key &>(),
+                                   std::declval<Fragile_Key &>())));
+  static_assert(not noexcept(std::swap(std::declval<Copy_Only_Key &>(),
+                                       std::declval<Copy_Only_Key &>())));
+
+  // Hash functions that send many keys to the same buckets, so that the
+  // insertions go through the buckets of removed keys and, in the double
+  // hashing table, through its three kinds of probe.
+  template <class Key> size_t crowded_hash(const Key & key) noexcept
+  {
+    return static_cast<size_t>(key.value) % 7;
+  }
+
+  template <class Key> size_t crowded_second_hash(const Key & key) noexcept
+  {
+    return static_cast<size_t>(key.value) % 5;
+  }
+
+  template <class Table> struct OpenTableInsertionThatThrows
+    : public ::testing::Test
+  {
+    using Key = typename Table::Key_Type;
+
+    static Table make(const size_t len, const float upper_alpha,
+                      const bool resizes)
+    {
+      if constexpr (requires (Table & t) { t.get_second_hash_fct(); })
+        return Table(len, crowded_hash<Key>, crowded_second_hash<Key>,
+                     Aleph::equal_to<Key>(), 0.05f, upper_alpha, resizes);
+      else
+        return Table(len, crowded_hash<Key>, Aleph::equal_to<Key>(),
+                     0.05f, upper_alpha, resizes);
+    }
+
+    // Keys [0, 20) without six of them, whose buckets are left behind.
+    static Table with_keys_and_removals(const bool resizes)
+    {
+      Table table = make(31, 0.95f, resizes);
+      for (long k = 0; k < 20; ++k)
+        EXPECT_NE(table.insert(Key(k)), nullptr) << "key " << k;
+      for (const long k : {1L, 4L, 7L, 10L, 13L, 16L})
+        table.remove(Key(k));
+      return table;
+    }
+
+    static std::vector<long> keys_of(const Table & table)
+    {
+      std::vector<long> keys;
+      table.for_each([&keys] (const Key & key) { keys.push_back(key.value); });
+      std::sort(keys.begin(), keys.end());
+      return keys;
+    }
+
+    // What the probes depend on: the state of every bucket and, in the
+    // double hashing table, how many probe sequences go through it. In
+    // these tests every removed key's bucket lies on the probe sequence of
+    // a key still stored, so undoing an insertion must restore them all.
+    static std::vector<std::pair<int, unsigned>> probes_of(const Table & table)
+    {
+      std::vector<std::pair<int, unsigned>> state;
+      for (size_t i = 0; i < table.capacity(); ++i)
+        if constexpr (requires { table.table[0].probe_counter; })
+          state.emplace_back(table.table[i].status,
+                             table.table[i].probe_counter);
+        else
+          state.emplace_back(table.table[i].status, 0u);
+      return state;
+    }
+  };
+
+  using Tables_With_Fragile_Keys =
+    ::testing::Types<OLhashTable<Fragile_Key>, ODhashTable<Fragile_Key>>;
+  TYPED_TEST_SUITE(OpenTableInsertionThatThrows, Tables_With_Fragile_Keys);
+
+  // The bucket was marked as busy before the key was copied into it. When
+  // the copy threw, the table kept one entry more, holding whatever the
+  // bucket had: a key by default or one that had been removed.
+  TYPED_TEST(OpenTableInsertionThatThrows, KeyCopyThatThrowsLeavesNoEntry)
+  {
+    for (const bool resizes : {false, true})
+      {
+        TypeParam table = this->with_keys_and_removals(resizes);
+        const auto keys = this->keys_of(table);
+        const auto probes = this->probes_of(table);
+        const size_t capacity = table.capacity();
+        ASSERT_EQ(keys.size(), 14u);
+
+        for (long k = 0; k < 60; ++k)
+          for (int operation = 0; operation < 4; ++operation)
+            {
+              const Fragile_Key key(k);
+              const bool present = table.contains(key);
+              bool threw = false;
+              {
+                Failing_Copies failing;
+                try
+                  {
+                    switch (operation)
+                      {
+                      case 0: (void) table.insert(key); break;
+                      case 1: (void) table.search_or_insert(key); break;
+                      case 2: (void) table.contains_or_insert(key); break;
+                      default: (void) table[key]; break;
+                      }
+                  }
+                catch (const std::runtime_error &)
+                  {
+                    threw = true;
+                  }
+              }
+              // a key that is already there is not copied
+              ASSERT_EQ(threw, not present)
+                << "key " << k << ", operation " << operation;
+              ASSERT_EQ(this->keys_of(table), keys)
+                << "key " << k << ", operation " << operation;
+              ASSERT_EQ(table.size(), keys.size());
+              ASSERT_EQ(table.capacity(), capacity);
+              ASSERT_EQ(this->probes_of(table), probes)
+                << "key " << k << ", operation " << operation;
+            }
+
+        // and the table goes on working
+        for (long k = 0; k < 28; ++k)
+          {
+            const bool present = table.contains(Fragile_Key(k));
+            EXPECT_EQ(table.insert(Fragile_Key(k)) != nullptr, not present)
+              << "key " << k;
+          }
+        for (long k = 0; k < 28; ++k)
+          EXPECT_TRUE(table.contains(Fragile_Key(k))) << "key " << k;
+        for (long k = 0; k < 28; ++k)
+          table.remove(Fragile_Key(k));
+        EXPECT_TRUE(table.is_empty());
+      }
+  }
+
+  // The key is stored and then the table grows, which copies the key once
+  // more and asks for memory. If that failed, the insertion threw and the
+  // key stayed in the table.
+  TYPED_TEST(OpenTableInsertionThatThrows, GrowthThatFailsTakesTheKeyOutAgain)
+  {
+    for (int operation = 0; operation < 5; ++operation)
+      {
+        TypeParam table = this->make(11, 0.5f, true);
+        for (long k = 0; k < 5; ++k)
+          ASSERT_NE(table.insert(Fragile_Key(k)), nullptr);
+        ASSERT_EQ(table.capacity(), 11u); // the sixth key makes it grow
+        const auto keys = this->keys_of(table);
+        const auto probes = this->probes_of(table);
+
+        const Fragile_Key key(5);
+        {
+          // the copy into the bucket succeeds; the one made to grow fails
+          Failing_Copies failing(operation == 4 ? 0 : 1);
+          switch (operation)
+            {
+            case 0:
+              EXPECT_THROW((void) table.insert(key), std::runtime_error);
+              break;
+            case 1:
+              EXPECT_THROW((void) table.search_or_insert(key),
+                           std::runtime_error);
+              break;
+            case 2:
+              EXPECT_THROW((void) table.contains_or_insert(key),
+                           std::runtime_error);
+              break;
+            case 3:
+              EXPECT_THROW((void) table[key], std::runtime_error);
+              break;
+            default: // moved in: the only copy is the one made to grow
+              EXPECT_THROW((void) table.insert(Fragile_Key(5)),
+                           std::runtime_error);
+              break;
+            }
+        }
+
+        EXPECT_EQ(this->keys_of(table), keys) << "operation " << operation;
+        EXPECT_EQ(table.size(), 5u) << "operation " << operation;
+        EXPECT_EQ(table.capacity(), 11u) << "operation " << operation;
+        EXPECT_FALSE(table.contains(key)) << "operation " << operation;
+        EXPECT_EQ(this->probes_of(table), probes)
+          << "operation " << operation;
+
+        ASSERT_NE(table.insert(key), nullptr);
+        EXPECT_GT(table.capacity(), 11u);
+        for (long k = 0; k < 6; ++k)
+          EXPECT_TRUE(table.contains(Fragile_Key(k))) << "key " << k;
+      }
+  }
+
+  // A search that reaches an empty bucket stops there. An insertion that
+  // threw left the bucket it had reserved as the one of a removed key, so
+  // a few of them could use up the empty buckets of a table far from full.
+  TYPED_TEST(OpenTableInsertionThatThrows, FailuresDoNotUseUpEmptyBuckets)
+  {
+    TypeParam table = this->make(11, 0.35f, true);
+    for (const long k : {1L, 3L, 5L})
+      ASSERT_NE(table.insert(Fragile_Key(k)), nullptr);
+    ASSERT_EQ(table.capacity(), 11u); // a fourth key makes it grow
+    const auto probes = this->probes_of(table);
+    const size_t empty = table.stats().num_empty;
+
+    // each key goes to an empty bucket that a busy one follows
+    for (const long k : {0L, 2L, 4L})
+      {
+        const Fragile_Key key(k);
+        {
+          Failing_Copies failing; // the copy into the bucket fails
+          EXPECT_THROW((void) table.insert(key), std::runtime_error)
+            << "key " << k;
+        }
+        {
+          Failing_Copies failing(1); // the copy made to grow fails
+          EXPECT_THROW((void) table.insert(key), std::runtime_error)
+            << "key " << k;
+        }
+      }
+
+    EXPECT_EQ(table.size(), 3u);
+    EXPECT_EQ(table.capacity(), 11u);
+    EXPECT_EQ(table.stats().num_empty, empty);
+    EXPECT_EQ(this->probes_of(table), probes);
+  }
+
+  // A removed key's bucket that no probe sequence goes through is not
+  // needed. When a failed insertion had reserved one, it is left empty,
+  // and so are the unneeded removed keys' buckets right before it.
+  TEST(OLhashTable, FailedInsertionClearsRemovedMarksNoOneNeeds)
+  {
+    OLhashTable<Fragile_Key> table(11, crowded_hash<Fragile_Key>,
+                                   Aleph::equal_to<Fragile_Key>(), 0.05f,
+                                   0.95f, false);
+    for (const long k : {1L, 2L, 3L})
+      ASSERT_NE(table.insert(Fragile_Key(k)), nullptr);
+    table.remove(Fragile_Key(1));
+    table.remove(Fragile_Key(2));
+    ASSERT_EQ(table.stats().num_deleted, 2u);
+
+    {
+      const Fragile_Key key(9); // its probe sequence starts at bucket 2
+      Failing_Copies failing;
+      EXPECT_THROW((void) table.insert(key), std::runtime_error);
+    }
+
+    EXPECT_EQ(table.size(), 1u);
+    EXPECT_TRUE(table.contains(Fragile_Key(3)));
+    EXPECT_EQ(table.stats().num_deleted, 0u);
+    EXPECT_EQ(table.stats().num_empty, 10u);
+  }
+
+  // Real insertions and removals mixed with insertions that fail, checked
+  // against a std::set.
+  TYPED_TEST(OpenTableInsertionThatThrows, FailuresDoNotDisturbTheTable)
+  {
+    TypeParam table = this->make(11, 0.7f, true);
+    std::set<long> oracle;
+    std::mt19937 rng(20261013);
+
+    auto check = [&] (const int step)
+      {
+        ASSERT_EQ(table.size(), oracle.size()) << "step " << step;
+        for (long k = 0; k < 150; ++k)
+          ASSERT_EQ(table.contains(Fragile_Key(k)), oracle.count(k) == 1)
+            << "key " << k << ", step " << step;
+      };
+
+    for (int step = 0; step < 20000; ++step)
+      {
+        const long k = static_cast<long>(rng() % 150);
+        const Fragile_Key key(k);
+        switch (rng() % 5)
+          {
+          case 0: // a real insertion
+            EXPECT_EQ(table.insert(key) != nullptr, oracle.insert(k).second);
+            break;
+          case 1: // a real removal
+            if (oracle.erase(k) == 1)
+              table.remove(key);
+            else
+              EXPECT_THROW(table.remove(key), std::domain_error);
+            break;
+          case 2: // the copy into the bucket fails
+            {
+              Failing_Copies failing;
+              try
+                {
+                  EXPECT_EQ(table.search_or_insert(key) != nullptr, true);
+                  EXPECT_EQ(oracle.count(k), 1u); // it was already there
+                }
+              catch (const std::runtime_error &)
+                {
+                  EXPECT_EQ(oracle.count(k), 0u);
+                }
+            }
+            break;
+          default: // the copy made to grow fails, when the table grows
+            {
+              Failing_Copies failing(1);
+              try
+                {
+                  if (table.insert(key) != nullptr)
+                    oracle.insert(k);
+                }
+              catch (const std::runtime_error &)
+                {
+                  EXPECT_EQ(oracle.count(k), 0u);
+                }
+            }
+            break;
+          }
+        if (step % 500 == 0)
+          check(step);
+      }
+    check(20000);
+
+    for (const long k : oracle)
+      table.remove(Fragile_Key(k));
+    EXPECT_TRUE(table.is_empty());
+  }
+
+  template <class Table> struct OpenTableWithCopyOnlyKeys
+    : public OpenTableInsertionThatThrows<Table> {};
+
+  using Tables_With_Copy_Only_Keys =
+    ::testing::Types<OLhashTable<Copy_Only_Key>, ODhashTable<Copy_Only_Key>>;
+  TYPED_TEST_SUITE(OpenTableWithCopyOnlyKeys, Tables_With_Copy_Only_Keys);
+
+  // The insertions that take the key by rvalue swap it into the bucket. A
+  // swap that can throw could leave both the table and the argument
+  // broken, so such a key is copied, and the copy that fails is undone.
+  TYPED_TEST(OpenTableWithCopyOnlyKeys, MovedInKeyThatThrowsLeavesNoEntry)
+  {
+    for (const bool resizes : {false, true})
+      {
+        TypeParam table = this->with_keys_and_removals(resizes);
+        const auto keys = this->keys_of(table);
+        const auto probes = this->probes_of(table);
+
+        for (long k = 0; k < 60; ++k)
+          for (int operation = 0; operation < 3; ++operation)
+            {
+              Copy_Only_Key key(k);
+              const bool present = table.contains(key);
+              bool threw = false;
+              {
+                Failing_Copies failing;
+                try
+                  {
+                    switch (operation)
+                      {
+                      case 0: (void) table.insert(std::move(key)); break;
+                      case 1:
+                        (void) table.search_or_insert(std::move(key));
+                        break;
+                      default:
+                        (void) table.contains_or_insert(std::move(key));
+                        break;
+                      }
+                  }
+                catch (const std::runtime_error &)
+                  {
+                    threw = true;
+                  }
+              }
+              ASSERT_EQ(threw, not present)
+                << "key " << k << ", operation " << operation;
+              ASSERT_EQ(key.value, k) << "the argument was not touched";
+              ASSERT_EQ(this->keys_of(table), keys)
+                << "key " << k << ", operation " << operation;
+              ASSERT_EQ(this->probes_of(table), probes)
+                << "key " << k << ", operation " << operation;
+            }
+
+        for (long k = 20; k < 28; ++k)
+          EXPECT_NE(table.insert(Copy_Only_Key(k)), nullptr) << "key " << k;
+        for (long k = 20; k < 28; ++k)
+          EXPECT_TRUE(table.contains(Copy_Only_Key(k))) << "key " << k;
+      }
+  }
+
+  // Growing places the keys in new buckets, and such keys are copied there.
+  // A copy that failed halfway left the table with the keys placed so far:
+  // the others were lost, and the old buckets leaked.
+  TYPED_TEST(OpenTableWithCopyOnlyKeys, GrowthThatFailsHalfwayLeavesTheTable)
+  {
+    // the key is copied into its bucket and once more before growing; the
+    // next 6 copies place the 6 keys in the new buckets
+    for (size_t successful = 2; successful < 8; ++successful)
+      {
+        TypeParam table = this->make(11, 0.5f, true);
+        for (long k = 0; k < 5; ++k)
+          ASSERT_NE(table.insert(Copy_Only_Key(k)), nullptr);
+        ASSERT_EQ(table.capacity(), 11u); // the sixth key makes it grow
+        const auto keys = this->keys_of(table);
+        const auto probes = this->probes_of(table);
+
+        const Copy_Only_Key key(5);
+        {
+          Failing_Copies failing(successful);
+          EXPECT_THROW((void) table.insert(key), std::runtime_error)
+            << successful << " copies";
+        }
+
+        EXPECT_EQ(this->keys_of(table), keys) << successful << " copies";
+        EXPECT_EQ(table.size(), 5u) << successful << " copies";
+        EXPECT_EQ(table.capacity(), 11u) << successful << " copies";
+        EXPECT_EQ(this->probes_of(table), probes) << successful << " copies";
+
+        ASSERT_NE(table.insert(key), nullptr);
+        EXPECT_GT(table.capacity(), 11u);
+        for (long k = 0; k < 6; ++k)
+          EXPECT_TRUE(table.contains(Copy_Only_Key(k))) << "key " << k;
+      }
+  }
+
+  // rehash() and resize() place the keys in new buckets the same way.
+  TYPED_TEST(OpenTableWithCopyOnlyKeys, RebuildThatFailsLeavesTheTable)
+  {
+    TypeParam table = this->with_keys_and_removals(false);
+    const auto keys = this->keys_of(table);
+    const auto probes = this->probes_of(table);
+    const size_t capacity = table.capacity();
+    const size_t larger = Primes::next_prime(2 * capacity);
+
+    for (size_t successful = 0; successful < keys.size(); ++successful)
+      {
+        {
+          Failing_Copies failing(successful);
+          EXPECT_THROW(table.rehash(), std::runtime_error) << successful;
+        }
+        ASSERT_EQ(this->keys_of(table), keys) << successful;
+        ASSERT_EQ(this->probes_of(table), probes) << successful;
+        ASSERT_EQ(table.capacity(), capacity) << successful;
+
+        {
+          Failing_Copies failing(successful);
+          EXPECT_THROW((void) table.resize(larger), std::runtime_error)
+            << successful;
+        }
+        ASSERT_EQ(this->keys_of(table), keys) << successful;
+        ASSERT_EQ(this->probes_of(table), probes) << successful;
+        ASSERT_EQ(table.capacity(), capacity) << successful;
+      }
+
+    table.rehash();
+    EXPECT_EQ(this->keys_of(table), keys);
+    EXPECT_EQ(table.stats().num_deleted, 0u);
+    EXPECT_EQ(table.resize(larger), larger);
+    EXPECT_EQ(this->keys_of(table), keys);
+  }
+
+  // -------------------------------------------------------------------------
+  // A table that does not resize itself is full with capacity() - 1 keys
+  // -------------------------------------------------------------------------
+
+  template <class Table> struct OpenTableWithoutResizing
+    : public ::testing::Test
+  {
+    static Table make(const size_t len)
+    {
+      if constexpr (requires (Table & t) { t.get_second_hash_fct(); })
+        return Table(len, Aleph::dft_hash_ptr_fct<long>,
+                     Aleph::snd_hash_ptr_fct<long>, Aleph::equal_to<long>(),
+                     hash_default_lower_alpha, hash_default_upper_alpha, false);
+      else
+        return Table(len, Aleph::dft_hash_ptr_fct<long>, Aleph::equal_to<long>(),
+                     hash_default_lower_alpha, hash_default_upper_alpha, false);
+    }
+
+    // Inserts keys 0, 1, 2... until the table refuses one, and returns how
+    // many it took.
+    static size_t fill(Table & table)
+    {
+      size_t taken = 0;
+      for (long k = 0; k < 1000 and table.insert(k) != nullptr; ++k)
+        ++taken;
+      return taken;
+    }
+  };
+
+  using Open_Tables_Of_Longs =
+    ::testing::Types<OLhashTable<long>, ODhashTable<long>>;
+  TYPED_TEST_SUITE(OpenTableWithoutResizing, Open_Tables_Of_Longs);
+
+  // A search that misses stops at an empty bucket, so the table keeps one.
+  // It used to take a key in every bucket, and the double hashing table
+  // then failed an assertion on the next insertion.
+  TYPED_TEST(OpenTableWithoutResizing, KeepsOneBucketEmpty)
+  {
+    TypeParam table = this->make(11);
+    ASSERT_EQ(table.capacity(), 11u);
+
+    EXPECT_EQ(this->fill(table), 10u);
+    EXPECT_EQ(table.size(), 10u);
+    EXPECT_EQ(table.capacity(), 11u);
+    EXPECT_EQ(table.stats().num_empty, 1u);
+
+    const long absent = 500;
+    EXPECT_EQ(table.insert(absent), nullptr);
+    EXPECT_EQ(table.insert(long(absent)), nullptr);
+    EXPECT_FALSE(table.contains(absent));
+    EXPECT_EQ(table.size(), 10u);
+
+    // a removal makes room for one key
+    table.remove(3L);
+    EXPECT_NE(table.insert(absent), nullptr);
+    EXPECT_EQ(table.insert(3L), nullptr);
+    EXPECT_EQ(table.size(), 10u);
+    EXPECT_EQ(table.stats().num_busy, 10u);
+  }
+
+  // A full table still finds the keys it has, and refuses the others.
+  // operator[] dereferenced the null pointer that it got for a new key.
+  TYPED_TEST(OpenTableWithoutResizing, FullTableFindsItsKeysAndRefusesNewOnes)
+  {
+    TypeParam table = this->make(11);
+    ASSERT_EQ(this->fill(table), 10u);
+    const long present = 3, absent = 500;
+    long * const stored = table.search(present);
+    ASSERT_NE(stored, nullptr);
+
+    EXPECT_EQ(table.search_or_insert(present), stored);
+    EXPECT_EQ(table.search_or_insert(long(present)), stored);
+    EXPECT_EQ(table.contains_or_insert(present),
+              std::make_pair(stored, true));
+    EXPECT_EQ(table.contains_or_insert(long(present)),
+              std::make_pair(stored, true));
+    EXPECT_EQ(&table[present], stored);
+
+    EXPECT_EQ(table.search_or_insert(absent), nullptr);
+    EXPECT_EQ(table.search_or_insert(long(absent)), nullptr);
+    EXPECT_EQ(table.contains_or_insert(absent),
+              std::make_pair(static_cast<long *>(nullptr), false));
+    EXPECT_EQ(table.contains_or_insert(long(absent)),
+              std::make_pair(static_cast<long *>(nullptr), false));
+    EXPECT_THROW((void) table[absent], std::overflow_error);
+
+    EXPECT_EQ(table.size(), 10u);
+    EXPECT_FALSE(table.contains(absent));
+  }
+
+  template <class Map> struct OpenMapWithoutResizing : public ::testing::Test
+  {};
+
+  using Open_Maps = ::testing::Types<MapOLhash<long, int>, MapODhash<long, int>>;
+  TYPED_TEST_SUITE(OpenMapWithoutResizing, Open_Maps);
+
+  // The maps over open tables index through search_or_insert() too.
+  TYPED_TEST(OpenMapWithoutResizing, SubscriptOnAFullMapThrows)
+  {
+    TypeParam map(11, Aleph::dft_hash_ptr_fct<long>,
+                  Aleph::snd_hash_ptr_fct<long>, Aleph::equal_to<long>(),
+                  hash_default_lower_alpha, hash_default_upper_alpha, false);
+    for (long k = 0; k < 10; ++k)
+      ASSERT_NE(map.insert(k, static_cast<int>(k)), nullptr) << "key " << k;
+    EXPECT_EQ(map.insert(10L, 10), nullptr); // full
+
+    map[3L] = 30;
+    const long present = 4;
+    map[present] = 40;
+    EXPECT_EQ(map.find(3L), 30);
+    EXPECT_EQ(map.find(4L), 40);
+
+    const long absent = 500;
+    EXPECT_THROW((void) map[absent], std::overflow_error);
+    EXPECT_THROW((void) map[501L], std::overflow_error);
+    EXPECT_EQ(map.size(), 10u);
+    EXPECT_FALSE(map.contains(absent));
+  }
+
+  // -------------------------------------------------------------------------
+  // Shrinking leaves the keys under the upper threshold
+  // -------------------------------------------------------------------------
+
+  template <class Table> struct OpenTableShrinking : public ::testing::Test
+  {
+    static Table make(const size_t len, const float lower, const float upper)
+    {
+      if constexpr (requires (Table & t) { t.get_second_hash_fct(); })
+        return Table(len, Aleph::dft_hash_ptr_fct<long>,
+                     Aleph::snd_hash_ptr_fct<long>, Aleph::equal_to<long>(),
+                     lower, upper, true);
+      else
+        return Table(len, Aleph::dft_hash_ptr_fct<long>, Aleph::equal_to<long>(),
+                     lower, upper, true);
+    }
+  };
+
+  TYPED_TEST_SUITE(OpenTableShrinking, Open_Tables_Of_Longs);
+
+  // With a lower threshold over one half, a table of half the capacity may
+  // not hold the keys. remove_ptr() removed the key and then resize()
+  // threw std::overflow_error. Now the table waits until the keys fit.
+  TYPED_TEST(OpenTableShrinking, KeysFitInTheSmallerTable)
+  {
+    TypeParam table = this->make(101, 0.6f, 0.9f);
+    for (long k = 0; k < 60; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    ASSERT_EQ(table.capacity(), 101u);
+
+    for (long k = 0; k < 55; ++k)
+      {
+        ASSERT_NO_THROW(table.remove_ptr(table.search(k))) << "key " << k;
+        ASSERT_FALSE(table.contains(k)) << "key " << k;
+        ASSERT_EQ(table.size(), static_cast<size_t>(59 - k));
+        ASSERT_LT(table.current_alpha(), 0.9f) << "key " << k;
+        ASSERT_LT(table.size(), table.capacity()) << "key " << k;
+      }
+
+    EXPECT_LT(table.capacity(), 101u); // it shrank once the keys fitted
+    for (long k = 55; k < 60; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // A smaller table where the keys leave exactly one bucket empty is good
+  // enough: 6 keys fit in 7 buckets under 0.9.
+  TYPED_TEST(OpenTableShrinking, ShrinksWhenTheKeysLeaveOneBucketEmpty)
+  {
+    TypeParam table = this->make(11, 0.6f, 0.9f);
+    for (long k = 0; k < 7; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    ASSERT_EQ(table.capacity(), 11u);
+
+    table.remove_ptr(table.search(0L));
+
+    EXPECT_EQ(table.capacity(), 7u);
+    EXPECT_EQ(table.size(), 6u);
+    EXPECT_EQ(table.stats().num_empty, 1u);
+    for (long k = 1; k < 7; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // With the default thresholds the table still shrinks as before.
+  TYPED_TEST(OpenTableShrinking, DefaultThresholdsStillShrink)
+  {
+    TypeParam table = this->make(11, hash_default_lower_alpha,
+                                 hash_default_upper_alpha);
+    for (long k = 0; k < 1000; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    const size_t grown = table.capacity();
+
+    for (long k = 0; k < 990; ++k)
+      table.remove_ptr(table.search(k));
+
+    EXPECT_LT(table.capacity(), grown / 4);
+    EXPECT_EQ(table.size(), 10u);
+    for (long k = 990; k < 1000; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
   }
 } // namespace

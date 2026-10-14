@@ -612,6 +612,51 @@ namespace Aleph
       cleanup_deleted_chain(idx);
     }
 
+    /// Undoes what allocate_bucket() or hard_allocate_bucket() did when
+    /// they reserved `bucket` for a key that is not to stay in it.
+    ///
+    /// The bucket was empty or the one of a removed key. It stays marked
+    /// as removed only if a key stored after it, in the same run of
+    /// buckets that are not empty, was placed by a probe sequence that
+    /// went through it; otherwise it is empty again, and so are the
+    /// removed keys' buckets right before it. An empty bucket is never
+    /// lost: the searches that reached it stop there as before.
+    void undo_allocate_bucket(Bucket *bucket, const Key &) noexcept
+    {
+      assert(is_valid_bucket(bucket) and bucket->status == BUSY);
+
+      --N;
+      const auto idx = static_cast<size_t>(bucket - &table[0]);
+      size_t i = idx;
+      for (size_t steps = 1; steps < len; ++steps)
+        {
+          i = next_index(i);
+          const Bucket & b = table[i];
+          if (b.status == EMPTY)
+            break;
+          if (b.status != BUSY)
+            continue; // a removed key's bucket: the run goes on
+
+          // The probe sequence of b's key started `displacement` buckets
+          // before i, so it went through `bucket` if that is `steps` or more
+          const size_t displacement = (i + len - hash_fct(b.key) % len) % len;
+          if (displacement >= steps)
+            {
+              bucket->status = DELETED;
+              return;
+            }
+        }
+
+      bucket->status = EMPTY;
+      size_t prev = prev_index(idx);
+      for (size_t count = 0; table[prev].status == DELETED and count < len;
+           ++count)
+        {
+          table[prev].status = EMPTY;
+          prev = prev_index(prev);
+        }
+    }
+
    public:
 
     /** Remove the key referenced by key. key must be a valid reference
