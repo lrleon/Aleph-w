@@ -2019,9 +2019,26 @@ namespace Aleph {
     return first_match; // Return first match if no spanning tree arc found
   }
 
+  /** @brief Extracts a shortest path from a graph painted by a shortest
+      paths algorithm.
+
+      Follows the node cookies, which point to the parent of each node in
+      the painted tree, from `end` back to `s`.
+
+      @param[in] s Start node of the painted tree.
+      @param[in] end Destination node of the path.
+      @param[out] path Path where the shortest path is stored.
+      @param[in] distance Distance functor that gives the weight of each
+                 arc; it should be the one the tree was painted with.
+      @return The total cost of the path.
+      @throw std::invalid_argument If `s` or `end` is null.
+      @throw std::domain_error If the cookies do not lead from `end` to `s`.
+      @throw std::bad_alloc If there is not enough memory.
+  */
   template <AlephGraph GT, ArcDistance<GT> Distance = Dft_Dist<GT>>
   typename Distance::Distance_Type
-  get_min_path(typename GT::Node * s, typename GT::Node * end, Path<GT> & path)
+  get_min_path(typename GT::Node * s, typename GT::Node * end, Path<GT> & path,
+               Distance distance = Distance())
   {
     using Distance_Type = typename Distance::Distance_Type;
 
@@ -2038,7 +2055,6 @@ namespace Aleph {
       }
 
     // Build path from end to start following cookies, collecting arcs
-    Distance distance;
     DynList<std::pair<typename GT::Node*, typename GT::Arc*>> node_arc_list;
 
     auto curr = end;
