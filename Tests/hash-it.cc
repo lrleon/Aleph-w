@@ -1383,6 +1383,9 @@ namespace
     EXPECT_EQ(stats.num_busy, 0u);
     EXPECT_EQ(stats.num_empty, 0u);
     EXPECT_EQ(stats.num_deleted, 0u);
+    EXPECT_EQ(stats.max_len, 0u);
+    EXPECT_EQ(stats.avg, 0.0f); // not the 0/0 of averaging over no bucket
+    EXPECT_EQ(stats.var, 0.0f);
 
     source.rehash();
     EXPECT_EQ(source.capacity(), 0u);

@@ -697,14 +697,18 @@ namespace Aleph
           sum += lens(i);
         }
 
-      avg /= sum;
+      // A table whose storage was taken by a move has no bucket to
+      // average over: its average and its variance are zero.
+      if (sum > 0)
+        avg /= sum;
       float var = 0;
       for (size_t i = 0; i < lens.size(); ++i)
         {
           const float s = i - avg;
           var += lens(i) * s * s;
         }
-      var /= sum;
+      if (sum > 0)
+        var /= sum;
 
       Stats stats;
       stats.num_busy = num_busy;
