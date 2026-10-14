@@ -223,11 +223,6 @@ namespace Aleph
     Hash_Fct hash_fct;
     bool with_resize;
 
-    // Whether the bucket that allocate_bucket() or hard_allocate_bucket()
-    // reserved last was the one of a removed key; otherwise it was empty.
-    // undo_allocate_bucket() needs it to leave that bucket as it was.
-    bool reserved_bucket_was_deleted = false;
-
     [[nodiscard]] bool is_valid_bucket(Bucket *bucket) const noexcept
     {
       if (table == nullptr)
@@ -483,7 +478,6 @@ namespace Aleph
           auto & b = table[i];
           if (b.status == EMPTY) [[likely]]
             {
-              reserved_bucket_was_deleted = first_deleted != nullptr;
               Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
               bucket->status = BUSY;
               ++N;
@@ -506,7 +500,6 @@ namespace Aleph
 
       if (first_deleted != nullptr) [[unlikely]]
         {
-          reserved_bucket_was_deleted = true;
           first_deleted->status = BUSY;
           ++N;
           return first_deleted;
@@ -532,7 +525,6 @@ namespace Aleph
           auto & b = table[i];
           if (b.status == EMPTY) [[likely]]
             {
-              reserved_bucket_was_deleted = first_deleted != nullptr;
               Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
               bucket->status = BUSY;
               ++N;
@@ -555,7 +547,6 @@ namespace Aleph
 
       if (first_deleted != nullptr) [[unlikely]]
         {
-          reserved_bucket_was_deleted = true;
           first_deleted->status = BUSY;
           ++N;
           return {first_deleted, false};
@@ -622,16 +613,48 @@ namespace Aleph
     }
 
     /// Undoes what allocate_bucket() or hard_allocate_bucket() did when
-    /// they reserved `bucket` for a key that is not to stay in it. It must
-    /// come before any other bucket is reserved. The bucket goes back to
-    /// what it was, empty or the one of a removed key: an empty bucket that
-    /// became a removed one would make the searches that reach it go on.
+    /// they reserved `bucket` for a key that is not to stay in it.
+    ///
+    /// The bucket was empty or the one of a removed key. It stays marked
+    /// as removed only if a key stored after it, in the same run of
+    /// buckets that are not empty, was placed by a probe sequence that
+    /// went through it; otherwise it is empty again, and so are the
+    /// removed keys' buckets right before it. An empty bucket is never
+    /// lost: the searches that reached it stop there as before.
     void undo_allocate_bucket(Bucket *bucket, const Key &) noexcept
     {
       assert(is_valid_bucket(bucket) and bucket->status == BUSY);
 
       --N;
-      bucket->status = reserved_bucket_was_deleted ? DELETED : EMPTY;
+      const auto idx = static_cast<size_t>(bucket - &table[0]);
+      size_t i = idx;
+      for (size_t steps = 1; steps < len; ++steps)
+        {
+          i = next_index(i);
+          const Bucket & b = table[i];
+          if (b.status == EMPTY)
+            break;
+          if (b.status != BUSY)
+            continue; // a removed key's bucket: the run goes on
+
+          // The probe sequence of b's key started `displacement` buckets
+          // before i, so it went through `bucket` if that is `steps` or more
+          const size_t displacement = (i + len - hash_fct(b.key) % len) % len;
+          if (displacement >= steps)
+            {
+              bucket->status = DELETED;
+              return;
+            }
+        }
+
+      bucket->status = EMPTY;
+      size_t prev = prev_index(idx);
+      for (size_t count = 0; table[prev].status == DELETED and count < len;
+           ++count)
+        {
+          table[prev].status = EMPTY;
+          prev = prev_index(prev);
+        }
     }
 
    public:

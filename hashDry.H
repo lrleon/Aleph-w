@@ -120,6 +120,12 @@ class OhashCommon
   */
   const HashTbl * const_me() const { return static_cast<const HashTbl*>(this); }
 
+  /// Whether two keys can be swapped without throwing. The keys whose swap
+  /// can throw are copied instead, so that a failure leaves the table as it
+  /// was.
+  static constexpr bool nothrow_key_swap =
+    noexcept(std::swap(std::declval<Key &>(), std::declval<Key &>()));
+
   /** @brief Stores a copy of a key in the bucket reserved for it.
 
       If copying the key throws, the reservation is undone, so the table
@@ -166,11 +172,60 @@ class OhashCommon
   template <class Bucket>
   void store_move(Bucket * bucket, Key & key)
   {
-    if constexpr (noexcept(std::swap(std::declval<Key &>(),
-                                     std::declval<Key &>())))
+    if constexpr (nothrow_key_swap)
       std::swap(bucket->key, key);
     else
       store_copy(bucket, key);
+  }
+
+  /** @brief Places the keys of the table in `new_len` new buckets.
+
+      The keys are swapped into the new buckets. A key whose swap may throw
+      is copied instead, so that the old buckets keep every key until all
+      of them are placed.
+
+      @param new_len Number of new buckets. It must leave an empty bucket.
+      @throw std::bad_alloc If there is no memory for the new buckets, and
+             anything that copying a key throws. The table is left as it
+             was.
+  */
+  void rebuild(const size_t new_len)
+  {
+    auto * new_table = new typename HashTbl::Bucket[new_len];
+    typename HashTbl::Bucket * old_table = me()->table;
+    const size_t old_len = me()->len;
+    const size_t old_N = me()->N;
+
+    me()->table = new_table;
+    me()->len   = new_len;
+    me()->N     = 0;
+
+    try
+      {
+        for (size_t i = 0, c = 0; i < old_len and c < old_N; ++i)
+          if (old_table[i].status == HashTbl::BUSY)
+            {
+              Key & key = old_table[i].key;
+              auto bucket = me()->allocate_bucket(key);
+              if constexpr (nothrow_key_swap)
+                std::swap(bucket->key, key);
+              else
+                bucket->key = key;
+              ++c;
+            }
+      }
+    catch (...)
+      {
+        me()->table = old_table;
+        me()->len   = old_len;
+        me()->N     = old_N;
+        delete [] new_table;
+        throw;
+      }
+
+    assert(old_N == me()->N);
+
+    delete [] old_table;
   }
 
 public:
@@ -649,8 +704,7 @@ public:
         // key is already gone; a size that leaves them over the upper
         // threshold would make the next insertion grow the table again.
         const size_t new_len = Primes::next_prime(me()->len/2 + 1);
-        if (me()->N < new_len - 1 and
-            1.0f*me()->N/new_len < me()->upper_alpha)
+        if (me()->N < new_len and 1.0f*me()->N/new_len < me()->upper_alpha)
           resize(new_len);
       }
   }
@@ -665,7 +719,10 @@ public:
       @return The actual new capacity (may differ from requested if
               new_size was 0 or equal to current capacity).
       @throw std::overflow_error If new_size is too small for current entries.
-      
+      @throw std::bad_alloc If there is no memory for the new buckets, and
+             anything that copying a key throws when its swap may throw.
+             The table is left as it was.
+
       @par Complexity: O(n) where n is the number of entries.
   */
   size_t resize(size_t new_size)
@@ -677,28 +734,7 @@ public:
     ah_overflow_error_if(me()->N >= new_size)
       << "New size is not enough for current number of entries";
 
-    auto * new_table = new typename HashTbl::Bucket[new_size];
-    typename HashTbl::Bucket * old_table = me()->table;
-    const size_t old_len = me()->len;
-
-    int old_N = me()->N;
-
-    me()->table = new_table;
-    me()->len   = new_size;
-    me()->N     = 0;
-
-    for (int i = 0, c = 0; i < old_len and c < old_N; ++i)
-      if (old_table[i].status == HashTbl::BUSY)
-        {
-          Key & key = old_table[i].key;
-          auto bucket = me()->allocate_bucket(key);
-          std::swap(bucket->key, key);
-          ++c;
-        }
-
-    assert(old_N == me()->N);
-
-    delete [] old_table;
+    rebuild(new_size);
 
     return me()->len;
   }
@@ -708,7 +744,11 @@ public:
       Creates a new internal table with the same capacity and
       re-inserts all entries. This can help improve performance
       after many deletions by eliminating deleted bucket markers.
-      
+
+      @throw std::bad_alloc If there is no memory for the new buckets, and
+             anything that copying a key throws when its swap may throw.
+             The table is left as it was.
+
       @par Complexity: O(n) where n is the number of entries.
   */
   void rehash()
@@ -716,26 +756,7 @@ public:
     if (me()->len == 0)
       return; // the storage was taken by a move: nothing to rebuild
 
-    auto new_table = new typename HashTbl::Bucket [me()->len];
-    auto old_table = me()->table;
-
-    int old_N = me()->N;
-
-    me()->table = new_table;
-    me()->N     = 0;
-
-    for (int i = 0, c = 0; i < me()->len and c < old_N; ++i)
-      if (old_table[i].status == HashTbl::BUSY)
-        {
-          Key & key = old_table[i].key;
-          auto bucket = me()->allocate_bucket(key);
-          std::swap(bucket->key, key);
-          ++c;
-        }
-
-    assert(old_N == me()->N);
-
-    delete [] old_table;
+    rebuild(me()->len);
   }
 
   /** @brief Clears all entries and resets to default capacity.

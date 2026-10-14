@@ -70,7 +70,6 @@ private:                                                                \
  /* it was.                                                           */ \
  Key * grow_after_insertion(Bucket * curr_bucket, const Key & key)      \
  {                                                                      \
-   Bucket * const buckets = table;                                      \
    try                                                                  \
      {                                                                  \
        Key key_copy = key;                                              \
@@ -84,8 +83,8 @@ private:                                                                \
      }                                                                  \
    catch (...)                                                          \
      {                                                                  \
-       if (table == buckets) /* nothing was moved to new buckets */     \
-         this->undo_allocate_bucket(curr_bucket, curr_bucket->key);     \
+       /* resize() leaves the buckets as they were when it fails */     \
+       this->undo_allocate_bucket(curr_bucket, curr_bucket->key);       \
        throw;                                                           \
      }                                                                  \
  }                                                                      \

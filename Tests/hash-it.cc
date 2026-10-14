@@ -1871,8 +1871,9 @@ namespace
     }
 
     // What the probes depend on: the state of every bucket and, in the
-    // double hashing table, how many probe sequences go through it.
-    // Undoing an insertion must restore them exactly.
+    // double hashing table, how many probe sequences go through it. In
+    // these tests every removed key's bucket lies on the probe sequence of
+    // a key still stored, so undoing an insertion must restore them all.
     static std::vector<std::pair<int, unsigned>> probes_of(const Table & table)
     {
       std::vector<std::pair<int, unsigned>> state;
@@ -2041,6 +2042,32 @@ namespace
     EXPECT_EQ(this->probes_of(table), probes);
   }
 
+  // A removed key's bucket that no probe sequence goes through is not
+  // needed. When a failed insertion had reserved one, it is left empty,
+  // and so are the unneeded removed keys' buckets right before it.
+  TEST(OLhashTable, FailedInsertionClearsRemovedMarksNoOneNeeds)
+  {
+    OLhashTable<Fragile_Key> table(11, crowded_hash<Fragile_Key>,
+                                   Aleph::equal_to<Fragile_Key>(), 0.05f,
+                                   0.95f, false);
+    for (const long k : {1L, 2L, 3L})
+      ASSERT_NE(table.insert(Fragile_Key(k)), nullptr);
+    table.remove(Fragile_Key(1));
+    table.remove(Fragile_Key(2));
+    ASSERT_EQ(table.stats().num_deleted, 2u);
+
+    {
+      const Fragile_Key key(9); // its probe sequence starts at bucket 2
+      Failing_Copies failing;
+      EXPECT_THROW((void) table.insert(key), std::runtime_error);
+    }
+
+    EXPECT_EQ(table.size(), 1u);
+    EXPECT_TRUE(table.contains(Fragile_Key(3)));
+    EXPECT_EQ(table.stats().num_deleted, 0u);
+    EXPECT_EQ(table.stats().num_empty, 10u);
+  }
+
   // Real insertions and removals mixed with insertions that fail, checked
   // against a std::set.
   TYPED_TEST(OpenTableInsertionThatThrows, FailuresDoNotDisturbTheTable)
@@ -2169,6 +2196,77 @@ namespace
         for (long k = 20; k < 28; ++k)
           EXPECT_TRUE(table.contains(Copy_Only_Key(k))) << "key " << k;
       }
+  }
+
+  // Growing places the keys in new buckets, and such keys are copied there.
+  // A copy that failed halfway left the table with the keys placed so far:
+  // the others were lost, and the old buckets leaked.
+  TYPED_TEST(OpenTableWithCopyOnlyKeys, GrowthThatFailsHalfwayLeavesTheTable)
+  {
+    // the key is copied into its bucket and once more before growing; the
+    // next 6 copies place the 6 keys in the new buckets
+    for (size_t successful = 2; successful < 8; ++successful)
+      {
+        TypeParam table = this->make(11, 0.5f, true);
+        for (long k = 0; k < 5; ++k)
+          ASSERT_NE(table.insert(Copy_Only_Key(k)), nullptr);
+        ASSERT_EQ(table.capacity(), 11u); // the sixth key makes it grow
+        const auto keys = this->keys_of(table);
+        const auto probes = this->probes_of(table);
+
+        const Copy_Only_Key key(5);
+        {
+          Failing_Copies failing(successful);
+          EXPECT_THROW((void) table.insert(key), std::runtime_error)
+            << successful << " copies";
+        }
+
+        EXPECT_EQ(this->keys_of(table), keys) << successful << " copies";
+        EXPECT_EQ(table.size(), 5u) << successful << " copies";
+        EXPECT_EQ(table.capacity(), 11u) << successful << " copies";
+        EXPECT_EQ(this->probes_of(table), probes) << successful << " copies";
+
+        ASSERT_NE(table.insert(key), nullptr);
+        EXPECT_GT(table.capacity(), 11u);
+        for (long k = 0; k < 6; ++k)
+          EXPECT_TRUE(table.contains(Copy_Only_Key(k))) << "key " << k;
+      }
+  }
+
+  // rehash() and resize() place the keys in new buckets the same way.
+  TYPED_TEST(OpenTableWithCopyOnlyKeys, RebuildThatFailsLeavesTheTable)
+  {
+    TypeParam table = this->with_keys_and_removals(false);
+    const auto keys = this->keys_of(table);
+    const auto probes = this->probes_of(table);
+    const size_t capacity = table.capacity();
+    const size_t larger = Primes::next_prime(2 * capacity);
+
+    for (size_t successful = 0; successful < keys.size(); ++successful)
+      {
+        {
+          Failing_Copies failing(successful);
+          EXPECT_THROW(table.rehash(), std::runtime_error) << successful;
+        }
+        ASSERT_EQ(this->keys_of(table), keys) << successful;
+        ASSERT_EQ(this->probes_of(table), probes) << successful;
+        ASSERT_EQ(table.capacity(), capacity) << successful;
+
+        {
+          Failing_Copies failing(successful);
+          EXPECT_THROW((void) table.resize(larger), std::runtime_error)
+            << successful;
+        }
+        ASSERT_EQ(this->keys_of(table), keys) << successful;
+        ASSERT_EQ(this->probes_of(table), probes) << successful;
+        ASSERT_EQ(table.capacity(), capacity) << successful;
+      }
+
+    table.rehash();
+    EXPECT_EQ(this->keys_of(table), keys);
+    EXPECT_EQ(table.stats().num_deleted, 0u);
+    EXPECT_EQ(table.resize(larger), larger);
+    EXPECT_EQ(this->keys_of(table), keys);
   }
 
   // -------------------------------------------------------------------------
@@ -2326,11 +2424,29 @@ namespace
         ASSERT_FALSE(table.contains(k)) << "key " << k;
         ASSERT_EQ(table.size(), static_cast<size_t>(59 - k));
         ASSERT_LT(table.current_alpha(), 0.9f) << "key " << k;
-        ASSERT_LT(table.size() + 1, table.capacity()) << "key " << k;
+        ASSERT_LT(table.size(), table.capacity()) << "key " << k;
       }
 
     EXPECT_LT(table.capacity(), 101u); // it shrank once the keys fitted
     for (long k = 55; k < 60; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // A smaller table where the keys leave exactly one bucket empty is good
+  // enough: 6 keys fit in 7 buckets under 0.9.
+  TYPED_TEST(OpenTableShrinking, ShrinksWhenTheKeysLeaveOneBucketEmpty)
+  {
+    TypeParam table = this->make(11, 0.6f, 0.9f);
+    for (long k = 0; k < 7; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    ASSERT_EQ(table.capacity(), 11u);
+
+    table.remove_ptr(table.search(0L));
+
+    EXPECT_EQ(table.capacity(), 7u);
+    EXPECT_EQ(table.size(), 6u);
+    EXPECT_EQ(table.stats().num_empty, 1u);
+    for (long k = 1; k < 7; ++k)
       EXPECT_TRUE(table.contains(k)) << "key " << k;
   }
 
