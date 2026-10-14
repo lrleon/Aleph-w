@@ -155,6 +155,11 @@ namespace Aleph
         std::cout << "Found: " << *ptr << '\n';
       @endcode
 
+      @par Changing the hash function:
+      `set_hash_fct()` does not place the stored keys again. On a table
+      that is not empty, call `rehash()` right after it; until then the
+      keys already stored may not be found.
+
       @see ODhashTable for double hashing variant.
       @see OhashCommon for shared hash table operations.
       @ingroup Hash
@@ -285,6 +290,54 @@ namespace Aleph
       : OLhashTable(len, hash_fct, cmp,
                     lower_alpha, upper_alpha, with_resize) {}
 
+    /** @brief Builds a table whose hash function is a lambda without
+        captures.
+
+        A lambda without captures converts both to `Hash_Fct` and to
+        `Hash_Fct_Ptr`, so with every parameter given it fitted two
+        constructors and the call was ambiguous. This one takes it as it is.
+
+        @param[in] len Requested capacity; the next prime is used.
+        @param[in] hash_fct Lambda without captures, or another object that
+        converts to `Hash_Fct_Ptr`.
+        @param[in] cmp Equality comparator for keys.
+        @param[in] lower_alpha Load factor under which the table shrinks.
+        @param[in] upper_alpha Load factor over which the table grows.
+        @param[in] with_resize Whether the table resizes itself.
+        @throw std::bad_alloc If there is no memory for the buckets.
+    */
+    template <typename H>
+      requires hash_table_detail::Class_Convertible_To_Ptr<H, Hash_Fct_Ptr>
+    OLhashTable(size_t len, H && hash_fct, Cmp cmp,
+                float lower_alpha, float upper_alpha, bool with_resize)
+      : OLhashTable(len, Hash_Fct(static_cast<Hash_Fct_Ptr>(hash_fct)), cmp,
+                    lower_alpha, upper_alpha, with_resize) {}
+
+    /** @brief Builds a table from two hash functions when one of them is a
+        lambda without captures.
+
+        It takes the same parameters as ODhashTable; the second hash
+        function is not used. See the constructor above for the reason why
+        a lambda without captures needs an overload of its own.
+
+        @param[in] len Requested capacity; the next prime is used.
+        @param[in] hash_fct Hash function.
+        @param[in] cmp Equality comparator for keys.
+        @param[in] lower_alpha Load factor under which the table shrinks.
+        @param[in] upper_alpha Load factor over which the table grows.
+        @param[in] with_resize Whether the table resizes itself.
+        @throw std::bad_alloc If there is no memory for the buckets.
+    */
+    template <typename H1, typename H2>
+      requires (std::is_constructible_v<Hash_Fct, H1>
+                and std::is_constructible_v<Hash_Fct, H2>
+                and (hash_table_detail::Class_Convertible_To_Ptr<H1, Hash_Fct_Ptr>
+                     or hash_table_detail::Class_Convertible_To_Ptr<H2, Hash_Fct_Ptr>))
+    OLhashTable(size_t len, H1 && hash_fct, H2 &&, Cmp cmp,
+                float lower_alpha, float upper_alpha, bool with_resize)
+      : OLhashTable(len, Hash_Fct(std::forward<H1>(hash_fct)), cmp,
+                    lower_alpha, upper_alpha, with_resize) {}
+
     Special_Ctors(OLhashTable, Key);
 
     /// Release all occupied memory.
@@ -306,39 +359,67 @@ namespace Aleph
       std::swap(with_resize, other.with_resize);
     }
 
+    /** @brief Copy constructor.
+
+        The copy has the keys, the hash function, the comparator, the load
+        thresholds and the resizing policy of `other`, and its capacity. A
+        table whose storage was taken by a move is copied as a table of the
+        default capacity.
+
+        @param[in] other Table to copy.
+        @throw std::bad_alloc If there is no memory for the buckets.
+    */
     OLhashTable(const OLhashTable &other)
-      : OLhashTable(other.len, other.hash_fct, other.cmp,
+      : OLhashTable(other.len == 0 ? Primes::DefaultPrime : other.len,
+                    other.hash_fct, other.cmp,
                     other.lower_alpha, other.upper_alpha, other.with_resize)
     {
       this->copy_from_table(other);
     }
 
-    OLhashTable(OLhashTable &&other) noexcept: OLhashTable(other)
+    /** @brief Move constructor.
+
+        Takes the buckets of `other` in constant time and without
+        allocating them. The new table also gets a copy of the hash
+        function, the comparator, the load thresholds and the resizing
+        policy, which `other` keeps.
+
+        @param[in,out] other Table to take the keys from. It is left empty,
+        with capacity zero. It is still usable: the first insertion gives it
+        a table of the default capacity.
+
+        @note Only the hash function and the comparator are copied. If
+        copying one of them throws, `std::terminate` is called. A function
+        pointer and a comparator without state never throw.
+    */
+    OLhashTable(OLhashTable &&other) noexcept
+      : table(other.table), N(other.N), len(other.len),
+        lower_alpha(other.lower_alpha), upper_alpha(other.upper_alpha),
+        cmp(other.cmp), hash_fct(other.hash_fct),
+        with_resize(other.with_resize)
     {
-      swap(other);
+      other.table = nullptr;
+      other.N = 0;
+      other.len = 0;
     }
 
+    /** @brief Copy assignment.
+
+        Leaves this table as a copy of `other`: the same keys, hash
+        function, comparator, load thresholds, resizing policy and capacity.
+
+        @param[in] other Table to copy.
+        @return A reference to this table.
+        @throw std::bad_alloc If there is no memory for the copy. This table
+               is left as it was.
+    */
     OLhashTable &operator=(const OLhashTable &other)
     {
       if (this == &other)
         return *this;
 
-      if (len > other.N)
-        this->clean_table();
-      else
-        {
-          auto *new_table = new Bucket[other.len];
-          delete[] table;
-          table = new_table;
-          N = 0;
-          len = other.len;
-          hash_fct = other.hash_fct;
-          cmp = other.cmp;
-          lower_alpha = other.lower_alpha;
-          upper_alpha = other.upper_alpha;
-        }
-
-      this->copy_from_table(other);
+      OLhashTable tmp(other);
+      swap(tmp);
 
       return *this;
     }
@@ -360,6 +441,9 @@ namespace Aleph
     /// find inside the table; otherwise, nullptr is returned.
     [[nodiscard]] const Key *search(const Key &key) const noexcept
     {
+      if (len == 0) [[unlikely]]
+        return nullptr; // the storage was taken by a move
+
       size_t i = hash_fct(key) % len;
       for (size_t c = 0; c < len; ++c)
         {
@@ -536,6 +620,8 @@ namespace Aleph
         thrown. */
     void remove(const Key &key)
     {
+      ah_domain_error_if(len == 0) << "Key not in hash table";
+
       size_t i = hash_fct(key) % len;
       for (size_t c = 0; c < len; ++c)
         {
@@ -611,14 +697,18 @@ namespace Aleph
           sum += lens(i);
         }
 
-      avg /= sum;
+      // A table whose storage was taken by a move has no bucket to
+      // average over: its average and its variance are zero.
+      if (sum > 0)
+        avg /= sum;
       float var = 0;
       for (size_t i = 0; i < lens.size(); ++i)
         {
           const float s = i - avg;
           var += lens(i) * s * s;
         }
-      var /= sum;
+      if (sum > 0)
+        var /= sum;
 
       Stats stats;
       stats.num_busy = num_busy;

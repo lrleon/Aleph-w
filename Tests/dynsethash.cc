@@ -771,13 +771,32 @@ TEST(DynMapHashTable, Keys)
   EXPECT_EQ(sorted_keys, expected);
 }
 
-// BUG: tpl_dynSetHash.H line 540 has wrong return type (DynList<Key> instead of DynList<Data>)
-// This test is disabled until the bug is fixed in the library
-// The values() method should return DynList<Data> but currently returns DynList<Key>
-TEST(DynMapHashTable, DISABLED_Values)
+// values() was declared to return DynList<Key>, so it only compiled when the
+// values converted to keys. Here they do not.
+TEST(DynMapHashTable, Values)
 {
-  // Test disabled due to bug in library implementation
-  GTEST_SKIP() << "values() has wrong return type in tpl_dynSetHash.H:540";
+  DynMapHash<string, int> by_name;
+  static_assert(is_same_v<decltype(by_name.values()), DynList<int>>);
+  EXPECT_TRUE(by_name.values().is_empty());
+
+  by_name.insert("one", 1);
+  by_name.insert("two", 2);
+  by_name.insert("three", 3);
+
+  vector<int> values;
+  by_name.values().for_each([&values](int v) { values.push_back(v); });
+  sort(values.begin(), values.end());
+  EXPECT_EQ(values, (vector<int>{1, 2, 3}));
+
+  DynMapLinHash<int, string> by_number;
+  static_assert(is_same_v<decltype(by_number.values()), DynList<string>>);
+  by_number.insert(1, "one");
+  by_number.insert(2, "two");
+
+  vector<string> names;
+  by_number.values().for_each([&names](const string & v) { names.push_back(v); });
+  sort(names.begin(), names.end());
+  EXPECT_EQ(names, (vector<string>{"one", "two"}));
 }
 
 TEST(DynMapHashTable, ValuesPtr)
@@ -1050,6 +1069,201 @@ TEST(DynHashTable, CustomType)
   Point p4{7, 8};
   EXPECT_FALSE(table.contains(p4));
 }
+
+// ============================================================================
+// A map and the hash function of its keys stay together
+// ============================================================================
+
+namespace
+{
+  size_t map_hash_a(const long & k) noexcept
+  {
+    return static_cast<size_t>(k) * 2654435761u;
+  }
+
+  size_t map_hash_b(const long & k) noexcept
+  {
+    return static_cast<size_t>(k) * 40503u + 17;
+  }
+
+  // Every key in [from, to) must be found, with the value it was given.
+  template <class Map>
+  ::testing::AssertionResult maps_keys(const Map & map, const long from,
+                                       const long to, const int value)
+  {
+    if (map.size() != static_cast<size_t>(to - from))
+      return ::testing::AssertionFailure()
+             << "size is " << map.size() << ", expected " << to - from;
+    for (long k = from; k < to; ++k)
+      {
+        const auto * pair = map.search(k);
+        if (pair == nullptr)
+          return ::testing::AssertionFailure() << "key " << k << " not found";
+        if (pair->second != value or not map.has(k) or map.find(k) != value)
+          return ::testing::AssertionFailure() << "key " << k << " is wrong";
+      }
+    return ::testing::AssertionSuccess();
+  }
+
+  template <class Map>
+  void insert_keys(Map & map, const long from, const long to,
+                   const int value)
+  {
+    for (long k = from; k < to; ++k)
+      ASSERT_NE(map.insert(k, value), nullptr) << "key " << k;
+  }
+
+  template <class Map>
+  struct DynMapHashFunction : public ::testing::Test {};
+
+  using Chained_Maps =
+    ::testing::Types<DynMapHash<long, int>, DynMapLinHash<long, int>>;
+  TYPED_TEST_SUITE(DynMapHashFunction, Chained_Maps);
+
+  // DynMapHash keeps the hash function of the keys apart from the one that
+  // its table applies to the pairs. swap() exchanged only the second, and
+  // after it neither map found its keys.
+  TYPED_TEST(DynMapHashFunction, SwapKeepsEachMapFindingItsKeys)
+  {
+    TypeParam a(101, map_hash_a), b(101, map_hash_b);
+    insert_keys(a, 0, 50, 1);
+    insert_keys(b, 1000, 1050, 2);
+
+    a.swap(b);
+
+    EXPECT_TRUE(maps_keys(a, 1000, 1050, 2));
+    EXPECT_TRUE(maps_keys(b, 0, 50, 1));
+
+    insert_keys(a, 1050, 1300, 2);
+    insert_keys(b, 50, 300, 1);
+    EXPECT_TRUE(maps_keys(a, 1000, 1300, 2));
+    EXPECT_TRUE(maps_keys(b, 0, 300, 1));
+  }
+
+  // The assignment copied the hash function of the keys, but placed the
+  // pairs with the one that the target already had.
+  TYPED_TEST(DynMapHashFunction, CopyAssignmentBringsTheHashFunction)
+  {
+    TypeParam source(101, map_hash_b), target(101, map_hash_a);
+    insert_keys(source, 0, 50, 2);
+    insert_keys(target, 500, 520, 1);
+
+    target = source;
+
+    EXPECT_TRUE(maps_keys(target, 0, 50, 2));
+    EXPECT_TRUE(maps_keys(source, 0, 50, 2));
+    insert_keys(target, 50, 300, 2);
+    EXPECT_TRUE(maps_keys(target, 0, 300, 2));
+    EXPECT_TRUE(maps_keys(source, 0, 50, 2));
+  }
+
+  // The source is left with the table that the target had; it must be
+  // left with its hash function too.
+  TYPED_TEST(DynMapHashFunction, MoveAssignmentLeavesBothMapsUsable)
+  {
+    TypeParam source(101, map_hash_b), target(101, map_hash_a);
+    insert_keys(source, 0, 50, 2);
+    insert_keys(target, 500, 520, 1);
+
+    target = std::move(source);
+
+    EXPECT_TRUE(maps_keys(target, 0, 50, 2));
+    EXPECT_TRUE(source.is_empty());
+
+    insert_keys(source, 0, 300, 3);
+    insert_keys(target, 50, 300, 2);
+    EXPECT_TRUE(maps_keys(source, 0, 300, 3));
+    EXPECT_TRUE(maps_keys(target, 0, 300, 2));
+  }
+
+  TYPED_TEST(DynMapHashFunction, MoveConstructionLeavesBothMapsUsable)
+  {
+    TypeParam source(101, map_hash_b);
+    insert_keys(source, 0, 50, 2);
+
+    TypeParam target(std::move(source));
+
+    EXPECT_TRUE(maps_keys(target, 0, 50, 2));
+    EXPECT_TRUE(source.is_empty());
+
+    insert_keys(source, 0, 300, 3);
+    insert_keys(target, 50, 300, 2);
+    EXPECT_TRUE(maps_keys(source, 0, 300, 3));
+    EXPECT_TRUE(maps_keys(target, 0, 300, 2));
+  }
+
+  TYPED_TEST(DynMapHashFunction, CopyConstructionBringsTheHashFunction)
+  {
+    TypeParam source(101, map_hash_b);
+    insert_keys(source, 0, 50, 2);
+
+    TypeParam copy(source);
+
+    EXPECT_TRUE(maps_keys(copy, 0, 50, 2));
+    insert_keys(copy, 50, 300, 2);
+    EXPECT_TRUE(maps_keys(copy, 0, 300, 2));
+    EXPECT_TRUE(maps_keys(source, 0, 50, 2));
+  }
+
+  // ==========================================================================
+  // The load thresholds of a chained table
+  // ==========================================================================
+
+  template <class Set>
+  struct DynHashTableThresholds : public ::testing::Test {};
+
+  using Chained_Sets = ::testing::Types<DynSetLhash<int>, DynSetLinHash<int>>;
+  TYPED_TEST_SUITE(DynHashTableThresholds, Chained_Sets);
+
+  // The accessors read and wrote a pair of values of their own, which
+  // nothing initialised and the table never looked at.
+  TYPED_TEST(DynHashTableThresholds, AccessorsReadWhatTheTableWasGiven)
+  {
+    const TypeParam table(101, Aleph::dft_hash_ptr_fct<int>,
+                          Aleph::equal_to<int>(), 0.2f, 0.6f);
+
+    EXPECT_EQ(table.get_lower_alpha(), 0.2f);
+    EXPECT_EQ(table.get_upper_alpha(), 0.6f);
+  }
+
+  TYPED_TEST(DynHashTableThresholds, SettersRejectThresholdsOutOfOrder)
+  {
+    TypeParam table(101, Aleph::dft_hash_ptr_fct<int>,
+                    Aleph::equal_to<int>(), 0.2f, 0.6f);
+
+    table.set_upper_alpha(0.8f);
+    table.set_lower_alpha(0.3f);
+    EXPECT_EQ(table.get_lower_alpha(), 0.3f);
+    EXPECT_EQ(table.get_upper_alpha(), 0.8f);
+
+    EXPECT_THROW(table.set_upper_alpha(0.3f), std::domain_error);
+    EXPECT_THROW(table.set_lower_alpha(0.8f), std::domain_error);
+    EXPECT_EQ(table.get_lower_alpha(), 0.3f);
+    EXPECT_EQ(table.get_upper_alpha(), 0.8f);
+  }
+
+  // With the upper threshold raised to 0.9, a load of 0.79 must not make
+  // the table grow; with the 0.5 it was built with, it would.
+  TYPED_TEST(DynHashTableThresholds, TheTableObeysTheSetters)
+  {
+    TypeParam raised(101, Aleph::dft_hash_ptr_fct<int>,
+                     Aleph::equal_to<int>(), 0.1f, 0.5f);
+    TypeParam as_built(101, Aleph::dft_hash_ptr_fct<int>,
+                       Aleph::equal_to<int>(), 0.1f, 0.5f);
+    const size_t capacity = raised.capacity();
+    ASSERT_EQ(as_built.capacity(), capacity);
+
+    raised.set_upper_alpha(0.9f);
+    for (int k = 0; k < 80; ++k)
+      {
+        ASSERT_NE(raised.insert(k), nullptr);
+        ASSERT_NE(as_built.insert(k), nullptr);
+      }
+
+    EXPECT_EQ(raised.capacity(), capacity);
+    EXPECT_GT(as_built.capacity(), capacity);
+  }
+} // namespace
 
 int main(int argc, char **argv)
 {

@@ -177,9 +177,22 @@ public:
       one empty bucket available (required as a sentinel for probing).
       If automatic resizing is enabled and the table is nearly full,
       doubles the table capacity.
+
+      A table whose storage was taken by a move has no buckets. It gets
+      here a table of the default capacity, whether or not automatic
+      resizing is enabled.
+
+      @throw std::bad_alloc If there is no memory for the new buckets. The
+             table is left as it was.
   */
   void check_resize_before_insert()
   {
+    if (me()->len == 0) [[unlikely]]
+      {
+        empty();
+        return;
+      }
+
     // Keep at least one EMPTY bucket as a sentinel.
     if (me()->with_resize and me()->N >= me()->len - 1)
       me()->resize(Primes::next_prime(2 * me()->len));
@@ -524,8 +537,6 @@ public:
   */
   size_t resize(size_t new_size)
   {
-    assert(me()->len > 0);
-
     if (new_size == 0 or new_size == me()->len)
       return me()->len;
 
@@ -569,6 +580,9 @@ public:
   */
   void rehash()
   {
+    if (me()->len == 0)
+      return; // the storage was taken by a move: nothing to rebuild
+
     auto new_table = new typename HashTbl::Bucket [me()->len];
     auto old_table = me()->table;
 
@@ -598,18 +612,22 @@ public:
       
       @post size() == 0
       @post capacity() == Primes::DefaultPrime
+      @throw std::bad_alloc If there is no memory for the new buckets. The
+             table is left as it was.
   */
   void empty()
   {
+    auto * new_table = new typename HashTbl::Bucket [Primes::DefaultPrime];
     delete [] me()->table;
+    me()->table = new_table;
     me()->N = 0;
     me()->len = Primes::DefaultPrime;
-    me()->table = new typename HashTbl::Bucket [me()->len];
   }
 
   /** @brief Empties the container. 
       
-      @throws none
+      @throw std::bad_alloc If there is no memory for the new buckets. The
+             table is left as it was.
       @see empty()
   */
   void clear() { empty(); }
@@ -968,10 +986,13 @@ public:
       A higher load factor means more efficient memory usage but
       potentially longer probe sequences.
       
-      @return The load factor as N/capacity.
+      @return The load factor as N/capacity, or zero if the table has no
+              buckets because a move took them.
   */
   [[nodiscard]] constexpr float current_alpha() const noexcept 
   {
+    if (const_me()->len == 0) [[unlikely]]
+      return 0;
     return 1.0f*const_me()->N/const_me()->len; 
   }
 };
@@ -1006,11 +1027,6 @@ class HashStats
       @return Const pointer to this object cast to const HashTbl*.
   */
   const HashTbl * const_me() const { return static_cast<const HashTbl*>(this); }
-
-  float  lower_alpha;          ///< Lower load factor threshold for shrinking.
-  float  upper_alpha;          ///< Upper load factor threshold for growing.
-  size_t busy_slots_counter = 0;  ///< Number of buckets with at least one entry.
-  size_t N = 0;                ///< Total number of entries.
 
 public:
 
@@ -1122,7 +1138,7 @@ public:
   {
     std::cout << "M          = " << const_me()->capacity() << '\n'
          << "N          = " << const_me()->size() << '\n'
-         << "busy slots = " << busy_slots_counter << '\n'
+         << "busy slots = " << const_me()->busy_slots_counter << '\n'
          << "Average    = " << stats.avg << '\n'
          << "Desv       = " << sqrt(stats.var) << '\n'
          << "alpha      = " << (1.0*const_me()->size())/const_me()->capacity() 
@@ -1141,10 +1157,10 @@ public:
   */
   void set_upper_alpha(float _upper_alpha)
   {
-    ah_domain_error_if(_upper_alpha <= lower_alpha)
+    ah_domain_error_if(_upper_alpha <= me()->lower_alpha)
       << "upper_alpha lower than lower_alpha";
 
-    upper_alpha = _upper_alpha;
+    me()->upper_alpha = _upper_alpha;
   }
 
   /** @brief Sets the lower load factor threshold.
@@ -1157,21 +1173,21 @@ public:
   */
   void set_lower_alpha(float _lower_alpha)
   {
-    ah_domain_error_if(_lower_alpha >= upper_alpha)
+    ah_domain_error_if(_lower_alpha >= me()->upper_alpha)
       << "lower_alpha greater than upper_alpha";
 
-    lower_alpha = _lower_alpha;
+    me()->lower_alpha = _lower_alpha;
   }
 
   /** @brief Returns the lower load factor threshold.
       @return The lower alpha threshold.
   */
-  [[nodiscard]] constexpr float get_lower_alpha() const noexcept { return lower_alpha; }
+  [[nodiscard]] constexpr float get_lower_alpha() const noexcept { return const_me()->lower_alpha; }
 
   /** @brief Returns the upper load factor threshold.
       @return The upper alpha threshold.
   */
-  [[nodiscard]] constexpr float get_upper_alpha() const noexcept { return upper_alpha; }
+  [[nodiscard]] constexpr float get_upper_alpha() const noexcept { return const_me()->upper_alpha; }
 };
 
 

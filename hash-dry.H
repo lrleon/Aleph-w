@@ -43,6 +43,8 @@
 # ifndef HASH_DRY_H
 # define HASH_DRY_H
 
+# include <type_traits>
+
 # include <ahFunction.H>
 
 # define OHASH_COMMON(class_name)                                       \
@@ -77,6 +79,8 @@ private:                                                                \
                                                                         \
 public:                                                                 \
                                                                         \
+ /* Sets the hash function. The keys already stored are not placed   */ \
+ /* again: on a table that is not empty, rehash() must follow.       */ \
  void set_hash_fct(Hash_Fct fct) noexcept                               \
  {                                                                      \
    hash_fct = fct;                                                      \
@@ -93,6 +97,25 @@ namespace Aleph
   extern const float hash_default_lower_alpha;
 
   extern const float hash_default_upper_alpha;
+
+  namespace hash_table_detail
+  {
+    /** @brief A class type that converts to the function pointer type `Ptr`.
+
+        A lambda without captures is the usual case. Such an object fits a
+        parameter of type `std::function` and one of type `Ptr` equally
+        well, so a call that could bind it to either is ambiguous. The hash
+        tables use this concept to give those calls a constructor of their
+        own.
+
+        @tparam H The type of the argument, as deduced for a forwarding
+        reference.
+        @tparam Ptr The function pointer type.
+    */
+    template <typename H, typename Ptr>
+    concept Class_Convertible_To_Ptr =
+      std::is_class_v<std::remove_cvref_t<H>> and std::is_convertible_v<H, Ptr>;
+  }
 
 }
 

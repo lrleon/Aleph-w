@@ -43,8 +43,13 @@
 # include <tpl_olhash.H>
 # include <tpl_odhash.H>
 # include <tpl_lhash.H>
+# include <tpl_hash.H>
 # include <stdexcept>
 # include <functional>
+# include <ostream>
+# include <type_traits>
+# include <utility>
+# include <vector>
 
 using namespace std;
 using namespace testing;
@@ -875,3 +880,895 @@ static_assert(!std::is_copy_constructible_v<LhashTable<int>>,
               "LhashTable should not be copy constructible");
 static_assert(!std::is_copy_assignable_v<LhashTable<int>>,
               "LhashTable should not be copy assignable");
+
+// ---------------------------------------------------------------------------
+// What rules a table travels with its keys
+// ---------------------------------------------------------------------------
+
+namespace
+{
+  size_t first_hash_a(const long & k) noexcept
+  {
+    return static_cast<size_t>(k) * 2654435761u;
+  }
+
+  size_t first_hash_b(const long & k) noexcept
+  {
+    return static_cast<size_t>(k) * 40503u + 17;
+  }
+
+  size_t second_hash_a(const long & k) noexcept
+  {
+    return static_cast<size_t>(k) + 7;
+  }
+
+  size_t second_hash_b(const long & k) noexcept
+  {
+    return static_cast<size_t>(k) * 3 + 11;
+  }
+
+  // An equality that says which table it was given to.
+  struct Tagged_Equal
+  {
+    int tag = 0;
+
+    bool operator()(const long & x, const long & y) const noexcept
+    {
+      return x == y;
+    }
+  };
+
+  // Everything that rules a table, apart from its keys and its capacity.
+  struct Table_Config
+  {
+    size_t first_hash = 0;  // the hash function, applied to a fixed key
+    size_t second_hash = 0; // the second one, in the table that has two
+    int cmp_tag = 0;
+    float lower_alpha = 0;
+    float upper_alpha = 0;
+
+    bool operator==(const Table_Config &) const = default;
+
+    friend std::ostream & operator<<(std::ostream & out,
+                                     const Table_Config & c)
+    {
+      return out << "{hash " << c.first_hash << ", second hash "
+                 << c.second_hash << ", comparator " << c.cmp_tag
+                 << ", thresholds " << c.lower_alpha << '/' << c.upper_alpha
+                 << '}';
+    }
+  };
+
+  constexpr long Config_Probe_Key = 12345;
+
+  // The two configurations that the tests tell apart. Capacity `len` is
+  // not part of them: each test chooses it.
+  const Table_Config config_a = {first_hash_a(Config_Probe_Key),
+                                 second_hash_a(Config_Probe_Key), 1,
+                                 0.10f, 0.40f};
+  const Table_Config config_b = {first_hash_b(Config_Probe_Key),
+                                 second_hash_b(Config_Probe_Key), 2,
+                                 0.25f, 0.90f};
+
+  using Linear_Probing = OLhashTable<long, Tagged_Equal>;
+  using Double_Hashing = ODhashTable<long, Tagged_Equal>;
+  using Chained = DynSetLhash<long, Tagged_Equal>;
+  using Linear_Hashing = DynSetLinHash<long, Tagged_Equal>;
+
+  // How to build each table with configuration a or b, and how to read
+  // its configuration back.
+  template <class Table> struct Config_Of;
+
+  template <> struct Config_Of<Linear_Probing>
+  {
+    static Linear_Probing make(const bool a, const size_t len)
+    {
+      return a ? Linear_Probing(len, first_hash_a, Tagged_Equal{1},
+                                0.10f, 0.40f, true)
+               : Linear_Probing(len, first_hash_b, Tagged_Equal{2},
+                                0.25f, 0.90f, true);
+    }
+
+    static size_t second_hash(const Linear_Probing &, const bool a)
+    {
+      return a ? config_a.second_hash : config_b.second_hash; // it has none
+    }
+  };
+
+  template <> struct Config_Of<Double_Hashing>
+  {
+    static Double_Hashing make(const bool a, const size_t len)
+    {
+      return a ? Double_Hashing(len, first_hash_a, second_hash_a,
+                                Tagged_Equal{1}, 0.10f, 0.40f, true)
+               : Double_Hashing(len, first_hash_b, second_hash_b,
+                                Tagged_Equal{2}, 0.25f, 0.90f, true);
+    }
+
+    static size_t second_hash(const Double_Hashing & table, bool)
+    {
+      return table.get_second_hash_fct()(Config_Probe_Key);
+    }
+  };
+
+  template <class Table> struct Config_Of_Chained
+  {
+    static Table make(const bool a, const size_t len)
+    {
+      return a ? Table(len, first_hash_a, Tagged_Equal{1}, 0.10f, 0.40f)
+               : Table(len, first_hash_b, Tagged_Equal{2}, 0.25f, 0.90f);
+    }
+
+    static size_t second_hash(const Table &, const bool a)
+    {
+      return a ? config_a.second_hash : config_b.second_hash; // it has none
+    }
+  };
+
+  template <> struct Config_Of<Chained> : Config_Of_Chained<Chained> {};
+
+  template <>
+  struct Config_Of<Linear_Hashing> : Config_Of_Chained<Linear_Hashing> {};
+
+  // `like_a` only says which second hash to report for the tables that
+  // have a single hash function.
+  template <class Table>
+  Table_Config config_of(const Table & table, const bool like_a)
+  {
+    return {table.get_hash_fct()(Config_Probe_Key),
+            Config_Of<Table>::second_hash(table, like_a),
+            table.get_compare().tag,
+            table.get_lower_alpha(), table.get_upper_alpha()};
+  }
+
+  template <class Table>
+  void insert_keys(Table & table, const long from, const long to)
+  {
+    for (long k = from; k < to; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+  }
+
+  template <class Table>
+  ::testing::AssertionResult holds(const Table & table, long from, long to)
+  {
+    if (table.size() != static_cast<size_t>(to - from))
+      return ::testing::AssertionFailure()
+             << "size is " << table.size() << ", expected " << to - from;
+    for (long k = from; k < to; ++k)
+      if (not table.contains(k))
+        return ::testing::AssertionFailure() << "key " << k << " not found";
+    return ::testing::AssertionSuccess();
+  }
+
+  template <class Table>
+  struct HashTableConfiguration : public ::testing::Test {};
+
+  using Configured_Tables = ::testing::Types<Linear_Probing, Double_Hashing,
+                                             Chained, Linear_Hashing>;
+  TYPED_TEST_SUITE(HashTableConfiguration, Configured_Tables);
+
+  TYPED_TEST(HashTableConfiguration, ConstructionKeepsWhatItWasGiven)
+  {
+    const auto a = Config_Of<TypeParam>::make(true, 101);
+    const auto b = Config_Of<TypeParam>::make(false, 101);
+
+    EXPECT_EQ(config_of(a, true), config_a);
+    EXPECT_EQ(config_of(b, false), config_b);
+  }
+
+  TYPED_TEST(HashTableConfiguration, CopyConstructionCopiesTheConfiguration)
+  {
+    auto source = Config_Of<TypeParam>::make(true, 101);
+    insert_keys(source, 0, 40);
+
+    const TypeParam copy(source);
+
+    EXPECT_EQ(config_of(copy, true), config_a);
+    EXPECT_TRUE(holds(copy, 0, 40));
+    EXPECT_EQ(config_of(source, true), config_a);
+    EXPECT_TRUE(holds(source, 0, 40));
+  }
+
+  // The target is larger than the source needs. The open addressing tables
+  // used to keep their own array in this case, and with it their own hash
+  // function, comparator and thresholds.
+  TYPED_TEST(HashTableConfiguration, CopyAssignmentToALargerTable)
+  {
+    auto source = Config_Of<TypeParam>::make(true, 101);
+    insert_keys(source, 0, 40);
+    auto target = Config_Of<TypeParam>::make(false, 1009);
+    insert_keys(target, 500, 520);
+
+    target = source;
+
+    EXPECT_EQ(config_of(target, true), config_a);
+    EXPECT_TRUE(holds(target, 0, 40));
+    EXPECT_EQ(config_of(source, true), config_a);
+    EXPECT_TRUE(holds(source, 0, 40));
+
+    insert_keys(target, 40, 400); // it keeps working with what it was given
+    EXPECT_TRUE(holds(target, 0, 400));
+  }
+
+  TYPED_TEST(HashTableConfiguration, CopyAssignmentToASmallerTable)
+  {
+    auto source = Config_Of<TypeParam>::make(true, 1009);
+    insert_keys(source, 0, 400);
+    auto target = Config_Of<TypeParam>::make(false, 11);
+    insert_keys(target, 500, 505);
+
+    target = source;
+
+    EXPECT_EQ(config_of(target, true), config_a);
+    EXPECT_TRUE(holds(target, 0, 400));
+    EXPECT_TRUE(holds(source, 0, 400));
+  }
+
+  TYPED_TEST(HashTableConfiguration, SelfCopyAssignmentChangesNothing)
+  {
+    auto table = Config_Of<TypeParam>::make(true, 101);
+    insert_keys(table, 0, 40);
+    const auto & same = table;
+
+    table = same;
+
+    EXPECT_EQ(config_of(table, true), config_a);
+    EXPECT_TRUE(holds(table, 0, 40));
+  }
+
+  TYPED_TEST(HashTableConfiguration, MoveConstructionCarriesTheConfiguration)
+  {
+    auto source = Config_Of<TypeParam>::make(true, 101);
+    insert_keys(source, 0, 40);
+
+    TypeParam target(std::move(source));
+
+    EXPECT_EQ(config_of(target, true), config_a);
+    EXPECT_TRUE(holds(target, 0, 40));
+
+    // The source is empty, keeps its configuration and can be used again.
+    EXPECT_TRUE(source.is_empty());
+    EXPECT_EQ(source.size(), 0u);
+    EXPECT_FALSE(source.contains(7));
+    EXPECT_EQ(config_of(source, true), config_a);
+    insert_keys(source, 100, 300);
+    EXPECT_TRUE(holds(source, 100, 300));
+    EXPECT_TRUE(holds(target, 0, 40));
+  }
+
+  TYPED_TEST(HashTableConfiguration, MoveAssignmentCarriesTheConfiguration)
+  {
+    auto source = Config_Of<TypeParam>::make(true, 101);
+    insert_keys(source, 0, 40);
+    auto target = Config_Of<TypeParam>::make(false, 1009);
+    insert_keys(target, 500, 520);
+
+    target = std::move(source);
+
+    EXPECT_EQ(config_of(target, true), config_a);
+    EXPECT_TRUE(holds(target, 0, 40));
+
+    insert_keys(target, 40, 400);
+    EXPECT_TRUE(holds(target, 0, 400));
+  }
+
+  TYPED_TEST(HashTableConfiguration, SwapExchangesTheConfiguration)
+  {
+    auto a = Config_Of<TypeParam>::make(true, 101);
+    insert_keys(a, 0, 40);
+    auto b = Config_Of<TypeParam>::make(false, 1009);
+    insert_keys(b, 500, 520);
+
+    a.swap(b);
+
+    EXPECT_EQ(config_of(a, false), config_b);
+    EXPECT_TRUE(holds(a, 500, 520));
+    EXPECT_EQ(config_of(b, true), config_a);
+    EXPECT_TRUE(holds(b, 0, 40));
+
+    insert_keys(a, 520, 900);
+    insert_keys(b, 40, 400);
+    EXPECT_TRUE(holds(a, 500, 900));
+    EXPECT_TRUE(holds(b, 0, 400));
+  }
+
+  TYPED_TEST(HashTableConfiguration, SwapWithAnEmptyTable)
+  {
+    auto a = Config_Of<TypeParam>::make(true, 101);
+    insert_keys(a, 0, 40);
+    auto b = Config_Of<TypeParam>::make(false, 11);
+
+    a.swap(b);
+
+    EXPECT_EQ(config_of(a, false), config_b);
+    EXPECT_TRUE(a.is_empty());
+    EXPECT_EQ(config_of(b, true), config_a);
+    EXPECT_TRUE(holds(b, 0, 40));
+  }
+
+  // The resizing policy of the open addressing tables has no accessor: it
+  // shows in whether a table grows as it fills up. One bucket is left
+  // free: a table that does not resize must not be given more keys than
+  // it has buckets.
+  template <class Table> bool grows_when_filled(Table & table)
+  {
+    const size_t capacity = table.capacity();
+    for (long k = 0;
+         table.capacity() == capacity and table.size() + 1 < capacity; ++k)
+      (void) table.insert(1000000 + k);
+    return table.capacity() != capacity;
+  }
+
+  template <class Table>
+  struct OpenTableResizingPolicy : public ::testing::Test
+  {
+    // The sources of the tests have a few keys, so that assigning one of
+    // them to a table with fewer buckets than that cannot keep the array
+    // of the target.
+    static constexpr long Num_Keys = 6;
+
+    static Table fixed_size(const size_t len, const long num_keys = 0)
+    {
+      auto make = [len] ()
+        {
+          if constexpr (std::is_same_v<Table, Linear_Probing>)
+            return Table(len, first_hash_a, Tagged_Equal{1}, 0.10f, 0.40f,
+                         false);
+          else
+            return Table(len, first_hash_a, second_hash_a, Tagged_Equal{1},
+                         0.10f, 0.40f, false);
+        };
+      Table table = make();
+      insert_keys(table, 0, num_keys);
+      return table;
+    }
+
+    static Table resizable(const size_t len, const long num_keys = 0)
+    {
+      Table table = Config_Of<Table>::make(false, len);
+      insert_keys(table, 0, num_keys);
+      return table;
+    }
+  };
+
+  using Open_Tables = ::testing::Types<Linear_Probing, Double_Hashing>;
+  TYPED_TEST_SUITE(OpenTableResizingPolicy, Open_Tables);
+
+  TYPED_TEST(OpenTableResizingPolicy, IsWhatTheConstructorWasGiven)
+  {
+    auto fixed = this->fixed_size(11, this->Num_Keys);
+    auto resizable = this->resizable(11, this->Num_Keys);
+
+    EXPECT_FALSE(grows_when_filled(fixed));
+    EXPECT_TRUE(grows_when_filled(resizable));
+  }
+
+  TYPED_TEST(OpenTableResizingPolicy, IsCopied)
+  {
+    const auto fixed = this->fixed_size(11, this->Num_Keys);
+    const auto resizable = this->resizable(11, this->Num_Keys);
+
+    TypeParam fixed_copy(fixed);
+    TypeParam resizable_copy(resizable);
+    EXPECT_FALSE(grows_when_filled(fixed_copy));
+    EXPECT_TRUE(grows_when_filled(resizable_copy));
+
+    // By assignment, to a target with fewer buckets than the source has
+    // keys and to one with plenty of them.
+    for (const size_t len : {size_t(5), size_t(1009)})
+      {
+        auto to_fixed = this->resizable(len);
+        to_fixed = fixed;
+        EXPECT_FALSE(grows_when_filled(to_fixed)) << "capacity " << len;
+
+        auto to_resizable = this->fixed_size(len);
+        to_resizable = resizable;
+        EXPECT_TRUE(grows_when_filled(to_resizable)) << "capacity " << len;
+      }
+  }
+
+  TYPED_TEST(OpenTableResizingPolicy, IsMoved)
+  {
+    auto fixed = this->fixed_size(11, this->Num_Keys);
+    auto resizable = this->resizable(11, this->Num_Keys);
+
+    TypeParam from_fixed(std::move(fixed));
+    TypeParam from_resizable(std::move(resizable));
+
+    auto to_fixed = this->resizable(101);
+    to_fixed = std::move(from_fixed);
+    EXPECT_FALSE(grows_when_filled(to_fixed));
+
+    auto to_resizable = this->fixed_size(101);
+    to_resizable = std::move(from_resizable);
+    EXPECT_TRUE(grows_when_filled(to_resizable));
+  }
+
+  TYPED_TEST(OpenTableResizingPolicy, IsSwapped)
+  {
+    auto a = this->fixed_size(11, this->Num_Keys);
+    auto b = this->resizable(11, this->Num_Keys);
+
+    a.swap(b);
+
+    EXPECT_TRUE(grows_when_filled(a));
+    EXPECT_FALSE(grows_when_filled(b));
+  }
+
+  // -------------------------------------------------------------------------
+  // An open addressing table after a move took its buckets
+  // -------------------------------------------------------------------------
+
+  template <class Table>
+  struct OpenTableAfterMove : public ::testing::Test
+  {
+    // A table with keys [0, 40) whose buckets are then taken by a move.
+    // `resizes` is the resizing policy of the table.
+    static Table emptied_by_a_move(const bool resizes = true)
+    {
+      auto make = [resizes] ()
+        {
+          if constexpr (std::is_same_v<Table, OLhashTable<long>>)
+            return Table(101, first_hash_a, Aleph::equal_to<long>(),
+                         0.10f, 0.40f, resizes);
+          else
+            return Table(101, first_hash_a, second_hash_a,
+                         Aleph::equal_to<long>(), 0.10f, 0.40f, resizes);
+        };
+      Table source = make();
+      insert_keys(source, 0, 40);
+      Table target(std::move(source));
+      EXPECT_TRUE(holds(target, 0, 40));
+      return source;
+    }
+  };
+
+  using Plain_Open_Tables =
+    ::testing::Types<OLhashTable<long>, ODhashTable<long>>;
+  TYPED_TEST_SUITE(OpenTableAfterMove, Plain_Open_Tables);
+
+  // The keys do not change address: the buckets are taken, not copied.
+  TYPED_TEST(OpenTableAfterMove, TheTargetHasTheVeryBucketsOfTheSource)
+  {
+    static_assert(std::is_nothrow_move_constructible_v<TypeParam>);
+
+    TypeParam source;
+    insert_keys(source, 0, 1000);
+    const size_t capacity = source.capacity();
+    std::vector<const long *> where;
+    for (long k = 0; k < 1000; ++k)
+      where.push_back(source.search(k));
+
+    TypeParam target(std::move(source));
+
+    EXPECT_EQ(target.capacity(), capacity);
+    ASSERT_TRUE(holds(target, 0, 1000));
+    for (long k = 0; k < 1000; ++k)
+      ASSERT_EQ(std::as_const(target).search(k), where[k]) << "key " << k;
+
+    EXPECT_EQ(source.size(), 0u);
+    EXPECT_EQ(source.capacity(), 0u);
+  }
+
+  TYPED_TEST(OpenTableAfterMove, TheSourceAnswersAsAnEmptyTable)
+  {
+    TypeParam source = this->emptied_by_a_move();
+
+    EXPECT_EQ(source.size(), 0u);
+    EXPECT_EQ(source.capacity(), 0u);
+    EXPECT_TRUE(source.is_empty());
+    EXPECT_EQ(source.current_alpha(), 0.0f);
+
+    EXPECT_EQ(source.search(7), nullptr);
+    EXPECT_EQ(std::as_const(source).search(7), nullptr);
+    EXPECT_FALSE(source.has(7));
+    EXPECT_FALSE(source.contains(7));
+    EXPECT_THROW((void) source.find(7), std::domain_error);
+    EXPECT_THROW(source.remove(7), std::domain_error);
+
+    EXPECT_TRUE(source.keys().is_empty());
+    size_t visited = 0;
+    source.for_each([&visited] (const long &) { ++visited; });
+    for ([[maybe_unused]] const long & key : source)
+      ++visited;
+    EXPECT_EQ(visited, 0u);
+
+    typename TypeParam::Iterator it(source);
+    EXPECT_FALSE(it.has_curr());
+    EXPECT_THROW(it.del(), std::overflow_error);
+    it.reset_last();
+    EXPECT_FALSE(it.has_curr());
+
+    const auto stats = source.stats();
+    EXPECT_EQ(stats.num_busy, 0u);
+    EXPECT_EQ(stats.num_empty, 0u);
+    EXPECT_EQ(stats.num_deleted, 0u);
+    EXPECT_EQ(stats.max_len, 0u);
+    EXPECT_EQ(stats.avg, 0.0f); // not the 0/0 of averaging over no bucket
+    EXPECT_EQ(stats.var, 0.0f);
+
+    source.rehash();
+    EXPECT_EQ(source.capacity(), 0u);
+    EXPECT_EQ(source.resize(0), 0u);
+    EXPECT_EQ(source.capacity(), 0u);
+  }
+
+  TYPED_TEST(OpenTableAfterMove, TheSourceGetsBucketsWithItsFirstInsertion)
+  {
+    {
+      TypeParam source = this->emptied_by_a_move();
+      ASSERT_NE(source.insert(7), nullptr);
+      EXPECT_EQ(source.capacity(), Primes::DefaultPrime);
+      EXPECT_TRUE(holds(source, 7, 8));
+      insert_keys(source, 8, 2000);
+      EXPECT_TRUE(holds(source, 7, 2000));
+      source.remove(7);
+      EXPECT_TRUE(holds(source, 8, 2000));
+    }
+    {
+      TypeParam source = this->emptied_by_a_move();
+      long key = 7;
+      ASSERT_NE(source.insert(std::move(key)), nullptr);
+      EXPECT_TRUE(holds(source, 7, 8));
+    }
+    {
+      TypeParam source = this->emptied_by_a_move();
+      const long * stored = source.search_or_insert(7);
+      ASSERT_NE(stored, nullptr);
+      EXPECT_EQ(source.search_or_insert(7), stored);
+      EXPECT_TRUE(holds(source, 7, 8));
+    }
+    {
+      TypeParam source = this->emptied_by_a_move();
+      const auto first = source.contains_or_insert(7);
+      ASSERT_NE(first.first, nullptr);
+      EXPECT_FALSE(first.second);
+      EXPECT_TRUE(source.contains_or_insert(7).second);
+      EXPECT_TRUE(holds(source, 7, 8));
+    }
+    {
+      TypeParam source = this->emptied_by_a_move();
+      EXPECT_EQ(source[7], 7);
+      EXPECT_TRUE(holds(source, 7, 8));
+    }
+  }
+
+  // A table that does not resize gets buckets all the same; otherwise it
+  // could never hold a key again.
+  TYPED_TEST(OpenTableAfterMove, ATableThatDoesNotResizeGetsBucketsToo)
+  {
+    TypeParam source = this->emptied_by_a_move(false);
+
+    ASSERT_NE(source.insert(7), nullptr);
+    EXPECT_EQ(source.capacity(), Primes::DefaultPrime);
+    insert_keys(source, 8, 50);
+    EXPECT_TRUE(holds(source, 7, 50));
+    EXPECT_FALSE(grows_when_filled(source));
+  }
+
+  TYPED_TEST(OpenTableAfterMove, TheSourceCanBeResizedAndCleared)
+  {
+    {
+      TypeParam source = this->emptied_by_a_move();
+      EXPECT_EQ(source.resize(17), 17u);
+      EXPECT_EQ(source.capacity(), 17u);
+      EXPECT_TRUE(source.is_empty());
+      insert_keys(source, 0, 10);
+      EXPECT_TRUE(holds(source, 0, 10));
+    }
+    {
+      TypeParam source = this->emptied_by_a_move();
+      source.clear();
+      EXPECT_EQ(source.capacity(), Primes::DefaultPrime);
+      EXPECT_TRUE(source.is_empty());
+      insert_keys(source, 0, 10);
+      EXPECT_TRUE(holds(source, 0, 10));
+    }
+  }
+
+  TYPED_TEST(OpenTableAfterMove, TheSourceCanBeCopiedMovedAndAssigned)
+  {
+    {
+      const TypeParam source = this->emptied_by_a_move();
+      TypeParam copy(source);
+      EXPECT_TRUE(copy.is_empty());
+      EXPECT_EQ(copy.get_hash_fct()(Config_Probe_Key),
+                first_hash_a(Config_Probe_Key));
+      insert_keys(copy, 0, 10);
+      EXPECT_TRUE(holds(copy, 0, 10));
+      EXPECT_TRUE(source.is_empty());
+    }
+    {
+      TypeParam source = this->emptied_by_a_move();
+      TypeParam moved(std::move(source));
+      EXPECT_TRUE(moved.is_empty());
+      insert_keys(moved, 0, 10);
+      insert_keys(source, 20, 30);
+      EXPECT_TRUE(holds(moved, 0, 10));
+      EXPECT_TRUE(holds(source, 20, 30));
+    }
+    {
+      const TypeParam source = this->emptied_by_a_move();
+      TypeParam target;
+      insert_keys(target, 100, 150);
+      target = source;
+      EXPECT_TRUE(target.is_empty());
+      insert_keys(target, 0, 10);
+      EXPECT_TRUE(holds(target, 0, 10));
+    }
+    {
+      TypeParam source = this->emptied_by_a_move();
+      TypeParam other;
+      insert_keys(other, 100, 150);
+      source = other;
+      EXPECT_TRUE(holds(source, 100, 150));
+      EXPECT_TRUE(holds(other, 100, 150));
+    }
+    {
+      TypeParam source = this->emptied_by_a_move();
+      TypeParam other;
+      insert_keys(other, 100, 150);
+      source = std::move(other);
+      EXPECT_TRUE(holds(source, 100, 150));
+      insert_keys(other, 0, 10);
+      EXPECT_TRUE(holds(other, 0, 10));
+    }
+    {
+      TypeParam source = this->emptied_by_a_move();
+      TypeParam other;
+      insert_keys(other, 100, 150);
+      source.swap(other);
+      EXPECT_TRUE(holds(source, 100, 150));
+      EXPECT_TRUE(other.is_empty());
+      insert_keys(other, 0, 10);
+      EXPECT_TRUE(holds(other, 0, 10));
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // A copy assignment that fails midway
+  // -------------------------------------------------------------------------
+
+  // A key whose copies can be made to throw.
+  struct Fragile_Key
+  {
+    static inline bool fail = false;
+
+    long value = 0;
+
+    Fragile_Key() = default;
+
+    Fragile_Key(const long v) : value(v) {}
+
+    Fragile_Key(const Fragile_Key & other) : value(other.value)
+    {
+      may_throw();
+    }
+
+    Fragile_Key & operator=(const Fragile_Key & other)
+    {
+      may_throw();
+      value = other.value;
+      return *this;
+    }
+
+    Fragile_Key(Fragile_Key &&) noexcept = default;
+
+    Fragile_Key & operator=(Fragile_Key &&) noexcept = default;
+
+    bool operator==(const Fragile_Key &) const = default;
+
+  private:
+    static void may_throw()
+    {
+      if (fail)
+        throw std::runtime_error("no copy");
+    }
+  };
+
+  size_t fragile_hash(const Fragile_Key & key) noexcept
+  {
+    return first_hash_a(key.value);
+  }
+
+  size_t fragile_second_hash(const Fragile_Key & key) noexcept
+  {
+    return second_hash_a(key.value);
+  }
+
+  struct Failing_Copies
+  {
+    Failing_Copies() { Fragile_Key::fail = true; }
+    ~Failing_Copies() { Fragile_Key::fail = false; }
+  };
+
+  template <class Table>
+  struct HashTableCopyThatThrows : public ::testing::Test
+  {
+    static Table make(const long from, const long to)
+    {
+      auto empty_table = [] ()
+        {
+          if constexpr (std::is_same_v<Table, ODhashTable<Fragile_Key>>)
+            return Table(101, fragile_hash, fragile_second_hash);
+          else
+            return Table(101, fragile_hash);
+        };
+      Table table = empty_table();
+      for (long k = from; k < to; ++k)
+        EXPECT_NE(table.insert(Fragile_Key(k)), nullptr) << "key " << k;
+      return table;
+    }
+
+    static ::testing::AssertionResult holds_keys(const Table & table,
+                                                 const long from,
+                                                 const long to)
+    {
+      if (table.size() != static_cast<size_t>(to - from))
+        return ::testing::AssertionFailure()
+               << "size is " << table.size() << ", expected " << to - from;
+      for (long k = from; k < to; ++k)
+        if (not table.contains(Fragile_Key(k)))
+          return ::testing::AssertionFailure() << "key " << k << " not found";
+      return ::testing::AssertionSuccess();
+    }
+  };
+
+  using Fragile_Tables = ::testing::Types<OLhashTable<Fragile_Key>,
+                                          ODhashTable<Fragile_Key>,
+                                          DynSetLhash<Fragile_Key>,
+                                          DynSetLinHash<Fragile_Key>>;
+  TYPED_TEST_SUITE(HashTableCopyThatThrows, Fragile_Tables);
+
+  // The assignment used to empty the target before it copied the first
+  // key.
+  TYPED_TEST(HashTableCopyThatThrows, AssignmentKeepsTheTarget)
+  {
+    const TypeParam source = this->make(0, 30);
+    TypeParam target = this->make(100, 110);
+
+    {
+      Failing_Copies failing;
+      EXPECT_THROW(target = source, std::runtime_error);
+    }
+
+    EXPECT_TRUE(this->holds_keys(target, 100, 110));
+    EXPECT_TRUE(this->holds_keys(source, 0, 30));
+
+    target = source;
+    EXPECT_TRUE(this->holds_keys(target, 0, 30));
+  }
+
+  TYPED_TEST(HashTableCopyThatThrows, ConstructionReleasesWhatItBuilt)
+  {
+    const TypeParam source = this->make(0, 30);
+
+    {
+      Failing_Copies failing;
+      EXPECT_THROW(TypeParam copy(source), std::runtime_error);
+    }
+
+    EXPECT_TRUE(this->holds_keys(source, 0, 30));
+  }
+
+  // -------------------------------------------------------------------------
+  // Changing the hash function of a table that has keys
+  // -------------------------------------------------------------------------
+
+  TEST(OpenTableHashFunction, RehashPlacesTheKeysWithTheNewFunction)
+  {
+    {
+      OLhashTable<long> table(101, first_hash_a);
+      insert_keys(table, 0, 60);
+      table.set_hash_fct(first_hash_b);
+      table.rehash();
+      EXPECT_TRUE(holds(table, 0, 60));
+      insert_keys(table, 60, 300);
+      EXPECT_TRUE(holds(table, 0, 300));
+    }
+    {
+      ODhashTable<long> table(101, first_hash_a, second_hash_a);
+      insert_keys(table, 0, 60);
+      table.set_hash_fct(first_hash_b);
+      table.set_second_hash_fct(second_hash_b);
+      table.rehash();
+      EXPECT_TRUE(holds(table, 0, 60));
+      for (long k = 0; k < 60; k += 2)
+        table.remove(k);
+      insert_keys(table, 60, 300);
+      for (long k = 1; k < 60; k += 2)
+        EXPECT_TRUE(table.contains(k)) << "key " << k;
+      EXPECT_EQ(table.size(), 270u);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Hash functions given as lambdas without captures
+  // -------------------------------------------------------------------------
+
+  // With every parameter given, a lambda without captures fitted both the
+  // constructor that takes a std::function and the one that takes a
+  // function pointer, and the call did not compile.
+  TEST(OpenTableConstruction, TakesLambdasWithoutCaptures)
+  {
+    auto plus_ten = [] (const long & k) { return static_cast<size_t>(k) + 10; };
+    auto plus_twenty = [] (const long & k)
+      {
+        return static_cast<size_t>(k) + 20;
+      };
+    const Aleph::equal_to<long> eq;
+
+    OLhashTable<long> one(11, plus_ten, eq, 0.1f, 0.5f, true);
+    EXPECT_EQ(one.get_hash_fct()(1), 11u);
+    insert_keys(one, 0, 100);
+    EXPECT_TRUE(holds(one, 0, 100));
+
+    OLhashTable<long> two(11, plus_ten, plus_twenty, eq, 0.1f, 0.5f, true);
+    EXPECT_EQ(two.get_hash_fct()(1), 11u);
+
+    OLhashTable<long> with_a_function(11, plus_ten, second_hash_a, eq,
+                                      0.1f, 0.5f, true);
+    EXPECT_EQ(with_a_function.get_hash_fct()(1), 11u);
+
+    const OLhashTable<long>::Hash_Fct stored = plus_twenty;
+    OLhashTable<long> with_a_stored_one(11, stored, plus_ten, eq,
+                                        0.1f, 0.5f, true);
+    EXPECT_EQ(with_a_stored_one.get_hash_fct()(1), 21u);
+
+    ODhashTable<long> twice(11, plus_ten, plus_twenty, eq, 0.1f, 0.5f, true);
+    EXPECT_EQ(twice.get_hash_fct()(1), 11u);
+    EXPECT_EQ(twice.get_second_hash_fct()(1), 21u);
+    insert_keys(twice, 0, 100);
+    EXPECT_TRUE(holds(twice, 0, 100));
+
+    HashSet<long, OLhashTable> set(11, plus_ten, eq, 0.1f, 0.5f, true);
+    EXPECT_EQ(set.get_hash_fct()(1), 11u);
+  }
+
+  // The calls that already compiled keep choosing the same function.
+  TEST(OpenTableConstruction, OtherHashFunctionsAreTakenAsBefore)
+  {
+    long bias = 30;
+    auto capturing = [bias] (const long & k)
+      {
+        return static_cast<size_t>(k + bias);
+      };
+    auto plus_ten = [] (const long & k) { return static_cast<size_t>(k) + 10; };
+    const OLhashTable<long>::Hash_Fct stored = capturing;
+    const Aleph::equal_to<long> eq;
+    const size_t a = first_hash_a(1), b = first_hash_b(1);
+    const size_t sa = second_hash_a(1);
+
+    using OL = OLhashTable<long>;
+    EXPECT_EQ(OL(11, first_hash_a, eq, 0.1f, 0.5f, true).get_hash_fct()(1), a);
+    EXPECT_EQ(OL(11, &first_hash_b, eq, 0.1f, 0.5f, true).get_hash_fct()(1), b);
+    EXPECT_EQ(OL(11, +plus_ten, eq, 0.1f, 0.5f, true).get_hash_fct()(1), 11u);
+    EXPECT_EQ(OL(11, capturing, eq, 0.1f, 0.5f, true).get_hash_fct()(1), 31u);
+    EXPECT_EQ(OL(11, stored, eq, 0.1f, 0.5f, true).get_hash_fct()(1), 31u);
+    EXPECT_EQ(OL(11, plus_ten).get_hash_fct()(1), 11u);
+    EXPECT_EQ(OL(11, plus_ten, eq, 0.1f, 0.5f).get_hash_fct()(1), 11u);
+    EXPECT_EQ(OL(11, first_hash_a, first_hash_b, eq, 0.1f, 0.5f, true)
+                .get_hash_fct()(1), a);
+    EXPECT_EQ(OL(11, stored, stored, eq, 0.1f, 0.5f, true).get_hash_fct()(1),
+              31u);
+    EXPECT_EQ(OL(11, capturing, first_hash_b, eq, 0.1f, 0.5f, true)
+                .get_hash_fct()(1), 31u);
+    EXPECT_EQ(OL(11, first_hash_a, capturing, eq, 0.1f, 0.5f, true)
+                .get_hash_fct()(1), a);
+    EXPECT_EQ(OL(11, first_hash_b, plus_ten, eq, 0.1f, 0.5f, true)
+                .get_hash_fct()(1), b);
+
+    using OD = ODhashTable<long>;
+    const OD plain(11, first_hash_a, second_hash_a, eq, 0.1f, 0.5f, true);
+    EXPECT_EQ(plain.get_hash_fct()(1), a);
+    EXPECT_EQ(plain.get_second_hash_fct()(1), sa);
+    const OD lambda_first(11, plus_ten, second_hash_a, eq, 0.1f, 0.5f, true);
+    EXPECT_EQ(lambda_first.get_hash_fct()(1), 11u);
+    EXPECT_EQ(lambda_first.get_second_hash_fct()(1), sa);
+    const OD lambda_second(11, first_hash_a, plus_ten, eq, 0.1f, 0.5f, true);
+    EXPECT_EQ(lambda_second.get_hash_fct()(1), a);
+    EXPECT_EQ(lambda_second.get_second_hash_fct()(1), 11u);
+    const OD with_defaults(11, plus_ten, plus_ten);
+    EXPECT_EQ(with_defaults.get_second_hash_fct()(1), 11u);
+  }
+} // namespace
