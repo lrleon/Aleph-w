@@ -133,6 +133,11 @@ struct Zero_Heuristic
  *  @note **Reusability**: This class can be reused for multiple searches.
  *        Each call to find_path(), compute_*(), or paint_*() clears state.
  *
+ *  @note If a method throws (for lack of memory, an overflow of the
+ *        distances or an exception of `Distance` or `Heuristic`), the
+ *        cookies it set are freed and the graph can be used again; a tree
+ *        being built keeps the part already built.
+ *
  *  @warning This class is **not thread-safe**. Concurrent calls require
  *           external synchronization.
  *
@@ -180,7 +185,7 @@ class AStar_Min_Path
 #define AHEAPNODE(p) (ANassert(p)->heap_node)
 #define APARENT(p) (ANassert(p)->ret_node)
 #define AAassert(p) (static_cast<Arc_Info*>(ARC_COOKIE(p)))
-#define AARC_DIST(p) (Distance()(p))
+#define AARC_DIST(p) (this->distance(p))
 #define ATREEARC(p) (static_cast<Tree_Arc_Info*>(ARC_COOKIE(p))->tree_arc)
 #define APOT(p) (AAassert(p)->pot)
 
@@ -270,6 +275,8 @@ public:
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
     this->template init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
+    auto guard =
+      this->template uninit_on_exit<Destroy_Tree_Node, Destroy_Tree_Arc>();
     clear_graph(tree);
 
     // Handle trivial case: start == end
@@ -280,7 +287,6 @@ public:
         auto tree_node = tree.insert_node(start->get_info());
         ATREENODE(start) = tree_node;
         NODE_COOKIE(tree_node) = start;
-        this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
         return tree_node;
       }
 
@@ -355,8 +361,6 @@ public:
           }
       }
 
-    this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
-
     return result;
   }
 
@@ -381,13 +385,13 @@ public:
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
     this->template init<Initialize_Node, Initialize_Arc>(g, start);
+    auto guard = this->template uninit_on_exit<Destroy_Node, Destroy_Arc>();
 
     // Handle trivial case: start == end
     if (start == end)
       {
         NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
         AACC(start) = 0;
-        this->template uninit<Destroy_Node, Destroy_Arc>();
         painted = true;
         return true;
       }
@@ -454,7 +458,6 @@ public:
           }
       }
 
-    this->template uninit<Destroy_Node, Destroy_Arc>();
     painted = true;
 
     return found;
@@ -530,6 +533,8 @@ public:
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
     this->template init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
+    auto guard =
+      this->template uninit_on_exit<Destroy_Tree_Node, Destroy_Tree_Arc>();
 
     clear_graph(tree);
 
@@ -592,8 +597,6 @@ public:
           }
       }
 
-    this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
-
     return ret;
   }
 
@@ -618,6 +621,8 @@ public:
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
     this->template init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
+    auto guard =
+      this->template uninit_on_exit<Destroy_Tree_Node, Destroy_Tree_Arc>();
     clear_graph(tree);
 
     // Handle trivial case: start == end
@@ -628,7 +633,6 @@ public:
         auto tree_node = tree.insert_node(start->get_info());
         ATREENODE(start) = tree_node;
         NODE_COOKIE(tree_node) = start;
-        this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
         return;
       }
 
@@ -692,8 +696,6 @@ public:
             heap.put_arc(arc, tgt);
           }
       }
-
-    this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
   }
 
   /** Paints on graph g the partial shortest paths tree (without heuristic).
@@ -716,13 +718,13 @@ public:
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
     this->template init<Initialize_Node, Initialize_Arc>(g, start);
+    auto guard = this->template uninit_on_exit<Destroy_Node, Destroy_Arc>();
 
     // Handle trivial case: start == end
     if (start == end)
       {
         NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
         AACC(start) = 0;
-        this->template uninit<Destroy_Node, Destroy_Arc>();
         painted = true;
         return true;
       }
@@ -789,7 +791,6 @@ public:
           }
       }
 
-    this->template uninit<Destroy_Node, Destroy_Arc>();
     painted = true;
 
     return ret_val;
@@ -811,6 +812,7 @@ public:
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
     this->template init<Initialize_Node, Initialize_Arc>(g, start);
+    auto guard = this->template uninit_on_exit<Destroy_Node, Destroy_Arc>();
 
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
     AACC(start) = 0;
@@ -866,7 +868,6 @@ public:
           }
       }
 
-    this->template uninit<Destroy_Node, Destroy_Arc>();
     painted = true;
   }
 

@@ -55,6 +55,7 @@
 #include <ah-errors.H>
 #include <tpl_graph.H>
 #include <tpl_find_path.H>
+#include <cookie_guard.H>
 
 namespace Aleph
 {
@@ -94,9 +95,6 @@ namespace Aleph
 
 /// Access tree arc mapping from arc cookie
 #define SP_TREEARC(p) (SP_TREE_ARC_INFO(p)->tree_arc)
-
-/// Get arc distance using Distance functor
-#define SP_ARC_DIST(p) (Distance()(p))
 
 
 // =============================================================================
@@ -254,6 +252,13 @@ public:
       g.reset_bit(p, Aleph::Spanning_Tree);
       NODE_COOKIE(p) = new Node_Info;
     }
+
+    /// Frees the cookie of `p` and leaves it null.
+    static void release(typename GT::Node* p) noexcept
+    {
+      delete SP_NODE_INFO(p);
+      NODE_COOKIE(p) = nullptr;
+    }
   };
 
   /** @brief Arc initialization for painting version. */
@@ -265,6 +270,13 @@ public:
       ARC_COOKIE(a) = new Arc_Info;
       SP_POT(a) = 0;
     }
+
+    /// Frees the cookie of `a` and leaves it null.
+    static void release(typename GT::Arc* a) noexcept
+    {
+      delete SP_ARC_INFO(a);
+      ARC_COOKIE(a) = nullptr;
+    }
   };
 
   /** @brief Node initialization for tree-building version. */
@@ -274,6 +286,13 @@ public:
     {
       g.reset_bit(p, Aleph::Spanning_Tree);
       NODE_COOKIE(p) = new Tree_Node_Info;
+    }
+
+    /// Frees the cookie of `p` and leaves it null.
+    static void release(typename GT::Node* p) noexcept
+    {
+      delete SP_TREE_NODE_INFO(p);
+      NODE_COOKIE(p) = nullptr;
     }
   };
 
@@ -286,6 +305,13 @@ public:
       ARC_COOKIE(a) = new Tree_Arc_Info;
       SP_POT(a) = 0;
       SP_TREEARC(a) = nullptr;
+    }
+
+    /// Frees the cookie of `a` and leaves it null.
+    static void release(typename GT::Arc* a) noexcept
+    {
+      delete SP_TREE_ARC_INFO(a);
+      ARC_COOKIE(a) = nullptr;
     }
   };
 
@@ -310,6 +336,7 @@ public:
     void operator()(const GT&, typename GT::Arc* ga) const noexcept
     {
       delete SP_ARC_INFO(ga);
+      ARC_COOKIE(ga) = nullptr;
     }
   };
 
@@ -339,6 +366,7 @@ public:
     {
       auto aux = SP_TREE_ARC_INFO(ga);
       typename GT::Arc* ta = SP_TREEARC(ga);
+      ARC_COOKIE(ga) = nullptr; // else map_arcs() would chain ta to aux
       if (ta != nullptr)
         {
           assert(IS_ARC_VISITED(ga, Aleph::Spanning_Tree));
@@ -361,6 +389,7 @@ protected:
   // =========================================================================
 
   SA sa;                           ///< Arc filter
+  Distance distance;               ///< Arc weights
   Get_Potential_Arc get_pot;       ///< Potential accessor
   Heap heap;                       ///< Priority queue
   bool painted = false;            ///< Whether graph has been painted
@@ -373,21 +402,60 @@ protected:
 
   /** @brief Initialize algorithm state.
    *
+   *  Gives every node and every arc shown by the filter a new cookie. A
+   *  previous painting is lost, since its bits and cookies are reset.
+   *
    *  @tparam IN Node initializer functor type.
    *  @tparam IA Arc initializer functor type.
    *  @param g The graph.
    *  @param start The starting node.
+   *  @throw std::bad_alloc If there is not enough memory. The cookies
+   *         already allocated are freed and left null.
    */
   template <class IN, class IA>
   void init(const GT& g, typename GT::Node* start)
   {
     heap.empty();
+    painted = false;
 
     ptr_g = &const_cast<GT&>(g);
     s = start;
 
-    Operate_On_Nodes<GT, IN>()(g);
-    (Operate_On_Arcs<GT, IA, SA>(sa))(g);
+    // the first num_nodes nodes and num_arcs arcs have a new cookie
+    size_t num_nodes = 0, num_arcs = 0;
+    try
+      {
+        for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne(), ++num_nodes)
+          IN()(g, it.get_curr());
+        for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr();
+             it.next_ne(), ++num_arcs)
+          IA()(g, it.get_curr());
+      }
+    catch (...)
+      {
+        Node_Iterator<GT> nit(g);
+        for (size_t i = 0; i < num_nodes; ++i, nit.next_ne())
+          IN::release(nit.get_curr());
+        Arc_Iterator<GT, SA> ait(g, sa);
+        for (size_t i = 0; i < num_arcs; ++i, ait.next_ne())
+          IA::release(ait.get_curr());
+        throw;
+      }
+  }
+
+  /** @brief Returns a guard that calls uninit() when it goes out of scope.
+
+      The algorithms take one right after init(), so that the cookies are
+      freed however they end: by returning or by an exception.
+
+      @tparam DN Node destroyer functor type.
+      @tparam DA Arc destroyer functor type.
+      @return The guard, which must live until the algorithm ends.
+  */
+  template <class DN, class DA>
+  [[nodiscard]] auto uninit_on_exit()
+  {
+    return Scope_Guard(*ptr_g, [this](const GT &) { uninit<DN, DA>(); });
   }
 
   /** @brief Cleanup algorithm state.
@@ -431,7 +499,7 @@ public:
    *  @param __sa Arc filter for iterators.
    */
   Shortest_Path_Base(Distance dist = Distance(), SA __sa = SA())
-    : sa(__sa), get_pot(dist), heap(get_pot, Heap_Info()),
+    : sa(__sa), distance(dist), get_pot(dist), heap(get_pot, Heap_Info()),
       painted(false), ptr_g(nullptr), s(nullptr)
   {
     // empty
@@ -447,7 +515,12 @@ public:
   [[nodiscard]] bool has_computation() const noexcept { return ptr_g != nullptr; }
 
   /** @brief Check if the graph has been painted.
-   *  @return true if a painting method was called, false otherwise.
+   *
+   *  Every computation resets the bits and cookies of the previous one,
+   *  so only a painting that ended normally can be used.
+   *
+   *  @return true if the last computation was a painting and ended
+   *          normally, false otherwise.
    */
   [[nodiscard]] bool is_painted() const noexcept { return painted; }
 
@@ -504,7 +577,7 @@ public:
             auto tgt = it.get_tgt_node();
             if (tgt == curr and IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
               {
-                total += Distance()(arc);
+                total += distance(arc);
                 break;
               }
           }
@@ -535,7 +608,7 @@ public:
     ah_domain_error_if(ptr_g == nullptr) << "Min path has not been computed";
     ah_domain_error_if(not painted) << "Graph has not been painted";
 
-    return Aleph::get_min_path<GT, Distance>(s, end, path);
+    return Aleph::get_min_path<GT, Distance>(s, end, path, distance);
   }
 
   // =========================================================================
@@ -556,7 +629,20 @@ public:
     }
   };
 
+  /** @brief Arc filter that shows the arcs of the painted tree. */
+  struct Painted_Arc
+  {
+    bool operator()(typename GT::Arc* a) const noexcept
+    {
+      return IS_ARC_VISITED(a, Aleph::Spanning_Tree);
+    }
+  };
+
   /** @brief Extracts the painted shortest paths tree and puts it in tree.
+   *
+   *  The nodes and arcs of `g` and of `tree` are mapped through their
+   *  cookies. Since the cookies held the painting, the painting cannot be
+   *  used afterwards and is_painted() becomes false.
    *
    *  @param[in] g The previously painted graph.
    *  @param[out] tree The graph where the spanning tree will be copied.
@@ -569,11 +655,26 @@ public:
   {
     ah_domain_error_if(not painted) << "Graph has not been painted";
 
-    using Paint_Filt = Painted_Min_Spanning_Tree<GT, Distance>;
-    Paint_Filt paint_filter;
-    (Copy_Graph<GT, Dft_Show_Node<GT>, Paint_Filt>(paint_filter))(tree, g);
+    // Copy_Graph works on a copy of its filter, so the filter cannot be
+    // the one that adds up the weights.
+    typename Distance::Distance_Type total = 0;
+    for (Arc_Iterator<GT, Painted_Arc> it(g); it.has_curr(); it.next_ne())
+      {
+        auto a = it.get_curr();
+        total += distance(a);
+        ARC_COOKIE(a) = nullptr;
+      }
 
-    return paint_filter.dist;
+    // null cookies make Copy_Graph map both ways instead of chaining the
+    // parents of the painting
+    painted = false;
+    for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
+      NODE_COOKIE(it.get_curr()) = nullptr;
+
+    Copy_Graph<GT, Dft_Show_Node<GT>, Painted_Arc> copy_painted_arcs;
+    copy_painted_arcs(tree, g);
+
+    return total;
   }
 
   /** @brief Extracts path from tree to end node.
@@ -607,9 +708,9 @@ public:
 
     // Sum arc weights from the tree path
     typename Distance::Distance_Type total_dist = 0;
-    tree_path.for_each_arc([&total_dist](typename GT::Arc* a)
+    tree_path.for_each_arc([this, &total_dist](typename GT::Arc* a)
       {
-        total_dist += Distance()(a);
+        total_dist += distance(a);
       });
 
     return total_dist;
@@ -628,7 +729,6 @@ public:
 #undef SP_TREE_ARC_INFO
 #undef SP_POT
 #undef SP_TREEARC
-#undef SP_ARC_DIST
 
 } // namespace Aleph
 

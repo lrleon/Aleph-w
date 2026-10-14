@@ -1266,7 +1266,7 @@ public:
   {
     ah_domain_error_if(not painted_) << "Graph has not been previously painted";
 
-    return Aleph::get_min_path<GT, Distance>(s_, end, path);
+    return Aleph::get_min_path<GT, Distance>(s_, end, path, dist_);
   }
 
   /** Returns a mapping with the shortest distances to each node obtained

@@ -1469,6 +1469,36 @@ TEST(BellmanFordTest, ParallelArcsNegativeCycle) {
   EXPECT_TRUE(has_neg);
 }
 
+// The policy of the report on 7.0.0: the weight of an arc times a factor.
+struct Scaled_Distance
+{
+  using Distance_Type = int;
+
+  int factor = 1;
+
+  int operator()(Arc * a) const { return factor * a->get_info(); }
+};
+
+// get_min_path() added up the weights with a default-constructed distance
+// instead of the one given to the constructor.
+TEST(BellmanFordTest, GetMinPathUsesTheDistanceItWasGiven) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  g.insert_arc(n0, n1, 3);
+  g.insert_arc(n1, n2, 4);
+  g.insert_arc(n0, n2, 20);
+
+  Bellman_Ford<GT, Scaled_Distance> bf(g, Scaled_Distance{3});
+  ASSERT_FALSE(bf.paint_spanning_tree(n0));
+
+  Path<GT> path(g);
+  EXPECT_EQ(bf.get_min_path(n2, path), 21);
+  EXPECT_EQ(path.get_first_node(), n0);
+  EXPECT_EQ(path.get_last_node(), n2);
+}
+
 // ========== GoogleTest main ==========
 int main(int argc, char **argv)
 {

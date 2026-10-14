@@ -84,6 +84,11 @@ namespace Aleph
 
     @note To use a Fibonacci heap, pass ArcFibonacciHeap as HeapT.
 
+    @note If a method throws (for lack of memory, an overflow of the
+          distances or an exception of `Distance`), the cookies it set are
+          freed and the graph can be used again; a tree being built keeps
+          the part already built.
+
     @warning This class is **not thread-safe**. Concurrent calls from
              multiple threads on the same instance require external
              synchronization.
@@ -124,7 +129,7 @@ class Dijkstra_Min_Paths
 #define HEAPNODE(p) (DNassert(p)->heap_node)
 #define PARENT(p) (DNassert(p)->ret_node)
 #define DAassert(p) (static_cast<Arc_Info*>(ARC_COOKIE(p)))
-#define ARC_DIST(p) (Distance()(p))
+#define ARC_DIST(p) (this->distance(p))
 #define TREEARC(p) (static_cast<Tree_Arc_Info*>(ARC_COOKIE(p))->tree_arc)
 #define POT(p) (DAassert(p)->pot)
 
@@ -175,6 +180,8 @@ public:
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
     this->template init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
+    auto guard =
+      this->template uninit_on_exit<Destroy_Tree_Node, Destroy_Tree_Arc>();
 
     clear_graph(tree);
 
@@ -237,8 +244,6 @@ public:
           }
       }
 
-    this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
-
     return ret;
   }
 
@@ -263,6 +268,8 @@ public:
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
     this->template init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
+    auto guard =
+      this->template uninit_on_exit<Destroy_Tree_Node, Destroy_Tree_Arc>();
     clear_graph(tree);
 
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
@@ -324,8 +331,6 @@ public:
             heap.put_arc(arc, tgt);
           }
       }
-
-    this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
   }
 
   /** Paints on graph g the partial shortest paths tree starting from
@@ -348,6 +353,7 @@ public:
 
     bool ret_val = false;
     this->template init<Initialize_Node, Initialize_Arc>(g, start);
+    auto guard = this->template uninit_on_exit<Destroy_Node, Destroy_Arc>();
 
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
     ACC(start) = 0;
@@ -409,7 +415,6 @@ public:
           }
       }
 
-    this->template uninit<Destroy_Node, Destroy_Arc>();
     painted = true;
 
     return ret_val;
@@ -429,6 +434,7 @@ public:
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
     this->template init<Initialize_Node, Initialize_Arc>(g, start);
+    auto guard = this->template uninit_on_exit<Destroy_Node, Destroy_Arc>();
 
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
     ACC(start) = 0;
@@ -484,7 +490,6 @@ public:
           }
       }
 
-    this->template uninit<Destroy_Node, Destroy_Arc>();
     painted = true;
   }
 
