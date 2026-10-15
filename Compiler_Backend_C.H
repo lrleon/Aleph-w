@@ -59,6 +59,7 @@
 #define COMPILER_BACKEND_C_H
 
 #include <cctype>
+#include <climits>
 #include <cstdlib>
 #include <sstream>
 #include <string>
@@ -247,6 +248,12 @@ class Compiler_C_Backend
     std::string print_value_symbol;
     std::string tag_name_symbol;
     std::string panic_symbol;
+    std::string int_add_symbol;
+    std::string int_sub_symbol;
+    std::string int_mul_symbol;
+    std::string int_div_symbol;
+    std::string int_mod_symbol;
+    std::string int_neg_symbol;
     std::string require_assigned_symbol;
     std::string require_int_symbol;
     std::string require_bool_symbol;
@@ -313,6 +320,12 @@ class Compiler_C_Backend
       names_.print_value_symbol = names_.prefix + "_print_value";
       names_.tag_name_symbol = names_.prefix + "_tag_name";
       names_.panic_symbol = names_.prefix + "_panic";
+      names_.int_add_symbol = names_.prefix + "_int_add";
+      names_.int_sub_symbol = names_.prefix + "_int_sub";
+      names_.int_mul_symbol = names_.prefix + "_int_mul";
+      names_.int_div_symbol = names_.prefix + "_int_div";
+      names_.int_mod_symbol = names_.prefix + "_int_mod";
+      names_.int_neg_symbol = names_.prefix + "_int_neg";
       names_.require_assigned_symbol = names_.prefix + "_require_assigned";
       names_.require_int_symbol = names_.prefix + "_require_int";
       names_.require_bool_symbol = names_.prefix + "_require_bool";
@@ -400,7 +413,12 @@ class Compiler_C_Backend
       long long integer_value = 0;
       if (Compiler_Backend_C_Detail::parse_integer_literal(inst.text, integer_value))
         {
-          expression = names_.make_int_symbol + "(" + std::to_string(integer_value) + "LL)";
+          // -9223372036854775808LL would negate a constant that does not
+          // fit in long long
+          expression = names_.make_int_symbol + "("
+                       + (integer_value == LLONG_MIN ? std::string("LLONG_MIN")
+                                                     : std::to_string(integer_value) + "LL")
+                       + ")";
           return true;
         }
 
@@ -422,7 +440,8 @@ class Compiler_C_Backend
 
     void emit_runtime_prelude(std::ostream &out) const
     {
-      out << "#include <stdbool.h>\n"
+      out << "#include <limits.h>\n"
+          << "#include <stdbool.h>\n"
           << "#include <stddef.h>\n"
           << "#include <stdio.h>\n"
           << "#include <stdlib.h>\n"
@@ -485,6 +504,54 @@ class Compiler_C_Backend
           << "{\n"
           << "  fprintf(stderr, \"[" << names_.prefix << "] %s\\n\", message);\n"
           << "  exit(1);\n"
+          << "}\n\n"
+          // integer arithmetic of the language: overflow is a runtime error
+          << "static inline long long\n"
+          << names_.int_add_symbol << "(long long lhs, long long rhs)\n"
+          << "{\n"
+          << "  if ((rhs > 0 && lhs > LLONG_MAX - rhs) || (rhs < 0 && lhs < LLONG_MIN - rhs))\n"
+          << "    " << names_.panic_symbol << "(\"integer overflow\");\n"
+          << "  return lhs + rhs;\n"
+          << "}\n\n"
+          << "static inline long long\n"
+          << names_.int_sub_symbol << "(long long lhs, long long rhs)\n"
+          << "{\n"
+          << "  if ((rhs < 0 && lhs > LLONG_MAX + rhs) || (rhs > 0 && lhs < LLONG_MIN + rhs))\n"
+          << "    " << names_.panic_symbol << "(\"integer overflow\");\n"
+          << "  return lhs - rhs;\n"
+          << "}\n\n"
+          << "static inline long long\n"
+          << names_.int_mul_symbol << "(long long lhs, long long rhs)\n"
+          << "{\n"
+          << "  if (lhs > 0 ? (rhs > 0 ? lhs > LLONG_MAX / rhs : rhs < LLONG_MIN / lhs)\n"
+          << "              : (rhs > 0 ? lhs < LLONG_MIN / rhs : lhs != 0 && rhs < LLONG_MAX / lhs))\n"
+          << "    " << names_.panic_symbol << "(\"integer overflow\");\n"
+          << "  return lhs * rhs;\n"
+          << "}\n\n"
+          << "static inline long long\n"
+          << names_.int_div_symbol << "(long long lhs, long long rhs)\n"
+          << "{\n"
+          << "  if (rhs == 0)\n"
+          << "    " << names_.panic_symbol << "(\"division by zero\");\n"
+          << "  if (lhs == LLONG_MIN && rhs == -1)\n"
+          << "    " << names_.panic_symbol << "(\"integer overflow\");\n"
+          << "  return lhs / rhs;\n"
+          << "}\n\n"
+          << "static inline long long\n"
+          << names_.int_mod_symbol << "(long long lhs, long long rhs)\n"
+          << "{\n"
+          << "  if (rhs == 0)\n"
+          << "    " << names_.panic_symbol << "(\"modulo by zero\");\n"
+          << "  if (rhs == -1)\n"
+          << "    return 0;\n"
+          << "  return lhs % rhs;\n"
+          << "}\n\n"
+          << "static inline long long\n"
+          << names_.int_neg_symbol << "(long long operand)\n"
+          << "{\n"
+          << "  if (operand == LLONG_MIN)\n"
+          << "    " << names_.panic_symbol << "(\"integer overflow\");\n"
+          << "  return -operand;\n"
           << "}\n\n"
           << "static " << names_.value_type_name << "\n"
           << names_.make_invalid_symbol << "(void)\n"
@@ -903,9 +970,10 @@ class Compiler_C_Backend
           switch (inst.op)
             {
             case Compiler_Operator_Kind::Minus:
-              out << "    " << value(inst.result_id) << " = " << names_.make_int_symbol << "(-"
-                  << names_.require_int_symbol << "(" << value(inst.operands.access(0)) << ", "
-                  << Compiler_Backend_C_Detail::c_string_literal("unary minus") << "));\n";
+              out << "    " << value(inst.result_id) << " = " << names_.make_int_symbol << "("
+                  << names_.int_neg_symbol << "(" << names_.require_int_symbol << "("
+                  << value(inst.operands.access(0)) << ", "
+                  << Compiler_Backend_C_Detail::c_string_literal("unary minus") << ")));\n";
               break;
 
             case Compiler_Operator_Kind::Bang:
@@ -960,9 +1028,16 @@ class Compiler_C_Backend
                     << Compiler_Backend_C_Detail::c_string_literal("binary rhs "
                                                                    + std::string(op_text))
                     << ");\n"
-                    << "      " << value(inst.result_id) << " = " << names_.make_int_symbol
-                    << "(lhs_value " << op_text << " rhs_value);\n"
-                    << "    }\n";
+                    << "      " << value(inst.result_id) << " = " << names_.make_int_symbol;
+                if (inst.op == Compiler_Operator_Kind::Plus)
+                  out << "(" << names_.int_add_symbol << "(lhs_value, rhs_value));\n";
+                else if (inst.op == Compiler_Operator_Kind::Minus)
+                  out << "(" << names_.int_sub_symbol << "(lhs_value, rhs_value));\n";
+                else if (inst.op == Compiler_Operator_Kind::Star)
+                  out << "(" << names_.int_mul_symbol << "(lhs_value, rhs_value));\n";
+                else
+                  out << "(lhs_value " << op_text << " rhs_value);\n";
+                out << "    }\n";
                 break;
               }
 
@@ -970,8 +1045,9 @@ class Compiler_C_Backend
             case Compiler_Operator_Kind::Percent:
               {
                 const char *op_text = inst.op == Compiler_Operator_Kind::Slash ? "/" : "%";
-                const char *message = inst.op == Compiler_Operator_Kind::Slash ? "division by zero"
-                                                                               : "modulo by zero";
+                const std::string &checked = inst.op == Compiler_Operator_Kind::Slash
+                                               ? names_.int_div_symbol
+                                               : names_.int_mod_symbol;
                 out << "    {\n"
                     << "      long long lhs_value = " << names_.require_int_symbol << "("
                     << value(inst.operands.access(0)) << ", "
@@ -983,11 +1059,8 @@ class Compiler_C_Backend
                     << Compiler_Backend_C_Detail::c_string_literal("binary rhs "
                                                                    + std::string(op_text))
                     << ");\n"
-                    << "      if (rhs_value == 0LL)\n"
-                    << "        " << names_.panic_symbol << "("
-                    << Compiler_Backend_C_Detail::c_string_literal(message) << ");\n"
                     << "      " << value(inst.result_id) << " = " << names_.make_int_symbol
-                    << "(lhs_value " << op_text << " rhs_value);\n"
+                    << "(" << checked << "(lhs_value, rhs_value));\n"
                     << "    }\n";
                 break;
               }

@@ -336,6 +336,22 @@ inline ca_index_t parse_index_token(const std::string &s, const char *what)
   return neg ? -value : value;
 }
 
+/// Largest coordinate of a cell.
+inline constexpr ca_index_t Max_Coordinate = std::numeric_limits<ca_index_t>::max();
+
+/// Largest width or height of a pattern: its cells have coordinates from 0
+/// to Max_Coordinate.
+inline constexpr ca_size_t Max_Pattern_Extent = static_cast<ca_size_t>(Max_Coordinate) + 1;
+
+/// `a + b` for coordinates, or `std::overflow_error` if it does not fit.
+inline ca_index_t checked_coord_add(const ca_index_t a, const ca_index_t b, const char *what)
+{
+  ah_overflow_error_if((b > 0 and a > std::numeric_limits<ca_index_t>::max() - b) or
+                       (b < 0 and a < std::numeric_limits<ca_index_t>::min() - b))
+    << what << ": coordinate overflows ca_index_t";
+  return a + b;
+}
+
 inline Array<std::string> split_comment_lines(const std::string &comment)
 {
   Array<std::string> lines;
@@ -453,7 +469,8 @@ inline void finalise_absolute_pattern(Binary_Cell_Pattern &pattern,
                                       const ca_index_t min_row,
                                       const ca_index_t min_col,
                                       const ca_index_t max_row,
-                                      const ca_index_t max_col)
+                                      const ca_index_t max_col,
+                                      const char *what)
 {
   if (not have_extent)
     {
@@ -465,10 +482,16 @@ inline void finalise_absolute_pattern(Binary_Cell_Pattern &pattern,
       return;
     }
 
+  // max - min may not fit in ca_index_t, but it does in ca_size_t
+  const ca_size_t row_span = static_cast<ca_size_t>(max_row) - static_cast<ca_size_t>(min_row);
+  const ca_size_t col_span = static_cast<ca_size_t>(max_col) - static_cast<ca_size_t>(min_col);
+  ah_overflow_error_if(row_span >= Max_Pattern_Extent or col_span >= Max_Pattern_Extent)
+    << what << ": pattern extent needs coordinates beyond ca_index_t";
+
   pattern.origin_row = min_row;
   pattern.origin_col = min_col;
-  pattern.height = static_cast<ca_size_t>(max_row - min_row + 1);
-  pattern.width = static_cast<ca_size_t>(max_col - min_col + 1);
+  pattern.height = row_span + 1;
+  pattern.width = col_span + 1;
   pattern.alive.clear();
   pattern.alive.reserve(absolute.size());
   for (const auto &c : absolute)
@@ -696,6 +719,8 @@ inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
  *  @param[in] max_live_cells maximum number of live cells to store.
  *  @return parsed binary pattern.
  *  @throws std::domain_error on malformed RLE.
+ *  @throws std::overflow_error if a number does not fit in `ca_size_t`, or
+ *          the declared size needs coordinates beyond `ca_index_t`.
  *  @throws std::length_error if the pattern has more than
  *          `max_live_cells` live cells; it is detected before storing the
  *          run that exceeds the budget.
@@ -735,6 +760,9 @@ inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
             << "read_rle: missing x/y header in line '" << line << "'";
           pattern.width = ca_io_detail::parse_size_token(x, "read_rle x");
           pattern.height = ca_io_detail::parse_size_token(y, "read_rle y");
+          ah_overflow_error_if(pattern.width > ca_io_detail::Max_Pattern_Extent or
+                               pattern.height > ca_io_detail::Max_Pattern_Extent)
+            << "read_rle: pattern size needs coordinates beyond ca_index_t";
           pattern.rule = ca_io_detail::header_value(line, "rule");
           header_seen = true;
           continue;
@@ -752,7 +780,8 @@ inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
           else if (ch == 'b' or ch == '.')
             {
               const ca_size_t n = run == 0 ? 1 : run;
-              ah_domain_error_if(cur_col + n > pattern.width)
+              // cur_col <= width, so the subtraction cannot wrap; a sum could
+              ah_domain_error_if(n > pattern.width - cur_col)
                 << "read_rle: dead run exceeds row width";
               cur_col += n;
               run = 0;
@@ -760,7 +789,7 @@ inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
           else if (ch == 'o' or ch == 'A')
             {
               const ca_size_t n = run == 0 ? 1 : run;
-              ah_domain_error_if(cur_row >= pattern.height or cur_col + n > pattern.width)
+              ah_domain_error_if(cur_row >= pattern.height or n > pattern.width - cur_col)
                 << "read_rle: live run exceeds declared dimensions";
               ah_length_error_if(n > max_live_cells - pattern.alive.size())
                 << "read_rle: more than " << max_live_cells << " live cells";
@@ -773,7 +802,7 @@ inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
           else if (ch == '$')
             {
               const ca_size_t n = run == 0 ? 1 : run;
-              ah_domain_error_if(cur_row + n > pattern.height)
+              ah_domain_error_if(n > pattern.height - cur_row)
                 << "read_rle: row advance exceeds declared height";
               cur_row += n;
               cur_col = 0;
@@ -801,6 +830,8 @@ inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
  *  @param[in] max_live_cells maximum number of live cells to store.
  *  @return parsed pattern.
  *  @throws std::domain_error on malformed RLE.
+ *  @throws std::overflow_error if a number does not fit in `ca_size_t`, or
+ *          the declared size needs coordinates beyond `ca_index_t`.
  *  @throws std::length_error if the pattern exceeds `max_live_cells`.
  */
 [[nodiscard]] inline RLE_Pattern read_rle_string(
@@ -840,8 +871,10 @@ inline void load_binary_pattern(
   using coord_t = typename Lattice::coord_type;
   ah_domain_error_if(origin_row < 0 or origin_col < 0)
     << "load_binary_pattern: negative destination origin";
-  ah_domain_error_if(static_cast<ca_size_t>(origin_row) + pattern.height > frame.size(0) or
-                     static_cast<ca_size_t>(origin_col) + pattern.width > frame.size(1))
+  ah_domain_error_if(pattern.height > frame.size(0) or
+                     static_cast<ca_size_t>(origin_row) > frame.size(0) - pattern.height or
+                     pattern.width > frame.size(1) or
+                     static_cast<ca_size_t>(origin_col) > frame.size(1) - pattern.width)
     << "load_binary_pattern: pattern " << pattern.height << "x" << pattern.width
     << " does not fit in frame " << frame.size(0) << "x" << frame.size(1);
 
@@ -1022,6 +1055,8 @@ inline void write_life_106(std::ostream &out,
  *  @param[in,out] in input stream.
  *  @return parsed binary pattern.
  *  @throws std::domain_error on malformed input.
+ *  @throws std::overflow_error if a coordinate, or the distance between
+ *          two cells, does not fit in `ca_index_t`.
  *
  *  @par Complexity
  *  O(live cells).
@@ -1071,7 +1106,8 @@ inline void write_life_106(std::ostream &out,
     }
 
   ah_domain_error_unless(header_seen) << "read_life_106: missing #Life 1.06 header";
-  ca_io_detail::finalise_absolute_pattern(pattern, absolute, have, min_r, min_c, max_r, max_c);
+  ca_io_detail::finalise_absolute_pattern(pattern, absolute, have, min_r, min_c, max_r, max_c,
+                                          "read_life_106");
   return pattern;
 }
 
@@ -1121,6 +1157,8 @@ inline void write_life_105(std::ostream &out,
  *  @param[in,out] in input stream.
  *  @return parsed binary pattern.
  *  @throws std::domain_error on malformed input.
+ *  @throws std::overflow_error if a coordinate, or the distance between
+ *          two cells, does not fit in `ca_index_t`.
  *
  *  @par Complexity
  *  O(input characters + live cells).
@@ -1192,8 +1230,10 @@ inline void write_life_105(std::ostream &out,
         {
           if (c == '*' or c == 'O' or c == 'o' or c == '.')
             {
-              const ca_index_t row = block_row + local_row;
-              const ca_index_t col = block_col + local_col;
+              const ca_index_t row = ca_io_detail::checked_coord_add(block_row, local_row,
+                                                                     "read_life_105");
+              const ca_index_t col = ca_io_detail::checked_coord_add(block_col, local_col,
+                                                                     "read_life_105");
               touch_extent(row, col);
               if (c == '*' or c == 'O' or c == 'o')
                 absolute.append(Coord_Vec<2>{row, col});
@@ -1207,7 +1247,8 @@ inline void write_life_105(std::ostream &out,
     }
 
   ah_domain_error_unless(header_seen) << "read_life_105: missing #Life 1.05 header";
-  ca_io_detail::finalise_absolute_pattern(pattern, absolute, have_extent, min_r, min_c, max_r, max_c);
+  ca_io_detail::finalise_absolute_pattern(pattern, absolute, have_extent, min_r, min_c, max_r, max_c,
+                                          "read_life_105");
   return pattern;
 }
 
