@@ -493,13 +493,47 @@ namespace Aleph
       return id != 0 and id < used_values.size() and used_values.access(id) != 0;
     }
 
+    /**
+     * @brief Returns whether `inst` is integer arithmetic that can stop the
+     *        program.
+     *
+     * Binary `+`, `-`, `*` and `/` can overflow, `/` and `%` can divide by
+     * zero, and unary `-` can overflow (see compiler_integer_binary() and
+     * compiler_integer_negate()). The type checker rules out the other
+     * runtime errors of the operators.
+     */
+    inline bool
+    can_stop_program(const Compiler_IR_Instruction & inst) noexcept
+    {
+      if (inst.kind == Compiler_IR_Instruction_Kind::Unary)
+        return inst.op == Compiler_Operator_Kind::Minus;
+
+      if (inst.kind != Compiler_IR_Instruction_Kind::Binary)
+        return false;
+
+      switch (inst.op)
+        {
+        case Compiler_Operator_Kind::Plus:
+        case Compiler_Operator_Kind::Minus:
+        case Compiler_Operator_Kind::Star:
+        case Compiler_Operator_Kind::Slash:
+        case Compiler_Operator_Kind::Percent:
+          return true;
+        default:
+          return false;
+        }
+    }
+
+    // arithmetic that can stop the program stays even if its value is dead,
+    // as in the engines without the optimizer
     inline bool
     is_pure_instruction(const Compiler_IR_Instruction & inst) noexcept
     {
       return inst.kind == Compiler_IR_Instruction_Kind::Constant
              or inst.kind == Compiler_IR_Instruction_Kind::Load
-             or inst.kind == Compiler_IR_Instruction_Kind::Unary
-             or inst.kind == Compiler_IR_Instruction_Kind::Binary
+             or ((inst.kind == Compiler_IR_Instruction_Kind::Unary
+                  or inst.kind == Compiler_IR_Instruction_Kind::Binary)
+                 and not can_stop_program(inst))
              or inst.kind == Compiler_IR_Instruction_Kind::Function_Ref;
     }
 
@@ -1359,6 +1393,10 @@ namespace Aleph
   /**
    * @brief Eliminates unreachable blocks, dead pure instructions, dead local
    *        stores, and folds constant-condition branches.
+   *
+   * Integer arithmetic that can overflow or divide by zero is not pure: it
+   * stays even when its value is dead, since it can stop the program.
+   *
    * @param function Source IR function; not modified in place.
    * @return Compiler_Dead_Code_Elimination_Result containing the optimised
    *         function copy and elimination statistics (removed_blocks,

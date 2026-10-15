@@ -678,8 +678,9 @@ namespace
 
 // The integer arithmetic of the language is the same in every engine: the
 // HIR interpreter, the bytecode VM and the generated C, with and without the
-// optimizer. A result that does not fit in 64 bits is a runtime error; the
-// engines used to compute it with the overflow of C++, undefined behaviour.
+// optimizer. A result that does not fit in 64 bits is a runtime error, even
+// when nobody reads it; the engines used to compute it with the overflow of
+// C++, undefined behaviour.
 TEST(CompilerBackendC, IntegerBoundariesAreTheSameInEveryEngine)
 {
   struct Case
@@ -710,27 +711,34 @@ TEST(CompilerBackendC, IntegerBoundariesAreTheSameInEveryEngine)
 
   const bool with_c = host_has_cc();
   for (const auto & c : cases)
-    {
-      Lowered_Program program(std::string("let value = ") + c.expression + ";\n");
-      const std::string expected = "value = Int(" + std::to_string(c.value) + ")";
+    for (const bool dead : {false, true})
+      {
+        // a dead value: the optimizer may not remove the operation
+        const std::string source = dead
+          ? std::string("fn f() {\n  let unused = ") + c.expression
+              + ";\n  return 0;\n}\nlet value = f();\n"
+          : std::string("let value = ") + c.expression + ";\n";
+        const std::string expected
+          = "value = Int(" + std::to_string(dead ? 0 : c.value) + ")";
+        Lowered_Program program(source);
 
-      std::vector<std::pair<std::string, Engine_Outcome>> outcomes;
-      outcomes.emplace_back("HIR", program.run_hir());
-      outcomes.emplace_back("VM", Lowered_Program::run_vm(*program.ir_module));
-      outcomes.emplace_back("optimized VM", Lowered_Program::run_vm(program.optimized));
-      if (with_c)
-        {
-          outcomes.emplace_back("C", Lowered_Program::run_c(*program.ir_module));
-          outcomes.emplace_back("optimized C", Lowered_Program::run_c(program.optimized));
-        }
+        std::vector<std::pair<std::string, Engine_Outcome>> outcomes;
+        outcomes.emplace_back("HIR", program.run_hir());
+        outcomes.emplace_back("VM", Lowered_Program::run_vm(*program.ir_module));
+        outcomes.emplace_back("optimized VM", Lowered_Program::run_vm(program.optimized));
+        if (with_c)
+          {
+            outcomes.emplace_back("C", Lowered_Program::run_c(*program.ir_module));
+            outcomes.emplace_back("optimized C", Lowered_Program::run_c(program.optimized));
+          }
 
-      for (const auto & [engine, outcome] : outcomes)
-        {
-          EXPECT_EQ(outcome.overflowed, c.overflows)
-            << engine << ": " << c.expression << "\n" << outcome.globals;
-          if (not c.overflows)
-            EXPECT_NE(outcome.globals.find(expected), std::string::npos)
-              << engine << ": " << c.expression << "\n" << outcome.globals;
-        }
-    }
+        for (const auto & [engine, outcome] : outcomes)
+          {
+            EXPECT_EQ(outcome.overflowed, c.overflows)
+              << engine << ":\n" << source << outcome.globals;
+            if (not c.overflows)
+              EXPECT_NE(outcome.globals.find(expected), std::string::npos)
+                << engine << ":\n" << source << outcome.globals;
+          }
+      }
 }

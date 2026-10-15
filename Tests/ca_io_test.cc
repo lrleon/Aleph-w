@@ -400,17 +400,18 @@ TEST(CAIO, Life106RejectsAnExtentThatDoesNotFit)
   ASSERT_FALSE(attempt.has_value());
   EXPECT_NE(attempt.error().find("extent"), std::string::npos);
 
-  // the widest extent that fits: width = max ca_index_t
-  std::istringstream widest("#Life 1.06\n-4611686018427387904 0\n4611686018427387902 0\n");
+  // the widest pattern: its columns go from 0 to the largest ca_index_t
+  std::istringstream widest("#Life 1.06\n-4611686018427387904 0\n4611686018427387903 0\n");
   const Binary_Cell_Pattern pattern = read_life_106(widest);
-  EXPECT_EQ(pattern.width, static_cast<ca_size_t>(std::numeric_limits<ca_index_t>::max()));
+  EXPECT_EQ(pattern.width,
+            static_cast<ca_size_t>(std::numeric_limits<ca_index_t>::max()) + 1);
   EXPECT_EQ(pattern.height, 1u);
   EXPECT_EQ(pattern.origin_col, -4611686018427387904LL);
   ASSERT_EQ(pattern.alive.size(), 2u);
   const std::set<std::pair<ca_index_t, ca_index_t>> cells = {
     {pattern.alive(0)[0], pattern.alive(0)[1]}, {pattern.alive(1)[0], pattern.alive(1)[1]}};
   const std::set<std::pair<ca_index_t, ca_index_t>> expected = {
-    {0, 0}, {0, std::numeric_limits<ca_index_t>::max() - 1}};
+    {0, 0}, {0, std::numeric_limits<ca_index_t>::max()}};
   EXPECT_EQ(cells, expected);
 }
 
@@ -457,12 +458,22 @@ TEST(CAIO, RleRunsThatWouldWrapAreRejected)
                std::domain_error);
 
   // a size whose cells would not have ca_index_t coordinates
-  EXPECT_THROW((void) read_rle_string("x = 9223372036854775808, y = 1\n!"),
+  EXPECT_THROW((void) read_rle_string("x = 9223372036854775809, y = 1\n!"),
                std::overflow_error);
-  EXPECT_THROW((void) read_rle_string("x = 1, y = 9223372036854775808\n!"),
+  EXPECT_THROW((void) read_rle_string("x = 1, y = 9223372036854775809\n!"),
                std::overflow_error);
-  const RLE_Pattern largest = read_rle_string("x = 9223372036854775807, y = 1\n!");
-  EXPECT_EQ(largest.width, static_cast<ca_size_t>(std::numeric_limits<ca_index_t>::max()));
+
+  // the largest size: its last cell is at the largest ca_index_t
+  const RLE_Pattern largest
+    = read_rle_string("x = 9223372036854775808, y = 9223372036854775808\n"
+                      "9223372036854775807bo9223372036854775807$9223372036854775807bo!");
+  EXPECT_EQ(largest.width, static_cast<ca_size_t>(std::numeric_limits<ca_index_t>::max()) + 1);
+  EXPECT_EQ(largest.height, largest.width);
+  ASSERT_EQ(largest.alive.size(), 2u);
+  EXPECT_EQ(largest.alive(0)[0], 0);
+  EXPECT_EQ(largest.alive(0)[1], std::numeric_limits<ca_index_t>::max());
+  EXPECT_EQ(largest.alive(1)[0], std::numeric_limits<ca_index_t>::max());
+  EXPECT_EQ(largest.alive(1)[1], std::numeric_limits<ca_index_t>::max());
 }
 
 // The fit check added the origin to the size, and a huge size wrapped it.

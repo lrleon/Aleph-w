@@ -336,9 +336,12 @@ inline ca_index_t parse_index_token(const std::string &s, const char *what)
   return neg ? -value : value;
 }
 
-/// Largest width or height of a pattern: its cells must have `ca_index_t`
-/// coordinates.
-inline constexpr ca_size_t Max_Pattern_Extent = std::numeric_limits<ca_index_t>::max();
+/// Largest coordinate of a cell.
+inline constexpr ca_index_t Max_Coordinate = std::numeric_limits<ca_index_t>::max();
+
+/// Largest width or height of a pattern: its cells have coordinates from 0
+/// to Max_Coordinate.
+inline constexpr ca_size_t Max_Pattern_Extent = static_cast<ca_size_t>(Max_Coordinate) + 1;
 
 /// `a + b` for coordinates, or `std::overflow_error` if it does not fit.
 inline ca_index_t checked_coord_add(const ca_index_t a, const ca_index_t b, const char *what)
@@ -483,7 +486,7 @@ inline void finalise_absolute_pattern(Binary_Cell_Pattern &pattern,
   const ca_size_t row_span = static_cast<ca_size_t>(max_row) - static_cast<ca_size_t>(min_row);
   const ca_size_t col_span = static_cast<ca_size_t>(max_col) - static_cast<ca_size_t>(min_col);
   ah_overflow_error_if(row_span >= Max_Pattern_Extent or col_span >= Max_Pattern_Extent)
-    << what << ": pattern extent does not fit in ca_index_t";
+    << what << ": pattern extent needs coordinates beyond ca_index_t";
 
   pattern.origin_row = min_row;
   pattern.origin_col = min_col;
@@ -717,7 +720,7 @@ inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
  *  @return parsed binary pattern.
  *  @throws std::domain_error on malformed RLE.
  *  @throws std::overflow_error if a number does not fit in `ca_size_t`, or
- *          the declared size does not fit in `ca_index_t`.
+ *          the declared size needs coordinates beyond `ca_index_t`.
  *  @throws std::length_error if the pattern has more than
  *          `max_live_cells` live cells; it is detected before storing the
  *          run that exceeds the budget.
@@ -759,7 +762,7 @@ inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
           pattern.height = ca_io_detail::parse_size_token(y, "read_rle y");
           ah_overflow_error_if(pattern.width > ca_io_detail::Max_Pattern_Extent or
                                pattern.height > ca_io_detail::Max_Pattern_Extent)
-            << "read_rle: pattern size does not fit in ca_index_t";
+            << "read_rle: pattern size needs coordinates beyond ca_index_t";
           pattern.rule = ca_io_detail::header_value(line, "rule");
           header_seen = true;
           continue;
@@ -828,7 +831,7 @@ inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
  *  @return parsed pattern.
  *  @throws std::domain_error on malformed RLE.
  *  @throws std::overflow_error if a number does not fit in `ca_size_t`, or
- *          the declared size does not fit in `ca_index_t`.
+ *          the declared size needs coordinates beyond `ca_index_t`.
  *  @throws std::length_error if the pattern exceeds `max_live_cells`.
  */
 [[nodiscard]] inline RLE_Pattern read_rle_string(
@@ -1052,8 +1055,8 @@ inline void write_life_106(std::ostream &out,
  *  @param[in,out] in input stream.
  *  @return parsed binary pattern.
  *  @throws std::domain_error on malformed input.
- *  @throws std::overflow_error if a coordinate, or the extent of the
- *          pattern, does not fit in `ca_index_t`.
+ *  @throws std::overflow_error if a coordinate, or the distance between
+ *          two cells, does not fit in `ca_index_t`.
  *
  *  @par Complexity
  *  O(live cells).
@@ -1154,8 +1157,8 @@ inline void write_life_105(std::ostream &out,
  *  @param[in,out] in input stream.
  *  @return parsed binary pattern.
  *  @throws std::domain_error on malformed input.
- *  @throws std::overflow_error if a coordinate, or the extent of the
- *          pattern, does not fit in `ca_index_t`.
+ *  @throws std::overflow_error if a coordinate, or the distance between
+ *          two cells, does not fit in `ca_index_t`.
  *
  *  @par Complexity
  *  O(input characters + live cells).
