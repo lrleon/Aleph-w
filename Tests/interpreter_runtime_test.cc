@@ -208,3 +208,59 @@ TEST(InterpreterRuntime, ReportsStructuredRuntimeErrors)
   EXPECT_EQ(evaluated.error.message, "division by zero");
   EXPECT_TRUE(dx.has_errors());
 }
+
+// The compound assignments computed with the overflow of C++, undefined
+// behaviour; now a result that does not fit is the runtime error RUN013,
+// as with the binary operators, and the variable keeps its value.
+TEST(InterpreterRuntime, CompoundAssignmentThatOverflowsIsARuntimeError)
+{
+  struct Case
+  {
+    const char * statement;
+    bool overflows;
+    const char * value;
+  };
+
+  const Case cases[] = {
+    {"x += 1;", true, nullptr},
+    {"x -= -1;", true, nullptr},
+    {"x *= 2;", true, nullptr},
+    {"x += 0;", false, "Int(9223372036854775807)"},
+    {"x = -x - 1; x -= 1;", true, nullptr},
+    {"x = -x - 1; x /= -1;", true, nullptr},
+    {"x = -x - 1; x %= -1;", false, "Int(0)"},
+    {"x = -x - 1; x *= 1;", false, "Int(-9223372036854775808)"},
+  };
+
+  for (const auto & c : cases)
+    {
+      Source_Manager sm;
+      Diagnostic_Engine dx(sm);
+      Compiler_Ast_Context ast_ctx(1 << 16);
+      Compiler_HIR_Context hir_ctx(1 << 16);
+      Compiler_Typed_Semantic_Analyzer typed(&dx);
+
+      const auto * hir = lower_to_hir(std::string("fn f() {\n"
+                                                  "  let x = 9223372036854775807;\n  ")
+                                        + c.statement + "\n"
+                                        "  return x;\n"
+                                        "}\n"
+                                        "let value = f();\n",
+                                      sm, dx, ast_ctx, hir_ctx, typed);
+
+      Interpreter_Runtime runtime(&dx);
+      const auto evaluated = runtime.evaluate_module(hir);
+      if (c.overflows)
+        {
+          ASSERT_FALSE(evaluated.ok()) << c.statement;
+          EXPECT_EQ(evaluated.error.code, "RUN013") << c.statement;
+          EXPECT_EQ(evaluated.error.message, "integer overflow") << c.statement;
+        }
+      else
+        {
+          ASSERT_TRUE(evaluated.ok()) << c.statement;
+          EXPECT_NE(interpreter_dump_globals(runtime).find(std::string("value = ") + c.value),
+                    std::string::npos) << c.statement;
+        }
+    }
+}

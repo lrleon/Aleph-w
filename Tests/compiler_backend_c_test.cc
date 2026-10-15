@@ -37,17 +37,28 @@
 
 #include <atomic>
 #include <chrono>
+#include <climits>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <string>
+#include <vector>
 #if defined(_WIN32)
 #  include <process.h>
 #else
 #  include <unistd.h>
 #endif
 
+#include <Bytecode.H>
+#include <Bytecode_Interpreter.H>
 #include <Compiler_Backend_C.H>
+#include <Compiler_Dataflow.H>
+#include <Compiler_HIR.H>
+#include <Compiler_IR.H>
+#include <Compiler_Parser.H>
+#include <Compiler_Typed_Sema.H>
+#include <Interpreter_Runtime.H>
 
 using namespace Aleph;
 
@@ -572,4 +583,154 @@ TEST(CompilerBackendC, GeneratedCRuntimeChecksSurfaceErrors)
   EXPECT_NE(executed.stderr_text.find("division by zero"), std::string::npos);
 
   delete module.top_level;
+}
+
+namespace
+{
+  /// What one engine did with `let value = <expression>;`.
+  struct Engine_Outcome
+  {
+    bool overflowed = false; ///< It stopped with an integer overflow.
+    std::string globals;     ///< Its globals, or the error it reported.
+  };
+
+  /// One program through the frontend, ready for every engine.
+  struct Lowered_Program
+  {
+    Source_Manager sm;
+    Diagnostic_Engine dx{sm};
+    Compiler_Ast_Context ast{1 << 16};
+    Compiler_HIR_Context hir{1 << 16};
+    Compiler_IR_Context ir{1 << 16};
+    Compiler_Typed_Semantic_Analyzer typed{&dx};
+    const Compiler_HIR_Module * hir_module = nullptr;
+    const Compiler_IR_Module * ir_module = nullptr;
+
+    Compiler_IR_Module optimized;               ///< ir_module after the optimizer
+    std::vector<std::unique_ptr<Compiler_IR_Function>> optimized_functions;
+
+    explicit Lowered_Program(const std::string & source)
+    {
+      const auto file_id = sm.add_virtual_file("main.aw", source);
+      Compiler_Parser parser(ast, sm, file_id, &dx);
+      const auto * module = parser.parse_module();
+      typed.analyze_module(module);
+      EXPECT_FALSE(dx.has_errors()) << source;
+
+      Compiler_HIR_Lowering hir_lowering(hir, typed);
+      hir_module = hir_lowering.lower_module(module);
+      Compiler_IR_Lowering ir_lowering(ir, &typed.type_context());
+      ir_module = ir_lowering.lower_module(hir_module);
+
+      // constant folding and dead-code elimination, function by function
+      optimized = *ir_module;
+      auto optimize = [this](const Compiler_IR_Function * function)
+        {
+          optimized_functions.push_back(std::make_unique<Compiler_IR_Function>(
+            eliminate_dead_code(*function).function));
+          return optimized_functions.back().get();
+        };
+      for (size_t i = 0; i < optimized.functions.size(); ++i)
+        optimized.functions(i) = optimize(ir_module->functions(i));
+      if (ir_module->top_level != nullptr)
+        optimized.top_level = optimize(ir_module->top_level);
+    }
+
+    Engine_Outcome run_hir()
+    {
+      Interpreter_Runtime runtime(&dx);
+      const auto evaluated = runtime.evaluate_module(hir_module);
+      if (not evaluated.ok())
+        return {evaluated.error.code == "RUN013"
+                  and evaluated.error.message == "integer overflow",
+                evaluated.error.code + ": " + evaluated.error.message};
+      return {false, interpreter_dump_globals(runtime)};
+    }
+
+    static Engine_Outcome run_vm(const Compiler_IR_Module & module)
+    {
+      Compiler_Bytecode_Context bytecode(1 << 16);
+      Compiler_Bytecode_Lowering lowering(bytecode);
+      Compiler_Bytecode_VM vm(*lowering.lower_module(&module));
+      const auto executed = vm.run_top_level();
+      if (not executed.ok())
+        return {executed.error.code == "BCV023"
+                  and executed.error.message == "integer overflow",
+                executed.error.code + ": " + executed.error.message};
+      return {false, vm.dump_globals()};
+    }
+
+    static Engine_Outcome run_c(const Compiler_IR_Module & module)
+    {
+      Compiler_C_Backend_Options options;
+      options.module_name = "integer_case";
+      options.emit_main = true;
+      const auto emitted = compiler_emit_c_module(&module, options);
+      EXPECT_TRUE(emitted.valid);
+      const auto executed = compile_and_run(emitted);
+      if (executed.status != 0)
+        return {executed.stderr_text.find("integer overflow") != std::string::npos,
+                executed.stderr_text};
+      return {false, executed.stdout_text};
+    }
+  };
+}
+
+// The integer arithmetic of the language is the same in every engine: the
+// HIR interpreter, the bytecode VM and the generated C, with and without the
+// optimizer. A result that does not fit in 64 bits is a runtime error; the
+// engines used to compute it with the overflow of C++, undefined behaviour.
+TEST(CompilerBackendC, IntegerBoundariesAreTheSameInEveryEngine)
+{
+  struct Case
+  {
+    const char * expression;
+    bool overflows;
+    long long value;
+  };
+
+  const Case cases[] = {
+    {"9223372036854775807 + 1", true, 0},
+    {"9223372036854775807 + 0", false, LLONG_MAX},
+    {"-9223372036854775807 - 1", false, LLONG_MIN},
+    {"-9223372036854775807 - 2", true, 0},
+    {"9223372036854775807 - -1", true, 0},
+    {"4611686018427387904 * 2", true, 0},
+    {"3037000499 * 3037000499", false, 3037000499LL * 3037000499LL},
+    {"(-9223372036854775807 - 1) * -1", true, 0},
+    {"(-9223372036854775807 - 1) * 1", false, LLONG_MIN},
+    {"(-9223372036854775807 - 1) / -1", true, 0},
+    {"(-9223372036854775807 - 1) / 1", false, LLONG_MIN},
+    {"(-9223372036854775807 - 1) % -1", false, 0},
+    {"-(-9223372036854775807 - 1)", true, 0},
+    {"-9223372036854775807", false, -LLONG_MAX},
+    {"-7 / 2", false, -3},
+    {"-7 % 2", false, -1},
+  };
+
+  const bool with_c = host_has_cc();
+  for (const auto & c : cases)
+    {
+      Lowered_Program program(std::string("let value = ") + c.expression + ";\n");
+      const std::string expected = "value = Int(" + std::to_string(c.value) + ")";
+
+      std::vector<std::pair<std::string, Engine_Outcome>> outcomes;
+      outcomes.emplace_back("HIR", program.run_hir());
+      outcomes.emplace_back("VM", Lowered_Program::run_vm(*program.ir_module));
+      outcomes.emplace_back("optimized VM", Lowered_Program::run_vm(program.optimized));
+      if (with_c)
+        {
+          outcomes.emplace_back("C", Lowered_Program::run_c(*program.ir_module));
+          outcomes.emplace_back("optimized C", Lowered_Program::run_c(program.optimized));
+        }
+
+      for (const auto & [engine, outcome] : outcomes)
+        {
+          EXPECT_EQ(outcome.overflowed, c.overflows)
+            << engine << ": " << c.expression << "\n" << outcome.globals;
+          if (not c.overflows)
+            EXPECT_NE(outcome.globals.find(expected), std::string::npos)
+              << engine << ": " << c.expression << "\n" << outcome.globals;
+        }
+    }
 }

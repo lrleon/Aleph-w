@@ -34,6 +34,7 @@
  */
 
 #include <cstdint>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -379,4 +380,108 @@ TEST(CAIO, PpmBinaryOutputUsesCustomPalette)
   std::string expected = "P6\n2 1\n255\n";
   expected += bytes({1, 2, 3, 250, 0, 7});
   EXPECT_EQ(out.str(), expected);
+}
+
+// Coordinates that fit in ca_index_t one by one may not fit once they are
+// added up or subtracted. The readers computed them with the overflow of
+// C++, undefined behaviour; now they reject such patterns with
+// std::overflow_error, and the non-throwing readers report it.
+TEST(CAIO, Life106RejectsAnExtentThatDoesNotFit)
+{
+  // max - min is 2^63, one more than the largest ca_index_t
+  std::istringstream too_wide("#Life 1.06\n-4611686018427387904 0\n4611686018427387904 0\n");
+  EXPECT_THROW((void) read_life_106(too_wide), std::overflow_error);
+
+  std::istringstream too_tall("#Life 1.06\n0 -4611686018427387904\n0 4611686018427387904\n");
+  EXPECT_THROW((void) read_life_106(too_tall), std::overflow_error);
+
+  std::istringstream again("#Life 1.06\n-4611686018427387904 0\n4611686018427387904 0\n");
+  const auto attempt = try_read_life_106(again);
+  ASSERT_FALSE(attempt.has_value());
+  EXPECT_NE(attempt.error().find("extent"), std::string::npos);
+
+  // the widest extent that fits: width = max ca_index_t
+  std::istringstream widest("#Life 1.06\n-4611686018427387904 0\n4611686018427387902 0\n");
+  const Binary_Cell_Pattern pattern = read_life_106(widest);
+  EXPECT_EQ(pattern.width, static_cast<ca_size_t>(std::numeric_limits<ca_index_t>::max()));
+  EXPECT_EQ(pattern.height, 1u);
+  EXPECT_EQ(pattern.origin_col, -4611686018427387904LL);
+  ASSERT_EQ(pattern.alive.size(), 2u);
+  const std::set<std::pair<ca_index_t, ca_index_t>> cells = {
+    {pattern.alive(0)[0], pattern.alive(0)[1]}, {pattern.alive(1)[0], pattern.alive(1)[1]}};
+  const std::set<std::pair<ca_index_t, ca_index_t>> expected = {
+    {0, 0}, {0, std::numeric_limits<ca_index_t>::max() - 1}};
+  EXPECT_EQ(cells, expected);
+}
+
+TEST(CAIO, Life105RejectsCellsBeyondTheLargestCoordinate)
+{
+  // the block starts at the largest column, so its second cell overflows
+  std::istringstream past_end("#Life 1.05\n#P 9223372036854775807 0\n**\n");
+  EXPECT_THROW((void) read_life_105(past_end), std::overflow_error);
+
+  std::istringstream past_bottom("#Life 1.05\n#P 0 9223372036854775807\n*\n*\n");
+  EXPECT_THROW((void) read_life_105(past_bottom), std::overflow_error);
+
+  std::istringstream again("#Life 1.05\n#P 9223372036854775807 0\n**\n");
+  EXPECT_FALSE(try_read_life_105(again).has_value());
+
+  // the last cells that fit
+  std::istringstream at_end("#Life 1.05\n#P 9223372036854775806 0\n**\n");
+  const Binary_Cell_Pattern pattern = read_life_105(at_end);
+  EXPECT_EQ(pattern.origin_col, std::numeric_limits<ca_index_t>::max() - 1);
+  EXPECT_EQ(pattern.width, 2u);
+  EXPECT_EQ(pattern.alive.size(), 2u);
+
+  // two blocks far apart: each cell fits, the extent does not
+  std::istringstream far_apart("#Life 1.05\n#P -9223372036854775807 0\n*\n#P 1 0\n*\n");
+  EXPECT_THROW((void) read_life_105(far_apart), std::overflow_error);
+
+  // negative blocks that fit
+  std::istringstream negative("#Life 1.05\n#P -9223372036854775807 -5\n*.*\n");
+  const Binary_Cell_Pattern left = read_life_105(negative);
+  EXPECT_EQ(left.origin_col, -std::numeric_limits<ca_index_t>::max());
+  EXPECT_EQ(left.origin_row, -5);
+  EXPECT_EQ(left.width, 3u);
+}
+
+// A run long enough to wrap the unsigned sum of the size checks went back
+// to a previous column or row, and stored the same cell twice.
+TEST(CAIO, RleRunsThatWouldWrapAreRejected)
+{
+  EXPECT_THROW((void) read_rle_string("x = 5, y = 1\n3o18446744073709551615b2o!"),
+               std::domain_error);
+  EXPECT_THROW((void) read_rle_string("x = 5, y = 1\n3o18446744073709551615o!"),
+               std::domain_error);
+  EXPECT_THROW((void) read_rle_string("x = 1, y = 2\no$18446744073709551615$o!"),
+               std::domain_error);
+
+  // a size whose cells would not have ca_index_t coordinates
+  EXPECT_THROW((void) read_rle_string("x = 9223372036854775808, y = 1\n!"),
+               std::overflow_error);
+  EXPECT_THROW((void) read_rle_string("x = 1, y = 9223372036854775808\n!"),
+               std::overflow_error);
+  const RLE_Pattern largest = read_rle_string("x = 9223372036854775807, y = 1\n!");
+  EXPECT_EQ(largest.width, static_cast<ca_size_t>(std::numeric_limits<ca_index_t>::max()));
+}
+
+// The fit check added the origin to the size, and a huge size wrapped it.
+TEST(CAIO, LoadBinaryPatternRejectsSizesThatWouldWrap)
+{
+  Binary_Cell_Pattern pattern;
+  pattern.height = std::numeric_limits<ca_size_t>::max();
+  pattern.width = 1;
+
+  Grid grid({4, 4}, 0);
+  EXPECT_THROW(load_binary_pattern(pattern, grid, 1, 0, 1, 0), std::domain_error);
+
+  pattern.height = 1;
+  pattern.width = std::numeric_limits<ca_size_t>::max();
+  EXPECT_THROW(load_binary_pattern(pattern, grid, 1, 0, 0, 1), std::domain_error);
+
+  pattern.width = 4;
+  pattern.alive.append(Coord_Vec<2>{0, 3});
+  load_binary_pattern(pattern, grid, 1, 0, 3, 0);
+  EXPECT_EQ(grid.at({3, 3}), 1);
+  EXPECT_THROW(load_binary_pattern(pattern, grid, 1, 0, 4, 0), std::domain_error);
 }
