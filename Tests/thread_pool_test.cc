@@ -41,6 +41,11 @@
 #include <thread_pool.H>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <thread>
 #include <vector>
 #include <cmath>
 #include <numeric>
@@ -142,6 +147,78 @@ TEST_F(ThreadPoolTest, CancellationSourceAndToken)
   source.request_cancel();
   EXPECT_TRUE(token.stop_requested());
   EXPECT_THROW(token.throw_if_cancellation_requested(), operation_canceled);
+}
+
+// Once its guard is gone, a condition variable is no longer notified, so it
+// may be destroyed. The cancellation used to notify a copy of the list after
+// releasing its lock, and so it could notify a condition variable whose guard
+// was already gone.
+TEST_F(ThreadPoolTest, CancellationGuardEndsTheNotifications)
+{
+  auto state = std::make_shared<CancellationState>();
+
+  // notifying the fillers keeps the cancellation busy before the last
+  // condition variable, while its guard is destroyed, and after it, while a
+  // late notification wakes up its waiter
+  std::condition_variable first, filler, last;
+  state->register_condition_variable(&first);
+  for (int i = 0; i < 1'000'000; ++i)
+    state->register_condition_variable(&filler);
+  state->register_condition_variable(&last);
+  for (int i = 0; i < 1'000'000; ++i)
+    state->register_condition_variable(&filler);
+  std::optional<CancellationToken::ConditionVariableRegistration> guard;
+  guard.emplace(state, &last);
+
+  std::atomic<bool> notifying{true};
+  std::mutex mutex;
+  bool late_notification = false;
+  std::thread waiter([&] {
+    std::unique_lock<std::mutex> lock(mutex);
+    while (not state->stop_requested.load())
+      first.wait_for(lock, 1ms);
+    guard.reset();
+    // a wake-up while the cancellation still notifies is a late notification;
+    // once it has finished, a wake-up can only be spurious
+    late_notification = last.wait_for(lock, 200ms) == std::cv_status::no_timeout
+                        and notifying.load();
+  });
+
+  state->stop_requested.store(true);
+  state->notify_observers();
+  notifying.store(false);
+  waiter.join();
+  EXPECT_FALSE(late_notification);
+}
+
+// Guards come and go in several threads, each one destroying its condition
+// variable right after its guard, while the source is cancelled.
+TEST_F(ThreadPoolTest, CancellationWhileGuardsComeAndGo)
+{
+  for (int round = 0; round < 20; ++round)
+    {
+      CancellationSource source;
+      const auto token = source.token();
+      std::atomic<int> ready{0};
+      std::vector<std::thread> threads;
+      for (int t = 0; t < 4; ++t)
+        threads.emplace_back([&] {
+          ++ready;
+          while (not token.stop_requested())
+            {
+              auto cv = std::make_unique<std::condition_variable>();
+              auto guard = token.notify_on_cancel(*cv);
+              guard = {};
+              cv.reset();
+            }
+        });
+
+      while (ready.load() < 4)
+        std::this_thread::yield();
+      source.request_cancel();
+      for (auto & thread : threads)
+        thread.join();
+    }
 }
 
 TEST_F(ThreadPoolTest, TaskGroupWaitsForAllTasks)

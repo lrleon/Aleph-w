@@ -176,15 +176,13 @@ namespace Aleph
         observers.erase(it);
     }
 
+    // under the lock, so that unregistering waits for a notification in
+    // progress and the caller may then destroy its condition variable;
+    // notify_all() does not block
     void notify_observers() noexcept
     {
-      std::vector<std::condition_variable *> to_notify;
-      {
-        std::lock_guard<std::mutex> lock(observer_mutex);
-        to_notify = observers;
-      }
-
-      for (auto * cv : to_notify)
+      std::lock_guard<std::mutex> lock(observer_mutex);
+      for (auto * cv : observers)
         if (cv != nullptr)
           cv->notify_all();
     }
@@ -206,7 +204,12 @@ namespace Aleph
     friend class CancellationSource;
 
   public:
-    /** @brief RAII guard for condition variable cancellation registration. */
+    /** @brief RAII guard for condition variable cancellation registration.
+     *
+     *  Destroying or assigning the guard ends its registration, once any
+     *  notification of it in progress has finished. The condition variable
+     *  may be destroyed when no registration refers to it any more.
+     */
     class ConditionVariableRegistration
     {
       std::shared_ptr<CancellationState> state_;
@@ -290,6 +293,11 @@ namespace Aleph
      *
      *  This is primarily intended for blocking helpers that need to wake up
      *  promptly when cooperative cancellation is requested.
+     *
+     *  @warning The notification can come after a waiter has checked
+     *           stop_requested() and before it waits, and then the waiter
+     *           misses it; a waiter should wait with a timeout and check the
+     *           token again.
      */
     [[nodiscard]] ConditionVariableRegistration notify_on_cancel(
         std::condition_variable & cv) const
@@ -520,12 +528,21 @@ namespace Aleph
         }
     }
 
-    /// Start n worker threads
+    /// Start n worker threads. If one cannot be started, stop and join the
+    /// ones that were, which leaves the pool stopped, and rethrow.
     void start_workers(size_t n)
     {
-      workers.reserve(n);
-      for (size_t i = 0; i < n; ++i)
-        workers.emplace_back(&ThreadPool::worker_loop, this);
+      try
+        {
+          workers.reserve(n);
+          for (size_t i = 0; i < n; ++i)
+            workers.emplace_back(&ThreadPool::worker_loop, this);
+        }
+      catch (...)
+        {
+          stop_workers();
+          throw;
+        }
     }
 
     /// Stop and join all workers
@@ -563,6 +580,8 @@ namespace Aleph
      *
      *  @param n_threads Number of worker threads to create.
      *                   Defaults to `std::thread::hardware_concurrency()`.
+     *  @throw std::system_error if a worker thread cannot be started; the
+     *         workers already started are stopped and joined first.
      */
     explicit ThreadPool(size_t n_threads = std::thread::hardware_concurrency())
     {
@@ -1150,8 +1169,8 @@ namespace Aleph
     /** @brief Resize the pool to a different number of workers.
      *
      *  Stops all current workers and starts a new set with the specified size.
-     *  Any tasks currently in the queue will be preserved and executed by
-     *  the new workers.
+     *  The current workers run the tasks already in the queue before they
+     *  stop.
      *
      *  @param new_size New number of worker threads.
      *
@@ -1159,6 +1178,9 @@ namespace Aleph
      *           enqueued from other threads.
      *
      *  @throw std::runtime_error if the pool has been shut down.
+     *  @throw std::system_error if a worker thread cannot be started; the
+     *         new workers already started are stopped and joined, and the
+     *         pool is left stopped, as after shutdown().
      */
     void resize(size_t new_size)
     {

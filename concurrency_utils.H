@@ -86,6 +86,7 @@
 #define ALEPH_CONCURRENCY_UTILS_H
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <concepts>
 #include <cstddef>
@@ -147,7 +148,15 @@ namespace Aleph
     size_t capacity_;
     bool closed_ = false;
 
+    /// Longest wait between two checks of a cancellation token.
+    static constexpr std::chrono::milliseconds Cancellation_Recheck{10};
+
     /** @brief Wait on a condition variable with cancellation support.
+     *
+     *  The notification of a cancellation can come after the check of the
+     *  token and before the wait, and then it is lost. So, with a token
+     *  connected to a source, the wait wakes up every Cancellation_Recheck
+     *  to check the token again.
      *
      *  @param cv Condition variable to wait on.
      *  @param lock Locked mutex protecting the condition.
@@ -165,7 +174,12 @@ namespace Aleph
         return;
       auto registration = token.notify_on_cancel(cv);
       token.throw_if_cancellation_requested();
-      cv.wait(lock, [&] { return pred() or token.stop_requested(); });
+      const auto ready = [&] { return pred() or token.stop_requested(); };
+      if (not token.valid())
+        cv.wait(lock, ready);
+      else
+        while (not cv.wait_for(lock, Cancellation_Recheck, ready))
+          ;
       if (not pred())
         token.throw_if_cancellation_requested();
     }

@@ -39,6 +39,7 @@
 #include <future>
 #include <memory>
 #include <numeric>
+#include <random>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -293,6 +294,57 @@ TEST(ConcurrencyUtils, BoundedChannelCancellationInterruptsBlockedRecv)
 
   EXPECT_TRUE(future.get());
   receiver.join();
+}
+
+// The cancellation stores its flag and notifies without the mutex of the
+// channel, so the notification can come between the check of the token and
+// the wait of a blocked operation, and be lost. The operation then slept on
+// until something else happened on the channel; now it checks the token
+// again every few milliseconds. Each round cancels a send or a recv that is
+// about to block, at varying times.
+TEST(ConcurrencyUtils, BoundedChannelNeverMissesTheCancellation)
+{
+  std::mt19937 rng(20261015);
+  std::atomic<unsigned> sink{0};
+  for (int round = 0; round < 5000; ++round)
+    {
+      bounded_channel<int> ch(1);
+      const bool sending = round % 2 == 1;
+      if (sending)
+        ASSERT_TRUE(ch.send(0)); // full, so the next send blocks
+
+      CancellationSource source;
+      std::atomic<bool> started{false};
+      std::promise<void> done;
+      auto finished = done.get_future();
+      std::thread blocked([&] {
+        started.store(true);
+        try
+          {
+            if (sending)
+              (void) ch.send(1, source.token());
+            else
+              (void) ch.recv(source.token());
+          }
+        catch (const operation_canceled &)
+          {
+          }
+        done.set_value();
+      });
+
+      while (not started.load())
+        std::this_thread::yield();
+      for (unsigned k = 0, n = rng() % 60; k < n; ++k)
+        sink.fetch_add(1, std::memory_order_relaxed);
+      source.request_cancel();
+
+      // a watchdog, far longer than the channel takes to see the cancellation
+      const bool seen = finished.wait_for(10s) == std::future_status::ready;
+      if (not seen)
+        ch.close(); // let the blocked operation go
+      blocked.join();
+      ASSERT_TRUE(seen) << "round " << round << " missed the cancellation";
+    }
 }
 
 TEST(ConcurrencyUtils, BoundedChannelCloseWinsIfOperationCanProceed)
