@@ -39,6 +39,7 @@
 #include "../ahUtils.H"
 #include <vector>
 #include <fstream>
+#include <cstdint>
 #include <cstdio>
 
 // Tests for is_even() and is_odd()
@@ -89,6 +90,17 @@ TEST(AhUtilsTest, PowerOf2) {
     EXPECT_EQ(Aleph::next_power_of_2(7), 8);
     EXPECT_EQ(Aleph::next_power_of_2(16), 16);
     EXPECT_EQ(Aleph::next_power_of_2(17), 32);
+
+#if SIZE_MAX > UINT32_MAX
+    // Sizes beyond 32 bits, which they took as an unsigned long: on Windows
+    // it has 32 bits, so 2^32 became 0 and 2^40 + 2^20 became 2^20.
+    constexpr size_t big = size_t(1) << 40;
+    EXPECT_TRUE(Aleph::is_power_of_2(size_t(1) << 32));
+    EXPECT_TRUE(Aleph::is_power_of_2(big));
+    EXPECT_FALSE(Aleph::is_power_of_2(big + (size_t(1) << 20)));
+    EXPECT_EQ(Aleph::next_power_of_2(big - 1), big);
+    EXPECT_EQ(Aleph::next_power_of_2(big + 1), big << 1);
+#endif
 }
 
 // Tests for median()

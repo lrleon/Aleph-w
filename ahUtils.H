@@ -225,9 +225,9 @@ inline size_t l_index(const size_t i)
 
     @ingroup Utilities
 */
-inline bool is_power_of_2(unsigned long x)
+inline bool is_power_of_2(size_t x)
 {
-  return x && !(x & (x - 1UL));
+  return x && !(x & (x - 1));
 }
 
 /**
@@ -235,12 +235,12 @@ inline bool is_power_of_2(unsigned long x)
 
     @ingroup Utilities
 */
-inline unsigned long next_power_of_2(unsigned long x)
+inline size_t next_power_of_2(size_t x)
 {
   if (is_power_of_2(x))
     return x;
 
-  unsigned long ret = 1;
+  size_t ret = 1;
   while (ret < x)
     ret <<= 1;
 

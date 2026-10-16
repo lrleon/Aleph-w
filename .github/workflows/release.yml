@@ -2,7 +2,9 @@ name: Release & Packaging
 
 # Roadmap Phase 21. Responsibilities:
 #   * find-package-test  — proves an installed Aleph-w is consumable through
-#                          find_package (runs on PRs touching packaging too).
+#                          find_package, and the sources through
+#                          add_subdirectory, by a consumer that chooses no C++
+#                          standard (runs on PRs touching packaging too).
 #   * installed-package-check — checks the installed package from an external
 #                          consumer: identity, sanitizer configuration and
 #                          every installed header (same triggers).
@@ -69,6 +71,14 @@ jobs:
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/_install"
           cmake --build build-consumer
           ./build-consumer/gol_consumer
+
+      - name: Build and run the consumer with add_subdirectory
+        run: |
+          cmake -S consumer -B build-consumer-subdirectory -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DALEPH_SOURCE_DIR="${{ github.workspace }}"
+          cmake --build build-consumer-subdirectory
+          ./build-consumer-subdirectory/gol_consumer
 
   # ---------------------------------------------------------------------------
   # Installed-package check — the package as an external consumer sees it,

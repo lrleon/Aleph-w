@@ -9,7 +9,9 @@ cmake_minimum_required(VERSION 3.18)
 #   - a package built with sanitizers gives its consumers the instrumentation
 #     and the MemArray annotations through Aleph::Aleph alone, in any build
 #     type, and an access outside the logical size of an array is reported;
-#   - every installed header compiles by itself.
+#   - Aleph::Aleph gives the C++20 that the headers need to a consumer that
+#     chooses no standard, and a consumer that chooses C++23 keeps it;
+#   - every installed header compiles by itself, but the three listed below.
 #
 # Usage, against an install tree:
 #
@@ -28,8 +30,8 @@ cmake_minimum_required(VERSION 3.18)
 # takes most of the time.
 project(aleph_package_check LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# No C++ standard is chosen here: every check below is compiled with the one
+# that Aleph::Aleph requires, as a consumer that chooses none would be.
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(ALEPH_CHECK_EVERY_HEADER "Compile every installed header by itself" ON)
@@ -132,6 +134,35 @@ if(Aleph_CONTAINER_ANNOTATIONS)
 endif()
 
 # ------------------------------------------------------------------------------
+# C++ standard: Aleph::Aleph requires C++20 as a usage requirement
+# ------------------------------------------------------------------------------
+get_target_property(_aleph_features Aleph::Aleph INTERFACE_COMPILE_FEATURES)
+if(NOT _aleph_features)
+    set(_aleph_features "")
+endif()
+if(NOT "cxx_std_20" IN_LIST _aleph_features)
+    message(FATAL_ERROR
+        "Aleph::Aleph does not require cxx_std_20 (INTERFACE_COMPILE_FEATURES="
+        "'${_aleph_features}'): a consumer that chooses no standard cannot "
+        "compile its headers")
+endif()
+
+# A consumer that chooses no standard gets C++20 at least.
+add_executable(cxx_standard_default cxx_standard.cc)
+target_link_libraries(cxx_standard_default PRIVATE Aleph::Aleph)
+target_compile_definitions(cxx_standard_default PRIVATE EXPECT_NEWER_THAN_CXX20=0)
+add_test(NAME cxx_standard.default COMMAND cxx_standard_default)
+
+# A consumer that chooses a newer standard keeps it.
+if("cxx_std_23" IN_LIST CMAKE_CXX_COMPILE_FEATURES)
+    add_executable(cxx_standard_23 cxx_standard.cc)
+    target_link_libraries(cxx_standard_23 PRIVATE Aleph::Aleph)
+    set_target_properties(cxx_standard_23 PROPERTIES CXX_STANDARD 23)
+    target_compile_definitions(cxx_standard_23 PRIVATE EXPECT_NEWER_THAN_CXX20=1)
+    add_test(NAME cxx_standard.newer COMMAND cxx_standard_23)
+endif()
+
+# ------------------------------------------------------------------------------
 # Every installed header compiles by itself, against the installation alone
 # ------------------------------------------------------------------------------
 if(ALEPH_CHECK_EVERY_HEADER)
@@ -153,15 +184,11 @@ if(ALEPH_CHECK_EVERY_HEADER)
 
     # Installed headers that are not expected to compile by themselves.
     set(_not_self_contained
-        # Fragments included by other headers once their context is declared.
-        graph-dry.H          # by the graph classes, after Dlink and the node classes
-        hashDry.H            # by the hash tables, after Primes
-        single_graph.H       # by the algorithms, after the filtered iterators
-        generate_df_tree.H   # by the tree drawing programs
-        # Known debt: they need an include that their users happen to provide.
-        ah-time.H            # <cassert>
-        ahTypes.H            # <utility>
-        mat_latex.H          # <sstream>
+        # Internal fragment, included by tpl_graph.H once its context is declared.
+        graph-dry.H
+        # Legacy: it needs the program to declare its graph type first, and it
+        # no longer compiles with the current graph classes.
+        generate_df_tree.H
         # Needs libxml++-2.6, which is not a dependency of the package.
         xml_graph.H
     )

@@ -2,8 +2,17 @@ cmake_minimum_required(VERSION 3.18)
 
 project(Aleph-Tests CXX)
 
-# Set C++20 standard
-set(CMAKE_CXX_STANDARD 20)
+# Compile the tests with the standard of the build (ALEPH_CXX_STANDARD, or a
+# CMAKE_CXX_STANDARD given to the root project), so that a C++23 build tests
+# the headers under C++23. A standalone configure of this directory uses
+# ALEPH_CXX_STANDARD if it is given, else C++20, the baseline of the library.
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    if(DEFINED ALEPH_CXX_STANDARD)
+        set(CMAKE_CXX_STANDARD ${ALEPH_CXX_STANDARD})
+    else()
+        set(CMAKE_CXX_STANDARD 20)
+    endif()
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 
@@ -740,6 +749,9 @@ endforeach()
 set(_ALEPH_KNOWN_TEST_TARGETS "${TEST_PROGRAMS};${EXHAUSTIVE_TESTS}")
 list(APPEND _ALEPH_KNOWN_TEST_TARGETS regular_polygon_msan_probe)
 
+# Not a program: the second translation unit of ah_convert_composition_test.
+list(APPEND _ALEPH_KNOWN_TEST_TARGETS ah_convert_composition_other)
+
 # xml_graph.H needs libxml++ 2.6, located through pkg-config. Hosts without it
 # (e.g. CI) do not build xml_graph_test; it is always kept out of the glob below.
 list(APPEND _ALEPH_KNOWN_TEST_TARGETS xml_graph_test)
@@ -822,6 +834,20 @@ if(TARGET planarity_test)
     get_filename_component(_ALEPH_TEST_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
     target_compile_definitions(planarity_test PRIVATE
         ALEPH_TEST_SOURCE_DIR="${_ALEPH_TEST_SOURCE_DIR}")
+endif()
+
+# ah-convert.H and ah-stl-utils.H, included in opposite orders by two
+# translation units of the same program.
+if(TARGET ah_convert_composition_test)
+    target_sources(ah_convert_composition_test PRIVATE ah_convert_composition_other.cc)
+endif()
+
+# cxx_standard_test checks that the tests are compiled with the standard that
+# the build selected, which the library target records.
+if(TARGET cxx_standard_test)
+    get_target_property(_ALEPH_LIBRARY_CXX_STANDARD Aleph CXX_STANDARD)
+    target_compile_definitions(cxx_standard_test PRIVATE
+        ALEPH_EXPECTED_CXX_STANDARD=${_ALEPH_LIBRARY_CXX_STANDARD})
 endif()
 
 # Enable generated-document smoke tests only when the complete local TikZ
