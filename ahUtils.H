@@ -62,6 +62,7 @@
 #include <algorithm>
 
 #include <ahFunction.H>
+#include <ah-errors.H>
 
 // build a string with the file name and line number
 /** String literal with the current source position (`file:line`).
@@ -225,22 +226,29 @@ inline size_t l_index(const size_t i)
 
     @ingroup Utilities
 */
-inline bool is_power_of_2(unsigned long x)
+inline bool is_power_of_2(size_t x)
 {
-  return x && !(x & (x - 1UL));
+  return x && !(x & (x - 1));
 }
 
-/**
-    In x is not exact power of 2, it returns the next power of 2
+/** Return the smallest power of 2 that is not less than `x`.
+
+    @param[in] x value to round up; 0 gives 1.
+    @return `x` if it is a power of 2, otherwise the next power of 2.
+    @throw std::overflow_error if `x` is greater than the largest power of 2
+           that a `size_t` can hold.
 
     @ingroup Utilities
 */
-inline unsigned long next_power_of_2(unsigned long x)
+inline size_t next_power_of_2(size_t x)
 {
   if (is_power_of_2(x))
     return x;
 
-  unsigned long ret = 1;
+  ah_overflow_error_if(x > (std::numeric_limits<size_t>::max() >> 1))
+    << "next_power_of_2: no power of 2 that a size_t can hold is >= " << x;
+
+  size_t ret = 1;
   while (ret < x)
     ret <<= 1;
 

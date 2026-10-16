@@ -91,7 +91,7 @@ bool is_primitive_type() { return false; }
  */
 # define DECLARE_PRIMITIVE(T)			\
   template <>					\
-  bool is_primitive_type <T> ()			\
+  inline bool is_primitive_type <T> ()		\
   {						\
     return true;				\
   }
@@ -102,6 +102,8 @@ bool is_primitive_type() { return false; }
   DECLARE_PRIMITIVE(unsigned short);
   DECLARE_PRIMITIVE(int);
   DECLARE_PRIMITIVE(unsigned int);
+  DECLARE_PRIMITIVE(long);
+  DECLARE_PRIMITIVE(unsigned long);
   DECLARE_PRIMITIVE(long long);
   DECLARE_PRIMITIVE(unsigned long long);
   DECLARE_PRIMITIVE(float);
@@ -130,19 +132,19 @@ bool is_primitive_type() { return false; }
  *
  * @param T Primitive type
  */
-# define DECLARE_SWAP(T)			\
-  template <> T & swap <T> (T & t1, T & t2)	\
-  {						\
-    T tmp = t1;					\
-    t1 = t2;					\
-    t2 = tmp;					\
-    return t1;
+# define DECLARE_SWAP(T)				\
+  template <> inline T & swap <T> (T & t1, T & t2)	\
+  {							\
+    T tmp = t1;						\
+    t1 = t2;						\
+    t2 = tmp;						\
+    return t1;						\
   }
 
   DECLARE_SWAP(char);
   DECLARE_SWAP(unsigned char);
   DECLARE_SWAP(short);
-  DECLARE_SWAP(unsigned shor);
+  DECLARE_SWAP(unsigned short);
   DECLARE_SWAP(int);
   DECLARE_SWAP(unsigned int);
   DECLARE_SWAP(long);

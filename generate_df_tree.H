@@ -53,6 +53,11 @@
  *  @warning This file uses a static global counter and is NOT thread-safe.
  *           Do not use these functions concurrently from multiple threads.
  *
+ *  @note Legacy code from the old tree drawing programs. It does not compile
+ *        by itself, since the program must declare its graph type `Grafo`
+ *        before including it, and it no longer compiles with the current
+ *        graph classes, whose members and helpers it does not match.
+ *
  *  @see tpl_cut_nodes.H For cut-vertex (articulation point) algorithms
  *  @see generate_tree.H For general tree visualization
  *

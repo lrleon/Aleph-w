@@ -15,8 +15,9 @@
  * @brief External-consumer smoke test: run a Game of Life blinker.
  *
  * This program is intentionally tiny. It exists only to prove that an
- * installed Aleph-w can be consumed through `find_package(Aleph)` and that the
- * cellular-automata headers compile and link against the installed archive.
+ * installed Aleph-w can be consumed through `find_package(Aleph)`, or its
+ * sources through `add_subdirectory`, and that the cellular-automata headers
+ * compile and link against the archive.
  * A period-2 blinker is the simplest oscillator whose evolution is trivial to
  * assert, so it doubles as a correctness check.
  */
@@ -82,6 +83,6 @@ int main()
       std::cerr << "consumer: blinker did not behave as a period-2 oscillator\n";
       return EXIT_FAILURE;
     }
-  std::cout << "  find_package(Aleph) integration OK\n";
+  std::cout << "  Aleph-w integration OK\n";
   return EXIT_SUCCESS;
 }

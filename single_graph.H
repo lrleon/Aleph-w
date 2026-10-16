@@ -41,6 +41,7 @@
 
 # include <ah-graph-concepts.H>
 
+# include <tpl_graph.H>
 # include <tpl_dynSetTree.H>
 
 namespace Aleph {

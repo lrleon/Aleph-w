@@ -448,6 +448,7 @@ set(HLIST
     ah-chronos-utils.H
     ah-compat.H
     ah-convert.H
+    ah-convert-common.H  # shared by ah-convert.H and ah-stl-utils.H
     ah-date.H
     ah-dispatcher.H
     ah-map-arena.H
@@ -629,6 +630,11 @@ endif()
 # Create static library
 add_library(Aleph STATIC ${LIBCCCSRCS} ${LIBCSRCS})
 target_link_libraries(Aleph PRIVATE aleph_miniz)
+
+# The headers need C++20 (concepts). As a usage requirement it reaches every
+# consumer of Aleph::Aleph, installed or added with add_subdirectory, that
+# chooses no standard; a consumer that chooses a newer one keeps it.
+target_compile_features(Aleph PUBLIC cxx_std_20)
 
 # MemArray annotations affect its layout under ASan. Compile Aleph and all
 # consumers with the same definition and instrumentation, including consumers
@@ -962,9 +968,11 @@ endif()
 
 # htlist.H type-puns through unions, so every consumer must also disable strict
 # aliasing (this mirrors the library's own required Release flag). Propagated as
-# an INTERFACE option so it reaches anyone linking Aleph::Aleph or Aleph::CA.
-target_compile_options(Aleph INTERFACE
-    $<$<CXX_COMPILER_ID:GNU,Clang>:-fno-strict-aliasing>)
+# a PUBLIC option so it reaches anyone linking Aleph::Aleph or Aleph::CA, and
+# the library's own sources in every build type, not only in Release.
+# AppleClang is the compiler id of Apple's clang.
+target_compile_options(Aleph PUBLIC
+    $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-fno-strict-aliasing>)
 
 # Install the libraries. `aleph_miniz` is a PRIVATE dependency of the static
 # `Aleph` archive, so it must travel in the same export set: a static archive

@@ -58,6 +58,7 @@
 # include <utility>
 
 # include <aleph.H>
+# include <primes.H>
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
 # include <ah-iterator.H>

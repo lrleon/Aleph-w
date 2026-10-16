@@ -121,6 +121,7 @@
 #include <set>
 #include <map>
 #include <utility>
+#include <ah-convert-common.H>
 #include <tpl_array.H>
 #include <tpl_dynArray.H>
 #include <tpl_dynDlist.H>
@@ -222,48 +223,7 @@ template <class T>
   return ret;
 }
 
-/** @brief Convert a container to a std::vector.
-
-    Creates a new std::vector containing copies of all elements from the
-    given Aleph-w container.
-
-    @tparam C The container type. Must expose Item_Type and provide
-              a compatible iterator interface.
-    @param c The source container.
-    @return A std::vector containing copies of all elements from c.
-
-    @ingroup Sequences
-*/
-template <class C>
-[[nodiscard]] std::vector<typename C::Item_Type> to_vector(const C & c)
-{
-  std::vector<typename C::Item_Type> ret;
-  if constexpr (requires { c.size(); })
-    ret.reserve(c.size());
-  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-    ret.push_back(it.get_curr());
-  return ret;
-}
-
-/** @brief Convert a std::vector to a DynList.
-
-    Creates a new DynList containing copies of all elements from the
-    given std::vector.
-
-    @tparam T The element type.
-    @param v The source std::vector.
-    @return A DynList containing copies of all elements from v.
-
-    @ingroup Sequences
-*/
-template <class T>
-[[nodiscard]] DynList<T> vector_to_DynList(const std::vector<T> & v)
-{
-  DynList<T> ret;
-  for (const auto & item : v)
-    ret.append(item);
-  return ret;
-}
+// to_vector() and vector_to_DynList() are in ah-convert-common.H
 
 /** @brief Convert a std::vector to an Array.
 
@@ -286,25 +246,7 @@ template <class T>
   return ret;
 }
 
-/** @brief Convert a std::vector to a DynArray.
-
-    Creates a new DynArray containing copies of all elements from the
-    given std::vector.
-
-    @tparam T The element type.
-    @param v The source std::vector.
-    @return A DynArray containing copies of all elements from v.
-
-    @ingroup Sequences
-*/
-template <class T>
-[[nodiscard]] DynArray<T> vector_to_DynArray(const std::vector<T> & v)
-{
-  DynArray<T> ret;
-  for (const auto & item : v)
-    ret.append(item);
-  return ret;
-}
+// vector_to_DynArray() is in ah-convert-common.H
 
 /** @brief Convert a container to a DynArray.
 
