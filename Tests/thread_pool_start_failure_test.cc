@@ -34,8 +34,10 @@
  *
  * The global operator new is replaced so that one allocation of the test
  * thread fails on demand. Starting a std::thread allocates the state of the
- * new thread, so a failed allocation is a worker that cannot be started,
- * without exhausting the resources of the system.
+ * new thread with it in libstdc++, libc++ and the MSVC STL, so a failed
+ * allocation is a worker that cannot be started, without exhausting the
+ * resources of the system. The standard does not require that allocation;
+ * the tests check it first and are skipped without it.
  */
 
 #include <gtest/gtest.h>
@@ -45,6 +47,7 @@
 #include <cstdlib>
 #include <new>
 #include <stdexcept>
+#include <thread>
 
 // ThreadSanitizer has its own global operator new and delete, which collide
 // with the ones below at link time; these tests are skipped under it.
@@ -64,13 +67,29 @@ namespace
   // successful allocations of this thread before one fails; -1 never fails
   thread_local int allocations_before_failure = -1;
 
+  // allocations of this thread, counted while it is not negative
+  thread_local long counted_allocations = -1;
+
   void fail_allocation_after(const int n) noexcept { allocations_before_failure = n; }
 
   void stop_failing() noexcept { allocations_before_failure = -1; }
 
+  // Whether starting a std::thread allocates through the global operator new
+  bool thread_start_allocates()
+  {
+    counted_allocations = 0;
+    std::thread([] {}).join();
+    const bool allocates = counted_allocations > 0;
+    counted_allocations = -1;
+    return allocates;
+  }
+
 #if !ALEPH_START_FAILURE_TEST_UNDER_TSAN
   void * allocate(std::size_t size)
   {
+    if (counted_allocations >= 0)
+      ++counted_allocations;
+
     if (allocations_before_failure == 0)
       {
         allocations_before_failure = -1;
@@ -140,6 +159,8 @@ TEST(ThreadPoolStartFailure, ConstructorStopsTheStartedWorkersAndRethrows)
 {
   if (ALEPH_START_FAILURE_TEST_UNDER_TSAN)
     GTEST_SKIP() << "ThreadSanitizer replaces the global operator new";
+  if (not thread_start_allocates())
+    GTEST_SKIP() << "std::thread does not allocate through operator new here";
 
   int failures = 0;
   for (int n = 0;; ++n)
@@ -172,6 +193,8 @@ TEST(ThreadPoolStartFailure, FailedResizeLeavesThePoolStopped)
 {
   if (ALEPH_START_FAILURE_TEST_UNDER_TSAN)
     GTEST_SKIP() << "ThreadSanitizer replaces the global operator new";
+  if (not thread_start_allocates())
+    GTEST_SKIP() << "std::thread does not allocate through operator new here";
 
   int failures = 0;
   for (int n = 0;; ++n)
