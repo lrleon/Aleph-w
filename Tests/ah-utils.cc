@@ -41,6 +41,8 @@
 #include <fstream>
 #include <cstdint>
 #include <cstdio>
+#include <limits>
+#include <stdexcept>
 
 // Tests for is_even() and is_odd()
 TEST(AhUtilsTest, EvenOdd) {
@@ -101,6 +103,15 @@ TEST(AhUtilsTest, PowerOf2) {
     EXPECT_EQ(Aleph::next_power_of_2(big - 1), big);
     EXPECT_EQ(Aleph::next_power_of_2(big + 1), big << 1);
 #endif
+
+    // Above the largest power of 2 that a size_t holds there is none to
+    // return; next_power_of_2() used to loop forever there.
+    constexpr size_t top = (std::numeric_limits<size_t>::max() >> 1) + 1;
+    EXPECT_EQ(Aleph::next_power_of_2(top - 1), top);
+    EXPECT_EQ(Aleph::next_power_of_2(top), top);
+    EXPECT_THROW(Aleph::next_power_of_2(top + 1), std::overflow_error);
+    EXPECT_THROW(Aleph::next_power_of_2(std::numeric_limits<size_t>::max()),
+                 std::overflow_error);
 }
 
 // Tests for median()
