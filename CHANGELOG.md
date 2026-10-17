@@ -5,6 +5,20 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.1](https://github.com/lrleon/Aleph-w/compare/v7.0.0...v7.0.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **build:** Export C++20 and make the headers compile alone and together ([#117](https://github.com/lrleon/Aleph-w/issues/117)) ([dc63843](https://github.com/lrleon/Aleph-w/commit/dc638433eef186b6401cd86419bf16a2b7a8bf3d))
+* **concurrency:** Deliver cancellations safely and recover failed starts ([#116](https://github.com/lrleon/Aleph-w/issues/116)) ([da6a686](https://github.com/lrleon/Aleph-w/commit/da6a6867bb9ef0e35cf4fc4a5a08906453ff5d64))
+* **containers:** Keep FlatMap, FlatSet and tree sets valid under aliasing, exceptions and degenerate shapes ([#109](https://github.com/lrleon/Aleph-w/issues/109)) ([259d152](https://github.com/lrleon/Aleph-w/commit/259d15207660b92eef6379376d6b61e397f238c9))
+* **docs:** Correct build and versioning docs and brace error macros ([#118](https://github.com/lrleon/Aleph-w/issues/118)) ([b7c9afb](https://github.com/lrleon/Aleph-w/commit/b7c9afb72107c8bb824dd0d11a9806957b8aaa88))
+* **graph:** Use the given distance and free cookies in shortest paths ([#113](https://github.com/lrleon/Aleph-w/issues/113)) ([3c011f5](https://github.com/lrleon/Aleph-w/commit/3c011f5fe0f9e2cd7669354bae6bdb122e30a4e6))
+* **hash:** Handle failed insertions, full tables and shrinking in open addressing tables ([#112](https://github.com/lrleon/Aleph-w/issues/112)) ([e2b1280](https://github.com/lrleon/Aleph-w/commit/e2b12806a8196e02ab9348c2d7dd444fc747db29))
+* **hash:** Keep hash tables consistent through copy, move and swap ([#111](https://github.com/lrleon/Aleph-w/issues/111)) ([c6291a4](https://github.com/lrleon/Aleph-w/commit/c6291a47a40cfa0b1c31d7580a6b7c81e703e747))
+* **overflow:** Make pattern readers and engines report integer overflow ([#114](https://github.com/lrleon/Aleph-w/issues/114)) ([f6810cb](https://github.com/lrleon/Aleph-w/commit/f6810cb5dd1c553dfe4abf5a239548ec6ebec312))
+
 ## [7.0.0](https://github.com/lrleon/Aleph-w/compare/v6.1.0...v7.0.0) (2026-10-12)
 
 
