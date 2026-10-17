@@ -12,11 +12,14 @@ Aleph-w follows [Semantic Versioning 2.0.0](https://semver.org/):
 - **PATCH** (`x.y.Z`): backwards-compatible bug fixes.
 
 The canonical version lives in the top-level [`VERSION.txt`](VERSION.txt)
-file. CMake, the Conan recipe and the release workflow read it, and
+file. CMake, the Conan recipe and the release workflows read it, and
 release-please updates it (see *Release automation* below).
-Releases are cut by pushing a `v*` tag, which triggers
-`.github/workflows/release.yml` (source tarball, `.deb`/`.rpm`, install
-test).
+A release is published when the release PR of release-please merges; the
+same run builds the source tarball and the `.deb`/`.rpm` packages and
+attaches them to the release (`.github/workflows/package-release.yml`).
+A `v*` tag pushed by hand triggers `.github/workflows/release.yml`
+instead, which builds the same artifacts, tests installing the `.deb` and
+creates the release.
 
 Three recipes still carry versions of their own:
 
@@ -37,12 +40,12 @@ any installed `7.x` satisfies it; `8.0` will not.
 ### Version history note
 
 Releases proceed `Genius` (2022) → `3.0.0` → `3.1.0` → `3.1.1` →
-`4.0.0` → `5.0.0` … `5.11.0` → `6.0.0` → `6.1.0` → `7.0.0`. There are
-no published `1.x` or `2.x` releases: those numbers
-appear in older internal documents (e.g. the cellular-automata roadmap
-milestone "v2.0") and in the historical `version 2.0.0b` banner of
-header comments, but they were never tagged. `4.0.0` is the first
-release containing the cellular-automata (CA) module.
+`4.0.0` → `5.0.0` … `5.11.0` → `6.0.0` → `6.1.0` → `7.0.0` → `7.0.1`.
+There are no published `1.x` or `2.x` releases: those numbers appear in
+older internal documents (e.g. the cellular-automata roadmap milestone
+"v2.0") and in the historical `version 2.0.0b` banner of header
+comments, but they were never tagged. `4.0.0` is the first release
+containing the cellular-automata (CA) module.
 
 ## What is public API
 
@@ -127,9 +130,11 @@ in the consumer's translation units, plus a small static library
   (`.github/workflows/release-please.yml`): it parses
   [Conventional Commits](https://www.conventionalcommits.org/) on
   `master`, opens a release PR with the version bump (`VERSION.txt`)
-  and the generated `CHANGELOG.md` section, and tags the release when
-  that PR merges. The `v*` tag then triggers the artifact build in
-  `release.yml`.
+  and the generated `CHANGELOG.md` section, and publishes the release
+  and its `v*` tag when that PR merges. The same run then builds the
+  artifacts and attaches them, through `package-release.yml`: a tag
+  that a workflow creates with its own token triggers no other workflow,
+  so `release.yml` does not run for it.
 - PR titles are linted for Conventional Commit form (see the
   `conventional-pr` workflow) so the changelog and version calculation
   stay reliable: `feat:` → minor, `fix:` → patch,

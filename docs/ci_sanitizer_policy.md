@@ -32,8 +32,11 @@ Two reasons:
 
 ## Skipped tests by sanitizer
 
-No sanitizer job excludes a test by name: each one runs the whole suite. A
-test case that cannot run under a sanitizer skips itself, as the cases
+No sanitizer job excludes a test by name. `memory-sanitizer` builds and
+runs a single test (see its section below); the others run every test that
+their compiler builds (see
+[Tests that only some compilers build](#tests-that-only-some-compilers-build)).
+A test case that cannot run under a sanitizer skips itself, as the cases
 below do (see [Source-level skips](#source-level-skips)).
 
 A `ctest -E` regex, where one is needed, must match the names that CTest
@@ -72,7 +75,7 @@ report `SKIPPED`. `noexcept_specifications_hold` still runs.
 
 ### `ubsan` (UndefinedBehaviorSanitizer)
 
-Runs every test.
+Runs every test it builds (Clang does not build `k2tree_test`).
 
 ### `sanitizers` (combined ASan + UBSan, gcc)
 
@@ -97,19 +100,24 @@ the pointer is null) is suppressed inline at each site via
 ## Skipped tests by platform
 
 Of the cross-platform jobs in `ci-platform.yml`, only the Windows one
-leaves tests out: those that depend on POSIX-only facilities or on
-programs that the runner does not provide.
+leaves tests out because of the platform: those that depend on POSIX-only
+facilities or on programs that the runner does not provide. The macOS and
+ARM64 jobs run every test they build, and with Clang they do not build all
+of them (see
+[Tests that only some compilers build](#tests-that-only-some-compilers-build)).
 
 ### `build-macos` (`macos-15`, `macos-15-intel`)
 
-Runs every test. X11 is unavailable on the GitHub-hosted runners (no
-XQuartz) and ffmpeg is not installed, but `ca_animation_sinks_test`
-needs neither: it checks that the ffmpeg sink and the X11 viewer do
-nothing when they are disabled.
+Runs every test it builds; AppleClang does not build `k2tree_test`. X11
+is unavailable on the GitHub-hosted runners (no XQuartz) and ffmpeg is not
+installed, but `ca_animation_sinks_test` needs neither: it checks that the
+ffmpeg sink and the X11 viewer do nothing when they are disabled.
 
 ### `build-arm64-linux` (`ubuntu-24.04-arm`)
 
-Same dependency surface as the gating Linux matrix; runs every test.
+Same dependency surface as the gating Linux matrix; runs every test it
+builds, which with Clang and libc++ leaves out `k2tree_test` and
+`gmpfrxx_test`.
 
 ### `build-windows` (`windows-2022` × `msvc`, `clang-cl`)
 
@@ -156,15 +164,16 @@ The Windows job sets `-DALEPH_BUILD_X11_VIEWER=OFF` so the library does
 not pull `libX11`. `ca-x11-viewer.H` is then compiled as a no-op stub
 guarded by `__has_include(<X11/Xlib.h>)`.
 
-### Clang with libc++ outside macOS (`ci.yml` clang jobs, `build-arm64-linux` clang)
+### Tests that only some compilers build
 
-The system `libgmpxx` is built with libstdc++, so its compiled C++
-operators do not link with libc++. `Tests/CMakeLists.txt` therefore skips:
+Outside macOS the system `libgmpxx` is built with libstdc++, so its
+compiled C++ operators do not link with libc++. `Tests/CMakeLists.txt`
+therefore leaves out:
 
 | Test | Condition |
 |------|-----------|
-| `k2tree_test`  | Built only with GCC. |
-| `gmpfrxx_test` | Skipped when Clang uses libc++ (`ALEPH_USE_LIBCXX`, or `-stdlib=libc++` in `CMAKE_CXX_FLAGS` or in the flags of the active build type) on a non-Apple host. Homebrew's GMP on macOS is built with libc++, so the test runs there. |
+| `k2tree_test`  | Built only with GCC: no Clang, AppleClang or Windows job builds it. |
+| `gmpfrxx_test` | Skipped when Clang uses libc++ (`ALEPH_USE_LIBCXX`, or `-stdlib=libc++` in `CMAKE_CXX_FLAGS` or in the flags of the active build type) on a non-Apple host: the Clang jobs of `build-and-test` in `ci.yml` and of `build-arm64-linux`. Homebrew's GMP on macOS is built with libc++, so the test runs there. |
 
 ## Re-enabling a skipped test
 

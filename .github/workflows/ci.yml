@@ -1052,8 +1052,8 @@ jobs:
   tsan:
     # Phase 16 — sanitizer matrix expansion.
     # ThreadSanitizer focuses on data races in the CA Parallel_Engine and
-    # thread_pool surfaces. It runs every test; the few cases that cannot
-    # run under TSan skip themselves (see docs/ci_sanitizer_policy.md).
+    # thread_pool surfaces. It runs every test it builds; the few cases that
+    # cannot run under TSan skip themselves (see docs/ci_sanitizer_policy.md).
     name: tsan (ubuntu-24.04, clang, Debug)
     runs-on: ubuntu-24.04
     timeout-minutes: 45

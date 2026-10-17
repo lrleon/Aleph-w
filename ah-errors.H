@@ -79,8 +79,10 @@
  *
  *  @section if_statements The conditional macros are if statements
  *  Every `_if` and `_unless` macro, their `_constexpr` forms included,
- *  expands to an `if` statement without braces. An `else` written after an
- *  invocation belongs to the `if` of the macro:
+ *  expands to an `if` statement without braces, except `ah_bad_alloc_if`
+ *  and `ah_bad_alloc_unless`, which are wrapped in `do { ... } while (false)`.
+ *  An `else` written after an invocation of any other belongs to the `if` of
+ *  the macro:
  *  @code
  *  if (checked)
  *    ah_domain_error_if(x < 0) << "x is negative";

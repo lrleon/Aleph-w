@@ -396,7 +396,7 @@ target_link_libraries(your_target PRIVATE Aleph)
 | `BUILD_EXAMPLES` | ON | Compilar los ejemplos (`Examples/`) |
 | `BUILD_OPTIMIZED` | OFF | Si está en ON y `CMAKE_BUILD_TYPE` no se define, default a `Release` |
 | `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest si falta |
-| `ALEPH_USE_SANITIZERS` | OFF | Habilitar ASan/UBSan para la biblioteca y los tests |
+| `ALEPH_USE_SANITIZERS` | OFF | Habilitar ASan/UBSan para la biblioteca y los tests (solo GCC y Clang) |
 
 ### CMake Presets (opcional)
 
