@@ -451,11 +451,15 @@ public:
     assert(invariant());
 
     if (not is_valid_index(i))
-      ah_range_error_if(true) << "index " << i << " out of range [0, "
-                              << heap_index << ")";
+      {
+        ah_range_error_if(true) << "index " << i << " out of range [0, "
+                                << heap_index << ")";
+      }
 
     if (pointer_table[i] == nullptr)
-      ah_domain_error_if(true) << "index " << i << " is not busy (already free)";
+      {
+        ah_domain_error_if(true) << "index " << i << " is not busy (already free)";
+      }
 
     if (i == heap_index - 1)
       {
@@ -499,8 +503,10 @@ public:
   void * get_pointer(long i) const
   {
     if (not is_valid_index(i))
-      ah_range_error_if(true) << "index " << i << " out of range [0, "
-                              << heap_index << ")";
+      {
+        ah_range_error_if(true) << "index " << i << " out of range [0, "
+                                << heap_index << ")";
+      }
     return pointer_table(i);
   }
 
@@ -539,12 +545,16 @@ public:
   void * verify_pointer(long i, void *ptr) const
   {
     if (not is_valid_index(i))
-      ah_range_error_if(true) << "index " << i << " out of range [0, "
-                              << heap_index << ")";
+      {
+        ah_range_error_if(true) << "index " << i << " out of range [0, "
+                                << heap_index << ")";
+      }
 
     if (not pointer_matches_with_index(i, ptr))
-      ah_domain_error_if(true) << "pointer at index " << i
-                               << " does not match expected value";
+      {
+        ah_domain_error_if(true) << "pointer at index " << i
+                                 << " does not match expected value";
+      }
 
     return ptr;
   }

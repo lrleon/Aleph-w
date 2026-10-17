@@ -372,8 +372,10 @@ public:
         f.pixels.append(
           mapper_(frame.at(coord_t{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)})));
     if (not frames_.is_empty())
-      ah_domain_error_if(frames_(0).width != f.width or frames_(0).height != f.height)
-        << "Gif_Frame_Sink::accept: frame dimensions changed";
+      {
+        ah_domain_error_if(frames_(0).width != f.width or frames_(0).height != f.height)
+          << "Gif_Frame_Sink::accept: frame dimensions changed";
+      }
     frames_.append(std::move(f));
   }
 

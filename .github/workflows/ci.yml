@@ -190,8 +190,7 @@ jobs:
         run: |
           mkdir -p build/test_artifacts/golden_svg
           export ALEPH_TEST_GOLDEN_DIR="$PWD/build/test_artifacts/golden_svg"
-          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 \
-            -E 'hash_statistical_test'
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
         if: failure()
@@ -365,8 +364,7 @@ jobs:
         run: |
           mkdir -p build/test_artifacts/golden_svg
           export ALEPH_TEST_GOLDEN_DIR="$PWD/build/test_artifacts/golden_svg"
-          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 \
-            -E 'hash_statistical_test'
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
         if: failure()
@@ -442,8 +440,7 @@ jobs:
         run: |
           mkdir -p build/test_artifacts/golden_svg
           export ALEPH_TEST_GOLDEN_DIR="$PWD/build/test_artifacts/golden_svg"
-          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 \
-            -E 'hash_statistical_test'
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
         if: failure()
@@ -806,9 +803,8 @@ jobs:
           export ALEPH_TEST_GOLDEN_DIR="$PWD/build-coverage/test_artifacts/golden_svg"
           # Exclude this benchmark from coverage runs because instrumentation
           # changes timing characteristics and can make this test flaky.
-          # Also exclude hash_statistical_test as it's computationally intensive.
           ctest --test-dir build-coverage --output-on-failure --parallel 2 --timeout 600 \
-            -E 'ParallelTest\.BenchmarkMapSpeedup|hash_statistical_test'
+            -E 'ParallelTest\.BenchmarkMapSpeedup'
 
       - name: Generate coverage reports
         run: |
@@ -975,8 +971,7 @@ jobs:
           ALEPH_TEST_GOLDEN_DIR: ${{ github.workspace }}/build-asan/test_artifacts/golden_svg
         run: |
           mkdir -p "$ALEPH_TEST_GOLDEN_DIR"
-          ctest --test-dir build-asan --output-on-failure --parallel 2 --timeout 600 \
-            -E 'hash_statistical_test'
+          ctest --test-dir build-asan --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
         if: failure()
@@ -1057,14 +1052,8 @@ jobs:
   tsan:
     # Phase 16 — sanitizer matrix expansion.
     # ThreadSanitizer focuses on data races in the CA Parallel_Engine and
-    # thread_pool surfaces. Tests intentionally excluded (sanitizer:skip-tsan):
-    #   - hash_statistical_test: long-running statistical sweep, not race-prone,
-    #     would 10x the runtime under TSan.
-    #   - tpl_ca_parallel_engine_test.*Stress*: by design oversubscribes the
-    #     thread pool to stress scheduling. The benign races there are
-    #     intentional (work-stealing relaxations) and produce noise rather
-    #     than signal; see comments in tpl_ca_parallel_engine.H.
-    # See docs/ci_sanitizer_policy.md for the full rationale.
+    # thread_pool surfaces. It runs every test; the few cases that cannot
+    # run under TSan skip themselves (see docs/ci_sanitizer_policy.md).
     name: tsan (ubuntu-24.04, clang, Debug)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -1122,10 +1111,7 @@ jobs:
           ALEPH_TEST_GOLDEN_DIR: ${{ github.workspace }}/build-tsan/test_artifacts/golden_svg
         run: |
           mkdir -p "$ALEPH_TEST_GOLDEN_DIR"
-          # See sanitizer:skip-tsan comments above for the rationale of each
-          # exclusion. Keep this list in sync with docs/ci_sanitizer_policy.md.
-          ctest --test-dir build-tsan --output-on-failure --parallel 2 --timeout 600 \
-            -E 'hash_statistical_test|tpl_ca_parallel_engine_test.*Stress'
+          ctest --test-dir build-tsan --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
         if: failure()
@@ -1202,10 +1188,7 @@ jobs:
           ALEPH_TEST_GOLDEN_DIR: ${{ github.workspace }}/build-ubsan/test_artifacts/golden_svg
         run: |
           mkdir -p "$ALEPH_TEST_GOLDEN_DIR"
-          # sanitizer:skip-ubsan
-          # - hash_statistical_test: runtime cost, not a UB target.
-          ctest --test-dir build-ubsan --output-on-failure --parallel 2 --timeout 600 \
-            -E 'hash_statistical_test'
+          ctest --test-dir build-ubsan --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
         if: failure()

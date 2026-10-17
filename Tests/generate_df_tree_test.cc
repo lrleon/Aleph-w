@@ -1,7 +1,17 @@
+/**
+ * @file generate_df_tree_test.cc
+ * @brief Tests copies of the key types of generate_df_tree.H, not the header.
+ *
+ * generate_df_tree.H is legacy code that no longer compiles with the current
+ * graph classes (see the note in that header). These tests define their own
+ * copies of its `Clave` and `Clave_Igual` and check them, also as keys of a
+ * Tree_Node; they do not show that the header works.
+ */
+
 #include <gtest/gtest.h>
 #include <tpl_tree_node.H>
 
-// Test basic structures from generate_df_tree.H without Grafo dependency
+// Copies of the key types of generate_df_tree.H, which cannot be included
 struct Clave
 {
   int key;

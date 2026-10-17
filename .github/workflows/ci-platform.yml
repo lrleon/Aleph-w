@@ -10,8 +10,8 @@ name: CI Platform
 #     because the MSVC and clang-cl matrix builds + dependency setup
 #     dominate the runner budget. Push events on `master` also fire it
 #     so the badge stays current on the main branch.
-#   * The CA test sub-suite excludes ca_animation_sinks_test on Windows
-#     (depends on libX11 + an external ffmpeg process) — see
+#   * Windows does not build the tests that need POSIX-only facilities and
+#     does not run a few that need external programs — see
 #     docs/ci_sanitizer_policy.md for the full per-platform skip list.
 
 on:
@@ -113,15 +113,11 @@ jobs:
         run: |
           cmake --build build --parallel
 
-      - name: Test (CA + core suite, skip X11/ffmpeg)
+      - name: Test (CA + core suite)
         run: |
           mkdir -p build/test_artifacts/golden_svg
           export ALEPH_TEST_GOLDEN_DIR="$PWD/build/test_artifacts/golden_svg"
-          # Skip:
-          #   - hash_statistical_test: long-running statistical sweep.
-          #   - ca_animation_sinks_test: requires X11 + external ffmpeg.
-          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 \
-            -E 'hash_statistical_test|ca_animation_sinks_test'
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
         if: failure()
@@ -240,8 +236,7 @@ jobs:
         run: |
           mkdir -p build/test_artifacts/golden_svg
           export ALEPH_TEST_GOLDEN_DIR="$PWD/build/test_artifacts/golden_svg"
-          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 \
-            -E 'hash_statistical_test'
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
         if: failure()
@@ -360,11 +355,11 @@ jobs:
           # runtime.  Without this the executables crash on load and
           # LastTest.log remains empty.
           $env:PATH = "$env:RUNNER_TEMP\msys64\mingw64\bin;$env:PATH"
-          # Per docs/ci_sanitizer_policy.md, the following are skipped on
-          # Windows because they bind to libX11, an external `ffmpeg`
-          # process, or POSIX-only system calls (sys/wait, sys/select).
+          # The tests that need POSIX-only facilities are not built on
+          # Windows. These are built but not run; docs/ci_sanitizer_policy.md
+          # says why. CTest names are GoogleTest names (Suite.Test).
           ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 `
-            -E 'hash_statistical_test|ca_animation_sinks_test|file_b_tree_test|file_bplus_tree_test|timeoutQueue_test|PlanarityTest\.External|PlanarityTest\.ExternalGephi|CompilerSdk\.InstallHeadersSmoke|ThreadPoolTest\.BenchmarkVsStdAsync'
+            -E 'PlanarityTest\.External|PlanarityTest\.ExternalGephi|CompilerSdk\.InstallHeadersSmoke|ThreadPoolTest\.BenchmarkVsStdAsync'
 
       - name: Upload test logs on failure
         if: failure()

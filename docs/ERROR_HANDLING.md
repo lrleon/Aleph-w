@@ -76,6 +76,30 @@ ah_warning_if(std::cerr, size > 1000) << "Large size may impact performance";
 ah_warning_unless(std::cerr, valid) << "Invalid state detected";
 ```
 
+### The Conditional Macros Are `if` Statements
+
+Every `_if` and `_unless` macro, the `constexpr` forms and the warnings
+included, expands to an `if` statement without braces. An `else` written
+after an invocation belongs to the `if` of the macro:
+
+```cpp
+if (checked)
+  ah_domain_error_if(x < 0) << "x is negative";
+else       // ✗ runs when checked and x >= 0, never when not checked
+  use(x);
+```
+
+So brace an `if` or an `else` whose only statement is one of them:
+
+```cpp
+if (checked)
+  {
+    ah_domain_error_if(x < 0) << "x is negative";
+  }
+else
+  use(x);
+```
+
 ## Guidelines
 
 ### DO ✓

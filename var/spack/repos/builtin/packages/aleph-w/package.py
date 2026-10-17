@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 # Spack package for Aleph-w (roadmap Phase 21, optional HPC-community target).
+#
+# DRAFT, NOT VERIFIED: version 4.0.0 and its sha256 are placeholders, so the
+# release path of this package does not install any release yet; only the
+# "master" version fetches real sources. It has not been checked against a
+# published release (see VERSIONING.md).
+#
 # Upstreaming to spack/spack is a follow-up: the version sha256 must be the
 # hash of the corresponding release tarball, obtained with `spack checksum`.
 

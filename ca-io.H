@@ -815,8 +815,10 @@ inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
               break;
             }
           else
-            ah_domain_error_unless(std::isspace(static_cast<unsigned char>(ch)))
-              << "read_rle: invalid body character '" << ch << "'";
+            {
+              ah_domain_error_unless(std::isspace(static_cast<unsigned char>(ch)))
+                << "read_rle: invalid body character '" << ch << "'";
+            }
         }
     }
 
@@ -993,8 +995,10 @@ template <typename Lattice>
         if (c == 'O' or c == 'o' or c == '*' or c == '.')
           row.push_back(c);
         else
-          ah_domain_error_unless(std::isspace(static_cast<unsigned char>(c)))
-            << "read_plaintext: invalid character '" << c << "'";
+          {
+            ah_domain_error_unless(std::isspace(static_cast<unsigned char>(c)))
+              << "read_plaintext: invalid character '" << c << "'";
+          }
       rows.append(std::move(row));
     }
 
@@ -1240,8 +1244,10 @@ inline void write_life_105(std::ostream &out,
               ++local_col;
             }
           else
-            ah_domain_error_unless(std::isspace(static_cast<unsigned char>(c)))
-              << "read_life_105: invalid row character '" << c << "'";
+            {
+              ah_domain_error_unless(std::isspace(static_cast<unsigned char>(c)))
+                << "read_life_105: invalid row character '" << c << "'";
+            }
         }
       ++local_row;
     }
