@@ -86,7 +86,6 @@
 #define ALEPH_CONCURRENCY_UTILS_H
 
 #include <atomic>
-#include <chrono>
 #include <condition_variable>
 #include <concepts>
 #include <cstddef>
@@ -128,7 +127,11 @@ namespace Aleph
    *  Cancellation-aware overloads accept a \ref Aleph::CancellationToken. They
    *  preserve the same close semantics and throw
    *  \ref Aleph::operation_canceled if cancellation is requested while the
-   *  caller is blocked waiting for progress.
+   *  caller is blocked waiting for progress; a blocked operation always sees
+   *  the cancellation. To notify it, the cancellation takes the mutex of the
+   *  channel, so an element operation, which runs under that mutex, must not
+   *  request the cancellation of a token that an operation of the same
+   *  channel waits with.
    *
    *  Exception safety:
    *  - If element construction or assignment throws, the channel remains in a
@@ -148,38 +151,37 @@ namespace Aleph
     size_t capacity_;
     bool closed_ = false;
 
-    /// Longest wait between two checks of a cancellation token.
-    static constexpr std::chrono::milliseconds Cancellation_Recheck{10};
-
     /** @brief Wait on a condition variable with cancellation support.
      *
-     *  The notification of a cancellation can come after the check of the
-     *  token and before the wait, and then it is lost. So, with a token
-     *  connected to a source, the wait wakes up every Cancellation_Recheck
-     *  to check the token again.
+     *  The token is checked before the wait, so that an operation that has
+     *  to wait when the cancellation was already requested throws while it
+     *  still holds the mutex. Then @p cv is registered with the mutex of the
+     *  channel, so that the wait cannot miss the cancellation (see
+     *  CancellationToken::notify_on_cancel(cv, mutex)).
      *
      *  @param cv Condition variable to wait on.
-     *  @param lock Locked mutex protecting the condition.
+     *  @param lock Lock that holds the mutex of the channel.
      *  @param pred Predicate that must be true to stop waiting.
      *  @param token Token to monitor for cancellation.
+     *  @param registration Receives the registration of @p cv. The caller
+     *         declares it before @p lock, so that it ends after the mutex is
+     *         released: ending it with the mutex held could deadlock with a
+     *         cancellation that waits for the mutex.
      *  @throws Aleph::operation_canceled if cancellation is requested.
+     *  @throws std::bad_alloc if the registration cannot be allocated.
      */
     template <typename Predicate>
     void wait_with_cancellation(std::condition_variable & cv,
                                 std::unique_lock<std::mutex> & lock,
                                 Predicate pred,
-                                const CancellationToken & token)
+                                const CancellationToken & token,
+                                CancellationToken::ConditionVariableRegistration & registration)
     {
       if (pred())
         return;
-      auto registration = token.notify_on_cancel(cv);
       token.throw_if_cancellation_requested();
-      const auto ready = [&] { return pred() or token.stop_requested(); };
-      if (not token.valid())
-        cv.wait(lock, ready);
-      else
-        while (not cv.wait_for(lock, Cancellation_Recheck, ready))
-          ;
+      registration = token.notify_on_cancel(cv, mutex_);
+      cv.wait(lock, [&] { return pred() or token.stop_requested(); });
       if (not pred())
         token.throw_if_cancellation_requested();
     }
@@ -214,10 +216,11 @@ namespace Aleph
     template <typename U>
     bool send_impl(U && value, const CancellationToken & token)
     {
+      CancellationToken::ConditionVariableRegistration registration;
       std::unique_lock<std::mutex> lock(mutex_);
       wait_with_cancellation(not_full_, lock,
                              [&] { return closed_ or queue_.size() < capacity_; },
-                             token);
+                             token, registration);
       if (closed_)
         return false;
       queue_.push_back(std::forward<U>(value));
@@ -459,10 +462,11 @@ namespace Aleph
                std::constructible_from<T, Args...>
     bool emplace(First && token, Args && ... args)
     {
+      CancellationToken::ConditionVariableRegistration registration;
       std::unique_lock<std::mutex> lock(mutex_);
       wait_with_cancellation(not_full_, lock,
                              [&] { return closed_ or queue_.size() < capacity_; },
-                             token);
+                             token, registration);
       if (closed_)
         return false;
       queue_.emplace_back(std::forward<Args>(args)...);
@@ -553,10 +557,11 @@ namespace Aleph
      */
     bool recv(T & out, const CancellationToken & token)
     {
+      CancellationToken::ConditionVariableRegistration registration;
       std::unique_lock<std::mutex> lock(mutex_);
       wait_with_cancellation(not_empty_, lock,
                              [&] { return closed_ or not queue_.empty(); },
-                             token);
+                             token, registration);
       if (queue_.empty())
         return false;
       T value(std::move_if_noexcept(queue_.front()));
@@ -619,10 +624,11 @@ namespace Aleph
      */
     [[nodiscard]] std::optional<T> recv(const CancellationToken & token)
     {
+      CancellationToken::ConditionVariableRegistration registration;
       std::unique_lock<std::mutex> lock(mutex_);
       wait_with_cancellation(not_empty_, lock,
                              [&] { return closed_ or not queue_.empty(); },
-                             token);
+                             token, registration);
       if (queue_.empty())
         return std::nullopt;
       T value(std::move_if_noexcept(queue_.front()));
