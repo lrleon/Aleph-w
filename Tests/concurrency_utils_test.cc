@@ -296,12 +296,12 @@ TEST(ConcurrencyUtils, BoundedChannelCancellationInterruptsBlockedRecv)
   receiver.join();
 }
 
-// The cancellation stores its flag and notifies without the mutex of the
-// channel, so the notification can come between the check of the token and
-// the wait of a blocked operation, and be lost. The operation then slept on
-// until something else happened on the channel; now it checks the token
-// again every few milliseconds. Each round cancels a send or a recv that is
-// about to block, at varying times.
+// A cancellation that notified without the mutex of the channel could come
+// between the check of the token and the wait of a blocked operation, and be
+// lost; the operation then slept on until something else happened on the
+// channel (7.0.1 checked the token every 10 ms instead). Now the cancellation
+// takes the mutex before it notifies. Each round cancels a send or a recv
+// that is about to block, at varying times.
 TEST(ConcurrencyUtils, BoundedChannelNeverMissesTheCancellation)
 {
   std::mt19937 rng(20261015);
@@ -345,6 +345,26 @@ TEST(ConcurrencyUtils, BoundedChannelNeverMissesTheCancellation)
       blocked.join();
       ASSERT_TRUE(seen) << "round " << round << " missed the cancellation";
     }
+}
+
+// With the cancellation already requested, an operation that can proceed
+// does, and one that would have to wait throws instead, without waiting.
+TEST(ConcurrencyUtils, BoundedChannelCanceledTokenThrowsInsteadOfWaiting)
+{
+  bounded_channel<int> ch(1);
+  CancellationSource source;
+  source.request_cancel();
+  const auto token = source.token();
+
+  int out = 0;
+  EXPECT_THROW((void) ch.recv(token), operation_canceled);
+  EXPECT_THROW((void) ch.recv(out, token), operation_canceled);
+  EXPECT_TRUE(ch.send(1, token));
+  EXPECT_THROW((void) ch.send(2, token), operation_canceled);
+  EXPECT_THROW((void) ch.emplace(token, 3), operation_canceled);
+  EXPECT_EQ(ch.size(), 1u);
+  EXPECT_TRUE(ch.recv(out, token));
+  EXPECT_EQ(out, 1);
 }
 
 TEST(ConcurrencyUtils, BoundedChannelCloseWinsIfOperationCanProceed)

@@ -42,6 +42,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -191,6 +192,16 @@ TEST_F(ThreadPoolTest, CancellationGuardEndsTheNotifications)
   EXPECT_FALSE(late_notification);
 }
 
+// notify_on_cancel(cv) is deprecated, but supported until 8.0.0; this test is
+// its coverage.
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(push)
+#  pragma warning(disable : 4996)
+#else
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 // Guards come and go in several threads, each one destroying its condition
 // variable right after its guard, while the source is cancelled.
 TEST_F(ThreadPoolTest, CancellationWhileGuardsComeAndGo)
@@ -210,6 +221,226 @@ TEST_F(ThreadPoolTest, CancellationWhileGuardsComeAndGo)
               auto guard = token.notify_on_cancel(*cv);
               guard = {};
               cv.reset();
+            }
+        });
+
+      while (ready.load() < 4)
+        std::this_thread::yield();
+      source.request_cancel();
+      for (auto & thread : threads)
+        thread.join();
+    }
+}
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(pop)
+#else
+#  pragma GCC diagnostic pop
+#endif
+
+namespace
+{
+  // Requests the cancellation of source while holding mutex, and tells
+  // whether it finished within time. While a registration of the mutex
+  // remains, the cancellation waits for the mutex and cannot finish.
+  bool cancellation_finishes_within(CancellationSource & source, std::mutex & mutex,
+                                    const std::chrono::milliseconds time)
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    std::atomic<bool> started{false}, finished{false};
+    std::thread canceller([&] {
+      started.store(true);
+      source.request_cancel();
+      finished.store(true);
+    });
+    while (not started.load())
+      std::this_thread::yield();
+    const auto deadline = std::chrono::steady_clock::now() + time;
+    while (not finished.load() and std::chrono::steady_clock::now() < deadline)
+      std::this_thread::sleep_for(1ms);
+    const bool done = finished.load();
+    lock.unlock();
+    canceller.join();
+    return done;
+  }
+}
+
+// A cancellation takes the mutex of a registration made with one before it
+// notifies the condition variable, so it does not finish while a waiter
+// holds the mutex, between its check of the token and its wait.
+TEST_F(ThreadPoolTest, ExactCancellationTakesTheRegisteredMutex)
+{
+  CancellationSource source;
+  const auto token = source.token();
+  std::mutex mutex;
+  std::condition_variable cv;
+  CancellationToken::ConditionVariableRegistration registration;
+  std::unique_lock<std::mutex> lock(mutex);
+  registration = token.notify_on_cancel(cv, mutex);
+  ASSERT_FALSE(token.stop_requested());
+
+  std::atomic<bool> finished{false};
+  std::thread canceller([&] {
+    source.request_cancel();
+    finished.store(true);
+  });
+  while (not token.stop_requested())
+    std::this_thread::yield();
+  // the pause only gives a cancellation that does not wait the time to finish
+  std::this_thread::sleep_for(50ms);
+  EXPECT_FALSE(finished.load());
+
+  lock.unlock();
+  canceller.join();
+  EXPECT_TRUE(finished.load());
+}
+
+// The waiter checks the token and then waits without checking it again, so
+// only the notification can end its wait. The cancellation comes in between;
+// without the mutex registered, its notification came before the wait and
+// was lost. A spurious wake-up would also end the wait: this test cannot fail
+// with the notification delivered, but such a wake-up could hide a lost one.
+TEST_F(ThreadPoolTest, ExactCancellationWakesAWaiterBetweenCheckAndWait)
+{
+  CancellationSource source;
+  const auto token = source.token();
+  std::mutex mutex;
+  std::condition_variable cv;
+  std::thread canceller;
+  {
+    CancellationToken::ConditionVariableRegistration registration;
+    std::unique_lock<std::mutex> lock(mutex);
+    registration = token.notify_on_cancel(cv, mutex);
+    ASSERT_FALSE(token.stop_requested());
+
+    canceller = std::thread([&] { source.request_cancel(); });
+    while (not token.stop_requested())
+      std::this_thread::yield();
+    EXPECT_EQ(cv.wait_for(lock, 10s), std::cv_status::no_timeout)
+        << "the cancellation did not wake up the waiter";
+  }
+  canceller.join();
+}
+
+// A thread holds the mutex of one registration while another thread ends a
+// second registration of the same source, and the cancellation waits for the
+// first mutex. A cancellation that waited for the mutex while holding the lock
+// of the registrations, which ending one needs, would wait for that thread,
+// and with one thread doing both, the two would wait for each other.
+TEST_F(ThreadPoolTest, EndingARegistrationDoesNotWaitForAnotherMutex)
+{
+  CancellationSource source;
+  const auto token = source.token();
+  std::mutex first_mutex, second_mutex;
+  std::condition_variable first_cv, second_cv;
+  auto first = token.notify_on_cancel(first_cv, first_mutex);
+  auto second = token.notify_on_cancel(second_cv, second_mutex);
+
+  std::unique_lock<std::mutex> lock(first_mutex);
+  std::thread canceller([&] { source.request_cancel(); });
+  while (not token.stop_requested())
+    std::this_thread::yield();
+  std::this_thread::sleep_for(50ms); // so that it waits for the first mutex
+
+  std::promise<void> ended;
+  auto future = ended.get_future();
+  std::thread ender([&] {
+    second = {};
+    ended.set_value();
+  });
+  const bool done = future.wait_for(10s) == std::future_status::ready;
+  lock.unlock(); // lets everything finish, in any case
+  ender.join();
+  canceller.join();
+  EXPECT_TRUE(done) << "ending a registration waited for the mutex of another one";
+}
+
+// Each call makes its own registration, and a guard moved to another one
+// takes it along: ending one leaves the others in place. A registration
+// requested after the cancellation is empty. Whether a cancellation finishes
+// while the mutex is held shows whether a registration remains; the short
+// time only gives a wrong one the chance to finish.
+TEST_F(ThreadPoolTest, ExactRegistrationsEndOneByOne)
+{
+  CancellationSource source;
+  const auto token = source.token();
+  std::mutex mutex;
+  std::condition_variable cv;
+  auto first = token.notify_on_cancel(cv, mutex);
+  auto second = token.notify_on_cancel(cv, mutex);
+
+  first = {};
+  EXPECT_FALSE(cancellation_finishes_within(source, mutex, 50ms))
+      << "ending the first registration ended the second one";
+
+  auto moved = std::move(second);
+  second = {};
+  EXPECT_FALSE(cancellation_finishes_within(source, mutex, 50ms))
+      << "ending the moved-from guard ended its registration";
+
+  moved = {};
+  EXPECT_TRUE(cancellation_finishes_within(source, mutex, 10'000ms))
+      << "a registration remained";
+
+  auto late = token.notify_on_cancel(cv, mutex);
+  EXPECT_TRUE(cancellation_finishes_within(source, mutex, 10'000ms))
+      << "a registration was made after the cancellation";
+}
+
+// A guard moved to another one is left empty, so it can be moved again after
+// the other one has ended the registration. It used to keep the position of
+// the registration, which ending it invalidates, and moving it again copied
+// that position; debug iterators catch it.
+TEST_F(ThreadPoolTest, MovedFromGuardCanBeMovedAgain)
+{
+  CancellationSource source;
+  const auto token = source.token();
+  std::mutex mutex;
+  std::condition_variable cv;
+
+  auto constructed_from = token.notify_on_cancel(cv, mutex);
+  auto constructed = std::move(constructed_from);
+  constructed = {};
+  auto again = std::move(constructed_from);
+
+  auto assigned_from = token.notify_on_cancel(cv, mutex);
+  CancellationToken::ConditionVariableRegistration assigned;
+  assigned = std::move(assigned_from);
+  assigned = {};
+  assigned = std::move(assigned_from);
+
+  EXPECT_TRUE(cancellation_finishes_within(source, mutex, 10'000ms))
+      << "a registration remained";
+}
+
+// Guards come and go in several threads, while the source is cancelled. Each
+// thread destroys its condition variable and its mutex right after its guard,
+// some after waiting on them, so a cancellation that used them later would be
+// caught by the sanitizers.
+TEST_F(ThreadPoolTest, ExactCancellationWhileGuardsComeAndGo)
+{
+  for (int round = 0; round < 20; ++round)
+    {
+      CancellationSource source;
+      const auto token = source.token();
+      std::atomic<int> ready{0};
+      std::vector<std::thread> threads;
+      for (int t = 0; t < 4; ++t)
+        threads.emplace_back([&, t] {
+          ++ready;
+          while (not token.stop_requested())
+            {
+              auto mutex = std::make_unique<std::mutex>();
+              auto cv = std::make_unique<std::condition_variable>();
+              {
+                CancellationToken::ConditionVariableRegistration guard;
+                std::unique_lock<std::mutex> lock(*mutex);
+                guard = token.notify_on_cancel(*cv, *mutex);
+                if (t % 2 == 1)
+                  (void) cv->wait_for(lock, 1ms, [&] { return token.stop_requested(); });
+              }
+              cv.reset();
+              mutex.reset();
             }
         });
 
