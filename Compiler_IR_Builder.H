@@ -466,8 +466,10 @@ public:
     ah_runtime_error_unless(not blk.is_terminated())
       << "Compiler_IR_Builder::set_exit(): block already terminated";
     if (function.exit_block != compiler_ir_invalid_id())
-      ah_runtime_error_unless(function.exit_block == block_id)
-        << "Compiler_IR_Builder::set_exit(): exit block already set to a different block";
+      {
+        ah_runtime_error_unless(function.exit_block == block_id)
+          << "Compiler_IR_Builder::set_exit(): exit block already set to a different block";
+      }
     function.exit_block = block_id;
     blk.terminator.kind = Compiler_IR_Terminator_Kind::Exit;
     blk.terminator.successors.clear();

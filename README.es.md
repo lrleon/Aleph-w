@@ -77,28 +77,28 @@ Idioma: Español | [English](README.md)
 <a id="readme-es-resumen"></a>
 ## Resumen
 
-**Aleph-w** es una biblioteca C++20 lista para producción que ofrece más de **90 estructuras de datos** y **50+ algoritmos** para ingenieros de software, investigadores y estudiantes. Con **238 archivos de cabecera** y **80+ ejemplos**, es una de las bibliotecas de algoritmos más completas disponibles.
+**Aleph-w** es una biblioteca C++20 lista para producción que ofrece más de **90 estructuras de datos** y **50+ algoritmos** para ingenieros de software, investigadores y estudiantes. Con **430+ archivos de cabecera** y **350+ programas de ejemplo**, es una de las bibliotecas de algoritmos más completas disponibles.
 
 ### ¿Por qué Aleph-w?
 
 | Característica | STL | Boost | Aleph-w |
 |---------|-----|-------|---------|
 | Árboles balanceados (AVL, RB, Splay, Treap) | Limitado | Parcial | **8 variantes** |
-| Estadística de orden (k-ésimo, rank) | Ninguna | Ninguna | **Todos los árboles** |
+| Estadística de orden (k-ésimo, rank) | Ninguna | Índices con rango (Boost.MultiIndex) | **Todos los árboles** |
 | Algoritmos de grafos | Ninguno | BGL | **50+ algoritmos** |
-| Flujos en redes (max-flow, min-cost) | Ninguno | Ninguno | **Suite completa** |
-| Allocators tipo arena | Ninguno | Ninguno | **Incluido** |
+| Flujos en redes (max-flow, min-cost) | Ninguno | BGL (max-flow, min-cost) | **Suite completa** |
+| Allocators tipo arena | Recursos `std::pmr` | Boost.Pool, Boost.Container | **Incluido** |
 | map/filter/fold paralelo | Limitado | Limitado | **Soporte nativo** |
 | Programación funcional | Limitado | Parcial | **Completa** |
-| Ejemplos educativos | Ninguno | Pocos | **80+ programas** |
+| Ejemplos educativos | Ninguno | Pocos | **350+ programas** |
 
 ### Estadísticas clave
 
-- **238 archivos de cabecera** cubriendo algoritmos clásicos y modernos
+- **430+ archivos de cabecera** cubriendo algoritmos clásicos y modernos
 - **90+ estructuras de datos** con múltiples variantes de implementación
 - **50+ algoritmos de grafos** incluyendo flujos, cortes y caminos
-- **80+ programas de ejemplo** con comentarios detallados
-- **7,700+ casos de prueba** con 99.98% de éxito
+- **350+ programas de ejemplo** con comentarios detallados
+- **13,000+ casos de prueba**, que la CI ejecuta en cada pull request
 - **Soporte multi-compilador**: GCC 11+ y Clang 14+
 
 ---
@@ -139,7 +139,7 @@ El sufijo "**-w**" significa "**with**" (con) — enfatizando que esta bibliotec
    - Ejemplos que enseñan, no solo demuestran
 
 4. **Listo para producción**
-   - Ampliamente probado (7,700+ tests)
+   - Ampliamente probado (13,000+ tests)
    - Usado en aplicaciones reales
    - Rendimiento competitivo
 
@@ -181,7 +181,7 @@ Aleph-w ha sido usado para enseñar a **miles de estudiantes** en Latinoamérica
 - **Implementaciones lado a lado**: compara Kruskal vs Prim, Dijkstra vs Bellman-Ford
 - **Exportación de visualizaciones**: salida LaTeX/EEPIC para papers y presentaciones
 - **Análisis de complejidad**: cada operación documenta su Big-O
-- **Ejemplos extensos**: 80+ programas demostrando uso real
+- **Ejemplos extensos**: 350+ programas demostrando uso real
 
 ---
 
@@ -396,7 +396,7 @@ target_link_libraries(your_target PRIVATE Aleph)
 | `BUILD_EXAMPLES` | ON | Compilar los ejemplos (`Examples/`) |
 | `BUILD_OPTIMIZED` | OFF | Si está en ON y `CMAKE_BUILD_TYPE` no se define, default a `Release` |
 | `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest si falta |
-| `USE_SANITIZERS` | OFF | (Tests) Habilitar ASan/UBSan para los binarios de test |
+| `ALEPH_USE_SANITIZERS` | OFF | Habilitar ASan/UBSan para la biblioteca y los tests (solo GCC y Clang) |
 
 ### CMake Presets (opcional)
 
@@ -4243,7 +4243,7 @@ El roadmap más amplio de la plataforma está en
 <a id="readme-es-ejemplos"></a>
 ## Ejemplos
 
-El directorio `Examples/` contiene **80+ programas** que demuestran el uso de la biblioteca:
+El directorio `Examples/` contiene **350+ programas** que demuestran el uso de la biblioteca:
 
 ### Compilar ejemplos
 
@@ -4443,7 +4443,7 @@ ctest --test-dir build -V
 # AddressSanitizer + UndefinedBehaviorSanitizer
 cmake -S . -B build-asan \
     -DBUILD_TESTS=ON \
-    -DUSE_SANITIZERS=ON \
+    -DALEPH_USE_SANITIZERS=ON \
     -DCMAKE_BUILD_TYPE=Debug
 
 cmake --build build-asan
@@ -4452,8 +4452,7 @@ ctest --test-dir build-asan --output-on-failure
 
 ### Cobertura de tests
 
-- **7,700+ casos de test**
-- **99.98% tasa de aprobación**
+- **13,000+ casos de test**
 - Tests para todas las estructuras de datos y algoritmos
 - Cobertura de casos borde
 - Tests de regresión de rendimiento
@@ -4476,7 +4475,7 @@ cd Aleph-w
 cmake -S . -B build-debug \
     -DBUILD_TESTS=ON \
     -DCMAKE_BUILD_TYPE=Debug \
-    -DUSE_SANITIZERS=ON
+    -DALEPH_USE_SANITIZERS=ON
 
 cmake --build build-debug
 ctest --test-dir build-debug

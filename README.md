@@ -19,7 +19,6 @@ Language: English | [Español](README.es.md)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![GCC](https://img.shields.io/badge/GCC-11%2B-orange.svg)](https://gcc.gnu.org/)
 [![Clang](https://img.shields.io/badge/Clang-14%2B-orange.svg)](https://clang.llvm.org/)
-[![Tests](https://img.shields.io/badge/Tests-99.98%25-brightgreen.svg)](https://github.com/lrleon/Aleph-w/actions)
 [![codecov](https://codecov.io/gh/lrleon/Aleph-w/branch/master/graph/badge.svg)](https://codecov.io/gh/lrleon/Aleph-w)
 [![REUSE status](https://api.reuse.software/badge/github.com/lrleon/Aleph-w)](https://api.reuse.software/info/github.com/lrleon/Aleph-w)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://lrleon.github.io/Aleph-w/)
@@ -83,7 +82,7 @@ Language: English | [Español](README.es.md)
 <a id="readme-overview"></a>
 ## Overview
 
-**Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **240 header files** and **80+ examples**, it is one of the most comprehensive algorithm libraries available.
+**Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **430+ header files** and **350+ example programs**, it is one of the most comprehensive algorithm libraries available.
 
 ### Why Aleph-w?
 
@@ -91,21 +90,21 @@ Language: English | [Español](README.es.md)
 |---------|-----|-------|---------|
 | Balanced Trees (AVL, RB, Splay, Treap) | Limited | Partial | **8 variants** |
 | Multiway Search Trees (B-Tree, B+ Tree) | None | Partial | **2 page-oriented variants** |
-| Order Statistics (k-th element, rank) | None | None | **All trees** |
+| Order Statistics (k-th element, rank) | None | Ranked indices (Boost.MultiIndex) | **All trees** |
 | Graph Algorithms | None | BGL | **50+ algorithms** |
-| Network Flows (max-flow, min-cost) | None | None | **Complete suite** |
-| Arena Memory Allocators | None | None | **Built-in** |
+| Network Flows (max-flow, min-cost) | None | BGL (max-flow, min-cost) | **Complete suite** |
+| Arena Memory Allocators | `std::pmr` resources | Boost.Pool, Boost.Container | **Built-in** |
 | Parallel map/filter/fold | Limited | Limited | **Native support** |
 | Functional Programming | Limited | Partial | **Comprehensive** |
-| Educational Examples | None | Few | **80+ programs** |
+| Educational Examples | None | Few | **350+ programs** |
 
 ### Key Statistics
 
-- **240 header files** covering classic and modern algorithms
+- **430+ header files** covering classic and modern algorithms
 - **90+ data structures** with multiple implementation variants
 - **50+ graph algorithms** including flows, cuts, and paths
-- **80+ example programs** with detailed comments
-- **7,700+ test cases** with 99.98% pass rate
+- **350+ example programs** with detailed comments
+- **13,000+ test cases**, run by the CI on every pull request
 - **Multi-compiler support**: GCC 11+ and Clang 14+
 
 ---
@@ -147,7 +146,7 @@ The "**-w**" suffix stands for "**with**" — emphasizing that this library come
    - Examples that teach, not just demonstrate
 
 4. **Production Ready**
-   - Extensively tested (7,700+ test cases)
+   - Extensively tested (13,000+ test cases)
    - Used in real-world applications
    - Performance competitive with specialized libraries
 
@@ -189,7 +188,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 - **Side-by-side implementations**: Compare Kruskal vs Prim, Dijkstra vs Bellman-Ford
 - **Visualization exports**: LaTeX/EEPIC output for papers and presentations
 - **Complexity analysis**: Every operation documents its Big-O complexity
-- **Extensive examples**: 80+ programs demonstrating real usage
+- **Extensive examples**: 350+ programs demonstrating real usage
 
 ---
 
@@ -410,11 +409,11 @@ target_link_libraries(your_target PRIVATE Aleph)
 
 ### Method 4: `find_package` (installed package)
 
-Once Aleph-w is installed (`cmake --install`, a `.deb`/`.rpm`, vcpkg or Conan),
+Once Aleph-w is installed (`cmake --install`, a `.deb`/`.rpm` or Conan),
 a consumer project integrates it without cloning the repo:
 
 ```cmake
-find_package(Aleph 4.0 COMPONENTS CA REQUIRED)
+find_package(Aleph 7 COMPONENTS CA REQUIRED)
 
 # Core data structures & algorithms:
 target_link_libraries(your_target PRIVATE Aleph::Aleph)
@@ -438,7 +437,7 @@ The package ships `AlephConfig.cmake`, `AlephConfigVersion.cmake` and
 | `BUILD_BENCHMARKS` | OFF | Build the cellular-automata performance-gate benchmarks (`benchmarks/`) |
 | `BUILD_OPTIMIZED` | OFF | If ON and `CMAKE_BUILD_TYPE` is unset, default to `Release` |
 | `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest if missing |
-| `ALEPH_USE_SANITIZERS` | OFF | Enable ASan/UBSan for the library and tests |
+| `ALEPH_USE_SANITIZERS` | OFF | Enable ASan/UBSan for the library and tests (GCC and Clang only) |
 | `ALEPH_USE_MEMORY_SANITIZER` | OFF | Enable the targeted Clang MemorySanitizer probe (Linux only) |
 | `ALEPH_BUILD_X11_VIEWER` | ON (Unix), OFF (Windows) | Build the X11 live viewer (`ca-x11-viewer.H`). Requires `libX11`. Turn OFF to drop the X11 dependency on non-POSIX targets. |
 
@@ -4683,7 +4682,7 @@ The longer-term platform roadmap lives in
 
 ## Examples
 
-The `Examples/` directory contains **80+ programs** demonstrating library usage:
+The `Examples/` directory contains **350+ programs** demonstrating library usage:
 
 ### Building Examples
 
@@ -5005,7 +5004,7 @@ What these tools cover:
 # AddressSanitizer + UndefinedBehaviorSanitizer
 cmake -S . -B build-asan \
     -DBUILD_TESTS=ON \
-    -DUSE_SANITIZERS=ON \
+    -DALEPH_USE_SANITIZERS=ON \
     -DCMAKE_BUILD_TYPE=Debug
 
 cmake --build build-asan
@@ -5014,8 +5013,7 @@ ctest --test-dir build-asan --output-on-failure
 
 ### Test Coverage
 
-- **7,700+ test cases**
-- **99.98% pass rate**
+- **13,000+ test cases**
 - Tests for all data structures and algorithms
 - Edge case coverage
 - Performance regression tests
@@ -5038,7 +5036,7 @@ cd Aleph-w
 cmake -S . -B build-debug \
     -DBUILD_TESTS=ON \
     -DCMAKE_BUILD_TYPE=Debug \
-    -DUSE_SANITIZERS=ON
+    -DALEPH_USE_SANITIZERS=ON
 
 cmake --build build-debug
 ctest --test-dir build-debug
@@ -5091,12 +5089,12 @@ Together, we can build the most comprehensive C++ algorithm library in the world
 
 Aleph-w follows [Semantic Versioning 2.0.0](https://semver.org/). The canonical
 version lives in the top-level [`VERSION.txt`](VERSION.txt) file (read by CMake, the
-packaging recipes and the release workflow), and notable changes are recorded in
+Conan recipe and the release workflow), and notable changes are recorded in
 [`CHANGELOG.md`](CHANGELOG.md) using the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format
 (`Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`).
 
-`find_package(Aleph 4.0 ...)` resolves any installed `4.x` release
+`find_package(Aleph 7 ...)` resolves any installed `7.x` release
 (`SameMajorVersion` compatibility): minor and patch upgrades are backward
 compatible, and breaking changes are reserved for a new major version.
 The full stability contract — public vs internal API, the deprecation

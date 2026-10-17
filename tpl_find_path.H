@@ -281,7 +281,9 @@ shown to the traversal
                    Path<GT> & path, Op & op)
     {
       if (not path.inside_graph(g))
-        ah_invalid_argument_if(true) << "Path does not belong to graph";
+        {
+          ah_invalid_argument_if(true) << "Path does not belong to graph";
+        }
 
       path.empty(); // clear anything that may be in path
       g.reset_nodes();

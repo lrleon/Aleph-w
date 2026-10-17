@@ -396,7 +396,9 @@ void load_deway_number(ifstream & input_stream,
           put_char_in_buffer(start_addr, end_addr, '\0');
 
           if (deway_index >= deway_array_size)
-            ah_overflow_error_if(true) << "Deway number is too long";
+            {
+              ah_overflow_error_if(true) << "Deway number is too long";
+            }
 
           deway_array[deway_index++] = atoi(deway_string);
           start_addr = &deway_string[0];
@@ -412,7 +414,9 @@ void load_deway_number(ifstream & input_stream,
     }
 
   if (deway_index >= deway_array_size)
-    ah_overflow_error_if(true) << "Internal deway array size is not enough";
+    {
+      ah_overflow_error_if(true) << "Internal deway array size is not enough";
+    }
   deway_array[deway_index] = -1;
 }
 

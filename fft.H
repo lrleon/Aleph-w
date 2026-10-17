@@ -133,9 +133,9 @@ namespace Aleph
    *  ### Thread Safety:
    *  All methods are `static`; there is no shared mutable instance state.
    *  Multiple threads may call any method concurrently on independent data
-   *  without synchronization.  The one exception is @ref Plan: a single
-   *  `Plan` object must not be used concurrently from multiple threads
-   *  unless all concurrent calls are read-only (query-only methods).
+   *  without synchronization.  The one exception is the @ref Plan class:
+   *  a single `Plan` object must not be used concurrently from multiple
+   *  threads unless all concurrent calls are read-only (query-only methods).
    *
    *  ### Exception Safety:
    *  - Methods that allocate memory (e.g. `transformed`, `convolve`) provide
@@ -456,10 +456,12 @@ namespace Aleph
 
       const size_t half = n / 2;
       if ((n & 1) == 0)
-        ah_domain_error_if(std::abs(input[half].imag())
-                         > real_projection_tolerance(input[half], n))
-            << ctx << ": coefficient " << half
-            << " has non-negligible imaginary part " << input[half].imag();
+        {
+          ah_domain_error_if(std::abs(input[half].imag())
+                           > real_projection_tolerance(input[half], n))
+              << ctx << ": coefficient " << half
+              << " has non-negligible imaginary part " << input[half].imag();
+        }
 
       const size_t limit = (n & 1) == 0 ? half : half + 1;
       for (size_t k = 1; k < limit; ++k)
@@ -689,14 +691,18 @@ namespace Aleph
                                                   ctx);
 
       if (validate_nola)
-        ah_domain_error_if(not overlap_profile_has_nola(profile))
-          << ctx << ": window pair does not satisfy NOLA for hop size "
-          << hop_size;
+        {
+          ah_domain_error_if(not overlap_profile_has_nola(profile))
+            << ctx << ": window pair does not satisfy NOLA for hop size "
+            << hop_size;
+        }
 
       if (validate_cola)
-        ah_domain_error_if(not overlap_profile_has_cola(profile))
-          << ctx << ": window pair does not satisfy COLA for hop size "
-          << hop_size;
+        {
+          ah_domain_error_if(not overlap_profile_has_cola(profile))
+            << ctx << ": window pair does not satisfy COLA for hop size "
+            << hop_size;
+        }
     }
 
     /** @brief Computes framing offsets. */
@@ -3999,9 +4005,11 @@ namespace Aleph
           ah_invalid_argument_if(i > 0 and edge + edge_tol < previous_edge)
             << ctx << ": band edges must be non-decreasing";
           if ((i & 1) == 1)
-            ah_invalid_argument_if(edge <= previous_edge + edge_tol)
-              << ctx << ": band " << (i / 2)
-              << " has non-positive width";
+            {
+              ah_invalid_argument_if(edge <= previous_edge + edge_tol)
+                << ctx << ": band " << (i / 2)
+                << " has non-positive width";
+            }
 
           omega(i) = Real(2) * std::numbers::pi_v<Real> * edge / sample_rate;
           previous_edge = edge;
@@ -12722,10 +12730,12 @@ namespace Aleph
       const Array<PoleZeroPair> pairs = pair_poles_and_zeros(zeros, poles);
       for (size_t i = 0; i < pairs.size(); ++i)
         if (pairs[i].is_cancellation(tolerance))
-          ah_domain_error_if(true)
-            << "FFT::validate_no_near_pole_zero_cancellation: zero "
-            << pairs[i].zero << " and pole " << pairs[i].pole
-            << " are only " << pairs[i].distance << " apart";
+          {
+            ah_domain_error_if(true)
+              << "FFT::validate_no_near_pole_zero_cancellation: zero "
+              << pairs[i].zero << " and pole " << pairs[i].pole
+              << " are only " << pairs[i].distance << " apart";
+          }
     }
 
     static void

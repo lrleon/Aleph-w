@@ -2207,8 +2207,10 @@ namespace Aleph::blossom_weighted_detail::mwmatching
         num_vertex = std::max(num_vertex, m + 1);
 
         if (not std::numeric_limits<WeightType>::is_integer)
-          ah_invalid_argument_if(! std::isfinite(edge.weight))
-                << "Edge weights must be finite numbers";
+          {
+            ah_invalid_argument_if(! std::isfinite(edge.weight))
+                  << "Edge weights must be finite numbers";
+          }
 
         min_weight = std::min(min_weight, edge.weight);
         max_weight = std::max(max_weight, edge.weight);

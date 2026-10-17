@@ -3,7 +3,8 @@
 # On every push to master, release-please parses Conventional Commits and
 # maintains a "release PR" that accumulates the next version's CHANGELOG
 # section. Merging that PR publishes the GitHub release and pushes the
-# `v*` tag, which in turn triggers release.yml (artifacts + install test).
+# `v*` tag; the `package` job below then attaches the artifacts (the tag
+# does not trigger release.yml, see that job).
 #
 # Notes:
 #   - The "go" release-type is deliberate: it is the strategy that only

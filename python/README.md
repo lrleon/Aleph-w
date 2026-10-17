@@ -6,6 +6,9 @@ C++ engines without writing C++.
 
 ## Install
 
+The package has a version of its own, still a pre-release (`4.0.0b0`), that
+does not follow the releases of the library; its wheels are published only by
+hand, to TestPyPI (see [`VERSIONING.md`](../VERSIONING.md#semantic-versioning)).
 From a clone of the repository:
 
 ```bash

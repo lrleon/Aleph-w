@@ -130,7 +130,9 @@ void deway(Tree_Node<int> *p, int prefix[], const int &len, const size_t &dim)
   cout << " \"" << p->get_key() << "\"" << endl;
 
   if (static_cast<size_t>(len) >= dim)
-    ah_overflow_error_if(true) << "Array dimension is smaller than Deway chain";
+    {
+      ah_overflow_error_if(true) << "Array dimension is smaller than Deway chain";
+    }
 
   Tree_Node<int> *child = p->get_left_child();
 
