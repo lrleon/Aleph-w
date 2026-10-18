@@ -222,6 +222,7 @@ namespace Aleph
 
     Hash_Fct hash_fct;
     bool with_resize;
+    size_t deleted_buckets = 0; // buckets marked as the ones of removed keys
 
     [[nodiscard]] bool is_valid_bucket(Bucket *bucket) const noexcept
     {
@@ -357,6 +358,7 @@ namespace Aleph
       std::swap(lower_alpha, other.lower_alpha);
       std::swap(upper_alpha, other.upper_alpha);
       std::swap(with_resize, other.with_resize);
+      std::swap(deleted_buckets, other.deleted_buckets);
     }
 
     /** @brief Copy constructor.
@@ -396,11 +398,12 @@ namespace Aleph
       : table(other.table), N(other.N), len(other.len),
         lower_alpha(other.lower_alpha), upper_alpha(other.upper_alpha),
         cmp(other.cmp), hash_fct(other.hash_fct),
-        with_resize(other.with_resize)
+        with_resize(other.with_resize), deleted_buckets(other.deleted_buckets)
     {
       other.table = nullptr;
       other.N = 0;
       other.len = 0;
+      other.deleted_buckets = 0;
     }
 
     /** @brief Copy assignment.
@@ -465,6 +468,16 @@ namespace Aleph
 
    protected:
 
+    /// Gives `bucket`, empty or the one of a removed key, to a new key.
+    Bucket *occupy(Bucket *bucket) noexcept
+    {
+      if (bucket->status == DELETED)
+        --deleted_buckets;
+      bucket->status = BUSY;
+      ++N;
+      return bucket;
+    }
+
     Bucket *allocate_bucket(const Key &key) noexcept
     {
       Bucket * first_deleted = nullptr;
@@ -477,12 +490,7 @@ namespace Aleph
 
           auto & b = table[i];
           if (b.status == EMPTY) [[likely]]
-            {
-              Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
-              bucket->status = BUSY;
-              ++N;
-              return bucket;
-            }
+            return occupy(first_deleted != nullptr ? first_deleted : &b);
           if (b.status == BUSY)
             {
               if (cmp(key, b.key)) [[unlikely]]
@@ -499,11 +507,7 @@ namespace Aleph
         }
 
       if (first_deleted != nullptr) [[unlikely]]
-        {
-          first_deleted->status = BUSY;
-          ++N;
-          return first_deleted;
-        }
+        return occupy(first_deleted);
 
       return nullptr;
     }
@@ -524,12 +528,7 @@ namespace Aleph
 
           auto & b = table[i];
           if (b.status == EMPTY) [[likely]]
-            {
-              Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
-              bucket->status = BUSY;
-              ++N;
-              return {bucket, false};
-            }
+            return {occupy(first_deleted != nullptr ? first_deleted : &b), false};
           else if (b.status == BUSY)
             {
               if (cmp(key, b.key))
@@ -546,11 +545,7 @@ namespace Aleph
         }
 
       if (first_deleted != nullptr) [[unlikely]]
-        {
-          first_deleted->status = BUSY;
-          ++N;
-          return {first_deleted, false};
-        }
+        return {occupy(first_deleted), false};
 
       return {nullptr, false};
     }
@@ -580,6 +575,7 @@ namespace Aleph
 
       // Next is EMPTY, so we can mark this as EMPTY
       table[idx].status = EMPTY;
+      --deleted_buckets;
 
       // Propagate backwards: any DELETED bucket whose next is now EMPTY
       // can also become EMPTY
@@ -588,6 +584,7 @@ namespace Aleph
       while (table[prev].status == DELETED and count < len)
         {
           table[prev].status = EMPTY;
+          --deleted_buckets;
           prev = prev_index(prev);
           ++count;
         }
@@ -609,6 +606,7 @@ namespace Aleph
       --N;
       const auto idx = static_cast<size_t>(bucket - &table[0]);
       table[idx].status = DELETED;
+      ++deleted_buckets;
       cleanup_deleted_chain(idx);
     }
 
@@ -643,6 +641,7 @@ namespace Aleph
           if (displacement >= steps)
             {
               bucket->status = DELETED;
+              ++deleted_buckets;
               return;
             }
         }
@@ -653,6 +652,7 @@ namespace Aleph
            ++count)
         {
           table[prev].status = EMPTY;
+          --deleted_buckets;
           prev = prev_index(prev);
         }
     }
@@ -679,6 +679,7 @@ namespace Aleph
           if (table[i].status == BUSY and cmp(table[i].key, key)) [[likely]]
             {
               table[i].status = DELETED;
+              ++deleted_buckets;
               --N;
               cleanup_deleted_chain(i);
               return;
@@ -733,6 +734,7 @@ namespace Aleph
               ++num_deleted;
             break;
           }
+      assert(num_deleted == deleted_buckets);
 
       float avg = 0;
       float sum = 0;

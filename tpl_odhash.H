@@ -272,11 +272,14 @@ namespace Aleph
   private:
     size_t N; // number of buckets occupied
     bool with_resize;
+    size_t deleted_buckets = 0; // buckets marked as the ones of removed keys
 
     Bucket * allocate_bucket(Bucket & bucket, unsigned char probe_type) noexcept
     {
       assert(bucket.status != BUSY);
 
+      if (bucket.status == DELETED)
+        --deleted_buckets;
       ++N;
       bucket.status = BUSY;
       bucket.probe_type = probe_type;
@@ -291,7 +294,12 @@ namespace Aleph
 
       --bucket->probe_counter;
       if (bucket->probe_counter == 0) // <mark EMPTY on the bucket?
-        bucket->status = EMPTY;
+        {
+          // only a removed key's bucket: a busy one counts its own key
+          assert(bucket->status == DELETED);
+          --deleted_buckets;
+          bucket->status = EMPTY;
+        }
     }
 
     void deallocate_bucket(Bucket *bucket) noexcept
@@ -394,6 +402,7 @@ namespace Aleph
       assert(bucket->status == BUSY);
 
       bucket->status = DELETED;
+      ++deleted_buckets;
 
       const size_t i_fst = hash_fct(key) % len;
       if (&table[i_fst] == bucket)
@@ -461,6 +470,7 @@ namespace Aleph
       std::swap(lower_alpha, other.lower_alpha);
       std::swap(upper_alpha, other.upper_alpha);
       std::swap(with_resize, other.with_resize);
+      std::swap(deleted_buckets, other.deleted_buckets);
     }
 
   protected:
@@ -591,11 +601,13 @@ namespace Aleph
         second_hash_fct(other.second_hash_fct), cmp(other.cmp),
         len(other.len),
         lower_alpha(other.lower_alpha), upper_alpha(other.upper_alpha),
-        N(other.N), with_resize(other.with_resize)
+        N(other.N), with_resize(other.with_resize),
+        deleted_buckets(other.deleted_buckets)
     {
       other.table = nullptr;
       other.N = 0;
       other.len = 0;
+      other.deleted_buckets = 0;
     }
 
     Special_Ctors(ODhashTable, Key);
@@ -1144,6 +1156,7 @@ namespace Aleph
             ++num_deleted;
             break;
           }
+      assert(num_deleted == deleted_buckets);
 
       float avg = 0, sum = 0;
       for (size_t i = 0; i < lens.size(); ++i)
