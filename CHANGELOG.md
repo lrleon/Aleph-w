@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * **hash:** Count removed keys' buckets and stop del() at the last key ([#121](https://github.com/lrleon/Aleph-w/issues/121)) ([d37658b](https://github.com/lrleon/Aleph-w/commit/d37658bf9ad0a64f19717687bee16b4b7c618472))
 
+
+### Deprecated
+
+* `CancellationToken::notify_on_cancel(std::condition_variable &)` (`thread_pool.H`): use `notify_on_cancel(cv, mutex)`, which cannot miss the notification. Removal no earlier than 8.0.0. Taking the address of `notify_on_cancel` now needs the type of the overload; see `docs/release-notes/7.1.0.md`.
+
 ## [7.0.1](https://github.com/lrleon/Aleph-w/compare/v7.0.0...v7.0.1) (2026-10-17)
 
 
