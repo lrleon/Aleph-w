@@ -5,6 +5,18 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.1.0](https://github.com/lrleon/Aleph-w/compare/v7.0.1...v7.1.0) (2026-10-18)
+
+
+### Features
+
+* **concurrency:** Deliver cancellation to condition-variable waiters ([#119](https://github.com/lrleon/Aleph-w/issues/119)) ([11c5c01](https://github.com/lrleon/Aleph-w/commit/11c5c0161235519e5089f64974d209d777e83cfc))
+
+
+### Bug Fixes
+
+* **hash:** Count removed keys' buckets and stop del() at the last key ([#121](https://github.com/lrleon/Aleph-w/issues/121)) ([d37658b](https://github.com/lrleon/Aleph-w/commit/d37658bf9ad0a64f19717687bee16b4b7c618472))
+
 ## [7.0.1](https://github.com/lrleon/Aleph-w/compare/v7.0.0...v7.0.1) (2026-10-17)
 
 
