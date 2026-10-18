@@ -73,7 +73,8 @@
     @tparam HashTbl The derived hash table class (ODhashTable or OLhashTable).
                     Must provide: allocate_bucket(), hard_allocate_bucket(),
                     deallocate_bucket(), test_resize(), search(), table, len, N,
-                    lower_alpha, upper_alpha, with_resize, current_alpha(), Bucket.
+                    deleted_buckets, lower_alpha, upper_alpha, with_resize,
+                    current_alpha(), Bucket.
     @tparam Key The type of keys stored in the table.
 
     @par Provided Operations:
@@ -89,16 +90,29 @@
     - Iterator - Bidirectional iteration over entries
 
     @par Capacity:
-    The table always keeps at least one empty bucket, where a search that
-    misses can stop, so it is full with `capacity() - 1` keys. A full table
-    that does not resize itself takes no more keys: the insertions return
-    nullptr and `operator[]` throws `std::overflow_error`.
+    The table leaves at least one bucket without a key, so that a search
+    that misses can stop at an empty bucket: it is full with
+    `capacity() - 1` keys. A full table that does not resize itself takes
+    no more keys: the insertions return nullptr and `operator[]` throws
+    `std::overflow_error`.
 
     @par Automatic Resizing:
     When `with_resize` is enabled in the derived class, the table automatically:
     - Grows when it becomes nearly full (before insert would fail)
     - Shrinks when load factor drops below `lower_alpha` threshold, if the
       keys fit under `upper_alpha` in a table of half the capacity
+
+    @par Removed keys:
+    A removed key may leave its bucket marked, so that the searches that
+    went through it still do. In a table that resizes itself, those buckets
+    count as used to decide when it is full or over `upper_alpha`, and when
+    they take it there, it is rebuilt without them: in place, if the keys
+    alone fill less than half of `upper_alpha`, and twice as large
+    otherwise. So it always keeps an empty bucket. A table that does not
+    resize itself is never rebuilt by itself, so that its keys do not
+    move: the buckets of its removed keys may take its empty buckets, and
+    a search that misses then goes through all of them, until rehash()
+    clears them.
 
     @par Thread Safety:
     This class is NOT thread-safe. External synchronization is required
@@ -179,11 +193,13 @@ class OhashCommon
       store_copy(bucket, key);
   }
 
+protected:
+
   /** @brief Places the keys of the table in `new_len` new buckets.
 
       The keys are swapped into the new buckets. A key whose swap may throw
       is copied instead, so that the old buckets keep every key until all
-      of them are placed.
+      of them are placed. The buckets of removed keys are left behind.
 
       @param new_len Number of new buckets. It must leave an empty bucket.
       @throw std::bad_alloc If there is no memory for the new buckets, and
@@ -196,10 +212,12 @@ class OhashCommon
     typename HashTbl::Bucket * old_table = me()->table;
     const size_t old_len = me()->len;
     const size_t old_N = me()->N;
+    const size_t old_deleted = me()->deleted_buckets;
 
     me()->table = new_table;
     me()->len   = new_len;
     me()->N     = 0;
+    me()->deleted_buckets = 0;
 
     try
       {
@@ -220,6 +238,7 @@ class OhashCommon
         me()->table = old_table;
         me()->len   = old_len;
         me()->N     = old_N;
+        me()->deleted_buckets = old_deleted;
         delete [] new_table;
         throw;
       }
@@ -227,6 +246,44 @@ class OhashCommon
     assert(old_N == me()->N);
 
     delete [] old_table;
+  }
+
+  /** @brief Capacity to rebuild a table that resizes itself with, when its
+      buckets in use are too many.
+
+      The buckets in use include the ones of removed keys, which a search
+      does not stop at, and a rebuild leaves behind. If the keys alone fill
+      less than half of the upper threshold, the table keeps its capacity,
+      so that many insertions come before it has to be rebuilt again;
+      otherwise it doubles.
+
+      @return The capacity for rebuild().
+  */
+  [[nodiscard]] size_t rebuild_capacity() const
+  {
+    const HashTbl * t = const_me();
+    if (2.0f*t->N/t->len >= t->upper_alpha)
+      return Primes::next_prime(2 * t->len);
+    return t->len;
+  }
+
+  /** @brief Capacity that an insertion leaves the table with, or 0 if it
+      keeps it.
+
+      A table that resizes itself is rebuilt when its buckets in use, those
+      of removed keys included, reach the upper threshold. Removing a key
+      does not change how many buckets are in use, so it is enough to check
+      after each insertion.
+
+      @return 0, or the capacity for rebuild().
+  */
+  [[nodiscard]] size_t capacity_after_insertion() const
+  {
+    const HashTbl * t = const_me();
+    if (not t->with_resize
+        or 1.0f*(t->N + t->deleted_buckets)/t->len < t->upper_alpha)
+      return 0;
+    return rebuild_capacity();
   }
 
 public:
@@ -288,14 +345,20 @@ public:
     for (long i = 0; i < me()->len; ++i)
       me()->table[i].reset();
     me()->N = 0;
+    me()->deleted_buckets = 0;
   }
 
   /** @brief Makes room for one more key, if the table can take it.
 
-      Called before each insert operation. The table always keeps at least
-      one empty bucket, as a sentinel for probing, so it is full with
+      Called before each insert operation. The table leaves at least one
+      bucket without a key, as a sentinel for probing, so it is full with
       `capacity() - 1` keys. A full table doubles its capacity if automatic
       resizing is enabled; otherwise it takes no more keys.
+
+      The buckets of removed keys are not empty. If they would leave a
+      table that resizes itself without an empty bucket, it is rebuilt
+      without them. A table that does not resize itself is never rebuilt,
+      so that its keys do not move.
 
       A table whose storage was taken by a move has no buckets. It gets
       here a table of the default capacity, whether or not automatic
@@ -303,8 +366,9 @@ public:
 
       @return true if the table can take one more key; false if it is full
               and does not resize itself.
-      @throw std::bad_alloc If there is no memory for the new buckets. The
-             table is left as it was.
+      @throw std::bad_alloc If there is no memory for the new buckets, and
+             anything that copying a key throws when the table is rebuilt
+             and its swap may throw. The table is left as it was.
   */
   bool check_resize_before_insert()
   {
@@ -315,13 +379,16 @@ public:
       }
 
     // Keep at least one EMPTY bucket as a sentinel.
-    if (me()->N < me()->len - 1) [[likely]]
+    if (me()->N + me()->deleted_buckets < me()->len - 1) [[likely]]
       return true;
 
     if (not me()->with_resize)
-      return false;
+      return me()->N < me()->len - 1; // its keys must not move
 
-    me()->resize(Primes::next_prime(2 * me()->len));
+    if (me()->N < me()->len - 1) // the buckets of removed keys take the room
+      rebuild(rebuild_capacity());
+    else
+      me()->resize(Primes::next_prime(2 * me()->len));
     return true;
   }
 
@@ -745,6 +812,7 @@ public:
       Creates a new internal table with the same capacity and
       re-inserts all entries. This can help improve performance
       after many deletions by eliminating deleted bucket markers.
+      A table that does not resize itself never does it by itself.
 
       @throw std::bad_alloc If there is no memory for the new buckets, and
              anything that copying a key throws when its swap may throw.
@@ -776,6 +844,7 @@ public:
     delete [] me()->table;
     me()->table = new_table;
     me()->N = 0;
+    me()->deleted_buckets = 0;
     me()->len = Primes::DefaultPrime;
   }
 
@@ -1047,12 +1116,13 @@ public:
     Iterator(const HashTbl &) = delete;
 
     /** @brief Deletes the current entry and advances to the next.
-        
+
         Removes the current entry from the table. After deletion,
-        the iterator is positioned at the next entry (if any).
-        
+        the iterator is positioned at the next entry, or at the end if
+        the entry was the last one.
+
         @throw std::overflow_error If not at a valid position.
-        
+
         @warning After del(), the logical positions of subsequent
                  entries change.
     */
@@ -1062,7 +1132,8 @@ public:
         << "Overflow in del() of iterator";
 
       table_ptr->deallocate_bucket(&table_ptr->table[curr_idx]);
-      if (table_ptr->size() == 0)
+      // the last entry has no next one: looking for it went past the end
+      if (ordinal == static_cast<long>(table_ptr->size()))
         return;
 
       while (table_ptr->table[++curr_idx].status != HashTbl::BUSY);

@@ -45,8 +45,10 @@
 # include <tpl_lhash.H>
 # include <tpl_hash.H>
 # include <algorithm>
+# include <deque>
 # include <stdexcept>
 # include <functional>
+# include <map>
 # include <ostream>
 # include <random>
 # include <set>
@@ -1835,6 +1837,51 @@ namespace
     return static_cast<size_t>(key.value) % 5;
   }
 
+  // A key of value 1000 b + s has its first probe in bucket b and its
+  // second one in bucket s, so that a test can place each key.
+  long value_of(const long k) noexcept { return k; }
+
+  template <class Key> long value_of(const Key & key) noexcept
+  {
+    return key.value;
+  }
+
+  template <class Key> size_t chosen_hash(const Key & key) noexcept
+  {
+    return static_cast<size_t>(value_of(key) / 1000);
+  }
+
+  template <class Key> size_t chosen_second_hash(const Key & key) noexcept
+  {
+    return static_cast<size_t>(value_of(key) % 1000);
+  }
+
+  // A table of 101 buckets, with an upper threshold of 0.9, whose buckets
+  // [1, 1 + removed) are marked as the ones of removed keys: they held keys
+  // whose first probe was there, and the key stored after them, the only
+  // one left, has a probe sequence that goes through all of them.
+  template <class Table> Table with_removed_keys(const long removed)
+  {
+    using Key = typename Table::Key_Type;
+    Table table = [] ()
+      {
+        if constexpr (requires (Table & t) { t.get_second_hash_fct(); })
+          return Table(101, chosen_hash<Key>, chosen_second_hash<Key>,
+                       Aleph::equal_to<Key>(), 0.05f, 0.9f, true);
+        else
+          return Table(101, chosen_hash<Key>, Aleph::equal_to<Key>(),
+                       0.05f, 0.9f, true);
+      }();
+    for (long b = 1; b <= removed; ++b)
+      EXPECT_NE(table.insert(Key(1000*b + 999)), nullptr) << "bucket " << b;
+    EXPECT_NE(table.insert(Key(1000 + 2)), nullptr); // probes 1, 2 and on
+    for (long b = 1; b <= removed; ++b)
+      table.remove(Key(1000*b + 999));
+    EXPECT_EQ(table.size(), 1u);
+    EXPECT_EQ(table.stats().num_deleted, static_cast<size_t>(removed));
+    return table;
+  }
+
   template <class Table> struct OpenTableInsertionThatThrows
     : public ::testing::Test
   {
@@ -2040,6 +2087,37 @@ namespace
     EXPECT_EQ(table.capacity(), 11u);
     EXPECT_EQ(table.stats().num_empty, empty);
     EXPECT_EQ(this->probes_of(table), probes);
+  }
+
+  // When the buckets of removed keys take the table to its upper threshold
+  // and the keys are few, the insertion rebuilds it in place, which copies
+  // the key once more. If that copy fails, the key is taken out again.
+  TYPED_TEST(OpenTableInsertionThatThrows, RebuildInPlaceThatFailsTakesTheKeyOutAgain)
+  {
+    // 60 removed keys' buckets and 30 keys: 90 buckets in use of 101
+    TypeParam table = with_removed_keys<TypeParam>(60);
+    for (long b = 62; b < 91; ++b)
+      ASSERT_NE(table.insert(Fragile_Key(1000*b + 999)), nullptr);
+    ASSERT_EQ(table.stats().num_deleted, 60u);
+    const auto keys = this->keys_of(table);
+    const auto probes = this->probes_of(table);
+
+    // the 91st bucket in use takes the table over 0.9, with 31 keys
+    const Fragile_Key key(1000*91 + 999);
+    {
+      // the copy into the bucket succeeds; the one made to rebuild fails
+      Failing_Copies failing(1);
+      EXPECT_THROW((void) table.insert(key), std::runtime_error);
+    }
+    EXPECT_EQ(this->keys_of(table), keys);
+    EXPECT_EQ(this->probes_of(table), probes);
+    EXPECT_EQ(table.capacity(), 101u);
+    EXPECT_FALSE(table.contains(key));
+
+    ASSERT_NE(table.insert(key), nullptr);
+    EXPECT_EQ(table.capacity(), 101u);
+    EXPECT_EQ(table.stats().num_deleted, 0u);
+    EXPECT_EQ(table.size(), 31u);
   }
 
   // A removed key's bucket that no probe sequence goes through is not
@@ -2466,5 +2544,239 @@ namespace
     EXPECT_EQ(table.size(), 10u);
     for (long k = 990; k < 1000; ++k)
       EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // -------------------------------------------------------------------------
+  // The buckets of removed keys count as used
+  // -------------------------------------------------------------------------
+
+  // A removed key's bucket stays marked while a search may have to go
+  // through it, so it is not empty. Those buckets did not count to grow or
+  // fill the table: insertions and removals could leave it without an empty
+  // bucket, where the searches stop, far from its upper threshold.
+
+  size_t colliding_hash(const long & k) noexcept
+  {
+    return static_cast<size_t>(k);
+  }
+
+  size_t colliding_second_hash(const long & k) noexcept
+  {
+    return static_cast<size_t>(k / 7 + k % 5);
+  }
+
+  template <class Table> struct OpenTableRemovedKeys : public ::testing::Test
+  {
+    static Table make(const size_t len, const bool resizes)
+    {
+      if constexpr (requires (Table & t) { t.get_second_hash_fct(); })
+        return Table(len, colliding_hash, colliding_second_hash,
+                     Aleph::equal_to<long>(), 0.05f, 0.9f, resizes);
+      else
+        return Table(len, colliding_hash, Aleph::equal_to<long>(),
+                     0.05f, 0.9f, resizes);
+    }
+
+    // Whether the buckets in use, those of removed keys included, are
+    // under the upper threshold of 0.9, computed as the table does.
+    static bool under_threshold(const Table & table)
+    {
+      const auto stats = table.stats();
+      return 1.0f*(stats.num_busy + stats.num_deleted)/table.capacity() < 0.9f;
+    }
+
+    static ::testing::AssertionResult holds(const Table & table,
+                                            const std::set<long> & keys)
+    {
+      if (table.size() != keys.size())
+        return ::testing::AssertionFailure()
+               << "size is " << table.size() << ", expected " << keys.size();
+      for (const long k : keys)
+        if (not table.contains(k))
+          return ::testing::AssertionFailure() << "key " << k << " not found";
+      return ::testing::AssertionSuccess();
+    }
+  };
+
+  TYPED_TEST_SUITE(OpenTableRemovedKeys, Open_Tables_Of_Longs);
+
+  // Insertions and removals of a few keys that collide a lot, in small
+  // tables. Both tables used to end without empty buckets.
+  TYPED_TEST(OpenTableRemovedKeys, ResizingTableStaysUnderItsThreshold)
+  {
+    std::mt19937 rng(20261018);
+    for (int trial = 0; trial < 300; ++trial)
+      {
+        TypeParam table = this->make(11, true);
+        std::set<long> keys;
+        for (int step = 0; step < 300; ++step)
+          {
+            const long k = static_cast<long>(rng() % 200);
+            if (keys.count(k) == 0)
+              {
+                ASSERT_NE(table.insert(k), nullptr);
+                keys.insert(k);
+              }
+            else
+              {
+                table.remove(k);
+                keys.erase(k);
+              }
+            ASSERT_GT(table.stats().num_empty, 0u)
+              << "trial " << trial << ", step " << step;
+            ASSERT_TRUE(this->under_threshold(table))
+              << "trial " << trial << ", step " << step;
+          }
+        ASSERT_TRUE(this->holds(table, keys)) << "trial " << trial;
+      }
+  }
+
+  // A table that does not resize itself is never rebuilt by itself, so
+  // that the pointers to its keys stay valid: it keeps its capacity, takes
+  // keys until it holds capacity() - 1, and never moves one.
+  TYPED_TEST(OpenTableRemovedKeys, FixedTableNeverMovesItsKeys)
+  {
+    std::mt19937 rng(20261018);
+    for (int trial = 0; trial < 300; ++trial)
+      {
+        TypeParam table = this->make(11, false);
+        std::map<long, long *> keys; // and where each one is
+        for (int step = 0; step < 300; ++step)
+          {
+            const long k = static_cast<long>(rng() % 200);
+            if (keys.count(k) == 0)
+              {
+                long * const stored = table.insert(k);
+                const bool full = keys.size() == 10;
+                ASSERT_EQ(stored == nullptr, full)
+                  << "trial " << trial << ", step " << step;
+                if (not full)
+                  keys[k] = stored;
+              }
+            else
+              {
+                table.remove(k);
+                keys.erase(k);
+                ASSERT_EQ(table.search(k), nullptr);
+              }
+            ASSERT_EQ(table.capacity(), 11u);
+            ASSERT_EQ(table.size(), keys.size());
+            for (const auto & [key, where] : keys)
+              ASSERT_EQ(table.search(key), where)
+                << "key " << key << " moved, trial " << trial << ", step " << step;
+          }
+      }
+  }
+
+  // 60 removed keys' buckets and 30 keys put 90 buckets in use, of 101.
+  // The next key takes them over 0.9 with 31 keys, under half of it, and
+  // the table is rebuilt in place.
+  TYPED_TEST(OpenTableRemovedKeys, RebuildsInPlaceWhileTheKeysAreFew)
+  {
+    TypeParam table = with_removed_keys<TypeParam>(60);
+    std::set<long> keys = {1002};
+    for (long b = 62; b <= 91; ++b)
+      {
+        ASSERT_EQ(table.stats().num_deleted, 60u) << "bucket " << b;
+        ASSERT_NE(table.insert(1000*b + 999), nullptr) << "bucket " << b;
+        keys.insert(1000*b + 999);
+      }
+
+    EXPECT_EQ(table.capacity(), 101u);
+    EXPECT_EQ(table.stats().num_deleted, 0u);
+    EXPECT_TRUE(this->holds(table, keys));
+  }
+
+  // With 40 removed keys' buckets it takes 51 keys, over half of the
+  // threshold, to get there: the table doubles.
+  TYPED_TEST(OpenTableRemovedKeys, GrowsWhenTheKeysAreMany)
+  {
+    TypeParam table = with_removed_keys<TypeParam>(40);
+    std::set<long> keys = {1002};
+    for (long b = 42; b <= 91; ++b)
+      {
+        ASSERT_EQ(table.capacity(), 101u) << "bucket " << b;
+        ASSERT_NE(table.insert(1000*b + 999), nullptr) << "bucket " << b;
+        keys.insert(1000*b + 999);
+      }
+
+    EXPECT_GT(table.capacity(), 101u);
+    EXPECT_EQ(table.stats().num_deleted, 0u);
+    EXPECT_TRUE(this->holds(table, keys));
+  }
+
+  // Each key replaces the oldest one, so that the removed keys' buckets
+  // are left behind, followed by busy ones. With 30 keys the linear probing
+  // table is rebuilt in place, again and again; with 60 it doubles.
+  TEST(OLhashTable, RemovedKeysRebuildItInPlaceWhileTheKeysAreFew)
+  {
+    for (const size_t num_keys : {size_t(30), size_t(60)})
+      {
+        OLhashTable<long> table(101, colliding_hash, Aleph::equal_to<long>(),
+                                0.05f, 0.9f, true);
+        std::deque<long> order;
+        size_t rebuilt_in_place = 0;
+        for (long k = 0; k < 3000; ++k)
+          {
+            const size_t capacity = table.capacity();
+            const size_t deleted = table.stats().num_deleted;
+            ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+            if (table.capacity() == capacity and deleted > 1
+                and table.stats().num_deleted == 0)
+              ++rebuilt_in_place;
+            order.push_back(k);
+            if (order.size() > num_keys)
+              {
+                table.remove(order.front());
+                order.pop_front();
+              }
+            const auto stats = table.stats();
+            ASSERT_LT(1.0f*(stats.num_busy + stats.num_deleted)/table.capacity(),
+                      0.9f) << "key " << k;
+          }
+
+        EXPECT_EQ(table.size(), num_keys);
+        for (const long k : order)
+          EXPECT_TRUE(table.contains(k)) << "key " << k;
+        if (num_keys == 30)
+          {
+            EXPECT_GT(rebuilt_in_place, 1u);
+            EXPECT_EQ(table.capacity(), 101u);
+          }
+        else
+          EXPECT_GT(table.capacity(), 101u);
+      }
+  }
+
+  // -------------------------------------------------------------------------
+  // The iterator deletes the last key
+  // -------------------------------------------------------------------------
+
+  template <class Table> struct OpenTableIteratorDel : public ::testing::Test
+  {};
+
+  TYPED_TEST_SUITE(OpenTableIteratorDel, Open_Tables_Of_Longs);
+
+  // Deleting the last key in bucket order, with other keys before it, went
+  // on looking for the next busy bucket past the end of the array.
+  TYPED_TEST(OpenTableIteratorDel, DeletingTheLastKeyLeavesTheIteratorAtTheEnd)
+  {
+    // the keys go to buckets 2 and 9 of 11
+    TypeParam table = OpenTableRemovedKeys<TypeParam>::make(11, false);
+    ASSERT_NE(table.insert(2L), nullptr);
+    ASSERT_NE(table.insert(9L), nullptr);
+
+    auto it = table.get_it();
+    ASSERT_EQ(it.get_curr(), 2L);
+    it.next();
+    ASSERT_EQ(it.get_curr(), 9L);
+    it.del();
+
+    EXPECT_FALSE(it.has_curr());
+    EXPECT_EQ(table.size(), 1u);
+    EXPECT_FALSE(table.contains(9L));
+    it.prev();
+    ASSERT_TRUE(it.has_curr());
+    EXPECT_EQ(it.get_curr(), 2L);
   }
 } // namespace

@@ -54,26 +54,29 @@
                                                                         \
 private:                                                                \
                                                                         \
- /* Grows the table if the key just stored in curr_bucket took it over */ \
- /* the upper threshold, and returns where the key is.                */ \
+ /* Rebuilds the table if the key just stored in curr_bucket took its  */ \
+ /* buckets in use over the upper threshold (see                       */ \
+ /* capacity_after_insertion()), and returns where the key is.         */ \
  Key * test_resize(Bucket * curr_bucket, const Key & key)               \
  {                                                                      \
-   if (not ((with_resize and this->current_alpha() >= upper_alpha)))	\
+   const size_t new_len = this->capacity_after_insertion();             \
+   if (new_len == 0)                                                    \
      return &curr_bucket->key;                                          \
                                                                         \
-   return grow_after_insertion(curr_bucket, key);                       \
+   return rebuild_after_insertion(curr_bucket, key, new_len);           \
  }                                                                      \
                                                                         \
- /* The growth itself, apart from the test that every insertion runs. */ \
- /* If the table cannot grow, the key is taken out again and the      */ \
- /* exception goes on: an insertion that throws leaves the table as   */ \
- /* it was.                                                           */ \
- Key * grow_after_insertion(Bucket * curr_bucket, const Key & key)      \
+ /* The rebuild itself, apart from the test that every insertion runs. */ \
+ /* If the table cannot be rebuilt, the key is taken out again and the */ \
+ /* exception goes on: an insertion that throws leaves the table as    */ \
+ /* it was.                                                            */ \
+ Key * rebuild_after_insertion(Bucket * curr_bucket, const Key & key,   \
+                               const size_t new_len)                    \
  {                                                                      \
    try                                                                  \
      {                                                                  \
        Key key_copy = key;                                              \
-       this->resize(Primes::next_prime(2*len));                         \
+       this->rebuild(new_len);                                          \
                                                                         \
        Key * key_ptr = search(key_copy);                                \
        assert(key_ptr != nullptr);                                      \
@@ -83,7 +86,7 @@ private:                                                                \
      }                                                                  \
    catch (...)                                                          \
      {                                                                  \
-       /* resize() leaves the buckets as they were when it fails */     \
+       /* rebuild() leaves the buckets as they were when it fails */    \
        this->undo_allocate_bucket(curr_bucket, curr_bucket->key);       \
        throw;                                                           \
      }                                                                  \
