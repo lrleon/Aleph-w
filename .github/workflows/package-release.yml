@@ -70,10 +70,12 @@ jobs:
             git ca-certificates cmake ninja-build g++ rpm file dpkg-dev \
             libgmp-dev libmpfr-dev libgsl-dev libx11-dev libpthread-stubs0-dev
 
+      # No later step needs the token, and CMake runs code from the ref.
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
+          persist-credentials: false
 
       # The sources belong to the runner's user and the container runs as
       # root, so git refuses them; the checkout marks them as safe only for
@@ -136,6 +138,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
+          persist-credentials: false
 
       - name: Download the assets
         uses: actions/download-artifact@v8
