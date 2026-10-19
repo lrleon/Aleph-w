@@ -15,11 +15,12 @@ The canonical version lives in the top-level [`VERSION.txt`](VERSION.txt)
 file. CMake, the Conan recipe and the release workflows read it, and
 release-please updates it (see *Release automation* below).
 A release is published when the release PR of release-please merges; the
-same run builds the source tarball and the `.deb`/`.rpm` packages and
-attaches them to the release (`.github/workflows/package-release.yml`).
-A `v*` tag pushed by hand triggers `.github/workflows/release.yml`
-instead, which builds the same artifacts, tests installing the `.deb` and
-creates the release.
+same run builds the source tarball and the `.deb`/`.rpm` packages, tests
+installing the `.deb` on clean Ubuntu 22.04, 24.04 and 26.04 and Debian 12
+and 13, and only then attaches them to the release
+(`.github/workflows/package-release.yml`). A `v*` tag pushed by hand
+triggers `.github/workflows/release.yml` instead, which builds and tests
+the same artifacts with that workflow and creates the release with them.
 
 Three recipes still carry versions of their own:
 
@@ -41,7 +42,7 @@ any installed `7.x` satisfies it; `8.0` will not.
 
 Releases proceed `Genius` (2022) → `3.0.0` → `3.1.0` → `3.1.1` →
 `4.0.0` → `5.0.0` … `5.11.0` → `6.0.0` → `6.1.0` → `7.0.0` → `7.0.1` →
-`7.1.0`.
+`7.1.0` → `7.1.1`.
 There are no published `1.x` or `2.x` releases: those numbers appear in
 older internal documents (e.g. the cellular-automata roadmap milestone
 "v2.0") and in the historical `version 2.0.0b` banner of header
@@ -125,6 +126,7 @@ in the consumer's translation units, plus a small static library
 | 7.0.0 | No (major: array family and constant iteration; see `docs/release-notes/7.0.0.md`) | No |
 | 7.0.1 | Yes (fixes; see `docs/release-notes/7.0.1.md`) | No (recompile) |
 | 7.1.0 | Yes (additive, one overload deprecated; see `docs/release-notes/7.1.0.md`) | No (recompile) |
+| 7.1.1 | Yes (fixes; see `docs/release-notes/7.1.1.md`) | No (recompile) |
 
 ## Release automation
 

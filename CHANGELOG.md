@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-* **build:** Ship libalephca_c and make the .deb install on more distro ([#122](https://github.com/lrleon/Aleph-w/issues/122)) ([c7f2856](https://github.com/lrleon/Aleph-w/commit/c7f285642c3ef79463e877de8ce601802ca23ce5))
+* **build:** Ship libalephca_c and make the .deb install on more distros ([#122](https://github.com/lrleon/Aleph-w/issues/122)) ([c7f2856](https://github.com/lrleon/Aleph-w/commit/c7f285642c3ef79463e877de8ce601802ca23ce5))
 
 ## [7.1.0](https://github.com/lrleon/Aleph-w/compare/v7.0.1...v7.1.0) (2026-10-18)
 
