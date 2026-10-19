@@ -75,6 +75,12 @@ jobs:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
 
+      # The sources belong to the runner's user and the container runs as
+      # root, so git refuses them; the checkout marks them as safe only for
+      # itself. `git archive` and the source revision of CMake need git.
+      - name: Let git use the sources
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Read version
         id: ver
         run: echo "version=$(tr -d '[:space:]' < VERSION.txt)" >> "$GITHUB_OUTPUT"
