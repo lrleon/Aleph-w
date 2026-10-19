@@ -33,8 +33,9 @@
  * @brief Tests for the duration helpers of ah-chronos-utils.H.
  *
  * duration_to_string() exists only where the standard library has
- * std::format (__cpp_lib_format), as in libstdc++ since GCC 13; without it,
- * the header still gives the other helpers, which this program checks too.
+ * std::format: libstdc++ since GCC 13 and libc++ since 17, which defines
+ * __cpp_lib_format only since 19. Without it, the header still gives the
+ * other helpers, which this program checks too.
  */
 
 #include <gtest/gtest.h>
@@ -62,7 +63,8 @@ TEST(AhChronosUtils, CountsWholeMinutesHoursAndDays)
   EXPECT_DOUBLE_EQ(Aleph::duration_to_days(200000s), 2.0);
 }
 
-#if defined(__cpp_lib_format)
+#if defined(__cpp_lib_format) || \
+    (defined(_LIBCPP_VERSION) && _LIBCPP_VERSION >= 170000)
 TEST(AhChronosUtils, DurationToStringPicksTheUnitByMagnitude)
 {
   using seconds_d = std::chrono::duration<double>;
