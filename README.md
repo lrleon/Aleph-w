@@ -425,6 +425,11 @@ The package ships `AlephConfig.cmake`, `AlephConfigVersion.cmake` and
 `AlephTargets.cmake` under `lib/cmake/Aleph`, exporting the imported targets
 `Aleph::Aleph` and `Aleph::CA` (with `-fno-strict-aliasing` propagated for
 `htlist.H`). A runnable example consumer lives in [`consumer/`](consumer).
+The `.deb` and `.rpm` also ship the flat C ABI library `libalephca_c` and
+its header `ca-c-api.h`, without an imported target: a C program builds with
+`-I/usr/include/aleph -lalephca_c`. The `.deb` is built on Ubuntu 22.04 and
+tested installed on Ubuntu 22.04, 24.04 and 26.04 and Debian 12 and 13; apt
+brings the development packages of GMP, MPFR, GSL and X11 that it needs.
 
 ### CMake Options
 

@@ -1,5 +1,5 @@
-# Build the release artifacts (source tarball + .deb + .rpm) and upload them to
-# an existing GitHub release.
+# Build the release artifacts (source tarball + .deb + .rpm), check that the
+# .deb installs and works, and upload them to an existing GitHub release.
 #
 # Why a separate, reusable workflow:
 #   release-please creates the tag and the GitHub release using GITHUB_TOKEN.
@@ -8,10 +8,21 @@
 #   releases. This workflow is therefore *called* from release-please.yml in the
 #   same run that creates the release (no re-trigger needed), and can also be
 #   dispatched manually to (re)attach assets to any existing tag's release.
+#   release.yml calls it too, with `upload` off, to build the packages.
 #
 # It uploads with `gh release upload --clobber`, which adds to the release that
 # release-please already created (rather than `gh release create`, which would
 # fail because the release exists).
+#
+# The packages are built on Ubuntu 22.04, the oldest distribution that they
+# support: a binary built against an older glibc and libstdc++ runs on newer
+# ones, and the static library built by GCC 11 links with newer GCCs. The
+# assets are uploaded only after `install-test` has installed the .deb with
+# apt on clean Ubuntu 22.04, 24.04 and 26.04 and Debian 12 and 13, and built
+# against it a C++ consumer, a C program and consumer/package-check, which
+# compiles every installed header with the GCC of each of them. A manual
+# dispatch with `upload` off runs the same checks for a tag and uploads
+# nothing.
 name: package-release
 
 on:
@@ -21,33 +32,48 @@ on:
         description: "Release tag whose assets are built and uploaded."
         required: true
         type: string
+      upload:
+        description: "Upload the assets to the release; off only checks them."
+        required: false
+        default: true
+        type: boolean
   workflow_dispatch:
     inputs:
       tag:
         description: "Release tag to (re)package, e.g. v5.1.0"
         required: true
         type: string
+      upload:
+        description: "Upload the assets to the release; off only checks them."
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
 
 jobs:
-  package-and-upload:
-    name: package & upload assets
+  package:
+    name: package
     runs-on: ubuntu-24.04
+    container: ubuntu:22.04
     timeout-minutes: 60
+    env:
+      DEBIAN_FRONTEND: noninteractive
     steps:
+      # Before the checkout: without git, it would download the sources
+      # without their history, and `git archive` needs it.
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates cmake ninja-build g++ rpm file dpkg-dev \
+            libgmp-dev libmpfr-dev libgsl-dev libx11-dev libpthread-stubs0-dev
+
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            cmake ninja-build g++ rpm \
-            libgmp-dev libmpfr-dev libgsl-dev libx11-dev libpthread-stubs0-dev
 
       - name: Read version
         id: ver
@@ -66,13 +92,94 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF \
             -DCMAKE_INSTALL_PREFIX=/usr
-          cmake --build build --target Aleph --parallel
+          # The install rule of alephca_c is OPTIONAL: if it is not built,
+          # the packages ship ca-c-api.h without libalephca_c.
+          cmake --build build --target Aleph alephca_c --parallel
           ( cd build && cpack -G "DEB;RPM" )
           cp build/*.deb build/*.rpm dist/
+
+      # Not `grep -q`: with pipefail, a listing cut short by an early exit
+      # would fail the step.
+      - name: Both packages ship the C ABI library
+        shell: bash
+        run: |
+          dpkg-deb -c dist/*.deb | grep '/libalephca_c\.so'
+          rpm -qlp dist/*.rpm | grep '/libalephca_c\.so'
+          dpkg-deb -f dist/*.deb Depends
+
+      - name: Keep the assets for the next jobs
+        uses: actions/upload-artifact@v7
+        with:
+          name: aleph-w-packages
+          path: dist/*
+
+  install-test:
+    name: install test (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    needs: package
+    container: ${{ matrix.image }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [ubuntu:22.04, ubuntu:24.04, ubuntu:26.04, debian:12, debian:13]
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      # The sources of consumer/ and of the C program, without history.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Download the assets
+        uses: actions/download-artifact@v8
+        with:
+          name: aleph-w-packages
+          path: dist
+
+      # A clean system: apt brings what the .deb depends on, and nothing else.
+      - name: Install the .deb and its dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends cmake make gcc g++ ./dist/*.deb
+          g++ --version | head -1
+
+      - name: Build and run the consumer against the installed package
+        run: |
+          cmake -S consumer -B build-consumer -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-consumer
+          ./build-consumer/gol_consumer
+
+      - name: Build and run a C program against the installed C ABI library
+        run: |
+          gcc -std=c99 -o c_abi_smoke Tests/c_abi_smoke.c \
+            -I/usr/include/aleph -lalephca_c
+          ./c_abi_smoke
+
+      - name: Check the installed package and compile every header
+        run: |
+          cmake -S consumer/package-check -B build-package-check \
+            -DCMAKE_BUILD_TYPE=Release -DALEPH_EXPECT_SANITIZERS=OFF
+          cmake --build build-package-check --parallel "$(nproc)"
+          ctest --test-dir build-package-check --output-on-failure
+
+  upload:
+    name: upload assets
+    runs-on: ubuntu-24.04
+    needs: [package, install-test]
+    if: inputs.upload
+    timeout-minutes: 15
+    steps:
+      - name: Download the assets
+        uses: actions/download-artifact@v8
+        with:
+          name: aleph-w-packages
+          path: dist
 
       - name: Upload assets to the existing GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           echo "Uploading $(ls dist | wc -l) asset(s) to release ${{ inputs.tag }}:"
           ls -la dist
