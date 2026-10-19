@@ -44,7 +44,8 @@
 
 #include <string>
 #include <chrono>
-// libstdc++ has <format> since GCC 13; duration_to_string() needs it
+// duration_to_string() needs std::format: libstdc++ has it since GCC 13, and
+// libc++ since 17, which defines __cpp_lib_format only since 19
 #if __has_include(<format>)
 #include <format>
 #endif
@@ -92,7 +93,8 @@ inline double duration_to_days(const std::chrono::duration<double> &d)
   return std::chrono::duration_cast<std::chrono::days>(d).count();
 }
 
-#if defined(__cpp_lib_format)
+#if defined(__cpp_lib_format) || \
+    (defined(_LIBCPP_VERSION) && _LIBCPP_VERSION >= 170000)
 // given a duration, return a string with the proper units
 // according to the magnitude of the duration (only with std::format)
 inline std::string duration_to_string(const auto &d)
