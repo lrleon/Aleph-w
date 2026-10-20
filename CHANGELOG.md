@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fixes
 
 * **primes:** Stop skipping n + 1 in next_prime_number_greater_than() ([#125](https://github.com/lrleon/Aleph-w/issues/125)) ([0d36f8e](https://github.com/lrleon/Aleph-w/commit/0d36f8e823bcc381c0c50f3d9f807318044280e8))
+* **primes:** Stop the int counter of is_prime() from overflowing ([#125](https://github.com/lrleon/Aleph-w/issues/125)) ([0d36f8e](https://github.com/lrleon/Aleph-w/commit/0d36f8e823bcc381c0c50f3d9f807318044280e8))
 
 ## [7.1.1](https://github.com/lrleon/Aleph-w/compare/v7.1.0...v7.1.1) (2026-10-19)
 

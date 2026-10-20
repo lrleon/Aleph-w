@@ -42,7 +42,7 @@ any installed `7.x` satisfies it; `8.0` will not.
 
 Releases proceed `Genius` (2022) → `3.0.0` → `3.1.0` → `3.1.1` →
 `4.0.0` → `5.0.0` … `5.11.0` → `6.0.0` → `6.1.0` → `7.0.0` → `7.0.1` →
-`7.1.0` → `7.1.1`.
+`7.1.0` → `7.1.1` → `7.1.2`.
 There are no published `1.x` or `2.x` releases: those numbers appear in
 older internal documents (e.g. the cellular-automata roadmap milestone
 "v2.0") and in the historical `version 2.0.0b` banner of header
@@ -127,6 +127,7 @@ in the consumer's translation units, plus a small static library
 | 7.0.1 | Yes (fixes; see `docs/release-notes/7.0.1.md`) | No (recompile) |
 | 7.1.0 | Yes (additive, one overload deprecated; see `docs/release-notes/7.1.0.md`) | No (recompile) |
 | 7.1.1 | Yes (fixes; see `docs/release-notes/7.1.1.md`) | No (recompile) |
+| 7.1.2 | Yes (fixes; see `docs/release-notes/7.1.2.md`) | No (recompile) |
 
 ## Release automation
 
