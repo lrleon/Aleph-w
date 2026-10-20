@@ -138,7 +138,9 @@ namespace Primes
     if (n <= 1) 
       return false;
     
-    for (int i = 2; i <= sqrt(n); i++) 
+    // i <= n / i is i * i <= n without overflow. i goes up to sqrt(n),
+    // which for a 64-bit n does not fit in an int
+    for (unsigned long i = 2; i <= n / i; i++)
       if (n % i == 0) 
         return false;
     
