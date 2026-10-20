@@ -85,3 +85,31 @@ TEST_F(Simple_Tree, Generate_ntreepic)
   ASSERT_EQ(ss.str(), result);
 }
 
+// A chain of n nodes, a tree of n levels
+static Tree_Node<int> * chain(size_t n)
+{
+  auto root = new Tree_Node<int>(0);
+  auto last = root;
+  for (size_t i = 1; i < n; ++i)
+    {
+      auto p = new Tree_Node<int>(int(i));
+      last->insert_rightmost_child(p);
+      last = p;
+    }
+  return root;
+}
+
+TEST(Generate_Tree, a_tree_with_too_many_levels_throws)
+{
+  Tree_Node<int> * fits = chain(Max_Tree_Node_Depth);
+  ostringstream ok;
+  EXPECT_NO_THROW(generate_tree(fits, ok));
+  destroy_tree(fits);
+
+  // before writing past the Dewey numbers of the deepest level
+  Tree_Node<int> * deep = chain(Max_Tree_Node_Depth + 1);
+  ostringstream too_deep;
+  EXPECT_THROW(generate_tree(deep, too_deep), std::overflow_error);
+  destroy_tree(deep);
+}
+

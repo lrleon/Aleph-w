@@ -380,9 +380,11 @@ namespace Aleph
    *
    *  @throw std::domain_error if @p g is a digraph
    *  @throw std::invalid_argument if @p src is null
-   *  @throw std::overflow_error if the tree is deeper than generate_tree()
-   *         can write
+   *  @throw std::overflow_error if the tree has more than
+   *         Max_Tree_Node_Depth levels, more than generate_tree() can write
    *  @throw std::bad_alloc if there is not enough memory
+   *
+   *  On an exception, @p out may hold part of the picture.
    *
    *  @see build_df_low_tree() For the tree and its numbers
    *

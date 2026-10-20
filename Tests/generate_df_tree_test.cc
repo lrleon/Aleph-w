@@ -322,6 +322,28 @@ TEST(Df_Low_Tree, an_exception_leaves_nothing_behind)
   EXPECT_TRUE(out.str().empty());
 }
 
+TEST(Df_Low_Tree, a_tree_with_more_levels_than_generate_tree_writes_throws)
+{
+  for (const size_t n : {Max_Tree_Node_Depth, Max_Tree_Node_Depth + 1})
+    {
+      Graph g; // a path of n nodes, a tree of n levels
+      Node * first = g.insert_node(0);
+      Node * last = first;
+      for (size_t i = 1; i < n; ++i)
+        {
+          Node * p = g.insert_node(int(i));
+          g.insert_arc(last, p, 0);
+          last = p;
+        }
+
+      std::ostringstream out;
+      if (n <= Max_Tree_Node_Depth)
+        EXPECT_NO_THROW(write_df_low_tree(g, first, out));
+      else
+        EXPECT_THROW(write_df_low_tree(g, first, out), std::overflow_error);
+    }
+}
+
 // The df and low numbers give the same cut nodes and bridges as
 // compute_cut_nodes() and find_bridges(), on random connected graphs with
 // cycles and parallel arcs
