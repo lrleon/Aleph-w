@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.1.2](https://github.com/lrleon/Aleph-w/compare/v7.1.1...v7.1.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* **primes:** Stop skipping n + 1 in next_prime_number_greater_than() ([#125](https://github.com/lrleon/Aleph-w/issues/125)) ([0d36f8e](https://github.com/lrleon/Aleph-w/commit/0d36f8e823bcc381c0c50f3d9f807318044280e8))
+
 ## [7.1.1](https://github.com/lrleon/Aleph-w/compare/v7.1.0...v7.1.1) (2026-10-19)
 
 
