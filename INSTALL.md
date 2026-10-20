@@ -454,8 +454,8 @@ external consumer (`consumer/package-check`): its identity, the sanitizer
 configuration that it publishes, the C++20 that `Aleph::Aleph` gives a
 consumer that chooses no standard, and that every installed header compiles
 by itself with the installation as the only source of Aleph headers, except
-`graph-dry.H`, an internal fragment of `tpl_graph.H`; `generate_df_tree.H`,
-legacy code that no longer compiles; and `xml_graph.H`, which needs libxml++.
+`graph-dry.H`, an internal fragment of `tpl_graph.H`, and `xml_graph.H`, which
+needs libxml++.
 
 ```bash
 scripts/installed_package_check.sh                 # both variants, in a temporary directory

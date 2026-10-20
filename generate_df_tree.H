@@ -31,35 +31,42 @@
 
 
 /** @file generate_df_tree.H
- *  @brief Depth-first tree visualization with DFS numbering.
+ *  @brief Pictures of depth-first trees with their df and low numbers.
  *
- *  This file provides utilities for generating visual representations of
- *  depth-first spanning trees, including DFS discovery numbers and low-link
- *  values used in cut-vertex (articulation point) detection.
+ *  write_df_low_tree() writes, for the tree drawing program `ntreepic`,
+ *  the depth-first spanning tree of an undirected graph from a start node.
+ *  Each node of the tree shows the label of its graph node, its
+ *  depth-first number (`df`) and its `low` number, the numbers with which
+ *  Compute_Cut_Nodes finds the cut nodes (see tpl_cut_nodes.H). Each arc
+ *  of the graph that is not in the tree is drawn as a dashed connection
+ *  between its two nodes.
  *
- *  ## Key Features
+ *  The numbers are those of Compute_Cut_Nodes: the start node has `df` 0,
+ *  each other node gets the next number when the traversal discovers it,
+ *  and the `low` number of a node is the smallest `df` that the node
+ *  reaches through its subtree and at most one arc that is not in the
+ *  tree. The start node has no `low` number (-1), as its cut-node test
+ *  does not use it.
  *
- *  - Generate tree pictures showing DFS traversal order
- *  - Display low-link values for cut-vertex analysis
- *  - Support for non-tree arcs (back edges) visualization
+ *  build_df_low_tree() returns the same tree as a Tree_Node, together
+ *  with the arcs that are not in it, for other uses or other pictures.
  *
- *  ## Data Structure
+ *  ## Example
  *
- *  The `Clave` struct stores per-node information:
- *  - `key`: Original node identifier
- *  - `count`: DFS discovery number (df)
- *  - `low`: Low-link value for cut-vertex detection
+ *  @code
+ *  using Graph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+ *  Graph g;
+ *  // ... insert the nodes and arcs ...
+ *  std::ofstream out("df-low.Tree");
+ *  write_df_low_tree(g, src, out);                   // labels "key,df,low"
+ *  write_df_low_tree<Write_Df_Tree_Df>(g, src, out); // labels "(key,df)"
+ *  @endcode
  *
- *  @warning This file uses a static global counter and is NOT thread-safe.
- *           Do not use these functions concurrently from multiple threads.
+ *  These functions do not modify the graph: they use neither the cookies
+ *  nor the counters nor the control bits of its nodes and arcs.
  *
- *  @note Legacy code from the old tree drawing programs. It does not compile
- *        by itself, since the program must declare its graph type `Grafo`
- *        before including it, and it no longer compiles with the current
- *        graph classes, whose members and helpers it does not match.
- *
- *  @see tpl_cut_nodes.H For cut-vertex (articulation point) algorithms
- *  @see generate_tree.H For general tree visualization
+ *  @see tpl_cut_nodes.H For cut nodes, bridges and biconnected components
+ *  @see generate_tree.H For the format that `ntreepic` reads
  *
  *  @ingroup Graphs
  *  @author Leandro Rabindranath Leon
@@ -68,181 +75,343 @@
 #ifndef GENERATE_DF_TREE_H
 #define GENERATE_DF_TREE_H
 
+# include <algorithm>
+# include <memory>
+# include <ostream>
+# include <sstream>
+# include <string>
+# include <utility>
+
+# include <ah-errors.H>
 # include <ah-graph-concepts.H>
+# include <generate_tree.H>
+# include <htlist.H>
+# include <tpl_dynMapTree.H>
+# include <tpl_graph.H>
+# include <tpl_tree_node.H>
 
-#include <tpl_graph_utils.H>
-#include <tpl_tree_node.H>
-#include <generate_tree.H>
-
-/// @internal Global DFS counter - NOT thread-safe
-static long global_counter = 0;
-
-/** @brief Key structure for DFS tree nodes.
- *
- *  Stores the essential information for each node in a depth-first
- *  spanning tree visualization.
- */
-struct Clave
+namespace Aleph
 {
-  int key;    ///< Original node identifier
-  long count; ///< DFS discovery number (pre-order)
-  long low;   ///< Low-link value (minimum reachable via back edges)
-};
-
-/** @brief Equality comparator for Clave structures.
- *
- *  Compares two Clave objects by their key field only.
- */
-struct Clave_Igual
-{
-  bool operator () (const Clave & c1, const Clave & c2) const
+  /** @brief Key of a node of a depth-first tree with df and low numbers.
+   *
+   *  build_df_low_tree() gives one to each node of the tree.
+   *
+   *  @ingroup Graphs
+   */
+  struct Df_Low_Key
   {
-    return c1.key == c2.key;
-  }  
-};
+    std::string label; ///< Label of the graph node
+    long df = -1;      ///< Depth-first number: 0 for the start node
+    long low = -1;     ///< Low number; -1 for the start node, which has none
+  };
 
-/** @brief Converter from graph node to Tree_Node<Clave>.
- *
- *  Extracts DFS information from the original graph node
- *  and stores it in the tree representation.
- */
-struct Convertir
-{
-  void operator () (Grafo::Node * tnode, Tree_Node<Clave> * t)
+  /// Node of the depth-first tree that build_df_low_tree() returns.
+  using Df_Low_Tree_Node = Tree_Node<Df_Low_Key>;
+
+  /** @brief Arc of the graph that is not in the depth-first tree.
+   *
+   *  The tree nodes of its two ends: first the descendant, then the
+   *  ancestor.
+   */
+  using Df_Low_Non_Tree_Arc = std::pair<Df_Low_Tree_Node *, Df_Low_Tree_Node *>;
+
+  /** @brief Default label of a graph node: its information, written with
+   *  `operator <<`.
+   *
+   *  @tparam GT Graph type
+   *
+   *  @ingroup Graphs
+   */
+  template <AlephGraph GT>
+  struct Dft_Df_Tree_Label
   {
-    Grafo::Node * gnode = static_cast<Grafo::Node *>(NODE_COOKIE(tnode));
+    /// Return the information of @p p, written with `operator <<`.
+    std::string operator () (typename GT::Node * p) const
+    {
+      std::ostringstream s;
+      s << p->get_info();
+      return s.str();
+    }
+  };
 
-    Clave & clave = t->get_key();
-    clave.key   = tnode->get_info().clave;
-    clave.count = gnode->get_info().df;
-    clave.low   = gnode->get_info().low;
+  /** @brief Writer for generate_tree() that shows the label of each node.
+   *
+   *  @ingroup Graphs
+   */
+  struct Write_Df_Tree_Label
+  {
+    /// Return the label of @p p.
+    std::string operator () (Df_Low_Tree_Node * p) const
+    {
+      return p->get_key().label;
+    }
+  };
+
+  /** @brief Writer for generate_tree() that shows the label and the df
+   *  number of each node, as `(label,df)`.
+   *
+   *  @ingroup Graphs
+   */
+  struct Write_Df_Tree_Df
+  {
+    /// Return `(label,df)` for @p p.
+    std::string operator () (Df_Low_Tree_Node * p) const
+    {
+      const Df_Low_Key & key = p->get_key();
+      return "(" + key.label + "," + std::to_string(key.df) + ")";
+    }
+  };
+
+  /** @brief Writer for generate_tree() that shows the label, the df and
+   *  the low numbers of each node, as `label,df,low`.
+   *
+   *  For the start node, which has no low number, it shows `label,df,-`.
+   *
+   *  @ingroup Graphs
+   */
+  struct Write_Df_Tree_Low
+  {
+    /// Return `label,df,low` for @p p, or `label,df,-` if it has no low number.
+    std::string operator () (Df_Low_Tree_Node * p) const
+    {
+      const Df_Low_Key & key = p->get_key();
+      return key.label + "," + std::to_string(key.df) + "," +
+        (key.low >= 0 ? std::to_string(key.low) : std::string("-"));
+    }
+  };
+
+  namespace df_tree_detail
+  {
+    /// Depth-first traversal that builds the tree of build_df_low_tree().
+    template <AlephGraph GT, class Node_Label, ArcFilter<GT> SA>
+    class Df_Low_Builder
+    {
+      using Node = typename GT::Node;
+      using Arc = typename GT::Arc;
+
+      Node_Label & node_label;
+      SA & sa;
+      DynList<Df_Low_Non_Tree_Arc> & non_tree_arcs;
+
+      // Tree node of each visited graph node; it owns them until build()
+      // returns
+      DynMapTree<Node *, Df_Low_Tree_Node *> tree_nodes;
+      long curr_df = 0;
+
+      // Create the tree node of p, with the next df number
+      Df_Low_Tree_Node * new_tree_node(Node * p)
+      {
+        auto owner = std::make_unique<Df_Low_Tree_Node>
+          (Df_Low_Key{node_label(p), curr_df, curr_df});
+        Df_Low_Tree_Node * tp = owner.get();
+        tree_nodes.insert(p, tp);
+        owner.release();
+        ++curr_df;
+        return tp;
+      }
+
+      // Traverse from p, whose tree node is tp, reached through tree_arc
+      void visit(Node * p, Df_Low_Tree_Node * tp, Arc * tree_arc)
+      {
+        Df_Low_Key & key = tp->get_key();
+        for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+          {
+            Arc * a = it.get_curr();
+            if (a == tree_arc)
+              continue;
+
+            Node * t = it.get_tgt_node();
+            if (auto pair = tree_nodes.search(t); pair != nullptr)
+              { // a visited t is an ancestor of p, a descendant or p itself
+                Df_Low_Tree_Node * tt = pair->second;
+                if (tt->get_key().df < key.df)
+                  {
+                    key.low = std::min(key.low, tt->get_key().df);
+                    non_tree_arcs.append(Df_Low_Non_Tree_Arc(tp, tt));
+                  }
+                continue;
+              }
+
+            // a child is linked while it is still a leaf, as Tree_Node needs
+            Df_Low_Tree_Node * child = new_tree_node(t);
+            tp->insert_rightmost_child(child);
+            visit(t, child, a);
+            key.low = std::min(key.low, child->get_key().low);
+          }
+      }
+
+    public:
+      /// Prepare a traversal that labels the nodes with @p label, sees only
+      /// the arcs that @p filter accepts and appends to @p arcs.
+      Df_Low_Builder(Node_Label & label, SA & filter,
+                     DynList<Df_Low_Non_Tree_Arc> & arcs)
+        : node_label(label), sa(filter), non_tree_arcs(arcs)
+      {
+        // empty
+      }
+
+      /// Build the tree from @p src; on an exception, free what it built.
+      Df_Low_Tree_Node * build(Node * src)
+      {
+        try
+          {
+            Df_Low_Tree_Node * root = new_tree_node(src);
+            visit(src, root, nullptr);
+            root->get_key().low = -1; // as Compute_Cut_Nodes leaves it
+            return root;
+          }
+        catch (...)
+          {
+            for (auto it = tree_nodes.get_it(); it.has_curr(); it.next_ne())
+              delete it.get_curr().second;
+            non_tree_arcs.empty();
+            throw;
+          }
+      }
+    };
+
+    /// Give to @p p, and to each node below it, its Dewey number, as
+    /// generate_tree() writes them.
+    inline void number_tree(Df_Low_Tree_Node * p, const std::string & number,
+                            DynMapTree<Df_Low_Tree_Node *, std::string> & numbers)
+    {
+      numbers.insert(p, number);
+      size_t i = 0;
+      for (auto c = p->get_left_child(); c != nullptr;
+           c = c->get_right_sibling(), ++i)
+        number_tree(c, number + "." + std::to_string(i), numbers);
+    }
+
+    /// Deleter that frees a whole tree.
+    struct Tree_Deleter
+    {
+      /// Free @p root and every node below it.
+      void operator () (Df_Low_Tree_Node * root) const
+      {
+        destroy_tree(root);
+      }
+    };
+  } // namespace df_tree_detail
+
+  /** @brief Build the depth-first spanning tree of an undirected graph,
+   *  with the df and low numbers of its nodes.
+   *
+   *  Traverses in depth first the nodes of @p g that @p src reaches, through
+   *  the arcs that @p sa accepts, and returns their tree: the children of
+   *  a node are in the order in which the traversal discovered them. Each
+   *  node of the tree has the label of its graph node and its df and low
+   *  numbers, as Compute_Cut_Nodes computes them (see generate_df_tree.H).
+   *
+   *  @p non_tree_arcs receives, in the order in which the traversal finds
+   *  them, the other arcs between the nodes that @p src reaches, but for
+   *  the arcs from a node to itself: for each one, the tree nodes of its
+   *  descendant end and of its ancestor end.
+   *
+   *  @tparam GT Graph type; it must not be a digraph
+   *  @tparam Node_Label Functor with
+   *          `std::string operator () (typename GT::Node *)` that gives
+   *          the label of each node
+   *  @tparam SA Arc filter
+   *
+   *  @param[in] g The graph
+   *  @param[in] src The start node, the root of the tree
+   *  @param[out] non_tree_arcs The arcs that are not in the tree; it is
+   *              emptied first
+   *  @param[in] node_label Label of each node
+   *  @param[in] sa Arc filter
+   *
+   *  @return The root of the tree, which the caller frees with
+   *          destroy_tree()
+   *
+   *  @throw std::domain_error if @p g is a digraph
+   *  @throw std::invalid_argument if @p src is null
+   *  @throw std::bad_alloc if there is not enough memory
+   *
+   *  On an exception, nothing is left allocated and @p non_tree_arcs is
+   *  empty.
+   *
+   *  @note O((V + E) log V) time for the V nodes and E arcs that @p src
+   *        reaches. The traversal is recursive, as deep as the tree.
+   *
+   *  @ingroup Graphs
+   */
+  template <AlephGraph GT, class Node_Label = Dft_Df_Tree_Label<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
+  [[nodiscard]] Df_Low_Tree_Node *
+  build_df_low_tree(const GT & g, typename GT::Node * src,
+                    DynList<Df_Low_Non_Tree_Arc> & non_tree_arcs,
+                    Node_Label node_label = Node_Label(), SA sa = SA())
+  {
+    ah_domain_error_if(g.is_digraph())
+      << "build_df_low_tree(): g is a digraph";
+    ah_invalid_argument_if(src == nullptr)
+      << "build_df_low_tree(): src must be non-null";
+
+    non_tree_arcs.empty();
+    return df_tree_detail::Df_Low_Builder<GT, Node_Label, SA>
+      (node_label, sa, non_tree_arcs).build(src);
   }
-};
 
-/** @brief Writer that outputs only the node key.
- *
- *  Outputs a single character representing the node identifier.
- */
-struct Write_Node
-{
-  static const size_t Buf_Size = 512;
-
-  std::string operator () (Tree_Node<Clave> * p)
+  /** @brief Write, for `ntreepic`, the depth-first spanning tree of an
+   *  undirected graph with the df and low numbers of its nodes.
+   *
+   *  Builds the tree with build_df_low_tree(), writes it with
+   *  generate_tree() and @p Write, and then writes each arc that is not
+   *  in the tree as `Dashed-Connexion <descendant> <ancestor> L`, with
+   *  the Dewey numbers of its two ends in the tree, alternating `L` and
+   *  `R`, so that `ntreepic` draws them as dashed curves on either side.
+   *
+   *  @tparam Write Writer of the label of each tree node:
+   *          Write_Df_Tree_Low (`label,df,low`, the default),
+   *          Write_Df_Tree_Df (`(label,df)`), Write_Df_Tree_Label
+   *          (`label`) or one of the caller, with
+   *          `std::string operator () (Df_Low_Tree_Node *)`
+   *  @tparam GT Graph type; it must not be a digraph
+   *  @tparam Node_Label Functor with
+   *          `std::string operator () (typename GT::Node *)` that gives
+   *          the label of each node
+   *  @tparam SA Arc filter
+   *
+   *  @param[in] g The graph
+   *  @param[in] src The start node, the root of the tree
+   *  @param[out] out Stream where the picture is written
+   *  @param[in] node_label Label of each node
+   *  @param[in] sa Arc filter
+   *
+   *  @throw std::domain_error if @p g is a digraph
+   *  @throw std::invalid_argument if @p src is null
+   *  @throw std::overflow_error if the tree is deeper than generate_tree()
+   *         can write
+   *  @throw std::bad_alloc if there is not enough memory
+   *
+   *  @see build_df_low_tree() For the tree and its numbers
+   *
+   *  @ingroup Graphs
+   */
+  template <class Write = Write_Df_Tree_Low, AlephGraph GT,
+            class Node_Label = Dft_Df_Tree_Label<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
+  void write_df_low_tree(const GT & g, typename GT::Node * src,
+                         std::ostream & out,
+                         Node_Label node_label = Node_Label(), SA sa = SA())
   {
-    char str[2];
-    str[0] = p->get_key().key;
-    str[1] = '\0';
-    return std::string(str);
+    DynList<Df_Low_Non_Tree_Arc> non_tree_arcs;
+    std::unique_ptr<Df_Low_Tree_Node, df_tree_detail::Tree_Deleter> root
+      (build_df_low_tree(g, src, non_tree_arcs, node_label, sa));
+
+    generate_tree<Df_Low_Tree_Node, Write>(root.get(), out);
+
+    DynMapTree<Df_Low_Tree_Node *, std::string> numbers;
+    df_tree_detail::number_tree(root.get(), "0", numbers);
+
+    size_t i = 0;
+    for (auto it = non_tree_arcs.get_it(); it.has_curr(); it.next_ne(), ++i)
+      {
+        const Df_Low_Non_Tree_Arc & arc = it.get_curr();
+        out << "Dashed-Connexion " << numbers.find(arc.first) << " "
+            << numbers.find(arc.second) << (i % 2 == 0 ? " L" : " R") << '\n';
+      }
   }
-};
-
-/** @brief Writer that outputs node key and DFS number.
- *
- *  Outputs format: (key, df_number)
- *  Example: "(A,3)" for node A discovered at step 3.
- */
-struct Write_Df
-{
-  static const size_t Buf_Size = 512;
-
-  std::string operator () (Tree_Node<Clave> * p)
-  {
-    char buf[Buf_Size];
-    snprintf(buf, Buf_Size, "(%c,%ld)", p->get_key().key, p->get_key().count);
-    return std::string(buf);
-  }
-};
-
-/** @brief Writer that outputs node key, DFS number, and low-link value.
- *
- *  Outputs format: key,df,low
- *  Example: "A,3,1" for node A with df=3 and low=1.
- *  If low is negative (undefined), outputs "-" instead.
- */
-struct Write_Low
-{
-  static const size_t Buf_Size = 512;
-
-  std::string operator () (Tree_Node<Clave> * p)
-  {
-    char buf[Buf_Size];
-
-    if (p->get_key().low >= 0)
-      snprintf(buf, Buf_Size, "%d,%ld,%ld", 
-               p->get_key().key, p->get_key().count, p->get_key().low);
-    else
-      snprintf(buf, Buf_Size, "%d,%ld,-", 
-               p->get_key().key, p->get_key().count);
-
-    return std::string(buf);
-  }
-};
-
-/** @brief DFS visitor that assigns discovery numbers.
- *
- *  Increments the global counter and assigns it to the node's df field.
- *  @warning Uses global state - NOT thread-safe.
- */
-inline void visitar_df(Grafo &, Grafo::Node * nodo, Grafo::Arc *)
-{
-  nodo->get_info().df = global_counter++;
-}
-
-/** @brief DFS visitor that copies low-link values from cookies.
- *
- *  Retrieves the low-link value stored in the node's cookie field.
- */
-inline void visitar_low(Grafo &, Grafo::Node * nodo, Grafo::Arc *)
-{
-  nodo->get_info().low = reinterpret_cast<long>(nodo->cookie);
-}
-
-
-/** @brief Generate a DFS tree picture with low-link values.
- *
- *  Computes and visualizes a depth-first spanning tree with:
- *  - DFS discovery numbers
- *  - Low-link values (for cut-vertex detection)
- *  - Non-tree arcs (back edges)
- *
- *  The output is suitable for tree visualization tools.
- *
- *  @tparam GT Graph type (must be derived from List_Graph)
- *  @tparam Key Key type for tree nodes (typically Clave)
- *  @param g The input graph
- *  @param src Starting node for DFS traversal
- *  @param f Output stream for the tree specification
- *
- *  @note This function also computes cut-vertices as a side effect.
- *  @warning Uses global state (global_counter) - NOT thread-safe.
- *
- *  @see compute_cut_nodes() For cut-vertex computation
- *  @see generate_tree() For tree output format
- *
- *  @ingroup Graphs
- */
-template <AlephGraph GT, class Key>
-void write_df_low_tree(GT & g, typename GT::Node * src, std::ofstream & f)
-{
-  // Compute cut nodes (articulation points)
-  DynDlist<typename GT::Node*> node_list = compute_cut_nodes(g);
-
-  depth_first_traversal(g, src, &visitar_df);  // Copy df numbers
-  depth_first_traversal(g, src, &visitar_low); // Copy low-link values
-
-  Grafo tree = find_depth_first_spanning_tree(g, src);
-
-  // Compute non-tree arcs (back edges)
-  DynDlist<No_Tree_Arc> arc_list;
-  generate_non_tree_arcs(g, arc_list);
-
-  typename GT::Node * td = static_cast<typename GT::Node *>(NODE_COOKIE(src));
-
-  Tree_Node<Key> * rd = Graph_To_Tree_Node () <Grafo, Key, Convertir>(tree, td);
-
-  generate_tree<Tree_Node<Key>, Write_Low>(rd, f);
-
-  write_non_tree_arcs(arc_list, rd, f);
-}
+} // namespace Aleph
 
 #endif // GENERATE_DF_TREE_H
