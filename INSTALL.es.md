@@ -402,8 +402,7 @@ consumidor externo (`consumer/package-check`): su identidad, la configuración
 de sanitizers que publica, el C++20 que `Aleph::Aleph` da a un consumidor que
 no elige estándar, y que cada cabecera instalada compila por sí sola con la
 instalación como única fuente de cabeceras de Aleph, salvo `graph-dry.H`, un
-fragmento interno de `tpl_graph.H`; `generate_df_tree.H`, código heredado que
-ya no compila; y `xml_graph.H`, que necesita libxml++.
+fragmento interno de `tpl_graph.H`, y `xml_graph.H`, que necesita libxml++.
 
 ```bash
 scripts/installed_package_check.sh                 # ambas variantes, en un directorio temporal

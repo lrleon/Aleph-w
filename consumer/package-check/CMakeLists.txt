@@ -186,9 +186,6 @@ if(ALEPH_CHECK_EVERY_HEADER)
     set(_not_self_contained
         # Internal fragment, included by tpl_graph.H once its context is declared.
         graph-dry.H
-        # Legacy: it needs the program to declare its graph type first, and it
-        # no longer compiles with the current graph classes.
-        generate_df_tree.H
         # Needs libxml++-2.6, which is not a dependency of the package.
         xml_graph.H
     )
