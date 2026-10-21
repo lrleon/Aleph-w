@@ -1015,13 +1015,9 @@ namespace Aleph
       deallocate_bucket(bucket);
     }
 
-  public:
-    /// Remove a key from the hash table.
-    /// If key is a reference to a key inside the table (from search/insert),
-    /// it uses the fast path via deallocate_bucket.
-    /// If key is external, it searches for the key and removes it.
-    /// Throws domain_error if the key is not found.
-    void remove(const Key & key)
+  private:
+    // Removes key as remove() does, but without shrinking the table
+    void remove_without_shrinking(const Key & key)
     {
       // Fast path: if key is a reference to a key inside the table
       if (is_key_in_table(key)) [[likely]]
@@ -1101,6 +1097,19 @@ namespace Aleph
         }
 
       ah_domain_error() << "Key not in hash table";
+    }
+
+  public:
+    /// Remove a key from the hash table.
+    /// If key is a reference to a key inside the table (from search/insert),
+    /// it uses the fast path via deallocate_bucket.
+    /// If key is external, it searches for the key and removes it.
+    /// Throws domain_error if the key is not found. A table that resizes
+    /// itself may then shrink, as with remove_ptr(), so that its keys move.
+    void remove(const Key & key)
+    {
+      remove_without_shrinking(key);
+      this->shrink_after_removal();
     }
 
     using Stats = typename OhashCommon<ODhashTable<Key, Cmp>, Key>::Stats;

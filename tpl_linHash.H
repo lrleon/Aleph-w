@@ -199,6 +199,7 @@ private:
   size_t               busy_slots_counter; // Number of occupied entries
   bool                 remove_all_buckets; // Indicates if destructor should free
                                            // the buckets
+  bool                 with_resize; // whether the table expands and contracts
 
 protected:
 
@@ -340,9 +341,10 @@ public:
 
   GenLinearHashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
                      float __lower_alpha, float __upper_alpha,
-                     bool __remove_all_buckets, bool /* fake */)
+                     bool __remove_all_buckets, bool __with_resize)
   : table(__len), hash_fct(__hash_fct), cmp(__cmp), M(__len), N(0),
       busy_slots_counter(0), remove_all_buckets(__remove_all_buckets),
+      with_resize(__with_resize),
       upper_alpha(__upper_alpha), lower_alpha(__lower_alpha),
       p(0), l(0), MP(M), MM(multiply_by_two(M)), len(__len)
   {
@@ -370,7 +372,7 @@ public:
       @param[in] remove_all_buckets if true, then the table's buckets
       are freed. Otherwise, they remain intact. By default the value is true.
       @param[in] with_resize if true, the table will resize automatically
-      based on load factors.
+      based on load factors; set_with_resize() changes it later.
 
       @throw length_error if `len` is equal or greater than the maximum
       dimension allowed for a dynamic array.
@@ -401,6 +403,7 @@ public:
     std::swap(N, other.N);
     std::swap(busy_slots_counter, other.busy_slots_counter);
     std::swap(remove_all_buckets, other.remove_all_buckets);
+    std::swap(with_resize, other.with_resize);
     std::swap(upper_alpha, other.upper_alpha);
     std::swap(lower_alpha, other.lower_alpha);
     std::swap(p, other.p);
@@ -513,7 +516,8 @@ public:
     list.append(bucket);
     entries_list.append(bucket->get_link());
     ++N;
-    expand();
+    if (with_resize)
+      expand();
 
     return bucket;
   }
@@ -532,7 +536,8 @@ public:
     list.append(bucket);
     entries_list.append(bucket->get_link());
     ++N;
-    expand();
+    if (with_resize)
+      expand();
 
     return bucket;
   }
@@ -559,7 +564,8 @@ private:
       --busy_slots_counter; // yes ==> one empty slot
 
     --N;
-    contract();
+    if (with_resize)
+      contract();
 
     return bucket;
   }

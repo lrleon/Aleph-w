@@ -100,7 +100,10 @@
     When `with_resize` is enabled in the derived class, the table automatically:
     - Grows when it becomes nearly full (before insert would fail)
     - Shrinks when load factor drops below `lower_alpha` threshold, if the
-      keys fit under `upper_alpha` in a table of half the capacity
+      keys fit under `upper_alpha` in a table of half the capacity. Both
+      `remove()` and `remove_ptr()` shrink it; the `del()` of an iterator
+      does not, so that the iterator stays valid.
+    set_with_resize() turns it on or off after construction.
 
     @par Removed keys:
     A removed key may leave its bucket marked, so that the searches that
@@ -286,6 +289,36 @@ protected:
     return rebuild_capacity();
   }
 
+  /** @brief Shrinks a table that resizes itself, after a removal took its
+      load factor under the lower threshold.
+
+      The table goes to about half its capacity, provided the keys fit
+      there under the upper threshold and leave an empty bucket. With a
+      lower threshold over one half they may not fit; the table then keeps
+      its capacity until enough keys are removed. If the smaller table
+      cannot be built, because there is no memory for it or a key cannot
+      be copied, the table keeps its capacity too: the removal stands.
+  */
+  void shrink_after_removal() noexcept
+  {
+    if (not me()->with_resize or me()->current_alpha() >= me()->lower_alpha)
+      return;
+
+    try
+      {
+        // resize() would refuse a size without room for the keys, and the
+        // key is already gone; a size that leaves them over the upper
+        // threshold would make the next insertion grow the table again.
+        const size_t new_len = Primes::next_prime(me()->len/2 + 1);
+        if (me()->N < new_len and 1.0f*me()->N/new_len < me()->upper_alpha)
+          resize(new_len);
+      }
+    catch (...)
+      {
+        // resize() leaves the table as it was
+      }
+  }
+
 public:
 
   /** @brief Returns the lower load factor threshold for automatic shrinking.
@@ -305,6 +338,22 @@ public:
       @return The upper alpha threshold (typically 0.75).
   */
   [[nodiscard]] constexpr float get_upper_alpha() const noexcept { return const_me()->upper_alpha; }
+
+  /** @brief Returns whether the table resizes itself.
+      @return true if the table grows and shrinks by itself.
+  */
+  [[nodiscard]] constexpr bool get_with_resize() const noexcept { return const_me()->with_resize; }
+
+  /** @brief Turns the automatic resizing on or off.
+
+      The change applies from the next insertion or removal on: turning
+      it on does not rebuild the table at once. Turned off, the table
+      keeps its capacity and its keys do not move by themselves; a full
+      table then takes no more keys.
+
+      @param with_resize true for the table to grow and shrink by itself.
+  */
+  void set_with_resize(const bool with_resize) noexcept { me()->with_resize = with_resize; }
 
   /** @brief Copies all entries from another hash table.
       
@@ -752,7 +801,9 @@ public:
       the lower threshold, the table shrinks to about half its capacity,
       provided the keys fit there under the upper threshold and leave an
       empty bucket. With a lower threshold over one half they may not fit;
-      the table then keeps its capacity until enough keys are removed.
+      the table then keeps its capacity until enough keys are removed. If
+      there is no memory for the smaller table, the table keeps its
+      capacity too, and the key stays removed.
 
       @param key Pointer to the key to remove (must be in this table).
 
@@ -765,16 +816,7 @@ public:
   {
     auto bucket = HashTbl::key_to_bucket(key);
     me()->deallocate_bucket(bucket);
-
-    if (me()->with_resize and me()->current_alpha() < me()->lower_alpha)
-      {
-        // resize() would refuse a size without room for the keys, and the
-        // key is already gone; a size that leaves them over the upper
-        // threshold would make the next insertion grow the table again.
-        const size_t new_len = Primes::next_prime(me()->len/2 + 1);
-        if (me()->N < new_len and 1.0f*me()->N/new_len < me()->upper_alpha)
-          resize(new_len);
-      }
+    shrink_after_removal();
   }
 
   /** @brief Resizes the hash table to a new capacity.
@@ -1237,6 +1279,8 @@ public:
     - print_stats() - Display statistics
     - set_lower_alpha() / set_upper_alpha() - Configure load factor thresholds
     - get_lower_alpha() / get_upper_alpha() - Query thresholds
+    - get_with_resize() / set_with_resize() - Query or turn on and off
+      the automatic resizing
     
     @see LhashTable
     @ingroup Hash
@@ -1414,6 +1458,22 @@ public:
       @return The upper alpha threshold.
   */
   [[nodiscard]] constexpr float get_upper_alpha() const noexcept { return const_me()->upper_alpha; }
+
+  /** @brief Returns whether the table resizes itself.
+      @return true if the table grows and shrinks by itself.
+  */
+  [[nodiscard]] constexpr bool get_with_resize() const noexcept { return const_me()->with_resize; }
+
+  /** @brief Turns the automatic resizing on or off.
+
+      As with the thresholds, the change applies from the next insertion
+      or removal on: turning it on does not resize the table at once.
+      Turned off, the table keeps its capacity, and its lists get longer
+      as keys come in.
+
+      @param with_resize true for the table to grow and shrink by itself.
+  */
+  void set_with_resize(const bool with_resize) noexcept { me()->with_resize = with_resize; }
 };
 
 

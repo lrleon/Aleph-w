@@ -269,6 +269,46 @@ TEST(LinearHashTable, RemoveManyElementsTriggersContraction)
   EXPECT_LE(table.capacity(), expanded_capacity);
 }
 
+// The constructor took with_resize and ignored it: a table built without
+// it expanded all the same.
+TEST(LinearHashTable, WithResizeTurnsExpansionAndContractionOnAndOff)
+{
+  Table table(17, Aleph::dft_hash_ptr_fct<int>, Aleph::equal_to<int>(),
+              hash_default_lower_alpha, hash_default_upper_alpha, true, false);
+  EXPECT_FALSE(table.get_with_resize());
+  const size_t initial_capacity = table.capacity();
+
+  for (int k = 0; k < 200; ++k)
+    ASSERT_NE(table.insert(new Bucket(k)), nullptr) << "key " << k;
+  EXPECT_EQ(table.capacity(), initial_capacity);
+  EXPECT_EQ(table.expansions(), 0u);
+  for (int k = 0; k < 200; ++k)
+    EXPECT_NE(table.search(k), nullptr) << "key " << k;
+
+  // turned on, the next insertion expands it
+  table.set_with_resize(true);
+  EXPECT_TRUE(table.get_with_resize());
+  ASSERT_NE(table.insert(new Bucket(200)), nullptr);
+  const size_t expanded_capacity = table.capacity();
+  EXPECT_GT(expanded_capacity, initial_capacity);
+
+  // turned off, removals do not contract it
+  table.set_with_resize(false);
+  for (int k = 0; k < 150; ++k)
+    delete table.remove(table.search(k));
+  EXPECT_EQ(table.capacity(), expanded_capacity);
+
+  // and turned on again, they do
+  table.set_with_resize(true);
+  for (int k = 150; k < 190; ++k)
+    delete table.remove(table.search(k));
+  EXPECT_LT(table.capacity(), expanded_capacity);
+
+  EXPECT_EQ(table.size(), 11u);
+  for (int k = 190; k <= 200; ++k)
+    EXPECT_NE(table.search(k), nullptr) << "key " << k;
+}
+
 // ============================================================================
 // Iterator Tests
 // ============================================================================

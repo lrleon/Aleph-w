@@ -148,6 +148,7 @@ namespace Aleph
         if the original has been expanded and then shrunk through deletions. This
         may temporarily use more memory than strictly necessary, but the dynamic
         resizing will adjust the size automatically as elements are added or removed.
+        The copy resizes itself if the original does (see set_with_resize()).
 
         @note The const_cast on get_compare() is necessary because the base
         class's get_compare() method is not marked const. This is a limitation
@@ -156,7 +157,8 @@ namespace Aleph
     DynHashTable(const DynHashTable & other)
       : Base(other.len, other.hash_fct,
              const_cast<DynHashTable &>(other).get_compare(),
-             other.lower_alpha, other.upper_alpha, true, true)
+             other.lower_alpha, other.upper_alpha, true,
+             other.get_with_resize())
     {
       copy(other);
     }

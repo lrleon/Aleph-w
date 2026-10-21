@@ -854,6 +854,61 @@ TEST(LhashTable, NoResizeModeKeepsCapacity)
     delete it.del();
 }
 
+TEST(LhashTable, SetWithResizeTurnsResizingOnAndOff)
+{
+  LhashTable<int> tbl(11, Aleph::dft_hash_fct<int>, Aleph::equal_to<int>(),
+                      hash_default_lower_alpha, hash_default_upper_alpha,
+                      true, false);
+  using Bucket = LhashBucket<int>;
+  EXPECT_FALSE(tbl.get_with_resize());
+  for (int k = 0; k < 50; ++k)
+    ASSERT_NE(tbl.insert(new Bucket(k)), nullptr) << "key " << k;
+  EXPECT_EQ(tbl.capacity(), 11u);
+
+  // turned on, the next insertion grows it
+  tbl.set_with_resize(true);
+  EXPECT_TRUE(tbl.get_with_resize());
+  ASSERT_NE(tbl.insert(new Bucket(50)), nullptr);
+  const size_t grown = tbl.capacity();
+  EXPECT_GT(grown, 11u);
+
+  // turned off, removals do not shrink it
+  tbl.set_with_resize(false);
+  for (int k = 0; k < 45; ++k)
+    delete tbl.remove(tbl.search(k));
+  EXPECT_EQ(tbl.capacity(), grown);
+
+  // and turned on again, they do
+  tbl.set_with_resize(true);
+  delete tbl.remove(tbl.search(45));
+  EXPECT_LT(tbl.capacity(), grown);
+  for (int k = 46; k <= 50; ++k)
+    EXPECT_NE(tbl.search(k), nullptr) << "key " << k;
+
+  for (LhashTable<int>::Iterator it(tbl); it.has_curr(); )
+    delete it.del();
+}
+
+// The sets and maps over chained tables copied every table as resizing.
+TEST(DynSetLhash, CopyKeepsWhetherTheTableResizes)
+{
+  DynSetLhash<int> original;
+  for (int k = 0; k < 20; ++k)
+    original.insert(k);
+  original.set_with_resize(false);
+
+  DynSetLhash<int> copy(original);
+  EXPECT_FALSE(copy.get_with_resize());
+  EXPECT_EQ(copy.size(), 20u);
+
+  DynSetLinHash<int> lin_original;
+  lin_original.insert(1);
+  lin_original.set_with_resize(false);
+  DynSetLinHash<int> lin_copy(lin_original);
+  EXPECT_FALSE(lin_copy.get_with_resize());
+  EXPECT_TRUE(lin_copy.contains(1));
+}
+
 TEST(LhashTable, CustomComparatorActsAsEquality)
 {
   struct ModCmp
@@ -1859,7 +1914,9 @@ namespace
   // A table of 101 buckets, with an upper threshold of 0.9, whose buckets
   // [1, 1 + removed) are marked as the ones of removed keys: they held keys
   // whose first probe was there, and the key stored after them, the only
-  // one left, has a probe sequence that goes through all of them.
+  // one left, has a probe sequence that goes through all of them. The
+  // table resizes itself, but not while the keys are removed: with one key
+  // left, the removals would shrink it.
   template <class Table> Table with_removed_keys(const long removed)
   {
     using Key = typename Table::Key_Type;
@@ -1875,8 +1932,10 @@ namespace
     for (long b = 1; b <= removed; ++b)
       EXPECT_NE(table.insert(Key(1000*b + 999)), nullptr) << "bucket " << b;
     EXPECT_NE(table.insert(Key(1000 + 2)), nullptr); // probes 1, 2 and on
+    table.set_with_resize(false);
     for (long b = 1; b <= removed; ++b)
       table.remove(Key(1000*b + 999));
+    table.set_with_resize(true);
     EXPECT_EQ(table.size(), 1u);
     EXPECT_EQ(table.stats().num_deleted, static_cast<size_t>(removed));
     return table;
@@ -2223,6 +2282,37 @@ namespace
     ::testing::Types<OLhashTable<Copy_Only_Key>, ODhashTable<Copy_Only_Key>>;
   TYPED_TEST_SUITE(OpenTableWithCopyOnlyKeys, Tables_With_Copy_Only_Keys);
 
+  // A smaller table that cannot be built, here because copying a key into
+  // it fails, leaves the table as it was: the key stays removed, and
+  // neither remove() nor remove_ptr() throws.
+  TYPED_TEST(OpenTableWithCopyOnlyKeys, ShrinkThatFailsKeepsTheCapacity)
+  {
+    using Key = typename TypeParam::Key_Type;
+    TypeParam table = this->make(11, 0.95f, true);
+    for (long k = 0; k < 1000; ++k)
+      ASSERT_NE(table.insert(Key(k)), nullptr) << "key " << k;
+    const size_t grown = table.capacity();
+
+    {
+      Failing_Copies failing;
+      for (long k = 0; k < 990; ++k)
+        if (k % 2 == 0)
+          ASSERT_NO_THROW(table.remove(Key(k))) << "key " << k;
+        else
+          ASSERT_NO_THROW(table.remove_ptr(table.search(Key(k)))) << "key " << k;
+    }
+    EXPECT_EQ(table.capacity(), grown);
+    EXPECT_EQ(this->keys_of(table).size(), 10u);
+    for (long k = 990; k < 1000; ++k)
+      EXPECT_TRUE(table.contains(Key(k))) << "key " << k;
+
+    // once the keys can be copied, the next removal shrinks it
+    table.remove(Key(990));
+    EXPECT_LT(table.capacity(), grown);
+    for (long k = 991; k < 1000; ++k)
+      EXPECT_TRUE(table.contains(Key(k))) << "key " << k;
+  }
+
   // The insertions that take the key by rvalue swap it into the bucket. A
   // swap that can throw could leave both the table and the argument
   // broken, so such a key is copied, and the copy that fails is undone.
@@ -2466,6 +2556,31 @@ namespace
     EXPECT_FALSE(map.contains(absent));
   }
 
+  template <class Map> struct OpenMapShrinking : public ::testing::Test
+  {};
+
+  TYPED_TEST_SUITE(OpenMapShrinking, Open_Maps);
+
+  // The maps remove through the remove() of their table, which did not
+  // shrink it.
+  TYPED_TEST(OpenMapShrinking, RemoveShrinksTheMap)
+  {
+    TypeParam map(11, Aleph::dft_hash_ptr_fct<long>,
+                  Aleph::snd_hash_ptr_fct<long>, Aleph::equal_to<long>(),
+                  hash_default_lower_alpha, hash_default_upper_alpha, true);
+    for (long k = 0; k < 1000; ++k)
+      ASSERT_NE(map.insert(k, static_cast<int>(k)), nullptr) << "key " << k;
+    const size_t grown = map.capacity();
+
+    for (long k = 0; k < 990; ++k)
+      map.remove(k);
+
+    EXPECT_LT(map.capacity(), grown / 4);
+    EXPECT_EQ(map.size(), 10u);
+    for (long k = 990; k < 1000; ++k)
+      EXPECT_EQ(map.find(k), static_cast<int>(k)) << "key " << k;
+  }
+
   // -------------------------------------------------------------------------
   // Shrinking leaves the keys under the upper threshold
   // -------------------------------------------------------------------------
@@ -2543,6 +2658,95 @@ namespace
     EXPECT_LT(table.capacity(), grown / 4);
     EXPECT_EQ(table.size(), 10u);
     for (long k = 990; k < 1000; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // Only remove_ptr() shrank the table; remove() left it as large as it
+  // had grown.
+  TYPED_TEST(OpenTableShrinking, RemoveShrinksTooWhileTheTableResizes)
+  {
+    TypeParam table = this->make(11, hash_default_lower_alpha,
+                                 hash_default_upper_alpha);
+    for (long k = 0; k < 1000; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    const size_t grown = table.capacity();
+
+    // turned off, the table keeps its capacity and its keys do not move
+    table.set_with_resize(false);
+    EXPECT_FALSE(table.get_with_resize());
+    for (long k = 0; k < 900; ++k)
+      table.remove(k);
+    EXPECT_EQ(table.capacity(), grown);
+
+    table.set_with_resize(true);
+    EXPECT_TRUE(table.get_with_resize());
+    for (long k = 900; k < 990; ++k)
+      table.remove(k);
+    EXPECT_LT(table.capacity(), grown / 4);
+    EXPECT_EQ(table.size(), 10u);
+    for (long k = 990; k < 1000; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // With a lower threshold over one half, remove() also waits until the
+  // keys fit in the smaller table.
+  TYPED_TEST(OpenTableShrinking, RemoveWaitsUntilTheKeysFit)
+  {
+    TypeParam table = this->make(101, 0.6f, 0.9f);
+    for (long k = 0; k < 60; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    ASSERT_EQ(table.capacity(), 101u);
+
+    for (long k = 0; k < 55; ++k)
+      {
+        ASSERT_NO_THROW(table.remove(k)) << "key " << k;
+        ASSERT_EQ(table.size(), static_cast<size_t>(59 - k));
+        ASSERT_LT(table.current_alpha(), 0.9f) << "key " << k;
+        ASSERT_LT(table.size(), table.capacity()) << "key " << k;
+      }
+
+    EXPECT_LT(table.capacity(), 101u);
+    for (long k = 55; k < 60; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // The del() of an iterator does not shrink the table, which would leave
+  // the iterator on buckets that are gone.
+  TYPED_TEST(OpenTableShrinking, IteratorDelDoesNotShrink)
+  {
+    TypeParam table = this->make(11, hash_default_lower_alpha,
+                                 hash_default_upper_alpha);
+    for (long k = 0; k < 1000; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    const size_t grown = table.capacity();
+
+    auto it = table.get_it();
+    for (size_t deleted = 0; deleted < 990; ++deleted)
+      {
+        ASSERT_TRUE(it.has_curr());
+        it.del();
+      }
+
+    EXPECT_EQ(table.capacity(), grown);
+    EXPECT_EQ(table.size(), 10u);
+  }
+
+  // A table built without resizing grows once it is turned on: the change
+  // applies from the next insertion.
+  TYPED_TEST(OpenTableShrinking, TurningResizingOnLetsAFullTableGrow)
+  {
+    TypeParam table = this->make(11, hash_default_lower_alpha,
+                                 hash_default_upper_alpha);
+    EXPECT_TRUE(table.get_with_resize());
+    table.set_with_resize(false);
+    for (long k = 0; k < 10; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    EXPECT_EQ(table.insert(10L), nullptr); // full
+
+    table.set_with_resize(true);
+    ASSERT_NE(table.insert(10L), nullptr);
+    EXPECT_GT(table.capacity(), 11u);
+    for (long k = 0; k <= 10; ++k)
       EXPECT_TRUE(table.contains(k)) << "key " << k;
   }
 

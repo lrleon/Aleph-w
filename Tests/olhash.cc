@@ -620,6 +620,8 @@ TEST(OLhashTable, DeletedCleanup_LastInChainBecomesEmpty)
   // Use bad hash to force all elements into same chain
   auto bad_hash = [](const int &) -> size_t { return 0; };
   OLhashTable<int> tbl(100, bad_hash);
+  // what is tested is how removals mark buckets; a shrink would rebuild
+  tbl.set_with_resize(false);
   
   // Insert elements: they will all collide at index 0
   // Chain: [0] -> [1] -> [2] -> [3] -> [4]
@@ -651,6 +653,8 @@ TEST(OLhashTable, DeletedCleanup_BackwardPropagation)
   // Use bad hash to force chain
   auto bad_hash = [](const int &) -> size_t { return 0; };
   OLhashTable<int> tbl(100, bad_hash);
+  // what is tested is how removals mark buckets; a shrink would rebuild
+  tbl.set_with_resize(false);
   
   // Insert chain: positions 0,1,2,3,4
   for (int i = 0; i < 5; ++i)
@@ -685,6 +689,8 @@ TEST(OLhashTable, DeletedCleanup_MiddleStaysDeleted)
 {
   auto bad_hash = [](const int &) -> size_t { return 0; };
   OLhashTable<int> tbl(100, bad_hash);
+  // what is tested is how removals mark buckets; a shrink would rebuild
+  tbl.set_with_resize(false);
   
   // Insert chain: 0,1,2,3,4
   for (int i = 0; i < 5; ++i)
@@ -769,6 +775,8 @@ TEST(OLhashTable, DeletedCleanup_WrapAround)
 TEST(OLhashTable, DeletedCleanup_StressNoAccumulation)
 {
   OLhashTable<int> tbl(500);
+  // what is tested is how removals mark buckets; a shrink would rebuild
+  tbl.set_with_resize(false);
   set<int> oracle;
   
   mt19937 rng(12345);
@@ -915,6 +923,8 @@ TEST(OLhashTable, DeletedSlotReuse)
 {
   auto bad_hash = [](const int &) -> size_t { return 0; };
   OLhashTable<int> tbl(100, bad_hash);
+  // what is tested is how removals mark buckets; a shrink would rebuild
+  tbl.set_with_resize(false);
   
   // Insert chain: 0,1,2,3,4 at positions 0,1,2,3,4
   for (int i = 0; i < 5; ++i)

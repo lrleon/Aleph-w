@@ -103,6 +103,7 @@
 # define TPL_LHASH_H
 
 # include <iostream>
+# include <new>
 # include <primes.H>
 # include <dlink.H>
 # include <htlist.H>
@@ -470,13 +471,23 @@ namespace Aleph
 
   public:
     /// Removes bucket from the table. Returns the bucket address.
+    /// A table that resizes itself then shrinks to about half its capacity
+    /// if its load factor dropped below the lower threshold; if there is no
+    /// memory for the smaller table, it keeps its capacity.
     /// WARNING: it is not verified that the bucket belongs to the table.
     Bucket * remove(Bucket *bucket) noexcept
     { // save next collision
       remove_bucket(bucket);
 
       if (with_resize and current_alpha() < lower_alpha)
-        resize(next_prime(len / 2));
+        try
+          {
+            resize(next_prime(len / 2));
+          }
+        catch (const std::bad_alloc &)
+          {
+            // resize() allocates the new lists before it touches the table
+          }
 
       return bucket;
     }
