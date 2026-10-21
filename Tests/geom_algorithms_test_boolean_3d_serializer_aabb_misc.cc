@@ -818,7 +818,10 @@ TEST_F(GeomAlgorithmsTest, GeomNumberConceptSatisfied)
 
 # include <format>
 
-# if defined(__cpp_lib_format)
+// As in point.H: libstdc++ has std::format since GCC 13, and libc++ since 17,
+// which defines __cpp_lib_format only since 19
+# if defined(__cpp_lib_format) || \
+     (defined(_LIBCPP_VERSION) && _LIBCPP_VERSION >= 170000)
 
 
 TEST_F(GeomAlgorithmsTest, StdFormatPoint)
@@ -903,7 +906,8 @@ TEST_F(GeomAlgorithmsTest, StdFormatTetrahedron)
 
 TEST_F(GeomAlgorithmsTest, StdFormatUnavailableInStdlib)
 {
-  GTEST_SKIP() << "std::format header exists but __cpp_lib_format is not enabled.";
+  GTEST_SKIP() << "<format> exists, but std::format is not usable: neither "
+                  "__cpp_lib_format nor libc++ 17 or later.";
 }
 
 # endif
