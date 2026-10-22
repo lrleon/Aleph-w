@@ -662,7 +662,8 @@ namespace Aleph
     /** Remove the key referenced by key. key must be a valid reference
         to the key previously inserted or retrieved in the table. If
         the key is not in the table, then a domain_error exception is
-        thrown. */
+        thrown. A table that resizes itself may then shrink, as with
+        remove_ptr(), so that its keys move. */
     void remove(const Key &key)
     {
       ah_domain_error_if(len == 0) << "Key not in hash table";
@@ -682,6 +683,7 @@ namespace Aleph
               ++deleted_buckets;
               --N;
               cleanup_deleted_chain(i);
+              this->shrink_after_removal();
               return;
             }
 

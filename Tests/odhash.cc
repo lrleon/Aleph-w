@@ -1198,6 +1198,8 @@ TEST(ODhashTable, ProbeCounterCleanup_MiddleStaysDeleted)
 {
   auto bad_hash = [](const int &) -> size_t { return 0; };
   ODhashTable<int> tbl(100, bad_hash, bad_hash);
+  // what is tested is how removals mark buckets; a shrink would rebuild
+  tbl.set_with_resize(false);
   
   for (int i = 0; i < 5; ++i)
     tbl.insert(i);

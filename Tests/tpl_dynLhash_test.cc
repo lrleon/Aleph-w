@@ -37,7 +37,10 @@
 
 #include <gtest/gtest.h>
 #include <tpl_dynLhash.H>
+#include <cctype>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 #include <random>
 
@@ -403,16 +406,15 @@ TEST_F(DynLhashTableTest, SameKeyMultipleInserts)
 {
   auto* ptr1 = table.insert(1, "first");
   auto* ptr2 = table.insert(1, "second");  // Same key, different value
-  
-  // Behavior depends on implementation - usually both are stored
-  // or second replaces first. Search returns one of them.
-  auto* found = table.search(1);
-  ASSERT_NE(found, nullptr);
-  // At minimum, we should find SOMETHING for key 1
-  
-  // Clean up both entries to avoid leaks
+
+  // The table keeps the first record and refuses the second
+  ASSERT_NE(ptr1, nullptr);
+  EXPECT_EQ(ptr2, nullptr);
+  ASSERT_EQ(table.search(1), ptr1);
+  EXPECT_EQ(*ptr1, "first");
+  EXPECT_EQ(table.size(), 1u);
+
   table.remove(ptr1);
-  table.remove(ptr2);
 }
 
 // =============================================================================
@@ -580,42 +582,45 @@ TEST(DynLhashTableComplexType, MoveSemanticsPropagated)
 // Duplicate Keys Behavior Tests
 // =============================================================================
 
-TEST(DynLhashTableDuplicates, InsertDuplicateKeysAllowed)
+TEST(DynLhashTableDuplicates, InsertRefusesAKeyAlreadyThere)
 {
   DynLhashTable<int, std::string> table;
-  
+
   auto* ptr1 = table.insert(1, "first");
-  auto* ptr2 = table.insert(1, "second");
-  
-  // Both inserts should succeed and return different pointers
   ASSERT_NE(ptr1, nullptr);
-  ASSERT_NE(ptr2, nullptr);
-  EXPECT_NE(ptr1, ptr2);
-  
-  // Both values should be accessible via their pointers
+
+  // The table refuses a key that it holds. insert() used to return the
+  // record of a bucket that it had not stored, and that nobody freed.
+  EXPECT_EQ(table.insert(1, "second"), nullptr);
+  EXPECT_EQ(table.insert(1, std::string("third")), nullptr);
+  const int key = 1;
+  EXPECT_EQ(table.insert(key, "fourth"), nullptr);
+
+  EXPECT_EQ(table.size(), 1u);
+  ASSERT_EQ(table.search(1), ptr1);
   EXPECT_EQ(*ptr1, "first");
-  EXPECT_EQ(*ptr2, "second");
-  
-  // Clean up both entries
+
   table.remove(ptr1);
-  table.remove(ptr2);
+  EXPECT_TRUE(table.is_empty());
+  EXPECT_EQ(table.search(1), nullptr);
 }
 
-TEST(DynLhashTableDuplicates, RemoveOneDuplicate)
+TEST(DynLhashTableDuplicates, RefusedKeyLeavesTheSizeRight)
 {
   DynLhashTable<int, std::string> table;
-  
+  table.set_with_resize(false); // a shrink would recount the keys
+
   auto* ptr1 = table.insert(1, "first");
-  auto* ptr2 = table.insert(1, "second");
-  
-  // Remove the second inserted (which search() finds first due to chain order)
-  table.remove(ptr2);
-  
-  // ptr1 should still be valid and now searchable
-  EXPECT_EQ(*ptr1, "first");
-  auto* found = table.search(1);
-  ASSERT_NE(found, nullptr);
-  EXPECT_EQ(*found, "first");
+  ASSERT_NE(ptr1, nullptr);
+  ASSERT_EQ(table.insert(1, "second"), nullptr);
+  ASSERT_NE(table.insert(2, "two"), nullptr);
+  EXPECT_EQ(table.size(), 2u);
+
+  table.remove(ptr1);
+  EXPECT_EQ(table.size(), 1u);
+  EXPECT_EQ(table.search(1), nullptr);
+  ASSERT_NE(table.search(2), nullptr);
+  EXPECT_EQ(*table.search(2), "two");
 }
 
 // =============================================================================
@@ -705,6 +710,166 @@ TEST_F(DynLhashTableTest, IteratorSafety)
 // =============================================================================
 // Main
 // =============================================================================
+
+// =============================================================================
+// Copies keep the configuration; the comparator is used
+// =============================================================================
+
+namespace
+{
+  // Equal strings up to case, with a hash that agrees with that equality
+  struct No_Case_Equal
+  {
+    bool operator()(const std::string & a, const std::string & b) const
+    {
+      if (a.size() != b.size())
+        return false;
+      for (size_t i = 0; i < a.size(); ++i)
+        if (std::tolower(static_cast<unsigned char>(a[i])) !=
+            std::tolower(static_cast<unsigned char>(b[i])))
+          return false;
+      return true;
+    }
+  };
+
+  size_t no_case_hash(const std::string & s)
+  {
+    size_t h = 0;
+    for (const char c : s)
+      h = h * 31 + std::tolower(static_cast<unsigned char>(c));
+    return h;
+  }
+
+  // A key that the default hash function refuses: it is not trivially
+  // copyable and has no aleph_hash_value(). Its table has its own.
+  struct Name
+  {
+    std::string first;
+    std::string last;
+
+    bool operator==(const Name &) const = default;
+  };
+
+  size_t name_hash(const Name & n)
+  {
+    return no_case_hash(n.first) * 31 + no_case_hash(n.last);
+  }
+
+  // A record whose copies can be made to fail
+  struct Fragile_Record
+  {
+    static inline int copies_before_failure = -1; // negative: none fails
+
+    int value = 0;
+
+    Fragile_Record(const int v = 0) : value(v) {}
+
+    Fragile_Record(const Fragile_Record & other) : value(other.value)
+    {
+      if (copies_before_failure == 0)
+        throw std::runtime_error("no copy");
+      if (copies_before_failure > 0)
+        --copies_before_failure;
+    }
+
+    Fragile_Record & operator=(const Fragile_Record &) = default;
+  };
+}
+
+// DynLhashTable passed its comparator nowhere: the table compared with
+// Aleph::equal_to<Key>.
+TEST(DynLhashTableConfiguration, UsesItsComparator)
+{
+  DynLhashTable<std::string, int, No_Case_Equal> table(101, no_case_hash);
+  table.insert("alice", 1);
+
+  ASSERT_NE(table.search("ALICE"), nullptr);
+  EXPECT_EQ(*table.search("Alice"), 1);
+  EXPECT_TRUE((std::is_same_v<std::decay_t<decltype(table.get_compare())>,
+                              No_Case_Equal>));
+}
+
+// The copy was built with the default hash function, thresholds, capacity
+// and resizing, and the keys were placed again with that function.
+TEST(DynLhashTableConfiguration, CopyKeepsTheConfiguration)
+{
+  DynLhashTable<std::string, int, No_Case_Equal> table(211, no_case_hash);
+  for (int i = 0; i < 50; ++i)
+    table.insert("key" + std::to_string(i), i);
+  table.set_upper_alpha(3.0f);
+  table.set_lower_alpha(0.5f);
+  table.set_with_resize(false);
+
+  DynLhashTable<std::string, int, No_Case_Equal> copy(table);
+
+  EXPECT_EQ(copy.get_hash_fct()("AbC"), no_case_hash("AbC"));
+  EXPECT_EQ(copy.get_lower_alpha(), 0.5f);
+  EXPECT_EQ(copy.get_upper_alpha(), 3.0f);
+  EXPECT_FALSE(copy.get_with_resize());
+  EXPECT_EQ(copy.capacity(), table.capacity());
+  EXPECT_EQ(copy.size(), 50u);
+  for (int i = 0; i < 50; ++i)
+    {
+      const std::string key = "KEY" + std::to_string(i); // the comparator
+      ASSERT_NE(copy.search(key), nullptr) << key;
+      EXPECT_EQ(*copy.search(key), i) << key;
+    }
+}
+
+// For a key that the default hash function refuses, the copy did not
+// compile: it asked for the default function instead of the table's.
+TEST(DynLhashTableConfiguration, CopiesAKeyWithoutDefaultHash)
+{
+  DynLhashTable<Name, int> table(101, name_hash);
+  for (int i = 0; i < 20; ++i)
+    table.insert(Name{"first" + std::to_string(i), "last"}, i);
+
+  DynLhashTable<Name, int> copy(table);
+  DynLhashTable<Name, int> assigned(11, name_hash);
+  assigned = table;
+
+  for (int i = 0; i < 20; ++i)
+    {
+      const Name key{"first" + std::to_string(i), "last"};
+      ASSERT_NE(copy.search(key), nullptr) << i;
+      EXPECT_EQ(*copy.search(key), i);
+      ASSERT_NE(assigned.search(key), nullptr) << i;
+      EXPECT_EQ(*assigned.search(key), i);
+    }
+  const Name probe{"a", "b"};
+  EXPECT_EQ(copy.get_hash_fct()(probe), name_hash(probe));
+}
+
+// The assignment kept the hash function and thresholds of the target, and
+// a copy that failed midway left it emptied and partly filled.
+TEST(DynLhashTableConfiguration, AssignmentTakesTheConfigurationOrNothing)
+{
+  DynLhashTable<std::string, Fragile_Record, No_Case_Equal> source(101, no_case_hash);
+  for (int i = 0; i < 30; ++i)
+    source.insert("k" + std::to_string(i), Fragile_Record(i));
+  source.set_with_resize(false);
+
+  DynLhashTable<std::string, Fragile_Record, No_Case_Equal> target(11, no_case_hash);
+  target.insert("old", Fragile_Record(-1));
+
+  Fragile_Record::copies_before_failure = 10;
+  EXPECT_THROW(target = source, std::runtime_error);
+  Fragile_Record::copies_before_failure = -1;
+  EXPECT_EQ(target.size(), 1u);
+  ASSERT_NE(target.search("OLD"), nullptr);
+  EXPECT_TRUE(target.get_with_resize());
+
+  target = source;
+  EXPECT_EQ(target.size(), 30u);
+  EXPECT_EQ(target.search("old"), nullptr);
+  EXPECT_FALSE(target.get_with_resize());
+  EXPECT_EQ(target.capacity(), source.capacity());
+  for (int i = 0; i < 30; ++i)
+    {
+      ASSERT_NE(target.search("K" + std::to_string(i)), nullptr) << i;
+      EXPECT_EQ(target.search("K" + std::to_string(i))->value, i);
+    }
+}
 
 int main(int argc, char **argv)
 {

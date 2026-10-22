@@ -854,6 +854,61 @@ TEST(LhashTable, NoResizeModeKeepsCapacity)
     delete it.del();
 }
 
+TEST(LhashTable, SetWithResizeTurnsResizingOnAndOff)
+{
+  LhashTable<int> tbl(11, Aleph::dft_hash_fct<int>, Aleph::equal_to<int>(),
+                      hash_default_lower_alpha, hash_default_upper_alpha,
+                      true, false);
+  using Bucket = LhashBucket<int>;
+  EXPECT_FALSE(tbl.get_with_resize());
+  for (int k = 0; k < 50; ++k)
+    ASSERT_NE(tbl.insert(new Bucket(k)), nullptr) << "key " << k;
+  EXPECT_EQ(tbl.capacity(), 11u);
+
+  // turned on, the next insertion grows it
+  tbl.set_with_resize(true);
+  EXPECT_TRUE(tbl.get_with_resize());
+  ASSERT_NE(tbl.insert(new Bucket(50)), nullptr);
+  const size_t grown = tbl.capacity();
+  EXPECT_GT(grown, 11u);
+
+  // turned off, removals do not shrink it
+  tbl.set_with_resize(false);
+  for (int k = 0; k < 45; ++k)
+    delete tbl.remove(tbl.search(k));
+  EXPECT_EQ(tbl.capacity(), grown);
+
+  // and turned on again, they do
+  tbl.set_with_resize(true);
+  delete tbl.remove(tbl.search(45));
+  EXPECT_LT(tbl.capacity(), grown);
+  for (int k = 46; k <= 50; ++k)
+    EXPECT_NE(tbl.search(k), nullptr) << "key " << k;
+
+  for (LhashTable<int>::Iterator it(tbl); it.has_curr(); )
+    delete it.del();
+}
+
+// The sets and maps over chained tables copied every table as resizing.
+TEST(DynSetLhash, CopyKeepsWhetherTheTableResizes)
+{
+  DynSetLhash<int> original;
+  for (int k = 0; k < 20; ++k)
+    original.insert(k);
+  original.set_with_resize(false);
+
+  DynSetLhash<int> copy(original);
+  EXPECT_FALSE(copy.get_with_resize());
+  EXPECT_EQ(copy.size(), 20u);
+
+  DynSetLinHash<int> lin_original;
+  lin_original.insert(1);
+  lin_original.set_with_resize(false);
+  DynSetLinHash<int> lin_copy(lin_original);
+  EXPECT_FALSE(lin_copy.get_with_resize());
+  EXPECT_TRUE(lin_copy.contains(1));
+}
+
 TEST(LhashTable, CustomComparatorActsAsEquality)
 {
   struct ModCmp
@@ -1859,7 +1914,9 @@ namespace
   // A table of 101 buckets, with an upper threshold of 0.9, whose buckets
   // [1, 1 + removed) are marked as the ones of removed keys: they held keys
   // whose first probe was there, and the key stored after them, the only
-  // one left, has a probe sequence that goes through all of them.
+  // one left, has a probe sequence that goes through all of them. The
+  // table resizes itself, but not while the keys are removed: with one key
+  // left, the removals would shrink it.
   template <class Table> Table with_removed_keys(const long removed)
   {
     using Key = typename Table::Key_Type;
@@ -1875,8 +1932,10 @@ namespace
     for (long b = 1; b <= removed; ++b)
       EXPECT_NE(table.insert(Key(1000*b + 999)), nullptr) << "bucket " << b;
     EXPECT_NE(table.insert(Key(1000 + 2)), nullptr); // probes 1, 2 and on
+    table.set_with_resize(false);
     for (long b = 1; b <= removed; ++b)
       table.remove(Key(1000*b + 999));
+    table.set_with_resize(true);
     EXPECT_EQ(table.size(), 1u);
     EXPECT_EQ(table.stats().num_deleted, static_cast<size_t>(removed));
     return table;
@@ -2223,6 +2282,37 @@ namespace
     ::testing::Types<OLhashTable<Copy_Only_Key>, ODhashTable<Copy_Only_Key>>;
   TYPED_TEST_SUITE(OpenTableWithCopyOnlyKeys, Tables_With_Copy_Only_Keys);
 
+  // A smaller table that cannot be built, here because copying a key into
+  // it fails, leaves the table as it was: the key stays removed, and
+  // neither remove() nor remove_ptr() throws.
+  TYPED_TEST(OpenTableWithCopyOnlyKeys, ShrinkThatFailsKeepsTheCapacity)
+  {
+    using Key = typename TypeParam::Key_Type;
+    TypeParam table = this->make(11, 0.95f, true);
+    for (long k = 0; k < 1000; ++k)
+      ASSERT_NE(table.insert(Key(k)), nullptr) << "key " << k;
+    const size_t grown = table.capacity();
+
+    {
+      Failing_Copies failing;
+      for (long k = 0; k < 990; ++k)
+        if (k % 2 == 0)
+          ASSERT_NO_THROW(table.remove(Key(k))) << "key " << k;
+        else
+          ASSERT_NO_THROW(table.remove_ptr(table.search(Key(k)))) << "key " << k;
+    }
+    EXPECT_EQ(table.capacity(), grown);
+    EXPECT_EQ(this->keys_of(table).size(), 10u);
+    for (long k = 990; k < 1000; ++k)
+      EXPECT_TRUE(table.contains(Key(k))) << "key " << k;
+
+    // once the keys can be copied, the next removal shrinks it
+    table.remove(Key(990));
+    EXPECT_LT(table.capacity(), grown);
+    for (long k = 991; k < 1000; ++k)
+      EXPECT_TRUE(table.contains(Key(k))) << "key " << k;
+  }
+
   // The insertions that take the key by rvalue swap it into the bucket. A
   // swap that can throw could leave both the table and the argument
   // broken, so such a key is copied, and the copy that fails is undone.
@@ -2466,6 +2556,31 @@ namespace
     EXPECT_FALSE(map.contains(absent));
   }
 
+  template <class Map> struct OpenMapShrinking : public ::testing::Test
+  {};
+
+  TYPED_TEST_SUITE(OpenMapShrinking, Open_Maps);
+
+  // The maps remove through the remove() of their table, which did not
+  // shrink it.
+  TYPED_TEST(OpenMapShrinking, RemoveShrinksTheMap)
+  {
+    TypeParam map(11, Aleph::dft_hash_ptr_fct<long>,
+                  Aleph::snd_hash_ptr_fct<long>, Aleph::equal_to<long>(),
+                  hash_default_lower_alpha, hash_default_upper_alpha, true);
+    for (long k = 0; k < 1000; ++k)
+      ASSERT_NE(map.insert(k, static_cast<int>(k)), nullptr) << "key " << k;
+    const size_t grown = map.capacity();
+
+    for (long k = 0; k < 990; ++k)
+      map.remove(k);
+
+    EXPECT_LT(map.capacity(), grown / 4);
+    EXPECT_EQ(map.size(), 10u);
+    for (long k = 990; k < 1000; ++k)
+      EXPECT_EQ(map.find(k), static_cast<int>(k)) << "key " << k;
+  }
+
   // -------------------------------------------------------------------------
   // Shrinking leaves the keys under the upper threshold
   // -------------------------------------------------------------------------
@@ -2543,6 +2658,95 @@ namespace
     EXPECT_LT(table.capacity(), grown / 4);
     EXPECT_EQ(table.size(), 10u);
     for (long k = 990; k < 1000; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // Only remove_ptr() shrank the table; remove() left it as large as it
+  // had grown.
+  TYPED_TEST(OpenTableShrinking, RemoveShrinksTooWhileTheTableResizes)
+  {
+    TypeParam table = this->make(11, hash_default_lower_alpha,
+                                 hash_default_upper_alpha);
+    for (long k = 0; k < 1000; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    const size_t grown = table.capacity();
+
+    // turned off, the table keeps its capacity and its keys do not move
+    table.set_with_resize(false);
+    EXPECT_FALSE(table.get_with_resize());
+    for (long k = 0; k < 900; ++k)
+      table.remove(k);
+    EXPECT_EQ(table.capacity(), grown);
+
+    table.set_with_resize(true);
+    EXPECT_TRUE(table.get_with_resize());
+    for (long k = 900; k < 990; ++k)
+      table.remove(k);
+    EXPECT_LT(table.capacity(), grown / 4);
+    EXPECT_EQ(table.size(), 10u);
+    for (long k = 990; k < 1000; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // With a lower threshold over one half, remove() also waits until the
+  // keys fit in the smaller table.
+  TYPED_TEST(OpenTableShrinking, RemoveWaitsUntilTheKeysFit)
+  {
+    TypeParam table = this->make(101, 0.6f, 0.9f);
+    for (long k = 0; k < 60; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    ASSERT_EQ(table.capacity(), 101u);
+
+    for (long k = 0; k < 55; ++k)
+      {
+        ASSERT_NO_THROW(table.remove(k)) << "key " << k;
+        ASSERT_EQ(table.size(), static_cast<size_t>(59 - k));
+        ASSERT_LT(table.current_alpha(), 0.9f) << "key " << k;
+        ASSERT_LT(table.size(), table.capacity()) << "key " << k;
+      }
+
+    EXPECT_LT(table.capacity(), 101u);
+    for (long k = 55; k < 60; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // The del() of an iterator does not shrink the table, which would leave
+  // the iterator on buckets that are gone.
+  TYPED_TEST(OpenTableShrinking, IteratorDelDoesNotShrink)
+  {
+    TypeParam table = this->make(11, hash_default_lower_alpha,
+                                 hash_default_upper_alpha);
+    for (long k = 0; k < 1000; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    const size_t grown = table.capacity();
+
+    auto it = table.get_it();
+    for (size_t deleted = 0; deleted < 990; ++deleted)
+      {
+        ASSERT_TRUE(it.has_curr());
+        it.del();
+      }
+
+    EXPECT_EQ(table.capacity(), grown);
+    EXPECT_EQ(table.size(), 10u);
+  }
+
+  // A table built without resizing grows once it is turned on: the change
+  // applies from the next insertion.
+  TYPED_TEST(OpenTableShrinking, TurningResizingOnLetsAFullTableGrow)
+  {
+    TypeParam table = this->make(11, hash_default_lower_alpha,
+                                 hash_default_upper_alpha);
+    EXPECT_TRUE(table.get_with_resize());
+    table.set_with_resize(false);
+    for (long k = 0; k < 10; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    EXPECT_EQ(table.insert(10L), nullptr); // full
+
+    table.set_with_resize(true);
+    ASSERT_NE(table.insert(10L), nullptr);
+    EXPECT_GT(table.capacity(), 11u);
+    for (long k = 0; k <= 10; ++k)
       EXPECT_TRUE(table.contains(k)) << "key " << k;
   }
 
@@ -2778,5 +2982,509 @@ namespace
     it.prev();
     ASSERT_TRUE(it.has_curr());
     EXPECT_EQ(it.get_curr(), 2L);
+  }
+
+  // -------------------------------------------------------------------------
+  // Random operations on small open addressing tables, against an oracle
+  // -------------------------------------------------------------------------
+
+  template <class Table> struct OpenTableRandomOperations : public ::testing::Test
+  {
+    static Table make(const size_t len, const float lower, const float upper,
+                      const bool resizes)
+    {
+      if constexpr (requires (Table & t) { t.get_second_hash_fct(); })
+        return Table(len, colliding_hash, colliding_second_hash,
+                     Aleph::equal_to<long>(), lower, upper, resizes);
+      else
+        return Table(len, colliding_hash, Aleph::equal_to<long>(),
+                     lower, upper, resizes);
+    }
+  };
+
+  TYPED_TEST_SUITE(OpenTableRandomOperations, Open_Tables_Of_Longs);
+
+  // Every way of inserting and removing, with the resizing turned on and
+  // off at random, on tables of a few buckets where most keys collide and
+  // the buckets of removed keys may take all the empty ones. After each
+  // step the table holds the oracle's keys. While it does not resize
+  // itself, its capacity and the places of its keys stay, and it refuses a
+  // new key only when full. While it resizes itself, an insertion of a new
+  // key leaves its buckets in use under the upper threshold, and a removal
+  // shrinks it to the prime after half its capacity exactly when the keys
+  // fit there.
+  TYPED_TEST(OpenTableRandomOperations, AgreesWithAnOracle)
+  {
+    const std::pair<float, float> thresholds[] =
+      {{0.05f, 0.9f}, {0.25f, 0.9f}, {0.6f, 0.9f}, {0.85f, 0.9f}, {0.01f, 0.99f}};
+    const size_t lens[] = {2, 3, 5, 7, 11, 13};
+    std::mt19937 rng(20261021);
+    for (int trial = 0; trial < 400; ++trial)
+      {
+        const auto [lower, upper] = thresholds[rng() % 5];
+        TypeParam table = this->make(lens[rng() % 6], lower, upper,
+                                     rng() % 2 == 0);
+        std::set<long> oracle;
+        std::map<long, const long *> places; // kept while it does not resize
+        for (int step = 0; step < 300; ++step)
+          {
+            const auto where = [&] { return ::testing::Message()
+                << "trial " << trial << ", step " << step; };
+            const long k = static_cast<long>(rng() % 40);
+            const unsigned op = rng() % 10;
+            const bool resizes = table.get_with_resize();
+            const size_t capacity = table.capacity();
+            const bool present = oracle.count(k) > 0;
+            const bool full = table.size() + 1 == capacity;
+
+            if (op < 4) // an insertion, of one of four kinds
+              {
+                long * stored = nullptr;
+                bool found = false;
+                if (op == 0)
+                  stored = table.insert(k);
+                else if (op == 1)
+                  {
+                    long copy = k;
+                    stored = table.insert(std::move(copy));
+                  }
+                else if (op == 2)
+                  {
+                    stored = table.search_or_insert(k);
+                    found = present and stored != nullptr;
+                  }
+                else
+                  std::tie(stored, found) = table.contains_or_insert(k);
+
+                if (present)
+                  {
+                    if (op < 2)
+                      ASSERT_EQ(stored, nullptr) << where();
+                    else
+                      {
+                        ASSERT_NE(stored, nullptr) << where();
+                        ASSERT_TRUE(found) << where();
+                      }
+                  }
+                else if (full and not resizes)
+                  {
+                    ASSERT_EQ(stored, nullptr) << where();
+                    ASSERT_FALSE(found) << where();
+                  }
+                else
+                  {
+                    ASSERT_NE(stored, nullptr) << where();
+                    ASSERT_FALSE(found) << where();
+                    ASSERT_EQ(*stored, k) << where();
+                    oracle.insert(k);
+                    if (not resizes)
+                      places[k] = stored;
+                    else // an insertion rebuilds the table at the threshold
+                      {
+                        const auto stats = table.stats();
+                        ASSERT_LT(1.0f*(stats.num_busy + stats.num_deleted)
+                                  /table.capacity(), upper) << where();
+                      }
+                  }
+              }
+            else if (op < 8) // a removal, by key or by pointer
+              {
+                if (not present)
+                  {
+                    if (op < 6)
+                      {
+                        ASSERT_THROW(table.remove(k), std::domain_error) << where();
+                      }
+                    ASSERT_EQ(table.capacity(), capacity) << where();
+                  }
+                else
+                  {
+                    if (op < 6)
+                      table.remove(k);
+                    else
+                      table.remove_ptr(table.search(k));
+                    oracle.erase(k);
+                    places.erase(k);
+
+                    const size_t n = oracle.size();
+                    const size_t smaller = Primes::next_prime(capacity / 2 + 1);
+                    const bool shrinks = resizes and 1.0f*n/capacity < lower
+                      and n < smaller and 1.0f*n/smaller < upper;
+                    ASSERT_EQ(table.capacity(), shrinks ? smaller : capacity)
+                      << where();
+                  }
+              }
+            else if (op == 8 and rng() % 4 == 0) // turn the resizing over
+              {
+                table.set_with_resize(not resizes);
+                ASSERT_EQ(table.get_with_resize(), not resizes);
+                if (resizes) // turned off: the keys stay from now on
+                  {
+                    places.clear();
+                    for (const long key : oracle)
+                      places[key] = table.search(key);
+                  }
+              }
+
+            ASSERT_EQ(table.size(), oracle.size()) << where();
+            ASSERT_LT(table.size(), table.capacity()) << where();
+            for (long key = 0; key < 40; ++key)
+              ASSERT_EQ(table.contains(key), oracle.count(key) > 0)
+                << "key " << key << ", " << where();
+            if (not table.get_with_resize() and not resizes)
+              {
+                ASSERT_EQ(table.capacity(), capacity) << where();
+                for (const auto & [key, at] : places)
+                  ASSERT_EQ(table.search(key), at)
+                    << "key " << key << " moved, " << where();
+              }
+          }
+
+        std::set<long> listed;
+        table.for_each([&listed] (const long key) { listed.insert(key); });
+        EXPECT_EQ(listed, oracle) << "trial " << trial;
+      }
+  }
+
+  // -------------------------------------------------------------------------
+  // Paths that no test went through
+  // -------------------------------------------------------------------------
+
+  template <class Table> struct OpenTableEdges : public ::testing::Test
+  {
+    static Table fixed(const size_t len)
+    {
+      return OpenTableRandomOperations<Table>::make(len, 0.05f, 0.9f, false);
+    }
+  };
+
+  TYPED_TEST_SUITE(OpenTableEdges, Open_Tables_Of_Longs);
+
+  // A linear probing table that does not resize itself may lose all its
+  // empty buckets to removed keys (with double hashing, a bucket that no
+  // probe sequence goes through becomes empty). Turned on, the next
+  // insertion rebuilds it in place, as its keys are few.
+  TEST(OLhashTable, TurningResizingOnRebuildsATableWithoutEmptyBuckets)
+  {
+    OLhashTable<long> table(11, colliding_hash, Aleph::equal_to<long>(),
+                            0.05f, 0.9f, false);
+    for (long k = 0; k < 10; ++k) // key k in bucket k
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    table.remove(0L);
+    ASSERT_NE(table.insert(10L), nullptr); // no empty bucket left
+    for (const long k : {1L, 2L, 3L, 4L, 5L, 6L})
+      table.remove(k);
+    ASSERT_EQ(table.stats().num_empty, 0u);
+    ASSERT_EQ(table.size(), 4u);
+
+    table.set_with_resize(true);
+    ASSERT_NE(table.insert(1000L), nullptr);
+    EXPECT_EQ(table.capacity(), 11u); // rebuilt in place: the keys are few
+    EXPECT_EQ(table.stats().num_deleted, 0u);
+    EXPECT_GT(table.stats().num_empty, 0u);
+    for (const long k : {7L, 8L, 9L, 10L, 1000L})
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // A search that misses goes through every bucket of a table without
+  // empty buckets, and remove() then throws; search_or_insert() and
+  // contains_or_insert() take the first removed key's bucket they met.
+  TEST(OLhashTable, TableWithoutEmptyBuckets)
+  {
+    OLhashTable<long> table(11, colliding_hash, Aleph::equal_to<long>(),
+                            0.05f, 0.9f, false);
+    for (long k = 0; k < 10; ++k)
+      ASSERT_NE(table.insert(k), nullptr) << "key " << k;
+    table.remove(0L);                       // bucket 0 marked
+    ASSERT_NE(table.insert(10L), nullptr);  // bucket 10: no empty one left
+    table.remove(5L);                       // and bucket 5 marked
+    ASSERT_EQ(table.stats().num_empty, 0u);
+    ASSERT_EQ(table.size(), 9u);
+
+    EXPECT_THROW(table.remove(22L), std::domain_error); // starts at bucket 0
+    EXPECT_THROW(table.remove(21L), std::domain_error); // starts at bucket 10
+
+    long * const p = table.search_or_insert(21L); // goes around to bucket 0
+    ASSERT_NE(p, nullptr);
+    EXPECT_EQ(*p, 21L);
+    EXPECT_EQ(table.size(), 10u); // full
+    EXPECT_EQ(table.search_or_insert(43L), nullptr);
+    EXPECT_EQ(table.contains_or_insert(43L).first, nullptr);
+
+    table.remove(7L); // bucket 7 marked, still no empty bucket
+    ASSERT_EQ(table.stats().num_empty, 0u);
+    auto [q, found] = table.contains_or_insert(32L); // bucket 5
+    ASSERT_NE(q, nullptr);
+    EXPECT_FALSE(found);
+    EXPECT_EQ(*q, 32L);
+    for (const long k : {1L, 2L, 3L, 4L, 6L, 8L, 9L, 10L, 21L, 32L})
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+    EXPECT_FALSE(table.contains(7L));
+  }
+
+  // resize() refuses a capacity without room for the keys and an empty
+  // bucket, and leaves the table as it was.
+  TYPED_TEST(OpenTableEdges, ResizeRefusesTooFewBuckets)
+  {
+    TypeParam table = this->fixed(11);
+    for (long k = 0; k < 7; ++k)
+      ASSERT_NE(table.insert(k), nullptr);
+    EXPECT_THROW(table.resize(7), std::overflow_error);
+    EXPECT_THROW(table.resize(5), std::overflow_error);
+    EXPECT_EQ(table.capacity(), 11u);
+    EXPECT_EQ(table.size(), 7u);
+    EXPECT_EQ(table.resize(0), 11u);
+    EXPECT_EQ(table.resize(8), 8u); // 7 keys and an empty bucket
+    for (long k = 0; k < 7; ++k)
+      EXPECT_TRUE(table.contains(k)) << "key " << k;
+  }
+
+  // remove_ptr() refuses a pointer that does not point into the table, or
+  // to a bucket whose key was removed already. The double hashing table
+  // took them: in a release build, removing a stale pointer again lost
+  // other keys.
+  TYPED_TEST(OpenTableEdges, RemovePtrRefusesForeignAndStalePointers)
+  {
+    TypeParam table = this->fixed(11);
+    long * const p = table.insert(3L);
+    ASSERT_NE(table.insert(4L), nullptr);
+    long outside = 3;
+    EXPECT_THROW(table.remove_ptr(&outside), std::invalid_argument);
+
+    table.remove_ptr(p);
+    EXPECT_THROW(table.remove_ptr(p), std::domain_error);
+    EXPECT_EQ(table.size(), 1u);
+
+    TypeParam other(std::move(table)); // table is left without buckets
+    EXPECT_THROW(table.remove_ptr(&outside), std::invalid_argument);
+    EXPECT_TRUE(other.contains(4L));
+  }
+
+  // The bounds of the iterator.
+  TYPED_TEST(OpenTableEdges, IteratorBounds)
+  {
+    TypeParam table = this->fixed(11);
+    for (const long k : {2L, 5L, 9L})
+      ASSERT_NE(table.insert(k), nullptr);
+
+    auto it = table.get_it();
+    EXPECT_EQ(it.get_pos(), 0);
+    const auto & const_it = it;
+    EXPECT_EQ(const_it.get_curr(), 2L);
+    it.prev(); // before the first one
+    EXPECT_FALSE(it.has_curr());
+    EXPECT_EQ(it.get_pos(), -1);
+    EXPECT_THROW(it.get_curr(), std::underflow_error);
+    EXPECT_THROW(it.prev(), std::underflow_error);
+
+    it.reset_last();
+    EXPECT_EQ(it.get_curr(), 9L);
+    EXPECT_EQ(it.get_pos(), 2);
+    it.next(); // past the last one
+    EXPECT_FALSE(it.has_curr());
+    EXPECT_THROW(it.get_curr(), std::overflow_error);
+    EXPECT_THROW(it.next(), std::overflow_error);
+  }
+
+  // remove() of a key inside the table that was removed already.
+  TEST(ODhashTable, RemoveOfAKeyThatWasRemovedThrows)
+  {
+    ODhashTable<long> table(11, colliding_hash, colliding_second_hash,
+                            Aleph::equal_to<long>(), 0.05f, 0.9f, false);
+    for (long k = 0; k < 5; ++k)
+      ASSERT_NE(table.insert(k * 11), nullptr); // all start at bucket 0
+    long & second = *table.search(11L);
+    table.remove(second);
+    EXPECT_THROW(table.remove(second), std::domain_error);
+    EXPECT_EQ(table.size(), 4u);
+  }
+
+  // values_ptr() and items_ptr() of the maps over open tables.
+  TYPED_TEST(OpenMapShrinking, ValuesAndItemsByPointer)
+  {
+    TypeParam map(11, Aleph::dft_hash_ptr_fct<long>,
+                  Aleph::snd_hash_ptr_fct<long>, Aleph::equal_to<long>(),
+                  hash_default_lower_alpha, hash_default_upper_alpha, true);
+    for (long k = 0; k < 5; ++k)
+      ASSERT_NE(map.insert(k, static_cast<int>(10 * k)), nullptr);
+
+    std::set<int> values;
+    map.values_ptr().for_each([&values] (int * v) { values.insert(*v); });
+    EXPECT_EQ(values, (std::set<int>{0, 10, 20, 30, 40}));
+
+    std::set<long> keys;
+    map.items_ptr().for_each([&keys] (auto * item)
+    {
+      keys.insert(item->first);
+      item->second += 1;
+    });
+    EXPECT_EQ(keys, (std::set<long>{0, 1, 2, 3, 4}));
+    EXPECT_EQ(map.find(3L), 31);
+  }
+
+  // -------------------------------------------------------------------------
+  // Random operations on small chained tables, against an oracle
+  // -------------------------------------------------------------------------
+
+  // Number of non-empty lists, counted
+  template <class Table> size_t busy_lists(const Table & table)
+  {
+    const auto stats = table.stats();
+    return table.capacity() - (stats.lens.size() > 0 ? stats.lens(0) : 0);
+  }
+
+  // Insertions, also through search_or_insert(), and removals, with the
+  // resizing turned on and off at random. After each step the table holds
+  // the oracle's keys and counts its busy lists right. While it does not
+  // resize itself, its capacity stays. While it does, an insertion that
+  // takes the load to the upper threshold doubles it to the next prime of
+  // the table until the keys are under that threshold (after turning the
+  // resizing on, more than once), and a removal that takes it under the
+  // lower one halves it,
+  // if that gives a smaller table where the keys stay under the upper one.
+  // Before, with a lower threshold over half the upper one, such a removal
+  // shrank the table and resize() grew it back at once.
+  TEST(LhashTable, RandomOperationsAgreeWithAnOracle)
+  {
+    using Bucket = LhashBucket<long>;
+    const std::pair<float, float> thresholds[] =
+      {{0.25f, 0.9f}, {0.5f, 2.0f}, {0.01f, 0.99f}, {0.85f, 0.9f}};
+    std::mt19937 rng(20261021);
+    for (int trial = 0; trial < 200; ++trial)
+      {
+        const auto [lower, upper] = thresholds[rng() % 4];
+        const bool resizing = rng() % 2 == 0;
+        LhashTable<long> table(1 + rng() % 13, colliding_hash,
+                               Aleph::equal_to<long>(), lower, upper, true,
+                               resizing);
+        std::map<long, Bucket *> oracle;
+        for (int step = 0; step < 300; ++step)
+          {
+            const auto where = [&] { return ::testing::Message()
+                << "trial " << trial << ", step " << step; };
+            const long k = static_cast<long>(rng() % 60);
+            const unsigned op = rng() % 9;
+            const bool resizes = table.get_with_resize();
+            const size_t capacity = table.capacity();
+            const bool present = oracle.count(k) > 0;
+
+            if (op < 4)
+              {
+                auto * bucket = new Bucket(k);
+                Bucket * stored = op < 2 ? table.insert(bucket)
+                                         : table.search_or_insert(bucket);
+                if (present)
+                  {
+                    ASSERT_EQ(stored, op < 2 ? nullptr : oracle[k]) << where();
+                    delete bucket;
+                  }
+                else
+                  {
+                    ASSERT_EQ(stored, bucket) << where();
+                    oracle[k] = bucket;
+                    // resize() places the keys again with insert(), which
+                    // grows the new table too while they do not fit
+                    const auto load = [&] (const size_t c)
+                      { return static_cast<float>(1.0*oracle.size()/c); };
+                    size_t expected = capacity;
+                    if (resizes and load(capacity) >= upper)
+                      do
+                        expected = Primes::next_prime(2*expected);
+                      while (load(expected) >= upper);
+                    ASSERT_EQ(table.capacity(), expected) << where();
+                  }
+              }
+            else if (op < 8)
+              {
+                if (present)
+                  {
+                    delete table.remove(oracle[k]);
+                    oracle.erase(k);
+                    const size_t n = oracle.size();
+                    const size_t smaller = Primes::next_prime(capacity/2);
+                    const bool shrinks = resizes
+                      and static_cast<float>(1.0*n/capacity) < lower
+                      and smaller < capacity and 1.0f*n/smaller < upper;
+                    ASSERT_EQ(table.capacity(), shrinks ? smaller : capacity)
+                      << where();
+                  }
+              }
+            else if (rng() % 4 == 0)
+              table.set_with_resize(not resizes);
+
+            ASSERT_EQ(table.size(), oracle.size()) << where();
+            ASSERT_EQ(table.get_num_busy_slots(), busy_lists(table)) << where();
+            for (long key = 0; key < 60; ++key)
+              ASSERT_EQ(table.search(key),
+                        oracle.count(key) ? oracle[key] : nullptr)
+                << "key " << key << ", " << where();
+          }
+        for (auto & [key, bucket] : oracle)
+          delete table.remove(bucket);
+      }
+  }
+
+  // The bounds of the iterator of a chained table, and resize(0).
+  TEST(LhashTable, IteratorBoundsAndResizeZero)
+  {
+    using Bucket = LhashBucket<long>;
+    LhashTable<long> table(11, colliding_hash, Aleph::equal_to<long>(),
+                           hash_default_lower_alpha, hash_default_upper_alpha,
+                           true, false);
+    LhashTable<long>::Iterator empty_it(table);
+    EXPECT_FALSE(empty_it.has_curr());
+    empty_it.reset_last(); // an empty table has no last one
+    EXPECT_FALSE(empty_it.has_curr());
+
+    for (const long k : {2L, 5L, 9L})
+      ASSERT_NE(table.insert(new Bucket(k)), nullptr);
+    EXPECT_EQ(table.resize(0), 11u);
+
+    LhashTable<long>::Iterator it(table);
+    EXPECT_EQ(it.get_curr()->get_key(), 2L);
+    it.prev(); // before the first one
+    EXPECT_FALSE(it.has_curr());
+    EXPECT_THROW(it.prev(), std::underflow_error);
+    it.reset_last();
+    EXPECT_EQ(it.get_curr()->get_key(), 9L);
+    it.next(); // past the last one
+    EXPECT_FALSE(it.has_curr());
+    EXPECT_THROW(it.next(), std::overflow_error);
+
+    for (LhashTable<long>::Iterator del(table); del.has_curr(); )
+      delete del.del();
+  }
+
+  // A map over a chained or a linear hash table: values and items by
+  // pointer, and a move into itself.
+  template <class Map> struct DynMapHashTables : public ::testing::Test {};
+
+  using Dyn_Hash_Maps = ::testing::Types<DynMapHash<long, int>,
+                                         DynMapLinHash<long, int>>;
+  TYPED_TEST_SUITE(DynMapHashTables, Dyn_Hash_Maps);
+
+  TYPED_TEST(DynMapHashTables, ValuesAndItemsByPointerAndSelfMove)
+  {
+    TypeParam map;
+    for (long k = 0; k < 5; ++k)
+      map.insert(k, static_cast<int>(10 * k));
+
+    std::set<int> values;
+    map.values_ptr().for_each([&values] (int * v) { values.insert(*v); });
+    EXPECT_EQ(values, (std::set<int>{0, 10, 20, 30, 40}));
+
+    std::set<long> keys;
+    map.items_ptr().for_each([&keys] (auto * item)
+    {
+      keys.insert(item->first);
+      item->second += 1;
+    });
+    EXPECT_EQ(keys, (std::set<long>{0, 1, 2, 3, 4}));
+    EXPECT_EQ(map.find(3L), 31);
+
+    TypeParam & same = map;
+    map = std::move(same);
+    EXPECT_EQ(map.size(), 5u);
+    EXPECT_EQ(map.find(4L), 41);
   }
 } // namespace

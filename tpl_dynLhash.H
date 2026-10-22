@@ -88,8 +88,10 @@ namespace Aleph
    */
   template <typename Key, typename Record, class Cmp = Aleph::equal_to<Key>>
     requires EqualityComparator<Cmp, Key>
-  class DynLhashTable : public LhashTableVtl<Key>
+  class DynLhashTable : public LhashTableVtl<Key, Cmp>
   {
+    using Base = LhashTableVtl<Key, Cmp>;
+
   private:
     struct DLBucket : public LhashTableVtl<Key>::Bucket
     {
@@ -155,7 +157,7 @@ namespace Aleph
           }
 
         bucket = new DLBucket(key, record);
-        table.LhashTableVtl<Key>::insert(bucket);
+        table.Base::insert(bucket);
         return *this;
       }
 
@@ -171,21 +173,21 @@ namespace Aleph
           }
 
         bucket = new DLBucket(key, proxy.bucket->record);
-        table.LhashTableVtl<Key>::insert(bucket);
+        table.Base::insert(bucket);
         return *this;
       }
     };
 
   public:
     /// The type of hash function pointer.
-    using Hash_Fct_Ptr = typename DynLhashTable<Key, Record>::Hash_Fct_Ptr;
+    using Hash_Fct_Ptr = typename Base::Hash_Fct_Ptr;
 
     /** @brief Swap contents with another table.
      *  @param[in,out] table The table to swap with.
      */
     void swap(DynLhashTable & table) noexcept
     {
-      this->LhashTableVtl<Key>::swap(table);
+      this->Base::swap(table);
     }
 
     /** @brief Construct a dynamic hash table.
@@ -197,7 +199,7 @@ namespace Aleph
      */
     DynLhashTable(size_t len = DefaultPrime,
                   Hash_Fct_Ptr hash_fct = dft_hash_ptr_fct<Key>)
-      : LhashTableVtl<Key>(len, hash_fct)
+      : Base(len, hash_fct)
     {
       // Empty
     }
@@ -205,7 +207,7 @@ namespace Aleph
   private:
     void copy(const DynLhashTable & table)
     {
-      for (typename LhashTableVtl<Key>::Iterator it(const_cast<DynLhashTable &>(table));
+      for (typename Base::Iterator it(const_cast<DynLhashTable &>(table));
            it.has_curr(); it.next_ne())
         {
           auto *Bucket = static_cast<DLBucket *>(it.get_curr());
@@ -215,11 +217,18 @@ namespace Aleph
 
   public:
     /** @brief Copy constructor.
+     *
+     *  The copy has the hash function, the comparator, the thresholds,
+     *  the capacity and the resizing of `table`, and copies of its keys
+     *  and records.
+     *
      *  @param[in] table The table to copy from.
      *  @throw std::bad_alloc If memory allocation fails.
      */
     DynLhashTable(const DynLhashTable & table)
-      : LhashTableVtl<Key>()
+      : Base(table.capacity(), table.get_hash_fct(), table.get_compare(),
+             table.get_lower_alpha(), table.get_upper_alpha(), true,
+             table.get_with_resize())
     {
       copy(table);
     }
@@ -230,23 +239,29 @@ namespace Aleph
      *           must not be used except for destruction or assignment.
      */
     DynLhashTable(DynLhashTable && table) noexcept
-      : LhashTableVtl<Key>(std::move(table))
+      : Base(std::move(table))
     {
       // Base class move constructor properly transfers ownership
     }
 
     /** @brief Copy assignment operator.
+     *
+     *  This table takes the hash function, the comparator, the
+     *  thresholds, the capacity and the resizing of `table`, and copies
+     *  of its keys and records, as the copy constructor gives them.
+     *
      *  @param[in] table The table to copy from.
      *  @return Reference to this table.
-     *  @throw std::bad_alloc If memory allocation fails.
+     *  @throw std::bad_alloc If memory allocation fails; this table is
+     *         then left as it was.
      */
     DynLhashTable &operator =(const DynLhashTable & table)
     {
-      if (this == &table)
-        return *this;
-
-      this->empty();
-      copy(table);
+      if (this != &table)
+        {
+          DynLhashTable other(table);
+          swap(other);
+        }
 
       return *this;
     }
@@ -260,26 +275,33 @@ namespace Aleph
     DynLhashTable &operator =(DynLhashTable && table) noexcept
     {
       if (this != &table)
-        LhashTableVtl<Key>::operator=(std::move(table));
+        Base::operator=(std::move(table));
       return *this;
     }
 
   private:
+    // The table refuses a key that it holds already; the bucket is then
+    // freed
     Record * __insert(DLBucket *bucket)
     {
-      LhashTableVtl<Key>::insert(bucket);
+      if (Base::insert(bucket) == nullptr)
+        {
+          delete bucket;
+          return nullptr;
+        }
       return &bucket->record;
     }
 
   public:
     /** @brief Insert a key-record pair into the table.
      *
-     *  If the key already exists, a new entry is added (duplicates allowed).
-     *  The returned pointer remains valid until the entry is removed.
+     *  If the key is already in the table, nothing is inserted. The
+     *  returned pointer remains valid until the entry is removed.
      *
      *  @param[in] key The key to insert.
      *  @param[in] record The record to associate with the key.
-     *  @return Pointer to the stored record within the table.
+     *  @return Pointer to the stored record within the table, or nullptr
+     *          if the key was already there.
      *  @throw std::bad_alloc If memory allocation fails.
      */
     Record * insert(const Key & key, const Record & record)
@@ -315,7 +337,7 @@ namespace Aleph
      */
     Record * search(const Key & key)
     {
-      auto *bucket = static_cast<DLBucket *>(LhashTableVtl<Key>::search(key));
+      auto *bucket = static_cast<DLBucket *>(Base::search(key));
       return bucket != nullptr ? &bucket->record : nullptr;
     }
 
@@ -331,7 +353,7 @@ namespace Aleph
     void remove(Record *record)
     {
       DLBucket *bucket = record_to_bucket(record);
-      LhashTableVtl<Key>::remove(bucket);
+      Base::remove(bucket);
       delete bucket;
     }
 
