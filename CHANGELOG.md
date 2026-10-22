@@ -5,6 +5,15 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.2.0](https://github.com/lrleon/Aleph-w/compare/v7.1.2...v7.2.0) (2026-10-22)
+
+
+### Features
+
+* **geom:** Enable the point.H formatters with libc++ 17 and 18 ([#129](https://github.com/lrleon/Aleph-w/issues/129)) ([2dd008e](https://github.com/lrleon/Aleph-w/commit/2dd008eafcba1c6ea2ba49da8dc8b10c3cea556e))
+* **graphs:** Rewrite generate_df_tree.H to draw df and low trees ([#127](https://github.com/lrleon/Aleph-w/issues/127)) ([2f5436f](https://github.com/lrleon/Aleph-w/commit/2f5436fdb73220ea5f1b8bc065c39de802bc46cd))
+* **hash:** Add set_with_resize() and shrink tables on remove(key) ([#130](https://github.com/lrleon/Aleph-w/issues/130)) ([0d27b83](https://github.com/lrleon/Aleph-w/commit/0d27b838152201c5fdcf4e85a6cf7a061d0e539b))
+
 ## [7.1.2](https://github.com/lrleon/Aleph-w/compare/v7.1.1...v7.1.2) (2026-10-20)
 
 
