@@ -110,7 +110,7 @@ Idioma: Español | [English](README.md)
 
 Aleph-w nació en 2002 en la **Universidad de Los Andes** en Mérida, Venezuela, creado por **Leandro Rabindranath León** como herramienta de enseñanza para cursos de algoritmos y estructuras de datos.
 
-El nombre **“Aleph”** (א) referencia el cuento de Jorge Luis Borges “[El Aleph](https://en.wikipedia.org/wiki/The_Aleph_(short_story))” — un punto en el espacio que contiene todos los demás puntos. Esto simboliza la meta de la biblioteca: ser un punto único que contiene todos los algoritmos fundamentales.
+El nombre **“Aleph”** (א) referencia el cuento de Jorge Luis Borges “[El Aleph](https://en.wikipedia.org/wiki/The_Aleph_(short_story))” — un punto en el espacio que contiene todos los demás puntos — y el primer número cardinal transfinito de Georg Cantor. La “-w” es la letra griega omega (ω), el primer ordinal infinito. Juntas, א‑ω simbolizan la meta de la biblioteca: ser un punto único que contiene todos los algoritmos fundamentales.
 
 El sufijo **“-w”** significa **“with”** (con) — enfatizando que esta biblioteca viene *con* todo lo que necesitas: implementaciones, ejemplos, pruebas y documentación.
 
