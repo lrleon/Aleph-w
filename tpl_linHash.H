@@ -449,6 +449,7 @@ public:
     M = MP = len;
     MM = multiply_by_two(M);
     N = p = l = 0;
+    busy_slots_counter = 0;
     table.cut_ne(len);
   }
 

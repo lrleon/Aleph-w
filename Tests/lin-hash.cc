@@ -577,6 +577,12 @@ TEST(LinearHashTable, EmptyMethodClearsTable)
   EXPECT_EQ(table.size(), 0u);
   EXPECT_TRUE(table.is_empty());
   EXPECT_EQ(table.expansions(), 0u);
+
+  // empty() kept the count of busy lists, and later insertions added to it
+  EXPECT_EQ(table.busy_slots(), 0u);
+  for (int k = 0; k < 50; ++k)
+    table.insert(new Bucket(k));
+  EXPECT_EQ(table.busy_slots(), busy_lists(table));
 }
 
 // ============================================================================
