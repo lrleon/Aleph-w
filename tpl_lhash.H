@@ -472,22 +472,27 @@ namespace Aleph
   public:
     /// Removes bucket from the table. Returns the bucket address.
     /// A table that resizes itself then shrinks to about half its capacity
-    /// if its load factor dropped below the lower threshold; if there is no
-    /// memory for the smaller table, it keeps its capacity.
+    /// if its load factor dropped below the lower threshold, provided the
+    /// keys stay there under the upper one; if there is no memory for the
+    /// smaller table, it keeps its capacity.
     /// WARNING: it is not verified that the bucket belongs to the table.
     Bucket * remove(Bucket *bucket) noexcept
     { // save next collision
       remove_bucket(bucket);
 
+      // next_prime() gives a prime of its table, so half of 211 is 211;
+      // over the upper threshold, resize() would grow the table again
       if (with_resize and current_alpha() < lower_alpha)
-        try
-          {
-            resize(next_prime(len / 2));
-          }
-        catch (const std::bad_alloc &)
-          {
-            // resize() allocates the new lists before it touches the table
-          }
+        if (const size_t new_len = next_prime(len / 2);
+            new_len < len and 1.0f*N/new_len < upper_alpha)
+          try
+            {
+              resize(new_len);
+            }
+          catch (const std::bad_alloc &)
+            {
+              // resize() allocates the new lists before it touches the table
+            }
 
       return bucket;
     }

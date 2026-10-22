@@ -73,6 +73,13 @@ compiled out and the 4 cases that count allocations
 `insert_and_remove_allocate_only_the_node`, `iterating_does_not_allocate`)
 report `SKIPPED`. `noexcept_specifications_hold` still runs.
 
+`hash_allocation_failure_test` follows the pattern of `prefix_tree_test`:
+it makes allocations fail by replacing the global allocation functions, so
+under TSan the replacement is compiled out and its 6 cases report
+`SKIPPED`. Under ASan it runs: it also replaces the `std::nothrow_t` forms,
+which GoogleTest calls, so that ASan's `operator new` never hands memory
+to the test's `operator delete`.
+
 ### `ubsan` (UndefinedBehaviorSanitizer)
 
 Runs every test it builds (Clang does not build `k2tree_test`).

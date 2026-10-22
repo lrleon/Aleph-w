@@ -51,6 +51,7 @@
 # define TPL_LINHASH_H
 
 # include <iostream>
+# include <new>
 # include <primes.H>
 # include <dlink.H>
 # include <tpl_dynArray.H>
@@ -260,7 +261,8 @@ private:
               if (src_list_ptr->is_empty()) // did table[p] become empty?
                 --busy_slots_counter; // yes ==> one empty slot
 
-              ++busy_slots_counter; // one new for table[p+M]
+              if (tgt_list_ptr != nullptr) // did some key go to table[p+M]?
+                ++busy_slots_counter; // yes ==> one new busy slot
             }
         ++p;
         ++MP;
@@ -274,11 +276,23 @@ private:
       }
   }
 
-  void contract() noexcept
+  // Contracts the table while its load is at or under lower_alpha. Merging
+  // the last list into its buddy may allocate the buddy, which may throw
+  // std::bad_alloc; that is done before the step changes anything, so the
+  // table is then as the last complete step left it.
+  void contract()
   { // contract the table until load is below lower_alpha
     for (float alpha = (1.0*N)/MP; alpha <= lower_alpha and MP > len;
          alpha = (1.0*N)/MP)
       {
+        // the last list, table[MP - 1], goes into table[new_p]
+        const size_t new_p = p == 0 ? divide_by_two(M) - 1 : p - 1;
+        BucketList * src_list_ptr =
+          MP - 1 < table.size() ? table.test(MP - 1) : nullptr;
+        BucketList * tgt_list_ptr = nullptr;
+        if (src_list_ptr != nullptr and not src_list_ptr->is_empty())
+          tgt_list_ptr = &table.touch(new_p); // allocate table[new_p]
+
         if (p == 0) // should the table size be halved?
           {     // yes ==> update table size to M/2
             --l; // Number of times the table has been doubled decreases
@@ -290,19 +304,17 @@ private:
           --p;   // no ==> just reduce index p
 
         --MP;
-        if (MP < table.size()) // Does table[MP] exist?
+        assert(p == new_p);
+        if (src_list_ptr != nullptr) // does entry for table[p+M] exist?
           {
-            BucketList * src_list_ptr = table.test(MP);
-            if (src_list_ptr != nullptr) // does entry for table[p+M] exist?
-              {
-                if (not src_list_ptr->is_empty()) // is table[p+M] empty?
-                  {     // no ==> merge the lists
-                    BucketList & tgt_list = table.touch(p);// allocate table[p]
-                    tgt_list.concat_list(src_list_ptr);
-                    --busy_slots_counter; // table[p+M] became empty
-                  }
-                table.cut_ne(MP); // eventually free memory of table[p+M]
+            if (tgt_list_ptr != nullptr) // is table[p+M] not empty?
+              {     // yes ==> merge the lists
+                const bool tgt_was_busy = not tgt_list_ptr->is_empty();
+                tgt_list_ptr->concat_list(src_list_ptr);
+                if (tgt_was_busy) // otherwise table[p] takes its place
+                  --busy_slots_counter; // table[p+M] became empty
               }
+            table.cut_ne(MP); // eventually free memory of table[p+M]
           }
       }
   }
@@ -393,6 +405,14 @@ public:
                        lower_alpha, upper_alpha,
                        remove_all_buckets, with_resize) {}
 
+  /** @brief Swaps this table with `other` in constant time.
+
+      The buckets travel with everything that rules them: the hash
+      function, the comparator, the load thresholds, the resizing policy
+      and the state of the expansion.
+
+      @param[in,out] other Table to swap with.
+  */
   void swap(GenLinearHashTable & other) noexcept
   {
     std::swap(table, other.table);
@@ -565,7 +585,14 @@ private:
 
     --N;
     if (with_resize)
-      contract();
+      try
+        {
+          contract();
+        }
+      catch (const std::bad_alloc &)
+        {
+          // the table keeps the capacity of the last complete step
+        }
 
     return bucket;
   }

@@ -807,7 +807,8 @@ public:
 
       @param key Pointer to the key to remove (must be in this table).
 
-      @pre key must point to a valid entry in this table.
+      @throw std::invalid_argument If key does not point into the table.
+      @throw std::domain_error If the key of its bucket was removed.
       @post The entry is removed and size() decreases by 1.
 
       @par Complexity: O(1) amortized.
@@ -815,6 +816,10 @@ public:
   void remove_ptr(Key * key)
   {
     auto bucket = HashTbl::key_to_bucket(key);
+    ah_invalid_argument_if(not me()->is_valid_bucket(bucket))
+      << "remove_ptr(): key does not point into the table";
+    ah_domain_error_if(bucket->status != HashTbl::BUSY)
+      << "remove_ptr(): the key of the bucket was removed";
     me()->deallocate_bucket(bucket);
     shrink_after_removal();
   }
