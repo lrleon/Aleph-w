@@ -66,11 +66,13 @@
  *    no memory for the smaller array, the table keeps its capacity.
  *
  *  The constructor rounds the requested capacity up to a prime, and the
- *  table grows and shrinks to primes; `resize()` takes the capacity it is
- *  given. Removing through `Iterator::del()` never resizes the table. A
- *  table that does not resize itself keeps its capacity, and its lists
- *  get longer as keys come in. For linear hashing, which grows one list
- *  at a time instead of rebuilding the table, see tpl_linHash.H.
+ *  table grows and shrinks to primes. `resize()` takes the capacity it is
+ *  given, unless the table resizes itself and its keys reach `upper_alpha`
+ *  there: then it grows again as it inserts them. Removing through
+ *  `Iterator::del()` never resizes the table. A table that does not
+ *  resize itself keeps its capacity, and its lists get longer as keys
+ *  come in. For linear hashing, which grows one list at a time instead of
+ *  rebuilding the table, see tpl_linHash.H.
  *
  *  ## Complexity
  *
