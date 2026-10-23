@@ -91,7 +91,7 @@
  *  | Cache | Good | Excellent |
  *
  *  @see tpl_olhash.H Linear probing variant
- *  @see tpl_lhash.H Chaining with linear expansion
+ *  @see tpl_lhash.H Separate chaining
  *  @see hashDry.H Common open addressing utilities
  *
  *  @ingroup Hash

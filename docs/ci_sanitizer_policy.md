@@ -36,8 +36,9 @@ No sanitizer job excludes a test by name. `memory-sanitizer` builds and
 runs a single test (see its section below); the others run every test that
 their compiler builds (see
 [Tests that only some compilers build](#tests-that-only-some-compilers-build)).
-A test case that cannot run under a sanitizer skips itself, as the cases
-below do (see [Source-level skips](#source-level-skips)).
+A test case that cannot run under a sanitizer skips itself, or is compiled
+as a disabled test, as the cases below do (see
+[Source-level skips](#source-level-skips)).
 
 A `ctest -E` regex, where one is needed, must match the names that CTest
 gets from `gtest_discover_tests`, which are GoogleTest names
@@ -65,13 +66,15 @@ definition") with TSan's own strong `operator new`/`delete` replacements
 so the whole binary still links; the 4 cases that depend on them report
 `SKIPPED` at run time instead.
 
-`tree_allocation_test` follows the same pattern: it counts allocations by
-replacing the global allocation functions, so under TSan (and under ASan,
-MSan and HWASan, which also bring their own allocator) the replacement is
-compiled out and the 4 cases that count allocations
+`tree_allocation_test` follows the same pattern: it counts allocations, and
+makes them fail, by replacing the global allocation functions, so under
+TSan (and under ASan, MSan and HWASan, which also bring their own
+allocator) the replacement is compiled out and the 6 cases that use it
 (`constructing_a_tree_does_not_allocate`, `moving_a_tree_does_not_allocate`,
-`insert_and_remove_allocate_only_the_node`, `iterating_does_not_allocate`)
-report `SKIPPED`. `noexcept_specifications_hold` still runs.
+`insert_and_remove_allocate_only_the_node`, `iterating_does_not_allocate`,
+`advancing_on_a_deep_tree_allocates`,
+`adaptors_propagate_the_bad_alloc_of_a_deep_tree`) report `SKIPPED`.
+`noexcept_specifications_hold` still runs.
 
 `hash_allocation_failure_test` follows the pattern of `prefix_tree_test`:
 it makes allocations fail by replacing the global allocation functions, so
@@ -80,13 +83,39 @@ under TSan the replacement is compiled out and its 6 cases report
 which GoogleTest calls, so that ASan's `operator new` never hands memory
 to the test's `operator delete`.
 
+`thread_pool_start_failure_test` makes the start of a worker thread fail
+in the same way, so under TSan its 2 cases report `SKIPPED`. They also
+skip themselves where starting a `std::thread` does not allocate through
+the global `operator new`. Like `hash_allocation_failure_test`, it
+replaces the `std::nothrow_t` forms and runs under ASan.
+
+`rope_test` also makes allocations fail by replacing the global
+allocation functions: under TSan the 2 cases that need it
+(`IdentityEditsDoNotAllocate` and
+`FailedAllocationDuringConcatLeavesExistingRopesUnchanged`) report
+`SKIPPED`.
+
+`howard_fallback_memory_test` replaces them to record the largest
+requests, so, as in `tree_allocation_test`, under TSan, ASan, MSan and
+HWASan the replacement is compiled out and its 3 cases report `SKIPPED`.
+
+Three cases fork the process.
+`FileBTree.ReadOnlySharedLocksWorkAcrossProcesses` and
+`FileBPlusTree.ReadOnlySharedLocksWorkAcrossProcesses` check the file
+locks from child processes, and under TSan they report `SKIPPED`. The
+death test `TimeoutQueueDeathTest.DeleteEventInQueueDirectlyThrows` is
+compiled under TSan as a disabled test (`DISABLED_` prefix), which CTest
+reports as `Not Run (Disabled)`: `ASSERT_DEATH` forks, and TSan does not
+support `fork()` once the program has started threads.
+
 ### `ubsan` (UndefinedBehaviorSanitizer)
 
 Runs every test it builds (Clang does not build `k2tree_test`).
 
 ### `sanitizers` (combined ASan + UBSan, gcc)
 
-Runs every test. The 4 allocation-counting cases of `tree_allocation_test`
+Runs every test. The cases that need the replaced allocation functions,
+6 of `tree_allocation_test` and the 3 of `howard_fallback_memory_test`,
 report `SKIPPED` here too (see the `tsan` section).
 
 ### `memory-sanitizer` (MemorySanitizer, clang)

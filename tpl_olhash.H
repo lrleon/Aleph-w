@@ -590,18 +590,12 @@ namespace Aleph
         }
     }
 
-    /// Removes the record pointed to by record from the table. Obviously,
-    /// record must point to an entry returned by insert() or
-    /// search(). Fires invalid_argument exceptions if record is not an
-    /// address within table range or domain_error if bucket
-    /// of the registry is not busy.
-    void deallocate_bucket(Bucket *bucket)
+    /// Removes the key of `bucket`, a busy bucket of the table. The callers
+    /// make sure of it: remove_ptr() checks the bucket first, and
+    /// Iterator::del() passes the one of its current key.
+    void deallocate_bucket(Bucket *bucket) noexcept
     {
-      ah_invalid_argument_if(not is_valid_bucket(bucket))
-        << "record address is not inside table's range";
-
-      ah_domain_error_if(bucket->status != BUSY)
-        << "Bucket containing record is not busy";
+      assert(is_valid_bucket(bucket) and bucket->status == BUSY);
 
       --N;
       const auto idx = static_cast<size_t>(bucket - &table[0]);
