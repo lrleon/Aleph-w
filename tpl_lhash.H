@@ -62,17 +62,18 @@
  *    factor to it, the table grows to about twice as many lists.
  *  - `lower_alpha` (0.25 by default): when a removal leaves the load
  *    factor below it, the table shrinks to about half as many lists,
- *    provided that its keys stay below `upper_alpha` there. If there is
- *    no memory for the smaller array, the table keeps its capacity.
+ *    provided that its load factor stays below `upper_alpha` there. If
+ *    there is no memory for the smaller array, the table keeps its
+ *    capacity.
  *
  *  The constructor rounds the requested capacity up to a prime, and the
  *  table grows and shrinks to primes. `resize()` takes the capacity it is
- *  given, unless the table resizes itself and its keys reach `upper_alpha`
- *  there: then it grows again as it inserts them. Removing through
- *  `Iterator::del()` never resizes the table. A table that does not
- *  resize itself keeps its capacity, and its lists get longer as keys
- *  come in. For linear hashing, which grows one list at a time instead of
- *  rebuilding the table, see tpl_linHash.H.
+ *  given, unless the table resizes itself and its load factor there
+ *  reaches `upper_alpha`: then the table grows again as it inserts the
+ *  keys. Removing through `Iterator::del()` never resizes the table. A
+ *  table that does not resize itself keeps its capacity, and its lists
+ *  get longer as keys come in. For linear hashing, which grows one list
+ *  at a time instead of rebuilding the table, see tpl_linHash.H.
  *
  *  ## Complexity
  *
