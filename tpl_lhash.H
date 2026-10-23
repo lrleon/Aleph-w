@@ -31,28 +31,46 @@
 
 
 /** @file tpl_lhash.H
- *  @brief Linear hashing with dynamic bucket expansion.
+ *  @brief Hash tables with collision resolution by separate chaining.
  *
- *  This file implements Linear Hashing, a dynamic hash table technique that
- *  grows gracefully without requiring a complete rehash. Buckets are split
- *  one at a time as the load factor increases.
- *
- *  ## Algorithm Overview
- *
- *  Linear hashing uses two hash functions during expansion:
- *  - h0(k) = k mod m (current level)
- *  - h1(k) = k mod 2m (next level)
- *
- *  When a bucket overflows, the next bucket in sequence is split, not
- *  necessarily the overflowing one. This ensures predictable growth.
+ *  This file implements GenLhashTable and its two forms, LhashTable and
+ *  LhashTableVtl, whose buckets have no virtual destructor or have one.
+ *  The table is an array of doubly linked lists: each key lives in a
+ *  bucket, linked into the list that its hash value selects. The caller
+ *  allocates the buckets, and the table only links them in and out: it
+ *  never copies a key or moves a bucket, so a bucket keeps its address
+ *  while it is in the table, even when the table resizes.
  *
  *  ## Key Features
  *
- *  - Incremental expansion (no full rehash needed)
- *  - Configurable load factor thresholds
- *  - Automatic contraction when load decreases
- *  - Supports duplicate keys
- *  - Chaining for collision resolution
+ *  - Unique keys: `insert()` returns `nullptr` if the key is already in
+ *    the table, and the bucket stays with the caller
+ *  - `remove()` unlinks a bucket of the table and returns it; the caller
+ *    frees it
+ *  - The destructor frees the buckets left in the table, unless the table
+ *    was built with `remove_all_buckets` set to false
+ *  - Automatic resizing, on by default; `set_with_resize()` turns it on
+ *    or off
+ *
+ *  ## Resizing
+ *
+ *  The load factor is the average number of keys per list. A table that
+ *  resizes itself rebuilds its array of lists when the load factor
+ *  crosses one of two thresholds, and links every bucket again:
+ *
+ *  - `upper_alpha` (0.9 by default): when an insertion brings the load
+ *    factor to it, the table grows to about twice as many lists.
+ *  - `lower_alpha` (0.25 by default): when a removal leaves the load
+ *    factor below it, the table shrinks to about half as many lists,
+ *    provided that its keys stay below `upper_alpha` there. If there is
+ *    no memory for the smaller array, the table keeps its capacity.
+ *
+ *  The constructor rounds the requested capacity up to a prime, and the
+ *  table grows and shrinks to primes; `resize()` takes the capacity it is
+ *  given. Removing through `Iterator::del()` never resizes the table. A
+ *  table that does not resize itself keeps its capacity, and its lists
+ *  get longer as keys come in. For linear hashing, which grows one list
+ *  at a time instead of rebuilding the table, see tpl_linHash.H.
  *
  *  ## Complexity
  *
@@ -61,26 +79,30 @@
  *  | insert | O(1) | O(n) |
  *  | search | O(1) | O(n) |
  *  | remove | O(1) | O(n) |
- *  | expand | O(1) amortized | O(n) |
+ *  | resize | O(n + m) | O(n + m) |
  *
- *  ## Load Factor Control
- *
- *  - `upper_alpha`: When exceeded, triggers bucket split
- *  - `lower_alpha`: When below, triggers bucket contraction
+ *  Here n is the number of keys and m the number of lists. An insertion
+ *  or a removal that resizes the table costs as much as a resize.
  *
  *  ## Usage Example
  *
  *  ```cpp
- *  LhashTable<int> table;
+ *  using Table = LhashTable<int>;
+ *  using Bucket = Table::Bucket;
  *
+ *  Table table;
  *  table.insert(new Bucket(42));
  *  table.insert(new Bucket(17));
  *
- *  auto* found = table.search(42);
- *  if (found)
- *    std::cout << "Found: " << found->get_key() << "\n";
+ *  auto * repeated = new Bucket(17);
+ *  if (table.insert(repeated) == nullptr) // 17 is already in the table
+ *    delete repeated;
  *
- *  table.remove(found);
+ *  if (Bucket * found = table.search(42); found != nullptr)
+ *    {
+ *      std::cout << "Found: " << found->get_key() << "\n";
+ *      delete table.remove(found);
+ *    }
  *  ```
  *
  *  ## Comparison with Other Hash Tables
@@ -88,9 +110,10 @@
  *  | Feature | LhashTable | ODhashTable | OLhashTable |
  *  |---------|------------|-------------|-------------|
  *  | Collision | Chaining | Double hash | Linear probe |
- *  | Growth | Linear | Full rehash | Full rehash |
+ *  | Keys move on resize | No | Yes | Yes |
  *  | Memory | Extra pointers | Compact | Compact |
  *
+ *  @see tpl_linHash.H Linear hashing with chaining
  *  @see tpl_odhash.H Open addressing with double hashing
  *  @see tpl_olhash.H Open addressing with linear probing
  *  @see tpl_dynSetHash.H High-level hash set interface

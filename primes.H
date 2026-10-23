@@ -58,7 +58,7 @@
  *  unsigned long p = Primes::next_prime_number_greater_than(100);  // 101
  *  ```
  *
- *  @see tpl_lhash.H Linear hash tables using primes
+ *  @see tpl_lhash.H Separate chaining hash tables
  *  @see tpl_odhash.H Open-addressed hash tables
  *
  *  @ingroup Hash

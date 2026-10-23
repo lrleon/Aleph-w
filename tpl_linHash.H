@@ -41,7 +41,7 @@
  *  - Handles high load factors
  *  - No clustering
  *
- *  @see tpl_lhash.H Alternative linear hashing
+ *  @see tpl_lhash.H Separate chaining that rebuilds the table to resize
  *  @see tpl_odhash.H Open addressing
  *  @ingroup Hash
  *  @author Leandro Rabindranath León
