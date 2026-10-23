@@ -65,7 +65,12 @@
  *
  *  ## Load Factor
  *
- *  The table resizes when load factor exceeds a threshold (default ~0.5).
+ *  A table that resizes itself is rebuilt when its buckets in use, those
+ *  of removed keys included, reach the fraction `upper_alpha` (0.9 by
+ *  default) of its capacity: twice as large, or at its size when most of
+ *  them are the ones of removed keys. `remove()` and `remove_ptr()`
+ *  shrink it to about half its capacity when they leave the load factor
+ *  below `lower_alpha` (0.25 by default); OhashCommon gives the details.
  *  Lower load factors mean faster operations but more memory.
  *
  *  ## Usage Example

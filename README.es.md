@@ -1358,7 +1358,7 @@ Aleph-w ofrece múltiples implementaciones de tablas hash optimizadas para disti
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  SEPARATE CHAINING              OPEN ADDRESSING           LINEAR HASHING    │
-│  (tpl_hash.H)                   (tpl_odhash.H)            (tpl_lhash.H)     │
+│  (tpl_lhash.H)                  (tpl_olhash.H)            (tpl_linHash.H)   │
 │                                                                             │
 │  ┌───┬───┬───┬───┐             ┌───┬───┬───┬───┐        Grows incrementally │
 │  │ 0 │ 1 │ 2 │ 3 │             │ A │ B │   │ C │        one slot at a time  │
