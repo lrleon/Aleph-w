@@ -78,11 +78,14 @@
  *  |-----------|---------|------------|
  *  | insert | O(1) | O(n) |
  *  | search | O(1) | O(n) |
- *  | remove | O(1) | O(n) |
- *  | resize | O(n + m) | O(n + m) |
+ *  | remove | O(1) | O(1) |
+ *  | resize | O(n + m) | O(n^2 + m) |
  *
- *  Here n is the number of keys and m the number of lists. An insertion
- *  or a removal that resizes the table costs as much as a resize.
+ *  Here n is the number of keys and m the number of lists. A resize
+ *  inserts every bucket again, and each insertion looks for its key in
+ *  its list: when all the keys fall in one list, that is quadratic. An
+ *  insertion or a removal that resizes the table costs as much as a
+ *  resize.
  *
  *  ## Usage Example
  *

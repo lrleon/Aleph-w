@@ -36,8 +36,9 @@ No sanitizer job excludes a test by name. `memory-sanitizer` builds and
 runs a single test (see its section below); the others run every test that
 their compiler builds (see
 [Tests that only some compilers build](#tests-that-only-some-compilers-build)).
-A test case that cannot run under a sanitizer skips itself, as the cases
-below do (see [Source-level skips](#source-level-skips)).
+A test case that cannot run under a sanitizer skips itself, or is compiled
+as a disabled test, as the cases below do (see
+[Source-level skips](#source-level-skips)).
 
 A `ctest -E` regex, where one is needed, must match the names that CTest
 gets from `gtest_discover_tests`, which are GoogleTest names

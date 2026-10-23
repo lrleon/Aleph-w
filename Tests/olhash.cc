@@ -1199,8 +1199,36 @@ TEST(OLhashTable, IteratorDelete)
   auto it = tbl.get_it();
   while (it.has_curr())
     it.del();
-  
+
   EXPECT_TRUE(tbl.is_empty());
+}
+
+// Iterator::del() hands deallocate_bucket() the bucket of its current key.
+// With all the keys in one run of buckets, each removal leaves its bucket
+// marked as the one of a removed key, until the last one empties the run.
+TEST(OLhashTable, IteratorDeleteEmptiesACollisionRun)
+{
+  auto bad_hash = [](const int &) -> size_t { return 0; };
+  OLhashTable<int> tbl(100, bad_hash);
+
+  for (int i = 0; i < 10; ++i)
+    ASSERT_NE(tbl.insert(i), nullptr);
+
+  auto it = tbl.get_it();
+  for (size_t removed = 1; it.has_curr(); ++removed)
+    {
+      it.del();
+      EXPECT_EQ(tbl.size(), 10 - removed);
+      EXPECT_EQ(tbl.stats().num_deleted, removed < 10 ? removed : 0);
+    }
+
+  EXPECT_TRUE(tbl.is_empty());
+  EXPECT_EQ(tbl.stats().num_empty, tbl.capacity());
+
+  for (int i = 0; i < 10; ++i)
+    ASSERT_NE(tbl.insert(i), nullptr);
+  for (int i = 0; i < 10; ++i)
+    EXPECT_TRUE(tbl.contains(i)) << i;
 }
 
 // ============================================================================
