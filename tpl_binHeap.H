@@ -98,6 +98,8 @@
 # ifndef TPL_BINHEAP_H
 # define TPL_BINHEAP_H
 
+# include <utility>
+
 # include <ah-concepts.H>
 # include <htlist.H>
 # include <tpl_arrayStack.H>
@@ -175,6 +177,11 @@ This class is not intended for public use. Its purpose is to provide
   {
   protected:
     Compare cmp;
+
+    // The operations that compare keys throw only if the comparison does
+    static constexpr bool nothrow_cmp =
+      noexcept(std::declval<Compare &>()(std::declval<Key &>(),
+                                         std::declval<Key &>()));
 
   public:
     using Node = NodeType<Key>;
@@ -332,13 +339,13 @@ This class is not intended for public use. Its purpose is to provide
       LLINK(p) = pp;
     }
 
-    virtual void sift_up(Node *p) noexcept
+    virtual void sift_up(Node *p) noexcept(nothrow_cmp)
     {
       while (p != root and cmp(KEY(p), KEY(ULINK(p))))
         swap_with_parent(p);
     }
 
-    virtual void sift_down(Node *p) noexcept
+    virtual void sift_down(Node *p) noexcept(nothrow_cmp)
     {
       while (not IS_LEAF(p))
         {
@@ -648,8 +655,10 @@ This class is not intended for public use. Its purpose is to provide
 
         @param[in] p the node to insert.
         @return pointer to the inserted node.
+        @throw anything that the comparison throws. Then p is in the
+        heap, but the heap may be out of order.
     */
-    Node * insert(Node *p) noexcept
+    Node * insert(Node *p) noexcept(nothrow_cmp)
     {
       assert(IS_LEAF(p));
 
@@ -696,7 +705,15 @@ This class is not intended for public use. Its purpose is to provide
       return p;
     }
 
-    Node * getMin_ne() noexcept
+    /** Removes the node with the lowest priority from a heap that is not
+        empty.
+
+        @return pointer to the removed node.
+        @throw anything that the comparison throws. Then the node is out
+        of the heap but is not returned, so take it first with top(), and
+        the heap may be out of order.
+    */
+    Node * getMin_ne() noexcept(nothrow_cmp)
     {
       Node *ret_val = root;
       if (num_nodes == 1)
@@ -724,6 +741,7 @@ This class is not intended for public use. Its purpose is to provide
 
         @return pointer to the removed node.
         @throw underflow_error if the heap is empty.
+        @throw anything that the comparison throws, as getMin_ne() does.
     */
     Node * getMin()
     {
@@ -745,9 +763,11 @@ This class is not intended for public use. Its purpose is to provide
         modified, then the extraction order can be updated.
 
         @param[in] p pointer to the node to update
+        @throw anything that the comparison throws. Then the heap may be
+        out of order.
         @see insert()
     */
-    void update(Node *p) noexcept
+    void update(Node *p) noexcept(nothrow_cmp)
     {
       sift_down(p);
       sift_up(p);
@@ -796,9 +816,13 @@ This class is not intended for public use. Its purpose is to provide
         return;
 
       if (num_nodes <= 3)
-        {
-          while (not this->is_empty())
-            delete getMin_ne();
+        { // without comparing the keys, since the comparison may throw
+          while (num_nodes > 1)
+            delete remove_last();
+          delete root;
+          root = nullptr;
+          last = &head_node;
+          num_nodes = 0;
           return;
         }
 

@@ -12,9 +12,11 @@
  */
 #include <gtest/gtest.h>
 
+#include <functional>
 #include <limits>
 #include <random>
 #include <set>
+#include <stdexcept>
 #include <vector>
 
 #include <Prim.H>
@@ -697,4 +699,111 @@ TEST(PrimPainting, LeavesTheCookiesNullWithALoopOnTheFirstNode)
   EXPECT_EQ(NODE_COOKIE(n0), nullptr);
   EXPECT_EQ(NODE_COOKIE(n1), nullptr);
   EXPECT_EQ(NODE_COOKIE(n2), nullptr);
+}
+
+// =============================================================================
+// Exception Tests
+// =============================================================================
+
+namespace {
+
+// Counts the calls of a distance and makes one of them throw.
+struct Distance_Failure
+{
+  long calls = 0;
+  long fail_at = 0; // number of the call that throws; 0 for none
+
+  void count()
+  {
+    if (++calls == fail_at)
+      throw std::runtime_error("arc weight not available");
+  }
+};
+
+// The weight of an arc, counting the calls in failure
+struct Failing_Distance
+{
+  using Distance_Type = int;
+
+  Distance_Failure *failure = nullptr;
+
+  int operator()(Arc *a) const
+  {
+    if (failure != nullptr)
+      failure->count();
+    return a->get_info();
+  }
+};
+
+} // namespace
+
+// The heap called the distance in functions that were noexcept, so a
+// distance that threw there ended the program. When painting, the cookies
+// of the arcs left in the heap pointed to the heap nodes freed with it.
+TEST(PrimExceptions, DistanceThatThrowsLeavesTheGraphReusable)
+{
+  std::mt19937 rng(11);
+  std::uniform_int_distribution<int> weight_dist(1, 50);
+  const int N = 12;
+  GT g;
+  std::vector<Node *> nodes;
+  for (int i = 0; i < N; ++i)
+    nodes.push_back(g.insert_node(i));
+  for (int i = 1; i < N; ++i)
+    g.insert_arc(nodes[i - 1], nodes[i], weight_dist(rng));
+  for (int i = 0; i < 2 * N; ++i)
+    {
+      const int a = rng() % N;
+      const int b = rng() % N;
+      if (a != b)
+        g.insert_arc(nodes[a], nodes[b], weight_dist(rng));
+    }
+
+  GT expected;
+  Kruskal_Min_Spanning_Tree<GT> kruskal;
+  kruskal(g, expected);
+  const int weight = tree_total_weight(expected);
+
+  Distance_Failure failure;
+  Prim_Min_Spanning_Tree<GT, Failing_Distance> prim(Failing_Distance{&failure});
+
+  const std::vector<std::function<void()>> methods = {
+    [&] {
+      GT tree;
+      prim(g, tree);
+      EXPECT_EQ(tree_total_weight(tree), weight);
+    },
+    [&] {
+      prim(g);
+      EXPECT_EQ(painted_distance(g, Dft_Dist<GT>()), weight);
+    }
+  };
+
+  for (size_t m = 0; m < methods.size(); ++m)
+    {
+      failure = Distance_Failure();
+      methods[m]();
+      const long calls = failure.calls;
+      ASSERT_GT(calls, 0) << "method " << m;
+
+      for (long k = 1; k <= calls; ++k)
+        {
+          failure.calls = 0;
+          failure.fail_at = k;
+          EXPECT_THROW(methods[m](), std::runtime_error)
+            << "method " << m << ", call " << k;
+
+          if (m == 1)
+            {
+              for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+                {
+                  EXPECT_EQ(NODE_COOKIE(it.get_curr()), nullptr)
+                    << "call " << k;
+                }
+            }
+
+          failure.fail_at = 0;
+          methods[m]();
+        }
+    }
 }

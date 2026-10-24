@@ -39,7 +39,9 @@
 
 #include <algorithm>
 #include <random>
+#include <stdexcept>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <tpl_graph.H>
@@ -312,4 +314,59 @@ TEST(ArcHeapDistance, TakesADistanceWithoutADefaultConstructor)
 
   EXPECT_EQ(heap.get_min_arc(), a2);
   EXPECT_EQ(heap.get_min_arc(), a1);
+}
+
+namespace
+{
+  // The weight of an arc; counts its calls, and the call number fail_at
+  // throws (0 for none).
+  struct FailingDist
+  {
+    long *calls = nullptr;
+    long fail_at = 0;
+
+    int operator()(Arc *a) const
+    {
+      if (calls != nullptr and ++*calls == fail_at)
+        throw std::runtime_error("arc weight not available");
+      return a->get_info();
+    }
+  };
+} // namespace
+
+// Comparing with the given distance, the heap called it in functions that
+// were noexcept, so a distance that threw there ended the program.
+TEST(ArcHeapDistance, WhatTheDistanceThrowsReachesTheCaller)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 6);
+  std::vector<std::pair<Arc *, Node *>> puts;
+  for (int i = 1; i < 6; ++i)
+    puts.emplace_back(g.insert_arc(nodes[0], nodes[i], 10 * i), nodes[i]);
+  for (int i = 1; i < 6; i += 2) // lighter arcs that replace others
+    puts.emplace_back(g.insert_arc(nodes[0], nodes[i], 10 * i - 7), nodes[i]);
+
+  // Puts the arcs in a heap and takes them out, with a distance that fails
+  // at its call fail_at
+  auto put_and_take = [&](long &calls, long fail_at)
+  {
+    std::unordered_map<Node *, HeapNode *> mapping;
+    ArcHeap<Graph, FailingDist, MapAccess> heap(FailingDist{&calls, fail_at},
+                                                 MapAccess(mapping));
+    std::vector<int> weights;
+    for (auto [arc, tgt] : puts)
+      heap.put_arc(arc, tgt);
+    while (not heap.is_empty())
+      weights.push_back(heap.get_min_arc()->get_info());
+    return weights;
+  };
+
+  long calls = 0;
+  EXPECT_EQ(put_and_take(calls, 0), (std::vector<int>{3, 20, 23, 40, 43}));
+
+  for (long k = 1; k <= calls; ++k)
+    {
+      long count = 0;
+      EXPECT_THROW(put_and_take(count, k), std::runtime_error) << "call " << k;
+    }
 }

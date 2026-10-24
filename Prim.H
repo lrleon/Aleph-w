@@ -246,6 +246,13 @@ namespace Aleph
 
       NODE_BITS(first).set_bit(Aleph::Spanning_Tree, true); // visited
 
+      // The heap keeps its nodes in the cookies. If the distance throws,
+      // the heap frees the nodes it still has, so their cookies are cleared.
+      Scope_Guard cookies_guard(g, [](const GT & graph) {
+        for (typename GT::Node_Iterator it(graph); it.has_curr(); it.next_ne())
+          NODE_COOKIE(it.get_curr()) = nullptr;
+      });
+
       Simple_Heap heap(dist, Acc_Simple_Heap());
       for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next_ne())
         {
