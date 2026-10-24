@@ -5,6 +5,17 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.2.1](https://github.com/lrleon/Aleph-w/compare/v7.2.0...v7.2.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **graph:** Make Floyd-Warshall handle parallel arcs and loops ([#139](https://github.com/lrleon/Aleph-w/issues/139)) ([2c4ccb5](https://github.com/lrleon/Aleph-w/commit/2c4ccb543db909025d6d74e250aa44a2e185c8dd))
+* **graph:** Make Prim map its tree back and free its data on failure ([#140](https://github.com/lrleon/Aleph-w/issues/140)) ([aadcb40](https://github.com/lrleon/Aleph-w/commit/aadcb4032a3cf51ac259b9d07108e6d6964559ee))
+* **graph:** Make Prim order arcs by its distance and paint its tree ([#137](https://github.com/lrleon/Aleph-w/issues/137)) ([c2960a4](https://github.com/lrleon/Aleph-w/commit/c2960a431a0cee797516e657bbca76d06383dfe6))
+* **heap:** Let what the comparison throws reach the caller of the binary heap ([#137](https://github.com/lrleon/Aleph-w/issues/137)) ([c2960a4](https://github.com/lrleon/Aleph-w/commit/c2960a431a0cee797516e657bbca76d06383dfe6))
+* **graph:** Make Floyd-Warshall throw when a distance underflows ([#139](https://github.com/lrleon/Aleph-w/issues/139)) ([2c4ccb5](https://github.com/lrleon/Aleph-w/commit/2c4ccb543db909025d6d74e250aa44a2e185c8dd))
+
 ## [7.2.0](https://github.com/lrleon/Aleph-w/compare/v7.1.2...v7.2.0) (2026-10-22)
 
 
