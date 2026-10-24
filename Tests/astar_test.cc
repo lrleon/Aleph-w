@@ -1035,6 +1035,49 @@ TEST(AStarPolicyTest, UsesTheDistanceItWasGiven)
   EXPECT_EQ(astar.get_min_path(tree, c, path), 21);
 }
 
+// The weight of an arc times a factor, with no default constructor.
+struct Factor_Only_Distance
+{
+  using Distance_Type = int;
+
+  int factor;
+
+  explicit Factor_Only_Distance(int f) noexcept : factor(f) {}
+
+  int operator()(IntGraph::Arc * a) const { return factor * a->get_info(); }
+};
+
+// ArcHeap built its comparator by default, so such a distance did not
+// compile with it.
+TEST(AStarPolicyTest, TakesADistanceWithoutADefaultConstructor)
+{
+  IntGraph g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, 3);
+  g.insert_arc(b, c, 4);
+  g.insert_arc(a, c, 20);
+
+  AStar_Min_Path<IntGraph, Factor_Only_Distance> astar(Factor_Only_Distance(3));
+  Path<IntGraph> path(g);
+  IntGraph tree;
+
+  EXPECT_EQ(astar.find_path(g, a, c, path), 21);
+  EXPECT_EQ(astar.find_min_path(g, a, c, path), 21);
+
+  astar.paint_min_paths_tree(g, a);
+  EXPECT_EQ(astar.get_distance(c), 21);
+  IntGraph painted;
+  EXPECT_EQ(astar.copy_painted_min_paths_tree(g, painted), 21);
+
+  ASSERT_NE(astar.compute_partial_path(g, a, c, tree), nullptr);
+  EXPECT_EQ(astar.get_min_path(tree, c, path), 21);
+
+  astar.compute_min_paths_tree(g, a, tree);
+  EXPECT_EQ(astar.get_min_path(tree, c, path), 21);
+}
+
 // Counts the calls of a distance or a heuristic and makes one of them throw.
 struct Call_Failure
 {

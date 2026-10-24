@@ -134,7 +134,7 @@ namespace Aleph
     // Returns reference to the cookie pointer used as heap node storage
     void *& operator ()(typename GT::Node *p)
     {
-      return p->cookie;
+      return NODE_COOKIE(p);
     }
   };
 
@@ -246,11 +246,21 @@ namespace Aleph
 
       NODE_BITS(first).set_bit(Aleph::Spanning_Tree, true); // visited
 
+      // The heap keeps its nodes in the cookies. If the distance throws,
+      // the heap frees the nodes it still has, so their cookies are cleared.
+      Scope_Guard cookies_guard(g, [](const GT & graph) {
+        for (typename GT::Node_Iterator it(graph); it.has_curr(); it.next_ne())
+          NODE_COOKIE(it.get_curr()) = nullptr;
+      });
+
       Simple_Heap heap(dist, Acc_Simple_Heap());
       for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next_ne())
         {
           typename GT::Arc *arc = it.get_current_arc_ne();
-          heap.put_arc(arc, it.get_tgt_node_ne());
+          typename GT::Node *tgt = it.get_tgt_node_ne();
+          if (tgt == first)
+            continue; // a loop would close a cycle in the tree
+          heap.put_arc(arc, tgt);
         }
 
       const size_t V1 = g.get_num_nodes() - 1;

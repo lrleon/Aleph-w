@@ -39,7 +39,9 @@
 
 #include <algorithm>
 #include <random>
+#include <stdexcept>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <tpl_graph.H>
@@ -240,5 +242,131 @@ TEST(ArcHeapRandom, ExtractsNonDecreasingByDistance)
         extracted.push_back(heap.get_min_arc()->get_info());
 
       EXPECT_TRUE(std::is_sorted(extracted.begin(), extracted.end()));
+    }
+}
+
+namespace
+{
+  // The weight of an arc, or its negation when `negated` is set: a
+  // default-constructed instance orders the arcs the other way.
+  struct SignedWeightDist
+  {
+    bool negated = false;
+
+    int operator()(Arc *a) const noexcept
+    {
+      return negated ? -a->get_info() : a->get_info();
+    }
+  };
+
+  // The weight of an arc times a factor, with no default constructor.
+  struct FactorDist
+  {
+    int factor;
+
+    explicit FactorDist(int f) noexcept : factor(f) { }
+
+    int operator()(Arc *a) const noexcept
+    {
+      return factor * a->get_info();
+    }
+  };
+} // namespace
+
+// The heap ordered the arcs with a default-constructed distance; only the
+// choice between two arcs with the same target used the given one.
+TEST(ArcHeapDistance, OrdersByTheGivenDistance)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 4);
+  Arc *a1 = g.insert_arc(nodes[0], nodes[1], 5);
+  Arc *a2 = g.insert_arc(nodes[0], nodes[2], 1);
+  Arc *a3 = g.insert_arc(nodes[0], nodes[3], 3);
+
+  std::unordered_map<Node *, HeapNode *> mapping;
+  MapAccess access(mapping);
+  ArcHeap<Graph, SignedWeightDist, MapAccess> heap(SignedWeightDist{true},
+                                                    access);
+
+  heap.put_arc(a1, nodes[1]);
+  heap.put_arc(a2, nodes[2]);
+  heap.put_arc(a3, nodes[3]);
+
+  EXPECT_EQ(heap.get_min_arc(), a1);
+  EXPECT_EQ(heap.get_min_arc(), a3);
+  EXPECT_EQ(heap.get_min_arc(), a2);
+}
+
+// Building that default comparator required a default constructor.
+TEST(ArcHeapDistance, TakesADistanceWithoutADefaultConstructor)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 3);
+  Arc *a1 = g.insert_arc(nodes[0], nodes[1], 4);
+  Arc *a2 = g.insert_arc(nodes[0], nodes[2], 2);
+
+  std::unordered_map<Node *, HeapNode *> mapping;
+  MapAccess access(mapping);
+  ArcHeap<Graph, FactorDist, MapAccess> heap(FactorDist(3), access);
+
+  heap.put_arc(a1, nodes[1]);
+  heap.put_arc(a2, nodes[2]);
+
+  EXPECT_EQ(heap.get_min_arc(), a2);
+  EXPECT_EQ(heap.get_min_arc(), a1);
+}
+
+namespace
+{
+  // The weight of an arc; counts its calls, and the call number fail_at
+  // throws (0 for none).
+  struct FailingDist
+  {
+    long *calls = nullptr;
+    long fail_at = 0;
+
+    int operator()(Arc *a) const
+    {
+      if (calls != nullptr and ++*calls == fail_at)
+        throw std::runtime_error("arc weight not available");
+      return a->get_info();
+    }
+  };
+} // namespace
+
+// Comparing with the given distance, the heap called it in functions that
+// were noexcept, so a distance that threw there ended the program.
+TEST(ArcHeapDistance, WhatTheDistanceThrowsReachesTheCaller)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 6);
+  std::vector<std::pair<Arc *, Node *>> puts;
+  for (int i = 1; i < 6; ++i)
+    puts.emplace_back(g.insert_arc(nodes[0], nodes[i], 10 * i), nodes[i]);
+  for (int i = 1; i < 6; i += 2) // lighter arcs that replace others
+    puts.emplace_back(g.insert_arc(nodes[0], nodes[i], 10 * i - 7), nodes[i]);
+
+  // Puts the arcs in a heap and takes them out, with a distance that fails
+  // at its call fail_at
+  auto put_and_take = [&](long &calls, long fail_at)
+  {
+    std::unordered_map<Node *, HeapNode *> mapping;
+    ArcHeap<Graph, FailingDist, MapAccess> heap(FailingDist{&calls, fail_at},
+                                                 MapAccess(mapping));
+    std::vector<int> weights;
+    for (auto [arc, tgt] : puts)
+      heap.put_arc(arc, tgt);
+    while (not heap.is_empty())
+      weights.push_back(heap.get_min_arc()->get_info());
+    return weights;
+  };
+
+  long calls = 0;
+  EXPECT_EQ(put_and_take(calls, 0), (std::vector<int>{3, 20, 23, 40, 43}));
+
+  for (long k = 1; k <= calls; ++k)
+    {
+      long count = 0;
+      EXPECT_THROW(put_and_take(count, k), std::runtime_error) << "call " << k;
     }
 }

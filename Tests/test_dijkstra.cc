@@ -1025,9 +1025,7 @@ struct Distance_Failure
 
 // Weights read from a table by the index of the arc. A default-constructed
 // one has no table and takes the index as the weight, so an algorithm that
-// built its own instance would find other paths and other costs. (The heap
-// of the algorithms builds its comparator by default, so the distance must
-// have a default constructor.)
+// built its own instance would find other paths and other costs.
 struct Table_Distance
 {
   using Distance_Type = long;
@@ -1152,6 +1150,50 @@ TYPED_TEST(DijkstraHeapTest, UsesTheDistanceItWasGiven) {
   Dijkstra_Min_Paths<IGT, Scaled_Distance, Node_Arc_Iterator,
                      Dft_Show_Arc<IGT>, TypeParam::template Heap>
     dij(Scaled_Distance{3});
+
+  Path<IGT> path(g);
+  EXPECT_EQ(dij.find_min_path(g, a, c, path), 21);
+
+  dij.paint_min_paths_tree(g, a);
+  EXPECT_EQ(dij.get_distance(c), 21);
+  EXPECT_EQ(dij.get_min_path(c, path), 21);
+  IGT painted;
+  EXPECT_EQ(dij.copy_painted_min_paths_tree(g, painted), 21);
+
+  IGT tree;
+  dij.compute_min_paths_tree(g, a, tree);
+  EXPECT_EQ(dij.get_min_path(tree, c, path), 21);
+
+  dij.compute_partial_min_paths_tree(g, a, c, tree);
+  EXPECT_EQ(dij.get_min_path(tree, c, path), 21);
+}
+
+// The weight of an arc times a factor, with no default constructor.
+struct Factor_Only_Distance
+{
+  using Distance_Type = int;
+
+  int factor;
+
+  explicit Factor_Only_Distance(int f) noexcept : factor(f) {}
+
+  int operator()(IGT::Arc * a) const { return factor * a->get_info(); }
+};
+
+// ArcHeap built its comparator by default, so such a distance did not
+// compile with it.
+TYPED_TEST(DijkstraHeapTest, TakesADistanceWithoutADefaultConstructor) {
+  IGT g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, 3);
+  g.insert_arc(b, c, 4);
+  g.insert_arc(a, c, 20);
+
+  Dijkstra_Min_Paths<IGT, Factor_Only_Distance, Node_Arc_Iterator,
+                     Dft_Show_Arc<IGT>, TypeParam::template Heap>
+    dij(Factor_Only_Distance(3));
 
   Path<IGT> path(g);
   EXPECT_EQ(dij.find_min_path(g, a, c, path), 21);

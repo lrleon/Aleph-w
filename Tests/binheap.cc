@@ -37,12 +37,15 @@
  */
 #include <algorithm>
 #include <functional>
+#include <memory>
 #include <numeric>
 #include <random>
+#include <stdexcept>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include <tpl_binHeap.H>
 #include <tpl_dynBinHeap.H>
 
 using namespace Aleph;
@@ -194,4 +197,94 @@ TEST(DynBinHeapTest, UpdateWithDuplicatePriorities)
   EXPECT_TRUE(std::is_sorted(drained.begin(), drained.end()));
   EXPECT_EQ(drained.front(), -1);
   EXPECT_EQ(drained.back(), 100);
+}
+
+namespace
+{
+  // Less than; counts its calls, and the call number fail_at throws (0 for
+  // none).
+  struct Failing_Less
+  {
+    long * calls = nullptr;
+    long fail_at = 0;
+
+    bool operator()(const int & a, const int & b) const
+    {
+      if (calls != nullptr and ++*calls == fail_at)
+        throw std::runtime_error("comparison failed");
+      return a < b;
+    }
+  };
+
+  using Failing_Heap = BinHeap<int, Failing_Less>;
+
+  // Inserts and then extracts values with a comparison that fails at its
+  // call fail_at; returns the extracted values
+  std::vector<int> insert_and_extract(const std::vector<int> & values,
+                                      long & calls, long fail_at)
+  {
+    Failing_Heap heap(Failing_Less{&calls, fail_at});
+    std::vector<int> out;
+    try
+      {
+        for (const int v : values)
+          heap.insert(new Failing_Heap::Node(v));
+
+        heap.update(heap.getRoot()); // its key is unchanged
+
+        while (not heap.is_empty())
+          { // getMin() throws with the node already out of the heap
+            std::unique_ptr<Failing_Heap::Node> min(heap.top());
+            heap.getMin();
+            out.push_back(min->get_key());
+          }
+      }
+    catch (...)
+      {
+        heap.remove_all_and_delete();
+        throw;
+      }
+    return out;
+  }
+} // namespace
+
+// insert(), update() and getMin() were noexcept, so a comparison that
+// threw ended the program.
+TEST(BinHeapComparison, WhatTheComparisonThrowsReachesTheCaller)
+{
+  const std::vector<int> values = {7, 3, 11, 0, 5, 9, 1, 8};
+  long calls = 0;
+  const auto out = insert_and_extract(values, calls, 0);
+  ASSERT_TRUE(std::is_sorted(out.begin(), out.end()));
+  ASSERT_EQ(out.size(), values.size());
+
+  for (long k = 1; k <= calls; ++k)
+    {
+      long count = 0;
+      EXPECT_THROW(insert_and_extract(values, count, k), std::runtime_error)
+        << "call " << k;
+    }
+}
+
+// Emptying a heap of up to 3 nodes extracted them one by one, comparing
+// the keys left, so in a destructor a comparison that throws ended the
+// program.
+TEST(BinHeapComparison, RemoveAllAndDeleteDoesNotCompare)
+{
+  for (int n = 1; n <= 6; ++n)
+    {
+      long calls = 0;
+      Failing_Heap heap(Failing_Less{&calls, 0});
+      for (int i = 0; i < n; ++i)
+        heap.insert(new Failing_Heap::Node(n - i));
+
+      const long before = calls;
+      heap.remove_all_and_delete();
+      EXPECT_EQ(calls, before) << n << " nodes";
+      EXPECT_TRUE(heap.is_empty());
+
+      heap.insert(new Failing_Heap::Node(4)); // the heap can be used again
+      EXPECT_EQ(heap.top()->get_key(), 4);
+      heap.remove_all_and_delete();
+    }
 }

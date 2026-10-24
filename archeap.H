@@ -44,6 +44,8 @@
 # ifndef ARCHEAP_H
 # define ARCHEAP_H
 
+# include <memory>
+
 # include <tpl_binHeap.H>
 # include <tpl_fibonacci_heap.H>
 # include <tpl_graph_utils.H>
@@ -66,7 +68,8 @@ public:
   /// heap-node access policy.
   ArcHeap(Distance __dist = Distance(),
           Access_Heap_Node acc = Access_Heap_Node())
-    : dist(__dist), access_node(acc), dist_cmp(dist)
+    : Heap(Distance_Compare<GT, Distance>(__dist)), // orders the heap
+      dist(__dist), access_node(acc), dist_cmp(dist)
   {
     // empty
   }
@@ -132,10 +135,12 @@ public:
   }
 
   /// Extract the arc with minimum distance from the heap and clear its
-  /// node-to-heap mapping.
+  /// node-to-heap mapping. If the distance throws while the other arcs
+  /// are put back in order, the arc is already out of the heap, its heap
+  /// node freed and its mapping cleared.
   typename GT::Arc * get_min_arc()
   {
-    Node *heap_node = this->getMin();
+    Node *heap_node = this->top();
     typename GT::Arc *arc = heap_node->get_key();
 
     // Select the node that the access functor maps to this heap node
@@ -151,7 +156,9 @@ public:
 
     handle_ref = nullptr;
 
-    delete heap_node;
+    std::unique_ptr<Node> owner(heap_node); // freed even if getMin_ne() throws
+    [[maybe_unused]] Node *removed = this->getMin_ne();
+    assert(removed == heap_node);
 
     return arc;
   }
