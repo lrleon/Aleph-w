@@ -2,12 +2,6 @@
 
 ## Current modules
 
-For a user-oriented entry point with reference examples, see
-`README.state_search.md`.
-
-For the benchmark suite, profiling summary and v1 hardening notes, see
-`docs/state_search_v1.md`.
-
 - `state_search_common.H`
   Defines the shared vocabulary for implicit search: `SearchResult`,
   `SearchStats`, `SearchLimits`, `ExplorationPolicy`, `SearchSolution`,
