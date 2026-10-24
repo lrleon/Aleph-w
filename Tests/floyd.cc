@@ -354,12 +354,14 @@ TEST(FloydLargeGraph, handles_complete_graph)
   for (int i = 0; i < N; ++i)
     EXPECT_EQ(dist(i, i), 0);
   
-  // All off-diagonal elements should be finite and positive
+  // The direct arc is the shortest path: going through k adds 2k + 1. (The
+  // test compared the distances with the maximum of double, which the
+  // infinity of int is below.)
   for (int i = 0; i < N; ++i)
     for (int j = 0; j < N; ++j)
       if (i != j) {
-        EXPECT_GT(dist(i, j), 0);
-        EXPECT_LT(dist(i, j), numeric_limits<double>::max());
+        EXPECT_EQ(dist(floyd.index_node(nodes[i]), floyd.index_node(nodes[j])),
+                  i + j + 1);
       }
 }
 
@@ -569,6 +571,67 @@ TEST(FloydUndirected, PathsGoBothWaysAlongTheArcs)
   EXPECT_EQ(path.get_first_node(), c);
   EXPECT_EQ(path.get_last_node(), a);
   EXPECT_EQ(cost_of(path), 7);
+}
+
+// In a graph that is not directed, each arc counts both ways, so a negative
+// arc is a negative cycle on its own.
+TEST(FloydUndirected, ANegativeArcIsANegativeCycle)
+{
+  UGrafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, -1);
+  Floyd_All_Shortest_Paths<UGrafo> floyd(g);
+  EXPECT_TRUE(floyd.has_negative_cycle());
+  EXPECT_THROW(floyd.get_min_path(a, b), std::domain_error);
+}
+
+// The guard of the sums discarded those below the range of the type, so the
+// cycle of a -> b (lowest) and b -> a (-1) went unseen, and
+// has_negative_cycle() was false.
+TEST(FloydNumeric, ADistanceBelowTheRangeThrows)
+{
+  const int lowest = numeric_limits<int>::lowest();
+
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, lowest);
+  g.insert_arc(b, a, -1);
+  EXPECT_THROW(Floyd_All_Shortest_Paths<Grafo>{g}, std::overflow_error);
+
+  // a cycle of three arcs whose sum, and not that of two, is below
+  Grafo h;
+  auto x = h.insert_node(0);
+  auto y = h.insert_node(1);
+  auto z = h.insert_node(2);
+  h.insert_arc(x, y, lowest / 2);
+  h.insert_arc(y, z, lowest / 2);
+  h.insert_arc(z, x, -1);
+  EXPECT_THROW(Floyd_All_Shortest_Paths<Grafo>{h}, std::overflow_error);
+
+  UGrafo u;
+  auto c = u.insert_node(0);
+  auto d = u.insert_node(1);
+  u.insert_arc(c, d, lowest);
+  EXPECT_THROW(Floyd_All_Shortest_Paths<UGrafo>{u}, std::overflow_error);
+}
+
+// A sum that reaches lowest() exactly is a distance like any other.
+TEST(FloydNumeric, ADistanceAtTheBottomOfTheRangeCounts)
+{
+  const int lowest = numeric_limits<int>::lowest();
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, lowest / 2);
+  g.insert_arc(b, c, lowest / 2);
+
+  Floyd_All_Shortest_Paths<Grafo> floyd(g);
+  EXPECT_FALSE(floyd.has_negative_cycle());
+  EXPECT_EQ(dist_of(floyd, a, c), lowest);
+  EXPECT_EQ(cost_of(floyd.get_min_path(a, c)), lowest);
 }
 
 // The diagonal was set to 0 without looking at the loops, so a negative loop

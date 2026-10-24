@@ -307,6 +307,9 @@ namespace Aleph
         @param[in] __sa Arc filter for considering which arcs to include.
         @throw std::invalid_argument if graph has no nodes.
         @throw std::bad_alloc if memory allocation fails.
+        @throw std::overflow_error if, with an integer distance type, the
+        sum of two distances is below `lowest()`: the shortest distances
+        cannot be represented. A sum above `max()` does not count.
      */
     Floyd_All_Shortest_Paths(const GT & __g, SA & __sa)
       : g(const_cast<GT &>(__g)), n(g.get_num_nodes()),
@@ -378,8 +381,10 @@ namespace Aleph
                         const Distance_Type minv = std::numeric_limits<Distance_Type>::lowest();
                         if (dkj > 0)
                           can_add = (dik <= maxv - dkj);
-                        else if (dkj < 0)
-                          can_add = (dik >= minv - dkj);
+                        else if (dkj < 0) // below lowest() it would be shorter
+                          ah_overflow_error_if(dik < minv - dkj)
+                            << "Floyd_All_Shortest_Paths: a distance is below "
+                            << "the range of the distance type";
                       }
                     else
                       {
@@ -413,6 +418,9 @@ namespace Aleph
 
         @param[in] g Input graph.
         @param[in] sa Arc filter (moved).
+        @throw std::invalid_argument if graph has no nodes.
+        @throw std::bad_alloc if memory allocation fails.
+        @throw std::overflow_error as the other constructor.
      */
     Floyd_All_Shortest_Paths(const GT & g, SA && sa = SA())
       : Floyd_All_Shortest_Paths(g, sa) {}
