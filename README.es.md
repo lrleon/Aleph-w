@@ -3354,7 +3354,7 @@ Aleph-w incluye un completo toolkit de **Transformada Rápida de Fourier** y pro
 - **Variantes paralelas** de todos los métodos via `ThreadPool` (prefijados con `p`)
 - **Despacho SIMD**: selección automática AVX2/NEON en tiempo de ejecución
 
-Para un recorrido detallado con ejemplos de código, ver el **[Tutorial FFT y Procesamiento Digital de Señales](docs/fft-tutorial.md)** ([English](docs/fft-tutorial.en.md)).
+Para un recorrido detallado con ejemplos de código, ver el **[Tutorial FFT y Procesamiento Digital de Señales](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.md)** ([English](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.en.md)).
 
 ---
 <a id="readme-es-ntt"></a>
@@ -3373,7 +3373,7 @@ Aleph-w también incluye una implementación industrial de la **Number Theoretic
 - **Multiplicación de enteros grandes** sobre dígitos en base `B` con propagación de carry
 - **Convolución negacíclica** módulo `x^N + 1`
 
-Para un recorrido detallado con ejemplos de código, consulta el **[Tutorial NTT](docs/ntt-tutorial.md)** ([English](docs/ntt-tutorial.en.md)).
+Para un recorrido detallado con ejemplos de código, consulta el **[Tutorial NTT](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.md)** ([English](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.en.md)).
 
 ---
 
@@ -3771,9 +3771,11 @@ de buffers, memoización de B&B, políticas de frontera).
 
 ### Documentación, ejemplos y pruebas
 
-- [docs/state_search_v1.md](docs/state_search_v1.md) – resumen de arquitectura,
-  metodología de benchmarks, notas de perfilado y hoja de ruta v2.
-- [docs/adversarial_search_framework.md](docs/adversarial_search_framework.md)
+- [docs/state_search_framework.md](https://github.com/lrleon/Aleph-w/blob/master/docs/state_search_framework.md) –
+  cómo modelar un problema como un espacio de estados implícito, la búsqueda
+  en profundidad y sus límites, la referencia de la API, las decisiones de
+  diseño y los próximos puntos de extensión.
+- [docs/adversarial_search_framework.md](https://github.com/lrleon/Aleph-w/blob/master/docs/adversarial_search_framework.md)
   – contrato Negamax/Alpha-Beta, hooks de ordenamiento de movimientos y
   protocolo de tablas de transposición.
 - Ejemplos:
@@ -4025,11 +4027,11 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 
 | Header | Functions / Classes | Description |
 |--------|---------------------|-------------|
-| `fft.H` | `FFT<Real>` | Transformada rápida de Fourier (FFT): Cooley-Tukey radix-2/4 y Bluestein para tamaños arbitrarios, STFT/ISTFT, diseño de filtros FIR/IIR (Butterworth, Chebyshev, Bessel, Elíptico), PSD de Welch, resampleo, raíces de polinomios, transformadas N-D y APIs paralelas con `ThreadPool`. Ver el [Tutorial FFT y DSP](docs/fft-tutorial.md) |
+| `fft.H` | `FFT<Real>` | Transformada rápida de Fourier (FFT): Cooley-Tukey radix-2/4 y Bluestein para tamaños arbitrarios, STFT/ISTFT, diseño de filtros FIR/IIR (Butterworth, Chebyshev, Bessel, Elíptico), PSD de Welch, resampleo, raíces de polinomios, transformadas N-D y APIs paralelas con `ThreadPool`. Ver el [Tutorial FFT y DSP](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.md) |
 | `modular_arithmetic.H` | `mod_mul()`, `mod_exp()`, `ext_gcd()`, `mod_inv()`, `crt()` | Safe 64-bit modular arithmetic, extended GCD, modular inverse, and Chinese Remainder Theorem |
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
-| `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform para multiplicacion exacta de polinomios modulares, con planes reutilizables, soporte Bluestein para tamanos no potencia de dos cuando el modulo lo permite, dispatch SIMD AVX2/NEON en tiempo de ejecucion sobre el butterfly potencia-de-dos, lotes, butterflies basados en Montgomery, APIs paralelas con `ThreadPool`, algebra formal de polinomios (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, evaluacion multipunto e interpolacion), multiplicacion exacta de enteros grandes sobre digitos en base `B`, convolucion negaciclica modulo `x^N + 1` y reconstruccion CRT de tres primos en `__uint128_t` cuando la cota de coeficientes cabe. Ver el [Tutorial NTT](docs/ntt-tutorial.md) |
+| `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform para multiplicacion exacta de polinomios modulares, con planes reutilizables, soporte Bluestein para tamanos no potencia de dos cuando el modulo lo permite, dispatch SIMD AVX2/NEON en tiempo de ejecucion sobre el butterfly potencia-de-dos, lotes, butterflies basados en Montgomery, APIs paralelas con `ThreadPool`, algebra formal de polinomios (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, evaluacion multipunto e interpolacion), multiplicacion exacta de enteros grandes sobre digitos en base `B`, convolucion negaciclica modulo `x^N + 1` y reconstruccion CRT de tres primos en `__uint128_t` cuando la cota de coeficientes cabe. Ver el [Tutorial NTT](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.md) |
 | `tpl_polynomial.H` | `Gen_Polynomial<C>`, `Polynomial` | Anillo de polinomios univariados dispersos: aritmética (+, -, *, /, %), cálculo (derivada, integral), evaluación (Horner/dispersa adaptativa), composición, GCD/XGCD/LCM, factorización libre de cuadrados, conteo de raíces (Sturm), búsqueda de raíces (bisección/Newton), interpolación polinómica (diferencias divididas de Newton) |
 | `modular_combinatorics.H` | `ModularCombinatorics` | @f$ nCk \pmod p @f$ with precomputed factorials and Lucas Theorem |
 | `modular_linalg.H` | `ModularMatrix` | Gaussian elimination, determinant, and inverse modulo a prime |
@@ -4078,10 +4080,10 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 
 #### Herramientas para compiladores
 
-Consulta la [Guía de soporte de front-end para compiladores](docs/compiler_frontend_support.md)
+Consulta la [Guía de soporte de front-end para compiladores](https://github.com/lrleon/Aleph-w/blob/master/docs/compiler_frontend_support.md)
 para el alcance previsto, los ejemplos y los límites actuales de estos headers.
 El roadmap más amplio de la plataforma está en
-[docs/compiler_platform_roadmap.md](docs/compiler_platform_roadmap.md).
+[docs/compiler_platform_roadmap.md](https://github.com/lrleon/Aleph-w/blob/master/docs/compiler_platform_roadmap.md).
 
 | Header | Type/Function | Description |
 |--------|---------------|-------------|
@@ -4288,8 +4290,8 @@ cmake --build build
 | Intérprete de bytecode para compiladores | `bytecode_interpreter_example.cc` | Ejecución end-to-end del bytecode lowered con una VM portable, globals explícitos, resultados estructurados y llamadas directas a funciones |
 | Backend C para compiladores | `compiler_backend_c_example.cc` | Emisión de una unidad C portable completa desde IR explícita con bloques basados en `goto`, runtime embebido y ejecución standalone opcional |
 | Driver para compiladores | `compiler_driver_example.cc` | Orquestación multiarchivo con imports declarativos para `parse-only`, `run`, `emit-bytecode` y `emit-c`, con artefactos reproducibles por etapa |
-| Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja secuencial optimizada, concurrencia explícita con `ThreadPool` y uso directo con contenedores iterables compatibles como `std::vector`. Tutorial completo: [Tutorial FFT y DSP](docs/fft-tutorial.md) |
-| Number Theoretic Transform | `ntt_example.cc` | Transformadas modulares exactas, reporte del backend SIMD activo, planes reutilizables, tamanos arbitrarios soportados via Bluestein, multiplicacion exacta CRT de tres primos en `__uint128_t`, algebra formal de polinomios, multiplicacion de enteros grandes en base 10, convolucion negaciclica modulo `x^N + 1`, ejecucion por lotes y multiplicacion paralela explicita de polinomios. Tutorial completo: [Tutorial NTT](docs/ntt-tutorial.md) |
+| Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja secuencial optimizada, concurrencia explícita con `ThreadPool` y uso directo con contenedores iterables compatibles como `std::vector`. Tutorial completo: [Tutorial FFT y DSP](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.md) |
+| Number Theoretic Transform | `ntt_example.cc` | Transformadas modulares exactas, reporte del backend SIMD activo, planes reutilizables, tamanos arbitrarios soportados via Bluestein, multiplicacion exacta CRT de tres primos en `__uint128_t`, algebra formal de polinomios, multiplicacion de enteros grandes en base 10, convolucion negaciclica modulo `x^N + 1`, ejecucion por lotes y multiplicacion paralela explicita de polinomios. Tutorial completo: [Tutorial NTT](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.md) |
 | Aritmética de polinomios | `polynomial_example.cc` | Álgebra de polinomios dispersos, cálculo simbólico, análisis de raíces (Sturm/bisección/Newton), interpolación de Newton, funciones de transferencia y operaciones dispersas de alto grado |
 | Caja de herramientas de teoría de números | `math_nt_example.cc` | Multiplicación modular segura, Miller-Rabin, Pollard's Rho, NTT, combinatoria modular y álgebra lineal |
 | Algoritmos de streaming | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
