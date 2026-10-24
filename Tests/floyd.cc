@@ -37,6 +37,13 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+#include <map>
+#include <random>
+#include <stdexcept>
+#include <utility>
+#include <vector>
+
 #include <tpl_graph_utils.H>
 #include <Floyd_Warshall.H>
 
@@ -347,12 +354,14 @@ TEST(FloydLargeGraph, handles_complete_graph)
   for (int i = 0; i < N; ++i)
     EXPECT_EQ(dist(i, i), 0);
   
-  // All off-diagonal elements should be finite and positive
+  // The direct arc is the shortest path: going through k adds 2k + 1. (The
+  // test compared the distances with the maximum of double, which the
+  // infinity of int is below.)
   for (int i = 0; i < N; ++i)
     for (int j = 0; j < N; ++j)
       if (i != j) {
-        EXPECT_GT(dist(i, j), 0);
-        EXPECT_LT(dist(i, j), numeric_limits<double>::max());
+        EXPECT_EQ(dist(floyd.index_node(nodes[i]), floyd.index_node(nodes[j])),
+                  i + j + 1);
       }
 }
 
@@ -415,4 +424,297 @@ TEST(FloydAccessors, node_accessors_behavior)
   EXPECT_EQ(nodes_ref1(floyd.index_node(n1)), n1);
   EXPECT_EQ(nodes_ref1(floyd.index_node(n2)), n2);
   EXPECT_EQ(nodes_ref1(floyd.index_node(n3)), n3);
+}
+
+// ========== Parallel arcs, loops, graphs that are not directed ==========
+
+namespace {
+
+using UGrafo = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+template <class GT>
+long dist_of(const Floyd_All_Shortest_Paths<GT> & floyd,
+             typename GT::Node * s, typename GT::Node * t)
+{
+  return floyd.get_dist_mat()(floyd.index_node(s), floyd.index_node(t));
+}
+
+template <class GT>
+std::vector<typename GT::Arc *> arcs_of(const Path<GT> & path)
+{
+  std::vector<typename GT::Arc *> arcs;
+  path.for_each_arc([&arcs](typename GT::Arc * a) { arcs.push_back(a); });
+  return arcs;
+}
+
+template <class GT>
+long cost_of(const Path<GT> & path)
+{
+  long total = 0;
+  for (auto a : arcs_of(path))
+    total += a->get_info();
+  return total;
+}
+
+// Distances from s by relaxing every arc until nothing changes, apart from
+// the algorithm under test; the nodes that s does not reach are not in it
+template <class GT>
+std::map<typename GT::Node *, long> relaxed_distances(GT & g,
+                                                      typename GT::Node * s)
+{
+  std::map<typename GT::Node *, long> d{{s, 0}};
+  const int directions = g.is_digraph() ? 1 : 2;
+  for (bool changed = true; changed; )
+    {
+      changed = false;
+      for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next_ne())
+        {
+          auto a = it.get_curr();
+          auto u = g.get_src_node(a);
+          auto v = g.get_tgt_node(a);
+          for (int dir = 0; dir < directions; ++dir, std::swap(u, v))
+            if (d.contains(u) and
+                (not d.contains(v) or d[u] + a->get_info() < d[v]))
+              {
+                d[v] = d[u] + a->get_info();
+                changed = true;
+              }
+        }
+    }
+  return d;
+}
+
+// A random graph with parallel arcs and loops, against the relaxation; and
+// the cost of each path against the matrix
+template <class GT>
+void check_against_relaxation(const unsigned seed)
+{
+  std::mt19937 rng(seed);
+  std::uniform_int_distribution<int> pick(0, 7);
+  std::uniform_int_distribution<int> weight(0, 20);
+  GT g;
+  std::vector<typename GT::Node *> nodes;
+  for (int i = 0; i < 8; ++i)
+    nodes.push_back(g.insert_node(i));
+  for (int k = 0; k < 24; ++k)
+    g.insert_arc(nodes[pick(rng)], nodes[pick(rng)], weight(rng));
+
+  Floyd_All_Shortest_Paths<GT> floyd(g);
+  ASSERT_FALSE(floyd.has_negative_cycle()) << "seed " << seed;
+  for (auto s : nodes)
+    {
+      auto d = relaxed_distances(g, s);
+      for (auto t : nodes)
+        {
+          if (not d.contains(t))
+            {
+              EXPECT_EQ(dist_of(floyd, s, t), numeric_limits<int>::max())
+                << "seed " << seed;
+              continue;
+            }
+          EXPECT_EQ(dist_of(floyd, s, t), d[t]) << "seed " << seed;
+          auto path = floyd.get_min_path(s, t);
+          EXPECT_EQ(path.get_first_node(), s) << "seed " << seed;
+          EXPECT_EQ(path.get_last_node(), t) << "seed " << seed;
+          EXPECT_EQ(cost_of(path), d[t]) << "seed " << seed;
+        }
+    }
+}
+
+} // namespace
+
+// The matrix took the arc that IndexArc kept for two nodes, the first one
+// inserted, and get_min_path() took the first one it found.
+TEST(FloydParallelArcs, TakesTheLightest)
+{
+  for (const bool heavy_first : {true, false})
+    {
+      Grafo g;
+      auto a = g.insert_node(0);
+      auto b = g.insert_node(1);
+      GArc * light = nullptr;
+      if (heavy_first)
+        {
+          g.insert_arc(a, b, 5);
+          light = g.insert_arc(a, b, 1);
+        }
+      else
+        {
+          light = g.insert_arc(a, b, 1);
+          g.insert_arc(a, b, 5);
+        }
+
+      Floyd_All_Shortest_Paths<Grafo> floyd(g);
+      EXPECT_EQ(dist_of(floyd, a, b), 1) << heavy_first;
+      EXPECT_EQ(arcs_of(floyd.get_min_path(a, b)),
+                std::vector<GArc *>{light}) << heavy_first;
+    }
+}
+
+// get_min_path() looked for each arc in the direction of the path, so in a
+// graph that is not directed it threw when the path went against an arc.
+TEST(FloydUndirected, PathsGoBothWaysAlongTheArcs)
+{
+  UGrafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, 3);
+  g.insert_arc(c, b, 4);
+  g.insert_arc(b, c, 9); // parallel to the arc of 4
+
+  Floyd_All_Shortest_Paths<UGrafo> floyd(g);
+  EXPECT_EQ(dist_of(floyd, a, c), 7);
+  EXPECT_EQ(dist_of(floyd, c, a), 7);
+
+  auto path = floyd.get_min_path(c, a);
+  EXPECT_EQ(path.get_first_node(), c);
+  EXPECT_EQ(path.get_last_node(), a);
+  EXPECT_EQ(cost_of(path), 7);
+}
+
+// In a graph that is not directed, each arc counts both ways, so a negative
+// arc is a negative cycle on its own.
+TEST(FloydUndirected, ANegativeArcIsANegativeCycle)
+{
+  UGrafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, -1);
+  Floyd_All_Shortest_Paths<UGrafo> floyd(g);
+  EXPECT_TRUE(floyd.has_negative_cycle());
+  EXPECT_THROW(floyd.get_min_path(a, b), std::domain_error);
+}
+
+// The guard of the sums discarded those below the range of the type, so the
+// cycle of a -> b (lowest) and b -> a (-1) went unseen, and
+// has_negative_cycle() was false.
+TEST(FloydNumeric, ADistanceBelowTheRangeThrows)
+{
+  const int lowest = numeric_limits<int>::lowest();
+
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, lowest);
+  g.insert_arc(b, a, -1);
+  EXPECT_THROW(Floyd_All_Shortest_Paths<Grafo>{g}, std::overflow_error);
+
+  // a cycle of three arcs whose sum, and not that of two, is below
+  Grafo h;
+  auto x = h.insert_node(0);
+  auto y = h.insert_node(1);
+  auto z = h.insert_node(2);
+  h.insert_arc(x, y, lowest / 2);
+  h.insert_arc(y, z, lowest / 2);
+  h.insert_arc(z, x, -1);
+  EXPECT_THROW(Floyd_All_Shortest_Paths<Grafo>{h}, std::overflow_error);
+
+  UGrafo u;
+  auto c = u.insert_node(0);
+  auto d = u.insert_node(1);
+  u.insert_arc(c, d, lowest);
+  EXPECT_THROW(Floyd_All_Shortest_Paths<UGrafo>{u}, std::overflow_error);
+}
+
+// A sum that reaches lowest() exactly is a distance like any other.
+TEST(FloydNumeric, ADistanceAtTheBottomOfTheRangeCounts)
+{
+  const int lowest = numeric_limits<int>::lowest();
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, lowest / 2);
+  g.insert_arc(b, c, lowest / 2);
+
+  Floyd_All_Shortest_Paths<Grafo> floyd(g);
+  EXPECT_FALSE(floyd.has_negative_cycle());
+  EXPECT_EQ(dist_of(floyd, a, c), lowest);
+  EXPECT_EQ(cost_of(floyd.get_min_path(a, c)), lowest);
+}
+
+// The diagonal was set to 0 without looking at the loops, so a negative loop
+// was not a negative cycle.
+TEST(FloydLoops, ANegativeLoopIsANegativeCycle)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, 2);
+  g.insert_arc(a, a, -1);
+  Floyd_All_Shortest_Paths<Grafo> floyd(g);
+  EXPECT_TRUE(floyd.has_negative_cycle());
+
+  UGrafo u;
+  auto c = u.insert_node(0);
+  auto d = u.insert_node(1);
+  u.insert_arc(c, d, 2);
+  u.insert_arc(d, d, -1);
+  Floyd_All_Shortest_Paths<UGrafo> ufloyd(u);
+  EXPECT_TRUE(ufloyd.has_negative_cycle());
+}
+
+TEST(FloydLoops, APositiveLoopDoesNotCount)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, a, 3);
+  g.insert_arc(a, b, 2);
+  Floyd_All_Shortest_Paths<Grafo> floyd(g);
+  EXPECT_FALSE(floyd.has_negative_cycle());
+  EXPECT_EQ(dist_of(floyd, a, a), 0);
+  EXPECT_EQ(cost_of(floyd.get_min_path(a, b)), 2);
+}
+
+// With a negative cycle, rebuilding a path could go around it forever.
+TEST(FloydNegativeCycle, GetMinPathThrows)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, a, -1);
+  g.insert_arc(a, b, 2);
+  Floyd_All_Shortest_Paths<Grafo> floyd(g);
+  ASSERT_TRUE(floyd.has_negative_cycle());
+  EXPECT_THROW(floyd.get_min_path(a, b), std::domain_error);
+}
+
+// get_min_path() looked for the arcs without the filter, so it could take an
+// arc that the matrix did not see.
+TEST(FloydFilter, PathsUseOnlyTheArcsOfTheFilter)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  GArc * hidden = g.insert_arc(a, b, 1);
+  GArc * shown = g.insert_arc(a, b, 5);
+
+  struct Hide
+  {
+    GArc * hidden = nullptr;
+    bool operator()(GArc * arc) const noexcept { return arc != hidden; }
+  };
+
+  Hide hide{hidden};
+  Floyd_All_Shortest_Paths<Grafo, Dft_Dist<Grafo>, Hide> floyd(g, hide);
+  EXPECT_EQ(floyd.get_dist_mat()(floyd.index_node(a), floyd.index_node(b)), 5);
+  EXPECT_EQ(arcs_of(floyd.get_min_path(a, b)), std::vector<GArc *>{shown});
+
+  // The solver kept a reference to its filter, so a filter passed as a
+  // temporary was gone once the solver was built
+  Floyd_All_Shortest_Paths<Grafo, Dft_Dist<Grafo>, Hide>
+    from_temporary(g, Hide{hidden});
+  EXPECT_EQ(arcs_of(from_temporary.get_min_path(a, b)),
+            std::vector<GArc *>{shown});
+}
+
+TEST(FloydRandom, MatchesRelaxationWithParallelArcsAndLoops)
+{
+  for (unsigned seed = 1; seed <= 30; ++seed)
+    {
+      check_against_relaxation<Grafo>(seed);
+      check_against_relaxation<UGrafo>(seed);
+    }
 }
