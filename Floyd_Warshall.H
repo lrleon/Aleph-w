@@ -129,6 +129,11 @@ namespace Aleph
       correctly if the graph contains negative cycles. Use Bellman-Ford
       based algorithms if you suspect negative cycles.
 
+      Of the parallel arcs between two nodes, the lightest counts, and
+      get_min_path() takes it. A loop counts only if it is negative: it is
+      then a negative cycle. In a graph that is not directed, each arc
+      counts in both directions.
+
       Template parameters:
       -# `GT`: graph type.
       -# `Distance<GT>`: arc weight accessor that must provide:
@@ -162,7 +167,25 @@ namespace Aleph
     bool negative_cycle = false;
     DynMatrix<long> path_mat;
     DynMatrix<Distance_Type> dist;
-    SA & sa;
+    SA sa;
+
+    // Appends to path the lightest arc that sa shows from p to q: the one
+    // whose weight is in the matrix
+    void append_lightest_arc(Path<GT> & path, Node *p, Node *q) const
+    {
+      Arc *lightest = nullptr;
+      for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+        if (it.get_tgt_node_ne() == q and
+            (lightest == nullptr or
+             Distance()(it.get_current_arc_ne()) < Distance()(lightest)))
+          lightest = it.get_current_arc_ne();
+
+      assert(lightest != nullptr);
+      if (g.is_digraph())
+        path.append_directed(lightest);
+      else
+        path.append(lightest);
+    }
 
   public:
     /**
@@ -266,7 +289,8 @@ namespace Aleph
     {
       ah_invalid_argument_if(p == nullptr) << "Node pointer cannot be null";
       auto i = binary_search(nodes, p);
-      ah_domain_error_if(i < 0 or i >= nodes.size() or nodes(i) != p)
+      ah_domain_error_if(i < 0 or i >= static_cast<long>(nodes.size()) or
+                         nodes(i) != p)
         << "Floyd_All_Shortest_Paths::index_node() node not found";
       return i;
     }
@@ -299,34 +323,31 @@ namespace Aleph
 
       dist.allocate();
       path_mat.allocate(); { // initialize matrices
-        IndexArc<GT, Rand_Tree, SA> arcs(g, true, sa);
-
         for (long i = 0; i < n; ++i)
           for (long j = 0; j < n; ++j)
-            path_mat(i, j) = -1;
+            {
+              dist(i, j) = i == j ? 0 : Inf;
+              path_mat(i, j) = i == j ? j : -1;
+            }
 
-        for (long i = 0; i < n; ++i)
+        // Of the parallel arcs, the lightest counts; a loop counts only if
+        // it is negative, as a negative cycle
+        const bool directed = g.is_digraph();
+        for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
           {
-            Node *src = nodes(i);
-            for (long j = 0; j < n; ++j)
+            Arc *arc = it.get_curr_ne();
+            const long i = index_node(g.get_src_node(arc));
+            const long j = index_node(g.get_tgt_node(arc));
+            const Distance_Type w = Distance()(arc);
+            if (w < dist(i, j))
               {
-                if (i == j)
-                  {
-                    dist(i, j) = 0;
-                    path_mat(i, j) = j;
-                    continue;
-                  }
-
-                Node *tgt = nodes(j);
-                Arc *arc = arcs.search_directed(src, tgt);
-                if (arc == nullptr)
-                  {
-                    dist(i, j) = Inf;
-                    continue;
-                  }
-
-                dist(i, j) = Distance()(arc);
+                dist(i, j) = w;
                 path_mat(i, j) = j;
+              }
+            if (not directed and w < dist(j, i))
+              {
+                dist(j, i) = w;
+                path_mat(j, i) = i;
               }
           }
       }
@@ -446,6 +467,7 @@ namespace Aleph
         @param[in] tgt_idx Matrix index of target node.
         @return Path object containing the shortest path.
         @throw std::out_of_range if indices are invalid.
+        @throw std::domain_error if the graph has a negative cycle.
      */
     Path<GT> get_min_path(const long src_idx, const long tgt_idx) const
     {
@@ -453,6 +475,9 @@ namespace Aleph
         << "Source index out of range";
       ah_out_of_range_error_if(tgt_idx < 0 or tgt_idx >= n)
         << "Target index out of range";
+      ah_domain_error_if(negative_cycle)
+        << "Floyd_All_Shortest_Paths::get_min_path(): the graph has a "
+        << "negative cycle";
 
       if (dist(src_idx, tgt_idx) == Inf)
         return Path<GT>(g);
@@ -467,8 +492,7 @@ namespace Aleph
       while (true)
         {
           const auto & k = path_mat(i, tgt_idx);
-          auto p = nodes(k);
-          path.append_directed(p);
+          append_lightest_arc(path, nodes(i), nodes(k));
           if (k == tgt_idx)
             break;
           i = k;
@@ -486,7 +510,8 @@ namespace Aleph
         @param[in] tgt Pointer to target node.
         @return Path object containing the shortest path.
         @throw std::invalid_argument if either node pointer is null.
-        @throw std::domain_error if either node is not found in the graph.
+        @throw std::domain_error if either node is not found in the graph,
+        or if the graph has a negative cycle.
      */
     Path<GT> get_min_path(typename GT::Node *src,
                           typename GT::Node *tgt) const
