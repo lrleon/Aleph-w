@@ -242,3 +242,74 @@ TEST(ArcHeapRandom, ExtractsNonDecreasingByDistance)
       EXPECT_TRUE(std::is_sorted(extracted.begin(), extracted.end()));
     }
 }
+
+namespace
+{
+  // The weight of an arc, or its negation when `negated` is set: a
+  // default-constructed instance orders the arcs the other way.
+  struct SignedWeightDist
+  {
+    bool negated = false;
+
+    int operator()(Arc *a) const noexcept
+    {
+      return negated ? -a->get_info() : a->get_info();
+    }
+  };
+
+  // The weight of an arc times a factor, with no default constructor.
+  struct FactorDist
+  {
+    int factor;
+
+    explicit FactorDist(int f) noexcept : factor(f) { }
+
+    int operator()(Arc *a) const noexcept
+    {
+      return factor * a->get_info();
+    }
+  };
+} // namespace
+
+// The heap ordered the arcs with a default-constructed distance; only the
+// choice between two arcs with the same target used the given one.
+TEST(ArcHeapDistance, OrdersByTheGivenDistance)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 4);
+  Arc *a1 = g.insert_arc(nodes[0], nodes[1], 5);
+  Arc *a2 = g.insert_arc(nodes[0], nodes[2], 1);
+  Arc *a3 = g.insert_arc(nodes[0], nodes[3], 3);
+
+  std::unordered_map<Node *, HeapNode *> mapping;
+  MapAccess access(mapping);
+  ArcHeap<Graph, SignedWeightDist, MapAccess> heap(SignedWeightDist{true},
+                                                    access);
+
+  heap.put_arc(a1, nodes[1]);
+  heap.put_arc(a2, nodes[2]);
+  heap.put_arc(a3, nodes[3]);
+
+  EXPECT_EQ(heap.get_min_arc(), a1);
+  EXPECT_EQ(heap.get_min_arc(), a3);
+  EXPECT_EQ(heap.get_min_arc(), a2);
+}
+
+// Building that default comparator required a default constructor.
+TEST(ArcHeapDistance, TakesADistanceWithoutADefaultConstructor)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 3);
+  Arc *a1 = g.insert_arc(nodes[0], nodes[1], 4);
+  Arc *a2 = g.insert_arc(nodes[0], nodes[2], 2);
+
+  std::unordered_map<Node *, HeapNode *> mapping;
+  MapAccess access(mapping);
+  ArcHeap<Graph, FactorDist, MapAccess> heap(FactorDist(3), access);
+
+  heap.put_arc(a1, nodes[1]);
+  heap.put_arc(a2, nodes[2]);
+
+  EXPECT_EQ(heap.get_min_arc(), a2);
+  EXPECT_EQ(heap.get_min_arc(), a1);
+}

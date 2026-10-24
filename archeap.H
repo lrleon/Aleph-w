@@ -66,7 +66,8 @@ public:
   /// heap-node access policy.
   ArcHeap(Distance __dist = Distance(),
           Access_Heap_Node acc = Access_Heap_Node())
-    : dist(__dist), access_node(acc), dist_cmp(dist)
+    : Heap(Distance_Compare<GT, Distance>(__dist)), // orders the heap
+      dist(__dist), access_node(acc), dist_cmp(dist)
   {
     // empty
   }

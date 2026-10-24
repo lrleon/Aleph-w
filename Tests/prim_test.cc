@@ -464,3 +464,237 @@ TEST(PrimTextbook, ClassicExample)
   EXPECT_EQ(tree_total_weight(tree), 12);
   EXPECT_TRUE(is_tree_connected(tree));
 }
+
+// =============================================================================
+// Distance Tests
+// =============================================================================
+
+namespace {
+
+// The weight of an arc, or 100 minus it when `reversed` is set: a
+// default-constructed instance orders the arcs the other way.
+struct Reversible_Distance
+{
+  using Distance_Type = int;
+
+  bool reversed = false;
+
+  int operator()(Arc *a) const
+  {
+    return reversed ? 100 - a->get_info() : a->get_info();
+  }
+};
+
+// The weight of an arc times a factor, with no default constructor.
+struct Factor_Only_Distance
+{
+  using Distance_Type = int;
+
+  int factor;
+
+  explicit Factor_Only_Distance(int f) noexcept : factor(f) {}
+
+  int operator()(Arc *a) const { return factor * a->get_info(); }
+};
+
+// Total of the arcs of tree, measured with d
+template <class Distance>
+int tree_distance(const GT &tree, const Distance &d)
+{
+  int total = 0;
+  for (auto it = tree.get_arc_it(); it.has_curr(); it.next_ne())
+    total += d(it.get_current_arc_ne());
+  return total;
+}
+
+// Total of the arcs of g that Prim painted, measured with d
+template <class Distance>
+int painted_distance(const GT &g, const Distance &d)
+{
+  int total = 0;
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+    if (IS_ARC_VISITED(it.get_current_arc_ne(), Aleph::Spanning_Tree))
+      total += d(it.get_current_arc_ne());
+  return total;
+}
+
+} // namespace
+
+// The heap ordered the arcs with a default-constructed distance; only the
+// choice between two arcs that reach the same node used the given one. With
+// the reversed weights (99, 98 and 95), the tree took 99 and 95.
+TEST(PrimDistance, UsesTheDistanceItWasGiven)
+{
+  GT g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, 2);
+  g.insert_arc(n0, n2, 5);
+
+  const Reversible_Distance reversed{true};
+  Prim_Min_Spanning_Tree<GT, Reversible_Distance> prim(reversed);
+
+  GT tree;
+  prim(g, n0, tree);
+  EXPECT_EQ(tree_distance(tree, reversed), 98 + 95);
+
+  prim(g, n0);
+  EXPECT_EQ(painted_distance(g, reversed), 98 + 95);
+}
+
+// The same on random graphs, against Kruskal, which uses the given distance
+TEST(PrimDistance, MatchesKruskalWithTheGivenDistance)
+{
+  std::mt19937 rng(7);
+  std::uniform_int_distribution<int> weight_dist(1, 99);
+  const Reversible_Distance reversed{true};
+
+  for (int iter = 0; iter < 20; ++iter)
+    {
+      const int N = 15;
+      GT g;
+      std::vector<Node *> nodes;
+      for (int i = 0; i < N; ++i)
+        nodes.push_back(g.insert_node(i));
+      for (int i = 1; i < N; ++i)
+        g.insert_arc(nodes[i - 1], nodes[i], weight_dist(rng));
+      for (int i = 0; i < 2 * N; ++i)
+        {
+          const int a = rng() % N;
+          const int b = rng() % N;
+          if (a != b)
+            g.insert_arc(nodes[a], nodes[b], weight_dist(rng));
+        }
+
+      GT prim_tree, kruskal_tree;
+      Prim_Min_Spanning_Tree<GT, Reversible_Distance> prim(reversed);
+      prim(g, prim_tree);
+      Kruskal_Min_Spanning_Tree<GT, Reversible_Distance>
+        kruskal(Reversible_Distance{true});
+      kruskal(g, kruskal_tree);
+
+      EXPECT_EQ(tree_distance(prim_tree, reversed),
+                tree_distance(kruskal_tree, reversed)) << "graph " << iter;
+
+      prim(g);
+      EXPECT_EQ(painted_distance(g, reversed),
+                tree_distance(kruskal_tree, reversed)) << "graph " << iter;
+    }
+}
+
+// Building that default comparator required a default constructor.
+TEST(PrimDistance, TakesADistanceWithoutADefaultConstructor)
+{
+  GT g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, 2);
+  g.insert_arc(n0, n2, 5);
+
+  const Factor_Only_Distance twice(2);
+  Prim_Min_Spanning_Tree<GT, Factor_Only_Distance> prim(twice);
+
+  GT tree;
+  prim(g, tree);
+  EXPECT_EQ(tree_distance(tree, twice), 2 * (1 + 2));
+
+  prim(g);
+  EXPECT_EQ(painted_distance(g, twice), 2 * (1 + 2));
+}
+
+// =============================================================================
+// Painting Tests
+// =============================================================================
+
+namespace {
+
+size_t painted_arcs(const GT &g)
+{
+  size_t count = 0;
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+    if (IS_ARC_VISITED(it.get_current_arc_ne(), Aleph::Spanning_Tree))
+      ++count;
+  return count;
+}
+
+} // namespace
+
+// The heap of the painting kept its nodes in a member that the nodes do not
+// have, so painting did not compile.
+TEST(PrimPainting, PaintsTheArcsOfTheTree)
+{
+  GT g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  auto d = g.insert_node(3);
+  auto e = g.insert_node(4);
+  auto f = g.insert_node(5);
+  g.insert_arc(a, b, 6);
+  g.insert_arc(a, c, 1);
+  g.insert_arc(a, d, 5);
+  g.insert_arc(b, c, 2);
+  g.insert_arc(b, e, 5);
+  g.insert_arc(c, d, 2);
+  g.insert_arc(c, e, 6);
+  g.insert_arc(c, f, 4);
+  g.insert_arc(d, f, 4);
+  g.insert_arc(e, f, 3);
+
+  Prim_Min_Spanning_Tree<GT> prim;
+  prim(g, a);
+  EXPECT_EQ(painted_arcs(g), 5u);
+  EXPECT_EQ(painted_distance(g, Dft_Dist<GT>()), 12);
+
+  prim(g);
+  EXPECT_EQ(painted_arcs(g), 5u);
+  EXPECT_EQ(painted_distance(g, Dft_Dist<GT>()), 12);
+}
+
+// The painting put the loops of the first node in the heap. A light one
+// came out first and was painted, since the painting marks each arc it
+// takes from the heap before seeing whether it closes a cycle.
+TEST(PrimPainting, LeavesOutALoopOnTheFirstNode)
+{
+  GT g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  auto loop = g.insert_arc(n0, n0, 1);
+  g.insert_arc(n0, n1, 2);
+  g.insert_arc(n1, n2, 3);
+
+  Prim_Min_Spanning_Tree<GT> prim;
+  prim(g, n0);
+  EXPECT_FALSE(IS_ARC_VISITED(loop, Aleph::Spanning_Tree));
+  EXPECT_EQ(painted_arcs(g), 2u);
+  EXPECT_EQ(painted_distance(g, Dft_Dist<GT>()), 2 + 3);
+
+  GT tree;
+  prim(g, n0, tree);
+  EXPECT_EQ(tree_total_weight(tree), 2 + 3);
+}
+
+// A heavy one never came out, and the cookie of the first node kept its heap
+// node after the heap freed it.
+TEST(PrimPainting, LeavesTheCookiesNullWithALoopOnTheFirstNode)
+{
+  GT g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n0, n0, 100);
+  g.insert_arc(n0, n1, 2);
+  g.insert_arc(n1, n2, 3);
+
+  Prim_Min_Spanning_Tree<GT> prim;
+  prim(g, n0);
+  EXPECT_EQ(painted_arcs(g), 2u);
+  EXPECT_EQ(NODE_COOKIE(n0), nullptr);
+  EXPECT_EQ(NODE_COOKIE(n1), nullptr);
+  EXPECT_EQ(NODE_COOKIE(n2), nullptr);
+}
