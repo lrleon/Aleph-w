@@ -14,6 +14,7 @@
 
 #include <functional>
 #include <limits>
+#include <new>
 #include <random>
 #include <set>
 #include <stdexcept>
@@ -23,6 +24,7 @@
 #include <Kruskal.H>  // For comparison tests
 #include <tpl_graph.H>
 #include <tpl_graph_utils.H>
+#include <tpl_sgraph.H>
 
 using namespace Aleph;
 
@@ -805,5 +807,138 @@ TEST(PrimExceptions, DistanceThatThrowsLeavesTheGraphReusable)
           failure.fail_at = 0;
           methods[m]();
         }
+    }
+}
+
+namespace {
+
+// Counts the nodes created with an info; the creation number fail_at throws
+int fragile_creations = 0;
+int fragile_fail_at = 0; // 0 for none
+
+struct Fragile_Node : public Graph_Node<int>
+{
+  using Graph_Node<int>::Graph_Node;
+
+  Fragile_Node(const int & info) : Graph_Node<int>(info)
+  {
+    if (fragile_fail_at != 0 and ++fragile_creations == fragile_fail_at)
+      throw std::bad_alloc();
+  }
+};
+
+using Fragile_Graph = List_Graph<Fragile_Node, Graph_Arc<int>>;
+
+} // namespace
+
+// The Prim_Info of the nodes were created before the guard that frees them,
+// so a node of the tree that could not be created leaked those before it.
+TEST(PrimExceptions, ANodeOfTheTreeThatCannotBeCreatedLeaksNothing)
+{
+  Fragile_Graph g;
+  std::vector<Fragile_Node *> nodes;
+  for (int i = 0; i < 5; ++i)
+    nodes.push_back(g.insert_node(i));
+  for (int i = 1; i < 5; ++i)
+    g.insert_arc(nodes[i - 1], nodes[i], i);
+  g.insert_arc(nodes[0], nodes[4], 10);
+
+  Prim_Min_Spanning_Tree<Fragile_Graph> prim;
+  for (int k = 1; k <= 5; ++k) // the first, the ones between and the last
+    {
+      // the cookies hold the mapping of the previous run, and Prim leaves
+      // those of the nodes it does not reach as they are
+      for (auto p : nodes)
+        NODE_COOKIE(p) = nullptr;
+
+      fragile_creations = 0;
+      fragile_fail_at = k;
+      Fragile_Graph tree;
+      EXPECT_THROW(prim(g, nodes[0], tree), std::bad_alloc) << "node " << k;
+      fragile_fail_at = 0;
+
+      for (auto p : nodes)
+        {
+          EXPECT_EQ(NODE_COOKIE(p), nullptr) << "node " << k;
+        }
+
+      Fragile_Graph again; // the graph can be used again
+      prim(g, nodes[0], again);
+      EXPECT_EQ(tree_total_weight(again), 1 + 2 + 3 + 4) << "node " << k;
+    }
+}
+
+// =============================================================================
+// Mapping Tests
+// =============================================================================
+
+namespace {
+
+template <class G>
+struct PrimMappingTest : public ::testing::Test {};
+
+using Representations =
+  ::testing::Types<List_Graph<Graph_Node<int>, Graph_Arc<int>>,
+                   List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>,
+                   Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>>;
+
+} // namespace
+
+TYPED_TEST_SUITE(PrimMappingTest, Representations);
+
+// Unmapping a node gave its node in the tree the cookie that the node still
+// had, its Prim_Info, freed right after: the tree mapped back to freed
+// memory. The data of the nodes repeat, so that only identity counts.
+TYPED_TEST(PrimMappingTest, NodesAndArcsMapBothWays)
+{
+  using G = TypeParam;
+  std::mt19937 rng(5);
+  std::uniform_int_distribution<int> weight_dist(1, 30);
+  const int N = 12;
+  G g;
+  std::vector<typename G::Node *> nodes;
+  for (int i = 0; i < N; ++i)
+    nodes.push_back(g.insert_node(i % 3));
+  for (int i = 1; i < N; ++i)
+    g.insert_arc(nodes[i - 1], nodes[i], weight_dist(rng));
+  for (int i = 0; i < 2 * N; ++i)
+    {
+      const int a = rng() % N;
+      const int b = rng() % N;
+      if (a != b)
+        g.insert_arc(nodes[a], nodes[b], weight_dist(rng));
+    }
+
+  G tree;
+  Prim_Min_Spanning_Tree<G> prim;
+  prim(g, nodes[0], tree);
+  ASSERT_EQ(tree.get_num_nodes(), g.get_num_nodes());
+  ASSERT_EQ(tree.get_num_arcs(), g.get_num_nodes() - 1);
+
+  std::set<typename G::Node *> tree_nodes;
+  for (auto it = tree.get_node_it(); it.has_curr(); it.next_ne())
+    tree_nodes.insert(it.get_curr());
+  std::set<typename G::Arc *> graph_arcs;
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+    graph_arcs.insert(it.get_curr());
+
+  for (auto p : nodes)
+    {
+      auto t = mapped_node<G>(p);
+      ASSERT_TRUE(tree_nodes.contains(t));
+      EXPECT_EQ(mapped_node<G>(t), p);
+      EXPECT_EQ(t->get_info(), p->get_info());
+    }
+
+  for (auto it = tree.get_arc_it(); it.has_curr(); it.next_ne())
+    {
+      auto ta = it.get_curr();
+      auto a = mapped_arc<G>(ta);
+      ASSERT_TRUE(graph_arcs.contains(a));
+      EXPECT_EQ(mapped_arc<G>(a), ta);
+      auto s = mapped_node<G>(tree.get_src_node(ta));
+      auto t = mapped_node<G>(tree.get_tgt_node(ta));
+      EXPECT_TRUE((g.get_src_node(a) == s and g.get_tgt_node(a) == t) or
+                  (g.get_src_node(a) == t and g.get_tgt_node(a) == s));
     }
 }
