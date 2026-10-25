@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <optional>
 #include <random>
 #include <set>
 #include <vector>
@@ -732,8 +733,8 @@ TEST(KruskalTest, CustomDistanceFunctor) {
   g.insert_arc(n1, n2, 3);  // scaled = 6
   g.insert_arc(n0, n2, 4);  // scaled = 8
 
-  // Use default constructor and let it pick the default Distance
-  Kruskal_Min_Spanning_Tree<GT> kruskal;
+  Scaled_Dist<GT> dist(2);
+  Kruskal_Min_Spanning_Tree<GT, Scaled_Dist<GT>> kruskal(dist);
   GT tree;
   kruskal(g, tree);
 
@@ -953,6 +954,68 @@ TEST(KruskalTest, IsPaintedGetter) {
   GT tree;
   kruskal(g, tree);
   ASSERT_TRUE(kruskal.is_painted());
+}
+
+// ========== TEST 37: Distance and Filter in Variables ==========
+TEST(KruskalTest, DistanceAndFilterInVariables) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, 2);
+  g.insert_arc(n0, n2, 3);
+  g.insert_arc(n2, n3, 4);
+  g.insert_arc(n1, n3, 9);
+
+  // With a distance in a variable, the constructor was ambiguous
+  Scaled_Dist<GT> reversed(-1); // the heaviest arcs first
+  Weight_Filter<GT> up_to_4(4); // hides the arc of 9
+  Kruskal_Min_Spanning_Tree<GT, Scaled_Dist<GT>, Weight_Filter<GT>>
+    kruskal(reversed, up_to_4);
+
+  GT tree;
+  kruskal(g, tree);
+  ASSERT_EQ(tree.get_num_arcs(), 3u);
+  ASSERT_EQ(tree_total_weight(tree), 4 + 3 + 2);
+
+  kruskal(g);
+  ASSERT_EQ(count_painted_arcs(g), 3u);
+  ASSERT_EQ(painted_total_weight(g), 4 + 3 + 2);
+}
+
+// ========== TEST 38: A Copy Keeps Its Own Distance ==========
+TEST(KruskalTest, CopyKeepsItsOwnDistance) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, 2);
+  g.insert_arc(n0, n2, 3);
+  g.insert_arc(n2, n3, 4);
+  g.insert_arc(n1, n3, 9);
+
+  using Reversed_Kruskal =
+    Kruskal_Min_Spanning_Tree<GT, Scaled_Dist<GT>, Weight_Filter<GT>>;
+  std::optional<Reversed_Kruskal> original;
+  original.emplace(Scaled_Dist<GT>(-1), Weight_Filter<GT>(4));
+  Reversed_Kruskal copy(*original);
+
+  // The copy referred to the distance of the original, and so to the one of
+  // the object built in its place
+  original.emplace(Scaled_Dist<GT>(1), Weight_Filter<GT>(4));
+
+  GT tree;
+  copy(g, tree);
+  ASSERT_EQ(tree.get_num_arcs(), 3u);
+  ASSERT_EQ(tree_total_weight(tree), 4 + 3 + 2);
 }
 
 // ========== GoogleTest main ==========

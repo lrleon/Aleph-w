@@ -90,8 +90,7 @@ namespace Aleph
             ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Kruskal_Min_Spanning_Tree
   {
-    Distance dist_val;
-    Distance & dist;
+    Distance dist;
     SA sa;
     bool painted;
 
@@ -117,18 +116,14 @@ namespace Aleph
   public:
     /** @brief Constructor.
 
+        The algorithm keeps its own copies of the distance accessor and of
+        the arc filter.
+
         @param __dist Distance accessor for arc weights.
         @param __sa Arc filter for arc iterators.
     */
     Kruskal_Min_Spanning_Tree(Distance __dist = Distance(), SA __sa = SA())
-      : dist_val(__dist), dist(dist_val), sa(__sa), painted(false)
-    {
-      /* empty */
-    }
-
-    /// @brief Constructor with reference to external distance accessor.
-    Kruskal_Min_Spanning_Tree(Distance & __dist, SA __sa = SA())
-      : dist_val(), dist(__dist), sa(__sa), painted(false)
+      : dist(__dist), sa(__sa), painted(false)
     {
       /* empty */
     }
