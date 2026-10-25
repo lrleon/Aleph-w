@@ -45,6 +45,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(__unix__) || defined(__APPLE__)
+#include <pthread.h>
+#endif
+
 #include <tpl_graph.H>
 #include <archeap.H>
 
@@ -502,4 +506,163 @@ TYPED_TEST(ArcHeapLifecycle, MoveAssignmentEmptiesTheTarget)
   EXPECT_TRUE(this->all_null(target_handles));
   EXPECT_EQ(this->take_all(target), (std::vector<int>{10, 20, 30, 40, 50}));
   EXPECT_TRUE(this->all_null(source_handles));
+}
+
+namespace
+{
+  using FibonacciHeapOfArcs =
+    ArcFibonacciHeap<Graph, ArcWeightDist, VoidMapAccess>;
+  using FibonacciNode = FibonacciHeapOfArcs::handle_type;
+
+  // Runs f, which must not throw, in a thread with a stack of 256 KiB, which
+  // a recursion as deep as the trees of these tests are high overflows.
+  // Without POSIX threads, it runs f in this thread.
+  template <class F>
+  void run_with_small_stack(F f)
+  {
+#if defined(__unix__) || defined(__APPLE__)
+    pthread_attr_t attr;
+    ASSERT_EQ(pthread_attr_init(&attr), 0);
+    ASSERT_EQ(pthread_attr_setstacksize(&attr, 256 * 1024), 0);
+    auto start = [](void *arg) -> void *
+      {
+        (*static_cast<F *>(arg))();
+        return nullptr;
+      };
+    pthread_t thread;
+    const int created = pthread_create(&thread, &attr, start, &f);
+    pthread_attr_destroy(&attr);
+    ASSERT_EQ(created, 0);
+    ASSERT_EQ(pthread_join(thread, nullptr), 0);
+#else
+    f();
+#endif
+  }
+
+  // A graph whose arcs go from a hub to other nodes, and the handles that a
+  // Fibonacci heap of its arcs keeps for the nodes
+  struct HubGraph
+  {
+    Graph g;
+    Node *hub = g.insert_node(0);
+    std::unordered_map<Node *, void *> handles;
+
+    bool all_null() const
+    {
+      return std::all_of(handles.begin(), handles.end(),
+                         [](const auto & entry) { return entry.second == nullptr; });
+    }
+
+    FibonacciNode handle(Node *p) { return static_cast<FibonacciNode>(handles[p]); }
+  };
+
+  // Puts in heap, which must be empty, a single tree that is a chain of n
+  // heap nodes (CLRS, exercise 19.4-1), and returns the node whose handle is
+  // its root. Each round puts the arcs a < b < c below the root and takes a,
+  // so that b takes c and the chain as children; then it puts a lighter arc
+  // to the node of c, which cuts c, and takes it, so that b ends on top.
+  Node * build_chain(HubGraph & hg, FibonacciHeapOfArcs & heap, int n)
+  {
+    int key = 4 * n;
+    Node *top = hg.g.insert_node(1);
+    heap.put_arc(hg.g.insert_arc(hg.hub, top, key), top);
+
+    Node *node_a = hg.g.insert_node(2), *node_c = hg.g.insert_node(3);
+    Arc *a = hg.g.insert_arc(hg.hub, node_a, 0);
+    Arc *c = hg.g.insert_arc(hg.hub, node_c, 0);
+    Arc *lighter_c = hg.g.insert_arc(hg.hub, node_c, 0);
+    for (int i = 1; i < n; ++i)
+      {
+        Node *node_b = hg.g.insert_node(4);
+        a->get_info() = key - 3;
+        c->get_info() = key - 1;
+        lighter_c->get_info() = key - 4;
+        heap.put_arc(a, node_a);
+        heap.put_arc(hg.g.insert_arc(hg.hub, node_b, key - 2), node_b);
+        heap.put_arc(c, node_c);
+        (void) heap.get_min_arc(); // a
+        heap.put_arc(lighter_c, node_c);
+        (void) heap.get_min_arc(); // lighter_c
+        top = node_b;
+        key -= 2;
+      }
+    return top;
+  }
+
+  // The number of heap nodes from the handle of top down by child
+  size_t height_of_chain(HubGraph & hg, Node *top)
+  {
+    size_t height = 0;
+    for (auto p = hg.handle(top); p != nullptr; p = p->child)
+      ++height;
+    return height;
+  }
+}
+
+// ArcFibonacciHeap cleared the handles recursively, so a tree as high as the
+// heap is large overflowed the stack.
+TEST(ArcFibonacciHeapDepth, ClearNullsTheHandlesOfATreeAsHighAsTheHeap)
+{
+  constexpr int n = 50000;
+  HubGraph hg;
+  FibonacciHeapOfArcs heap(ArcWeightDist{}, VoidMapAccess{&hg.handles});
+  Node *top = build_chain(hg, heap, n);
+  ASSERT_EQ(height_of_chain(hg, top), size_t(n));
+
+  run_with_small_stack([&heap] { heap.clear(); });
+  EXPECT_TRUE(heap.is_empty());
+  EXPECT_TRUE(hg.all_null());
+}
+
+TEST(ArcFibonacciHeapDepth, DestroyingATreeAsHighAsTheHeapNullsTheHandles)
+{
+  constexpr int n = 50000;
+  HubGraph hg;
+  auto heap = std::make_unique<FibonacciHeapOfArcs>(ArcWeightDist{},
+                                                    VoidMapAccess{&hg.handles});
+  Node *top = build_chain(hg, *heap, n);
+  ASSERT_EQ(height_of_chain(hg, top), size_t(n));
+
+  run_with_small_stack([&heap] { heap.reset(); });
+  EXPECT_TRUE(hg.all_null());
+}
+
+// The handles of trees of several children and levels are cleared too.
+TEST(ArcFibonacciHeapDepth, ClearNullsTheHandlesOfBushyTrees)
+{
+  HubGraph hg;
+  const std::vector<Node *> targets = make_nodes(hg.g, 300);
+  FibonacciHeapOfArcs heap(ArcWeightDist{}, VoidMapAccess{&hg.handles});
+  std::mt19937 gen(141);
+  auto put_arcs = [&](int count)
+    {
+      for (int i = 0; i < count; ++i)
+        {
+          Node *p = targets[gen() % targets.size()];
+          heap.put_arc(hg.g.insert_arc(hg.hub, p, int(gen() % 100000)), p);
+        }
+    };
+  put_arcs(1000);
+  for (int i = 0; i < 60; ++i) // links the roots in trees
+    (void) heap.get_min_arc();
+  put_arcs(1000);              // lighter arcs cut heap nodes
+  for (int i = 0; i < 20; ++i)
+    (void) heap.get_min_arc();
+
+  size_t degree = 0, depth = 0;
+  for (Node *p : targets)
+    if (auto q = hg.handle(p); q != nullptr)
+      {
+        degree = std::max(degree, q->degree);
+        size_t d = 0;
+        for (; q->parent != nullptr; q = q->parent)
+          ++d;
+        depth = std::max(depth, d);
+      }
+  ASSERT_GE(degree, 3u);
+  ASSERT_GE(depth, 3u);
+
+  heap.clear();
+  EXPECT_TRUE(heap.is_empty());
+  EXPECT_TRUE(hg.all_null());
 }
