@@ -45,6 +45,10 @@
 # include <set>
 # include <chrono>
 # include <functional>
+# include <memory>
+# if defined(__unix__) || defined(__APPLE__)
+#   include <pthread.h>
+# endif
 
 using namespace Aleph;
 
@@ -1239,6 +1243,94 @@ TEST(FibonacciHeapMemory, ClearFreesMemory)
     heap.insert(i + 1000);
 }
 
+namespace
+{
+  // Counts the values alive, to check that every node is deleted once
+  struct Counted
+  {
+    static inline long alive = 0;
+    int key;
+
+    Counted(int k) : key(k) { ++alive; }
+    Counted(const Counted & other) : key(other.key) { ++alive; }
+    Counted & operator = (const Counted & other) = default;
+    ~Counted() { --alive; }
+
+    bool operator < (const Counted & other) const noexcept
+    {
+      return key < other.key;
+    }
+  };
+
+  using CountedHeap = Fibonacci_Heap<Counted>;
+
+  // Fills heap with trees of several children and levels: inserts, extracts
+  // to link the roots and decreases keys to cut nodes. Returns the nodes
+  // that are still in the heap.
+  std::vector<CountedHeap::Node *> fill_with_bushy_trees(CountedHeap & heap)
+  {
+    std::mt19937 gen(141);
+    std::vector<CountedHeap::Node *> nodes;
+    for (int i = 0; i < 2000; ++i)
+      nodes.push_back(heap.insert(Counted(int(gen() % 1000000))));
+
+    auto extract = [&heap, &nodes]
+      {
+        nodes.erase(std::find(nodes.begin(), nodes.end(), heap.get_min_node()));
+        (void) heap.extract_min();
+      };
+    for (int i = 0; i < 100; ++i)
+      extract();
+    for (int i = 0; i < 300; ++i)
+      {
+        auto *p = nodes[gen() % nodes.size()];
+        heap.decrease_key(p, Counted(p->data.key - int(gen() % 1000)));
+      }
+    for (int i = 0; i < 20; ++i)
+      extract();
+
+    return nodes;
+  }
+
+  // The largest degree and the largest depth of the given nodes
+  std::pair<size_t, size_t>
+  degree_and_depth(const std::vector<CountedHeap::Node *> & nodes)
+  {
+    size_t degree = 0, depth = 0;
+    for (auto *p : nodes)
+      {
+        degree = std::max(degree, p->degree);
+        size_t d = 0;
+        for (auto *q = p; q->parent != nullptr; q = q->parent)
+          ++d;
+        depth = std::max(depth, d);
+      }
+    return {degree, depth};
+  }
+}
+
+// clear() and the destructor delete each node once, also in trees of several
+// children and levels
+TEST(FibonacciHeapMemory, ClearDeletesEveryNodeOfBushyTrees)
+{
+  ASSERT_EQ(Counted::alive, 0);
+  {
+    CountedHeap heap;
+    const auto nodes = fill_with_bushy_trees(heap);
+    const auto [degree, depth] = degree_and_depth(nodes);
+    ASSERT_GE(degree, 3u);
+    ASSERT_GE(depth, 3u);
+    ASSERT_EQ(Counted::alive, long(heap.size()));
+
+    heap.clear();
+    EXPECT_TRUE(heap.is_empty());
+    EXPECT_EQ(Counted::alive, 0);
+
+    (void) fill_with_bushy_trees(heap);
+  }
+  EXPECT_EQ(Counted::alive, 0); // deleted by the destructor
+}
+
 // Performance test (disabled by default due to time)
 TEST(FibonacciHeapPerformance, DISABLED_TimingComparison)
 {
@@ -1623,6 +1715,96 @@ TEST(FibonacciHeapRegression, CascadingCutsChain)
       EXPECT_LE(prev, curr);
       prev = curr;
     }
+}
+
+namespace
+{
+  // Runs f, which must not throw, in a thread with a stack of 256 KiB, which
+  // a recursion as deep as the trees of these tests are high overflows.
+  // Without POSIX threads, it runs f in this thread.
+  template <class F>
+  void run_with_small_stack(F f)
+  {
+# if defined(__unix__) || defined(__APPLE__)
+    pthread_attr_t attr;
+    ASSERT_EQ(pthread_attr_init(&attr), 0);
+    ASSERT_EQ(pthread_attr_setstacksize(&attr, 256 * 1024), 0);
+    auto start = [](void *arg) -> void *
+      {
+        (*static_cast<F *>(arg))();
+        return nullptr;
+      };
+    pthread_t thread;
+    const int created = pthread_create(&thread, &attr, start, &f);
+    pthread_attr_destroy(&attr);
+    ASSERT_EQ(created, 0);
+    ASSERT_EQ(pthread_join(thread, nullptr), 0);
+# else
+    f();
+# endif
+  }
+
+  // Puts in heap, which must be empty, a single tree that is a chain of n
+  // nodes (CLRS, exercise 19.4-1). Each round inserts a < b < c below the
+  // root and extracts a, so that b takes c and the chain as children; then
+  // it cuts c with decrease_key() and extracts it, so that b ends on top of
+  // the chain.
+  void build_chain(Fibonacci_Heap<long> & heap, long n)
+  {
+    long key = 4 * n;
+    (void) heap.insert(key);
+    for (long i = 1; i < n; ++i)
+      {
+        const long b = key - 2;
+        (void) heap.insert(key - 3);
+        (void) heap.insert(b);
+        auto *c = heap.insert(key - 1);
+        (void) heap.extract_min();
+        heap.decrease_key(c, b - 1);
+        (void) heap.extract_min();
+        key = b;
+      }
+  }
+
+  // The number of nodes from the root down by child
+  size_t height_of_chain(const Fibonacci_Heap<long> & heap)
+  {
+    size_t height = 0;
+    for (auto *p = heap.get_min_node(); p != nullptr; p = p->child)
+      ++height;
+    return height;
+  }
+}
+
+// clear() deleted the children of each node recursively, so a tree as high
+// as the heap is large overflowed the stack
+TEST(FibonacciHeapRegression, ClearsATreeAsHighAsTheHeap)
+{
+  constexpr long n = 50000;
+  Fibonacci_Heap<long> heap;
+  build_chain(heap, n);
+  ASSERT_EQ(heap.size(), size_t(n));
+  ASSERT_EQ(heap.get_min_node()->right, heap.get_min_node()); // one tree
+  ASSERT_EQ(height_of_chain(heap), size_t(n));
+
+  run_with_small_stack([&heap] { heap.clear(); });
+  EXPECT_TRUE(heap.is_empty());
+  EXPECT_EQ(heap.size(), 0u);
+
+  (void) heap.insert(7);
+  EXPECT_EQ(heap.get_min(), 7);
+}
+
+// The destructor deletes the nodes as clear() does
+TEST(FibonacciHeapRegression, DestroysATreeAsHighAsTheHeap)
+{
+  constexpr long n = 50000;
+  auto heap = std::make_unique<Fibonacci_Heap<long>>();
+  build_chain(*heap, n);
+  ASSERT_EQ(height_of_chain(*heap), size_t(n));
+
+  run_with_small_stack([&heap] { heap.reset(); });
+  EXPECT_EQ(heap, nullptr);
 }
 
 int main(int argc, char **argv)
