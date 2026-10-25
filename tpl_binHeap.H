@@ -204,9 +204,22 @@ This class is not intended for public use. Its purpose is to provide
       std::swap(last, h.last);
       std::swap(num_nodes, h.num_nodes);
       std::swap(cmp, h.cmp);
+      adopt_nodes();
+      h.adopt_nodes();
     }
 
   private:
+    // After a swap, the root must point up to the header of its new heap,
+    // and an empty heap has its own header as its last node, as when it was
+    // built
+    void adopt_nodes() noexcept
+    {
+      if (root != nullptr)
+        ULINK(root) = head;
+      else
+        last = &head_node;
+    }
+
     static bool is_in_list(Node *p) noexcept
     {
       if (IS_LEAF(p))
