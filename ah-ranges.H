@@ -565,19 +565,27 @@ template <RangeLike R>
 /**
  * @brief Fold left (reduce) operation using ranges (C++23) or fallback.
  *
- * @note C++20 doesn't have fold_left, so we provide a fallback.
+ * @note C++20 doesn't have fold_left, so we provide a fallback. The
+ *       fallback passes the accumulator to @p op as an lvalue, so an
+ *       operation may take it by non-const reference; std::ranges::fold_left
+ *       passes it as an rvalue, so it is used only for an operation that
+ *       accepts that.
  */
 template <RangeLike R, typename T, typename BinaryOp>
 [[nodiscard]] constexpr T ranges_fold_left(R &&r, T init, BinaryOp &&op)
 {
 #ifdef __cpp_lib_ranges_fold
-  return std::ranges::fold_left(std::forward<R>(r), init, std::forward<BinaryOp>(op));
-#else
-  // Fallback for C++20 - use explicit variable to avoid rvalue issues
-  for (auto &&elem : r)
-    init = op(init, elem);
-  return init;
+  if constexpr (requires { std::ranges::fold_left(std::forward<R>(r), init,
+                                                  std::forward<BinaryOp>(op)); })
+    return std::ranges::fold_left(std::forward<R>(r), init, std::forward<BinaryOp>(op));
+  else
 #endif
+    {
+      // Fallback for C++20 - use explicit variable to avoid rvalue issues
+      for (auto &&elem : r)
+        init = op(init, elem);
+      return init;
+    }
 }
 
 /**

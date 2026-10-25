@@ -44,6 +44,7 @@
 # define GENERATE_TREE_H
 
 # include <fstream>
+# include <memory>
 # include <string>
 # include <tpl_tree_node.H>
 # include <tpl_binNodeUtils.H>
@@ -105,9 +106,6 @@ namespace Aleph
                        const size_t & size,
                        std::ostream & output)
   {
-    ah_overflow_error_if(current_level >= size)
-      << "Allocated size for deway array has been exceeded";
-
     // imprimir número de Deway del padre
     output << "Node ";
     for (size_t i = 0; i < current_level; ++i)
@@ -123,6 +121,9 @@ namespace Aleph
     for (int i = 0; child != nullptr;
          i++, child = static_cast<Node *>(child->get_right_sibling()))
       {
+        ah_overflow_error_if(current_level + 1 >= size)
+          << "Allocated size for deway array has been exceeded";
+
         deway[current_level + 1] = i;
         __generate_tree<Node, Write>
             (child, deway, current_level + 1, size, output);
@@ -150,6 +151,9 @@ namespace Aleph
      *  @param out Output stream for the drawing specification
      *  @param tree_number Internal use - tree index in a forest (default: 0)
      *
+     *  @throw std::overflow_error if the tree has more than
+     *         Max_Tree_Node_Depth levels; @p out may then hold part of it
+     *
      *  @see generate_forest() For drawing multiple trees
      *  @see Dft_Write Default writer using to_str()
      *
@@ -162,7 +166,7 @@ namespace Aleph
   {
     out << "Root \"" << Write()(root) << "\" " << std::endl;
 
-    const auto deway = new int [Max_Tree_Node_Depth];
+    const auto deway = std::make_unique<int[]>(Max_Tree_Node_Depth);
 
     constexpr int level = 0; // Este es el nivel de partida
 
@@ -173,11 +177,9 @@ namespace Aleph
          i++, child = static_cast<Node *>(child->get_right_sibling()))
       {
         deway[1] = i;
-        __generate_tree<Node, Write>(child, deway, level + 1,
+        __generate_tree<Node, Write>(child, deway.get(), level + 1,
                                      Max_Tree_Node_Depth, out);
       }
-
-    delete [] deway;
   }
 
   /** @brief Generate a forest specification for the ntreepic drawing tool.

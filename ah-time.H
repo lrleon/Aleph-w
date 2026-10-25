@@ -44,6 +44,7 @@
 # ifndef AH_TIME_H
 # define AH_TIME_H
 
+# include <cassert>
 # include <sys/time.h>
 # include <stdio.h>
 

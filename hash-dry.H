@@ -43,6 +43,8 @@
 # ifndef HASH_DRY_H
 # define HASH_DRY_H
 
+# include <type_traits>
+
 # include <ahFunction.H>
 
 # define OHASH_COMMON(class_name)                                       \
@@ -52,19 +54,42 @@
                                                                         \
 private:                                                                \
                                                                         \
+ /* Rebuilds the table if the key just stored in curr_bucket took its  */ \
+ /* buckets in use over the upper threshold (see                       */ \
+ /* capacity_after_insertion()), and returns where the key is.         */ \
  Key * test_resize(Bucket * curr_bucket, const Key & key)               \
  {                                                                      \
-   if (not ((with_resize and this->current_alpha() >= upper_alpha)))	\
+   const size_t new_len = this->capacity_after_insertion();             \
+   if (new_len == 0)                                                    \
      return &curr_bucket->key;                                          \
                                                                         \
-   Key key_copy = key;                                                  \
-   this->resize(Primes::next_prime(2*len));                             \
+   return rebuild_after_insertion(curr_bucket, key, new_len);           \
+ }                                                                      \
                                                                         \
-   Key * key_ptr = search(key_copy);                                    \
-   assert(key_ptr != nullptr);                                          \
-   assert(cmp(*key_ptr, key_copy));                                     \
+ /* The rebuild itself, apart from the test that every insertion runs. */ \
+ /* If the table cannot be rebuilt, the key is taken out again and the */ \
+ /* exception goes on: an insertion that throws leaves the table as    */ \
+ /* it was.                                                            */ \
+ Key * rebuild_after_insertion(Bucket * curr_bucket, const Key & key,   \
+                               const size_t new_len)                    \
+ {                                                                      \
+   try                                                                  \
+     {                                                                  \
+       Key key_copy = key;                                              \
+       this->rebuild(new_len);                                          \
                                                                         \
-   return key_ptr;                                                      \
+       Key * key_ptr = search(key_copy);                                \
+       assert(key_ptr != nullptr);                                      \
+       assert(cmp(*key_ptr, key_copy));                                 \
+                                                                        \
+       return key_ptr;                                                  \
+     }                                                                  \
+   catch (...)                                                          \
+     {                                                                  \
+       /* rebuild() leaves the buckets as they were when it fails */    \
+       this->undo_allocate_bucket(curr_bucket, curr_bucket->key);       \
+       throw;                                                           \
+     }                                                                  \
  }                                                                      \
                                                                         \
  static void update_stat_len(DynArray<size_t> & lens, size_t i)         \
@@ -77,6 +102,8 @@ private:                                                                \
                                                                         \
 public:                                                                 \
                                                                         \
+ /* Sets the hash function. The keys already stored are not placed   */ \
+ /* again: on a table that is not empty, rehash() must follow.       */ \
  void set_hash_fct(Hash_Fct fct) noexcept                               \
  {                                                                      \
    hash_fct = fct;                                                      \
@@ -93,6 +120,25 @@ namespace Aleph
   extern const float hash_default_lower_alpha;
 
   extern const float hash_default_upper_alpha;
+
+  namespace hash_table_detail
+  {
+    /** @brief A class type that converts to the function pointer type `Ptr`.
+
+        A lambda without captures is the usual case. Such an object fits a
+        parameter of type `std::function` and one of type `Ptr` equally
+        well, so a call that could bind it to either is ambiguous. The hash
+        tables use this concept to give those calls a constructor of their
+        own.
+
+        @tparam H The type of the argument, as deduced for a forwarding
+        reference.
+        @tparam Ptr The function pointer type.
+    */
+    template <typename H, typename Ptr>
+    concept Class_Convertible_To_Ptr =
+      std::is_class_v<std::remove_cvref_t<H>> and std::is_convertible_v<H, Ptr>;
+  }
 
 }
 

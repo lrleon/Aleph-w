@@ -448,6 +448,7 @@ set(HLIST
     ah-chronos-utils.H
     ah-compat.H
     ah-convert.H
+    ah-convert-common.H  # shared by ah-convert.H and ah-stl-utils.H
     ah-date.H
     ah-dispatcher.H
     ah-map-arena.H
@@ -629,6 +630,11 @@ endif()
 # Create static library
 add_library(Aleph STATIC ${LIBCCCSRCS} ${LIBCSRCS})
 target_link_libraries(Aleph PRIVATE aleph_miniz)
+
+# The headers need C++20 (concepts). As a usage requirement it reaches every
+# consumer of Aleph::Aleph, installed or added with add_subdirectory, that
+# chooses no standard; a consumer that chooses a newer one keeps it.
+target_compile_features(Aleph PUBLIC cxx_std_20)
 
 # MemArray annotations affect its layout under ASan. Compile Aleph and all
 # consumers with the same definition and instrumentation, including consumers
@@ -958,13 +964,20 @@ if(ALEPH_BUILD_C_API)
         VISIBILITY_INLINES_HIDDEN ON
         POSITION_INDEPENDENT_CODE ON)
     add_library(Aleph::CApi ALIAS alephca_c)
+    # Link only the libraries that it uses: it uses none of the ones that
+    # Aleph brings (GMP, MPFR, GSL, X11), and each would be a run-time
+    # dependency of the library and of the packages.
+    target_link_options(alephca_c PRIVATE
+        $<$<PLATFORM_ID:Linux>:LINKER:--as-needed>)
 endif()
 
 # htlist.H type-puns through unions, so every consumer must also disable strict
 # aliasing (this mirrors the library's own required Release flag). Propagated as
-# an INTERFACE option so it reaches anyone linking Aleph::Aleph or Aleph::CA.
-target_compile_options(Aleph INTERFACE
-    $<$<CXX_COMPILER_ID:GNU,Clang>:-fno-strict-aliasing>)
+# a PUBLIC option so it reaches anyone linking Aleph::Aleph or Aleph::CA, and
+# the library's own sources in every build type, not only in Release.
+# AppleClang is the compiler id of Apple's clang.
+target_compile_options(Aleph PUBLIC
+    $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-fno-strict-aliasing>)
 
 # Install the libraries. `aleph_miniz` is a PRIVATE dependency of the static
 # `Aleph` archive, so it must travel in the same export set: a static archive
@@ -991,10 +1004,11 @@ install(FILES third_party/miniz/miniz.h
 
 # Phase 25 — install the C ABI shared library (kept out of the AlephTargets
 # export set so it does not perturb the static-library package config).
-# OPTIONAL: several packaging/consumer jobs build only `--target Aleph` and
-# then run `cmake --install`; without OPTIONAL that install would fail because
+# OPTIONAL: several consumer jobs build only `--target Aleph` and then run
+# `cmake --install`; without OPTIONAL that install would fail because
 # libalephca_c was never built. When a full build is done, the library is
-# present and gets installed normally.
+# present and gets installed normally. The release packages are built with
+# alephca_c, and their workflows fail if a package lacks it.
 if(ALEPH_BUILD_C_API)
     install(TARGETS alephca_c
         OPTIONAL
@@ -1091,9 +1105,13 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "aleph-w")
 
-    # Binary generators and their runtime dependencies.
+    # Binary generators and their dependencies. A consumer of Aleph::Aleph
+    # links GMP, MPFR, GSL and X11 itself, so the .deb needs their
+    # development packages, whose names, unlike those of the run-time ones,
+    # do not change with the version (libgsl27 in Ubuntu 24.04, libgsl28 in
+    # Debian 13). SHLIBDEPS adds what libalephca_c needs at run time.
     set(CPACK_DEBIAN_PACKAGE_DEPENDS
-        "libgmp10, libgmpxx4ldbl, libmpfr6, libgsl27 | libgsl25 | libgsl23, libx11-6")
+        "libgmp-dev, libmpfr-dev, libgsl-dev, libx11-dev")
     set(CPACK_DEBIAN_PACKAGE_SECTION "libdevel")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
     set(CPACK_RPM_PACKAGE_REQUIRES "gmp, gmp-c++, mpfr, gsl, libX11")

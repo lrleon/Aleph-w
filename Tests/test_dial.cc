@@ -724,3 +724,38 @@ TEST(Dial, ParallelEdgesKeepSingleParentArcMarked)
 
   EXPECT_EQ(painted_arcs, 2u);
 }
+
+// ============================================================================
+// get_min_path() uses the distance given to the constructor
+// ============================================================================
+
+// The policy of the report on 7.0.0: the weight of an arc times a factor.
+struct Scaled_Distance
+{
+  using Distance_Type = int;
+
+  int factor = 1;
+
+  int operator()(Arc * arc) const { return factor * arc->get_info(); }
+};
+
+// get_min_path() added up the weights with a default-constructed distance
+// instead of the one given to the constructor.
+TEST(Dial, GetMinPathUsesTheDistanceItWasGiven)
+{
+  GT g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n0, n1, 3);
+  g.insert_arc(n1, n2, 4);
+  g.insert_arc(n0, n2, 20);
+
+  Dial_Min_Paths<GT, Scaled_Distance> dial(Scaled_Distance{3});
+  Path<GT> path(g);
+  EXPECT_EQ(dial.find_min_path(g, n0, n2, path), 21);
+
+  dial.paint_min_paths_tree(g, n0);
+  EXPECT_EQ(dial.get_distance(n2), 21);
+  EXPECT_EQ(dial.get_min_path(n2, path), 21);
+}

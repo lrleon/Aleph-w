@@ -54,7 +54,11 @@
  *  @author Leandro Rabindranath León
 */
 
+# include <type_traits>
+# include <utility>
+
 # include <aleph.H>
+# include <primes.H>
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
 # include <ah-iterator.H>
@@ -69,7 +73,8 @@
     @tparam HashTbl The derived hash table class (ODhashTable or OLhashTable).
                     Must provide: allocate_bucket(), hard_allocate_bucket(),
                     deallocate_bucket(), test_resize(), search(), table, len, N,
-                    lower_alpha, upper_alpha, with_resize, current_alpha(), Bucket.
+                    deleted_buckets, lower_alpha, upper_alpha, with_resize,
+                    current_alpha(), Bucket.
     @tparam Key The type of keys stored in the table.
 
     @par Provided Operations:
@@ -84,10 +89,33 @@
     - keys() / items() - Get list of all keys
     - Iterator - Bidirectional iteration over entries
 
+    @par Capacity:
+    The table leaves at least one bucket without a key, so that a search
+    that misses can stop at an empty bucket: it is full with
+    `capacity() - 1` keys. A full table that does not resize itself takes
+    no more keys: the insertions return nullptr and `operator[]` throws
+    `std::overflow_error`.
+
     @par Automatic Resizing:
     When `with_resize` is enabled in the derived class, the table automatically:
     - Grows when it becomes nearly full (before insert would fail)
-    - Shrinks when load factor drops below `lower_alpha` threshold
+    - Shrinks when load factor drops below `lower_alpha` threshold, if the
+      keys fit under `upper_alpha` in a table of half the capacity. Both
+      `remove()` and `remove_ptr()` shrink it; the `del()` of an iterator
+      does not, so that the iterator stays valid.
+    set_with_resize() turns it on or off after construction.
+
+    @par Removed keys:
+    A removed key may leave its bucket marked, so that the searches that
+    went through it still do. In a table that resizes itself, those buckets
+    count as used to decide when it is full or over `upper_alpha`, and when
+    they take it there, it is rebuilt without them: in place, if the keys
+    alone fill less than half of `upper_alpha`, and twice as large
+    otherwise. So it always keeps an empty bucket. A table that does not
+    resize itself is never rebuilt by itself, so that its keys do not
+    move: the buckets of its removed keys may take its empty buckets, and
+    a search that misses then goes through all of them, until rehash()
+    clears them.
 
     @par Thread Safety:
     This class is NOT thread-safe. External synchronization is required
@@ -110,6 +138,187 @@ class OhashCommon
   */
   const HashTbl * const_me() const { return static_cast<const HashTbl*>(this); }
 
+  /// Whether two keys can be swapped without throwing. The keys whose swap
+  /// can throw are copied instead, so that a failure leaves the table as it
+  /// was.
+  static constexpr bool nothrow_key_swap =
+    noexcept(std::swap(std::declval<Key &>(), std::declval<Key &>()));
+
+  /** @brief Stores a copy of a key in the bucket reserved for it.
+
+      If copying the key throws, the reservation is undone, so the table
+      does not keep a bucket that counts as an entry and holds another key.
+
+      @tparam Bucket The bucket type of the table. It is a parameter
+              because the table is not a complete type here.
+      @param bucket Bucket that allocate_bucket() or hard_allocate_bucket()
+             has just reserved for `key`.
+      @param key The key to store.
+      @throw Anything that copying the key throws. The table is left as it
+             was before the bucket was reserved.
+  */
+  template <class Bucket>
+  void store_copy(Bucket * bucket, const Key & key)
+  {
+    if constexpr (std::is_nothrow_copy_assignable_v<Key>)
+      bucket->key = key;
+    else
+      try
+        {
+          bucket->key = key;
+        }
+      catch (...)
+        {
+          me()->undo_allocate_bucket(bucket, key);
+          throw;
+        }
+  }
+
+  /** @brief Moves a key into the bucket reserved for it.
+
+      The key and the previous content of the bucket are swapped. A key
+      whose swap may throw is copied instead: a copy that fails leaves the
+      key intact, so the reservation can be undone.
+
+      @tparam Bucket The bucket type of the table.
+      @param bucket Bucket that allocate_bucket() or hard_allocate_bucket()
+             has just reserved for `key`.
+      @param key The key to store.
+      @throw Anything that copying the key throws, when it is copied. The
+             table is left as it was before the bucket was reserved.
+  */
+  template <class Bucket>
+  void store_move(Bucket * bucket, Key & key)
+  {
+    if constexpr (nothrow_key_swap)
+      std::swap(bucket->key, key);
+    else
+      store_copy(bucket, key);
+  }
+
+protected:
+
+  /** @brief Places the keys of the table in `new_len` new buckets.
+
+      The keys are swapped into the new buckets. A key whose swap may throw
+      is copied instead, so that the old buckets keep every key until all
+      of them are placed. The buckets of removed keys are left behind.
+
+      @param new_len Number of new buckets. It must leave an empty bucket.
+      @throw std::bad_alloc If there is no memory for the new buckets, and
+             anything that copying a key throws. The table is left as it
+             was.
+  */
+  void rebuild(const size_t new_len)
+  {
+    auto * new_table = new typename HashTbl::Bucket[new_len];
+    typename HashTbl::Bucket * old_table = me()->table;
+    const size_t old_len = me()->len;
+    const size_t old_N = me()->N;
+    const size_t old_deleted = me()->deleted_buckets;
+
+    me()->table = new_table;
+    me()->len   = new_len;
+    me()->N     = 0;
+    me()->deleted_buckets = 0;
+
+    try
+      {
+        for (size_t i = 0, c = 0; i < old_len and c < old_N; ++i)
+          if (old_table[i].status == HashTbl::BUSY)
+            {
+              Key & key = old_table[i].key;
+              auto bucket = me()->allocate_bucket(key);
+              if constexpr (nothrow_key_swap)
+                std::swap(bucket->key, key);
+              else
+                bucket->key = key;
+              ++c;
+            }
+      }
+    catch (...)
+      {
+        me()->table = old_table;
+        me()->len   = old_len;
+        me()->N     = old_N;
+        me()->deleted_buckets = old_deleted;
+        delete [] new_table;
+        throw;
+      }
+
+    assert(old_N == me()->N);
+
+    delete [] old_table;
+  }
+
+  /** @brief Capacity to rebuild a table that resizes itself with, when its
+      buckets in use are too many.
+
+      The buckets in use include the ones of removed keys, which a search
+      does not stop at, and a rebuild leaves behind. If the keys alone fill
+      less than half of the upper threshold, the table keeps its capacity,
+      so that many insertions come before it has to be rebuilt again;
+      otherwise it doubles.
+
+      @return The capacity for rebuild().
+  */
+  [[nodiscard]] size_t rebuild_capacity() const
+  {
+    const HashTbl * t = const_me();
+    if (2.0f*t->N/t->len >= t->upper_alpha)
+      return Primes::next_prime(2 * t->len);
+    return t->len;
+  }
+
+  /** @brief Capacity that an insertion leaves the table with, or 0 if it
+      keeps it.
+
+      A table that resizes itself is rebuilt when its buckets in use, those
+      of removed keys included, reach the upper threshold. Removing a key
+      does not change how many buckets are in use, so it is enough to check
+      after each insertion.
+
+      @return 0, or the capacity for rebuild().
+  */
+  [[nodiscard]] size_t capacity_after_insertion() const
+  {
+    const HashTbl * t = const_me();
+    if (not t->with_resize
+        or 1.0f*(t->N + t->deleted_buckets)/t->len < t->upper_alpha)
+      return 0;
+    return rebuild_capacity();
+  }
+
+  /** @brief Shrinks a table that resizes itself, after a removal took its
+      load factor under the lower threshold.
+
+      The table goes to about half its capacity, provided the keys fit
+      there under the upper threshold and leave an empty bucket. With a
+      lower threshold over one half they may not fit; the table then keeps
+      its capacity until enough keys are removed. If the smaller table
+      cannot be built, because there is no memory for it or a key cannot
+      be copied, the table keeps its capacity too: the removal stands.
+  */
+  void shrink_after_removal() noexcept
+  {
+    if (not me()->with_resize or me()->current_alpha() >= me()->lower_alpha)
+      return;
+
+    try
+      {
+        // resize() would refuse a size without room for the keys, and the
+        // key is already gone; a size that leaves them over the upper
+        // threshold would make the next insertion grow the table again.
+        const size_t new_len = Primes::next_prime(me()->len/2 + 1);
+        if (me()->N < new_len and 1.0f*me()->N/new_len < me()->upper_alpha)
+          resize(new_len);
+      }
+    catch (...)
+      {
+        // resize() leaves the table as it was
+      }
+  }
+
 public:
 
   /** @brief Returns the lower load factor threshold for automatic shrinking.
@@ -129,6 +338,22 @@ public:
       @return The upper alpha threshold (typically 0.75).
   */
   [[nodiscard]] constexpr float get_upper_alpha() const noexcept { return const_me()->upper_alpha; }
+
+  /** @brief Returns whether the table resizes itself.
+      @return true if the table grows and shrinks by itself.
+  */
+  [[nodiscard]] constexpr bool get_with_resize() const noexcept { return const_me()->with_resize; }
+
+  /** @brief Turns the automatic resizing on or off.
+
+      The change applies from the next insertion or removal on: turning
+      it on does not rebuild the table at once. Turned off, the table
+      keeps its capacity and its keys do not move by themselves; a full
+      table then takes no more keys.
+
+      @param with_resize true for the table to grow and shrink by itself.
+  */
+  void set_with_resize(const bool with_resize) noexcept { me()->with_resize = with_resize; }
 
   /** @brief Copies all entries from another hash table.
       
@@ -169,20 +394,51 @@ public:
     for (long i = 0; i < me()->len; ++i)
       me()->table[i].reset();
     me()->N = 0;
+    me()->deleted_buckets = 0;
   }
 
-  /** @brief Checks if resize is needed before inserting and performs it.
-      
-      Called before each insert operation to ensure there is at least
-      one empty bucket available (required as a sentinel for probing).
-      If automatic resizing is enabled and the table is nearly full,
-      doubles the table capacity.
+  /** @brief Makes room for one more key, if the table can take it.
+
+      Called before each insert operation. The table leaves at least one
+      bucket without a key, as a sentinel for probing, so it is full with
+      `capacity() - 1` keys. A full table doubles its capacity if automatic
+      resizing is enabled; otherwise it takes no more keys.
+
+      The buckets of removed keys are not empty. If they would leave a
+      table that resizes itself without an empty bucket, it is rebuilt
+      without them. A table that does not resize itself is never rebuilt,
+      so that its keys do not move.
+
+      A table whose storage was taken by a move has no buckets. It gets
+      here a table of the default capacity, whether or not automatic
+      resizing is enabled.
+
+      @return true if the table can take one more key; false if it is full
+              and does not resize itself.
+      @throw std::bad_alloc If there is no memory for the new buckets, and
+             anything that copying a key throws when the table is rebuilt
+             and its swap may throw. The table is left as it was.
   */
-  void check_resize_before_insert()
+  bool check_resize_before_insert()
   {
+    if (me()->len == 0) [[unlikely]]
+      {
+        empty();
+        return true;
+      }
+
     // Keep at least one EMPTY bucket as a sentinel.
-    if (me()->with_resize and me()->N >= me()->len - 1)
+    if (me()->N + me()->deleted_buckets < me()->len - 1) [[likely]]
+      return true;
+
+    if (not me()->with_resize)
+      return me()->N < me()->len - 1; // its keys must not move
+
+    if (me()->N < me()->len - 1) // the buckets of removed keys take the room
+      rebuild(rebuild_capacity());
+    else
       me()->resize(Primes::next_prime(2 * me()->len));
+    return true;
   }
 
   /** @brief Inserts a key into the hash table (copy version).
@@ -192,23 +448,28 @@ public:
 
       @param key The key to insert.
       @return Pointer to the inserted key, or nullptr if key already exists
-              or allocation failed.
+              or the table is full and does not resize itself.
+
+      @throw Anything that copying the key throws, and std::bad_alloc if the
+             table cannot grow. The table is left as it was.
 
       @note This function is marked [[nodiscard]] - check the return value
             to detect insertion failures.
-      
+
       @par Complexity:
       - Average case: O(1) amortized
       - Worst case: O(n) when rehashing is triggered
   */
   [[nodiscard]] Key * insert(const Key & key)
   {
-    check_resize_before_insert();
+    if (not check_resize_before_insert())
+      return nullptr;
+
     auto bucket = me()->allocate_bucket(key);
     if (bucket == nullptr)
       return nullptr;
 
-    bucket->key = key;
+    store_copy(bucket, key);
 
     return me()->test_resize(bucket, key);
   }
@@ -220,23 +481,29 @@ public:
 
       @param key The key to insert (will be moved from on success).
       @return Pointer to the inserted key, or nullptr if key already exists
-              or allocation failed.
+              or the table is full and does not resize itself.
+
+      @throw std::bad_alloc If the table cannot grow, and anything that
+             copying the key throws when the table has to copy it. The table
+             is left as it was; `key` may have been moved from.
 
       @note This function is marked [[nodiscard]] - check the return value
             to detect insertion failures.
-      
+
       @par Complexity:
       - Average case: O(1) amortized
       - Worst case: O(n) when rehashing is triggered
   */
   [[nodiscard]] Key * insert(Key && key)
   {
-    check_resize_before_insert();
+    if (not check_resize_before_insert())
+      return nullptr;
+
     auto bucket = me()->allocate_bucket(key);
     if (bucket == nullptr)
       return nullptr;
 
-    std::swap(bucket->key, key);
+    store_move(bucket, key);
 
     return me()->test_resize(bucket, bucket->key);
   }
@@ -248,18 +515,24 @@ public:
 
       @param key The key to search for or insert.
       @return Pointer to the existing or newly inserted key, or nullptr
-              if allocation failed.
+              if the key is not in the table and the table is full and
+              does not resize itself.
+
+      @throw Anything that copying the key throws, and std::bad_alloc if the
+             table cannot grow. The table is left as it was.
 
       @note This function is marked [[nodiscard]] - the return value
             indicates success/failure and provides the key pointer.
-      
+
       @par Complexity:
       - Average case: O(1) amortized
       - Worst case: O(n) when rehashing is triggered
   */
   [[nodiscard]] Key * search_or_insert(const Key & key)
   {
-    check_resize_before_insert();
+    if (not check_resize_before_insert())
+      return me()->search(key); // full: only a key already there is found
+
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
     if (bucket == nullptr)
@@ -267,7 +540,7 @@ public:
     if (get<1>(r))
       return &bucket->key;
 
-    bucket->key = key;
+    store_copy(bucket, key);
 
     return me()->test_resize(bucket, bucket->key);
   }
@@ -280,18 +553,25 @@ public:
 
       @param key The key to search for or insert (moved from on insert).
       @return Pointer to the existing or newly inserted key, or nullptr
-              if allocation failed.
+              if the key is not in the table and the table is full and
+              does not resize itself.
+
+      @throw std::bad_alloc If the table cannot grow, and anything that
+             copying the key throws when the table has to copy it. The table
+             is left as it was; `key` may have been moved from.
 
       @note This function is marked [[nodiscard]] - the return value
             indicates success/failure and provides the key pointer.
-      
+
       @par Complexity:
       - Average case: O(1) amortized
       - Worst case: O(n) when rehashing is triggered
   */
   [[nodiscard]] Key * search_or_insert(Key && key)
   {
-    check_resize_before_insert();
+    if (not check_resize_before_insert())
+      return me()->search(key); // full: only a key already there is found
+
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
     if (bucket == nullptr)
@@ -299,7 +579,7 @@ public:
     if (get<1>(r))
       return &bucket->key;
 
-    std::swap(bucket->key, key);
+    store_move(bucket, key);
 
     return me()->test_resize(bucket, bucket->key);
   }
@@ -312,8 +592,12 @@ public:
       @param key The key to search for or insert.
       @return A pair containing:
               - first: Pointer to the key (existing or newly inserted),
-                       or nullptr on failure.
+                       or nullptr if the key is not in the table and the
+                       table is full and does not resize itself.
               - second: true if the key was already present, false if inserted.
+
+      @throw Anything that copying the key throws, and std::bad_alloc if the
+             table cannot grow. The table is left as it was.
 
       @note This function is marked [[nodiscard]].
       
@@ -332,7 +616,12 @@ public:
   */
   [[nodiscard]] std::pair<Key*, bool> contains_or_insert(const Key & key)
   {
-    check_resize_before_insert();
+    if (not check_resize_before_insert())
+      {
+        Key * key_ptr = me()->search(key); // full: only a key already there
+        return { key_ptr, key_ptr != nullptr };
+      }
+
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
     if (bucket == nullptr)
@@ -340,7 +629,7 @@ public:
     if (get<1>(r))
       return { &bucket->key, true };
 
-    bucket->key = key;
+    store_copy(bucket, key);
     auto key_ptr = me()->test_resize(bucket, bucket->key);
 
     return { key_ptr, false };
@@ -354,8 +643,13 @@ public:
       @param key The key to search for or insert (moved from on insert).
       @return A pair containing:
               - first: Pointer to the key (existing or newly inserted),
-                       or nullptr on failure.
+                       or nullptr if the key is not in the table and the
+                       table is full and does not resize itself.
               - second: true if the key was already present, false if inserted.
+
+      @throw std::bad_alloc If the table cannot grow, and anything that
+             copying the key throws when the table has to copy it. The table
+             is left as it was; `key` may have been moved from.
 
       @note This function is marked [[nodiscard]].
       
@@ -365,7 +659,12 @@ public:
   */
   [[nodiscard]] std::pair<Key*, bool> contains_or_insert(Key && key)
   {
-    check_resize_before_insert();
+    if (not check_resize_before_insert())
+      {
+        Key * key_ptr = me()->search(key); // full: only a key already there
+        return { key_ptr, key_ptr != nullptr };
+      }
+
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
     if (bucket == nullptr)
@@ -373,7 +672,7 @@ public:
     if (get<1>(r))
       return { &bucket->key, true };
 
-    std::swap(bucket->key, key);
+    store_move(bucket, key);
     auto key_ptr = me()->test_resize(bucket, bucket->key);
 
     return { key_ptr, false };
@@ -479,10 +778,18 @@ public:
 
       @param key The key to access or insert.
       @return Reference to the stored key.
+      @throw std::overflow_error If the key is not in the table and the
+             table is full and does not resize itself.
+      @throw Anything that copying the key throws, and std::bad_alloc if the
+             table cannot grow. The table is left as it was.
   */
   const Key & operator [] (const Key & key)
   {
-    return *search_or_insert(key);
+    Key * key_ptr = search_or_insert(key);
+    ah_overflow_error_if(key_ptr == nullptr)
+      << "Hash table is full and does not resize itself";
+
+    return *key_ptr;
   }
 
   /** @brief Removes an entry by pointer.
@@ -491,22 +798,30 @@ public:
       must have been obtained from this table (via insert, search, etc.).
       
       If automatic resizing is enabled and the load factor drops below
-      the lower threshold, the table is shrunk.
+      the lower threshold, the table shrinks to about half its capacity,
+      provided the keys fit there under the upper threshold and leave an
+      empty bucket. With a lower threshold over one half they may not fit;
+      the table then keeps its capacity until enough keys are removed. If
+      there is no memory for the smaller table, the table keeps its
+      capacity too, and the key stays removed.
 
       @param key Pointer to the key to remove (must be in this table).
-      
-      @pre key must point to a valid entry in this table.
+
+      @throw std::invalid_argument If key does not point into the table.
+      @throw std::domain_error If the key of its bucket was removed.
       @post The entry is removed and size() decreases by 1.
-      
+
       @par Complexity: O(1) amortized.
   */
   void remove_ptr(Key * key)
   {
     auto bucket = HashTbl::key_to_bucket(key);
+    ah_invalid_argument_if(not me()->is_valid_bucket(bucket))
+      << "remove_ptr(): key does not point into the table";
+    ah_domain_error_if(bucket->status != HashTbl::BUSY)
+      << "remove_ptr(): the key of the bucket was removed";
     me()->deallocate_bucket(bucket);
-
-    if (me()->with_resize and me()->current_alpha() < me()->lower_alpha)
-      resize(Primes::next_prime(me()->len/2 + 1));
+    shrink_after_removal();
   }
 
   /** @brief Resizes the hash table to a new capacity.
@@ -519,13 +834,14 @@ public:
       @return The actual new capacity (may differ from requested if
               new_size was 0 or equal to current capacity).
       @throw std::overflow_error If new_size is too small for current entries.
-      
+      @throw std::bad_alloc If there is no memory for the new buckets, and
+             anything that copying a key throws when its swap may throw.
+             The table is left as it was.
+
       @par Complexity: O(n) where n is the number of entries.
   */
   size_t resize(size_t new_size)
   {
-    assert(me()->len > 0);
-
     if (new_size == 0 or new_size == me()->len)
       return me()->len;
 
@@ -533,28 +849,7 @@ public:
     ah_overflow_error_if(me()->N >= new_size)
       << "New size is not enough for current number of entries";
 
-    auto * new_table = new typename HashTbl::Bucket[new_size];
-    typename HashTbl::Bucket * old_table = me()->table;
-    const size_t old_len = me()->len;
-
-    int old_N = me()->N;
-
-    me()->table = new_table;
-    me()->len   = new_size;
-    me()->N     = 0;
-
-    for (int i = 0, c = 0; i < old_len and c < old_N; ++i)
-      if (old_table[i].status == HashTbl::BUSY)
-        {
-          Key & key = old_table[i].key;
-          auto bucket = me()->allocate_bucket(key);
-          std::swap(bucket->key, key);
-          ++c;
-        }
-
-    assert(old_N == me()->N);
-
-    delete [] old_table;
+    rebuild(new_size);
 
     return me()->len;
   }
@@ -564,31 +859,20 @@ public:
       Creates a new internal table with the same capacity and
       re-inserts all entries. This can help improve performance
       after many deletions by eliminating deleted bucket markers.
-      
+      A table that does not resize itself never does it by itself.
+
+      @throw std::bad_alloc If there is no memory for the new buckets, and
+             anything that copying a key throws when its swap may throw.
+             The table is left as it was.
+
       @par Complexity: O(n) where n is the number of entries.
   */
   void rehash()
   {
-    auto new_table = new typename HashTbl::Bucket [me()->len];
-    auto old_table = me()->table;
+    if (me()->len == 0)
+      return; // the storage was taken by a move: nothing to rebuild
 
-    int old_N = me()->N;
-
-    me()->table = new_table;
-    me()->N     = 0;
-
-    for (int i = 0, c = 0; i < me()->len and c < old_N; ++i)
-      if (old_table[i].status == HashTbl::BUSY)
-        {
-          Key & key = old_table[i].key;
-          auto bucket = me()->allocate_bucket(key);
-          std::swap(bucket->key, key);
-          ++c;
-        }
-
-    assert(old_N == me()->N);
-
-    delete [] old_table;
+    rebuild(me()->len);
   }
 
   /** @brief Clears all entries and resets to default capacity.
@@ -598,18 +882,23 @@ public:
       
       @post size() == 0
       @post capacity() == Primes::DefaultPrime
+      @throw std::bad_alloc If there is no memory for the new buckets. The
+             table is left as it was.
   */
   void empty()
   {
+    auto * new_table = new typename HashTbl::Bucket [Primes::DefaultPrime];
     delete [] me()->table;
+    me()->table = new_table;
     me()->N = 0;
+    me()->deleted_buckets = 0;
     me()->len = Primes::DefaultPrime;
-    me()->table = new typename HashTbl::Bucket [me()->len];
   }
 
   /** @brief Empties the container. 
       
-      @throws none
+      @throw std::bad_alloc If there is no memory for the new buckets. The
+             table is left as it was.
       @see empty()
   */
   void clear() { empty(); }
@@ -874,12 +1163,13 @@ public:
     Iterator(const HashTbl &) = delete;
 
     /** @brief Deletes the current entry and advances to the next.
-        
+
         Removes the current entry from the table. After deletion,
-        the iterator is positioned at the next entry (if any).
-        
+        the iterator is positioned at the next entry, or at the end if
+        the entry was the last one.
+
         @throw std::overflow_error If not at a valid position.
-        
+
         @warning After del(), the logical positions of subsequent
                  entries change.
     */
@@ -889,7 +1179,8 @@ public:
         << "Overflow in del() of iterator";
 
       table_ptr->deallocate_bucket(&table_ptr->table[curr_idx]);
-      if (table_ptr->size() == 0)
+      // the last entry has no next one: looking for it went past the end
+      if (ordinal == static_cast<long>(table_ptr->size()))
         return;
 
       while (table_ptr->table[++curr_idx].status != HashTbl::BUSY);
@@ -968,10 +1259,13 @@ public:
       A higher load factor means more efficient memory usage but
       potentially longer probe sequences.
       
-      @return The load factor as N/capacity.
+      @return The load factor as N/capacity, or zero if the table has no
+              buckets because a move took them.
   */
   [[nodiscard]] constexpr float current_alpha() const noexcept 
   {
+    if (const_me()->len == 0) [[unlikely]]
+      return 0;
     return 1.0f*const_me()->N/const_me()->len; 
   }
 };
@@ -990,6 +1284,8 @@ public:
     - print_stats() - Display statistics
     - set_lower_alpha() / set_upper_alpha() - Configure load factor thresholds
     - get_lower_alpha() / get_upper_alpha() - Query thresholds
+    - get_with_resize() / set_with_resize() - Query or turn on and off
+      the automatic resizing
     
     @see LhashTable
     @ingroup Hash
@@ -1006,11 +1302,6 @@ class HashStats
       @return Const pointer to this object cast to const HashTbl*.
   */
   const HashTbl * const_me() const { return static_cast<const HashTbl*>(this); }
-
-  float  lower_alpha;          ///< Lower load factor threshold for shrinking.
-  float  upper_alpha;          ///< Upper load factor threshold for growing.
-  size_t busy_slots_counter = 0;  ///< Number of buckets with at least one entry.
-  size_t N = 0;                ///< Total number of entries.
 
 public:
 
@@ -1122,7 +1413,7 @@ public:
   {
     std::cout << "M          = " << const_me()->capacity() << '\n'
          << "N          = " << const_me()->size() << '\n'
-         << "busy slots = " << busy_slots_counter << '\n'
+         << "busy slots = " << const_me()->busy_slots_counter << '\n'
          << "Average    = " << stats.avg << '\n'
          << "Desv       = " << sqrt(stats.var) << '\n'
          << "alpha      = " << (1.0*const_me()->size())/const_me()->capacity() 
@@ -1141,10 +1432,10 @@ public:
   */
   void set_upper_alpha(float _upper_alpha)
   {
-    ah_domain_error_if(_upper_alpha <= lower_alpha)
+    ah_domain_error_if(_upper_alpha <= me()->lower_alpha)
       << "upper_alpha lower than lower_alpha";
 
-    upper_alpha = _upper_alpha;
+    me()->upper_alpha = _upper_alpha;
   }
 
   /** @brief Sets the lower load factor threshold.
@@ -1157,21 +1448,37 @@ public:
   */
   void set_lower_alpha(float _lower_alpha)
   {
-    ah_domain_error_if(_lower_alpha >= upper_alpha)
+    ah_domain_error_if(_lower_alpha >= me()->upper_alpha)
       << "lower_alpha greater than upper_alpha";
 
-    lower_alpha = _lower_alpha;
+    me()->lower_alpha = _lower_alpha;
   }
 
   /** @brief Returns the lower load factor threshold.
       @return The lower alpha threshold.
   */
-  [[nodiscard]] constexpr float get_lower_alpha() const noexcept { return lower_alpha; }
+  [[nodiscard]] constexpr float get_lower_alpha() const noexcept { return const_me()->lower_alpha; }
 
   /** @brief Returns the upper load factor threshold.
       @return The upper alpha threshold.
   */
-  [[nodiscard]] constexpr float get_upper_alpha() const noexcept { return upper_alpha; }
+  [[nodiscard]] constexpr float get_upper_alpha() const noexcept { return const_me()->upper_alpha; }
+
+  /** @brief Returns whether the table resizes itself.
+      @return true if the table grows and shrinks by itself.
+  */
+  [[nodiscard]] constexpr bool get_with_resize() const noexcept { return const_me()->with_resize; }
+
+  /** @brief Turns the automatic resizing on or off.
+
+      As with the thresholds, the change applies from the next insertion
+      or removal on: turning it on does not resize the table at once.
+      Turned off, the table keeps its capacity, and its lists get longer
+      as keys come in.
+
+      @param with_resize true for the table to grow and shrink by itself.
+  */
+  void set_with_resize(const bool with_resize) noexcept { me()->with_resize = with_resize; }
 };
 
 

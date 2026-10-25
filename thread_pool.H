@@ -116,6 +116,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <vector>
+#include <list>
 #include <thread>
 #include <mutex>
 #include <stdexcept>
@@ -176,19 +177,111 @@ namespace Aleph
         observers.erase(it);
     }
 
+    // under the lock, so that unregistering waits for a notification in
+    // progress and the caller may then destroy its condition variable;
+    // notify_all() does not block
     void notify_observers() noexcept
     {
-      std::vector<std::condition_variable *> to_notify;
-      {
-        std::lock_guard<std::mutex> lock(observer_mutex);
-        to_notify = observers;
-      }
-
-      for (auto * cv : to_notify)
+      std::lock_guard<std::mutex> lock(observer_mutex);
+      for (auto * cv : observers)
         if (cv != nullptr)
           cv->notify_all();
     }
   };
+
+  namespace cancellation_detail
+  {
+    /** @brief A condition variable registered with the mutex of its waiters.
+     *
+     *  Made by CancellationToken::notify_on_cancel(cv, mutex).
+     */
+    struct Locked_Observer
+    {
+      std::condition_variable * cv; ///< Condition variable to notify.
+      std::mutex * mutex; ///< Mutex that its waiters hold.
+      size_t busy = 0; ///< Cancellations notifying it right now.
+      bool removed = false; ///< Whether its registration has ended.
+    };
+
+    /** @brief State created by a CancellationSource.
+     *
+     *  It adds to CancellationState, which stays as it is, the registrations
+     *  made with a mutex. A cancellation takes the mutex of each one before
+     *  it notifies its condition variable, and it must not wait for that
+     *  mutex while it holds `observer_mutex`. Otherwise a thread that holds
+     *  the mutex of one registration and ends another one of the same source
+     *  would wait for `observer_mutex` while the cancellation waits for its
+     *  mutex. So the cancellation marks the registration that it notifies as
+     *  busy and releases `observer_mutex` while it uses it, and ending a
+     *  registration waits only until that registration is not busy.
+     */
+    struct Exact_State : CancellationState
+    {
+      /// Registrations made with a mutex, in order, under `observer_mutex`.
+      std::list<Locked_Observer> locked_observers;
+
+      /// Notified when an ended registration stops being busy.
+      std::condition_variable not_busy;
+
+      /** @brief Register @p cv, whose waiters hold @p mutex.
+       *  @param cv Condition variable to notify on cancellation.
+       *  @param mutex Mutex that the waiters on @p cv hold.
+       *  @return Position of the registration, for unregister_locked().
+       *  @throws std::bad_alloc if the registration cannot be allocated.
+       */
+      std::list<Locked_Observer>::iterator
+      register_locked(std::condition_variable & cv, std::mutex & mutex)
+      {
+        std::lock_guard<std::mutex> lock(observer_mutex);
+        locked_observers.push_back(Locked_Observer{&cv, &mutex});
+        return std::prev(locked_observers.end());
+      }
+
+      /** @brief End a registration, once no cancellation is notifying it.
+       *  @param it Position returned by register_locked().
+       */
+      void unregister_locked(const std::list<Locked_Observer>::iterator it) noexcept
+      {
+        std::unique_lock<std::mutex> lock(observer_mutex);
+        it->removed = true;
+        not_busy.wait(lock, [&] { return it->busy == 0; });
+        locked_observers.erase(it);
+      }
+
+      /** @brief Notify every registration made with a mutex.
+       *
+       *  Taking and releasing the mutex of a registration before notifying
+       *  it means that each waiter is either before its check of the token,
+       *  which then sees the cancellation, or waiting, and then woken up.
+       */
+      void notify_locked_observers() noexcept
+      {
+        std::unique_lock<std::mutex> lock(observer_mutex);
+        for (auto it = locked_observers.begin(); ; )
+          {
+            while (it != locked_observers.end() and it->removed)
+              ++it;
+            if (it == locked_observers.end())
+              return;
+
+            ++it->busy; // so that it is not erased while unlocked
+            std::condition_variable * const cv = it->cv;
+            std::mutex * const mutex = it->mutex;
+            lock.unlock();
+            {
+              std::lock_guard<std::mutex> waiter_lock(*mutex);
+            }
+            cv->notify_all();
+            lock.lock();
+
+            const auto next = std::next(it);
+            if (--it->busy == 0 and it->removed)
+              not_busy.notify_all();
+            it = next;
+          }
+      }
+    };
+  } // namespace cancellation_detail
 
   /** @brief Read-only cooperative cancellation token.
    *
@@ -198,24 +291,47 @@ namespace Aleph
    */
   class CancellationToken
   {
-    std::shared_ptr<CancellationState> state_;
+    std::shared_ptr<cancellation_detail::Exact_State> state_;
 
-    explicit CancellationToken(std::shared_ptr<CancellationState> state) noexcept
+    explicit CancellationToken(std::shared_ptr<cancellation_detail::Exact_State> state) noexcept
       : state_(std::move(state)) {}
 
     friend class CancellationSource;
 
   public:
-    /** @brief RAII guard for condition variable cancellation registration. */
+    /** @brief RAII guard for condition variable cancellation registration.
+     *
+     *  Destroying or assigning the guard ends its registration, once any
+     *  notification of it in progress has finished; moving it transfers the
+     *  registration. Another registration of the same condition variable,
+     *  made by another call, stays. The condition variable, and the mutex of
+     *  a registration made with notify_on_cancel(cv, mutex), may be destroyed
+     *  when no registration refers to them any more.
+     */
     class ConditionVariableRegistration
     {
       std::shared_ptr<CancellationState> state_;
       std::condition_variable *cv_ = nullptr;
 
+      // a registration made with a mutex
+      std::shared_ptr<cancellation_detail::Exact_State> locked_state_;
+      std::list<cancellation_detail::Locked_Observer>::iterator locked_{};
+
+      ConditionVariableRegistration(
+          std::shared_ptr<cancellation_detail::Exact_State> state,
+          const std::list<cancellation_detail::Locked_Observer>::iterator it) noexcept
+        : locked_state_(std::move(state)), locked_(it) {}
+
+      friend class CancellationToken;
+
       void unregister() noexcept
       {
-        if (state_ != nullptr and cv_ != nullptr)
+        if (locked_state_ != nullptr)
+          locked_state_->unregister_locked(locked_);
+        else if (state_ != nullptr and cv_ != nullptr)
           state_->unregister_condition_variable(cv_);
+        locked_state_ = nullptr;
+        locked_ = {};
         cv_ = nullptr;
       }
 
@@ -238,9 +354,11 @@ namespace Aleph
           (const ConditionVariableRegistration &) = delete;
 
       ConditionVariableRegistration(ConditionVariableRegistration && other) noexcept
-        : state_(std::move(other.state_)), cv_(other.cv_)
+        : state_(std::move(other.state_)), cv_(other.cv_),
+          locked_state_(std::move(other.locked_state_)), locked_(other.locked_)
       {
         other.cv_ = nullptr;
+        other.locked_ = {}; // invalid once the registration ends
       }
 
       ConditionVariableRegistration & operator =
@@ -252,6 +370,9 @@ namespace Aleph
         state_ = std::move(other.state_);
         cv_ = other.cv_;
         other.cv_ = nullptr;
+        locked_state_ = std::move(other.locked_state_);
+        locked_ = other.locked_;
+        other.locked_ = {};
         return *this;
       }
 
@@ -290,9 +411,19 @@ namespace Aleph
      *
      *  This is primarily intended for blocking helpers that need to wake up
      *  promptly when cooperative cancellation is requested.
+     *
+     *  @warning The notification can come after a waiter has checked
+     *           stop_requested() and before it waits, and then the waiter
+     *           misses it; a waiter should wait with a timeout and check the
+     *           token again.
+     *
+     *  @deprecated Use notify_on_cancel(cv, mutex), which cannot miss the
+     *              notification. Deprecated in 7.1.0; it may be removed in
+     *              8.0.0.
      */
-    [[nodiscard]] ConditionVariableRegistration notify_on_cancel(
-        std::condition_variable & cv) const
+    [[nodiscard,
+      deprecated("use notify_on_cancel(cv, mutex), which cannot miss the notification")]]
+    ConditionVariableRegistration notify_on_cancel(std::condition_variable & cv) const
     {
       if (state_ == nullptr or stop_requested())
         return {};
@@ -305,13 +436,66 @@ namespace Aleph
         }
       return ConditionVariableRegistration(state_, &cv);
     }
+
+    /** @brief Request notification of a condition variable on cancellation,
+     *         without missing it.
+     *
+     *  @p mutex is the mutex that the waiters on @p cv hold while they check
+     *  their condition and wait. A cancellation takes and releases @p mutex
+     *  before it notifies @p cv, so it cannot come between the check of the
+     *  token and the wait: a waiter that checks stop_requested() under
+     *  @p mutex after this call, and waits on @p cv for that check, always
+     *  wakes up. For example:
+     *  @code
+     *  CancellationToken::ConditionVariableRegistration registration;
+     *  std::unique_lock<std::mutex> lock(mutex);
+     *  registration = token.notify_on_cancel(cv, mutex);
+     *  cv.wait(lock, [&] { return ready or token.stop_requested(); });
+     *  @endcode
+     *
+     *  A cancellation takes @p mutex to notify the registration, and ending
+     *  the registration, by destroying or assigning its guard, waits for a
+     *  notification of it in progress. So, to avoid a deadlock, treat both
+     *  requesting the cancellation and ending the registration as taking
+     *  @p mutex:
+     *  - Not while holding @p mutex. Declaring the guard before the lock, as
+     *    above, ends the registration after the lock has released the mutex.
+     *  - Not while holding another mutex that a thread may take while it
+     *    holds @p mutex, including in these two ways. For example, two
+     *    threads that each hold the mutex of one registration and end the
+     *    other one can deadlock.
+     *
+     *  Ending a registration waits for any notification of it in progress;
+     *  after that, the cancellation no longer uses @p cv and @p mutex through
+     *  it.
+     *
+     *  @param cv Condition variable to notify on cancellation.
+     *  @param mutex Mutex that the waiters on @p cv hold.
+     *  @return A guard that ends the registration. It is empty if the token
+     *          has no source or the cancellation was already requested; the
+     *          check of the token after this call then sees it.
+     *  @throws std::bad_alloc if the registration cannot be allocated.
+     */
+    [[nodiscard]] ConditionVariableRegistration notify_on_cancel(
+        std::condition_variable & cv, std::mutex & mutex) const
+    {
+      if (state_ == nullptr or stop_requested())
+        return {};
+      return ConditionVariableRegistration(state_, state_->register_locked(cv, mutex));
+    }
   };
 
-  /** @brief Cooperative cancellation source paired with CancellationToken. */
+  /** @brief Cooperative cancellation source paired with CancellationToken.
+   *
+   *  Copies of a source share its state. Several threads may call
+   *  request_cancel(), stop_requested() and token() on the same source at
+   *  the same time, but reset() and assignment change the source, so they
+   *  must not run at the same time as another use of it.
+   */
   class CancellationSource
   {
-    std::shared_ptr<CancellationState> state_ =
-        std::make_shared<CancellationState>();
+    std::shared_ptr<cancellation_detail::Exact_State> state_ =
+        std::make_shared<cancellation_detail::Exact_State>();
 
   public:
     /// @brief Default constructor.
@@ -323,11 +507,18 @@ namespace Aleph
       return CancellationToken(state_);
     }
 
-    /** @brief Request cancellation for all derived tokens. */
+    /** @brief Request cancellation for all derived tokens.
+     *
+     *  It notifies the condition variables registered with its tokens. For a
+     *  registration made with a mutex, it first takes and releases that
+     *  mutex, so treat this call as taking each of those mutexes, one at a
+     *  time (see CancellationToken::notify_on_cancel(cv, mutex)).
+     */
     void request_cancel() noexcept
     {
       state_->stop_requested.store(true, std::memory_order_relaxed);
       state_->notify_observers();
+      state_->notify_locked_observers();
     }
 
     /** @brief Synonym for request_cancel(). */
@@ -340,7 +531,7 @@ namespace Aleph
     }
 
     /** @brief Reset the source so future tokens observe a fresh state. */
-    void reset() { state_ = std::make_shared<CancellationState>(); }
+    void reset() { state_ = std::make_shared<cancellation_detail::Exact_State>(); }
   };
 
   /** @brief Common configuration object for parallel algorithms.
@@ -520,12 +711,21 @@ namespace Aleph
         }
     }
 
-    /// Start n worker threads
+    /// Start n worker threads. If one cannot be started, stop and join the
+    /// ones that were, which leaves the pool stopped, and rethrow.
     void start_workers(size_t n)
     {
-      workers.reserve(n);
-      for (size_t i = 0; i < n; ++i)
-        workers.emplace_back(&ThreadPool::worker_loop, this);
+      try
+        {
+          workers.reserve(n);
+          for (size_t i = 0; i < n; ++i)
+            workers.emplace_back(&ThreadPool::worker_loop, this);
+        }
+      catch (...)
+        {
+          stop_workers();
+          throw;
+        }
     }
 
     /// Stop and join all workers
@@ -563,6 +763,8 @@ namespace Aleph
      *
      *  @param n_threads Number of worker threads to create.
      *                   Defaults to `std::thread::hardware_concurrency()`.
+     *  @throw std::system_error if a worker thread cannot be started; the
+     *         workers already started are stopped and joined first.
      */
     explicit ThreadPool(size_t n_threads = std::thread::hardware_concurrency())
     {
@@ -1150,8 +1352,8 @@ namespace Aleph
     /** @brief Resize the pool to a different number of workers.
      *
      *  Stops all current workers and starts a new set with the specified size.
-     *  Any tasks currently in the queue will be preserved and executed by
-     *  the new workers.
+     *  The current workers run the tasks already in the queue before they
+     *  stop.
      *
      *  @param new_size New number of worker threads.
      *
@@ -1159,6 +1361,9 @@ namespace Aleph
      *           enqueued from other threads.
      *
      *  @throw std::runtime_error if the pool has been shut down.
+     *  @throw std::system_error if a worker thread cannot be started; the
+     *         new workers already started are stopped and joined, and the
+     *         pool is left stopped, as after shutdown().
      */
     void resize(size_t new_size)
     {

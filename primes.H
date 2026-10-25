@@ -58,7 +58,7 @@
  *  unsigned long p = Primes::next_prime_number_greater_than(100);  // 101
  *  ```
  *
- *  @see tpl_lhash.H Linear hash tables using primes
+ *  @see tpl_lhash.H Separate chaining hash tables
  *  @see tpl_odhash.H Open-addressed hash tables
  *
  *  @ingroup Hash
@@ -85,25 +85,33 @@ namespace Primes
   extern const unsigned long primeList[];
 
   /**
-   * @brief Find the smallest prime number >= n from the database.
+   * @brief Find a prime >= n in the database, for hash table sizing.
    *
-   * Performs binary search on the pre-computed prime database to find
-   * a suitable prime for hash table sizing.
+   * Performs binary search on the pre-computed prime database, which
+   * holds only some of the primes. So the result is often larger than
+   * the smallest prime >= n: next_prime(2206) is 2309, although 2207 is
+   * prime. Below the first entry of the database (101) and above its
+   * last one, the result is the smallest prime >= n.
    *
    * @param n Minimum value for the prime
-   * @return Smallest prime p such that p >= n
+   * @return The first prime of the database that is >= n; below or
+   *         above the database, the smallest prime p such that p >= n
    *
-   * @note Uses pre-computed database, O(log numPrimes) complexity
+   * @throw std::domain_error if no prime >= n fits in an unsigned long
+   *
+   * @note Uses pre-computed database, O(log numPrimes) complexity;
+   *       above it, the prime is found by trial division
    */
   extern unsigned long next_prime(unsigned long n);
 
   /**
-   * @brief Verify the integrity of the prime database.
+   * @brief Verify the order of the prime database.
    *
-   * Checks that all numbers in primeList are actually prime.
-   * Used for testing and validation.
+   * Checks that every number in primeList is greater than the previous
+   * one, as the binary search of next_prime() needs. Used for testing
+   * and validation.
    *
-   * @return true if all entries in primeList are prime
+   * @return true if the entries of primeList are strictly increasing
    */
   extern bool check_primes_database();
 
@@ -130,7 +138,9 @@ namespace Primes
     if (n <= 1) 
       return false;
     
-    for (int i = 2; i <= sqrt(n); i++) 
+    // i <= n / i is i * i <= n without overflow. i goes up to sqrt(n),
+    // which for a 64-bit n does not fit in an int
+    for (unsigned long i = 2; i <= n / i; i++)
       if (n % i == 0) 
         return false;
     
@@ -168,17 +178,13 @@ namespace Primes
 
     const unsigned long max = std::numeric_limits<unsigned long>::max();
 
-    ah_domain_error_if(n == max)
+    // max - 1 is even and max (2^32 - 1 or 2^64 - 1) is not prime, so no
+    // prime greater than max - 2 fits
+    ah_domain_error_if(n >= max - 2)
       << "next_prime_number_greater_than: overflow error";
 
-    // if n is even, add 1
-    if (n % 2 == 0)
-      ++n;
-
-    ah_domain_error_if(n == max)
-      << "next_prime_number_greater_than: overflow error";
-
-    unsigned long p = n + 2;
+    // the first odd number greater than n
+    unsigned long p = n % 2 == 0 ? n + 1 : n + 2;
     while (not is_prime(p))
       {
         ah_domain_error_if(p + 1 == max or p + 2 == max)

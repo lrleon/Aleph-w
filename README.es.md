@@ -77,28 +77,28 @@ Idioma: Español | [English](README.md)
 <a id="readme-es-resumen"></a>
 ## Resumen
 
-**Aleph-w** es una biblioteca C++20 lista para producción que ofrece más de **90 estructuras de datos** y **50+ algoritmos** para ingenieros de software, investigadores y estudiantes. Con **238 archivos de cabecera** y **80+ ejemplos**, es una de las bibliotecas de algoritmos más completas disponibles.
+**Aleph-w** es una biblioteca C++20 lista para producción que ofrece más de **90 estructuras de datos** y **50+ algoritmos** para ingenieros de software, investigadores y estudiantes. Con **430+ archivos de cabecera** y **350+ programas de ejemplo**, es una de las bibliotecas de algoritmos más completas disponibles.
 
 ### ¿Por qué Aleph-w?
 
 | Característica | STL | Boost | Aleph-w |
 |---------|-----|-------|---------|
 | Árboles balanceados (AVL, RB, Splay, Treap) | Limitado | Parcial | **8 variantes** |
-| Estadística de orden (k-ésimo, rank) | Ninguna | Ninguna | **Todos los árboles** |
+| Estadística de orden (k-ésimo, rank) | Ninguna | Índices con rango (Boost.MultiIndex) | **Todos los árboles** |
 | Algoritmos de grafos | Ninguno | BGL | **50+ algoritmos** |
-| Flujos en redes (max-flow, min-cost) | Ninguno | Ninguno | **Suite completa** |
-| Allocators tipo arena | Ninguno | Ninguno | **Incluido** |
+| Flujos en redes (max-flow, min-cost) | Ninguno | BGL (max-flow, min-cost) | **Suite completa** |
+| Allocators tipo arena | Recursos `std::pmr` | Boost.Pool, Boost.Container | **Incluido** |
 | map/filter/fold paralelo | Limitado | Limitado | **Soporte nativo** |
 | Programación funcional | Limitado | Parcial | **Completa** |
-| Ejemplos educativos | Ninguno | Pocos | **80+ programas** |
+| Ejemplos educativos | Ninguno | Pocos | **350+ programas** |
 
 ### Estadísticas clave
 
-- **238 archivos de cabecera** cubriendo algoritmos clásicos y modernos
+- **430+ archivos de cabecera** cubriendo algoritmos clásicos y modernos
 - **90+ estructuras de datos** con múltiples variantes de implementación
 - **50+ algoritmos de grafos** incluyendo flujos, cortes y caminos
-- **80+ programas de ejemplo** con comentarios detallados
-- **7,700+ casos de prueba** con 99.98% de éxito
+- **350+ programas de ejemplo** con comentarios detallados
+- **13,000+ casos de prueba**, que la CI ejecuta en cada pull request
 - **Soporte multi-compilador**: GCC 11+ y Clang 14+
 
 ---
@@ -110,9 +110,9 @@ Idioma: Español | [English](README.md)
 
 Aleph-w nació en 2002 en la **Universidad de Los Andes** en Mérida, Venezuela, creado por **Leandro Rabindranath León** como herramienta de enseñanza para cursos de algoritmos y estructuras de datos.
 
-El nombre "**Aleph**" (א) referencia el cuento de Jorge Luis Borges "[El Aleph](https://en.wikipedia.org/wiki/The_Aleph_(short_story))" — un punto en el espacio que contiene todos los demás puntos. Esto simboliza la meta de la biblioteca: ser un punto único que contiene todos los algoritmos fundamentales.
+El nombre **“Aleph”** (א) referencia el cuento de Jorge Luis Borges “[El Aleph](https://en.wikipedia.org/wiki/The_Aleph_(short_story))” — un punto en el espacio que contiene todos los demás puntos — y el primer número cardinal transfinito de Georg Cantor. La “-w” es la letra griega omega (ω), el primer ordinal infinito. Juntas, א‑ω simbolizan la meta de la biblioteca: ser un punto único que contiene todos los algoritmos fundamentales.
 
-El sufijo "**-w**" significa "**with**" (con) — enfatizando que esta biblioteca viene *con* todo lo que necesitas: implementaciones, ejemplos, pruebas y documentación.
+El sufijo **“-w”** significa **“with”** (con) — enfatizando que esta biblioteca viene *con* todo lo que necesitas: implementaciones, ejemplos, pruebas y documentación.
 
 ### Filosofía de diseño
 
@@ -139,7 +139,7 @@ El sufijo "**-w**" significa "**with**" (con) — enfatizando que esta bibliotec
    - Ejemplos que enseñan, no solo demuestran
 
 4. **Listo para producción**
-   - Ampliamente probado (7,700+ tests)
+   - Ampliamente probado (13,000+ tests)
    - Usado en aplicaciones reales
    - Rendimiento competitivo
 
@@ -181,7 +181,7 @@ Aleph-w ha sido usado para enseñar a **miles de estudiantes** en Latinoamérica
 - **Implementaciones lado a lado**: compara Kruskal vs Prim, Dijkstra vs Bellman-Ford
 - **Exportación de visualizaciones**: salida LaTeX/EEPIC para papers y presentaciones
 - **Análisis de complejidad**: cada operación documenta su Big-O
-- **Ejemplos extensos**: 80+ programas demostrando uso real
+- **Ejemplos extensos**: 350+ programas demostrando uso real
 
 ---
 
@@ -396,7 +396,7 @@ target_link_libraries(your_target PRIVATE Aleph)
 | `BUILD_EXAMPLES` | ON | Compilar los ejemplos (`Examples/`) |
 | `BUILD_OPTIMIZED` | OFF | Si está en ON y `CMAKE_BUILD_TYPE` no se define, default a `Release` |
 | `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest si falta |
-| `USE_SANITIZERS` | OFF | (Tests) Habilitar ASan/UBSan para los binarios de test |
+| `ALEPH_USE_SANITIZERS` | OFF | Habilitar ASan/UBSan para la biblioteca y los tests (solo GCC y Clang) |
 
 ### CMake Presets (opcional)
 
@@ -1358,7 +1358,7 @@ Aleph-w ofrece múltiples implementaciones de tablas hash optimizadas para disti
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  SEPARATE CHAINING              OPEN ADDRESSING           LINEAR HASHING    │
-│  (tpl_hash.H)                   (tpl_odhash.H)            (tpl_lhash.H)     │
+│  (tpl_lhash.H)                  (tpl_olhash.H)            (tpl_linHash.H)   │
 │                                                                             │
 │  ┌───┬───┬───┬───┐             ┌───┬───┬───┬───┐        Grows incrementally │
 │  │ 0 │ 1 │ 2 │ 3 │             │ A │ B │   │ C │        one slot at a time  │
@@ -3354,7 +3354,7 @@ Aleph-w incluye un completo toolkit de **Transformada Rápida de Fourier** y pro
 - **Variantes paralelas** de todos los métodos via `ThreadPool` (prefijados con `p`)
 - **Despacho SIMD**: selección automática AVX2/NEON en tiempo de ejecución
 
-Para un recorrido detallado con ejemplos de código, ver el **[Tutorial FFT y Procesamiento Digital de Señales](docs/fft-tutorial.md)** ([English](docs/fft-tutorial.en.md)).
+Para un recorrido detallado con ejemplos de código, ver el **[Tutorial FFT y Procesamiento Digital de Señales](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.md)** ([English](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.en.md)).
 
 ---
 <a id="readme-es-ntt"></a>
@@ -3373,7 +3373,7 @@ Aleph-w también incluye una implementación industrial de la **Number Theoretic
 - **Multiplicación de enteros grandes** sobre dígitos en base `B` con propagación de carry
 - **Convolución negacíclica** módulo `x^N + 1`
 
-Para un recorrido detallado con ejemplos de código, consulta el **[Tutorial NTT](docs/ntt-tutorial.md)** ([English](docs/ntt-tutorial.en.md)).
+Para un recorrido detallado con ejemplos de código, consulta el **[Tutorial NTT](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.md)** ([English](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.en.md)).
 
 ---
 
@@ -3771,9 +3771,11 @@ de buffers, memoización de B&B, políticas de frontera).
 
 ### Documentación, ejemplos y pruebas
 
-- [docs/state_search_v1.md](docs/state_search_v1.md) – resumen de arquitectura,
-  metodología de benchmarks, notas de perfilado y hoja de ruta v2.
-- [docs/adversarial_search_framework.md](docs/adversarial_search_framework.md)
+- [docs/state_search_framework.md](https://github.com/lrleon/Aleph-w/blob/master/docs/state_search_framework.md) –
+  cómo modelar un problema como un espacio de estados implícito, la búsqueda
+  en profundidad y sus límites, la referencia de la API, las decisiones de
+  diseño y los próximos puntos de extensión.
+- [docs/adversarial_search_framework.md](https://github.com/lrleon/Aleph-w/blob/master/docs/adversarial_search_framework.md)
   – contrato Negamax/Alpha-Beta, hooks de ordenamiento de movimientos y
   protocolo de tablas de transposición.
 - Ejemplos:
@@ -4025,11 +4027,11 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 
 | Header | Functions / Classes | Description |
 |--------|---------------------|-------------|
-| `fft.H` | `FFT<Real>` | Transformada rápida de Fourier (FFT): Cooley-Tukey radix-2/4 y Bluestein para tamaños arbitrarios, STFT/ISTFT, diseño de filtros FIR/IIR (Butterworth, Chebyshev, Bessel, Elíptico), PSD de Welch, resampleo, raíces de polinomios, transformadas N-D y APIs paralelas con `ThreadPool`. Ver el [Tutorial FFT y DSP](docs/fft-tutorial.md) |
+| `fft.H` | `FFT<Real>` | Transformada rápida de Fourier (FFT): Cooley-Tukey radix-2/4 y Bluestein para tamaños arbitrarios, STFT/ISTFT, diseño de filtros FIR/IIR (Butterworth, Chebyshev, Bessel, Elíptico), PSD de Welch, resampleo, raíces de polinomios, transformadas N-D y APIs paralelas con `ThreadPool`. Ver el [Tutorial FFT y DSP](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.md) |
 | `modular_arithmetic.H` | `mod_mul()`, `mod_exp()`, `ext_gcd()`, `mod_inv()`, `crt()` | Safe 64-bit modular arithmetic, extended GCD, modular inverse, and Chinese Remainder Theorem |
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
-| `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform para multiplicacion exacta de polinomios modulares, con planes reutilizables, soporte Bluestein para tamanos no potencia de dos cuando el modulo lo permite, dispatch SIMD AVX2/NEON en tiempo de ejecucion sobre el butterfly potencia-de-dos, lotes, butterflies basados en Montgomery, APIs paralelas con `ThreadPool`, algebra formal de polinomios (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, evaluacion multipunto e interpolacion), multiplicacion exacta de enteros grandes sobre digitos en base `B`, convolucion negaciclica modulo `x^N + 1` y reconstruccion CRT de tres primos en `__uint128_t` cuando la cota de coeficientes cabe. Ver el [Tutorial NTT](docs/ntt-tutorial.md) |
+| `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform para multiplicacion exacta de polinomios modulares, con planes reutilizables, soporte Bluestein para tamanos no potencia de dos cuando el modulo lo permite, dispatch SIMD AVX2/NEON en tiempo de ejecucion sobre el butterfly potencia-de-dos, lotes, butterflies basados en Montgomery, APIs paralelas con `ThreadPool`, algebra formal de polinomios (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, evaluacion multipunto e interpolacion), multiplicacion exacta de enteros grandes sobre digitos en base `B`, convolucion negaciclica modulo `x^N + 1` y reconstruccion CRT de tres primos en `__uint128_t` cuando la cota de coeficientes cabe. Ver el [Tutorial NTT](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.md) |
 | `tpl_polynomial.H` | `Gen_Polynomial<C>`, `Polynomial` | Anillo de polinomios univariados dispersos: aritmética (+, -, *, /, %), cálculo (derivada, integral), evaluación (Horner/dispersa adaptativa), composición, GCD/XGCD/LCM, factorización libre de cuadrados, conteo de raíces (Sturm), búsqueda de raíces (bisección/Newton), interpolación polinómica (diferencias divididas de Newton) |
 | `modular_combinatorics.H` | `ModularCombinatorics` | @f$ nCk \pmod p @f$ with precomputed factorials and Lucas Theorem |
 | `modular_linalg.H` | `ModularMatrix` | Gaussian elimination, determinant, and inverse modulo a prime |
@@ -4078,10 +4080,10 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 
 #### Herramientas para compiladores
 
-Consulta la [Guía de soporte de front-end para compiladores](docs/compiler_frontend_support.md)
+Consulta la [Guía de soporte de front-end para compiladores](https://github.com/lrleon/Aleph-w/blob/master/docs/compiler_frontend_support.md)
 para el alcance previsto, los ejemplos y los límites actuales de estos headers.
 El roadmap más amplio de la plataforma está en
-[docs/compiler_platform_roadmap.md](docs/compiler_platform_roadmap.md).
+[docs/compiler_platform_roadmap.md](https://github.com/lrleon/Aleph-w/blob/master/docs/compiler_platform_roadmap.md).
 
 | Header | Type/Function | Description |
 |--------|---------------|-------------|
@@ -4243,7 +4245,7 @@ El roadmap más amplio de la plataforma está en
 <a id="readme-es-ejemplos"></a>
 ## Ejemplos
 
-El directorio `Examples/` contiene **80+ programas** que demuestran el uso de la biblioteca:
+El directorio `Examples/` contiene **350+ programas** que demuestran el uso de la biblioteca:
 
 ### Compilar ejemplos
 
@@ -4288,8 +4290,8 @@ cmake --build build
 | Intérprete de bytecode para compiladores | `bytecode_interpreter_example.cc` | Ejecución end-to-end del bytecode lowered con una VM portable, globals explícitos, resultados estructurados y llamadas directas a funciones |
 | Backend C para compiladores | `compiler_backend_c_example.cc` | Emisión de una unidad C portable completa desde IR explícita con bloques basados en `goto`, runtime embebido y ejecución standalone opcional |
 | Driver para compiladores | `compiler_driver_example.cc` | Orquestación multiarchivo con imports declarativos para `parse-only`, `run`, `emit-bytecode` y `emit-c`, con artefactos reproducibles por etapa |
-| Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja secuencial optimizada, concurrencia explícita con `ThreadPool` y uso directo con contenedores iterables compatibles como `std::vector`. Tutorial completo: [Tutorial FFT y DSP](docs/fft-tutorial.md) |
-| Number Theoretic Transform | `ntt_example.cc` | Transformadas modulares exactas, reporte del backend SIMD activo, planes reutilizables, tamanos arbitrarios soportados via Bluestein, multiplicacion exacta CRT de tres primos en `__uint128_t`, algebra formal de polinomios, multiplicacion de enteros grandes en base 10, convolucion negaciclica modulo `x^N + 1`, ejecucion por lotes y multiplicacion paralela explicita de polinomios. Tutorial completo: [Tutorial NTT](docs/ntt-tutorial.md) |
+| Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja secuencial optimizada, concurrencia explícita con `ThreadPool` y uso directo con contenedores iterables compatibles como `std::vector`. Tutorial completo: [Tutorial FFT y DSP](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.md) |
+| Number Theoretic Transform | `ntt_example.cc` | Transformadas modulares exactas, reporte del backend SIMD activo, planes reutilizables, tamanos arbitrarios soportados via Bluestein, multiplicacion exacta CRT de tres primos en `__uint128_t`, algebra formal de polinomios, multiplicacion de enteros grandes en base 10, convolucion negaciclica modulo `x^N + 1`, ejecucion por lotes y multiplicacion paralela explicita de polinomios. Tutorial completo: [Tutorial NTT](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.md) |
 | Aritmética de polinomios | `polynomial_example.cc` | Álgebra de polinomios dispersos, cálculo simbólico, análisis de raíces (Sturm/bisección/Newton), interpolación de Newton, funciones de transferencia y operaciones dispersas de alto grado |
 | Caja de herramientas de teoría de números | `math_nt_example.cc` | Multiplicación modular segura, Miller-Rabin, Pollard's Rho, NTT, combinatoria modular y álgebra lineal |
 | Algoritmos de streaming | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
@@ -4443,7 +4445,7 @@ ctest --test-dir build -V
 # AddressSanitizer + UndefinedBehaviorSanitizer
 cmake -S . -B build-asan \
     -DBUILD_TESTS=ON \
-    -DUSE_SANITIZERS=ON \
+    -DALEPH_USE_SANITIZERS=ON \
     -DCMAKE_BUILD_TYPE=Debug
 
 cmake --build build-asan
@@ -4452,8 +4454,7 @@ ctest --test-dir build-asan --output-on-failure
 
 ### Cobertura de tests
 
-- **7,700+ casos de test**
-- **99.98% tasa de aprobación**
+- **13,000+ casos de test**
 - Tests para todas las estructuras de datos y algoritmos
 - Cobertura de casos borde
 - Tests de regresión de rendimiento
@@ -4476,7 +4477,7 @@ cd Aleph-w
 cmake -S . -B build-debug \
     -DBUILD_TESTS=ON \
     -DCMAKE_BUILD_TYPE=Debug \
-    -DUSE_SANITIZERS=ON
+    -DALEPH_USE_SANITIZERS=ON
 
 cmake --build build-debug
 ctest --test-dir build-debug

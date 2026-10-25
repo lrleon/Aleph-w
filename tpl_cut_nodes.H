@@ -471,7 +471,9 @@ components as well as the cross arcs.
           first = it.get_curr();
 
       if (first == nullptr) // did we find the color?
-        ah_domain_error_if(first == nullptr) << "Color does not exist in the graph";
+        {
+          ah_domain_error_if(first == nullptr) << "Color does not exist in the graph";
+        }
 
       // create first, insert it into sg, and map it
       create_and_map_node(first, color, sg);

@@ -42,6 +42,9 @@
 #ifndef COMPILER_OPERATOR_H
 #define COMPILER_OPERATOR_H
 
+#include <cassert>
+#include <limits>
+
 #include <Compiler_Token.H>
 
 namespace Aleph {
@@ -307,6 +310,106 @@ inline Compiler_Operator_Kind compiler_operator_compound_base(const Compiler_Ope
     }
 
   return Compiler_Operator_Kind::Invalid;
+}
+
+/** @brief Outcome of one integer operation of the language. */
+enum class Compiler_Integer_Status
+{
+  Ok,               ///< The result is in `value`.
+  Overflow,         ///< The result does not fit in a signed 64-bit integer.
+  Division_By_Zero, ///< `/` with a zero divisor.
+  Modulo_By_Zero    ///< `%` with a zero divisor.
+};
+
+/** @brief Result of compiler_integer_binary() and compiler_integer_negate(). */
+struct Compiler_Integer_Result
+{
+  Compiler_Integer_Status status = Compiler_Integer_Status::Ok; ///< What happened.
+  long long value = 0; ///< The result, when `status` is `Ok`.
+};
+
+/** @brief Applies one integer operator of the language to two values.
+
+    Integers are signed 64-bit values. An operation whose result does not
+    fit is an error, not a wrap-around: the HIR interpreter, the bytecode VM
+    and the generated C report it at run time, and the optimizer leaves it
+    unfolded. `LLONG_MIN / -1` overflows; `LLONG_MIN % -1` is 0, which fits.
+
+    @param op `Plus`, `Minus`, `Star`, `Slash`, `Percent`, `Amp`, `Pipe` or
+           `Caret`.
+    @param lhs left operand.
+    @param rhs right operand.
+    @return the result, or the reason why there is none.
+*/
+[[nodiscard]] inline Compiler_Integer_Result
+compiler_integer_binary(const Compiler_Operator_Kind op,
+                        const long long lhs,
+                        const long long rhs) noexcept
+{
+  using Status = Compiler_Integer_Status;
+  constexpr long long max = std::numeric_limits<long long>::max();
+  constexpr long long min = std::numeric_limits<long long>::min();
+
+  switch (op)
+    {
+    case Compiler_Operator_Kind::Plus:
+      if ((rhs > 0 and lhs > max - rhs) or (rhs < 0 and lhs < min - rhs))
+        return {Status::Overflow, 0};
+      return {Status::Ok, lhs + rhs};
+
+    case Compiler_Operator_Kind::Minus:
+      if ((rhs < 0 and lhs > max + rhs) or (rhs > 0 and lhs < min + rhs))
+        return {Status::Overflow, 0};
+      return {Status::Ok, lhs - rhs};
+
+    case Compiler_Operator_Kind::Star:
+      if (lhs > 0 ? (rhs > 0 ? lhs > max / rhs : rhs < min / lhs)
+                  : (rhs > 0 ? lhs < min / rhs : lhs != 0 and rhs < max / lhs))
+        return {Status::Overflow, 0};
+      return {Status::Ok, lhs * rhs};
+
+    case Compiler_Operator_Kind::Slash:
+      if (rhs == 0)
+        return {Status::Division_By_Zero, 0};
+      if (lhs == min and rhs == -1)
+        return {Status::Overflow, 0};
+      return {Status::Ok, lhs / rhs};
+
+    case Compiler_Operator_Kind::Percent:
+      if (rhs == 0)
+        return {Status::Modulo_By_Zero, 0};
+      if (rhs == -1) // LLONG_MIN % -1 is undefined in C++
+        return {Status::Ok, 0};
+      return {Status::Ok, lhs % rhs};
+
+    case Compiler_Operator_Kind::Amp:
+      return {Status::Ok, lhs & rhs};
+
+    case Compiler_Operator_Kind::Pipe:
+      return {Status::Ok, lhs | rhs};
+
+    case Compiler_Operator_Kind::Caret:
+      return {Status::Ok, lhs ^ rhs};
+
+    default:
+      break;
+    }
+
+  assert(false and "compiler_integer_binary(): not an integer operator");
+  return {Status::Overflow, 0};
+}
+
+/** @brief Negates one integer of the language.
+
+    @param operand the value to negate.
+    @return `-operand`, or `Overflow` if `operand` is `LLONG_MIN`.
+*/
+[[nodiscard]] inline Compiler_Integer_Result
+compiler_integer_negate(const long long operand) noexcept
+{
+  if (operand == std::numeric_limits<long long>::min())
+    return {Compiler_Integer_Status::Overflow, 0};
+  return {Compiler_Integer_Status::Ok, -operand};
 }
 }  // namespace Aleph
 

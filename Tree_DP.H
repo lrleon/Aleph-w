@@ -129,8 +129,10 @@ private:
     if (root_ == nullptr)
       root_ = id_to_node_(0);
     else
-      ah_domain_error_if(node_to_id_.search(root_) == nullptr)
-        << "Tree_Topology: root node is not part of the graph";
+      {
+        ah_domain_error_if(node_to_id_.search(root_) == nullptr)
+          << "Tree_Topology: root node is not part of the graph";
+      }
   }
 
   /** @brief Build undirected adjacency list and verify tree properties. */

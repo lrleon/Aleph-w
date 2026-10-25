@@ -115,8 +115,10 @@ protected:
           return d;
         i = parent;
         if (d > id.size())
-          ah_logic_error_if(d > id.size())
-              << "cycle detected in union-find structure";
+          {
+            ah_logic_error_if(d > id.size())
+                << "cycle detected in union-find structure";
+          }
       }
   }
 

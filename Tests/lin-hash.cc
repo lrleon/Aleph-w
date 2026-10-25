@@ -39,6 +39,7 @@
 
 #include <tpl_linHash.H>
 #include <random>
+#include <map>
 #include <set>
 #include <vector>
 #include <algorithm>
@@ -269,6 +270,144 @@ TEST(LinearHashTable, RemoveManyElementsTriggersContraction)
   EXPECT_LE(table.capacity(), expanded_capacity);
 }
 
+namespace
+{
+  size_t identity_hash(const int & k) noexcept
+  {
+    return static_cast<size_t>(k);
+  }
+
+  // Number of non-empty lists, counted
+  size_t busy_lists(const Table & table)
+  {
+    const auto stats = table.stats();
+    return table.capacity() - (stats.lens.size() > 0 ? stats.lens(0) : 0);
+  }
+}
+
+// Insertions, also through search_or_insert(), and removals, with the
+// expansion and contraction turned on and off at random. After each step
+// the table holds the oracle's keys and counts its busy lists right;
+// busy_slots() counted a list for each expansion step, also when no key
+// moved, and missed one when contracting merged a list into an empty one.
+// While the table does not resize itself, its capacity stays; while it
+// does, an insertion leaves the load under the upper threshold and a
+// removal over the lower one, unless the table is back at its first size.
+TEST(LinearHashTable, RandomOperationsAgreeWithAnOracle)
+{
+  const std::pair<float, float> thresholds[] =
+    {{0.25f, 0.9f}, {0.5f, 2.0f}, {0.01f, 0.99f}, {0.85f, 0.9f}};
+  std::mt19937 rng(20261021);
+  for (int trial = 0; trial < 200; ++trial)
+    {
+      const auto [lower, upper] = thresholds[rng() % 4];
+      const bool resizing = rng() % 2 == 0;
+      const size_t len = 1 + rng() % 13;
+      Table table(len, identity_hash, Aleph::equal_to<int>(), lower, upper,
+                  true, resizing);
+      std::map<int, Bucket *> oracle;
+      for (int step = 0; step < 400; ++step)
+        {
+          const auto where = [&] { return ::testing::Message()
+              << "trial " << trial << ", step " << step; };
+          const int k = static_cast<int>(rng() % 80);
+          const unsigned op = rng() % 9;
+          const bool resizes = table.get_with_resize();
+          const size_t capacity = table.capacity();
+          const bool present = oracle.count(k) > 0;
+
+          if (op < 4)
+            {
+              auto * bucket = new Bucket(k);
+              Bucket * stored = op < 2 ? table.insert(bucket)
+                                       : table.search_or_insert(bucket);
+              if (present)
+                {
+                  ASSERT_EQ(stored, op < 2 ? nullptr : oracle[k]) << where();
+                  delete bucket;
+                }
+              else
+                {
+                  ASSERT_EQ(stored, bucket) << where();
+                  oracle[k] = bucket;
+                  if (resizes)
+                    {
+                      ASSERT_LT(table.current_alpha(), upper) << where();
+                    }
+                }
+            }
+          else if (op < 8)
+            {
+              if (present)
+                {
+                  delete table.remove(oracle[k]);
+                  oracle.erase(k);
+                  if (resizes)
+                    {
+                      ASSERT_TRUE(table.current_alpha() > lower or
+                                  table.capacity() == len) << where();
+                    }
+                }
+            }
+          else if (rng() % 4 == 0)
+            table.set_with_resize(not resizes);
+
+          if (not resizes and not table.get_with_resize())
+            {
+              ASSERT_EQ(table.capacity(), capacity) << where();
+            }
+          ASSERT_GE(table.capacity(), len) << where();
+          ASSERT_EQ(table.size(), oracle.size()) << where();
+          ASSERT_EQ(table.busy_slots(), busy_lists(table)) << where();
+          for (int key = 0; key < 80; ++key)
+            ASSERT_EQ(table.search(key), oracle.count(key) ? oracle[key] : nullptr)
+              << "key " << key << ", " << where();
+        }
+      for (auto & [key, bucket] : oracle)
+        delete table.remove(bucket);
+    }
+}
+
+// The constructor took with_resize and ignored it: a table built without
+// it expanded all the same.
+TEST(LinearHashTable, WithResizeTurnsExpansionAndContractionOnAndOff)
+{
+  Table table(17, Aleph::dft_hash_ptr_fct<int>, Aleph::equal_to<int>(),
+              hash_default_lower_alpha, hash_default_upper_alpha, true, false);
+  EXPECT_FALSE(table.get_with_resize());
+  const size_t initial_capacity = table.capacity();
+
+  for (int k = 0; k < 200; ++k)
+    ASSERT_NE(table.insert(new Bucket(k)), nullptr) << "key " << k;
+  EXPECT_EQ(table.capacity(), initial_capacity);
+  EXPECT_EQ(table.expansions(), 0u);
+  for (int k = 0; k < 200; ++k)
+    EXPECT_NE(table.search(k), nullptr) << "key " << k;
+
+  // turned on, the next insertion expands it
+  table.set_with_resize(true);
+  EXPECT_TRUE(table.get_with_resize());
+  ASSERT_NE(table.insert(new Bucket(200)), nullptr);
+  const size_t expanded_capacity = table.capacity();
+  EXPECT_GT(expanded_capacity, initial_capacity);
+
+  // turned off, removals do not contract it
+  table.set_with_resize(false);
+  for (int k = 0; k < 150; ++k)
+    delete table.remove(table.search(k));
+  EXPECT_EQ(table.capacity(), expanded_capacity);
+
+  // and turned on again, they do
+  table.set_with_resize(true);
+  for (int k = 150; k < 190; ++k)
+    delete table.remove(table.search(k));
+  EXPECT_LT(table.capacity(), expanded_capacity);
+
+  EXPECT_EQ(table.size(), 11u);
+  for (int k = 190; k <= 200; ++k)
+    EXPECT_NE(table.search(k), nullptr) << "key " << k;
+}
+
 // ============================================================================
 // Iterator Tests
 // ============================================================================
@@ -438,6 +577,12 @@ TEST(LinearHashTable, EmptyMethodClearsTable)
   EXPECT_EQ(table.size(), 0u);
   EXPECT_TRUE(table.is_empty());
   EXPECT_EQ(table.expansions(), 0u);
+
+  // empty() kept the count of busy lists, and later insertions added to it
+  EXPECT_EQ(table.busy_slots(), 0u);
+  for (int k = 0; k < 50; ++k)
+    table.insert(new Bucket(k));
+  EXPECT_EQ(table.busy_slots(), busy_lists(table));
 }
 
 // ============================================================================

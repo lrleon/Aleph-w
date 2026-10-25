@@ -161,8 +161,10 @@ inline void validate_combination_indices(const IndexArray &idx, const size_t n)
         << " is outside [0, " << n << ")";
 
       if (i > 0)
-        ah_domain_error_if(idx(i - 1) >= idx(i))
-          << "next_combination_indices: indices must be strictly increasing";
+        {
+          ah_domain_error_if(idx(i - 1) >= idx(i))
+            << "next_combination_indices: indices must be strictly increasing";
+        }
     }
 }
 

@@ -54,6 +54,7 @@
 #include <tpl_binNode.H>
 #include <ah-errors.H>
 # include <cassert>
+# include <utility>
 
 namespace Aleph {
 
@@ -508,49 +509,240 @@ inline size_t size(Node *root) noexcept
   return compute_cardinality_rec(root);
 }
 
-/** Compute recursively the height of `root`
+/** Depth up to which the traversals below work inside the call stack.
+
+    A balanced tree is not taller than this, so these traversals handle it
+    as they always did. Below this depth they switch to a method whose use
+    of the call stack does not depend on the height of the tree, so that a
+    degenerate tree does not exhaust it.
+
+    @ingroup Trees
+ */
+inline constexpr size_t Bin_Tree_Depth_Bound = 128;
+
+/** Compute the height of a tree with an explicit stack of pending subtrees.
 
     @param[in] root of tree
     @return the height
+    @note The stack only allocates if more than `Bin_Tree_Depth_Bound`
+    subtrees are pending at once; a failure of that allocation terminates
+    the program, since the function is `noexcept`.
+    @see computeHeightRec()
+    @ingroup Trees
+ */
+template <BinNodeLike Node>
+inline size_t compute_height_with_stack(Node *root) noexcept
+{
+  if (root == Node::NullPtr)
+    return 0;
+
+  // each entry is a subtree that remains to be visited and its depth
+  SmallVector<std::pair<Node *, size_t>, Bin_Tree_Depth_Bound> pending;
+  pending.push_back(std::pair<Node *, size_t>(root, 1));
+
+  size_t height = 0;
+  while (not pending.is_empty())
+    {
+      auto [p, depth] = pending.remove_last();
+
+      // go down the left branch and defer the right subtrees
+      for (; p != Node::NullPtr; p = LLINK(p), ++depth)
+        if (Node *r = RLINK(p); r != Node::NullPtr)
+          pending.push_back(std::pair<Node *, size_t>(r, depth + 1));
+
+      height = std::max(height, depth - 1); // depth of the last node visited
+    }
+
+  return height;
+}
+
+/** Compute the height of a tree by a recursion of bounded depth.
+
+    A subtree that hangs deeper than `levels` is measured by
+    compute_height_with_stack().
+
+    @param[in] root of tree
+    @param[in] levels number of levels that the recursion may still go down
+    @return the height
+    @see computeHeightRec()
+    @ingroup Trees
+ */
+template <BinNodeLike Node>
+inline size_t compute_height_bounded(Node *root, const size_t levels) noexcept
+{
+  if (root == Node::NullPtr)
+    return 0;
+
+  if (levels == 0) [[unlikely]]
+    return compute_height_with_stack(root);
+
+  // both links are read before going down, so that the two loads overlap
+  Node *l = LLINK(root);
+  Node *r = RLINK(root);
+  const size_t left_height = l == Node::NullPtr ? 0 : compute_height_bounded(l, levels - 1);
+  const size_t right_height = r == Node::NullPtr ? 0 : compute_height_bounded(r, levels - 1);
+
+  return 1 + std::max(left_height, right_height);
+}
+
+/** Compute the height of `root`
+
+    The recursion is bounded: a subtree that hangs deeper than
+    `Bin_Tree_Depth_Bound` is measured with an explicit stack, so a
+    degenerate tree does not exhaust the call stack.
+
+    @param[in] root of tree
+    @return the height
+    @note For a tree taller than `Bin_Tree_Depth_Bound` the explicit stack
+    may allocate; a failure of that allocation terminates the program,
+    since the function is `noexcept`.
     @ingroup Trees
  */
 template <BinNodeLike Node>
 inline size_t computeHeightRec(Node *root) noexcept
 {
   assert_valid_tree_root(root);
-  if (root == Node::NullPtr)
-    return 0;
 
-  const size_t left_height = computeHeightRec(LLINK(root));
-  const size_t right_height = computeHeightRec(RLINK(root));
-
-  return 1 + std::max(left_height, right_height);
+  return compute_height_bounded(root, Bin_Tree_Depth_Bound);
 }
 
-/** Free recursively all the memory occupied by the tree `root`
+/** Dispose of every node of a tree in postorder with \f$O(1)\f$ additional
+    memory.
+
+    The way back from the node in course to the root is kept in the tree
+    itself: while the subtrees of a node are disposed of, its left link
+    points to its parent, and its right link is cleared as soon as the right
+    subtree is entered. Neither the call stack nor the heap is used,
+    whatever the shape of the tree.
+
+    @param[in] root of the tree
+    @param[in] dispose operation invoked once on each node, when the nodes
+    below it are gone and both its links are `Node::NullPtr`; it must not
+    throw
+    @note \f$O(n)\f$: each link is read and written a constant number of
+    times. The links of the nodes are rewritten, so the tree must be
+    abandoned by the caller.
+    @ingroup Trees
+ */
+template <BinNodeLike Node, class Dispose>
+inline void dispose_tree_by_link_inversion(Node *root, Dispose & dispose) noexcept
+{
+  if (root == Node::NullPtr)
+    return;
+
+  Node *parent = Node::NullPtr; // of p; each ancestor keeps its own in LLINK
+  Node *p = root;
+  while (true)
+    {
+      // Go down to a leaf, first by the left, leaving in each node the way
+      // back to its parent.
+      while (true)
+        {
+          Node *child = LLINK(p);
+          if (child == Node::NullPtr)
+            {
+              child = RLINK(p);
+              if (child == Node::NullPtr)
+                break;
+              RLINK(p) = Node::NullPtr; // the right subtree is the one in course
+            }
+          LLINK(p) = parent;
+          parent = p;
+          p = child;
+        }
+
+      // Nothing hangs from p. Dispose of it and go up while the node reached
+      // has no right subtree left; otherwise that subtree is the next one.
+      while (true)
+        {
+          dispose(p);
+          if (parent == Node::NullPtr)
+            return;
+
+          p = parent;
+          parent = LLINK(p);
+          Node *r = RLINK(p);
+          LLINK(p) = Node::NullPtr;
+          if (r == Node::NullPtr)
+            continue;
+
+          RLINK(p) = Node::NullPtr;
+          LLINK(p) = parent;
+          parent = p;
+          p = r;
+          break;
+        }
+    }
+}
+
+/** Dispose of every node of a tree in postorder.
+
+    The recursion is bounded: a subtree that hangs deeper than `levels` is
+    disposed of by dispose_tree_by_link_inversion(), which keeps the order.
+    A degenerate tree therefore exhausts neither the call stack nor the
+    memory, which matters because the destructors pass here.
+
+    @param[in] root of the tree
+    @param[in] dispose operation invoked once on each node, when the nodes
+    below it are gone and both its links are `Node::NullPtr`; it must not
+    throw
+    @param[in] levels number of levels that the recursion may still go down
+    @note \f$O(n)\f$. The left subtree of a node is disposed of before the
+    right one. The tree must be abandoned by the caller.
+    @ingroup Trees
+ */
+template <BinNodeLike Node, class Dispose>
+inline void dispose_tree_nodes(Node *root, Dispose & dispose,
+                               const size_t levels = Bin_Tree_Depth_Bound) noexcept
+{
+  if (root == Node::NullPtr)
+    return;
+
+  if (levels == 0) [[unlikely]]
+    {
+      dispose_tree_by_link_inversion(root, dispose);
+      return;
+    }
+
+  dispose_tree_nodes(LLINK(root), dispose, levels - 1);
+  dispose_tree_nodes(RLINK(root), dispose, levels - 1);
+  LLINK(root) = RLINK(root) = Node::NullPtr; // what hung from them is gone
+  dispose(root);
+}
+
+/** Free all the memory occupied by the tree `root`
+
+    The nodes are freed in postorder: a node is freed after the nodes of
+    its left subtree and of its right subtree, in that order, and with both
+    its links already set to `Node::NullPtr`. The depth of the recursion is
+    bounded and nothing is allocated, whatever the height of the tree; see
+    dispose_tree_nodes().
 
     \note It is assumed that the nodes were allocated with `new`
     operator.
 
-    @param[in] root of tree to free
+    @param[in,out] root of tree to free; it is left as `Node::NullPtr`
+    @note \f$O(n)\f$.
     @ingroup Trees
  */
 template <BinNodeLike Node>
 inline void destroyRec(Node *&root) noexcept
 {
   assert_valid_tree_root(root);
-  if (root == Node::NullPtr)
-    return;
 
-  destroyRec(LLINK(root));
-  destroyRec(RLINK(root));
-  delete root;
+  const auto free_node = [] (Node *p) noexcept { delete p; };
+  dispose_tree_nodes(root, free_node);
   root = Node::NullPtr;
 }
 
-/** Traverses recursively the tree and calls key's destructors
+/** Traverses the tree and calls key's destructors
 
-        @param[in] root of tree to free
+    The keys are destroyed in postorder and the links of every node are
+    left as `Node::NullPtr`, as in destroyRec(). The depth of the recursion
+    is bounded and nothing is allocated.
+
+        @param[in,out] root of tree whose keys are destroyed; it is left as
+        `Node::NullPtr`
         @ingroup Trees
 
         @Warning This function does not free the memory occupied
@@ -564,22 +756,24 @@ template <BinNodeLike Node>
 inline void callKeyDestructorsRec(Node *&root) noexcept
 {
   assert_valid_tree_root(root);
-  if (root == Node::NullPtr)
-    return;
 
   using Key = typename Node::key_type;
 
-  callKeyDestructorsRec(LLINK(root));
-  callKeyDestructorsRec(RLINK(root));
-  root->get_key().~Key();
+  const auto destroy_key = [] (Node *p) noexcept { p->get_key().~Key(); };
+  dispose_tree_nodes(root, destroy_key);
   root = Node::NullPtr;
 }
 
-/** Copy recursively a tree
+/** Copy a tree
+
+    The traversal does not recurse: it keeps the pending subtrees in a
+    stack of its own, so a degenerate tree does not exhaust the call stack.
 
     @param[in] root of tre to be copied
     @return a copy of tree with `root`
-    \throw bad_alloc if there is no enough memory
+    \throw bad_alloc if there is no enough memory; the nodes already copied
+    are freed
+    @note The name is kept for compatibility.
     @ingroup Trees
  */
 template <BinNodeLike Node>
@@ -589,22 +783,36 @@ template <BinNodeLike Node>
   if (root == Node::NullPtr)
     return Node::NullPtr;
 
-  Node *tgt_root = new Node(*root);
+  Node *tgt_root = Node::NullPtr;
 
   try
     {
-      LLINK(tgt_root) = copyRec<Node>(LLINK(root));
-      RLINK(tgt_root) = copyRec<Node>(RLINK(root));
+      // Each entry is a source subtree that remains to be copied and the
+      // link of the copy where it must hang.
+      SmallVector<std::pair<Node *, Node **>, Bin_Tree_Depth_Bound> pending;
+      pending.push_back(std::pair<Node *, Node **>(root, &tgt_root));
+
+      while (not pending.is_empty())
+        {
+          auto [src, link] = pending.remove_last();
+
+          // Go down the left branch and defer the right subtrees, which
+          // copies the nodes in preorder, as a recursion would. A copy
+          // hangs from its link as soon as it exists, so that the tree of
+          // tgt_root owns every node if something throws.
+          for (; src != Node::NullPtr; src = LLINK(src))
+            {
+              Node *tgt = new Node(*src);
+              *link = tgt;
+              if (Node *r = RLINK(src); r != Node::NullPtr)
+                pending.push_back(std::pair<Node *, Node **>(r, &RLINK(tgt)));
+              link = &LLINK(tgt);
+            }
+        }
     }
   catch (...)
     {
-      assert(RLINK(tgt_root) == Node::NullPtr);
-
-      if (LLINK(tgt_root) != Node::NullPtr)
-        destroyRec(LLINK(tgt_root));  // TODO: diff de Node*&
-
-      delete tgt_root;
-
+      destroyRec(tgt_root);
       throw;
     }
 

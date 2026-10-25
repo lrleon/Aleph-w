@@ -186,13 +186,15 @@ TEST(AhCppCompat, VoidExpectedMonadic)
 
 namespace
 {
+// Copy assignable, as std::expected (Aleph::expected under C++23) requires
+// of its error type to be copy assigned; only the copy constructor throws.
 struct ThrowOnCopy
 {
   int val = 0;
   ThrowOnCopy(int v = 0) : val(v) {}
   ThrowOnCopy(const ThrowOnCopy &) { throw std::runtime_error("copy threw"); }
   ThrowOnCopy(ThrowOnCopy &&) noexcept = default;
-  ThrowOnCopy &operator=(const ThrowOnCopy &) = delete;
+  ThrowOnCopy &operator=(const ThrowOnCopy &) = default;
   ThrowOnCopy &operator=(ThrowOnCopy &&) noexcept = default;
 };
 }  // namespace

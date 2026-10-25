@@ -32,18 +32,29 @@ Two reasons:
 
 ## Skipped tests by sanitizer
 
-Each skip below is annotated in the workflow YAML with
-`# sanitizer:skip-<name>` plus a one-line justification. Updating this
-table without also updating the inline comment is a review block.
+No sanitizer job excludes a test by name. `memory-sanitizer` builds and
+runs a single test (see its section below); the others run every test that
+their compiler builds (see
+[Tests that only some compilers build](#tests-that-only-some-compilers-build)).
+A test case that cannot run under a sanitizer skips itself, or is compiled
+as a disabled test, as the cases below do (see
+[Source-level skips](#source-level-skips)).
+
+A `ctest -E` regex, where one is needed, must match the names that CTest
+gets from `gtest_discover_tests`, which are GoogleTest names
+(`Suite.Test`; `ctest -N` lists them), not the name of the test program.
+Until 7.0.1 the workflows excluded `hash_statistical_test`,
+`tpl_ca_parallel_engine_test.*Stress`, `ca_animation_sinks_test`,
+`file_b_tree_test`, `file_bplus_tree_test` and `timeoutQueue_test`, and
+none of those patterns matched a test, so those tests already ran
+everywhere they are built.
 
 ### `tsan` (ThreadSanitizer)
 
-| Test (CTest regex)                              | Reason for skip |
-|-------------------------------------------------|-----------------|
-| `hash_statistical_test`                         | Long-running statistical sweep; 10× the runtime under TSan with no race signal. |
-| `tpl_ca_parallel_engine_test.*Stress`           | Intentionally oversubscribes the work-stealing pool; the relaxations there are benign and produce noise rather than findings. |
+`HashStatisticalTest`, the statistical sweep of `hash_statistical_test`,
+takes about a minute under TSan.
 
-`prefix_tree_test` also skips 4 individual cases (`InsertWordCleansDetachedPathOnAllocationFailure`,
+`prefix_tree_test` skips 4 individual cases (`InsertWordCleansDetachedPathOnAllocationFailure`,
 `CloneCleansPartialCopyOnAllocationFailure`, `OwnsRootAndDestroysNodes`,
 `CopyAssignmentKeepsOldTreeOnAllocationFailure`) via `GTEST_SKIP()` inside
 the test source itself, not a `ctest -E` regex: those tests rely on
@@ -55,28 +66,57 @@ definition") with TSan's own strong `operator new`/`delete` replacements
 so the whole binary still links; the 4 cases that depend on them report
 `SKIPPED` at run time instead.
 
-`tree_allocation_test` follows the same pattern: it counts allocations by
-replacing the global allocation functions, so under TSan (and under ASan,
-MSan and HWASan, which also bring their own allocator) the replacement is
-compiled out and the 4 cases that count allocations
+`tree_allocation_test` follows the same pattern: it counts allocations, and
+makes them fail, by replacing the global allocation functions, so under
+TSan (and under ASan, MSan and HWASan, which also bring their own
+allocator) the replacement is compiled out and the 6 cases that use it
 (`constructing_a_tree_does_not_allocate`, `moving_a_tree_does_not_allocate`,
-`insert_and_remove_allocate_only_the_node`, `iterating_does_not_allocate`)
-report `SKIPPED`. `noexcept_specifications_hold` still runs.
+`insert_and_remove_allocate_only_the_node`, `iterating_does_not_allocate`,
+`advancing_on_a_deep_tree_allocates`,
+`adaptors_propagate_the_bad_alloc_of_a_deep_tree`) report `SKIPPED`.
+`noexcept_specifications_hold` still runs.
+
+`hash_allocation_failure_test` follows the pattern of `prefix_tree_test`:
+it makes allocations fail by replacing the global allocation functions, so
+under TSan the replacement is compiled out and its 6 cases report
+`SKIPPED`. Under ASan it runs: it also replaces the `std::nothrow_t` forms,
+which GoogleTest calls, so that ASan's `operator new` never hands memory
+to the test's `operator delete`.
+
+`thread_pool_start_failure_test` makes the start of a worker thread fail
+in the same way, so under TSan its 2 cases report `SKIPPED`. They also
+skip themselves where starting a `std::thread` does not allocate through
+the global `operator new`. Like `hash_allocation_failure_test`, it
+replaces the `std::nothrow_t` forms and runs under ASan.
+
+`rope_test` also makes allocations fail by replacing the global
+allocation functions: under TSan the 2 cases that need it
+(`IdentityEditsDoNotAllocate` and
+`FailedAllocationDuringConcatLeavesExistingRopesUnchanged`) report
+`SKIPPED`.
+
+`howard_fallback_memory_test` replaces them to record the largest
+requests, so, as in `tree_allocation_test`, under TSan, ASan, MSan and
+HWASan the replacement is compiled out and its 3 cases report `SKIPPED`.
+
+Three cases fork the process.
+`FileBTree.ReadOnlySharedLocksWorkAcrossProcesses` and
+`FileBPlusTree.ReadOnlySharedLocksWorkAcrossProcesses` check the file
+locks from child processes, and under TSan they report `SKIPPED`. The
+death test `TimeoutQueueDeathTest.DeleteEventInQueueDirectlyThrows` is
+compiled under TSan as a disabled test (`DISABLED_` prefix), which CTest
+reports as `Not Run (Disabled)`: `ASSERT_DEATH` forks, and TSan does not
+support `fork()` once the program has started threads.
 
 ### `ubsan` (UndefinedBehaviorSanitizer)
 
-| Test (CTest regex)                              | Reason for skip |
-|-------------------------------------------------|-----------------|
-| `hash_statistical_test`                         | Runtime cost only; UBSan offers no signal that the regular Debug build does not already cover. |
+Runs every test it builds (Clang does not build `k2tree_test`).
 
 ### `sanitizers` (combined ASan + UBSan, gcc)
 
-| Test (CTest regex)                              | Reason for skip |
-|-------------------------------------------------|-----------------|
-| `hash_statistical_test`                         | Same rationale as above. |
-
-The 4 allocation-counting cases of `tree_allocation_test` report `SKIPPED`
-here too (see the `tsan` section).
+Runs every test. The cases that need the replaced allocation functions,
+6 of `tree_allocation_test` and the 3 of `howard_fallback_memory_test`,
+report `SKIPPED` here too (see the `tsan` section).
 
 ### `memory-sanitizer` (MemorySanitizer, clang)
 
@@ -95,23 +135,25 @@ the pointer is null) is suppressed inline at each site via
 
 ## Skipped tests by platform
 
-The cross-platform jobs in `ci-platform.yml` exclude tests that depend
-on POSIX-only system calls or on optional GUI/multimedia dependencies
-that are not packaged for the runner.
+Of the cross-platform jobs in `ci-platform.yml`, only the Windows one
+leaves tests out because of the platform: those that depend on POSIX-only
+facilities or on programs that the runner does not provide. The macOS and
+ARM64 jobs run every test they build, and with Clang they do not build all
+of them (see
+[Tests that only some compilers build](#tests-that-only-some-compilers-build)).
 
-### `build-macos` (`macos-13`, `macos-14`)
+### `build-macos` (`macos-15`, `macos-15-intel`)
 
-X11 is unavailable on the GitHub-hosted runners (no XQuartz).
-
-| Test (CTest regex)                              | Reason for skip |
-|-------------------------------------------------|-----------------|
-| `hash_statistical_test`                         | Runtime cost. |
-| `ca_animation_sinks_test`                       | Exercises the `Ffmpeg_Frame_Sink` + the X11 viewer hooks; ffmpeg is not installed and there is no X11. |
+Runs every test it builds; AppleClang does not build `k2tree_test`. X11
+is unavailable on the GitHub-hosted runners (no XQuartz) and ffmpeg is not
+installed, but `ca_animation_sinks_test` needs neither: it checks that the
+ffmpeg sink and the X11 viewer do nothing when they are disabled.
 
 ### `build-arm64-linux` (`ubuntu-24.04-arm`)
 
-Same dependency surface as the gating Linux matrix; no additional
-skips beyond `hash_statistical_test`.
+Same dependency surface as the gating Linux matrix; runs every test it
+builds, which with Clang and libc++ leaves out `k2tree_test` and
+`gmpfrxx_test`.
 
 ### `build-windows` (`windows-2022` × `msvc`, `clang-cl`)
 
@@ -150,22 +192,24 @@ GoogleTest) can stay on Windows by asserting a `bool` instead, as
 
 | Test (CTest regex)                              | Reason for skip |
 |-------------------------------------------------|-----------------|
-| `hash_statistical_test`                         | Runtime cost. |
-| `ca_animation_sinks_test`                       | Requires libX11 and an external `ffmpeg` process. |
+| `PlanarityTest\.External`, `PlanarityTest\.ExternalGephi` | Run `ruby` and `python3` through `std::system` with POSIX shell redirections (`> /dev/null 2>&1`). |
+| `CompilerSdk\.InstallHeadersSmoke`              | Compiles a program against the installed headers with GCC-style options (`-std=c++20`, `-I`). |
+| `ThreadPoolTest\.BenchmarkVsStdAsync`           | Benchmark against `std::async`; left out with the Windows port (#58), with no recorded reason. |
 
 The Windows job sets `-DALEPH_BUILD_X11_VIEWER=OFF` so the library does
 not pull `libX11`. `ca-x11-viewer.H` is then compiled as a no-op stub
 guarded by `__has_include(<X11/Xlib.h>)`.
 
-### Clang with libc++ outside macOS (`ci.yml` clang jobs, `build-arm64-linux` clang)
+### Tests that only some compilers build
 
-The system `libgmpxx` is built with libstdc++, so its compiled C++
-operators do not link with libc++. `Tests/CMakeLists.txt` therefore skips:
+Outside macOS the system `libgmpxx` is built with libstdc++, so its
+compiled C++ operators do not link with libc++. `Tests/CMakeLists.txt`
+therefore leaves out:
 
 | Test | Condition |
 |------|-----------|
-| `k2tree_test`  | Built only with GCC. |
-| `gmpfrxx_test` | Skipped when Clang uses libc++ (`ALEPH_USE_LIBCXX`, or `-stdlib=libc++` in `CMAKE_CXX_FLAGS` or in the flags of the active build type) on a non-Apple host. Homebrew's GMP on macOS is built with libc++, so the test runs there. |
+| `k2tree_test`  | Built only with GCC: no Clang, AppleClang or Windows job builds it. |
+| `gmpfrxx_test` | Skipped when Clang uses libc++ (`ALEPH_USE_LIBCXX`, or `-stdlib=libc++` in `CMAKE_CXX_FLAGS` or in the flags of the active build type) on a non-Apple host: the Clang jobs of `build-and-test` in `ci.yml` and of `build-arm64-linux`. Homebrew's GMP on macOS is built with libc++, so the test runs there. |
 
 ## Re-enabling a skipped test
 
@@ -174,16 +218,12 @@ operators do not link with libc++. `Tests/CMakeLists.txt` therefore skips:
 3. Add an entry to the PR description explaining what changed (in the
    test or in the dependency surface) that unblocks the skip.
 
-## Source-level skip annotations
+## Source-level skips
 
-When a skip is *inevitable in the code itself* (for example because a
-test exercises behaviour that TSan deliberately mis-reports), prefer a
-local annotation in the test source over a workflow-level filter:
-
-```cpp
-// sanitizer:skip-tsan — work-stealing relaxation; the benign race here
-// is documented in tpl_ca_parallel_engine.H §"Memory model".
-```
-
-These comments are intentionally grep-able. CI surveys them weekly to
-confirm the workflow regex and the source annotations stay in sync.
+When a test case cannot run in some configuration because of the code
+itself (for example, it replaces the global `operator new`, which the
+sanitizer also replaces), prefer a `GTEST_SKIP()` in the test, guarded by
+the macro that detects the configuration and with the reason in its
+message, over a workflow-level filter, as `prefix_tree_test.cc` and
+`tree_allocation_test.cc` do. The case then reports `SKIPPED` instead of
+disappearing from the run.

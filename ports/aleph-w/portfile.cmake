@@ -1,5 +1,9 @@
 # vcpkg port for Aleph-w (roadmap Phase 21).
 #
+# DRAFT, NOT VERIFIED: the version in vcpkg.json (4.0.0) and the SHA512 below
+# are placeholders, so this port does not install any release yet. It has not
+# been checked against a published release (see VERSIONING.md).
+#
 # Submission to microsoft/vcpkg is a follow-up: the SHA512 below must be the
 # real hash of the v${VERSION} release tarball. During local development run
 # `vcpkg install aleph-w --overlay-ports=ports` once with SHA512 set to all

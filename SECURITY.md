@@ -9,8 +9,8 @@ only while the maintainer judges the effort proportionate.
 
 | Version line | Supported          |
 | ------------ | ------------------ |
-| 5.x (latest) | :white_check_mark: |
-| < 5.0        | :x: (best effort)  |
+| 7.x (latest) | :white_check_mark: |
+| < 7.0        | :x: (best effort)  |
 
 The canonical version is recorded in [`VERSION.txt`](VERSION.txt).
 

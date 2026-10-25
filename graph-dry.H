@@ -37,6 +37,10 @@
  *  CRTP (Curiously Recurring Template Pattern). Includes node/arc
  *  iterators, graph traversal, and common graph operations.
  *
+ *  @note This header is an internal fragment of tpl_graph.H, which includes
+ *        it once the declarations it relies on are visible. It does not
+ *        compile by itself; include tpl_graph.H instead.
+ *
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */

@@ -460,12 +460,18 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @return Reference to the value associated with the key.
    *
    *  @throw std::bad_alloc If insertion requires memory allocation.
+   *  @throw std::overflow_error If the key is not in the map and its table
+   *         is full and does not resize itself.
    */
   [[nodiscard]] Data &operator [] (const Key &key)
   {
     static_assert(std::is_default_constructible<Data>::value,
                   "MapOpenHash::operator[] requires Data to be default-constructible");
-    return this->search_or_insert(Pair(key, Data()))->second;
+    Pair * pair = this->search_or_insert(Pair(key, Data()));
+    ah_overflow_error_if(pair == nullptr)
+      << "Hash table is full and does not resize itself";
+
+    return pair->second;
   }
 
   /** @brief Access value by key (const version).
@@ -484,12 +490,19 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *
    *  @param[in] key The key to access or insert.
    *  @return Reference to the value associated with the key.
+   *
+   *  @throw std::overflow_error If the key is not in the map and its table
+   *         is full and does not resize itself.
    */
   [[nodiscard]] Data &operator [] (Key &&key)
   {
     static_assert(std::is_default_constructible<Data>::value,
                   "MapOpenHash::operator[] requires Data to be default-constructible");
-    return this->search_or_insert(Pair(std::move(key), Data()))->second;
+    Pair * pair = this->search_or_insert(Pair(std::move(key), Data()));
+    ah_overflow_error_if(pair == nullptr)
+      << "Hash table is full and does not resize itself";
+
+    return pair->second;
   }
 
   /** @brief Access value by key (const, move).

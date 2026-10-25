@@ -50,20 +50,20 @@ using namespace Aleph;
 
 namespace Aleph {
 
-    /** Selecciona un nodo de un árbol binario según su posición infija
-        y lo convierte en su raíz.
+    /** Select a node of a binary tree by its inorder position and make it
+        the root.
 
-        select_gotoup_root(r,i) selecciona  el nodo con posición infija
-        i y lo rota hasta que éste devenga su raíz.
+        select_gotoup_root(r,i) selects the node at inorder position i and
+        rotates it up until it becomes the root.
 
-        Este algoritmo de selección es recursivo.
+        This selection algorithm is recursive.
 
-        @param[in] root raíz del árbol binario con rangos.
-        @param[in] i posición infija que se desea acceder.
-        @return puntero al nodo en la posición infija i el cual luego de
-        la llamada es raíz del árbol binario.
-        @throw out_of_range si i es mayor o igual que la cantidad total
-        de nodos del árbol binario.
+        @param[in] root root of the binary tree with subtree counts.
+        @param[in] i inorder position to access.
+        @return pointer to the node at inorder position i, which is the
+        root of the binary tree after the call.
+        @throw out_of_range if i is greater than or equal to the number of
+        nodes of the binary tree.
         @see select() select_rec()
 
         @ingroup Trees
@@ -75,7 +75,9 @@ Node * select_gotoup_root(Node * root, const size_t & i)
   assert(COUNT(Node::NullPtr) == 0);
 
   if (i >= COUNT(root))
-    ah_out_of_range_error_if(true) << "";
+    {
+      ah_out_of_range_error_if(true) << "";
+    }
 
   if (i == COUNT(LLINK(root))) 
     return root;
@@ -94,18 +96,16 @@ Node * select_gotoup_root(Node * root, const size_t & i)
   return root;
 }
 
-    /** Reequilibra un árbol binario de búsqueda.
+    /** Rebalance a binary search tree.
 
-        balance_tree(root) toma el árbol binario de búsqueda con raíz
-        root y lo reequilibra "perfectamente" en el sentido de que para
-        cada nodo la diferencia entre las cardinalidades de sus
-        subárboles es a lo sumo uno.
+        balance_tree(root) takes the binary search tree rooted at root and
+        rebalances it "perfectly", in the sense that, for every node, the
+        sizes of its two subtrees differ by at most one.
 
-        La operación tiene un desempeño de \f$O(n\; \lg n)\f$.
+        The operation takes \f$O(n\; \lg n)\f$ time.
 
-        @param[in] root la raíz del árbol binario de búsqueda a
-        equilibrar. 
-        @return raíz del árbol binario de búsqueda equilibrado.
+        @param[in] root the root of the binary search tree to rebalance.
+        @return the root of the rebalanced binary search tree.
      */
 template <class Node> inline Node * balance_tree(Node * root)
 {

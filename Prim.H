@@ -90,6 +90,8 @@
 # ifndef PRIM_H
 # define PRIM_H
 
+# include <memory>
+
 # include <ah-graph-concepts.H>
 
 # include <tpl_agraph.H>
@@ -134,7 +136,7 @@ namespace Aleph
     // Returns reference to the cookie pointer used as heap node storage
     void *& operator ()(typename GT::Node *p)
     {
-      return p->cookie;
+      return NODE_COOKIE(p);
     }
   };
 
@@ -147,11 +149,14 @@ namespace Aleph
     { /* empty */
     }
 
+    // Gives p its Prim_Info and its node in the tree, or, if creating either
+    // throws, leaves its cookie as it was
     void operator ()(const GT & g, typename GT::Node *p)
     {
       g.reset_bit(p, Aleph::Spanning_Tree);
-      NODE_COOKIE(p) = new Prim_Info<GT>;
-      TREENODE(p) = tree.insert_node(p->get_info());
+      auto info = std::make_unique<Prim_Info<GT>>();
+      info->tree_node = tree.insert_node(p->get_info());
+      NODE_COOKIE(p) = info.release();
     }
   };
 
@@ -161,7 +166,10 @@ namespace Aleph
     void operator ()(const GT &, typename GT::Node *p)
     {
       const Prim_Info<GT> *aux = PRIMINFO(p);
-      GT::map_nodes(p, TREENODE(p));
+      // with aux still in its cookie, map_nodes() would chain aux to the
+      // node of the tree, which would then map back to freed memory
+      NODE_COOKIE(p) = nullptr;
+      GT::map_nodes(p, aux->tree_node);
       delete aux;
     }
   };
@@ -246,11 +254,21 @@ namespace Aleph
 
       NODE_BITS(first).set_bit(Aleph::Spanning_Tree, true); // visited
 
+      // The heap keeps its nodes in the cookies. If the distance throws,
+      // the heap frees the nodes it still has, so their cookies are cleared.
+      Scope_Guard cookies_guard(g, [](const GT & graph) {
+        for (typename GT::Node_Iterator it(graph); it.has_curr(); it.next_ne())
+          NODE_COOKIE(it.get_curr()) = nullptr;
+      });
+
       Simple_Heap heap(dist, Acc_Simple_Heap());
       for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next_ne())
         {
           typename GT::Arc *arc = it.get_current_arc_ne();
-          heap.put_arc(arc, it.get_tgt_node_ne());
+          typename GT::Node *tgt = it.get_tgt_node_ne();
+          if (tgt == first)
+            continue; // a loop would close a cycle in the tree
+          heap.put_arc(arc, tgt);
         }
 
       const size_t V1 = g.get_num_nodes() - 1;
@@ -301,8 +319,24 @@ namespace Aleph
 
       clear_graph(tree);
 
+      // The first num_init nodes have a Prim_Info; if a later one cannot
+      // have its own, those are freed before the exception goes on
       Init_Prim_Info<GT> init(tree);
-      Operate_On_Nodes<GT, Init_Prim_Info<GT>>()(g, init);
+      size_t num_init = 0;
+      try
+        {
+          for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne(), ++num_init)
+            init(g, it.get_curr());
+        }
+      catch (...)
+        {
+          for (Node_Iterator<GT> it(g); num_init > 0; it.next_ne(), --num_init)
+            {
+              delete PRIMINFO(it.get_curr());
+              NODE_COOKIE(it.get_curr()) = nullptr;
+            }
+          throw;
+        }
       g.reset_arcs();
 
       // Scope guard for exception safety - ensures Uninit is always called

@@ -77,6 +77,28 @@
  *  - **ah_TYPE_error_unless(C)**: Throws exception if C is false
  *  - **ah_warning_if/unless**: Emits warning without throwing exception
  *
+ *  @section if_statements The conditional macros are if statements
+ *  Every `_if` and `_unless` macro, their `_constexpr` forms included,
+ *  expands to an `if` statement without braces, except `ah_bad_alloc_if`
+ *  and `ah_bad_alloc_unless`, which are wrapped in `do { ... } while (false)`.
+ *  An `else` written after an invocation of any other belongs to the `if` of
+ *  the macro:
+ *  @code
+ *  if (checked)
+ *    ah_domain_error_if(x < 0) << "x is negative";
+ *  else       // wrong: runs when checked and x >= 0, never when not checked
+ *    use(x);
+ *  @endcode
+ *  So brace an `if` or an `else` whose only statement is one of them:
+ *  @code
+ *  if (checked)
+ *    {
+ *      ah_domain_error_if(x < 0) << "x is negative";
+ *    }
+ *  else
+ *    use(x);
+ *  @endcode
+ *
  *  @author Leandro Rabindranath Leon
  *  @date 2002-2025 *
  *  @ingroup Utilities

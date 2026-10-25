@@ -735,7 +735,7 @@ public:
     : dim(0), array(nullptr), front_index(0), rear_index(0), mask(0), num_items(0)
   {
     size_t k = log2(d);
-    dim = is_power_of_2(d) ? d : 1 << ++k;
+    dim = is_power_of_2(d) ? d : size_t(1) << ++k;
     mask = dim - 1;
     array = new T[dim];
   }

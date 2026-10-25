@@ -96,6 +96,7 @@
 
 #include <fstream>
 #include <ostream>
+#include <sstream>
 #include <string>
 
 namespace Aleph

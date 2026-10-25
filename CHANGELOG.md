@@ -5,6 +5,82 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.2.1](https://github.com/lrleon/Aleph-w/compare/v7.2.0...v7.2.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **graph:** Make Floyd-Warshall handle parallel arcs and loops ([#139](https://github.com/lrleon/Aleph-w/issues/139)) ([2c4ccb5](https://github.com/lrleon/Aleph-w/commit/2c4ccb543db909025d6d74e250aa44a2e185c8dd))
+* **graph:** Make Prim map its tree back and free its data on failure ([#140](https://github.com/lrleon/Aleph-w/issues/140)) ([aadcb40](https://github.com/lrleon/Aleph-w/commit/aadcb4032a3cf51ac259b9d07108e6d6964559ee))
+* **graph:** Make Prim order arcs by its distance and paint its tree ([#137](https://github.com/lrleon/Aleph-w/issues/137)) ([c2960a4](https://github.com/lrleon/Aleph-w/commit/c2960a431a0cee797516e657bbca76d06383dfe6))
+* **heap:** Let what the comparison throws reach the caller of the binary heap ([#137](https://github.com/lrleon/Aleph-w/issues/137)) ([c2960a4](https://github.com/lrleon/Aleph-w/commit/c2960a431a0cee797516e657bbca76d06383dfe6))
+* **graph:** Make Floyd-Warshall throw when a distance underflows ([#139](https://github.com/lrleon/Aleph-w/issues/139)) ([2c4ccb5](https://github.com/lrleon/Aleph-w/commit/2c4ccb543db909025d6d74e250aa44a2e185c8dd))
+
+## [7.2.0](https://github.com/lrleon/Aleph-w/compare/v7.1.2...v7.2.0) (2026-10-22)
+
+
+### Features
+
+* **geom:** Enable the point.H formatters with libc++ 17 and 18 ([#129](https://github.com/lrleon/Aleph-w/issues/129)) ([2dd008e](https://github.com/lrleon/Aleph-w/commit/2dd008eafcba1c6ea2ba49da8dc8b10c3cea556e))
+* **graphs:** Rewrite generate_df_tree.H to draw df and low trees ([#127](https://github.com/lrleon/Aleph-w/issues/127)) ([2f5436f](https://github.com/lrleon/Aleph-w/commit/2f5436fdb73220ea5f1b8bc065c39de802bc46cd))
+* **hash:** Add set_with_resize() and shrink tables on remove(key) ([#130](https://github.com/lrleon/Aleph-w/issues/130)) ([0d27b83](https://github.com/lrleon/Aleph-w/commit/0d27b838152201c5fdcf4e85a6cf7a061d0e539b))
+
+
+### Bug Fixes
+
+* **trees:** Check the depth in generate_tree() before writing past its buffer ([#127](https://github.com/lrleon/Aleph-w/issues/127)) ([2f5436f](https://github.com/lrleon/Aleph-w/commit/2f5436fdb73220ea5f1b8bc065c39de802bc46cd))
+* **hash:** Keep the capacity, without throwing or ending the program, when a removal cannot shrink the table for lack of memory ([#130](https://github.com/lrleon/Aleph-w/issues/130)) ([0d27b83](https://github.com/lrleon/Aleph-w/commit/0d27b838152201c5fdcf4e85a6cf7a061d0e539b))
+* **hash:** Make DynLhashTable use its comparator, keep its configuration in copies and refuse a key already in the table ([#130](https://github.com/lrleon/Aleph-w/issues/130)) ([0d27b83](https://github.com/lrleon/Aleph-w/commit/0d27b838152201c5fdcf4e85a6cf7a061d0e539b))
+* **hash:** Check the pointer given to ODhashTable::remove_ptr() ([#130](https://github.com/lrleon/Aleph-w/issues/130)) ([0d27b83](https://github.com/lrleon/Aleph-w/commit/0d27b838152201c5fdcf4e85a6cf7a061d0e539b))
+* **hash:** Keep busy_slots() of the linear hash table equal to its busy lists ([#130](https://github.com/lrleon/Aleph-w/issues/130)) ([0d27b83](https://github.com/lrleon/Aleph-w/commit/0d27b838152201c5fdcf4e85a6cf7a061d0e539b))
+* **hash:** Stop the chained tables from rebuilding at the same size or growing back when they shrink ([#130](https://github.com/lrleon/Aleph-w/issues/130)) ([0d27b83](https://github.com/lrleon/Aleph-w/commit/0d27b838152201c5fdcf4e85a6cf7a061d0e539b))
+
+## [7.1.2](https://github.com/lrleon/Aleph-w/compare/v7.1.1...v7.1.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* **primes:** Stop skipping n + 1 in next_prime_number_greater_than() ([#125](https://github.com/lrleon/Aleph-w/issues/125)) ([0d36f8e](https://github.com/lrleon/Aleph-w/commit/0d36f8e823bcc381c0c50f3d9f807318044280e8))
+* **primes:** Stop the int counter of is_prime() from overflowing ([#125](https://github.com/lrleon/Aleph-w/issues/125)) ([0d36f8e](https://github.com/lrleon/Aleph-w/commit/0d36f8e823bcc381c0c50f3d9f807318044280e8))
+
+## [7.1.1](https://github.com/lrleon/Aleph-w/compare/v7.1.0...v7.1.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **build:** Ship libalephca_c and make the .deb install on more distros ([#122](https://github.com/lrleon/Aleph-w/issues/122)) ([c7f2856](https://github.com/lrleon/Aleph-w/commit/c7f285642c3ef79463e877de8ce601802ca23ce5))
+
+## [7.1.0](https://github.com/lrleon/Aleph-w/compare/v7.0.1...v7.1.0) (2026-10-18)
+
+
+### Features
+
+* **concurrency:** Deliver cancellation to condition-variable waiters ([#119](https://github.com/lrleon/Aleph-w/issues/119)) ([11c5c01](https://github.com/lrleon/Aleph-w/commit/11c5c0161235519e5089f64974d209d777e83cfc))
+
+
+### Bug Fixes
+
+* **hash:** Count removed keys' buckets and stop del() at the last key ([#121](https://github.com/lrleon/Aleph-w/issues/121)) ([d37658b](https://github.com/lrleon/Aleph-w/commit/d37658bf9ad0a64f19717687bee16b4b7c618472))
+
+
+### Deprecated
+
+* `CancellationToken::notify_on_cancel(std::condition_variable &)` (`thread_pool.H`): use `notify_on_cancel(cv, mutex)`, which cannot miss the notification. Removal no earlier than 8.0.0. Taking the address of `notify_on_cancel` now needs the type of the overload; see `docs/release-notes/7.1.0.md`.
+
+## [7.0.1](https://github.com/lrleon/Aleph-w/compare/v7.0.0...v7.0.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **build:** Export C++20 and make the headers compile alone and together ([#117](https://github.com/lrleon/Aleph-w/issues/117)) ([dc63843](https://github.com/lrleon/Aleph-w/commit/dc638433eef186b6401cd86419bf16a2b7a8bf3d))
+* **concurrency:** Deliver cancellations safely and recover failed starts ([#116](https://github.com/lrleon/Aleph-w/issues/116)) ([da6a686](https://github.com/lrleon/Aleph-w/commit/da6a6867bb9ef0e35cf4fc4a5a08906453ff5d64))
+* **containers:** Keep FlatMap, FlatSet and tree sets valid under aliasing, exceptions and degenerate shapes ([#109](https://github.com/lrleon/Aleph-w/issues/109)) ([259d152](https://github.com/lrleon/Aleph-w/commit/259d15207660b92eef6379376d6b61e397f238c9))
+* **docs:** Correct build and versioning docs and brace error macros ([#118](https://github.com/lrleon/Aleph-w/issues/118)) ([b7c9afb](https://github.com/lrleon/Aleph-w/commit/b7c9afb72107c8bb824dd0d11a9806957b8aaa88))
+* **graph:** Use the given distance and free cookies in shortest paths ([#113](https://github.com/lrleon/Aleph-w/issues/113)) ([3c011f5](https://github.com/lrleon/Aleph-w/commit/3c011f5fe0f9e2cd7669354bae6bdb122e30a4e6))
+* **hash:** Handle failed insertions, full tables and shrinking in open addressing tables ([#112](https://github.com/lrleon/Aleph-w/issues/112)) ([e2b1280](https://github.com/lrleon/Aleph-w/commit/e2b12806a8196e02ab9348c2d7dd444fc747db29))
+* **hash:** Keep hash tables consistent through copy, move and swap ([#111](https://github.com/lrleon/Aleph-w/issues/111)) ([c6291a4](https://github.com/lrleon/Aleph-w/commit/c6291a47a40cfa0b1c31d7580a6b7c81e703e747))
+* **overflow:** Make pattern readers and engines report integer overflow ([#114](https://github.com/lrleon/Aleph-w/issues/114)) ([f6810cb](https://github.com/lrleon/Aleph-w/commit/f6810cb5dd1c553dfe4abf5a239548ec6ebec312))
+
 ## [7.0.0](https://github.com/lrleon/Aleph-w/compare/v6.1.0...v7.0.0) (2026-10-12)
 
 

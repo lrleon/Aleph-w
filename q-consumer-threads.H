@@ -178,7 +178,9 @@ public:
       {
         std::unique_lock<std::mutex> critical_section(lck);
         if (num_threads == 0)
-          ah_domain_error_if(true) << "there is no any thread created";
+          {
+            ah_domain_error_if(true) << "there is no any thread created";
+          }
         q.put(std::forward<T>(item));
         if (not suspended)
           cond.notify_one(); // for waking up a thread

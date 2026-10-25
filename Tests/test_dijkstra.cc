@@ -12,6 +12,16 @@
  */
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <climits>
+#include <functional>
+#include <limits>
+#include <map>
+#include <random>
+#include <stdexcept>
+#include <utility>
+#include <vector>
+
 #include <Dijkstra.H>
 #include <tpl_graph.H>
 
@@ -982,6 +992,507 @@ TYPED_TEST(DijkstraHeapTest, GetMinPathFromTreeMultipleQueries) {
   EXPECT_EQ(p1.size(), 2);
   EXPECT_EQ(p2.size(), 2);
   EXPECT_EQ(p3.size(), 2);
+}
+
+// ========== Distance policies and exceptions ==========
+
+// Graph whose arcs hold their index. The weights are kept apart, so a
+// distance that read the index would find other paths and other costs.
+using IGT = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+// The policy of the report on 7.0.0: the weight of an arc times a factor.
+struct Scaled_Distance
+{
+  using Distance_Type = int;
+
+  int factor = 1;
+
+  int operator()(IGT::Arc * a) const { return factor * a->get_info(); }
+};
+
+// Counts the calls of a distance and makes one of them throw.
+struct Distance_Failure
+{
+  long calls = 0;
+  long fail_at = 0; // number of the call that throws; 0 for none
+
+  void count()
+  {
+    if (++calls == fail_at)
+      throw std::runtime_error("arc weight not available");
+  }
+};
+
+// Weights read from a table by the index of the arc. A default-constructed
+// one has no table and takes the index as the weight, so an algorithm that
+// built its own instance would find other paths and other costs.
+struct Table_Distance
+{
+  using Distance_Type = long;
+
+  const std::vector<long> * weights = nullptr;
+  Distance_Failure * failure = nullptr;
+
+  Table_Distance() = default;
+
+  explicit Table_Distance(const std::vector<long> & w,
+                          Distance_Failure * f = nullptr) noexcept
+    : weights(&w), failure(f) {}
+
+  long operator()(IGT::Arc * a) const
+  {
+    if (failure != nullptr)
+      failure->count();
+    const auto i = static_cast<size_t>(a->get_info());
+    return weights == nullptr ? static_cast<long>(i) : (*weights)[i];
+  }
+};
+
+template <typename HeapTag>
+using Table_Dijkstra = Dijkstra_Min_Paths<IGT, Table_Distance,
+                                          Node_Arc_Iterator, Dft_Show_Arc<IGT>,
+                                          HeapTag::template Heap>;
+
+// A random simple graph, maybe disconnected, with weights from 1 to 50.
+struct Weighted_Graph
+{
+  IGT g;
+  std::vector<IGT::Node *> nodes;
+  std::vector<long> weights; // weights[i] is the weight of the arc with info i
+
+  Weighted_Graph(const size_t num_nodes, const size_t num_arcs,
+                 const unsigned seed)
+  {
+    std::mt19937 rng(seed);
+    std::uniform_int_distribution<size_t> pick(0, num_nodes - 1);
+    std::uniform_int_distribution<long> weight(1, 50);
+
+    for (size_t i = 0; i < num_nodes; ++i)
+      nodes.push_back(g.insert_node(static_cast<int>(i)));
+
+    std::map<std::pair<size_t, size_t>, bool> used;
+    while (weights.size() < num_arcs)
+      {
+        auto u = pick(rng), v = pick(rng);
+        if (u == v)
+          continue;
+        if (u > v)
+          std::swap(u, v);
+        if (used[{u, v}])
+          continue;
+        used[{u, v}] = true;
+        g.insert_arc(nodes[u], nodes[v], static_cast<int>(weights.size()));
+        weights.push_back(weight(rng));
+      }
+  }
+
+  [[nodiscard]] long weight(IGT::Arc * a) const
+  {
+    return weights[static_cast<size_t>(a->get_info())];
+  }
+
+  // Distances from s, by relaxing every arc until nothing changes; apart
+  // from the algorithms under test. The unreachable nodes are not in it.
+  std::map<IGT::Node *, long> distances_from(IGT::Node * s)
+  {
+    std::map<IGT::Node *, long> d{{s, 0}};
+    for (bool changed = true; changed; )
+      {
+        changed = false;
+        for (IGT::Arc_Iterator it(g); it.has_curr(); it.next_ne())
+          {
+            auto a = it.get_curr();
+            auto u = g.get_src_node(a);
+            auto v = g.get_tgt_node(a);
+            for (int dir = 0; dir < 2; ++dir, std::swap(u, v))
+              if (d.contains(u) and
+                  (not d.contains(v) or d[u] + weight(a) < d[v]))
+                {
+                  d[v] = d[u] + weight(a);
+                  changed = true;
+                }
+          }
+      }
+    return d;
+  }
+
+  // Cost of a path, which must go from s to t
+  long cost_of(const Path<IGT> & path, IGT::Node * s, IGT::Node * t) const
+  {
+    EXPECT_EQ(path.get_first_node(), s);
+    EXPECT_EQ(path.get_last_node(), t);
+    long total = 0;
+    path.for_each_arc([this, &total](IGT::Arc * a) { total += weight(a); });
+    return total;
+  }
+
+  // Sum of the weights of the arcs of a copy of some arcs of g
+  long weight_of(IGT & tree) const
+  {
+    long total = 0;
+    for (IGT::Arc_Iterator it(tree); it.has_curr(); it.next_ne())
+      total += weight(it.get_curr());
+    return total;
+  }
+};
+
+// Every method used a default-constructed distance instead of the one
+// given to the constructor, so a factor of 3 was ignored.
+TYPED_TEST(DijkstraHeapTest, UsesTheDistanceItWasGiven) {
+  IGT g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, 3);
+  g.insert_arc(b, c, 4);
+  g.insert_arc(a, c, 20);
+
+  Dijkstra_Min_Paths<IGT, Scaled_Distance, Node_Arc_Iterator,
+                     Dft_Show_Arc<IGT>, TypeParam::template Heap>
+    dij(Scaled_Distance{3});
+
+  Path<IGT> path(g);
+  EXPECT_EQ(dij.find_min_path(g, a, c, path), 21);
+
+  dij.paint_min_paths_tree(g, a);
+  EXPECT_EQ(dij.get_distance(c), 21);
+  EXPECT_EQ(dij.get_min_path(c, path), 21);
+  IGT painted;
+  EXPECT_EQ(dij.copy_painted_min_paths_tree(g, painted), 21);
+
+  IGT tree;
+  dij.compute_min_paths_tree(g, a, tree);
+  EXPECT_EQ(dij.get_min_path(tree, c, path), 21);
+
+  dij.compute_partial_min_paths_tree(g, a, c, tree);
+  EXPECT_EQ(dij.get_min_path(tree, c, path), 21);
+}
+
+// The weight of an arc times a factor, with no default constructor.
+struct Factor_Only_Distance
+{
+  using Distance_Type = int;
+
+  int factor;
+
+  explicit Factor_Only_Distance(int f) noexcept : factor(f) {}
+
+  int operator()(IGT::Arc * a) const { return factor * a->get_info(); }
+};
+
+// ArcHeap built its comparator by default, so such a distance did not
+// compile with it.
+TYPED_TEST(DijkstraHeapTest, TakesADistanceWithoutADefaultConstructor) {
+  IGT g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, 3);
+  g.insert_arc(b, c, 4);
+  g.insert_arc(a, c, 20);
+
+  Dijkstra_Min_Paths<IGT, Factor_Only_Distance, Node_Arc_Iterator,
+                     Dft_Show_Arc<IGT>, TypeParam::template Heap>
+    dij(Factor_Only_Distance(3));
+
+  Path<IGT> path(g);
+  EXPECT_EQ(dij.find_min_path(g, a, c, path), 21);
+
+  dij.paint_min_paths_tree(g, a);
+  EXPECT_EQ(dij.get_distance(c), 21);
+  EXPECT_EQ(dij.get_min_path(c, path), 21);
+  IGT painted;
+  EXPECT_EQ(dij.copy_painted_min_paths_tree(g, painted), 21);
+
+  IGT tree;
+  dij.compute_min_paths_tree(g, a, tree);
+  EXPECT_EQ(dij.get_min_path(tree, c, path), 21);
+
+  dij.compute_partial_min_paths_tree(g, a, c, tree);
+  EXPECT_EQ(dij.get_min_path(tree, c, path), 21);
+}
+
+// copy_painted_min_paths_tree() returned 0: Copy_Graph added the weights
+// up in its own copy of the filter.
+TYPED_TEST(DijkstraHeapTest, CopyOfThePaintedTreeReturnsItsWeight) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+  g.insert_arc(n0, n1, 1.0);
+  g.insert_arc(n0, n2, 4.0);
+  g.insert_arc(n1, n2, 2.0);
+  g.insert_arc(n1, n3, 5.0);
+  g.insert_arc(n2, n3, 1.0);
+
+  Dijkstra<TypeParam> dij;
+  dij.paint_min_paths_tree(g, n0);
+
+  GT tree;
+  EXPECT_EQ(dij.copy_painted_min_paths_tree(g, tree), 4.0); // 1 + 2 + 1
+  EXPECT_EQ(tree.get_num_arcs(), 3u);
+}
+
+// A distance with state gives in every method the costs of an independent
+// oracle.
+TYPED_TEST(DijkstraHeapTest, DistanceWithStateMatchesAnOracle) {
+  for (unsigned seed = 1; seed <= 3; ++seed)
+    {
+      Weighted_Graph w(30, 60, seed);
+      auto s = w.nodes[0];
+      auto dist = w.distances_from(s);
+      ASSERT_GT(dist.size(), 1u) << "seed " << seed;
+
+      Table_Dijkstra<TypeParam> dij{Table_Distance(w.weights)};
+
+      for (auto t : w.nodes)
+        {
+          if (t == s)
+            continue; // no path from a node to itself; see PathToSelf
+
+          Path<IGT> path(w.g);
+          const long cost = dij.find_min_path(w.g, s, t, path);
+          if (not dist.contains(t))
+            {
+              EXPECT_EQ(cost, std::numeric_limits<long>::max());
+              continue;
+            }
+          EXPECT_EQ(cost, dist[t]) << "seed " << seed;
+          EXPECT_EQ(w.cost_of(path, s, t), dist[t]) << "seed " << seed;
+        }
+
+      dij.paint_min_paths_tree(w.g, s);
+      for (auto [t, d] : dist)
+        {
+          EXPECT_EQ(dij.get_distance(t), d) << "seed " << seed;
+          Path<IGT> path(w.g);
+          EXPECT_EQ(dij.get_min_path(t, path), d) << "seed " << seed;
+          EXPECT_EQ(w.cost_of(path, s, t), d) << "seed " << seed;
+        }
+
+      IGT painted;
+      const long painted_weight = dij.copy_painted_min_paths_tree(w.g, painted);
+      EXPECT_EQ(painted.get_num_arcs(), dist.size() - 1);
+      EXPECT_EQ(painted_weight, w.weight_of(painted)) << "seed " << seed;
+
+      IGT tree;
+      dij.compute_min_paths_tree(w.g, s, tree);
+      EXPECT_EQ(tree.get_num_nodes(), dist.size());
+      for (auto [t, d] : dist)
+        {
+          Path<IGT> path(w.g);
+          EXPECT_EQ(dij.get_min_path(tree, t, path), d) << "seed " << seed;
+          EXPECT_EQ(w.cost_of(path, s, t), d) << "seed " << seed;
+        }
+
+      for (auto [t, d] : dist)
+        {
+          IGT partial;
+          dij.compute_partial_min_paths_tree(w.g, s, t, partial);
+          Path<IGT> path(w.g);
+          EXPECT_EQ(dij.get_min_path(partial, t, path), d) << "seed " << seed;
+        }
+    }
+}
+
+// The cookies were allocated at the start and freed at the end, but not
+// when the algorithm threw: a distance that failed leaked them. Each call
+// of the distance fails in turn; the same object, on the same graph, must
+// then give the right costs. LeakSanitizer reports any cookie left.
+TYPED_TEST(DijkstraHeapTest, DistanceThatThrowsLeavesTheGraphReusable) {
+  Weighted_Graph w(12, 24, 7);
+  auto s = w.nodes[0];
+  auto dist = w.distances_from(s);
+  ASSERT_GT(dist.size(), 3u);
+  auto far = std::max_element(dist.begin(), dist.end(),
+                              [](auto & x, auto & y)
+                              { return x.second < y.second; })->first;
+
+  Distance_Failure failure;
+  Table_Dijkstra<TypeParam> dij{Table_Distance(w.weights, &failure)};
+  IGT tree;
+
+  const std::vector<std::function<void()>> methods = {
+    [&] {
+      Path<IGT> path(w.g);
+      EXPECT_EQ(dij.find_min_path(w.g, s, far, path), dist[far]);
+    },
+    [&] {
+      dij.paint_min_paths_tree(w.g, s);
+      for (auto [t, d] : dist)
+        EXPECT_EQ(dij.get_distance(t), d);
+    },
+    [&] {
+      dij.compute_min_paths_tree(w.g, s, tree);
+      Path<IGT> path(w.g);
+      EXPECT_EQ(dij.get_min_path(tree, far, path), dist[far]);
+    },
+    [&] {
+      dij.compute_partial_min_paths_tree(w.g, s, far, tree);
+      Path<IGT> path(w.g);
+      EXPECT_EQ(dij.get_min_path(tree, far, path), dist[far]);
+    }
+  };
+
+  for (size_t m = 0; m < methods.size(); ++m)
+    {
+      failure = Distance_Failure();
+      methods[m]();
+      const long calls = failure.calls;
+      ASSERT_GT(calls, 0) << "method " << m;
+
+      for (long k = 1; k <= calls; ++k)
+        {
+          failure.calls = 0;
+          failure.fail_at = k;
+          EXPECT_THROW(methods[m](), std::runtime_error)
+            << "method " << m << ", call " << k;
+
+          failure.fail_at = 0;
+          methods[m]();
+        }
+    }
+}
+
+// The overflow of the report on 7.0.0: the cookies leaked when the sum of
+// two weights overflowed.
+TYPED_TEST(DijkstraHeapTest, OverflowLeavesTheGraphReusable) {
+  IGT g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  auto big = g.insert_arc(a, b, INT_MAX - 10);
+  g.insert_arc(b, c, 20);
+
+  DijkstraFor<TypeParam, IGT> dij;
+  IGT tree;
+
+  for (int m = 0; m < 4; ++m)
+    {
+      big->get_info() = INT_MAX - 10;
+      Path<IGT> path(g);
+      switch (m)
+        {
+        case 0:
+          EXPECT_THROW(dij.find_min_path(g, a, c, path), std::overflow_error);
+          break;
+        case 1:
+          EXPECT_THROW(dij.paint_min_paths_tree(g, a), std::overflow_error);
+          break;
+        case 2:
+          EXPECT_THROW(dij.compute_min_paths_tree(g, a, tree),
+                       std::overflow_error);
+          break;
+        default:
+          EXPECT_THROW(dij.compute_partial_min_paths_tree(g, a, c, tree),
+                       std::overflow_error);
+          break;
+        }
+      EXPECT_FALSE(dij.is_painted()) << "method " << m;
+
+      big->get_info() = 1;
+      EXPECT_EQ(dij.find_min_path(g, a, c, path), 21) << "method " << m;
+    }
+}
+
+// Computing a tree resets the bits and cookies of a previous painting, so
+// the painting cannot be used any more.
+TYPED_TEST(DijkstraHeapTest, ComputingATreeForgetsThePainting) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  g.insert_arc(n0, n1, 1.0);
+  g.insert_arc(n1, n2, 2.0);
+
+  Dijkstra<TypeParam> dij;
+  dij.paint_min_paths_tree(g, n0);
+  ASSERT_TRUE(dij.is_painted());
+
+  GT tree;
+  dij.compute_min_paths_tree(g, n0, tree);
+  EXPECT_FALSE(dij.is_painted());
+  Path<GT> path(g);
+  EXPECT_THROW(dij.get_min_path(n2, path), std::domain_error);
+  EXPECT_THROW(dij.get_distance(n2), std::domain_error);
+
+  dij.paint_min_paths_tree(g, n0);
+  EXPECT_EQ(dij.get_distance(n2), 3.0);
+}
+
+// Checks that every node and arc of tree is mapped, both ways, to one of
+// the graph with the same info.
+void expect_mapped_to_graph(GT & tree)
+{
+  for (GT::Node_Iterator it(tree); it.has_curr(); it.next_ne())
+    {
+      auto tp = it.get_curr();
+      auto gp = mapped_node<GT>(tp);
+      ASSERT_NE(gp, nullptr);
+      EXPECT_EQ(mapped_node<GT>(gp), tp);
+      EXPECT_EQ(gp->get_info(), tp->get_info());
+    }
+  for (GT::Arc_Iterator it(tree); it.has_curr(); it.next_ne())
+    {
+      auto ta = it.get_curr();
+      auto ga = mapped_arc<GT>(ta);
+      ASSERT_NE(ga, nullptr);
+      EXPECT_EQ(mapped_arc<GT>(ga), ta);
+      EXPECT_EQ(ga->get_info(), ta->get_info());
+    }
+}
+
+// The arcs of the tree were mapped to the cookies freed at the end, not to
+// the arcs of the graph.
+TYPED_TEST(DijkstraHeapTest, TreeIsMappedToTheGraph) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+  g.insert_arc(n0, n1, 1.0);
+  g.insert_arc(n0, n2, 4.0);
+  g.insert_arc(n1, n2, 2.0);
+  g.insert_arc(n1, n3, 5.0);
+  g.insert_arc(n2, n3, 1.0);
+
+  Dijkstra<TypeParam> dij;
+  GT tree;
+  dij.compute_min_paths_tree(g, n0, tree);
+  ASSERT_EQ(tree.get_num_arcs(), 3u);
+  expect_mapped_to_graph(tree);
+
+  dij.compute_partial_min_paths_tree(g, n0, n2, tree);
+  expect_mapped_to_graph(tree);
+}
+
+// The copy of the painted tree was mapped through the cookies that held
+// the painting: its nodes got the parents and its arcs the freed cookies,
+// while get_distance() went on and returned 0.
+TYPED_TEST(DijkstraHeapTest, CopyOfThePaintedTreeIsMappedAndEndsThePainting) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+  g.insert_arc(n0, n1, 1.0);
+  g.insert_arc(n0, n2, 4.0);
+  g.insert_arc(n1, n2, 2.0);
+  g.insert_arc(n1, n3, 5.0);
+  g.insert_arc(n2, n3, 1.0);
+
+  Dijkstra<TypeParam> dij;
+  dij.paint_min_paths_tree(g, n0);
+  ASSERT_EQ(dij.get_distance(n3), 4.0);
+
+  GT tree;
+  EXPECT_EQ(dij.copy_painted_min_paths_tree(g, tree), 4.0);
+  ASSERT_EQ(tree.get_num_arcs(), 3u);
+  expect_mapped_to_graph(tree);
+
+  EXPECT_FALSE(dij.is_painted());
+  EXPECT_THROW(dij.get_distance(n3), std::domain_error);
 }
 
 // ========== GoogleTest main ==========

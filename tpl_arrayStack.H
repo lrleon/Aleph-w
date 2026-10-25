@@ -249,14 +249,14 @@ namespace Aleph
         @throw out_of_range if `i` is greater than the number of
         elements of stack
     */
-    T &top(size_t i)
+    T &top(const size_t i)
     {
       const size_t sz = array.size();
       ah_out_of_range_error_if(i >= sz) << "top index out of range";
       return array.access(sz - i - 1);
     }
 
-    const T &top(size_t i) const
+    const T &top(const size_t i) const
     {
       const size_t sz = array.size();
       ah_out_of_range_error_if(i >= sz) << "top index out of range";
@@ -357,7 +357,7 @@ namespace Aleph
 
       `FixedStack<T>` models a stack with a maximum capacity. In
       addition, no operation performs checks, what gives to all
-      operations the more highest performance.
+      operations the highest performance.
 
       \note Use this type when you have an precise idea about the
       maximum stack size and this last is not too big.
@@ -380,7 +380,7 @@ namespace Aleph
     using Item_Type = T; /// The type of element
 
     /// Construct a fixed stack of maximum `d` items
-    FixedStack(size_t d = 1024)
+    FixedStack(const size_t d = 1024)
     // Don't change the default value because you would risk of
     // breaking the tests
       : array(new T[d]), head(0), dim(d)
@@ -513,7 +513,7 @@ namespace Aleph
         @param[in] n number of items to opo
         @return the last popped item
      */
-    T popn(const int & n) noexcept
+    T popn(const int n) noexcept
     {
       assert(n >= 0);
       const auto count = static_cast<size_t>(n);

@@ -19,7 +19,6 @@ Language: English | [Español](README.es.md)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![GCC](https://img.shields.io/badge/GCC-11%2B-orange.svg)](https://gcc.gnu.org/)
 [![Clang](https://img.shields.io/badge/Clang-14%2B-orange.svg)](https://clang.llvm.org/)
-[![Tests](https://img.shields.io/badge/Tests-99.98%25-brightgreen.svg)](https://github.com/lrleon/Aleph-w/actions)
 [![codecov](https://codecov.io/gh/lrleon/Aleph-w/branch/master/graph/badge.svg)](https://codecov.io/gh/lrleon/Aleph-w)
 [![REUSE status](https://api.reuse.software/badge/github.com/lrleon/Aleph-w)](https://api.reuse.software/info/github.com/lrleon/Aleph-w)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://lrleon.github.io/Aleph-w/)
@@ -83,7 +82,7 @@ Language: English | [Español](README.es.md)
 <a id="readme-overview"></a>
 ## Overview
 
-**Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **240 header files** and **80+ examples**, it is one of the most comprehensive algorithm libraries available.
+**Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **430+ header files** and **350+ example programs**, it is one of the most comprehensive algorithm libraries available.
 
 ### Why Aleph-w?
 
@@ -91,21 +90,21 @@ Language: English | [Español](README.es.md)
 |---------|-----|-------|---------|
 | Balanced Trees (AVL, RB, Splay, Treap) | Limited | Partial | **8 variants** |
 | Multiway Search Trees (B-Tree, B+ Tree) | None | Partial | **2 page-oriented variants** |
-| Order Statistics (k-th element, rank) | None | None | **All trees** |
+| Order Statistics (k-th element, rank) | None | Ranked indices (Boost.MultiIndex) | **All trees** |
 | Graph Algorithms | None | BGL | **50+ algorithms** |
-| Network Flows (max-flow, min-cost) | None | None | **Complete suite** |
-| Arena Memory Allocators | None | None | **Built-in** |
+| Network Flows (max-flow, min-cost) | None | BGL (max-flow, min-cost) | **Complete suite** |
+| Arena Memory Allocators | `std::pmr` resources | Boost.Pool, Boost.Container | **Built-in** |
 | Parallel map/filter/fold | Limited | Limited | **Native support** |
 | Functional Programming | Limited | Partial | **Comprehensive** |
-| Educational Examples | None | Few | **80+ programs** |
+| Educational Examples | None | Few | **350+ programs** |
 
 ### Key Statistics
 
-- **240 header files** covering classic and modern algorithms
+- **430+ header files** covering classic and modern algorithms
 - **90+ data structures** with multiple implementation variants
 - **50+ graph algorithms** including flows, cuts, and paths
-- **80+ example programs** with detailed comments
-- **7,700+ test cases** with 99.98% pass rate
+- **350+ example programs** with detailed comments
+- **13,000+ test cases**, run by the CI on every pull request
 - **Multi-compiler support**: GCC 11+ and Clang 14+
 
 ---
@@ -117,9 +116,9 @@ Language: English | [Español](README.es.md)
 
 Aleph-w was born in 2002 at **Universidad de Los Andes** in Mérida, Venezuela, created by **Leandro Rabindranath León** as a teaching tool for algorithms and data structures courses.
 
-The name "**Aleph**" (א) references Jorge Luis Borges' short story "[The Aleph](https://en.wikipedia.org/wiki/The_Aleph_(short_story))" — a point in space containing all other points — and Georg Cantor's first transfinite cardinal number. The “-w” is the Greek letter omega (ω), the largest infinite ordinal. Together, א‑ω captures a simple ambition: a single library spanning the full universe of fundamental algorithms.
+The name **“Aleph”** (א) references Jorge Luis Borges' short story “[The Aleph](https://en.wikipedia.org/wiki/The_Aleph_(short_story))” — a point in space containing all other points — and Georg Cantor's first transfinite cardinal number. The “-w” is the Greek letter omega (ω), the first infinite ordinal. Together, א‑ω captures a simple ambition: a single library spanning the full universe of fundamental algorithms.
 
-The "**-w**" suffix stands for "**with**" — emphasizing that this library comes *with* everything you need: implementations, examples, tests, and documentation.
+The **“-w”** suffix stands for **“with”** — emphasizing that this library comes *with* everything you need: implementations, examples, tests, and documentation.
 
 ### Design Philosophy
 
@@ -147,7 +146,7 @@ The "**-w**" suffix stands for "**with**" — emphasizing that this library come
    - Examples that teach, not just demonstrate
 
 4. **Production Ready**
-   - Extensively tested (7,700+ test cases)
+   - Extensively tested (13,000+ test cases)
    - Used in real-world applications
    - Performance competitive with specialized libraries
 
@@ -189,7 +188,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 - **Side-by-side implementations**: Compare Kruskal vs Prim, Dijkstra vs Bellman-Ford
 - **Visualization exports**: LaTeX/EEPIC output for papers and presentations
 - **Complexity analysis**: Every operation documents its Big-O complexity
-- **Extensive examples**: 80+ programs demonstrating real usage
+- **Extensive examples**: 350+ programs demonstrating real usage
 
 ---
 
@@ -410,11 +409,11 @@ target_link_libraries(your_target PRIVATE Aleph)
 
 ### Method 4: `find_package` (installed package)
 
-Once Aleph-w is installed (`cmake --install`, a `.deb`/`.rpm`, vcpkg or Conan),
+Once Aleph-w is installed (`cmake --install`, a `.deb`/`.rpm` or Conan),
 a consumer project integrates it without cloning the repo:
 
 ```cmake
-find_package(Aleph 4.0 COMPONENTS CA REQUIRED)
+find_package(Aleph 7 COMPONENTS CA REQUIRED)
 
 # Core data structures & algorithms:
 target_link_libraries(your_target PRIVATE Aleph::Aleph)
@@ -425,7 +424,12 @@ target_link_libraries(your_target PRIVATE Aleph::CA)
 The package ships `AlephConfig.cmake`, `AlephConfigVersion.cmake` and
 `AlephTargets.cmake` under `lib/cmake/Aleph`, exporting the imported targets
 `Aleph::Aleph` and `Aleph::CA` (with `-fno-strict-aliasing` propagated for
-`htlist.H`). A runnable example consumer lives in [`consumer/`](consumer).
+`htlist.H`). A runnable example consumer lives in [`consumer/`](https://github.com/lrleon/Aleph-w/tree/master/consumer).
+The `.deb` and `.rpm` also ship the flat C ABI library `libalephca_c` and
+its header `ca-c-api.h`, without an imported target: a C program builds with
+`-I/usr/include/aleph -lalephca_c`. The `.deb` is built on Ubuntu 22.04 and
+tested installed on Ubuntu 22.04, 24.04 and 26.04 and Debian 12 and 13; apt
+brings the development packages of GMP, MPFR, GSL and X11 that it needs.
 
 ### CMake Options
 
@@ -438,7 +442,7 @@ The package ships `AlephConfig.cmake`, `AlephConfigVersion.cmake` and
 | `BUILD_BENCHMARKS` | OFF | Build the cellular-automata performance-gate benchmarks (`benchmarks/`) |
 | `BUILD_OPTIMIZED` | OFF | If ON and `CMAKE_BUILD_TYPE` is unset, default to `Release` |
 | `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest if missing |
-| `ALEPH_USE_SANITIZERS` | OFF | Enable ASan/UBSan for the library and tests |
+| `ALEPH_USE_SANITIZERS` | OFF | Enable ASan/UBSan for the library and tests (GCC and Clang only) |
 | `ALEPH_USE_MEMORY_SANITIZER` | OFF | Enable the targeted Clang MemorySanitizer probe (Linux only) |
 | `ALEPH_BUILD_X11_VIEWER` | ON (Unix), OFF (Windows) | Build the X11 live viewer (`ca-x11-viewer.H`). Requires `libX11`. Turn OFF to drop the X11 dependency on non-POSIX targets. |
 
@@ -457,7 +461,7 @@ The repository ships two complementary workflows:
 
 Per-platform test exclusions and the rationale for each sanitizer
 exemption live in
-[`docs/ci_sanitizer_policy.md`](docs/ci_sanitizer_policy.md).
+[`docs/ci_sanitizer_policy.md`](https://github.com/lrleon/Aleph-w/blob/master/docs/ci_sanitizer_policy.md).
 
 ### CMake Presets (Optional)
 
@@ -752,7 +756,7 @@ int main() {
 
 Use `B_Tree` when you want a classic B-Tree where internal nodes keep keys, and
 `BPlus_Tree` when leaf-linked scans are the main feature. A longer discussion is
-available in [docs/b_tree_family.md](docs/b_tree_family.md). If you need to
+available in [docs/b_tree_family.md](https://github.com/lrleon/Aleph-w/blob/master/docs/b_tree_family.md). If you need to
 specify a backing file, use `File_B_Tree("path.idx")` or
 `File_BPlus_Tree("path.idx")`. `File_B_Tree` stores a real paged B-Tree on
 disk, while `File_BPlus_Tree` stores a real paged B+ Tree with linked leaves.
@@ -1322,7 +1326,7 @@ Aleph-w provides a robust suite for 2D and 3D computational geometry, built on *
 - **Document Export**: The `Tikz_Scene` helper in `tikzgeom_scene.H` composes complex figures and exports them as standalone LaTeX documents, Beamer slides, or handouts, including multi-step animations using overlays.
 - **Legacy EEPIC Backend**: For compatibility with older LaTeX workflows.
 
-For a deeper tour of the geometry stack and the TikZ tooling, see [docs/GEOMETRY_MODULE_GUIDE.md](docs/GEOMETRY_MODULE_GUIDE.md) and the [TikZ Geometry Guide](docs/TIKZGEOM_GUIDE.md).
+For a deeper tour of the geometry stack and the TikZ tooling, see [docs/GEOMETRY_MODULE_GUIDE.md](https://github.com/lrleon/Aleph-w/blob/master/docs/GEOMETRY_MODULE_GUIDE.md) and the [TikZ Geometry Guide](https://github.com/lrleon/Aleph-w/blob/master/docs/TIKZGEOM_GUIDE.md).
 
 #### Dynamic R-tree / R*-tree (`tpl_r_tree.H`, `tpl_r_star_tree.H`)
 
@@ -1518,7 +1522,7 @@ Aleph-w provides multiple hash table implementations optimized for different sce
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  SEPARATE CHAINING              OPEN ADDRESSING           LINEAR HASHING    │
-│  (tpl_hash.H)                   (tpl_odhash.H)            (tpl_lhash.H)     │
+│  (tpl_lhash.H)                  (tpl_olhash.H)            (tpl_linHash.H)   │
 │                                                                             │
 │  ┌───┬───┬───┬───┐             ┌───┬───┬───┬───┐        Grows incrementally │
 │  │ 0 │ 1 │ 2 │ 3 │             │ A │ B │   │ C │        one slot at a time  │
@@ -3560,7 +3564,7 @@ Aleph-w includes a comprehensive **Fast Fourier Transform** and digital signal p
 - **Parallel variants** of all methods via `ThreadPool` (prefixed with `p`)
 - **SIMD dispatch**: automatic AVX2/NEON selection at runtime
 
-For a detailed walkthrough with code examples, see the **[FFT & Digital Signal Processing Tutorial](docs/fft-tutorial.en.md)** ([Español](docs/fft-tutorial.md)).
+For a detailed walkthrough with code examples, see the **[FFT & Digital Signal Processing Tutorial](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.en.md)** ([Español](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.md)).
 
 ---
 
@@ -3581,7 +3585,7 @@ Aleph-w also includes an industrial **Number Theoretic Transform** toolkit in
 - **Big integer multiplication** over base-`B` digits with carry propagation
 - **Negacyclic convolution** modulo `x^N + 1`
 
-For a detailed walkthrough with code examples, see the **[Number Theoretic Transform Tutorial](docs/ntt-tutorial.en.md)** ([Español](docs/ntt-tutorial.md)).
+For a detailed walkthrough with code examples, see the **[Number Theoretic Transform Tutorial](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.en.md)** ([Español](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.md)).
 
 ---
 
@@ -4010,7 +4014,7 @@ If a `CancellationToken` stored in `ParallelOptions::cancel_token` is signaled,
 the operation stops cooperatively and throws `Aleph::operation_canceled`.
 
 An opt-in work-stealing backend was evaluated for this phase and intentionally
-deferred; see [docs/work_stealing_backend_note.md](docs/work_stealing_backend_note.md).
+deferred; see [docs/work_stealing_backend_note.md](https://github.com/lrleon/Aleph-w/blob/master/docs/work_stealing_backend_note.md).
 
 ---
 
@@ -4105,7 +4109,7 @@ int main() {
 }
 ```
 
-📖 **For comprehensive documentation on C++20 Ranges with Aleph-w containers, see [docs/RANGES_GUIDE.md](docs/RANGES_GUIDE.md)**
+📖 **For comprehensive documentation on C++20 Ranges with Aleph-w containers, see [docs/RANGES_GUIDE.md](https://github.com/lrleon/Aleph-w/blob/master/docs/RANGES_GUIDE.md)**
 
 <a id="readme-state-search-framework"></a>
 ## State-Space Search Framework
@@ -4143,12 +4147,13 @@ adversarial Negamax/Alpha-Beta).
 
 ### Docs, examples and tests
 
-- [docs/algorithm_selection_guide.md](docs/algorithm_selection_guide.md) – decision
+- [docs/algorithm_selection_guide.md](https://github.com/lrleon/Aleph-w/blob/master/docs/algorithm_selection_guide.md) – decision
   flowchart and comparison table to choose between DFS, Branch & Bound, IDA\*, Negamax
   and Alpha-Beta for your problem.
-- [docs/state_search_v1.md](docs/state_search_v1.md) – architecture summary,
-  benchmark methodology, profiling notes and the v2 roadmap.
-- [docs/adversarial_search_framework.md](docs/adversarial_search_framework.md)
+- [docs/state_search_framework.md](https://github.com/lrleon/Aleph-w/blob/master/docs/state_search_framework.md) –
+  how to model a problem as an implicit state space, DFS and its limits, the
+  API reference, the design decisions and the next extension points.
+- [docs/adversarial_search_framework.md](https://github.com/lrleon/Aleph-w/blob/master/docs/adversarial_search_framework.md)
   – Negamax/Alpha-Beta domain contract, move-ordering hooks and
   transposition-table protocol.
 - Examples:
@@ -4460,11 +4465,11 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 
 | Header | Functions / Classes | Description |
 |--------|---------------------|-------------|
-| `fft.H` | `FFT<Real>` | Fast Fourier Transform (FFT): Cooley-Tukey radix-2/4 and Bluestein for arbitrary sizes, STFT/ISTFT, FIR/IIR filter design (Butterworth, Chebyshev, Bessel, Elliptic), Welch PSD, resampling, polynomial roots, N-D transforms, and parallel `ThreadPool` APIs. See the [FFT & DSP Tutorial](docs/fft-tutorial.en.md) |
+| `fft.H` | `FFT<Real>` | Fast Fourier Transform (FFT): Cooley-Tukey radix-2/4 and Bluestein for arbitrary sizes, STFT/ISTFT, FIR/IIR filter design (Butterworth, Chebyshev, Bessel, Elliptic), Welch PSD, resampling, polynomial roots, N-D transforms, and parallel `ThreadPool` APIs. See the [FFT & DSP Tutorial](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.en.md) |
 | `modular_arithmetic.H` | `mod_mul()`, `mod_exp()`, `ext_gcd()`, `mod_inv()`, `crt()` | Safe 64-bit modular arithmetic, extended GCD, modular inverse, and Chinese Remainder Theorem |
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
-| `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform for exact modular polynomial multiplication with reusable plans, Bluestein support for non-power-of-two sizes when the modulus allows it, AVX2/NEON runtime SIMD dispatch on the power-of-two butterfly path, batch transforms, Montgomery-based butterflies, parallel `ThreadPool` APIs, formal polynomial operators (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, multipoint evaluation, interpolation), exact big-integer multiplication over base-`B` digits, negacyclic convolution modulo `x^N + 1`, and three-prime CRT reconstruction into `__uint128_t` when the coefficient bound fits. See the [NTT Tutorial](docs/ntt-tutorial.en.md) |
+| `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform for exact modular polynomial multiplication with reusable plans, Bluestein support for non-power-of-two sizes when the modulus allows it, AVX2/NEON runtime SIMD dispatch on the power-of-two butterfly path, batch transforms, Montgomery-based butterflies, parallel `ThreadPool` APIs, formal polynomial operators (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, multipoint evaluation, interpolation), exact big-integer multiplication over base-`B` digits, negacyclic convolution modulo `x^N + 1`, and three-prime CRT reconstruction into `__uint128_t` when the coefficient bound fits. See the [NTT Tutorial](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.en.md) |
 | `tpl_polynomial.H` | `Gen_Polynomial<C>`, `Polynomial` | Sparse univariate polynomial ring: arithmetic (+, -, *, /, %), calculus (derivative, integral), evaluation (adaptive Horner/sparse), composition, GCD/XGCD/LCM, square-free factorization, Sturm root counting, bisection/Newton root finding, polynomial interpolation (Newton divided differences). Contract notes: field-style division/GCD APIs assume coefficient division is meaningful; integer `factorize()` returns only factors proven by exact division and may leave conservative residual blocks unsplit. |
 | `tpl_multi_polynomial.H` | `Gen_MultiPolynomial<C, Order>` | Sparse multivariate polynomial ring: arithmetic, evaluation, partials/gradient/Hessian, interpolation on tensor grids, multivariate division, Gröbner bases, ideal operations, and integer factorization by specialization/lifting. Contract notes: `s_poly()`/Gröbner/ideal APIs require non-integral field-like coefficients; integer `factorize()` verifies every emitted factor exactly but may keep unresolved residual blocks when the specialization pipeline cannot split them further. |
 | `modular_combinatorics.H` | `ModularCombinatorics` | @f$ nCk \pmod p @f$ with precomputed factorials and Lucas Theorem |
@@ -4514,12 +4519,12 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 
 #### Compiler Tooling
 
-See the [Compiler Front-End Support Guide](docs/compiler_frontend_support.en.md)
+See the [Compiler Front-End Support Guide](https://github.com/lrleon/Aleph-w/blob/master/docs/compiler_frontend_support.en.md)
 for the intended scope, examples, and current limits of these headers. For a
 new-language integration path, see the
-[Compiler Front-End SDK Quickstart](docs/compiler_frontend_sdk_quickstart.en.md).
+[Compiler Front-End SDK Quickstart](https://github.com/lrleon/Aleph-w/blob/master/docs/compiler_frontend_sdk_quickstart.en.md).
 The longer-term platform roadmap lives in
-[docs/compiler_platform_roadmap.en.md](docs/compiler_platform_roadmap.en.md).
+[docs/compiler_platform_roadmap.en.md](https://github.com/lrleon/Aleph-w/blob/master/docs/compiler_platform_roadmap.en.md).
 
 | Header | Type/Function | Description |
 |--------|---------------|-------------|
@@ -4683,7 +4688,7 @@ The longer-term platform roadmap lives in
 
 ## Examples
 
-The `Examples/` directory contains **80+ programs** demonstrating library usage:
+The `Examples/` directory contains **350+ programs** demonstrating library usage:
 
 ### Building Examples
 
@@ -4728,8 +4733,8 @@ cmake --build build
 | Compiler bytecode interpreter | `bytecode_interpreter_example.cc` | End-to-end execution of lowered bytecode with a portable VM, explicit globals, structured results, and direct function calls |
 | Compiler C backend | `compiler_backend_c_example.cc` | Emission of a full portable C translation unit from explicit IR with goto-based blocks, embedded runtime helpers, and optional standalone execution |
 | Compiler driver | `compiler_driver_example.cc` | Import-aware multi-file orchestration of `parse-only`, `run`, `emit-bytecode`, and `emit-c` with reproducible stage artifacts |
-| Fast Fourier Transform | `fft_example.cc` | Real-signal spectrum analysis, optimized sequential real/complex convolution, explicit `ThreadPool` concurrency, and direct use with compatible iterable containers such as `std::vector`. Full tutorial: [FFT & DSP Tutorial](docs/fft-tutorial.en.md) |
-| Number Theoretic Transform | `ntt_example.cc` | Exact modular transforms, active SIMD backend reporting, reusable plans, Bluestein-based arbitrary supported sizes, three-prime CRT exact multiplication into `__uint128_t`, formal polynomial algebra, base-10 big integer multiplication, negacyclic convolution modulo `x^N + 1`, batch execution, and explicit parallel polynomial multiplication. Full tutorial: [NTT Tutorial](docs/ntt-tutorial.en.md) |
+| Fast Fourier Transform | `fft_example.cc` | Real-signal spectrum analysis, optimized sequential real/complex convolution, explicit `ThreadPool` concurrency, and direct use with compatible iterable containers such as `std::vector`. Full tutorial: [FFT & DSP Tutorial](https://github.com/lrleon/Aleph-w/blob/master/docs/fft-tutorial.en.md) |
+| Number Theoretic Transform | `ntt_example.cc` | Exact modular transforms, active SIMD backend reporting, reusable plans, Bluestein-based arbitrary supported sizes, three-prime CRT exact multiplication into `__uint128_t`, formal polynomial algebra, base-10 big integer multiplication, negacyclic convolution modulo `x^N + 1`, batch execution, and explicit parallel polynomial multiplication. Full tutorial: [NTT Tutorial](https://github.com/lrleon/Aleph-w/blob/master/docs/ntt-tutorial.en.md) |
 | Polynomial arithmetic | `polynomial_example.cc` | Sparse polynomial algebra, calculus, root analysis (Sturm/bisection/Newton), Newton interpolation, transfer functions, and high-degree sparse operations |
 | Number theory toolbox | `math_nt_example.cc` | Safe mod multiplication, Miller-Rabin, Pollard's Rho, NTT, modular combinatorics and linalg |
 | Streaming algorithms | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
@@ -5005,7 +5010,7 @@ What these tools cover:
 # AddressSanitizer + UndefinedBehaviorSanitizer
 cmake -S . -B build-asan \
     -DBUILD_TESTS=ON \
-    -DUSE_SANITIZERS=ON \
+    -DALEPH_USE_SANITIZERS=ON \
     -DCMAKE_BUILD_TYPE=Debug
 
 cmake --build build-asan
@@ -5014,8 +5019,7 @@ ctest --test-dir build-asan --output-on-failure
 
 ### Test Coverage
 
-- **7,700+ test cases**
-- **99.98% pass rate**
+- **13,000+ test cases**
 - Tests for all data structures and algorithms
 - Edge case coverage
 - Performance regression tests
@@ -5038,7 +5042,7 @@ cd Aleph-w
 cmake -S . -B build-debug \
     -DBUILD_TESTS=ON \
     -DCMAKE_BUILD_TYPE=Debug \
-    -DUSE_SANITIZERS=ON
+    -DALEPH_USE_SANITIZERS=ON
 
 cmake --build build-debug
 ctest --test-dir build-debug
@@ -5050,7 +5054,7 @@ ctest --test-dir build-debug
 - **Naming**: `snake_case` for functions, `PascalCase` for classes
 - **Documentation**: Doxygen comments for all public APIs
 - **Testing**: Add tests for new features
-- **Error handling**: Use the `ah-errors.H` macro family; see [docs/ERROR_HANDLING.md](docs/ERROR_HANDLING.md) for the full policy.
+- **Error handling**: Use the `ah-errors.H` macro family; see [docs/ERROR_HANDLING.md](https://github.com/lrleon/Aleph-w/blob/master/docs/ERROR_HANDLING.md) for the full policy.
 
 ### Pull Request Process
 
@@ -5090,13 +5094,13 @@ Together, we can build the most comprehensive C++ algorithm library in the world
 ## Versioning
 
 Aleph-w follows [Semantic Versioning 2.0.0](https://semver.org/). The canonical
-version lives in the top-level [`VERSION.txt`](VERSION.txt) file (read by CMake, the
-packaging recipes and the release workflow), and notable changes are recorded in
+version lives in the top-level [`VERSION.txt`](https://github.com/lrleon/Aleph-w/blob/master/VERSION.txt) file (read by CMake, the
+Conan recipe and the release workflow), and notable changes are recorded in
 [`CHANGELOG.md`](CHANGELOG.md) using the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format
 (`Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`).
 
-`find_package(Aleph 4.0 ...)` resolves any installed `4.x` release
+`find_package(Aleph 7 ...)` resolves any installed `7.x` release
 (`SameMajorVersion` compatibility): minor and patch upgrades are backward
 compatible, and breaking changes are reserved for a new major version.
 The full stability contract — public vs internal API, the deprecation

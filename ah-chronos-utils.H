@@ -44,7 +44,11 @@
 
 #include <string>
 #include <chrono>
+// duration_to_string() needs std::format: libstdc++ has it since GCC 13, and
+// libc++ since 17, which defines __cpp_lib_format only since 19
+#if __has_include(<format>)
 #include <format>
+#endif
 
 namespace Aleph {
 // given a duration, return the number of seconds
@@ -89,8 +93,10 @@ inline double duration_to_days(const std::chrono::duration<double> &d)
   return std::chrono::duration_cast<std::chrono::days>(d).count();
 }
 
+#if defined(__cpp_lib_format) || \
+    (defined(_LIBCPP_VERSION) && _LIBCPP_VERSION >= 170000)
 // given a duration, return a string with the proper units
-// according to the magnitude of the duration
+// according to the magnitude of the duration (only with std::format)
 inline std::string duration_to_string(const auto &d)
 {
   if (d < std::chrono::seconds(1))
@@ -105,6 +111,7 @@ inline std::string duration_to_string(const auto &d)
 
   return std::format("{} days", duration_to_days(d));
 }
+#endif
 }  // namespace Aleph
 
 #endif  // AH_CHRONOS_UTILS_H

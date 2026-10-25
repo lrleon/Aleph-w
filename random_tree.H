@@ -144,7 +144,9 @@ public:
   {
     r = gsl_rng_alloc (gsl_rng_mt19937);
     if (r == nullptr)
-      ah_bad_alloc_if(true);
+      {
+        ah_bad_alloc_if(true);
+      }
     gsl_rng_set(r, seed % gsl_rng_max(r));
   }
 

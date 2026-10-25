@@ -787,6 +787,23 @@ class Interpreter_Runtime
     return result;
   }
 
+  /// Runtime error for an integer operation that has no result.
+  Interpreter_Execution_Result integer_error(const Compiler_Integer_Status status,
+                                             const Source_Span &span) const
+  {
+    switch (status)
+      {
+      case Compiler_Integer_Status::Division_By_Zero:
+        return runtime_error(span, "RUN007", "division by zero");
+      case Compiler_Integer_Status::Modulo_By_Zero:
+        return runtime_error(span, "RUN007", "modulo by zero");
+      default:
+        break;
+      }
+
+    return runtime_error(span, "RUN013", "integer overflow");
+  }
+
   static bool strip_quotes(std::string_view text, const char quote, std::string_view &body) noexcept
   {
     if (text.size() < 2)
@@ -985,7 +1002,10 @@ class Interpreter_Runtime
                 auto checked = require_integer(operand.value, node->span, "unary '-'");
                 if (not checked.ok())
                   return checked;
-                return ok(Interpreter_Value::make_integer(-checked.value.integer_value));
+                const auto negated = compiler_integer_negate(checked.value.integer_value);
+                if (negated.status != Compiler_Integer_Status::Ok)
+                  return integer_error(negated.status, node->span);
+                return ok(Interpreter_Value::make_integer(negated.value));
               }
 
             case Compiler_Operator_Kind::Bang:
@@ -1072,35 +1092,19 @@ class Interpreter_Runtime
               if (not rhs_int.ok())
                 return rhs_int;
 
-              long long updated = current.value.integer_value;
-              switch (node->op)
-                {
-                case Compiler_Operator_Kind::PlusEq:
-                  updated += rhs_int.value.integer_value;
-                  break;
-                case Compiler_Operator_Kind::MinusEq:
-                  updated -= rhs_int.value.integer_value;
-                  break;
-                case Compiler_Operator_Kind::StarEq:
-                  updated *= rhs_int.value.integer_value;
-                  break;
-                case Compiler_Operator_Kind::SlashEq:
-                  if (rhs_int.value.integer_value == 0)
-                    return runtime_error(node->span, "RUN007", "division by zero");
-                  updated /= rhs_int.value.integer_value;
-                  break;
-                case Compiler_Operator_Kind::PercentEq:
-                  if (rhs_int.value.integer_value == 0)
-                    return runtime_error(node->span, "RUN007", "modulo by zero");
-                  updated %= rhs_int.value.integer_value;
-                  break;
-                default:
-                  return runtime_error(node->span,
-                                       "RUN008",
-                                       "unsupported compound assignment operator");
-                }
+              const auto base = compiler_operator_compound_base(node->op);
+              if (base == Compiler_Operator_Kind::Invalid)
+                return runtime_error(node->span,
+                                     "RUN008",
+                                     "unsupported compound assignment operator");
 
-              const auto result = Interpreter_Value::make_integer(updated);
+              const auto computed = compiler_integer_binary(base,
+                                                            current.value.integer_value,
+                                                            rhs_int.value.integer_value);
+              if (computed.status != Compiler_Integer_Status::Ok)
+                return integer_error(computed.status, node->span);
+
+              const auto result = Interpreter_Value::make_integer(computed.value);
               (void) env.assign(lhs->name, result);
               return ok(result);
             }
@@ -1130,42 +1134,12 @@ class Interpreter_Runtime
                 if (not rhs.ok())
                   return rhs;
 
-                switch (node->op)
-                  {
-                  case Compiler_Operator_Kind::Plus:
-                    return ok(Interpreter_Value::make_integer(lhs.value.integer_value
-                                                              + rhs.value.integer_value));
-                  case Compiler_Operator_Kind::Minus:
-                    return ok(Interpreter_Value::make_integer(lhs.value.integer_value
-                                                              - rhs.value.integer_value));
-                  case Compiler_Operator_Kind::Star:
-                    return ok(Interpreter_Value::make_integer(lhs.value.integer_value
-                                                              * rhs.value.integer_value));
-                  case Compiler_Operator_Kind::Slash:
-                    if (rhs.value.integer_value == 0)
-                      return runtime_error(node->span, "RUN007", "division by zero");
-                    return ok(Interpreter_Value::make_integer(lhs.value.integer_value
-                                                              / rhs.value.integer_value));
-                  case Compiler_Operator_Kind::Percent:
-                    if (rhs.value.integer_value == 0)
-                      return runtime_error(node->span, "RUN007", "modulo by zero");
-                    return ok(Interpreter_Value::make_integer(lhs.value.integer_value
-                                                              % rhs.value.integer_value));
-                  case Compiler_Operator_Kind::Amp:
-                    return ok(Interpreter_Value::make_integer(lhs.value.integer_value
-                                                              & rhs.value.integer_value));
-                  case Compiler_Operator_Kind::Pipe:
-                    return ok(Interpreter_Value::make_integer(lhs.value.integer_value
-                                                              | rhs.value.integer_value));
-                  case Compiler_Operator_Kind::Caret:
-                    return ok(Interpreter_Value::make_integer(lhs.value.integer_value
-                                                              ^ rhs.value.integer_value));
-                  default:
-                    return runtime_error(node->span,
-                                         "RUN008",
-                                         "unsupported arithmetic operator '"
-                                           + std::string(compiler_operator_name(node->op)) + "'");
-                  }
+                const auto computed = compiler_integer_binary(node->op,
+                                                              lhs.value.integer_value,
+                                                              rhs.value.integer_value);
+                if (computed.status != Compiler_Integer_Status::Ok)
+                  return integer_error(computed.status, node->span);
+                return ok(Interpreter_Value::make_integer(computed.value));
               }
 
             case Compiler_Operator_Kind::Less:

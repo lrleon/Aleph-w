@@ -524,7 +524,7 @@ namespace Aleph
       ah_domain_error_if(not painted) << "Graph has not been painted";
       ah_domain_error_if(ptr_g == nullptr) << "No computation has been done";
 
-      return Aleph::get_min_path<GT, Distance>(s, end, path);
+      return Aleph::get_min_path<GT, Distance>(s, end, path, distance);
     }
 
     /** @brief Computes the shortest path from start to end.

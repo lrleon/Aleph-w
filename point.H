@@ -3790,13 +3790,19 @@ struct hash<Aleph::Point>
 #if __cplusplus >= 202002L && __has_include(<format>)
 #include <format>
 
-#if defined(__cpp_lib_format)
+// The formatters need std::format: libstdc++ has it since GCC 13, and
+// libc++ since 17, which defines __cpp_lib_format only since 19. Their
+// format() is a template on the context, as std::formattable asks: libc++
+// 17 and 18 check it with another iterator than that of std::format_context
+#if defined(__cpp_lib_format) || \
+    (defined(_LIBCPP_VERSION) && _LIBCPP_VERSION >= 170000)
 
 /** @brief Formatter specialization for Aleph::Point. */
 template <>
 struct std::formatter<Aleph::Point> : std::formatter<std::string>
 {
-  auto format(const Aleph::Point &p, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::Point &p, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(std::format("Point({}, {})",
                                                            Aleph::geom_number_to_double(p.get_x()),
@@ -3809,7 +3815,8 @@ struct std::formatter<Aleph::Point> : std::formatter<std::string>
 template <>
 struct std::formatter<Aleph::Segment> : std::formatter<std::string>
 {
-  auto format(const Aleph::Segment &s, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::Segment &s, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(
       std::format("Segment({} -> {})", s.get_src_point(), s.get_tgt_point()), ctx);
@@ -3820,7 +3827,8 @@ struct std::formatter<Aleph::Segment> : std::formatter<std::string>
 template <>
 struct std::formatter<Aleph::Triangle> : std::formatter<std::string>
 {
-  auto format(const Aleph::Triangle &t, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::Triangle &t, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(
       std::format("Triangle({}, {}, {})", t.get_p1(), t.get_p2(), t.get_p3()), ctx);
@@ -3831,7 +3839,8 @@ struct std::formatter<Aleph::Triangle> : std::formatter<std::string>
 template <>
 struct std::formatter<Aleph::Rectangle> : std::formatter<std::string>
 {
-  auto format(const Aleph::Rectangle &r, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::Rectangle &r, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(
       std::format("Rectangle({}, {} -- {}, {})", Aleph::geom_number_to_double(r.get_xmin()),
@@ -3846,7 +3855,8 @@ struct std::formatter<Aleph::Rectangle> : std::formatter<std::string>
 template <>
 struct std::formatter<Aleph::Polar_Point> : std::formatter<std::string>
 {
-  auto format(const Aleph::Polar_Point &p, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::Polar_Point &p, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(
       std::format("PolarPoint(r={}, theta={})", Aleph::geom_number_to_double(p.get_r()),
@@ -3859,7 +3869,8 @@ struct std::formatter<Aleph::Polar_Point> : std::formatter<std::string>
 template <>
 struct std::formatter<Aleph::Ellipse> : std::formatter<std::string>
 {
-  auto format(const Aleph::Ellipse &e, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::Ellipse &e, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(std::format("{}", e.to_string()), ctx);
   }
@@ -3869,7 +3880,8 @@ struct std::formatter<Aleph::Ellipse> : std::formatter<std::string>
 template <>
 struct std::formatter<Aleph::RotatedEllipse> : std::formatter<std::string>
 {
-  auto format(const Aleph::RotatedEllipse &e, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::RotatedEllipse &e, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(std::format("{}", e.to_string()), ctx);
   }
@@ -3879,7 +3891,8 @@ struct std::formatter<Aleph::RotatedEllipse> : std::formatter<std::string>
 template <>
 struct std::formatter<Aleph::Point3D> : std::formatter<std::string>
 {
-  auto format(const Aleph::Point3D &p, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::Point3D &p, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(
       std::format("Point3D({}, {}, {})", Aleph::geom_number_to_double(p.get_x()),
@@ -3892,7 +3905,8 @@ struct std::formatter<Aleph::Point3D> : std::formatter<std::string>
 template <>
 struct std::formatter<Aleph::Segment3D> : std::formatter<std::string>
 {
-  auto format(const Aleph::Segment3D &s, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::Segment3D &s, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(
       std::format("Segment3D({} -> {})", s.get_src(), s.get_tgt()), ctx);
@@ -3903,7 +3917,8 @@ struct std::formatter<Aleph::Segment3D> : std::formatter<std::string>
 template <>
 struct std::formatter<Aleph::Triangle3D> : std::formatter<std::string>
 {
-  auto format(const Aleph::Triangle3D &t, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::Triangle3D &t, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(
       std::format("Triangle3D({}, {}, {})", t.get_p1(), t.get_p2(), t.get_p3()), ctx);
@@ -3914,7 +3929,8 @@ struct std::formatter<Aleph::Triangle3D> : std::formatter<std::string>
 template <>
 struct std::formatter<Aleph::Tetrahedron> : std::formatter<std::string>
 {
-  auto format(const Aleph::Tetrahedron &t, std::format_context &ctx) const
+  template <class FormatContext>
+  auto format(const Aleph::Tetrahedron &t, FormatContext &ctx) const
   {
     return std::formatter<std::string>::format(
       std::format("Tetrahedron({}, {}, {}, {})", t.get_p1(), t.get_p2(), t.get_p3(), t.get_p4()),

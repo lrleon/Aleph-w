@@ -39,6 +39,10 @@
 
 # include <primes.H>
 
+# include <algorithm>
+# include <limits>
+# include <stdexcept>
+
 using namespace std;
 using namespace testing;
 using namespace Aleph;
@@ -95,4 +99,52 @@ TEST(Prime, next_prime_semantics)
 
   for (size_t i = 0; i < 200 && i < numPrimes; ++i)
     ASSERT_EQ(next_prime(primeList[i]), primeList[i]);
+}
+
+TEST(Prime, next_prime_takes_the_first_prime_of_the_database)
+{
+  // 2207 and 103 are prime, but the database goes from 2203 to 2309 and
+  // from 101 to 211
+  EXPECT_EQ(next_prime(2206), 2309UL);
+  EXPECT_EQ(next_prime(102), 211UL);
+
+  for (unsigned long n = primeList[0]; n < 20000; ++n)
+    ASSERT_EQ(next_prime(n),
+              *std::lower_bound(primeList, primeList + numPrimes, n)) << n;
+}
+
+TEST(Prime, next_prime_above_the_database_is_the_smallest_prime_not_below_n)
+{
+  const unsigned long last = primeList[numPrimes - 1];
+  for (unsigned long n = last + 1; n <= last + 40; ++n)
+    {
+      unsigned long p = n;
+      while (not is_prime(p))
+        ++p;
+      ASSERT_EQ(next_prime(n), p) << n;
+      ASSERT_EQ(next_prime(p), p) << p;
+    }
+
+  EXPECT_THROW(next_prime(std::numeric_limits<unsigned long>::max()),
+               std::domain_error);
+}
+
+TEST(Prime, next_prime_number_greater_than_gives_the_smallest_prime_above_n)
+{
+  EXPECT_EQ(next_prime_number_greater_than(4), 5UL);
+  EXPECT_EQ(next_prime_number_greater_than(10), 11UL);
+  EXPECT_EQ(next_prime_number_greater_than(11), 13UL);
+  EXPECT_EQ(next_prime_number_greater_than(100), 101UL);
+
+  for (unsigned long n = 0; n < 20000; ++n)
+    {
+      unsigned long p = n + 1;
+      while (not is_prime(p))
+        ++p;
+      ASSERT_EQ(next_prime_number_greater_than(n), p) << n;
+    }
+
+  const unsigned long max = std::numeric_limits<unsigned long>::max();
+  for (const unsigned long n : {max, max - 1, max - 2})
+    EXPECT_THROW(next_prime_number_greater_than(n), std::domain_error) << n;
 }

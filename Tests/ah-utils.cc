@@ -39,7 +39,10 @@
 #include "../ahUtils.H"
 #include <vector>
 #include <fstream>
+#include <cstdint>
 #include <cstdio>
+#include <limits>
+#include <stdexcept>
 
 // Tests for is_even() and is_odd()
 TEST(AhUtilsTest, EvenOdd) {
@@ -89,6 +92,26 @@ TEST(AhUtilsTest, PowerOf2) {
     EXPECT_EQ(Aleph::next_power_of_2(7), 8);
     EXPECT_EQ(Aleph::next_power_of_2(16), 16);
     EXPECT_EQ(Aleph::next_power_of_2(17), 32);
+
+#if SIZE_MAX > UINT32_MAX
+    // Sizes beyond 32 bits, which they took as an unsigned long: on Windows
+    // it has 32 bits, so 2^32 became 0 and 2^40 + 2^20 became 2^20.
+    constexpr size_t big = size_t(1) << 40;
+    EXPECT_TRUE(Aleph::is_power_of_2(size_t(1) << 32));
+    EXPECT_TRUE(Aleph::is_power_of_2(big));
+    EXPECT_FALSE(Aleph::is_power_of_2(big + (size_t(1) << 20)));
+    EXPECT_EQ(Aleph::next_power_of_2(big - 1), big);
+    EXPECT_EQ(Aleph::next_power_of_2(big + 1), big << 1);
+#endif
+
+    // Above the largest power of 2 that a size_t holds there is none to
+    // return; next_power_of_2() used to loop forever there.
+    constexpr size_t top = (std::numeric_limits<size_t>::max() >> 1) + 1;
+    EXPECT_EQ(Aleph::next_power_of_2(top - 1), top);
+    EXPECT_EQ(Aleph::next_power_of_2(top), top);
+    EXPECT_THROW(Aleph::next_power_of_2(top + 1), std::overflow_error);
+    EXPECT_THROW(Aleph::next_power_of_2(std::numeric_limits<size_t>::max()),
+                 std::overflow_error);
 }
 
 // Tests for median()

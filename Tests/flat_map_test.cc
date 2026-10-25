@@ -38,7 +38,9 @@
  */
 
 #include <iterator>
+#include <limits>
 #include <map>
+#include <new>
 #include <random>
 #include <stdexcept>
 #include <string>
@@ -53,6 +55,99 @@ using Aleph::FlatMap;
 
 namespace
 {
+// A value whose move assignment throws once a budget of them is spent, to
+// interrupt a shift or a relocation half way. Nothing else throws.
+struct Throwing_Move
+{
+  static inline int moves_left = -1; // -1 means that it never throws
+
+  int value = 0;
+
+  Throwing_Move() = default;
+  Throwing_Move(const int v) : value(v) {}
+  Throwing_Move(const Throwing_Move &) = default;
+  Throwing_Move(Throwing_Move &&) = default;
+  Throwing_Move &operator = (const Throwing_Move &) = default;
+  Throwing_Move &operator = (Throwing_Move &&other)
+  {
+    if (moves_left == 0)
+      throw std::runtime_error("move assignment");
+    if (moves_left > 0)
+      --moves_left;
+    value = other.value;
+    return *this;
+  }
+};
+
+// A value that moves without throwing but whose copies throw on demand.
+struct Throwing_Copy
+{
+  static inline bool fail = false;
+
+  int value = 0;
+
+  Throwing_Copy() = default;
+  Throwing_Copy(const int v) : value(v) {}
+  Throwing_Copy(const Throwing_Copy &other) : value(other.value)
+  {
+    if (fail)
+      throw std::runtime_error("copy");
+  }
+  Throwing_Copy(Throwing_Copy &&) noexcept = default;
+  Throwing_Copy &operator = (const Throwing_Copy &other)
+  {
+    if (fail)
+      throw std::runtime_error("copy assignment");
+    value = other.value;
+    return *this;
+  }
+  Throwing_Copy &operator = (Throwing_Copy &&) noexcept = default;
+};
+
+// A value whose default construction fails on demand, as the allocation of
+// a buffer does: a new buffer is filled with default values before any
+// entry is moved to it. Its moves throw or not, by declaration only.
+template <bool Nothrow_Move>
+struct Failing_Default
+{
+  static inline bool fail = false;
+
+  int value = 0;
+
+  Failing_Default()
+  {
+    if (fail)
+      throw std::bad_alloc();
+  }
+  Failing_Default(const int v) : value(v) {}
+  Failing_Default(const Failing_Default &) = default;
+  Failing_Default(Failing_Default &&other) noexcept(Nothrow_Move) : value(other.value) {}
+  Failing_Default &operator = (const Failing_Default &) = default;
+  Failing_Default &operator = (Failing_Default &&other) noexcept(Nothrow_Move)
+  {
+    value = other.value;
+    return *this;
+  }
+};
+
+// The keys are strictly increasing and each one still has its own value,
+// which every test below sets to ten times the key.
+template <class Map>
+::testing::AssertionResult is_consistent(const Map &m)
+{
+  for (size_t i = 0; i < m.size(); ++i)
+    {
+      if (i > 0 and not (m.nth_key(i - 1) < m.nth_key(i)))
+        return ::testing::AssertionFailure()
+          << "keys " << m.nth_key(i - 1) << " and " << m.nth_key(i)
+          << " at " << i - 1 << " are not strictly increasing";
+      if (m.nth_value(i).value != 10 * m.nth_key(i))
+        return ::testing::AssertionFailure()
+          << "key " << m.nth_key(i) << " holds " << m.nth_value(i).value;
+    }
+  return ::testing::AssertionSuccess();
+}
+
 class Pair_Input_Iterator
 {
   const std::vector<std::pair<int, std::string>> *items_ = nullptr;
@@ -398,5 +493,270 @@ TEST(FlatMap, RandomizedParityWithStdMap)
       EXPECT_EQ(fm.nth_key(i), k);
       EXPECT_EQ(fm.nth_value(i), v);
       ++i;
+    }
+}
+
+TEST(FlatMap, InsertedValueMayBeAnEntryOfTheSameMap)
+{
+  FlatMap<int, std::string> m;
+  const std::string thirty(40, 'c'); // longer than any small-string buffer
+  m.insert(1, std::string(40, 'a'));
+  m.insert(3, thirty);
+  m.insert(5, std::string(40, 'e'));
+
+  // without growth: the shift moves the value of 3 before it is read
+  ASSERT_LT(m.size(), m.capacity());
+  EXPECT_TRUE(m.insert(0, m.at(3)).second);
+  EXPECT_EQ(m.at(0), thirty);
+  EXPECT_EQ(m.at(3), thirty);
+
+  // with growth: the reallocation frees the buffer that holds the value
+  int next = 100;
+  while (m.size() < m.capacity())
+    m.insert(next++, std::string(40, 'x'));
+  EXPECT_TRUE(m.insert(next, m.at(3)).second);
+  EXPECT_EQ(m.at(next), thirty);
+
+  while (m.size() < m.capacity())
+    m.insert(++next, std::string(40, 'x'));
+  EXPECT_TRUE(m.insert_or_assign(-1, m.at(3)).second);
+  EXPECT_EQ(m.at(-1), thirty);
+
+  while (m.size() < m.capacity())
+    m.insert(++next, std::string(40, 'x'));
+  EXPECT_TRUE(m.insert(-2, std::move(m.at(0))).second);
+  EXPECT_EQ(m.at(-2), thirty);
+}
+
+TEST(FlatMap, InsertedKeyMayBeAValueOfTheSameMap)
+{
+  FlatMap<int, int> m;
+  m.insert(1, 10);
+  m.insert(3, 30);
+  m.insert(5, 50);
+
+  ASSERT_LT(m.size(), m.capacity());
+  EXPECT_TRUE(m.insert(m.at(1), 7).second); // the key is the value 10
+  EXPECT_EQ(m.at(10), 7);
+
+  m[m.at(3)] = 8; // the key is the value 30
+  EXPECT_EQ(m.at(30), 8);
+
+  int next = 100;
+  while (m.size() < m.capacity())
+    m.insert(next++, 0);
+  m[m.at(5)] = 9; // the key is the value 50, and the arrays grow
+  EXPECT_EQ(m.at(50), 9);
+  EXPECT_EQ(m.at(5), 50);
+}
+
+TEST(FlatMap, CopyThatThrowsLeavesTheMapUntouched)
+{
+  FlatMap<int, Throwing_Copy> m;
+  for (const int k : {1, 3, 5, 7})
+    m.insert(k, Throwing_Copy(10 * k));
+  const Throwing_Copy value(0);
+
+  Throwing_Copy::fail = true;
+  EXPECT_THROW(m.insert(0, value), std::runtime_error);
+  EXPECT_THROW(m.insert(4, value), std::runtime_error);
+  EXPECT_THROW(m.insert_or_assign(9, value), std::runtime_error);
+  Throwing_Copy::fail = false;
+
+  ASSERT_EQ(m.size(), 4u);
+  EXPECT_TRUE(is_consistent(m));
+  EXPECT_FALSE(m.contains(0));
+  EXPECT_FALSE(m.contains(4));
+  EXPECT_FALSE(m.contains(9));
+}
+
+TEST(FlatMap, CopyAssignmentThatThrowsLeavesTheTargetUntouched)
+{
+  FlatMap<int, Throwing_Copy> source;
+  for (const int k : {2, 4, 6, 8, 10})
+    source.insert(k, Throwing_Copy(10 * k));
+  FlatMap<int, Throwing_Copy> target;
+  target.insert(1, Throwing_Copy(10));
+
+  Throwing_Copy::fail = true;
+  EXPECT_THROW(target = source, std::runtime_error);
+  Throwing_Copy::fail = false;
+
+  ASSERT_EQ(target.size(), 1u);
+  EXPECT_EQ(target.nth_key(0), 1);
+  EXPECT_EQ(target.nth_value(0).value, 10);
+
+  target = source;
+  ASSERT_EQ(target.size(), 5u);
+  EXPECT_TRUE(is_consistent(target));
+}
+
+// If moving a value can throw, an insertion, a removal or a reservation
+// interrupted at any of its moves must leave a valid map: either the
+// operation took effect or the map was emptied, never a duplicated key or a
+// key apart from its value.
+TEST(FlatMap, MoveThatThrowsAtAnyPointLeavesAValidMap)
+{
+  const auto build = []
+    {
+      FlatMap<int, Throwing_Move> m;
+      for (const int k : {1, 3, 5, 7, 9})
+        m.insert(k, Throwing_Move(10 * k));
+      return m;
+    };
+
+  enum class Operation { insert_first, insert_middle, erase_first, reserve };
+  for (const auto operation : {Operation::insert_first, Operation::insert_middle,
+                               Operation::erase_first, Operation::reserve})
+    for (int budget = 0; budget < 12; ++budget)
+      {
+        SCOPED_TRACE(testing::Message() << "operation " << static_cast<int>(operation)
+                                        << ", moves allowed " << budget);
+        auto m = build();
+        bool thrown = false;
+        Throwing_Move::moves_left = budget;
+        try
+          {
+            switch (operation)
+              {
+              case Operation::insert_first: m.insert(0, Throwing_Move(0)); break;
+              case Operation::insert_middle: m.insert(4, Throwing_Move(40)); break;
+              case Operation::erase_first: m.erase(1); break;
+              case Operation::reserve: m.reserve(4 * m.capacity()); break;
+              }
+          }
+        catch (const std::runtime_error &)
+          {
+            thrown = true;
+          }
+        Throwing_Move::moves_left = -1;
+
+        EXPECT_TRUE(is_consistent(m));
+        if (thrown)
+          EXPECT_TRUE(m.is_empty());
+        else if (operation == Operation::erase_first)
+          EXPECT_EQ(m.size(), 4u);
+        else if (operation == Operation::reserve)
+          EXPECT_EQ(m.size(), 5u);
+        else
+          EXPECT_EQ(m.size(), 6u);
+
+        // the map remains usable in both cases
+        m.insert(100, Throwing_Move(1000));
+        EXPECT_TRUE(m.contains(100));
+        EXPECT_TRUE(is_consistent(m));
+      }
+
+  // the sweep reached the point where nothing throws
+  auto m = build();
+  Throwing_Move::moves_left = 11;
+  EXPECT_NO_THROW(m.insert(0, Throwing_Move(0)));
+  Throwing_Move::moves_left = -1;
+}
+
+// The map is emptied only when a move may have left an entry half way. A
+// failure that comes before, while the new buffers are obtained, must not
+// cost the entries, whatever the moves of their types declare.
+TEST(FlatMap, FailureBeforeAnyEntryMovesKeepsTheMap)
+{
+  using Value = Failing_Default<false>;
+  ASSERT_FALSE(std::is_nothrow_move_assignable_v<Value>);
+
+  FlatMap<int, Value> m;
+  for (int k = 0; k < 4; ++k)
+    m.insert(k, Value(10 * k));
+  ASSERT_EQ(m.size(), m.capacity()); // the next insertion has to grow
+
+  // a capacity that cannot be rounded up
+  EXPECT_THROW(m.reserve(std::numeric_limits<size_t>::max()), std::overflow_error);
+  EXPECT_EQ(m.size(), 4u);
+  EXPECT_TRUE(is_consistent(m));
+
+  // the buffer of the values cannot be built, with that of the keys already in place
+  Value::fail = true;
+  EXPECT_THROW(m.reserve(64), std::bad_alloc);
+  EXPECT_THROW(m.insert(9, Value(90)), std::bad_alloc);
+  EXPECT_THROW(m.insert_or_assign(9, Value(90)), std::bad_alloc);
+  Value::fail = false;
+  EXPECT_EQ(m.size(), 4u);
+  EXPECT_TRUE(is_consistent(m));
+  EXPECT_FALSE(m.contains(9));
+
+  m.insert(9, Value(90));
+  m.reserve(64);
+  EXPECT_EQ(m.size(), 5u);
+  EXPECT_GE(m.capacity(), 64u);
+  EXPECT_TRUE(is_consistent(m));
+}
+
+// An insertion that grows relocates the entries before it shifts them. A
+// move that throws during that relocation empties the map, as one that
+// throws during the shift does.
+TEST(FlatMap, MoveThatThrowsWhileAnInsertionGrowsLeavesAValidMap)
+{
+  bool completed = false;
+  for (int budget = 0; not completed; ++budget)
+    {
+      ASSERT_LT(budget, 64);
+      SCOPED_TRACE(testing::Message() << "moves allowed " << budget);
+      FlatMap<int, Throwing_Move> m;
+      for (int k = 1; k <= 4; ++k)
+        m.insert(k, Throwing_Move(10 * k));
+      ASSERT_EQ(m.size(), m.capacity());
+
+      Throwing_Move::moves_left = budget;
+      try
+        {
+          m.insert(0, Throwing_Move(0));
+          completed = true;
+        }
+      catch (const std::runtime_error &)
+        {
+          EXPECT_TRUE(m.is_empty());
+        }
+      Throwing_Move::moves_left = -1;
+
+      EXPECT_TRUE(is_consistent(m));
+      if (completed)
+        {
+          EXPECT_EQ(m.size(), 5u);
+          EXPECT_GT(budget, 4); // the four entries were relocated and then shifted
+        }
+      m.insert(100, Throwing_Move(1000));
+      EXPECT_TRUE(m.contains(100));
+      EXPECT_TRUE(is_consistent(m));
+    }
+}
+
+// A map emptied by a move has no storage. If only one of its two arrays
+// gets a buffer, the map must not be left with a key and no value.
+TEST(FlatMap, FailedGrowthOfAMapEmptiedByAMoveLeavesItEmpty)
+{
+  for (const bool nothrow_move : {true, false})
+    {
+      SCOPED_TRACE(testing::Message() << "nothrow move " << nothrow_move);
+      const auto check = [] <class Value> (Value)
+        {
+          FlatMap<int, Value> source;
+          source.insert(1, Value(10));
+          FlatMap<int, Value> taken(std::move(source));
+          ASSERT_EQ(source.capacity(), 0u);
+
+          Value::fail = true; // the keys get their buffer, the values do not
+          EXPECT_THROW(source.insert(2, Value(20)), std::bad_alloc);
+          Value::fail = false;
+          ASSERT_TRUE(source.is_empty());
+          EXPECT_TRUE(source.begin() == source.end());
+
+          source.insert(2, Value(20));
+          EXPECT_EQ(source.size(), 1u);
+          EXPECT_TRUE(is_consistent(source));
+          EXPECT_EQ(taken.size(), 1u);
+          EXPECT_TRUE(is_consistent(taken));
+        };
+      if (nothrow_move)
+        check(Failing_Default<true>(0));
+      else
+        check(Failing_Default<false>(0));
     }
 }

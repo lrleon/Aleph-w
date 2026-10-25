@@ -382,7 +382,9 @@ namespace Primes
 
   unsigned long next_prime(unsigned long n)
   {
-    // Return the smallest prime number p such that p >= n.
+    // Return a prime number p such that p >= n: the first one of primeList,
+    // which holds only some of the primes, or the smallest one below and
+    // above primeList.
     //
     // For small n (below the first entry in primeList) we fall back to a
     // direct primality test.
@@ -405,7 +407,8 @@ namespace Primes
     if (it != std::end(primeList))
       return *it;
 
-    return Primes::next_prime_number_greater_than(n);
+    // Above primeList, the smallest prime >= n
+    return Primes::next_prime_number_greater_than(n - 1);
   }
 
   bool check_primes_database()

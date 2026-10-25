@@ -57,6 +57,7 @@
 #include <tpl_array.H>
 #include <tpl_dynArray.H>
 #include <tpl_dynSetTree.H>
+#include <ah-convert-common.H>
 
 /** @namespace Aleph
  *  @brief Main namespace for Aleph-w library functions.
@@ -108,28 +109,8 @@ inline void tuple_for_each(const std::tuple<Ts...> & tuple, F func)
   tuple_for_each(tuple, func, std::make_index_sequence<sizeof...(Ts)>());
 }
 
-/// \cond
-/** @brief Convert a std::vector to a DynList.
- *
- *  @note This is an alias/duplicate of the function defined in ah-convert.H.
- *        Both definitions are equivalent. See ah-convert.H::vector_to_DynList
- *        for full documentation.
- *
- *  @tparam T The element type.
- *  @param v The source std::vector.
- *  @return A DynList containing copies of all elements from v.
- *
- *  @ingroup Algorithms
- */
-/// \endcond
-template <typename T>
-[[nodiscard]] inline DynList<T> vector_to_DynList(const std::vector<T> & v)
-{
-  DynList<T> ret;
-  for (const auto & item : v)
-    ret.append(item);
-  return ret;
-}
+// vector_to_DynList(), to_vector() and vector_to_DynArray() are defined once,
+// in ah-convert-common.H, which ah-convert.H includes too.
 
 /** \overload
  *
@@ -178,27 +159,6 @@ template <typename T>
   Array<T> ret;
   for (const auto & item : v)
     ret.append(item);
-  return ret;
-}
-
-/** @brief Convert an Aleph-w container to a std::vector.
-
-    Works with any Aleph-w container that exposes Item_Type and supports
-    range-based for loops.
-
-    @tparam Container Aleph-w container type (must have Item_Type typedef).
-    @param[in] container Source container.
-    @return std::vector containing copies of all elements.
-
-    @ingroup Algorithms
-*/
-template <typename Container>
-[[nodiscard]] inline std::vector<typename Container::Item_Type>
-to_vector(const Container & container)
-{
-  std::vector<typename Container::Item_Type> ret;
-  for (const auto & item : container)
-    ret.push_back(item);
   return ret;
 }
 
@@ -467,29 +427,6 @@ template <typename T>
   ret.reserve(arr.size());
   for (size_t i = 0; i < arr.size(); ++i)
     ret.push_back(arr[i]);
-  return ret;
-}
-
-/// \cond
-/** @brief Convert a std::vector to a DynArray.
- *
- *  @note This is an alias/duplicate of the function defined in ah-convert.H.
- *        Both definitions are equivalent. See ah-convert.H::vector_to_DynArray
- *        for full documentation.
- *
- *  @tparam T The element type.
- *  @param v The source std::vector.
- *  @return A DynArray containing copies of all elements from v.
- *
- *  @ingroup Algorithms
- */
-/// \endcond
-template <typename T>
-[[nodiscard]] inline DynArray<T> vector_to_DynArray(const std::vector<T> & v)
-{
-  DynArray<T> ret;
-  for (const auto & item : v)
-    ret.append(item);
   return ret;
 }
 

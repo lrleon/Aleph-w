@@ -860,3 +860,79 @@ TEST(CompilerDataflow, PreservesExitBlockWhenCompactingInfiniteLoop)
   EXPECT_EQ(optimized.function.blocks.access(optimized.function.exit_block).terminator.kind,
             Compiler_IR_Terminator_Kind::Exit);
 }
+
+// Integer arithmetic that can overflow or divide by zero stops the program,
+// so it stays even when its value is dead. It used to be removed, and then
+// only the engines without the optimizer stopped.
+TEST(CompilerDataflow, KeepsDeadArithmeticThatCanStopTheProgram)
+{
+  Compiler_IR_Function function;
+  function.name = "dead_values";
+  function.entry_block = 0;
+  function.exit_block = 1;
+
+  for (const char * name : {"x", "y"})
+    {
+      Compiler_IR_Slot parameter;
+      parameter.id = function.local_slots.size();
+      parameter.kind = Compiler_IR_Slot_Kind::Parameter;
+      parameter.name = name;
+      function.local_slots.append(parameter);
+    }
+
+  Compiler_IR_Block entry;
+  entry.id = 0;
+  entry.label = "entry";
+
+  // appends an instruction and returns its value
+  auto append = [&](const Compiler_IR_Instruction_Kind kind,
+                    const Compiler_Operator_Kind op,
+                    const DynArray<Compiler_IR_Value_Id> & operands,
+                    const Compiler_IR_Local_Slot_Id slot = compiler_ir_invalid_id())
+    {
+      Compiler_IR_Instruction inst;
+      inst.kind = kind;
+      inst.op = op;
+      inst.result_id = ++function.next_value_id;
+      inst.local_slot_id = slot;
+      inst.operands = operands;
+      inst.text = kind == Compiler_IR_Instruction_Kind::Constant ? "0" : "";
+      entry.instructions.append(inst);
+      return inst.result_id;
+    };
+
+  using Kind = Compiler_IR_Instruction_Kind;
+  using Op = Compiler_Operator_Kind;
+  const auto x = append(Kind::Load, Op::Invalid, {}, 0);
+  const auto y = append(Kind::Load, Op::Invalid, {}, 1);
+  for (const Op op : {Op::Plus, Op::Minus, Op::Star, Op::Slash, Op::Percent,
+                      Op::Less, Op::EqEq, Op::Amp, Op::Pipe, Op::Caret})
+    (void) append(Kind::Binary, op, {x, y});
+  for (const Op op : {Op::Minus, Op::Plus, Op::Tilde})
+    (void) append(Kind::Unary, op, {x});
+
+  entry.terminator.kind = Compiler_IR_Terminator_Kind::Return;
+  entry.terminator.return_value = append(Kind::Constant, Op::Invalid, {});
+  entry.terminator.successors.append(1);
+
+  auto exit = make_exit_block();
+  exit.predecessors.append(0);
+  function.blocks.append(entry);
+  function.blocks.append(exit);
+  ASSERT_TRUE(validate_ir_function(function).valid);
+
+  const auto optimized = eliminate_dead_code(function);
+  ASSERT_TRUE(validate_dead_code_elimination(optimized).valid);
+
+  std::string kept;
+  const auto & instructions = optimized.function.blocks.access(0).instructions;
+  for (size_t i = 0; i < instructions.size(); ++i)
+    {
+      const auto & inst = instructions.access(i);
+      if (inst.kind == Kind::Unary or inst.kind == Kind::Binary)
+        kept += std::string(inst.kind == Kind::Unary ? " unary " : " ")
+                + compiler_operator_name(inst.op);
+    }
+  EXPECT_EQ(kept, " Plus Minus Star Slash Percent unary Minus");
+  EXPECT_EQ(optimized.removed_instructions, 7u);
+}

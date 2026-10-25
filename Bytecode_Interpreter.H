@@ -530,6 +530,26 @@ namespace Aleph
                                                                executed_instructions);
     }
 
+    /// Runtime error for an integer operation that has no result.
+    [[nodiscard]] Compiler_Bytecode_Execution_Result
+    make_integer_error(const Compiler_Integer_Status status,
+                       const size_t executed_instructions,
+                       const Frame & frame,
+                       const Compiler_Bytecode_Instruction & inst) const
+    {
+      switch (status)
+        {
+        case Compiler_Integer_Status::Division_By_Zero:
+          return make_error("BCV013", "division by zero", executed_instructions, &frame, &inst);
+        case Compiler_Integer_Status::Modulo_By_Zero:
+          return make_error("BCV014", "modulo by zero", executed_instructions, &frame, &inst);
+        default:
+          break;
+        }
+
+      return make_error("BCV023", "integer overflow", executed_instructions, &frame, &inst);
+    }
+
     [[nodiscard]] Compiler_Bytecode_Execution_Result
     make_validation_error(const Compiler_Bytecode_Validation_Report & report,
                           const size_t executed_instructions = 0) const
@@ -1160,7 +1180,13 @@ namespace Aleph
                                               integer_value,
                                               error))
                         return error;
-                      result = Compiler_Bytecode_Value::make_integer(-integer_value);
+                      const auto negated = compiler_integer_negate(integer_value);
+                      if (negated.status != Compiler_Integer_Status::Ok)
+                        return make_integer_error(negated.status,
+                                                  executed_instructions,
+                                                  frame,
+                                                  inst);
+                      result = Compiler_Bytecode_Value::make_integer(negated.value);
                       break;
                     }
 
@@ -1274,47 +1300,13 @@ namespace Aleph
                                               error))
                         return error;
 
-                      switch (inst.op)
-                        {
-                        case Compiler_Operator_Kind::Plus:
-                          result = Compiler_Bytecode_Value::make_integer(lhs + rhs);
-                          break;
-                        case Compiler_Operator_Kind::Minus:
-                          result = Compiler_Bytecode_Value::make_integer(lhs - rhs);
-                          break;
-                        case Compiler_Operator_Kind::Star:
-                          result = Compiler_Bytecode_Value::make_integer(lhs * rhs);
-                          break;
-                        case Compiler_Operator_Kind::Slash:
-                          if (rhs == 0)
-                            return make_error("BCV013",
-                                              "division by zero",
-                                              executed_instructions,
-                                              &frame,
-                                              &inst);
-                          result = Compiler_Bytecode_Value::make_integer(lhs / rhs);
-                          break;
-                        case Compiler_Operator_Kind::Percent:
-                          if (rhs == 0)
-                            return make_error("BCV014",
-                                              "modulo by zero",
-                                              executed_instructions,
-                                              &frame,
-                                              &inst);
-                          result = Compiler_Bytecode_Value::make_integer(lhs % rhs);
-                          break;
-                        case Compiler_Operator_Kind::Amp:
-                          result = Compiler_Bytecode_Value::make_integer(lhs & rhs);
-                          break;
-                        case Compiler_Operator_Kind::Pipe:
-                          result = Compiler_Bytecode_Value::make_integer(lhs | rhs);
-                          break;
-                        case Compiler_Operator_Kind::Caret:
-                          result = Compiler_Bytecode_Value::make_integer(lhs ^ rhs);
-                          break;
-                        default:
-                          break;
-                        }
+                      const auto computed = compiler_integer_binary(inst.op, lhs, rhs);
+                      if (computed.status != Compiler_Integer_Status::Ok)
+                        return make_integer_error(computed.status,
+                                                  executed_instructions,
+                                                  frame,
+                                                  inst);
+                      result = Compiler_Bytecode_Value::make_integer(computed.value);
                       break;
                     }
 

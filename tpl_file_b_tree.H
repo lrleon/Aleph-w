@@ -2146,9 +2146,11 @@ namespace Aleph
       init_sidecar_paths();
       lock_.acquire(lock_path_, tree_kind(), lock_mode());
       if (read_only())
-        ah_runtime_error_unless(file_exists())
-          << "File_B_Tree: cannot open missing file " << file_path_
-          << " in read-only mode";
+        {
+          ah_runtime_error_unless(file_exists())
+            << "File_B_Tree: cannot open missing file " << file_path_
+            << " in read-only mode";
+        }
       recover_if_needed();
 
       if (file_exists())

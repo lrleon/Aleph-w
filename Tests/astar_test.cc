@@ -49,6 +49,9 @@
 #include <tpl_graph_utils.H>
 #include <random>
 #include <cmath>
+#include <functional>
+#include <stdexcept>
+#include <vector>
 
 using namespace Aleph;
 
@@ -976,6 +979,231 @@ TEST(AStarEdgeCaseTest, InadmissibleHeuristic)
   // But should still find SOME path
   EXPECT_GT(cost, 0.0);
   EXPECT_FALSE(path.is_empty());
+}
+
+// ==================== Distance policies and exceptions ====================
+
+using IntGraph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+// The policy of the report on 7.0.0: the weight of an arc times a factor.
+struct Scaled_Distance
+{
+  using Distance_Type = int;
+
+  int factor = 1;
+
+  int operator()(IntGraph::Arc * a) const { return factor * a->get_info(); }
+};
+
+// Every method used a default-constructed distance instead of the one
+// given to the constructor, so a factor of 3 was ignored.
+TEST(AStarPolicyTest, UsesTheDistanceItWasGiven)
+{
+  IntGraph g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, 3);
+  g.insert_arc(b, c, 4);
+  g.insert_arc(a, c, 20);
+
+  AStar_Min_Path<IntGraph, Scaled_Distance> astar(Scaled_Distance{3});
+  Path<IntGraph> path(g);
+  IntGraph tree;
+
+  EXPECT_EQ(astar.find_path(g, a, c, path), 21);
+  EXPECT_EQ(astar.find_min_path(g, a, c, path), 21);
+
+  ASSERT_TRUE(astar.paint_partial_path(g, a, c));
+  EXPECT_EQ(astar.get_min_path(c, path), 21);
+
+  ASSERT_TRUE(astar.paint_partial_min_paths_tree(g, a, c));
+  EXPECT_EQ(astar.get_min_path(c, path), 21);
+
+  astar.paint_min_paths_tree(g, a);
+  EXPECT_EQ(astar.get_distance(c), 21);
+  IntGraph painted;
+  EXPECT_EQ(astar.copy_painted_min_paths_tree(g, painted), 21);
+
+  ASSERT_NE(astar.compute_partial_path(g, a, c, tree), nullptr);
+  EXPECT_EQ(astar.get_min_path(tree, c, path), 21);
+
+  astar.compute_min_paths_tree(g, a, tree);
+  EXPECT_EQ(astar.get_min_path(tree, c, path), 21);
+
+  astar.compute_partial_min_paths_tree(g, a, c, tree);
+  EXPECT_EQ(astar.get_min_path(tree, c, path), 21);
+}
+
+// The weight of an arc times a factor, with no default constructor.
+struct Factor_Only_Distance
+{
+  using Distance_Type = int;
+
+  int factor;
+
+  explicit Factor_Only_Distance(int f) noexcept : factor(f) {}
+
+  int operator()(IntGraph::Arc * a) const { return factor * a->get_info(); }
+};
+
+// ArcHeap built its comparator by default, so such a distance did not
+// compile with it.
+TEST(AStarPolicyTest, TakesADistanceWithoutADefaultConstructor)
+{
+  IntGraph g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, 3);
+  g.insert_arc(b, c, 4);
+  g.insert_arc(a, c, 20);
+
+  AStar_Min_Path<IntGraph, Factor_Only_Distance> astar(Factor_Only_Distance(3));
+  Path<IntGraph> path(g);
+  IntGraph tree;
+
+  EXPECT_EQ(astar.find_path(g, a, c, path), 21);
+  EXPECT_EQ(astar.find_min_path(g, a, c, path), 21);
+
+  astar.paint_min_paths_tree(g, a);
+  EXPECT_EQ(astar.get_distance(c), 21);
+  IntGraph painted;
+  EXPECT_EQ(astar.copy_painted_min_paths_tree(g, painted), 21);
+
+  ASSERT_NE(astar.compute_partial_path(g, a, c, tree), nullptr);
+  EXPECT_EQ(astar.get_min_path(tree, c, path), 21);
+
+  astar.compute_min_paths_tree(g, a, tree);
+  EXPECT_EQ(astar.get_min_path(tree, c, path), 21);
+}
+
+// Counts the calls of a distance or a heuristic and makes one of them throw.
+struct Call_Failure
+{
+  long calls = 0;
+  long fail_at = 0; // number of the call that throws; 0 for none
+
+  void count()
+  {
+    if (++calls == fail_at)
+      throw std::runtime_error("policy failed");
+  }
+};
+
+struct Failing_Distance
+{
+  using Distance_Type = int;
+
+  Call_Failure * failure = nullptr;
+
+  int operator()(IntGraph::Arc * a) const
+  {
+    if (failure != nullptr)
+      failure->count();
+    return a->get_info();
+  }
+};
+
+struct Failing_Heuristic
+{
+  using Distance_Type = int;
+
+  Call_Failure * failure = nullptr;
+
+  int operator()(IntGraph::Node *, IntGraph::Node *) const
+  {
+    if (failure != nullptr)
+      failure->count();
+    return 0;
+  }
+};
+
+// The cookies were allocated at the start and freed at the end, but not
+// when the algorithm threw: a distance or a heuristic that failed leaked
+// them. Each call fails in turn; the same object, on the same graph, must
+// then give the right costs. LeakSanitizer reports any cookie left.
+TEST(AStarPolicyTest, DistanceOrHeuristicThatThrowsLeavesTheGraphReusable)
+{
+  // a 3 x 4 grid with weights from 1 to 9
+  IntGraph g;
+  std::vector<IntGraph::Node *> n;
+  for (int i = 0; i < 12; ++i)
+    n.push_back(g.insert_node(i));
+  for (int r = 0; r < 3; ++r)
+    for (int c = 0; c < 4; ++c)
+      {
+        const int i = 4 * r + c;
+        if (c < 3)
+          g.insert_arc(n[i], n[i + 1], 1 + (7 * i) % 9);
+        if (r < 2)
+          g.insert_arc(n[i], n[i + 4], 1 + (5 * i + 3) % 9);
+      }
+
+  const auto start = n[0];
+  const auto end = n[11];
+  Dijkstra_Min_Paths<IntGraph> dijkstra;
+  Path<IntGraph> expected_path(g);
+  const int expected = dijkstra.find_min_path(g, start, end, expected_path);
+  ASSERT_GT(expected, 0);
+
+  Call_Failure distance_failure;
+  Call_Failure heuristic_failure;
+  AStar_Min_Path<IntGraph, Failing_Distance, Failing_Heuristic>
+    astar(Failing_Distance{&distance_failure},
+          Failing_Heuristic{&heuristic_failure});
+  IntGraph tree;
+
+  const std::vector<std::function<void()>> methods = {
+    [&] {
+      Path<IntGraph> path(g);
+      EXPECT_EQ(astar.find_path(g, start, end, path), expected);
+    },
+    [&] {
+      ASSERT_NE(astar.compute_partial_path(g, start, end, tree), nullptr);
+      Path<IntGraph> path(g);
+      EXPECT_EQ(astar.get_min_path(tree, end, path), expected);
+    },
+    [&] {
+      Path<IntGraph> path(g);
+      EXPECT_EQ(astar.find_min_path(g, start, end, path), expected);
+    },
+    [&] {
+      astar.paint_min_paths_tree(g, start);
+      EXPECT_EQ(astar.get_distance(end), expected);
+    },
+    [&] {
+      astar.compute_min_paths_tree(g, start, tree);
+      Path<IntGraph> path(g);
+      EXPECT_EQ(astar.get_min_path(tree, end, path), expected);
+    },
+    [&] {
+      astar.compute_partial_min_paths_tree(g, start, end, tree);
+      Path<IntGraph> path(g);
+      EXPECT_EQ(astar.get_min_path(tree, end, path), expected);
+    }
+  };
+
+  for (auto * failure : {&heuristic_failure, &distance_failure})
+    for (size_t m = 0; m < methods.size(); ++m)
+      {
+        distance_failure = heuristic_failure = Call_Failure();
+        methods[m]();
+        const long calls = failure->calls;
+        if (failure == &distance_failure)
+          ASSERT_GT(calls, 0) << "method " << m;
+
+        for (long k = 1; k <= calls; ++k)
+          {
+            distance_failure = heuristic_failure = Call_Failure();
+            failure->fail_at = k;
+            EXPECT_THROW(methods[m](), std::runtime_error)
+              << "method " << m << ", call " << k;
+
+            failure->fail_at = 0;
+            methods[m]();
+          }
+      }
 }
 
 int main(int argc, char **argv)
