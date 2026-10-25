@@ -288,3 +288,74 @@ TEST(BinHeapComparison, RemoveAllAndDeleteDoesNotCompare)
       heap.remove_all_and_delete();
     }
 }
+
+namespace
+{
+  std::vector<int> drain(DynBinHeap<int> & heap)
+  {
+    std::vector<int> out;
+    while (not heap.is_empty())
+      out.push_back(heap.getMin());
+    return out;
+  }
+} // namespace
+
+// swap() exchanged the roots but left each root pointing up to the header
+// of the other heap, so the moves of DynBinHeap, which swap, broke the heap.
+TEST(DynBinHeapTest, MoveConstructionOutlivesTheSource)
+{
+  for (int n = 0; n <= 7; ++n)
+    {
+      std::unique_ptr<DynBinHeap<int>> moved;
+      {
+        DynBinHeap<int> source;
+        for (int i = n; i > 0; --i)
+          source.insert(i);
+        moved = std::make_unique<DynBinHeap<int>>(std::move(source));
+        EXPECT_TRUE(source.is_empty());
+        source.insert(10); // the source can be used again
+        EXPECT_EQ(source.getMin(), 10);
+      }
+
+      std::vector<int> expected(n);
+      std::iota(expected.begin(), expected.end(), 1);
+      EXPECT_EQ(drain(*moved), expected) << n << " values";
+    }
+}
+
+TEST(DynBinHeapTest, MoveAssignmentOutlivesTheSource)
+{
+  DynBinHeap<int> target;
+  for (int i : {20, 30})
+    target.insert(i);
+  {
+    DynBinHeap<int> source;
+    for (int i : {5, 3, 8, 1, 9, 2})
+      source.insert(i);
+    target = std::move(source);
+  }
+  EXPECT_EQ(drain(target), (std::vector<int>{1, 2, 3, 5, 8, 9}));
+}
+
+TEST(DynBinHeapTest, SwapExchangesTheContents)
+{
+  DynBinHeap<int> a, b, spare;
+  for (int i : {4, 2, 6, 1})
+    a.insert(i);
+  for (int i : {7, 3, 5})
+    b.insert(i);
+
+  a.swap(b);
+  a.insert(0); // both heaps keep working after the swap
+  b.insert(10);
+  EXPECT_EQ(drain(a), (std::vector<int>{0, 3, 5, 7}));
+  EXPECT_EQ(drain(b), (std::vector<int>{1, 2, 4, 6, 10}));
+
+  for (int i : {9, 8})
+    a.insert(i);
+  a.swap(spare); // with an empty heap
+  EXPECT_TRUE(a.is_empty());
+  a.insert(1);
+  EXPECT_EQ(drain(a), std::vector<int>{1});
+  EXPECT_EQ(drain(spare), (std::vector<int>{8, 9}));
+}

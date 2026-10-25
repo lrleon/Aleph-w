@@ -38,6 +38,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <memory>
 #include <random>
 #include <stdexcept>
 #include <unordered_map>
@@ -369,4 +370,136 @@ TEST(ArcHeapDistance, WhatTheDistanceThrowsReachesTheCaller)
       long count = 0;
       EXPECT_THROW(put_and_take(count, k), std::runtime_error) << "call " << k;
     }
+}
+
+namespace
+{
+  // Keeps the handles of either heap as void *
+  struct VoidMapAccess
+  {
+    std::unordered_map<Node *, void *> *map = nullptr;
+
+    void *& operator()(Node *p) { return (*map)[p]; }
+  };
+
+  struct BinaryArcHeap
+  {
+    using Heap = ArcHeap<Graph, ArcWeightDist, VoidMapAccess>;
+  };
+
+  struct FibonacciArcHeap
+  {
+    using Heap = ArcFibonacciHeap<Graph, ArcWeightDist, VoidMapAccess>;
+  };
+
+  template <class Kind>
+  struct ArcHeapLifecycle : public ::testing::Test
+  {
+    using Heap = typename Kind::Heap;
+
+    Graph g;
+    std::vector<Node *> nodes = make_nodes(g, 6);
+    std::vector<Arc *> arcs; // arcs[i - 1] goes from nodes[0] to nodes[i]
+
+    ArcHeapLifecycle()
+    {
+      for (int i = 1; i < 6; ++i)
+        arcs.push_back(g.insert_arc(nodes[0], nodes[i], 10 * i));
+    }
+
+    void put_all(Heap & heap)
+    {
+      for (int i = 1; i < 6; ++i)
+        heap.put_arc(arcs[i - 1], nodes[i]);
+    }
+
+    static std::vector<int> take_all(Heap & heap)
+    {
+      std::vector<int> weights;
+      while (not heap.is_empty())
+        weights.push_back(heap.get_min_arc()->get_info());
+      return weights;
+    }
+
+    static bool all_null(const std::unordered_map<Node *, void *> & handles)
+    {
+      return std::all_of(handles.begin(), handles.end(),
+                         [](const auto & entry) { return entry.second == nullptr; });
+    }
+  };
+
+  using ArcHeapKinds = ::testing::Types<BinaryArcHeap, FibonacciArcHeap>;
+} // namespace
+
+TYPED_TEST_SUITE(ArcHeapLifecycle, ArcHeapKinds);
+
+// clear() deleted the heap nodes but left their handles, so putting an arc
+// to the same target again used a freed node.
+TYPED_TEST(ArcHeapLifecycle, ClearNullsTheHandles)
+{
+  std::unordered_map<Node *, void *> handles;
+  typename TestFixture::Heap heap(ArcWeightDist{}, VoidMapAccess{&handles});
+
+  this->put_all(heap);
+  heap.clear();
+  EXPECT_TRUE(heap.is_empty());
+  EXPECT_TRUE(this->all_null(handles));
+
+  heap.clear(); // twice
+  EXPECT_TRUE(heap.is_empty());
+
+  this->put_all(heap);
+  EXPECT_EQ(this->take_all(heap), (std::vector<int>{10, 20, 30, 40, 50}));
+  EXPECT_TRUE(this->all_null(handles));
+}
+
+// The destructor empties the heap in the same way, while the storage of the
+// handles is still alive.
+TYPED_TEST(ArcHeapLifecycle, DestroyingAFullHeapNullsTheHandles)
+{
+  std::unordered_map<Node *, void *> handles;
+  {
+    typename TestFixture::Heap heap(ArcWeightDist{}, VoidMapAccess{&handles});
+    this->put_all(heap);
+  }
+  EXPECT_TRUE(this->all_null(handles));
+}
+
+// The move constructor of ArcHeap moved its base, which pointed to the
+// header of the source, so the new heap broke once the source was gone.
+TYPED_TEST(ArcHeapLifecycle, MoveConstructionOutlivesTheSource)
+{
+  using Heap = typename TestFixture::Heap;
+  std::unordered_map<Node *, void *> handles;
+  std::unique_ptr<Heap> moved;
+  {
+    Heap source(ArcWeightDist{}, VoidMapAccess{&handles});
+    this->put_all(source);
+    moved = std::make_unique<Heap>(std::move(source));
+    EXPECT_TRUE(source.is_empty());
+  }
+
+  EXPECT_EQ(this->take_all(*moved), (std::vector<int>{10, 20, 30, 40, 50}));
+  EXPECT_TRUE(this->all_null(handles));
+}
+
+// The move assignment of ArcHeap did not compile, and that of
+// ArcFibonacciHeap left the handles of the arcs that the target held.
+TYPED_TEST(ArcHeapLifecycle, MoveAssignmentEmptiesTheTarget)
+{
+  using Heap = typename TestFixture::Heap;
+  std::unordered_map<Node *, void *> target_handles, source_handles;
+  Heap target(ArcWeightDist{}, VoidMapAccess{&target_handles});
+  target.put_arc(this->arcs[0], this->nodes[1]);
+  target.put_arc(this->arcs[1], this->nodes[2]);
+  {
+    Heap source(ArcWeightDist{}, VoidMapAccess{&source_handles});
+    this->put_all(source);
+    target = std::move(source);
+    EXPECT_TRUE(source.is_empty());
+  }
+
+  EXPECT_TRUE(this->all_null(target_handles));
+  EXPECT_EQ(this->take_all(target), (std::vector<int>{10, 20, 30, 40, 50}));
+  EXPECT_TRUE(this->all_null(source_handles));
 }

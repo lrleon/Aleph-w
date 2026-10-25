@@ -78,19 +78,23 @@ public:
   ArcHeap(const ArcHeap &) = delete;
   ArcHeap & operator=(const ArcHeap &) = delete;
 
-  /// Move construction transfers ownership of heap nodes
+  /// Move construction transfers ownership of heap nodes. (The base heap
+  /// cannot be moved: it points to its own header, so it is swapped.)
   ArcHeap(ArcHeap && other) noexcept
-    : Heap(std::move(other)), dist(std::move(other.dist)),
+    : Heap(other.get_compare()), dist(std::move(other.dist)),
       access_node(std::move(other.access_node)), dist_cmp(dist)
-  {}
+  {
+    this->swap(other);
+  }
 
-  /// Move assignment transfers ownership of heap nodes
+  /// Move assignment transfers ownership of heap nodes, after emptying this
+  /// heap as empty() does
   ArcHeap & operator=(ArcHeap && other) noexcept
   {
     if (this != &other)
       {
         empty();
-        Heap::operator=(std::move(other));
+        this->swap(other);
         dist = std::move(other.dist);
         access_node = std::move(other.access_node);
         dist_cmp = Distance_Compare<GT, Distance>(dist);
@@ -104,6 +108,25 @@ public:
   typedef typename Heap::Node Node;
 
   using handle_type = Node *;
+
+private:
+  // The handle that the access functor keeps for heap_node: that of the
+  // node of its arc whose handle it is
+  handle_type & handle_of(Node *heap_node)
+  {
+    typename GT::Arc *arc = heap_node->get_key();
+    auto *p = static_cast<typename GT::Node *>(arc->src_node);
+    auto & handle_src = reinterpret_cast<handle_type &>(access_node(p));
+    if (handle_src == heap_node)
+      return handle_src;
+
+    p = static_cast<typename GT::Node *>(arc->tgt_node);
+    auto & handle_tgt = reinterpret_cast<handle_type &>(access_node(p));
+    assert(handle_tgt == heap_node);
+    return handle_tgt;
+  }
+
+public:
 
   /// Insert or update an arc associated with a target node, keeping the
   /// smallest-distance arc per node in the heap.
@@ -142,19 +165,7 @@ public:
   {
     Node *heap_node = this->top();
     typename GT::Arc *arc = heap_node->get_key();
-
-    // Select the node that the access functor maps to this heap node
-    auto *p = static_cast<typename GT::Node *>(arc->src_node);
-    auto & handle_src =
-      reinterpret_cast<handle_type &>(access_node(p));
-    if (handle_src != heap_node)
-      p = static_cast<typename GT::Node *>(arc->tgt_node);
-
-    auto & handle_ref =
-      reinterpret_cast<handle_type &>(access_node(p));
-    assert(handle_ref == heap_node);
-
-    handle_ref = nullptr;
+    handle_of(heap_node) = nullptr;
 
     std::unique_ptr<Node> owner(heap_node); // freed even if getMin_ne() throws
     [[maybe_unused]] Node *removed = this->getMin_ne();
@@ -163,20 +174,24 @@ public:
     return arc;
   }
 
-  /// Remove all heap nodes and delete their memory.
+  /// Remove all heap nodes and delete their memory, after clearing the
+  /// handles that the access functor keeps for them, so that their nodes
+  /// can be put in a heap again. No arc is compared. The storage of the
+  /// handles must still be alive.
   void empty()
   {
+    this->for_each_in_preorder([this](Node *p) { handle_of(p) = nullptr; });
     this->remove_all_and_delete();
   }
 
-  /** @brief Empties the container. 
-      
+  /** @brief Empties the container.
+
       @throws none
       @see empty()
   */
   void clear() { empty(); }
 
-  /// Destructor. Clears all remaining heap nodes.
+  /// Destructor. Clears all remaining heap nodes, as empty() does.
   ~ArcHeap()
   {
     empty();
@@ -207,6 +222,39 @@ private:
     return reinterpret_cast<handle_type &>(access_node(p));
   }
 
+  // The handle that the access functor keeps for heap_node: that of the
+  // node of its arc whose handle it is
+  handle_type & handle_of(handle_type heap_node)
+  {
+    auto *arc = heap_node->data;
+    auto & handle_src =
+      handle_ref(static_cast<typename GT::Node *>(arc->src_node));
+    if (handle_src == heap_node)
+      return handle_src;
+
+    auto & handle_tgt =
+      handle_ref(static_cast<typename GT::Node *>(arc->tgt_node));
+    assert(handle_tgt == heap_node);
+    return handle_tgt;
+  }
+
+  // Clears the handles of the heap nodes in the circular list of first and
+  // in the lists of their children
+  void clear_handles(handle_type first)
+  {
+    if (first == nullptr)
+      return;
+
+    handle_type p = first;
+    do
+      {
+        clear_handles(p->child);
+        handle_of(p) = nullptr;
+        p = p->right;
+      }
+    while (p != first);
+  }
+
 public:
   /// Return the distance functor used to compare arcs in this heap.
   Distance &get_distance() { return dist; }
@@ -230,11 +278,13 @@ public:
       dist_cmp(dist), heap(std::move(other.heap))
   {}
 
-  /// Move assignment transfers ownership of heap nodes
+  /// Move assignment transfers ownership of heap nodes, after emptying this
+  /// heap as empty() does
   ArcFibonacciHeap & operator=(ArcFibonacciHeap && other) noexcept
   {
     if (this != &other)
       {
+        empty();
         dist = std::move(other.dist);
         access_node = std::move(other.access_node);
         dist_cmp = Compare(dist);
@@ -273,17 +323,7 @@ public:
 
     auto *heap_node = heap.get_min_node();
     auto *arc = heap_node->data;
-
-    // Select the node that the access functor maps to this heap node
-    auto *p = static_cast<typename GT::Node *>(arc->src_node);
-    auto & handle_src = handle_ref(p);
-    if (handle_src != heap_node)
-      p = static_cast<typename GT::Node *>(arc->tgt_node);
-
-    auto & handle_entry = handle_ref(p);
-    assert(handle_entry == heap_node);
-
-    handle_entry = nullptr;
+    handle_of(heap_node) = nullptr;
 
     (void) heap.extract_min();
 
@@ -293,20 +333,24 @@ public:
   /// Return true if the heap is empty.
   bool is_empty() const noexcept { return heap.is_empty(); }
 
-  /// Remove all heap nodes and delete their memory.
+  /// Remove all heap nodes and delete their memory, after clearing the
+  /// handles that the access functor keeps for them, so that their nodes
+  /// can be put in a heap again. No arc is compared. The storage of the
+  /// handles must still be alive.
   void empty()
   {
+    clear_handles(heap.get_min_node());
     heap.clear();
   }
 
-  /** @brief Empties the container. 
-      
+  /** @brief Empties the container.
+
       @throws none
       @see empty()
   */
   void clear() { empty(); }
 
-  /// Destructor. Clears all remaining heap nodes.
+  /// Destructor. Clears all remaining heap nodes, as empty() does.
   ~ArcFibonacciHeap()
   {
     empty();
