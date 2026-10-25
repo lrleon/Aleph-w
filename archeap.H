@@ -243,20 +243,33 @@ private:
   }
 
   // Clears the handles of the heap nodes in the circular list of first and
-  // in the lists of their children
+  // in the lists of their children. It goes down by child and up by parent,
+  // without recursion, since a tree can be as high as the heap is large
   void clear_handles(handle_type first)
   {
-    if (first == nullptr)
-      return;
-
     handle_type p = first;
-    do
+    while (p != nullptr)
       {
-        clear_handles(p->child);
         handle_of(p) = nullptr;
-        p = p->right;
+        if (p->child != nullptr)
+          {
+            p = p->child;
+            continue;
+          }
+
+        // p has no children: go to the next node of its list or, if p is
+        // the last one, to the next one of the list of its parent
+        while (p != nullptr)
+          {
+            handle_type head = p->parent == nullptr ? first : p->parent->child;
+            if (p->right != head)
+              {
+                p = p->right;
+                break;
+              }
+            p = p->parent;
+          }
       }
-    while (p != first);
   }
 
 public:

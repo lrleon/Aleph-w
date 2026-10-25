@@ -348,11 +348,14 @@ namespace Aleph
     }
 
     /**
-     * @brief Recursively deletes all nodes in a tree.
+     * @brief Deletes all the nodes of the trees in a circular list.
      *
-     * Used by clear() for O(n) cleanup instead of O(n log n).
+     * Used by clear() for O(n) cleanup instead of O(n log n). Before
+     * deleting a node, it puts the children of the node in the list, right
+     * after it, so it needs no recursion: a tree can be as high as the heap
+     * is large.
      *
-     * @param node Root of the subtree to delete
+     * @param node A node of the list, or nullptr
      */
     void delete_all_nodes(Node *node)
     {
@@ -366,10 +369,13 @@ namespace Aleph
       Node *curr = node;
       while (curr != nullptr)
         {
+          if (curr->child != nullptr) // its children go next in the list
+            {
+              Node *last_child = curr->child->left;
+              last_child->right = curr->right;
+              curr->right = curr->child;
+            }
           Node *next = curr->right;
-          // Recursively delete children
-          if (curr->child != nullptr)
-            delete_all_nodes(curr->child);
           delete curr;
           curr = next;
         }
