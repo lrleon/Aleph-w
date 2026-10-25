@@ -177,7 +177,11 @@ public:
   /// Remove all heap nodes and delete their memory, after clearing the
   /// handles that the access functor keeps for them, so that their nodes
   /// can be put in a heap again. No arc is compared. The storage of the
-  /// handles must still be alive.
+  /// handles must still be alive, and the access functor, called for both
+  /// nodes of each arc, must not throw: the destructor and the move
+  /// assignment, which do not throw, empty the heap too. With the handles
+  /// in a map, operator[] of std::unordered_map, for one, inserts the
+  /// nodes that it does not find, and may throw std::bad_alloc.
   void empty()
   {
     this->for_each_in_preorder([this](Node *p) { handle_of(p) = nullptr; });
@@ -336,7 +340,11 @@ public:
   /// Remove all heap nodes and delete their memory, after clearing the
   /// handles that the access functor keeps for them, so that their nodes
   /// can be put in a heap again. No arc is compared. The storage of the
-  /// handles must still be alive.
+  /// handles must still be alive, and the access functor, called for both
+  /// nodes of each arc, must not throw: the destructor and the move
+  /// assignment, which do not throw, empty the heap too. With the handles
+  /// in a map, operator[] of std::unordered_map, for one, inserts the
+  /// nodes that it does not find, and may throw std::bad_alloc.
   void empty()
   {
     clear_handles(heap.get_min_node());
