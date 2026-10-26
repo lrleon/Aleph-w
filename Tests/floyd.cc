@@ -811,3 +811,117 @@ TEST(FloydDistance, TakesACallOperatorThatIsNotConst)
   EXPECT_EQ(dist_of(floyd, a, b), 1);
   EXPECT_EQ(arcs_of(floyd.get_min_path(a, b)), std::vector<GArc *>{light});
 }
+
+// =============================================================================
+// Negative cycles in large graphs
+// =============================================================================
+
+namespace
+{
+  using LGrafo = List_Digraph<Graph_Node<int>, Graph_Arc<long>>;
+  using LUGrafo = List_Graph<Graph_Node<int>, Graph_Arc<long>>;
+
+  template <class G>
+  std::vector<typename G::Node *> insert_nodes(G & g, long n)
+  {
+    std::vector<typename G::Node *> v;
+    for (long i = 0; i < n; ++i)
+      v.push_back(g.insert_node(static_cast<int>(i)));
+    return v;
+  }
+
+  // An arc of -1 from each node to each other one: the graph is the same for
+  // any order of its nodes
+  template <class G>
+  std::vector<typename G::Node *> complete_of_minus_one(G & g, long n)
+  {
+    auto v = insert_nodes(g, n);
+    for (long i = 0; i < n; ++i)
+      for (long j = 0; j < n; ++j)
+        if (i != j)
+          {
+            g.insert_arc(v[i], v[j], typename G::Arc_Type(-1));
+          }
+    return v;
+  }
+
+  // A ring with arcs of 0 both ways, but for one of -1
+  template <class G>
+  std::vector<typename G::Node *> ring_with_one_negative_arc(G & g, long n)
+  {
+    auto v = insert_nodes(g, n);
+    for (long i = 0; i < n; ++i)
+      {
+        g.insert_arc(v[i], v[(i + 1) % n],
+                     typename G::Arc_Type(i == 0 ? -1 : 0));
+        g.insert_arc(v[(i + 1) % n], v[i], typename G::Arc_Type(0));
+      }
+    return v;
+  }
+
+  // A path with arcs of 0, but for the first one, of -1
+  template <class G>
+  std::vector<typename G::Node *> path_with_one_negative_arc(G & g, long n)
+  {
+    auto v = insert_nodes(g, n);
+    for (long i = 0; i + 1 < n; ++i)
+      g.insert_arc(v[i], v[i + 1], typename G::Arc_Type(i == 0 ? -1 : 0));
+    return v;
+  }
+}
+
+// The distances that go round a negative cycle doubled at each k, whatever
+// the cost of the cycle, until a sum went below lowest() and the solver threw
+// overflow_error instead of finding the cycle. This graph does not depend on
+// the order of the nodes, which the solver takes from their addresses: with
+// it, the solver threw for sure, from 32 nodes with int and from 40 with long.
+TEST(FloydNegativeCycle, ACompleteDigraphOfNegativeArcs)
+{
+  Grafo g;
+  const auto v = complete_of_minus_one(g, 32);
+  Floyd_All_Shortest_Paths<Grafo> floyd(g);
+  EXPECT_TRUE(floyd.has_negative_cycle());
+  EXPECT_THROW(floyd.get_min_path(v.front(), v.back()), std::domain_error);
+
+  LGrafo h;
+  complete_of_minus_one(h, 40);
+  EXPECT_TRUE(Floyd_All_Shortest_Paths<LGrafo>(h).has_negative_cycle());
+}
+
+// The same with one arc of -1: in a ring, and in a path of a graph that is not
+// directed, where it is a negative cycle. Whether the solver threw depended on
+// the order of the nodes.
+TEST(FloydNegativeCycle, OneNegativeArcInALargeGraph)
+{
+  for (long n : {64L, 100L, 256L})
+    {
+      SCOPED_TRACE(testing::Message() << n << " nodes");
+      Grafo g;
+      ring_with_one_negative_arc(g, n);
+      EXPECT_TRUE(Floyd_All_Shortest_Paths<Grafo>(g).has_negative_cycle());
+
+      LGrafo h;
+      ring_with_one_negative_arc(h, n);
+      EXPECT_TRUE(Floyd_All_Shortest_Paths<LGrafo>(h).has_negative_cycle());
+
+      UGrafo u;
+      path_with_one_negative_arc(u, n);
+      EXPECT_TRUE(Floyd_All_Shortest_Paths<UGrafo>(u).has_negative_cycle());
+
+      LUGrafo lu;
+      path_with_one_negative_arc(lu, n);
+      EXPECT_TRUE(Floyd_All_Shortest_Paths<LUGrafo>(lu).has_negative_cycle());
+    }
+}
+
+// A negative loop is a negative cycle before the first k: the solver stops
+// there, without adding the loop to itself, which here would be below
+// lowest().
+TEST(FloydLoops, ALoopAtTheBottomOfTheRangeIsANegativeCycle)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  g.insert_arc(a, a, numeric_limits<int>::lowest());
+  Floyd_All_Shortest_Paths<Grafo> floyd(g);
+  EXPECT_TRUE(floyd.has_negative_cycle());
+}
