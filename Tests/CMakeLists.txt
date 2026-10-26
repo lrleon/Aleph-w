@@ -967,6 +967,20 @@ add_test(
             -P ${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cmake
 )
 
+# An else right after a conditional macro of ah-errors.H, parse_utils.H or
+# ah-trace.H, with no if around it, must not compile (ah_errors_else_test.cc
+# checks the else after one with an if around it)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_test(
+        NAME AhErrors.ElseRightAfterAMacroDoesNotCompile
+        COMMAND ${CMAKE_COMMAND}
+                -DCXX_COMPILER=${CMAKE_CXX_COMPILER}
+                -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/..
+                -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/ah_errors_else_check
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/ah_errors_else_check.cmake
+    )
+endif()
+
 # Phase 25 — C ABI smoke test: a pure-C (C99) consumer that links the flat
 # C ABI shared library and drives a Game of Life through it.
 if(ALEPH_BUILD_C_API AND TARGET alephca_c)

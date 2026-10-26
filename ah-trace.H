@@ -37,6 +37,10 @@
  *  file:line information when conditions are met. Useful for
  *  debugging without full assertion overhead.
  *
+ *  Each conditional macro is a `for` of one iteration, which takes no
+ *  `else`: an `else` written after an invocation belongs to the `if` around
+ *  it, and one with no `if` around it does not compile.
+ *
  *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
@@ -48,22 +52,25 @@
 
 
 #define ah_trace_unless(out, C)                                         \
-  if (__builtin_expect(!(C), 0))                                        \
+  for (bool ah_trace_once_ = not (C);                                   \
+       __builtin_expect(ah_trace_once_, 0); ah_trace_once_ = false)     \
     out << __FILE__ << ":" << __LINE__ << " | "
 
-#define ah_trace_if(out, C)                                            \
-  if (__builtin_expect((C), 0))                                        \
+#define ah_trace_if(out, C)                                             \
+  for (bool ah_trace_once_ = static_cast<bool>(C);                      \
+       __builtin_expect(ah_trace_once_, 0); ah_trace_once_ = false)     \
     out << __FILE__ << ":" << __LINE__ << " | "
 
 #define ah_msg(out)                             \
   out << ""
 
-#define ah_msg_if(out, C)                       \
-  if (C)                 \
+#define ah_msg_if(out, C)                                               \
+  for (bool ah_msg_once_ = static_cast<bool>(C); ah_msg_once_;          \
+       ah_msg_once_ = false)                                            \
     [[unlikely]](out) << ""
 
-#define ah_msg_unless(out, C)                       \
-  if (not (C))                    \
-    [[unlikely]]out << ""
+#define ah_msg_unless(out, C)                                           \
+  for (bool ah_msg_once_ = not (C); ah_msg_once_; ah_msg_once_ = false) \
+    [[unlikely]](out) << ""
 
 # endif
