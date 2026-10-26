@@ -5,6 +5,15 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.2.2](https://github.com/lrleon/Aleph-w/compare/v7.2.1...v7.2.2) (2026-10-26)
+
+
+### Bug Fixes
+
+* **graph:** Make Kruskal accept a distance held in a variable ([#144](https://github.com/lrleon/Aleph-w/issues/144)) ([34ce543](https://github.com/lrleon/Aleph-w/commit/34ce5438d12c574075fa5b35432bb466c9a41667))
+* **heap:** Empty the Fibonacci heaps without overflowing the stack ([#143](https://github.com/lrleon/Aleph-w/issues/143)) ([7fcb07e](https://github.com/lrleon/Aleph-w/commit/7fcb07ead53384fa6aed66a3016f4c35940161e6))
+* **heap:** Keep the heaps valid across swap, moves and clear() ([#141](https://github.com/lrleon/Aleph-w/issues/141)) ([2131b3d](https://github.com/lrleon/Aleph-w/commit/2131b3d5819daca228091b6d575ffa4c6c09b8b0))
+
 ## [7.2.1](https://github.com/lrleon/Aleph-w/compare/v7.2.0...v7.2.1) (2026-10-24)
 
 
