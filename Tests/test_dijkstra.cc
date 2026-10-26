@@ -1212,6 +1212,51 @@ TYPED_TEST(DijkstraHeapTest, TakesADistanceWithoutADefaultConstructor) {
   EXPECT_EQ(dij.get_min_path(tree, c, path), 21);
 }
 
+// Total built its distance with Distance(), so it could take neither one
+// with state nor one without a default constructor.
+TEST(DijkstraTotal, UsesTheDistanceItWasGiven) {
+  IGT g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  auto ab = g.insert_arc(a, b, 3);
+  auto bc = g.insert_arc(b, c, 4);
+
+  Dijkstra_Min_Paths<IGT, Scaled_Distance>::Total plain;
+  Dijkstra_Min_Paths<IGT, Scaled_Distance>::Total tripled(Scaled_Distance{3});
+  Dijkstra_Min_Paths<IGT, Factor_Only_Distance>::Total
+    doubled(Factor_Only_Distance(2));
+  for (auto arc : {ab, bc})
+    {
+      EXPECT_TRUE(plain(arc));
+      EXPECT_TRUE(tripled(arc));
+      EXPECT_TRUE(doubled(arc));
+    }
+  EXPECT_EQ(plain.dist, 3 + 4);
+  EXPECT_EQ(tripled.dist, 3 * (3 + 4));
+  EXPECT_EQ(doubled.dist, 2 * (3 + 4));
+}
+
+// Total::operator() was noexcept, so what the distance threw ended the
+// program.
+TEST(DijkstraTotal, WhatTheDistanceThrowsReachesTheCaller) {
+  IGT g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  auto ab = g.insert_arc(a, b, 0); // the index of its weight
+  auto bc = g.insert_arc(b, c, 1);
+  const std::vector<long> weights = {3, 4};
+
+  Distance_Failure failure;
+  failure.fail_at = 2;
+  Dijkstra_Min_Paths<IGT, Table_Distance>::Total
+    total(Table_Distance(weights, &failure));
+  EXPECT_TRUE(total(ab));
+  EXPECT_THROW(total(bc), std::runtime_error);
+  EXPECT_EQ(total.dist, 3);
+}
+
 // copy_painted_min_paths_tree() returned 0: Copy_Graph added the weights
 // up in its own copy of the filter.
 TYPED_TEST(DijkstraHeapTest, CopyOfThePaintedTreeReturnsItsWeight) {

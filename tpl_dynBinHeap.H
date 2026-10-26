@@ -198,7 +198,7 @@ namespace Aleph {
       return return_value;
     }
 
-    /// \overload getMin() para usar si se invierte el orden de prioridad
+    /// \overload getMin() to use if the order of priority is reversed
     T getMax()
     {
       return getMin();

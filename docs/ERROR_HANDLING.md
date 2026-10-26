@@ -76,31 +76,25 @@ ah_warning_if(std::cerr, size > 1000) << "Large size may impact performance";
 ah_warning_unless(std::cerr, valid) << "Invalid state detected";
 ```
 
-### The Conditional Macros Are `if` Statements
+### The Conditional Macros Take No `else`
 
 Every `_if` and `_unless` macro, the `constexpr` forms and the warnings
-included, expands to an `if` statement without braces, except
-`ah_bad_alloc_if` and `ah_bad_alloc_unless`, which are wrapped in
-`do { ... } while (false)`. An `else` written after an invocation of any
-other belongs to the `if` of the macro:
+included, expands to a loop whose statement runs at most once: a `while`
+whose statement throws, a `for` of one iteration for the warnings, and
+`do { ... } while (false)` for the forms of `ah_bad_alloc`. A loop takes no
+`else`, so an `else` written after an invocation belongs to the `if`
+around it, and one with no `if` around it does not compile:
 
 ```cpp
 if (checked)
   ah_domain_error_if(x < 0) << "x is negative";
-else       // ✗ runs when checked and x >= 0, never when not checked
+else       // runs when not checked
   use(x);
 ```
 
-So brace an `if` or an `else` whose only statement is one of them:
-
-```cpp
-if (checked)
-  {
-    ah_domain_error_if(x < 0) << "x is negative";
-  }
-else
-  use(x);
-```
+The condition is evaluated once. The `constexpr` forms require a constant
+condition, and their message is compiled even where the condition is
+false, so it must compile for every instantiation.
 
 ## Guidelines
 

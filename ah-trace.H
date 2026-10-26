@@ -37,6 +37,10 @@
  *  file:line information when conditions are met. Useful for
  *  debugging without full assertion overhead.
  *
+ *  Each conditional macro is a `for` of one iteration, which takes no
+ *  `else`: an `else` written after an invocation belongs to the `if` around
+ *  it, and one with no `if` around it does not compile.
+ *
  *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
@@ -47,23 +51,33 @@
 # include <iostream>
 
 
+// The variable of the loop of a macro has the line of the call in its name,
+// so that it does not hide a name of the caller in C or in out
+#define AH_TRACE_JOIN_(a, b) a ## b
+#define AH_TRACE_JOIN(a, b) AH_TRACE_JOIN_(a, b)
+#define AH_TRACE_ONCE AH_TRACE_JOIN(ah_trace_once_, __LINE__)
+
 #define ah_trace_unless(out, C)                                         \
-  if (__builtin_expect(!(C), 0))                                        \
+  for (bool AH_TRACE_ONCE = not (C);                                    \
+       __builtin_expect(AH_TRACE_ONCE, 0); AH_TRACE_ONCE = false)       \
     out << __FILE__ << ":" << __LINE__ << " | "
 
-#define ah_trace_if(out, C)                                            \
-  if (__builtin_expect((C), 0))                                        \
+#define ah_trace_if(out, C)                                             \
+  for (bool AH_TRACE_ONCE = static_cast<bool>(C);                       \
+       __builtin_expect(AH_TRACE_ONCE, 0); AH_TRACE_ONCE = false)       \
     out << __FILE__ << ":" << __LINE__ << " | "
 
 #define ah_msg(out)                             \
   out << ""
 
-#define ah_msg_if(out, C)                       \
-  if (C)                 \
+#define ah_msg_if(out, C)                                               \
+  for (bool AH_TRACE_ONCE = static_cast<bool>(C); AH_TRACE_ONCE;        \
+       AH_TRACE_ONCE = false)                                           \
     [[unlikely]](out) << ""
 
-#define ah_msg_unless(out, C)                       \
-  if (not (C))                    \
-    [[unlikely]]out << ""
+#define ah_msg_unless(out, C)                                           \
+  for (bool AH_TRACE_ONCE = not (C); AH_TRACE_ONCE;                     \
+       AH_TRACE_ONCE = false)                                           \
+    [[unlikely]](out) << ""
 
 # endif
