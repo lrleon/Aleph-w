@@ -157,6 +157,12 @@ namespace Aleph
 // WARNING MACROS
 // ============================================================================
 
+// The variable of the loop of a warning has the line of the call in its
+// name, so that it does not hide a name of the caller in C or in out
+#define AH_ERRORS_JOIN_(a, b) a ## b
+#define AH_ERRORS_JOIN(a, b) AH_ERRORS_JOIN_(a, b)
+#define AH_WARNING_ONCE AH_ERRORS_JOIN(ah_warning_once_, __LINE__)
+
 /** @def ah_warning_unless(out, C)
  *  @brief Emits a warning to a stream if the condition does NOT hold
  *  @param out Output stream where to write the warning
@@ -170,8 +176,8 @@ namespace Aleph
 
  */
 #define ah_warning_unless(out, C)                                       \
-  for (bool ah_warning_once_ = not (C); ah_warning_once_;               \
-       ah_warning_once_ = false)                                        \
+  for (bool AH_WARNING_ONCE = not (C); AH_WARNING_ONCE;                 \
+       AH_WARNING_ONCE = false)                                         \
     [[unlikely]](out) << "WARNING (" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_warning_if(out, C)
@@ -187,8 +193,8 @@ namespace Aleph
 
  */
 #define ah_warning_if(out, C)                                           \
-  for (bool ah_warning_once_ = static_cast<bool>(C); ah_warning_once_;  \
-       ah_warning_once_ = false)                                        \
+  for (bool AH_WARNING_ONCE = static_cast<bool>(C); AH_WARNING_ONCE;    \
+       AH_WARNING_ONCE = false)                                         \
     [[unlikely]](out) << "WARNING (" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_warning(out)

@@ -414,6 +414,39 @@ TEST(AhErrorsElse, ConstexprFormInATemplate)
   EXPECT_THROW(not_a_pointer<int *>(true), std::invalid_argument);
 }
 
+// The variable of the loop of the macros that write, which was named
+// ah_warning_once_, ah_trace_once_ or ah_msg_once_, hides no name of the
+// caller: neither one in the condition, which initialized the variable with
+// itself, nor the stream
+TEST(AhErrorsElse, TheMacrosThatWriteHideNoNameOfTheCaller)
+{
+  {
+    const bool ah_warning_once_ = true;
+    const bool ah_trace_once_ = true;
+    const bool ah_msg_once_ = true;
+    std::ostringstream out;
+    ah_warning_if(out, ah_warning_once_) << "<1>";
+    ah_warning_unless(out, not ah_warning_once_) << "<2>";
+    ah_trace_if(out, ah_trace_once_) << "<3>";
+    ah_trace_unless(out, not ah_trace_once_) << "<4>";
+    ah_msg_if(out, ah_msg_once_) << "<5>";
+    ah_msg_unless(out, not ah_msg_once_) << "<6>";
+    for (const char * part : {"<1>", "<2>", "<3>", "<4>", "<5>", "<6>"})
+      {
+        EXPECT_EQ(occurrences(out.str(), part), 1u) << part << ": "
+                                                    << out.str();
+      }
+  }
+
+  std::ostringstream ah_warning_once_, ah_trace_once_, ah_msg_once_;
+  ah_warning_if(ah_warning_once_, true) << "<w>";
+  ah_trace_if(ah_trace_once_, true) << "<t>";
+  ah_msg_if(ah_msg_once_, true) << "<m>";
+  EXPECT_EQ(occurrences(ah_warning_once_.str(), "<w>"), 1u);
+  EXPECT_EQ(occurrences(ah_trace_once_.str(), "<t>"), 1u);
+  EXPECT_EQ(occurrences(ah_msg_once_.str(), "<m>"), 1u);
+}
+
 namespace
 {
   // What a message gives back when its last << does not give back a stream
