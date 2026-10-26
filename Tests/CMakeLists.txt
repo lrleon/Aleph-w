@@ -969,8 +969,10 @@ add_test(
 
 # An else right after a conditional macro of ah-errors.H, parse_utils.H or
 # ah-trace.H, with no if around it, must not compile (ah_errors_else_test.cc
-# checks the else after one with an if around it)
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+# checks the else after one with an if around it). The script calls the
+# compiler with the options of GCC, which clang-cl does not take.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND
+   NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     add_test(
         NAME AhErrors.ElseRightAfterAMacroDoesNotCompile
         COMMAND ${CMAKE_COMMAND}
