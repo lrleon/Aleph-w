@@ -134,6 +134,11 @@ namespace Aleph
       then a negative cycle. In a graph that is not directed, each arc
       counts in both directions.
 
+      The solver keeps copies of the distance accessor and of the arc
+      filter. A distance passed to the constructor may have state, or no
+      default constructor; the constructors that do not take one build it
+      with `Distance()`.
+
       Template parameters:
       -# `GT`: graph type.
       -# `Distance<GT>`: arc weight accessor that must provide:
@@ -169,6 +174,10 @@ namespace Aleph
     DynMatrix<Distance_Type> dist;
     SA sa;
 
+    // mutable: get_min_path() is const, and the call operator of the
+    // distance does not have to be
+    mutable Distance distance;
+
     // Appends to path the lightest arc that sa shows from p to q: the one
     // whose weight is in the matrix
     void append_lightest_arc(Path<GT> & path, Node *p, Node *q) const
@@ -177,7 +186,7 @@ namespace Aleph
       for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
         if (it.get_tgt_node_ne() == q and
             (lightest == nullptr or
-             Distance()(it.get_current_arc_ne()) < Distance()(lightest)))
+             distance(it.get_current_arc_ne()) < distance(lightest)))
           lightest = it.get_current_arc_ne();
 
       assert(lightest != nullptr);
@@ -304,6 +313,7 @@ namespace Aleph
         Handles negative weights but detects negative cycles.
 
         @param[in] __g Input graph (will be treated as const).
+        @param[in] __distance Distance accessor for the arc weights.
         @param[in] __sa Arc filter for considering which arcs to include.
         @throw std::invalid_argument if graph has no nodes.
         @throw std::bad_alloc if memory allocation fails.
@@ -311,10 +321,11 @@ namespace Aleph
         sum of two distances is below `lowest()`: the shortest distances
         cannot be represented. A sum above `max()` does not count.
      */
-    Floyd_All_Shortest_Paths(const GT & __g, SA & __sa)
+    Floyd_All_Shortest_Paths(const GT & __g, Distance __distance,
+                             SA __sa = SA())
       : g(const_cast<GT &>(__g)), n(g.get_num_nodes()),
         Inf(std::numeric_limits<Distance_Type>::max()),
-        path_mat(n, n), dist(n, n), sa(__sa)
+        path_mat(n, n), dist(n, n), sa(__sa), distance(__distance)
     {
       ah_invalid_argument_if(n <= 0) << "Graph must contain at least one node";
 
@@ -341,7 +352,7 @@ namespace Aleph
             Arc *arc = it.get_curr_ne();
             const long i = index_node(g.get_src_node(arc));
             const long j = index_node(g.get_tgt_node(arc));
-            const Distance_Type w = Distance()(arc);
+            const Distance_Type w = distance(arc);
             if (w < dist(i, j))
               {
                 dist(i, j) = w;
@@ -414,16 +425,30 @@ namespace Aleph
     }
 
     /**
-        Construct Floyd-Warshall solver with rvalue arc filter.
+        Construct Floyd-Warshall solver with a distance accessor built by
+        `Distance()`.
 
-        @param[in] g Input graph.
-        @param[in] sa Arc filter (moved).
+        @param[in] __g Input graph (will be treated as const).
+        @param[in] __sa Arc filter for considering which arcs to include.
         @throw std::invalid_argument if graph has no nodes.
         @throw std::bad_alloc if memory allocation fails.
-        @throw std::overflow_error as the other constructor.
+        @throw std::overflow_error as the first constructor.
+     */
+    Floyd_All_Shortest_Paths(const GT & __g, SA & __sa)
+      : Floyd_All_Shortest_Paths(__g, Distance(), __sa) {}
+
+    /**
+        Construct Floyd-Warshall solver with rvalue arc filter and a
+        distance accessor built by `Distance()`.
+
+        @param[in] g Input graph.
+        @param[in] sa Arc filter, which may be a temporary.
+        @throw std::invalid_argument if graph has no nodes.
+        @throw std::bad_alloc if memory allocation fails.
+        @throw std::overflow_error as the first constructor.
      */
     Floyd_All_Shortest_Paths(const GT & g, SA && sa = SA())
-      : Floyd_All_Shortest_Paths(g, sa) {}
+      : Floyd_All_Shortest_Paths(g, Distance(), sa) {}
 
     /**
         Convert a distance value to string representation.

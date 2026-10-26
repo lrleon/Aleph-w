@@ -432,8 +432,8 @@ namespace {
 
 using UGrafo = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
 
-template <class GT>
-long dist_of(const Floyd_All_Shortest_Paths<GT> & floyd,
+template <class GT, class Distance, class SA>
+long dist_of(const Floyd_All_Shortest_Paths<GT, Distance, SA> & floyd,
              typename GT::Node * s, typename GT::Node * t)
 {
   return floyd.get_dist_mat()(floyd.index_node(s), floyd.index_node(t));
@@ -717,4 +717,97 @@ TEST(FloydRandom, MatchesRelaxationWithParallelArcsAndLoops)
       check_against_relaxation<Grafo>(seed);
       check_against_relaxation<UGrafo>(seed);
     }
+}
+
+// ========== A distance given to the constructor ==========
+
+namespace {
+
+// The weight of an arc times a factor; with a negative factor, the heaviest
+// arcs are the lightest
+struct Scaled_Dist
+{
+  using Distance_Type = int;
+  int factor = 1;
+  int operator()(GArc * a) const noexcept { return factor * a->get_info(); }
+};
+
+// The weight of an arc taken from a base, with no default constructor
+struct From_Base_Dist
+{
+  using Distance_Type = int;
+  int base;
+  explicit From_Base_Dist(int b) noexcept : base(b) {}
+  int operator()(GArc * a) const noexcept { return base - a->get_info(); }
+};
+
+// The weight of an arc, with a call operator that is not const
+struct Not_Const_Dist
+{
+  using Distance_Type = int;
+  int operator()(GArc * a) noexcept { return a->get_info(); }
+};
+
+} // namespace
+
+// The solver built its distance with Distance(), so a distance with state
+// could not be given to it. get_min_path() must take, of the parallel arcs,
+// the lightest for that distance.
+TEST(FloydDistance, UsesTheDistanceItWasGiven)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, 1);
+  GArc * heavy = g.insert_arc(a, b, 5);
+  GArc * bc = g.insert_arc(b, c, 2);
+
+  Floyd_All_Shortest_Paths<Grafo, Scaled_Dist> floyd(g, Scaled_Dist{-1});
+  ASSERT_FALSE(floyd.has_negative_cycle());
+  EXPECT_EQ(dist_of(floyd, a, b), -5);
+  EXPECT_EQ(dist_of(floyd, a, c), -7);
+  EXPECT_EQ(arcs_of(floyd.get_min_path(a, c)),
+            (std::vector<GArc *>{heavy, bc}));
+}
+
+// A distance without a default constructor, alone and with a filter
+TEST(FloydDistance, TakesADistanceWithoutADefaultConstructor)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  GArc * heavy = g.insert_arc(a, b, 9); // the lightest for a base of 10
+  GArc * light = g.insert_arc(a, b, 4);
+
+  Floyd_All_Shortest_Paths<Grafo, From_Base_Dist> floyd(g, From_Base_Dist(10));
+  EXPECT_EQ(dist_of(floyd, a, b), 1);
+  EXPECT_EQ(arcs_of(floyd.get_min_path(a, b)), std::vector<GArc *>{heavy});
+
+  struct Hide
+  {
+    GArc * hidden = nullptr;
+    bool operator()(GArc * arc) const noexcept { return arc != hidden; }
+  };
+
+  Floyd_All_Shortest_Paths<Grafo, From_Base_Dist, Hide>
+    filtered(g, From_Base_Dist(10), Hide{heavy});
+  EXPECT_EQ(dist_of(filtered, a, b), 6);
+  EXPECT_EQ(arcs_of(filtered.get_min_path(a, b)), std::vector<GArc *>{light});
+}
+
+// The solver called a distance built for each arc, so its call operator did
+// not have to be const; get_min_path(), which is const, now calls the copy
+// that the solver keeps.
+TEST(FloydDistance, TakesACallOperatorThatIsNotConst)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, 5);
+  GArc * light = g.insert_arc(a, b, 1);
+
+  const Floyd_All_Shortest_Paths<Grafo, Not_Const_Dist> floyd(g);
+  EXPECT_EQ(dist_of(floyd, a, b), 1);
+  EXPECT_EQ(arcs_of(floyd.get_min_path(a, b)), std::vector<GArc *>{light});
 }

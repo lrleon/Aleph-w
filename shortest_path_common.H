@@ -615,16 +615,32 @@ public:
   // Copy Painted Tree
   // =========================================================================
 
-  /** @brief Distance totalizer class for path copying. */
+  /** @brief Distance totalizer class for path copying.
+   *
+   *  It keeps a copy of its distance accessor, which may have state, or no
+   *  default constructor.
+   */
   struct Total
   {
     typename Distance::Distance_Type dist = 0;
 
-    Total() noexcept = default;
+    /** @brief Distance accessor for the arc weights. */
+    Distance distance{};
+
+    /** @brief Builds the totalizer with a distance accessor built by
+     *  `Distance()`.
+     */
+    Total() = default;
+
+    /** @brief Builds the totalizer with a distance accessor.
+     *
+     *  @param[in] __distance Distance accessor for the arc weights.
+     */
+    explicit Total(Distance __distance) : distance(__distance) {}
 
     bool operator()(typename GT::Arc* a) noexcept
     {
-      dist += Distance()(a);
+      dist += distance(a);
       return true;
     }
   };

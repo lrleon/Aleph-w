@@ -3911,6 +3911,9 @@ namespace Aleph
         simple filter filters those arc and addition computes the
         accumulative distance between all the seen arcs.
 
+        The filter keeps a copy of its distance accessor, which may have
+        state, or no default constructor.
+
         @ingroup Graphs
     */
   template <AlephGraph GT, class Distance>
@@ -3919,7 +3922,22 @@ namespace Aleph
     /// Accumulative distance from the first seen arc until the last seen
     typename Distance::Distance_Type dist;
 
-    Painted_Min_Spanning_Tree() noexcept : dist(0)
+    /// Distance accessor for the arc weights
+    Distance distance;
+
+    /// Build the filter with a distance accessor built by `Distance()`.
+    Painted_Min_Spanning_Tree()
+      noexcept(std::is_nothrow_default_constructible_v<Distance>)
+      : dist(0), distance()
+    { /* empty */
+    }
+
+    /** Build the filter with a distance accessor.
+
+        @param[in] __distance distance accessor for the arc weights
+    */
+    explicit Painted_Min_Spanning_Tree(Distance __distance)
+      : dist(0), distance(__distance)
     { /* empty */
     }
 
@@ -3928,7 +3946,7 @@ namespace Aleph
       if (not IS_ARC_VISITED(a, Aleph::Spanning_Tree))
         return false;
 
-      dist = dist + Distance()(a);
+      dist = dist + distance(a);
 
       return true;
     }
