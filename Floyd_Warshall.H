@@ -125,9 +125,10 @@ namespace Aleph
          iterating through `path(k,j)` you can reconstruct the path.
          The helper get_min_path() performs this reconstruction.
 
-      Floyd-Warshall supports negative edge weights, but it does not work
-      correctly if the graph contains negative cycles. Use Bellman-Ford
-      based algorithms if you suspect negative cycles.
+      Floyd-Warshall supports negative edge weights. With a negative cycle
+      there are no shortest distances: the solver stops as soon as it finds
+      one, has_negative_cycle() is then true, the matrices do not hold
+      distances, and get_min_path() throws.
 
       Of the parallel arcs between two nodes, the lightest counts, and
       get_min_path() takes it. A loop counts only if it is negative: it is
@@ -196,11 +197,22 @@ namespace Aleph
         path.append(lightest);
     }
 
+    // Whether a node reaches itself at a negative cost
+    bool has_negative_diagonal() const
+    {
+      for (long i = 0; i < n; ++i)
+        if (dist(i, i) < 0)
+          return true;
+      return false;
+    }
+
   public:
     /**
         Check if the graph contains a negative cycle.
 
-        @return true if a negative cycle was detected, false otherwise.
+        @return true if a negative cycle was detected, false otherwise. If
+        it was, the solver stopped there, and the matrices do not hold
+        distances.
      */
     [[nodiscard]] constexpr bool has_negative_cycle() const noexcept { return negative_cycle; }
 
@@ -209,6 +221,7 @@ namespace Aleph
 
         The path matrix contains intermediate nodes for shortest path reconstruction.
         Entry (i,j) contains the next node index on the shortest path from i to j.
+        With a negative cycle it holds no paths: see has_negative_cycle().
 
         @return Const reference to the path reconstruction matrix.
      */
@@ -219,6 +232,7 @@ namespace Aleph
 
         The distance matrix contains shortest distances between all pairs of nodes.
         Entry (i,j) contains the shortest distance from node i to node j.
+        With a negative cycle it holds no distances: see has_negative_cycle().
 
         @return Const reference to the distance matrix.
      */
@@ -318,8 +332,9 @@ namespace Aleph
         @throw std::invalid_argument if graph has no nodes.
         @throw std::bad_alloc if memory allocation fails.
         @throw std::overflow_error if, with an integer distance type, the
-        sum of two distances is below `lowest()`: the shortest distances
-        cannot be represented. A sum above `max()` does not count.
+        sum of two distances is below `lowest()` before a negative cycle is
+        found, which needs a weight below `lowest() / (2 (n - 1))`, with `n`
+        nodes. A sum above `max()` does not count.
      */
     Floyd_All_Shortest_Paths(const GT & __g, Distance __distance,
                              SA __sa = SA())
@@ -366,62 +381,66 @@ namespace Aleph
           }
       }
 
-      for (long k = 0; k < n; ++k)
-        for (long i = 0; i < n; ++i)
-          {
-            const Distance_Type & dik = dist(i, k);
-            for (long j = 0; j < n; ++j)
-              {
-                const Distance_Type & dij = dist(i, j);
-                if (dik == Inf)
-                  continue;
+      // With a negative cycle, the distances that go round it can double
+      // at each k and soon leave the range of the type, whatever the cost
+      // of the cycle; so the computation stops at the first one: a negative
+      // loop, or a node that reaches itself at a negative cost at the end
+      // of a k. Before it, each distance is that of a walk whose cycles are
+      // not negative, at least n - 1 times the lightest weight, so a sum
+      // goes below lowest() only with a weight below lowest() / (2 (n - 1)).
+      negative_cycle = has_negative_diagonal();
+      for (long k = 0; k < n and not negative_cycle; ++k)
+        {
+          for (long i = 0; i < n; ++i)
+            {
+              const Distance_Type & dik = dist(i, k);
+              for (long j = 0; j < n; ++j)
+                {
+                  const Distance_Type & dij = dist(i, j);
+                  if (dik == Inf)
+                    continue;
 
-                const Distance_Type & dkj = dist(k, j);
-                if (dkj == Inf)
-                  continue;
+                  const Distance_Type & dkj = dist(k, j);
+                  if (dkj == Inf)
+                    continue;
 
-                // Calculate new distance through intermediate node k.
-                // Important: avoid undefined behavior on signed overflow
-                // (e.g. Inf - negative) and handle negative weights safely.
-                bool can_add = true;
-                if constexpr (std::numeric_limits<Distance_Type>::is_integer)
-                  {
-                    if constexpr (std::numeric_limits<Distance_Type>::is_signed)
-                      {
-                        const Distance_Type maxv = std::numeric_limits<Distance_Type>::max();
-                        const Distance_Type minv = std::numeric_limits<Distance_Type>::lowest();
-                        if (dkj > 0)
-                          can_add = (dik <= maxv - dkj);
-                        else if (dkj < 0) // below lowest() it would be shorter
-                          ah_overflow_error_if(dik < minv - dkj)
-                            << "Floyd_All_Shortest_Paths: a distance is below "
-                            << "the range of the distance type";
-                      }
-                    else
-                      {
-                        can_add = (dik <= std::numeric_limits<Distance_Type>::max() - dkj);
-                      }
-                  }
+                  // Calculate new distance through intermediate node k.
+                  // Important: avoid undefined behavior on signed overflow
+                  // (e.g. Inf - negative) and handle negative weights safely.
+                  bool can_add = true;
+                  if constexpr (std::numeric_limits<Distance_Type>::is_integer)
+                    {
+                      if constexpr (std::numeric_limits<Distance_Type>::is_signed)
+                        {
+                          const Distance_Type maxv = std::numeric_limits<Distance_Type>::max();
+                          const Distance_Type minv = std::numeric_limits<Distance_Type>::lowest();
+                          if (dkj > 0)
+                            can_add = (dik <= maxv - dkj);
+                          else if (dkj < 0) // below lowest() it would be shorter
+                            ah_overflow_error_if(dik < minv - dkj)
+                              << "Floyd_All_Shortest_Paths: a distance is below "
+                              << "the range of the distance type";
+                        }
+                      else
+                        {
+                          can_add = (dik <= std::numeric_limits<Distance_Type>::max() - dkj);
+                        }
+                    }
 
-                if (!can_add)
-                  continue;
+                  if (!can_add)
+                    continue;
 
-                const Distance_Type new_dist = dik + dkj;
-                if (new_dist < dij)
-                  {
-                    dist(i, j) = new_dist;
-                    path_mat(i, j) = path_mat(i, k);
-                  }
-              }
-          }
+                  const Distance_Type new_dist = dik + dkj;
+                  if (new_dist < dij)
+                    {
+                      dist(i, j) = new_dist;
+                      path_mat(i, j) = path_mat(i, k);
+                    }
+                }
+            }
 
-      // Check for negative cycles on the diagonal
-      for (long idx = 0; idx < n; ++idx)
-        if (dist(idx, idx) < 0)
-          {
-            negative_cycle = true;
-            break;
-          }
+          negative_cycle = has_negative_diagonal();
+        }
     }
 
     /**
