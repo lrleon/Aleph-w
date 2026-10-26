@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * **graph:** Let Floyd-Warshall and the weight totals take a distance ([#145](https://github.com/lrleon/Aleph-w/issues/145)) ([62c621d](https://github.com/lrleon/Aleph-w/commit/62c621d9238ebe42e62baecd327467da9f13188c))
 
+
+### Bug Fixes
+
+* **errors:** Make the conditional macros take no else ([#145](https://github.com/lrleon/Aleph-w/issues/145)) ([62c621d](https://github.com/lrleon/Aleph-w/commit/62c621d9238ebe42e62baecd327467da9f13188c))
+* **graph:** Let the weight totals pass on what the distance throws ([#145](https://github.com/lrleon/Aleph-w/issues/145)) ([62c621d](https://github.com/lrleon/Aleph-w/commit/62c621d9238ebe42e62baecd327467da9f13188c))
+
 ## [7.2.2](https://github.com/lrleon/Aleph-w/compare/v7.2.1...v7.2.2) (2026-10-26)
 
 
