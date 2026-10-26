@@ -1237,6 +1237,26 @@ TEST(DijkstraTotal, UsesTheDistanceItWasGiven) {
   EXPECT_EQ(doubled.dist, 2 * (3 + 4));
 }
 
+// Total::operator() was noexcept, so what the distance threw ended the
+// program.
+TEST(DijkstraTotal, WhatTheDistanceThrowsReachesTheCaller) {
+  IGT g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  auto ab = g.insert_arc(a, b, 0); // the index of its weight
+  auto bc = g.insert_arc(b, c, 1);
+  const std::vector<long> weights = {3, 4};
+
+  Distance_Failure failure;
+  failure.fail_at = 2;
+  Dijkstra_Min_Paths<IGT, Table_Distance>::Total
+    total(Table_Distance(weights, &failure));
+  EXPECT_TRUE(total(ab));
+  EXPECT_THROW(total(bc), std::runtime_error);
+  EXPECT_EQ(total.dist, 3);
+}
+
 // copy_painted_min_paths_tree() returned 0: Copy_Graph added the weights
 // up in its own copy of the filter.
 TYPED_TEST(DijkstraHeapTest, CopyOfThePaintedTreeReturnsItsWeight) {

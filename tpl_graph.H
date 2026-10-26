@@ -3941,7 +3941,13 @@ namespace Aleph
     { /* empty */
     }
 
-    bool operator()(typename GT::Arc *a) noexcept
+    /** Show the arc if it is painted, and then add its weight to `dist`.
+
+        @param[in] a the arc
+        @return true if `a` is painted
+        @throw anything that the distance throws; `dist` is then unchanged
+    */
+    bool operator()(typename GT::Arc *a)
     {
       if (not IS_ARC_VISITED(a, Aleph::Spanning_Tree))
         return false;

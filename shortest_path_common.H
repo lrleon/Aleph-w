@@ -638,7 +638,13 @@ public:
      */
     explicit Total(Distance __distance) : distance(__distance) {}
 
-    bool operator()(typename GT::Arc* a) noexcept
+    /** @brief Adds the weight of an arc to `dist`.
+     *
+     *  @param[in] a The arc.
+     *  @return true.
+     *  @throw anything that the distance throws; `dist` is then unchanged.
+     */
+    bool operator()(typename GT::Arc* a)
     {
       dist += distance(a);
       return true;

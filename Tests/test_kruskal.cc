@@ -16,6 +16,7 @@
 #include <optional>
 #include <random>
 #include <set>
+#include <stdexcept>
 #include <vector>
 
 #include <Kruskal.H>
@@ -1061,6 +1062,43 @@ TEST(KruskalTest, PaintedMinSpanningTreeUsesTheDistanceItWasGiven) {
   ASSERT_EQ(plain.dist, 1 + 2 + 4);
   ASSERT_EQ(doubled.dist, 2 * (1 + 2 + 4));
   ASSERT_EQ(plus_one.dist, (1 + 1) + (2 + 1) + (4 + 1));
+}
+
+// ========== TEST 40: Painted_Min_Spanning_Tree with a Distance That Throws ==========
+TEST(KruskalTest, PaintedMinSpanningTreeLetsWhatTheDistanceThrowsThrough) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+
+  Arc* light = g.insert_arc(n0, n1, 1);
+  Arc* heavy = g.insert_arc(n1, n2, 2);
+  Arc* closing = g.insert_arc(n0, n2, 3);
+
+  Kruskal_Min_Spanning_Tree<GT> kruskal;
+  kruskal(g); // paints the arcs of 1 and 2
+
+  // The weight of an arc, which it does not give above a limit
+  struct Limited_Dist
+  {
+    using Distance_Type = int;
+    int limit;
+    explicit Limited_Dist(int l) noexcept : limit(l) {}
+    int operator()(Arc *a) const
+    {
+      if (a->get_info() > limit)
+        throw std::domain_error("weight above the limit");
+      return a->get_info();
+    }
+  };
+
+  // operator() was noexcept, so what the distance threw ended the program
+  Painted_Min_Spanning_Tree<GT, Limited_Dist> filter(Limited_Dist(1));
+  ASSERT_TRUE(filter(light));
+  ASSERT_THROW(filter(heavy), std::domain_error);
+  ASSERT_FALSE(filter(closing)); // not painted: its weight is not asked for
+  ASSERT_EQ(filter.dist, 1);
 }
 
 // ========== GoogleTest main ==========
