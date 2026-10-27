@@ -50,6 +50,8 @@
 # ifndef TPL_DYNBINHEAP_H
 # define TPL_DYNBINHEAP_H
 
+# include <memory>
+
 # include <ah-concepts.H>
 # include <ahDry.H>
 # include <ah-args-ctor.H>
@@ -93,7 +95,9 @@ namespace Aleph {
 
     using Node = typename BinHeap<T, Compare>::Node;
 
-    T & __insert(Node * p) noexcept
+    // What the comparison throws leaves the node in the heap, which may then
+    // be out of order
+    T & __insert(Node * p) noexcept(Base::nothrow_cmp)
     {
       return BinHeap<T, Compare>::insert(p)->get_key();
     }
@@ -115,7 +119,15 @@ namespace Aleph {
 
     DynBinHeap(const DynBinHeap & h) : Base(h.cmp)
     {
-      copy(h);
+      try
+        {
+          copy(h);
+        }
+      catch (...)
+        { // the destructor does not run for an object that is not built
+          empty();
+          throw;
+        }
     }
 
     DynBinHeap(DynBinHeap && h) : Base(h.cmp)
@@ -150,6 +162,8 @@ namespace Aleph {
         @param[in] item value to insert.
         @return reference to the stored element.
         @throw bad_alloc if allocation fails.
+        @throw anything that the comparison throws. Then the item is in the
+        heap, but the heap may be out of order.
     */
     T & insert(const T & item)
     {
@@ -186,16 +200,17 @@ namespace Aleph {
 
         @return copy of the removed element.
         @throw underflow_error if the heap is empty.
+        @throw anything that the comparison throws. Then the element is out
+        of the heap and destroyed, and the heap may be out of order.
     */
     T getMin()
     {
-      Node * node = BinHeap<T, Compare>::getMin();
-
-      T return_value = std::move(node->get_key());
-
-      delete node;
-
-      return return_value;
+      // The root leaves the heap before the keys are compared, so it is
+      // freed even if the comparison throws; it is null in an empty heap,
+      // for which Base::getMin() throws
+      std::unique_ptr<Node> node(Base::getRoot());
+      Base::getMin();
+      return std::move(node->get_key());
     }
 
     /// \overload getMin() to use if the order of priority is reversed
@@ -213,9 +228,11 @@ namespace Aleph {
     /** Adjust the position of an element after mutating its priority.
 
         @param[in] data reference previously returned by insert().
+        @throw anything that the comparison throws. Then the heap may be out
+        of order.
         @note Behavior is undefined if @p data does not belong to this heap.
     */
-    void update(T & data) noexcept
+    void update(T & data) noexcept(Base::nothrow_cmp)
     {
       Node * node = Node::key_to_node(data);
       BinHeap<T, Compare>::update(node);
@@ -228,23 +245,23 @@ namespace Aleph {
 
         @param data element to erase.
         @return true if a node was removed.
+        @throw anything that the comparison throws. Then the element is out
+        of the heap and destroyed, and the heap may be out of order.
     */
-    bool remove(T & data) noexcept
+    bool remove(T & data) noexcept(Base::nothrow_cmp)
     {
       if (this->is_empty())
         return false;
 
-      Node * node = BinHeap<T, Compare>::Node::key_to_node(data);
-      Node * removed = BinHeap<T, Compare>::remove(node);
-      if (removed == nullptr)
-        return false;
-
-      delete removed;
+      // The node leaves the heap before the keys are compared, so it is
+      // freed even if the comparison throws
+      std::unique_ptr<Node> node(Node::key_to_node(data));
+      Base::remove(node.get());
       return true;
     }
 
     /// Alias for remove().
-    bool erase(T & data) noexcept
+    bool erase(T & data) noexcept(Base::nothrow_cmp)
     {
       return remove(data);
     }

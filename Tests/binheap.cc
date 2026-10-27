@@ -41,6 +41,7 @@
 #include <numeric>
 #include <random>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -288,6 +289,148 @@ TEST(BinHeapComparison, RemoveAllAndDeleteDoesNotCompare)
       heap.remove_all_and_delete();
     }
 }
+
+// remove() reset the node after it compared the keys, so a node that a
+// remove() that threw had taken out of the heap could not be inserted
+// again.
+TEST(BinHeapComparison, RemoveTakesTheNodeOutEvenIfTheComparisonThrows)
+{
+  const std::vector<int> values = {7, 3, 11, 0, 5, 9, 1, 8, 4, 6};
+  std::vector<int> sorted = values;
+  std::sort(sorted.begin(), sorted.end());
+
+  for (size_t i = 0; i < values.size(); ++i)
+    for (long k = 1; ; ++k)
+      {
+        long calls = 0;
+        Failing_Heap heap(Failing_Less{&calls, 0});
+        std::vector<Failing_Heap::Node *> nodes;
+        for (const int v : values)
+          nodes.push_back(heap.insert(new Failing_Heap::Node(v)));
+
+        heap.key_comp().fail_at = calls + k; // the call k of remove()
+        bool threw = false;
+        try
+          {
+            heap.remove(nodes[i]);
+          }
+        catch (const std::runtime_error &)
+          {
+            threw = true;
+          }
+
+        heap.key_comp().fail_at = 0;
+        heap.insert(nodes[i]); // it is out of the heap either way
+        std::vector<int> out;
+        while (not heap.is_empty())
+          {
+            std::unique_ptr<Failing_Heap::Node> min(heap.getMin());
+            out.push_back(min->get_key());
+          }
+        std::sort(out.begin(), out.end()); // the heap may be out of order
+        EXPECT_EQ(out, sorted) << "node " << i << ", call " << k;
+
+        if (not threw)
+          break;
+      }
+}
+
+namespace
+{
+  // An int that counts the objects alive
+  struct Counted
+  {
+    static inline long alive = 0;
+    int value;
+
+    Counted(int v = 0) noexcept : value(v) { ++alive; }
+    Counted(const Counted & c) noexcept : value(c.value) { ++alive; }
+    ~Counted() { --alive; }
+  };
+
+  // Less than of Counted, with the failures of Failing_Less
+  struct Failing_Counted_Less
+  {
+    Failing_Less less;
+
+    bool operator()(const Counted & a, const Counted & b) const
+    {
+      return less(a.value, b.value);
+    }
+  };
+
+  using Failing_Dyn_Heap = DynBinHeap<Counted, Failing_Counted_Less>;
+
+  // Inserts the values in a heap with a comparison that fails at its call
+  // fail_at, copies the heap, updates, removes and erases elements, and
+  // extracts the rest. If the comparison throws, the heap must still hold
+  // as many elements as it says.
+  void use_dyn_heap(const std::vector<int> & values, long & calls,
+                    long fail_at)
+  {
+    Failing_Dyn_Heap heap(Failing_Counted_Less{{&calls, fail_at}});
+    try
+      {
+        std::vector<Counted *> items;
+        for (const int v : values)
+          items.push_back(&heap.insert(Counted(v)));
+
+        Failing_Dyn_Heap copy(heap);
+        copy = heap;
+
+        heap.update(*items[2]); // its key is unchanged
+        heap.remove(*items[3]);
+        heap.erase(*items[5]);
+        while (not heap.is_empty())
+          (void) heap.getMin();
+      }
+    catch (...)
+      {
+        heap.key_comp().less.fail_at = 0;
+        const size_t size = heap.size();
+        size_t extracted = 0;
+        for (; not heap.is_empty(); ++extracted)
+          (void) heap.getMin();
+        EXPECT_EQ(extracted, size);
+        throw;
+      }
+  }
+} // namespace
+
+// insert(), update(), remove() and erase() of DynBinHeap were noexcept, so
+// a comparison that threw ended the program. When it threw, getMin() and
+// remove() also lost the node that they had taken out of the heap, and the
+// copy constructor the nodes that it had copied.
+TEST(DynBinHeapComparison, WhatTheComparisonThrowsReachesTheCaller)
+{
+  const std::vector<int> values = {7, 3, 11, 0, 5, 9, 1, 8};
+  const long alive = Counted::alive;
+  long calls = 0;
+  use_dyn_heap(values, calls, 0);
+  ASSERT_EQ(Counted::alive, alive);
+
+  for (long k = 1; k <= calls; ++k)
+    {
+      long count = 0;
+      EXPECT_THROW(use_dyn_heap(values, count, k), std::runtime_error)
+        << "call " << k;
+      EXPECT_EQ(Counted::alive, alive) << "call " << k;
+    }
+}
+
+// They are noexcept when the comparison is
+static_assert(noexcept(std::declval<DynBinHeap<int> &>()
+                       .update(std::declval<int &>())));
+static_assert(noexcept(std::declval<DynBinHeap<int> &>()
+                       .remove(std::declval<int &>())));
+static_assert(noexcept(std::declval<DynBinHeap<int> &>()
+                       .erase(std::declval<int &>())));
+static_assert(not noexcept(std::declval<Failing_Dyn_Heap &>()
+                           .update(std::declval<Counted &>())));
+static_assert(not noexcept(std::declval<Failing_Dyn_Heap &>()
+                           .remove(std::declval<Counted &>())));
+static_assert(not noexcept(std::declval<Failing_Dyn_Heap &>()
+                           .erase(std::declval<Counted &>())));
 
 namespace
 {
