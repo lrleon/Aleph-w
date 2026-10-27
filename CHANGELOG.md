@@ -5,12 +5,25 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.3.1](https://github.com/lrleon/Aleph-w/compare/v7.3.0...v7.3.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **graph:** Make Floyd-Warshall stop at the first negative cycle ([#147](https://github.com/lrleon/Aleph-w/issues/147)) ([e74203e](https://github.com/lrleon/Aleph-w/commit/e74203e095d035aef1398c061897cf8494f73315))
+
 ## [7.3.0](https://github.com/lrleon/Aleph-w/compare/v7.2.2...v7.3.0) (2026-10-26)
 
 
 ### Features
 
 * **graph:** Let Floyd-Warshall and the weight totals take a distance ([#145](https://github.com/lrleon/Aleph-w/issues/145)) ([62c621d](https://github.com/lrleon/Aleph-w/commit/62c621d9238ebe42e62baecd327467da9f13188c))
+
+
+### Bug Fixes
+
+* **errors:** Make the conditional macros take no else ([#145](https://github.com/lrleon/Aleph-w/issues/145)) ([62c621d](https://github.com/lrleon/Aleph-w/commit/62c621d9238ebe42e62baecd327467da9f13188c))
+* **graph:** Let the weight totals pass on what the distance throws ([#145](https://github.com/lrleon/Aleph-w/issues/145)) ([62c621d](https://github.com/lrleon/Aleph-w/commit/62c621d9238ebe42e62baecd327467da9f13188c))
 
 ## [7.2.2](https://github.com/lrleon/Aleph-w/compare/v7.2.1...v7.2.2) (2026-10-26)
 
