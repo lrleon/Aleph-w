@@ -792,6 +792,8 @@ This class is not intended for public use. Its purpose is to provide
 
         @param[in] node pointer to the node to remove.
         @throw underflow_error if the heap is empty
+        @throw anything that the comparison throws. Then node is out of the
+        heap and can be inserted again, but the heap may be out of order.
         @return pointer to the removed node
         @note It is not verified whether node belongs to the heap.
     */
@@ -815,8 +817,8 @@ This class is not intended for public use. Its purpose is to provide
           return node;
         }
       replace_node(node, p);
+      node->reset(); // before update(), which may throw
       update(p);
-      node->reset();
 
       return node;
     }
