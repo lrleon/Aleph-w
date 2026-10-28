@@ -44,6 +44,9 @@
 # ifndef KRUSKAL_H
 # define KRUSKAL_H
 
+# include <algorithm>
+# include <vector>
+
 # include <ah-graph-concepts.H>
 
 # include <ahFunction.H>
@@ -154,11 +157,12 @@ namespace Aleph
         with the Spanning_Tree bit. Use is_painted() to check if the tree
         has been painted.
 
-        @note The const_cast on g is safe because sort_arcs only changes
-        the physical ordering of arcs, not the logical graph structure.
+        The arcs are sorted in an array of their own, so the order of the
+        arcs of g does not change.
 
         @param[in] g The graph for which to compute the minimum spanning tree.
         @throw domain_error If g is a digraph.
+        @throw bad_alloc If there is not enough memory for the array.
     */
     void paint_min_spanning_tree(const GT & g)
     {
@@ -167,19 +171,28 @@ namespace Aleph
       g.reset_bit_arcs(Aleph::Spanning_Tree); // clear arc marking bits
       Operate_On_Nodes<GT, Init_Node>()(g, Init_Node());
 
-      typedef Distance_Compare<GT, Distance> DCMP;
-      DCMP comp(dist);
-      // Safe const_cast: sort_arcs only changes physical arc order, not structure
-      const_cast<GT &>(g).template sort_arcs<DCMP>(comp);
+      // The arcs that sa shows, sorted by distance without moving those of
+      // g: List_SGraph keeps its arcs in a set ordered by address, which
+      // sort_arcs() could not reorder. The sort is stable, so that equal
+      // arcs keep the order of g and every run gives the same tree.
+      std::vector<typename GT::Arc *> arcs;
+      arcs.reserve(g.get_num_arcs());
+      for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+        arcs.push_back(it.get_current_arc_ne());
+
+      Distance_Compare<GT, Distance> comp(dist);
+      std::stable_sort(arcs.begin(), arcs.end(),
+                       [&comp](typename GT::Arc *a1, typename GT::Arc *a2)
+                       { return comp(a1, a2); });
+
       const size_t V = g.get_num_nodes();
 
       Fixed_Relation tree(V);
 
-      // Traverse sorted arcs of g until all nodes are in one component
-      for (Arc_Iterator<GT, SA> it(g, sa); tree.get_num_blocks() > 1 and
-                                           it.has_curr(); it.next_ne())
+      // Traverse the sorted arcs until all nodes are in one component
+      for (size_t k = 0; tree.get_num_blocks() > 1 and k < arcs.size(); ++k)
         { // next smallest arc
-          auto arc = it.get_current_arc_ne();
+          auto arc = arcs[k];
           const long i = NODE_COUNTER(g.get_src_node(arc));
           const long j = NODE_COUNTER(g.get_tgt_node(arc));
           if (arc_is_in_tree(tree, i, j))
@@ -208,10 +221,14 @@ namespace Aleph
       paint_min_spanning_tree(g);
       clear_graph(tree); // clear destination graph
 
+      // A cookie left by an earlier mapping, perhaps to a tree that no
+      // longer exists, would be chained to the new one by map_nodes() and
+      // map_arcs(), so it is cleared first
       for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
         {
           auto gp = it.get_curr();
           auto tp = tree.insert_node(gp->get_info());
+          NODE_COOKIE(gp) = nullptr;
           GT::map_nodes(gp, tp);
         }
 
@@ -222,6 +239,7 @@ namespace Aleph
           auto tsrc = mapped_node<GT>(g.get_src_node(ga));
           auto ttgt = mapped_node<GT>(g.get_tgt_node(ga));
           auto ta = tree.insert_arc(tsrc, ttgt, ga->get_info());
+          ARC_COOKIE(ga) = nullptr;
           GT::map_arcs(ga, ta);
         }
     }

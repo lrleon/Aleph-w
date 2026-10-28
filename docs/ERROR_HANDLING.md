@@ -79,11 +79,11 @@ ah_warning_unless(std::cerr, valid) << "Invalid state detected";
 ### The Conditional Macros Take No `else`
 
 Every `_if` and `_unless` macro, the `constexpr` forms and the warnings
-included, expands to a loop whose statement runs at most once: a `while`
-whose statement throws, a `for` of one iteration for the warnings, and
-`do { ... } while (false)` for the forms of `ah_bad_alloc`. A loop takes no
-`else`, so an `else` written after an invocation belongs to the `if`
-around it, and one with no `if` around it does not compile:
+included, expands to a loop whose statement runs at most once: a `for` of
+one iteration, a `while` whose statement throws for the `constexpr` forms,
+and `do { ... } while (false)` for the forms of `ah_bad_alloc`. A loop
+takes no `else`, so an `else` written after an invocation belongs to the
+`if` around it, and one with no `if` around it does not compile:
 
 ```cpp
 if (checked)
@@ -92,9 +92,11 @@ else       // runs when not checked
   use(x);
 ```
 
-The condition is evaluated once. The `constexpr` forms require a constant
-condition, and their message is compiled even where the condition is
-false, so it must compile for every instantiation.
+The condition is evaluated once; it must be an expression, not a
+declaration as in `if (auto e = f())`. The `constexpr` forms require a
+constant condition, and their message is compiled even where the condition
+is false, so it must compile for every instantiation. A message whose last
+`<<` does not give back a stream does not compile.
 
 ## Guidelines
 

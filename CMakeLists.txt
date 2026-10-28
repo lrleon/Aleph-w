@@ -360,6 +360,7 @@ set(HLIST
     tpl_binTreeOps.H
     tpl_components.H
     tpl_cut_nodes.H
+    tpl_dfs_stack.H
     tpl_dnode.H
     tpl_dynList.H
     tpl_dynMapOhash.H

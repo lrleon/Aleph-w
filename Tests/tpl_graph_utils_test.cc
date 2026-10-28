@@ -470,6 +470,44 @@ TEST(GraphUtilsProperties, AcyclicAndHasCycleAgreement)
   EXPECT_TRUE(has_cycle(tree));
 }
 
+// is_graph_acyclique(g, start_node) is about the component of start_node,
+// but it answered by the arcs and nodes of all g
+TEST(GraphUtilsProperties, AcyclicFromANodeLooksAtItsComponent)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 6);
+  g.insert_arc(nodes[0], nodes[1], 1); // a path
+  for (int i = 2; i < 6; ++i)          // and a K4: 6 nodes, 7 arcs
+    for (int j = i + 1; j < 6; ++j)
+      g.insert_arc(nodes[i], nodes[j], 1);
+
+  EXPECT_TRUE(is_graph_acyclique(g, nodes[0]));
+  EXPECT_FALSE(is_graph_acyclique(g, nodes[2]));
+  EXPECT_FALSE(is_graph_acyclique(g));
+}
+
+// A graph of one node was acyclic even with a loop
+TEST(GraphUtilsProperties, AcyclicTakesALoopAsACycle)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 1);
+  EXPECT_TRUE(is_graph_acyclique(g));
+  EXPECT_TRUE(is_graph_acyclique(g, nodes[0]));
+
+  g.insert_arc(nodes[0], nodes[0], 1);
+  EXPECT_FALSE(is_graph_acyclique(g));
+  EXPECT_FALSE(is_graph_acyclique(g, nodes[0]));
+  EXPECT_TRUE(has_cycle(g));
+
+  Graph h; // a loop in a tree, which the count of arcs does not see
+  auto m = make_nodes(h, 3);
+  h.insert_arc(m[0], m[1], 1);
+  h.insert_arc(m[2], m[2], 1);
+  EXPECT_FALSE(is_graph_acyclique(h));
+  EXPECT_FALSE(is_graph_acyclique(h, m[2]));
+  EXPECT_TRUE(is_graph_acyclique(h, m[0]));
+}
+
 TEST(GraphUtilsProperties, AcyclicRejectsDigraphs)
 {
   TestDigraph dg;

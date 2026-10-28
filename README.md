@@ -2893,17 +2893,18 @@ The test is performed on the underlying undirected simple graph:
 
 Advanced outputs are opt-in through `Planarity_Test_Options`:
 - `compute_embedding`: combinatorial embedding (rotation system + faces)
-  - primary mode: LR-first construction (`embedding_is_lr_linear = true`)
-    with deterministic LR-local repair (reversal/swap candidates,
-    multi-start coordinate descent)
-  - optional fallback: bounded exact search if LR embedding fails validation
+  - primary mode: the embedding phase of the LR algorithm
+    (`embedding_is_lr_linear = true`), which embeds every planar graph
+  - safeguards, if an embedding fails validation: deterministic local
+    repair (reversal/swap candidates, multi-start coordinate descent) and
+    an optional bounded exact search
   - strict profile (`embedding_allow_bruteforce_fallback = false`) avoids
-    exhaustive fallback and is typically faster (no exponential backtracking),
-    but may return `is_planar = true` with no embedding
-    (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`)
-  - `embedding_max_combinations` is the LR local-repair evaluation budget
-    in strict mode (and the exact-search budget when fallback is used)
-  - robust profile (recommended for face/dual workflows): keep fallback enabled
+    the exhaustive search
+  - `embedding_max_combinations` is the evaluation budget of the local
+    repair and of the exact search; with `embedding_prefer_lr_linear = false`,
+    the exact search alone may run out of it and return `is_planar = true`
+    with no embedding (`has_combinatorial_embedding = false`,
+    `embedding_search_truncated = true`)
 - `compute_nonplanar_certificate`: non-planarity witness
   - first reduces to a minimal obstruction by edge/vertex deletion passes
   - then searches Kuratowski patterns on the branch-core

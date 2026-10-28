@@ -37,6 +37,8 @@
  */
 # include <gtest/gtest.h>
 
+# include <algorithm>
+
 # include <generate_tree.H>
 # include "tree-node-common.H"
 
@@ -99,17 +101,42 @@ static Tree_Node<int> * chain(size_t n)
   return root;
 }
 
-TEST(Generate_Tree, a_tree_with_too_many_levels_throws)
+// generate_tree() refused the trees of more than Max_Tree_Node_Depth levels
+TEST(Generate_Tree, a_tree_of_any_depth_is_written)
 {
-  Tree_Node<int> * fits = chain(Max_Tree_Node_Depth);
-  ostringstream ok;
-  EXPECT_NO_THROW(generate_tree(fits, ok));
-  destroy_tree(fits);
+  for (const size_t n : {Max_Tree_Node_Depth, Max_Tree_Node_Depth + 1, size_t(3000)})
+    {
+      Tree_Node<int> * deep = chain(n);
+      ostringstream out;
+      EXPECT_NO_THROW(generate_tree(deep, out));
 
-  // before writing past the Dewey numbers of the deepest level
-  Tree_Node<int> * deep = chain(Max_Tree_Node_Depth + 1);
-  ostringstream too_deep;
-  EXPECT_THROW(generate_tree(deep, too_deep), std::overflow_error);
+      // a line for each node; that of the deepest one has the Dewey number
+      // of its parent, of n - 1 parts
+      const string s = out.str();
+      EXPECT_EQ(size_t(count(s.begin(), s.end(), '\n')), n);
+      const size_t last = s.rfind("Node ");
+      ASSERT_NE(last, string::npos);
+      const string dewey = s.substr(last + 5, s.find(' ', last + 5) - last - 5);
+      EXPECT_EQ(size_t(count(dewey.begin(), dewey.end(), '.')), n - 2);
+
+      destroy_tree(deep);
+    }
+}
+
+// generate_tree_graphviz() recursed as deep as the tree
+TEST(Generate_Tree, graphviz_of_a_deep_tree_needs_no_recursion)
+{
+  constexpr size_t n = 100000;
+  Tree_Node<int> * deep = chain(n);
+  ostringstream out;
+  generate_tree_graphviz(deep, out);
+
+  // three lines of header, a label for each node, an arc for each one but
+  // the root, and the closing brace
+  const string s = out.str();
+  EXPECT_EQ(size_t(count(s.begin(), s.end(), '\n')), 3 + n + (n - 1) + 1);
+  EXPECT_EQ(s.substr(s.size() - 2), "}\n");
+
   destroy_tree(deep);
 }
 

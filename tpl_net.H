@@ -50,6 +50,7 @@
 # ifndef TPL_NET_H
 # define TPL_NET_H
 
+# include <algorithm>
 # include <limits>
 # include <set>
 # include <tuple>
@@ -571,17 +572,18 @@ namespace Aleph
     template <typename... Args>
     Node * emplace_node(Args &&... args)
     {
-      return insert_node(Node_Type(args...));
+      return insert_node(Node_Type(std::forward<Args>(args)...));
     }
 
 
-    /** @brief Insert a node by copying another node.
+    /** @brief Insert the node @p p, allocated by the caller.
      *
-     * @param[in] p Node to copy.
+     * @param[in] p Node to insert.
      * @return Pointer to the inserted node.
-     * @throw bad_alloc If there is not enough memory.
+     * @throw bad_alloc If there is not enough memory; then @p p is removed
+     * from the network and freed.
      */
-    Node * insert_node(Node *p)
+    Node * insert_node(Node *p) override
     {
       Graph::insert_node(p);
       return register_node(p);
@@ -596,21 +598,24 @@ namespace Aleph
      * @param[in] arc_info Arc info to store.
      * @return Pointer to the inserted arc.
      * @throw bad_alloc If there is not enough memory.
-     * @throw overflow_error If `flow` exceeds `cap`.
+     * @throw overflow_error If `flow` exceeds `cap` or is negative. The
+     * network is then as it was.
      */
     Arc * insert_arc(Node *src_node, Node *tgt_node,
                      const Flow_Type & cap, const Flow_Type & flow,
                      const typename Arc::Arc_Type & arc_info = Arc_Type())
-    { // base insertion
-      auto arc = Graph::insert_arc(src_node, tgt_node, arc_info);
+    {
+      // As Net_Arc::check_arc(), before the arc enters the network
+      ah_overflow_error_if(not (flow >= 0 and flow <= cap))
+        << "flow is greater than capacity";
+
+      auto arc = Graph::insert_arc(src_node, tgt_node, arc_info); // base insertion
 
       src_nodes.remove(tgt_node); // update sources/sinks
       sink_nodes.remove(src_node);
 
       arc->cap = cap;
       arc->flow = flow;
-
-      ah_overflow_error_if(not arc->check_arc()) << "flow is greater than capacity";
 
       return arc;
     }
@@ -621,7 +626,8 @@ namespace Aleph
                       const Flow_Type & cap, const Flow_Type & flow,
                       Args &&... args)
     {
-      return insert_arc(src_node, tgt_node, cap, flow, Arc_Type(args...));
+      return insert_arc(src_node, tgt_node, cap, flow,
+                        Arc_Type(std::forward<Args>(args)...));
     }
 
     /** @brief Connect a previously disconnected arc.
@@ -666,36 +672,72 @@ namespace Aleph
       return insert_arc(src_node, tgt_node, 0, 0, arc_info);
     }
 
-    /// Remove arc `arc` from the network.
+    /** @brief Insert an arc with zero capacity and flow, for an arc info
+     * that is arithmetic or of the type of the flow.
+     *
+     * The overload above is disabled for those types, and copy_graph(),
+     * which the copy constructor uses, inserts the arcs with two
+     * arguments.
+     */
+    Arc * insert_arc(Node *src_node, Node *tgt_node)
+      requires (std::is_same_v<Arc_Type, Flow_Type> or
+                std::is_arithmetic_v<Arc_Type>)
+    {
+      return insert_arc(src_node, tgt_node, 0, 0, Arc_Type());
+    }
+
+  private:
+    // Puts in the sets of sources and of sinks the nodes that arc leaves as
+    // one when it goes. It is done before the arc goes, so that if a set
+    // cannot take a node, the network is as it was.
+    void register_ends_of_leaving(Arc *arc)
+    {
+      auto src = this->get_src_node(arc);
+      auto tgt = this->get_tgt_node(arc);
+      const bool new_source = get_in_degree(tgt) == 1 and
+        src_nodes.insert(tgt) != nullptr; // target becomes a source
+      try
+        {
+          if (get_out_degree(src) == 1)
+            sink_nodes.insert(src); // source becomes a sink
+        }
+      catch (...)
+        {
+          if (new_source)
+            src_nodes.remove(tgt);
+          throw;
+        }
+    }
+
+  public:
+    /** @brief Remove arc `arc` from the network.
+     *
+     * @throw bad_alloc if the set of sources or that of sinks cannot take
+     * an end of the arc that becomes one. The network is then as it was.
+     */
     void remove_arc(Arc *arc) override
     {
-      auto src = this->get_src_node(arc);
-      auto tgt = this->get_tgt_node(arc);
-      if (get_in_degree(tgt) == 1)
-        src_nodes.insert(tgt); // target becomes a source
-
+      register_ends_of_leaving(arc);
       Graph::remove_arc(arc); // base removal
-
-      if (get_out_degree(src) == 0)
-        sink_nodes.insert(src); // source becomes a sink
     }
 
-    /** @brief Disconnect arc `arc` from the graph without deleting it. */
-    void disconnect_arc(Arc *arc) noexcept
+    /** @brief Disconnect arc `arc` from the graph without deleting it.
+     *
+     * @throw bad_alloc as remove_arc().
+     */
+    void disconnect_arc(Arc *arc)
     {
-      auto src = this->get_src_node(arc);
-      auto tgt = this->get_tgt_node(arc);
-      if (get_in_degree(tgt) == 1)
-        src_nodes.insert(tgt); // target becomes a source
-
+      register_ends_of_leaving(arc);
       Graph::disconnect_arc(arc); // base disconnection
-
-      if (get_out_degree(src) == 0)
-        sink_nodes.insert(src); // source becomes a sink
     }
 
-    /// Remove node `p` and all its arcs from the network.
-    void remove_node(Node *p) noexcept override
+    /** @brief Remove node `p` and all its arcs from the network.
+     *
+     * @throw bad_alloc as remove_arc(), for the arcs of p. Then the arcs
+     * that went are gone, p and the others are in the network, and the
+     * sets of sources and sinks are right.
+     */
+    void remove_node(Node *p) override
     {
       Graph::remove_node(p); // base removal
       src_nodes.remove(p);
@@ -898,7 +940,52 @@ namespace Aleph
       }
   }
 
+  namespace net_detail
+  {
+    // A floating flow that an augmentation leaves at most this far from
+    // the capacity or from zero, relative to the largest of the numbers in
+    // the operation, is a residue of rounding: the slack of the path was
+    // computed on another arc, or the flow added up rounding errors
+    template <typename Flow_Type>
+    constexpr Flow_Type rounding_residue() noexcept
+    {
+      return 256 * std::numeric_limits<Flow_Type>::epsilon();
+    }
+
+    // Adds slack to the flow of arc. A floating flow that is left next to
+    // the capacity, or above it, is the capacity, so that the arc is
+    // saturated, as it would be without rounding.
+    template <class Arc, typename Flow_Type>
+    inline void add_flow(Arc *arc, const Flow_Type & slack) noexcept
+    {
+      arc->flow += slack;
+      if constexpr (std::is_floating_point_v<Flow_Type>)
+        if (arc->cap - arc->flow <=
+            rounding_residue<Flow_Type>() * std::max(arc->cap, slack))
+          arc->flow = arc->cap;
+    }
+
+    // Subtracts slack from the flow of arc. A floating flow that is left
+    // next to zero, or below it, is zero.
+    template <class Arc, typename Flow_Type>
+    inline void subtract_flow(Arc *arc, const Flow_Type & slack) noexcept
+    {
+      if constexpr (std::is_floating_point_v<Flow_Type>)
+        {
+          const Flow_Type before = arc->flow;
+          arc->flow -= slack;
+          if (arc->flow <= rounding_residue<Flow_Type>() * std::max(before, slack))
+            arc->flow = 0;
+        }
+      else
+        arc->flow -= slack;
+    }
+  } // namespace net_detail
+
   /** @brief Increase flow along an augmenting path.
+   *
+   * With a floating type of flow, a flow that rounding leaves next to the
+   * capacity of its arc, or next to zero, is set to it.
    *
    * @param[in,out] net Flow network to update.
    * @param[in] path Augmenting path.
@@ -932,9 +1019,9 @@ namespace Aleph
         auto arc = get<1>(t);
 
         if (is_residual<Net>(p, arc))
-          arc->flow -= slack;
+          net_detail::subtract_flow(arc, slack);
         else
-          arc->flow += slack;
+          net_detail::add_flow(arc, slack);
 
         assert(arc->check_arc());
       }
@@ -944,6 +1031,9 @@ namespace Aleph
 
 
   /** @brief Increase flow along a semi-path by a given slack.
+   *
+   * With a floating type of flow, a flow that rounding leaves next to the
+   * capacity of its arc, or next to zero, is set to it.
    *
    * @param[in,out] net Flow network to update.
    * @param[in] semi_path Semi-path arc list.
@@ -964,9 +1054,9 @@ namespace Aleph
 	        auto p = it.get_curr();
         auto arc = get<0>(p);
         if (get<1>(p)) // forward arc
-          arc->flow += slack;
+          net_detail::add_flow(arc, slack);
         else
-          arc->flow -= slack;
+          net_detail::subtract_flow(arc, slack);
 
         assert(arc->check_arc());
       }
@@ -976,7 +1066,8 @@ namespace Aleph
   /** @brief Decrease flow along a semi-path by a given slack.
    *
    * This reverses the effect of increase_flow by negating forward/residual
-   * arc directions.
+   * arc directions. With a floating type of flow, a flow that rounding
+   * leaves next to the capacity of its arc, or next to zero, is set to it.
    *
    * @param[in,out] net Flow network to update.
    * @param[in] semi_path Semi-path arc list.
@@ -996,9 +1087,9 @@ namespace Aleph
 	        auto p = it.get_curr();
         auto arc = get<0>(p);
         if (get<1>(p)) // forward arc: decrease instead of increase
-          arc->flow -= slack;
+          net_detail::subtract_flow(arc, slack);
         else           // residual arc: increase instead of decrease
-          arc->flow += slack;
+          net_detail::add_flow(arc, slack);
 
         assert(arc->check_arc());
       }
@@ -1016,7 +1107,9 @@ namespace Aleph
   {
     const Net & net;
 
-    // Return end node if a path is found.
+    // Return end node if a path is found. The cookie of each node reached
+    // keeps the arc by which it was reached, which the paths take: with
+    // parallel arcs, another one could have less slack than min_slack.
     typename Net::Node * search(typename Net::Node *start,
                                 typename Net::Node *end,
                                 typename Net::Flow_Type min_slack)
@@ -1054,7 +1147,7 @@ namespace Aleph
           curr = s->state() == Processed ? t : s;
           assert(curr->state() == Processing);
           curr->set_state(Processed);
-          NODE_COOKIE(curr) = net.get_connected_node(arc, curr);
+          NODE_COOKIE(curr) = arc;
 
           if (curr == end)
             return curr;
@@ -1101,7 +1194,8 @@ namespace Aleph
       while (curr != start)
         {
           ret.insert(curr);
-          curr = static_cast<typename Net::Node *>(NODE_COOKIE(curr));
+          auto arc = static_cast<typename Net::Arc *>(NODE_COOKIE(curr));
+          curr = net.get_connected_node(arc, curr);
         }
       ret.insert(start);
 
@@ -1123,30 +1217,8 @@ namespace Aleph
       auto m = std::numeric_limits<typename Net::Flow_Type>::max();
       while (t != start)
         {
-          auto s = static_cast<typename Net::Node *>(NODE_COOKIE(t));
-          // Find arc connecting s and t with positive residual capacity.
-          // With parallel arcs, we must pick one that can carry flow.
-          typename Net::Arc *a = nullptr;
-          typename Net::Arc *fallback = nullptr;
-          for (Node_Arc_Iterator<Net> it(t); it.has_curr(); it.next_ne())
-            {
-              auto arc = it.get_curr();
-              if ((arc->src_node == s and arc->tgt_node == t) or
-                  (arc->src_node == t and arc->tgt_node == s))
-                {
-                  if (fallback == nullptr)
-                    fallback = arc;  // Keep first match as fallback
-                  // Prefer arc with positive residual capacity
-                  if (remaining_flow<Net>(s, arc) > 0)
-                    {
-                      a = arc;
-                      break;
-                    }
-                }
-            }
-          if (a == nullptr)
-            a = fallback;  // Use fallback if no arc with residual capacity
-          assert(a != nullptr);
+          auto a = static_cast<typename Net::Arc *>(NODE_COOKIE(t));
+          auto s = net.get_connected_node(a, t);
           bool normal = a->tgt_node == t;
           auto slack = normal ? a->cap - a->flow : a->flow;
           m = std::min(m, slack);

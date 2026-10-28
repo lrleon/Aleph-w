@@ -4,6 +4,8 @@
  */
 
 #include <gtest/gtest.h>
+
+#include <vector>
 #include <tpl_test_path.H>
 #include <tpl_graph.H>
 
@@ -113,6 +115,24 @@ TEST_F(TestPathTest, TwoComponents_NoPath)
   EXPECT_FALSE(checker(g, n1, n4));
   EXPECT_FALSE(checker(g, n2, n3));
   EXPECT_FALSE(checker(g, n2, n4));
+}
+
+// Test_For_Path concluded that there was a path in an undirected graph
+// with as many arcs as nodes, though such a graph need not be connected
+TEST_F(TestPathTest, ManyArcsDoNotJoinTwoComponents)
+{
+  std::vector<GT::Node *> k4;
+  for (int i = 0; i < 4; ++i)
+    k4.push_back(g.insert_node(i));
+  for (int i = 0; i < 4; ++i)
+    for (int j = i + 1; j < 4; ++j)
+      g.insert_arc(k4[i], k4[j]);
+  auto alone = g.insert_node(4); // 5 nodes and 6 arcs
+
+  Test_For_Path<GT> checker;
+  EXPECT_FALSE(checker(g, k4[0], alone));
+  EXPECT_FALSE(checker(g, alone, k4[0]));
+  EXPECT_TRUE(checker(g, k4[0], k4[3]));
 }
 
 TEST_F(TestPathTest, IsolatedNode)

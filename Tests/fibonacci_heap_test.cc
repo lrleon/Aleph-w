@@ -46,6 +46,7 @@
 # include <chrono>
 # include <functional>
 # include <memory>
+# include <stdexcept>
 # if defined(__unix__) || defined(__APPLE__)
 #   include <pthread.h>
 # endif
@@ -1329,6 +1330,185 @@ TEST(FibonacciHeapMemory, ClearDeletesEveryNodeOfBushyTrees)
     (void) fill_with_bushy_trees(heap);
   }
   EXPECT_EQ(Counted::alive, 0); // deleted by the destructor
+}
+
+namespace
+{
+  // The calls of a comparison, and the one that throws (0 for none)
+  struct Comparisons
+  {
+    long calls = 0;
+    long fail_at = 0;
+  };
+
+  // Orders Counted by key and counts its calls in count, which the copies
+  // that the heaps keep share
+  struct Failing_Counted_Less
+  {
+    Comparisons *count = nullptr;
+
+    bool operator()(const Counted & a, const Counted & b) const
+    {
+      if (count != nullptr and ++count->calls == count->fail_at)
+        throw std::runtime_error("comparison failed");
+      return a.key < b.key;
+    }
+  };
+
+  using Failing_Heap = Fibonacci_Heap<Counted, Failing_Counted_Less>;
+
+  // Extracts the elements of heap with a comparison that does not throw,
+  // and returns their keys in the order in which they come out
+  std::vector<int> drain(Failing_Heap & heap, Comparisons & count)
+  {
+    count.fail_at = 0;
+    std::vector<int> keys;
+    while (not heap.is_empty())
+      keys.push_back(heap.extract_min().key);
+    return keys;
+  }
+
+  // Calls each operation that compares keys, with a comparison that counts
+  // its calls in count, and returns the keys in the order in which they
+  // come out. If the comparison throws, each heap must hold as many
+  // elements as its size() says.
+  std::vector<int> use_heaps(Comparisons & count)
+  {
+    Failing_Heap heap(Failing_Counted_Less{&count});
+    Failing_Heap other(Failing_Counted_Less{&count});
+    try
+      {
+        std::vector<Failing_Heap::Node *> nodes;
+        for (int key : {50, 30, 70, 10, 90, 20, 80, 40, 60, 0})
+          nodes.push_back(heap.insert(Counted(key)));
+        const Counted copied(35);
+        nodes.push_back(heap.insert(copied));
+        nodes.push_back(heap.emplace(45));
+        (void) heap.extract_min();                         // 0, nodes[9]
+        heap.decrease_key(nodes[4], Counted(5));           // 90
+        heap.decrease_key(nodes[6], copied);               // 80
+        nodes[2] = heap.update_key(nodes[2], Counted(95)); // 70
+        heap.delete_node(nodes[7]);                        // 40
+        (void) other.insert(Counted(15));
+        (void) other.insert(Counted(25));
+        heap.merge(other);
+
+        std::vector<int> keys;
+        while (not heap.is_empty())
+          keys.push_back(heap.extract_min().key);
+        return keys;
+      }
+    catch (...)
+      {
+        const size_t size = heap.size();
+        const size_t other_size = other.size();
+        EXPECT_EQ(drain(heap, count).size(), size);
+        EXPECT_EQ(drain(other, count).size(), other_size);
+        throw;
+      }
+  }
+}
+
+// If the comparison threw, extract_min() and delete_node() lost the node
+// that they had taken out, which size() still counted, and they could leave
+// min_node on a node that was not a root or some roots out of the root
+// list; insert() left in the heap a node that size() did not count, and
+// merge() left the nodes of both heaps in each one
+TEST(FibonacciHeapComparison, WhatTheComparisonThrowsLeavesEveryNodeCounted)
+{
+  const long alive = Counted::alive;
+  Comparisons count;
+  EXPECT_EQ(use_heaps(count),
+            (std::vector<int>{5, 10, 15, 20, 25, 30, 35, 35, 45, 50, 60, 95}));
+  EXPECT_EQ(Counted::alive, alive);
+
+  for (long k = 1; k <= count.calls; ++k)
+    {
+      Comparisons failing;
+      failing.fail_at = k;
+      EXPECT_THROW(use_heaps(failing), std::runtime_error) << "call " << k;
+      EXPECT_EQ(Counted::alive, alive) << "call " << k;
+    }
+}
+
+// insert(), emplace() and merge() compare the keys before they change the
+// heaps, so that if the comparison throws the heaps are as they were
+TEST(FibonacciHeapComparison, InsertAndMergeLeaveTheHeapsAsTheyWere)
+{
+  const long alive = Counted::alive;
+  {
+    Comparisons count;
+    Failing_Heap heap(Failing_Counted_Less{&count});
+    Failing_Heap other(Failing_Counted_Less{&count});
+    for (int key : {4, 2, 6})
+      (void) heap.insert(Counted(key));
+    (void) heap.extract_min(); // 4 and 6 in one tree
+    for (int key : {5, 1})
+      (void) other.insert(Counted(key));
+
+    const Counted three(3);
+    count.fail_at = count.calls + 1;
+    EXPECT_THROW((void) heap.insert(three), std::runtime_error);
+    count.fail_at = count.calls + 1;
+    EXPECT_THROW((void) heap.insert(Counted(3)), std::runtime_error);
+    count.fail_at = count.calls + 1;
+    EXPECT_THROW((void) heap.emplace(3), std::runtime_error);
+    count.fail_at = count.calls + 1;
+    EXPECT_THROW(heap.merge(other), std::runtime_error);
+
+    EXPECT_EQ(heap.size(), 2u);
+    EXPECT_EQ(other.size(), 2u);
+    EXPECT_EQ(drain(heap, count), (std::vector<int>{4, 6}));
+    EXPECT_EQ(drain(other, count), (std::vector<int>{1, 5}));
+  }
+  EXPECT_EQ(Counted::alive, alive);
+}
+
+// If the comparison throws, extract_min() and delete_node() have taken
+// their node out of the heap, and the heap keeps the other ones
+TEST(FibonacciHeapComparison, ExtractAndDeleteTakeTheirNodeOutIfTheComparisonThrows)
+{
+  const std::vector<int> keys = {8, 3, 5, 1, 9, 2, 7, 4, 6, 0};
+  const long alive = Counted::alive;
+  for (size_t i = 0; i <= keys.size(); ++i) // keys.size(): extract_min()
+    {
+      if (i < keys.size() and keys[i] == 0)
+        continue; // extracted before
+      for (long k = 1; ; ++k)
+        {
+          Comparisons count;
+          Failing_Heap heap(Failing_Counted_Less{&count});
+          std::vector<Failing_Heap::Node *> nodes;
+          for (int key : keys)
+            nodes.push_back(heap.insert(Counted(key)));
+          (void) heap.extract_min(); // 0, so that the others are in trees
+
+          std::vector<int> rest = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+          const int out = i < keys.size() ? keys[i] : 1;
+          rest.erase(std::find(rest.begin(), rest.end(), out));
+
+          count.fail_at = count.calls + k;
+          bool thrown = false;
+          try
+            {
+              if (i < keys.size())
+                heap.delete_node(nodes[i]);
+              else
+                (void) heap.extract_min();
+            }
+          catch (const std::runtime_error &)
+            {
+              thrown = true;
+            }
+          EXPECT_EQ(heap.size(), rest.size()) << "node " << i << ", call " << k;
+          std::vector<int> left = drain(heap, count);
+          std::sort(left.begin(), left.end());
+          EXPECT_EQ(left, rest) << "node " << i << ", call " << k;
+          if (not thrown)
+            break;
+        }
+    }
+  EXPECT_EQ(Counted::alive, alive);
 }
 
 // Performance test (disabled by default due to time)

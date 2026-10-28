@@ -125,17 +125,49 @@ namespace Aleph
         free(arc_array);
     }
 
+  private:
+    // Gives the array room for new_size arcs, or frees it if new_size is 0:
+    // realloc() with a size of 0 may free the array and give back nullptr,
+    // which would look like a failure. If realloc() fails, the array is as
+    // it was, and the result is false.
+    bool resize_arc_array(const size_t new_size) noexcept
+    {
+      if (new_size == 0)
+        {
+          free(arc_array);
+          arc_array = nullptr;
+          arcs_dim = 0;
+          contract_threshold = 0;
+          return true;
+        }
+
+      const auto new_array = static_cast<void **>(realloc(arc_array, new_size * sizeof(void *)));
+      if (new_array == nullptr)
+        return false;
+
+      arc_array = new_array;
+      arcs_dim = new_size;
+      contract_threshold = arcs_dim / Contract_Factor;
+      return true;
+    }
+
+    // After a removal, halves the array if it has room for four times the
+    // arcs; if realloc() fails, the array keeps its room
+    void contract_arc_array() noexcept
+    {
+      if (this->num_arcs > contract_threshold)
+        return;
+
+      (void) resize_arc_array(arcs_dim >> 1); // num_arcs/2
+    }
+
+  public:
     void allocate_more(size_t new_size)
     {
       if (new_size == 0)
         new_size = 1;
 
-      const auto new_array = static_cast<void **>(realloc(arc_array, new_size * sizeof(void *)));
-      ah_bad_alloc_if(new_array == nullptr);
-
-      arc_array = new_array;
-      arcs_dim = new_size;
-      contract_threshold = arcs_dim / Contract_Factor;
+      ah_bad_alloc_if(not resize_arc_array(new_size));
     }
 
     void * insert_arc(void * arc) 
@@ -170,14 +202,7 @@ namespace Aleph
             break;
           }
 
-      if (this->num_arcs > contract_threshold)
-        return;
-
-      // contraction
-      const size_t new_sz = arcs_dim >> 1; // num_arcs/2
-      arc_array = static_cast<void **>(realloc(arc_array, new_sz * sizeof(void *)));
-      arcs_dim = new_sz;
-      contract_threshold = arcs_dim / Contract_Factor;
+      contract_arc_array();
     }
 
     void remove_arc(const void *arc)
@@ -193,28 +218,12 @@ namespace Aleph
 
       ah_domain_error_if(not removed) << "arc for deleting not found";
 
-      if (this->num_arcs > contract_threshold)
-        return;
-
-      // contraction
-      const size_t new_sz = arcs_dim >> 1; // num_arcs/2
-      arc_array = static_cast<void **>(realloc(arc_array, new_sz * sizeof(void *)));
-      arcs_dim = new_sz;
-      contract_threshold = arcs_dim / Contract_Factor;
+      contract_arc_array();
     }
 
     bool compress() noexcept
     {
-      const auto new_array = static_cast<void **>(realloc(arc_array,
-                                                          this->num_arcs * sizeof(void *)));
-      if (new_array == nullptr)
-        return false;
-
-      arc_array = new_array;
-      arcs_dim = this->num_arcs;
-      contract_threshold = this->num_arcs / Contract_Factor;
-
-      return true;
+      return resize_arc_array(this->num_arcs);
     }
   };
 
@@ -516,13 +525,17 @@ namespace Aleph
       delete p;
     }
 
+    /// @throw range_error if the graph has no nodes
     Node * get_first_node() const
     {
+      ah_range_error_if(this->num_nodes == 0) << "Graph has not nodes";
       return static_cast<Node *>(node_set.get_first());
     }
 
+    /// @throw range_error if the graph has no arcs
     Arc * get_first_arc() const
     {
+      ah_range_error_if(this->num_arcs == 0) << "Graph has not arcs";
       return static_cast<Arc *>(arc_set.get_first());
     }
 

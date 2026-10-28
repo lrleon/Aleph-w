@@ -96,20 +96,109 @@
 # ifndef GRAPH_TO_TREE_H
 # define GRAPH_TO_TREE_H
 
+# include <memory>
+
 # include <ah-graph-concepts.H>
 
 # include <tpl_tree_node.H>
+# include <tpl_dfs_stack.H>
 # include <tpl_graph.H>
 # include <tpl_graph_utils.H>
- # include <ah-errors.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
-    template <AlephGraph GT, typename Key, class Convert> static
-Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot);
-    template <AlephGraph GT, typename Key, class Convert> static void 
-__graph_to_tree_node(GT & g, typename GT::Node * groot, 
-                     Tree_Node<Key> * troot);
+  namespace graph_to_tree_detail
+  {
+    /// A node of the tree being built that waits for the one that it
+    /// visits, its image in the tree, the arc through which it was reached
+    /// and the next arc of it to look at
+    template <class GT, typename Key, class SA>
+    struct Frame
+    {
+      Tree_Node<Key> * troot;
+      typename GT::Arc * from;
+      Node_Arc_Iterator<GT, SA> it;
+
+      template <class... Args>
+      [[gnu::always_inline, gnu::flatten]]
+      Frame(Tree_Node<Key> * t, typename GT::Arc * a, Args &&... args)
+        : troot(t), from(a), it(std::forward<Args>(args)...) {}
+
+      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+
+      // Moves the iterator to the next arc that is not that through which
+      // the node was reached, and gives its target, or nullptr when the
+      // arcs are done. In a tree, which the graph is, the other arcs go
+      // to nodes not reached yet, so that the arcs need no marks.
+      [[gnu::always_inline, gnu::flatten]] typename GT::Node * next_target() noexcept
+      {
+        for (; it.has_curr(); it.next_ne())
+          if (it.get_current_arc_ne() != from)
+            return it.get_tgt_node_ne();
+        return nullptr;
+      }
+    };
+
+    // Builds below troot the tree of what groot reaches. For each node that
+    // it reaches, it gives a new tree node and the graph node to
+    // convert(gnode, tnode), and puts the tree node as the rightmost child
+    // of that of the node from which it was reached. A path can have as
+    // many nodes as the graph, too many for recursion, so that the search
+    // keeps its own stack; the order of the visits is that of a recursion.
+    // If something throws, the nodes already put below troot stay there.
+    template <class GT, typename Key, class SA, class Convert, class... Args>
+    inline void build(Tree_Node<Key> * troot, Convert && convert,
+                      typename GT::Node * groot, Args &&... args)
+    {
+      using Frame = graph_to_tree_detail::Frame<GT, Key, SA>;
+
+      // Gives the tree node of gtgt, the rightmost child of that of f
+      auto child_of = [&convert](Frame & f, typename GT::Node * gtgt)
+        {
+          // freed if convert throws
+          std::unique_ptr<Tree_Node<Key>> ttgt(new Tree_Node<Key>);
+
+          convert(gtgt, ttgt.get()); // assign its key
+
+          f.troot->insert_rightmost_child(ttgt.get()); // insert it as a child
+          return ttgt.release();
+        };
+
+      // The node being visited keeps its iterator in here until it visits
+      // a node; then it waits in frames, where it goes on when it comes
+      // back
+      Dfs_Stack<Frame> frames;
+      Frame here(troot, nullptr, groot, args...);
+      while (true)
+        {
+          if (auto gtgt = here.next_target())
+            { // the iterator stays on the arc to gtgt, as in a recursion
+              Frame next(child_of(here, gtgt), here.it.get_current_arc_ne(),
+                         gtgt, args...);
+              frames.push(std::move(here));
+              here = std::move(next);
+              continue;
+            }
+
+          while (true) // back to the nodes that wait
+            {
+              if (frames.is_empty())
+                return;
+
+              Frame & f = frames.top();
+              f.next_arc(); // past the arc to the node that was visited
+              if (auto gtgt = f.next_target())
+                {
+                  here = Frame(child_of(f, gtgt), f.it.get_current_arc_ne(),
+                               gtgt, args...);
+                  break;
+                }
+              frames.pop();
+            }
+        }
+    }
+  } // namespace graph_to_tree_detail
 
   template <AlephGraph GT, typename Key, typename Convert, ArcFilter<GT> SA> static inline
 void __graph_to_tree_node(GT & g, typename GT::Node * groot,
@@ -148,8 +237,12 @@ void __graph_to_tree_node(GT & g, typename GT::Node * groot,
  *
  *  @throw std::domain_error If the graph is not acyclic
  *  @throw std::bad_alloc If memory allocation fails
+ *  @throw anything that Convert throws. If something throws, the tree
+ *  that was built is freed.
  *
- *  @note Uses the Convert_Tree bit to mark visited arcs.
+ *  @note The arcs are not marked: the search does not go back through the
+ *  arc by which it reached a node, which is enough in a tree. So the
+ *  graph can be converted again.
  *  @note Performs an acyclicity check which adds O(V+E) overhead.
  *
  *  @see Tree_Node Target tree structure
@@ -164,11 +257,18 @@ Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
   ah_domain_error_if(not is_graph_acyclique<GT>(g))
     << "Graph is not a tree (not acyclique)";
 
-  Tree_Node<Key> * troot = new Tree_Node<Key>; // apartar memoria raíz
+  Tree_Node<Key> * troot = new Tree_Node<Key>; // the root
+  try
+    {
+      Convert () (groot, troot); // convert groot into troot
 
-  Convert () (groot, troot); //convertir de groot y copiar a troot
-
-  __graph_to_tree_node <GT, Key, Convert, SA> (g, groot, troot);
+      __graph_to_tree_node <GT, Key, Convert, SA> (g, groot, troot);
+    }
+  catch (...)
+    {
+      destroy_tree(troot); // what was built
+      throw;
+    }
 
   return troot;
 }
@@ -217,26 +317,8 @@ class Graph_To_Tree_Node
 
   void graph_to_tree(typename GT::Node * groot, Tree_Node<Key> * troot)
   {           
-    typedef typename GT::Node Node;
-    typedef typename GT::Arc Arc;
-
-        // recorrer arcos de groot y construir recursivamente
-    for (Node_Arc_Iterator<GT, SA> it(groot, sa); it.has_curr(); it.next_ne())
-      {
-	Arc * arc = it.get_current_arc_ne();
-	if (IS_ARC_VISITED(arc, Convert_Tree)) 
-	  continue;
-
-	ARC_BITS(arc).set_bit(Convert_Tree, true); // arc visitado 
-	Node * gtgt = it.get_tgt_node();
-	Tree_Node<Key> * ttgt = new Tree_Node<Key>; 
-
-	(*convert) (gtgt, ttgt); // asignarle la clave
-
-	troot->insert_rightmost_child(ttgt); // insertarlo como hijo 
-
-	graph_to_tree(gtgt, ttgt);
-      }
+    // go through the arcs of groot and build the tree
+    graph_to_tree_detail::build<GT, Key, SA>(troot, *convert, groot, sa);
   }
 
   Tree_Node<Key> * graph_to_tree(GT & g,
@@ -246,13 +328,20 @@ class Graph_To_Tree_Node
     ah_domain_error_if(not is_graph_acyclique<GT>(g))
       << "Graph is not a tree (not acyclique)";
 
-    Tree_Node<Key> * troot = new Tree_Node<Key>; // apartar memoria raíz
+    Tree_Node<Key> * troot = new Tree_Node<Key>; // the root
 
     convert = &conv;
+    try
+      {
+        (*convert) (groot, troot); // convert groot into troot
 
-    (*convert) (groot, troot); //convertir de groot y copiar a troot
-
-    graph_to_tree(groot, troot);
+        graph_to_tree(groot, troot);
+      }
+    catch (...)
+      {
+        destroy_tree(troot); // what was built
+        throw;
+      }
 
     return troot;
   }
@@ -270,6 +359,11 @@ public:
    *
    *  @throw std::domain_error If the graph is not acyclic
    *  @throw std::bad_alloc If memory allocation fails
+   *  @throw anything that conv throws. If something throws, the tree
+   *  that was built is freed.
+   *
+   *  @note The arcs are not marked, so that the graph can be converted
+   *  again.
    */
       Tree_Node<Key> * 
   operator () (GT & g, typename GT::Node * groot, Convert && conv = Convert())
@@ -289,26 +383,14 @@ public:
 void __graph_to_tree_node(GT & g, typename GT::Node * groot,
                           Tree_Node<Key> * troot)
 {           
-  typedef typename GT::Node Node;
-  typedef typename GT::Arc Arc;
+  (void) g;
 
-      // recorrer arcos de groot y construir recursivamente
-  for (Node_Arc_Iterator<GT, SA> it(groot); it.has_curr(); it.next_ne())
-    {
-      Arc * arc = it.get_current_arc_ne();
-      if (IS_ARC_VISITED(arc, Convert_Tree)) 
-        continue;
-
-      ARC_BITS(arc).set_bit(Convert_Tree, true); // arc visitado 
-      Node * gtgt = it.get_tgt_node();
-      Tree_Node<Key> * ttgt = new Tree_Node<Key>; 
-
-      Convert () (gtgt, ttgt); // asignarle la clave
-
-      troot->insert_rightmost_child(ttgt); // insertarlo como hijo 
-
-      __graph_to_tree_node <GT, Key, Convert, SA> (g, gtgt, ttgt);
-    }
+  // go through the arcs of groot and build the tree
+  graph_to_tree_detail::build<GT, Key, SA>
+    (troot, [](typename GT::Node * gtgt, Tree_Node<Key> * ttgt)
+             {
+               Convert () (gtgt, ttgt);
+             }, groot);
 }
 
 } // end namespace Aleph

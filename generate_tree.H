@@ -46,6 +46,7 @@
 # include <fstream>
 # include <memory>
 # include <string>
+# include <tpl_dfs_stack.H>
 # include <tpl_tree_node.H>
 # include <tpl_binNodeUtils.H>
 # include <ah-errors.H>
@@ -92,10 +93,13 @@ namespace Aleph
   };
 
   /*
-    Write debe exportar const std::string Write::operator () (Node *)
+    Write must give std::string Write::operator () (Node *), which turns
+    the key of the node into a printable std::string.
 
-    Que se encarga de convertir el valor de clave contenido en el nodo a
-    un std::string imprimible
+    The nodes go in preorder, as a recursion would take them; deway holds
+    the positions of the nodes of the path. A path can be as long as the
+    tree is deep, too long for recursion: the parent of a node is found
+    through its left siblings and its first child.
   */
 
   template <typename Node, class Write>
@@ -106,31 +110,51 @@ namespace Aleph
                        const size_t & size,
                        std::ostream & output)
   {
-    // imprimir número de Deway del padre
-    output << "Node ";
-    for (size_t i = 0; i < current_level; ++i)
+    Node *p = node;
+    size_t level = current_level;
+    while (true)
       {
-        output << deway[i];
+        // the Dewey number of the parent
+        output << "Node ";
+        for (size_t i = 0; i < level; ++i)
+          {
+            output << deway[i];
 
-        if (i < current_level - 1)
-          output << ".";
-      }
-    output << " \"" << Write()(node) << "\" " << std::endl;
+            if (i < level - 1)
+              output << ".";
+          }
+        output << " \"" << Write()(p) << "\" " << std::endl;
 
-    Node *child = static_cast<Node *>(node->get_left_child());
-    for (int i = 0; child != nullptr;
-         i++, child = static_cast<Node *>(child->get_right_sibling()))
-      {
-        ah_overflow_error_if(current_level + 1 >= size)
-          << "Allocated size for deway array has been exceeded";
+        if (auto *child = static_cast<Node *>(p->get_left_child()))
+          {
+            ah_overflow_error_if(level + 1 >= size)
+              << "Allocated size for deway array has been exceeded";
 
-        deway[current_level + 1] = i;
-        __generate_tree<Node, Write>
-            (child, deway, current_level + 1, size, output);
+            deway[level + 1] = 0;
+            p = child;
+            ++level;
+            continue;
+          }
+
+        // the right sibling of p, or of its lowest ancestor below node
+        // that has one
+        while (p != node and p->is_rightmost())
+          {
+            p = static_cast<Node *>(p->get_parent());
+            --level;
+          }
+
+        if (p == node)
+          return;
+
+        p = static_cast<Node *>(p->get_right_sibling());
+        ++deway[level];
       }
   }
 
 
+  /// The depth of the trees that generate_tree() wrote before 7.3.2; it
+  /// writes trees of any depth now
   constexpr size_t Max_Tree_Node_Depth = 1024;
 
   /** @brief Generate a tree specification for the ntreepic drawing tool.
@@ -151,8 +175,11 @@ namespace Aleph
      *  @param out Output stream for the drawing specification
      *  @param tree_number Internal use - tree index in a forest (default: 0)
      *
-     *  @throw std::overflow_error if the tree has more than
-     *         Max_Tree_Node_Depth levels; @p out may then hold part of it
+     *  @throw std::bad_alloc if there is not enough memory; @p out may
+     *         then hold part of the tree
+     *
+     *  @note The Dewey number of each node has as many parts as its
+     *        depth, so that a deep tree gives a long specification.
      *
      *  @see generate_forest() For drawing multiple trees
      *  @see Dft_Write Default writer using to_str()
@@ -166,11 +193,13 @@ namespace Aleph
   {
     out << "Root \"" << Write()(root) << "\" " << std::endl;
 
-    const auto deway = std::make_unique<int[]>(Max_Tree_Node_Depth);
+    // the Dewey numbers, as long as the tree is deep
+    const size_t size = compute_height(root) + 1;
+    const auto deway = std::make_unique<int[]>(size);
 
-    constexpr int level = 0; // Este es el nivel de partida
+    constexpr int level = 0; // the level where it starts
 
-    deway[level] = tree_number; // nivel 0 en el número del árbol
+    deway[level] = tree_number; // level 0 is the number of the tree
 
     Node *child = static_cast<Node *>(root->get_left_child());
     for (int i = 0; child != nullptr;
@@ -178,7 +207,7 @@ namespace Aleph
       {
         deway[1] = i;
         __generate_tree<Node, Write>(child, deway.get(), level + 1,
-                                     Max_Tree_Node_Depth, out);
+                                     size, out);
       }
   }
 
@@ -276,22 +305,39 @@ namespace Aleph
         return;
       }
 
-    auto traverse = [&out](auto & self, Node * p) -> void {
-      if (p == nullptr)
-        return;
+    // In preorder, as a recursion would go. The ancestors of the node wait
+    // in a stack, to give the arcs to the right siblings of their children:
+    // a path can be as long as the tree is deep, too long for recursion.
+    Dfs_Stack<Node *> path;
+    Node * p = root;
+    while (true)
+      {
+        out << "  \"" << p << "\" [label=\""
+            << escape_dot_label(Write()(p)) << "\"];" << std::endl;
 
-      out << "  \"" << p << "\" [label=\""
-          << escape_dot_label(Write()(p)) << "\"];" << std::endl;
+        if (auto * child = static_cast<Node *>(p->get_left_child()))
+          {
+            out << "  \"" << p << "\" -> \"" << child << "\";" << std::endl;
+            path.push(p);
+            p = child;
+            continue;
+          }
 
-      for (typename Node::Children_Iterator it(p); it.has_curr(); it.next())
-        {
-          Node * child = it.get_curr();
-          out << "  \"" << p << "\" -> \"" << child << "\";" << std::endl;
-          self(self, child);
-        }
-    };
+        // the right sibling of p, or of its lowest ancestor that has one
+        while (not path.is_empty() and p->is_rightmost())
+          {
+            p = path.top();
+            path.pop();
+          }
 
-    traverse(traverse, root);
+        if (path.is_empty())
+          break;
+
+        auto * sibling = static_cast<Node *>(p->get_right_sibling());
+        out << "  \"" << path.top() << "\" -> \"" << sibling << "\";" << std::endl;
+        p = sibling;
+      }
+
     out << "}" << std::endl;
   }
 } // end namespace Aleph

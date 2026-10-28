@@ -37,10 +37,13 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
 #include <limits>
 #include <map>
 #include <random>
 #include <stdexcept>
+#include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -797,8 +800,8 @@ TEST(FloydDistance, TakesADistanceWithoutADefaultConstructor)
 }
 
 // The solver called a distance built for each arc, so its call operator did
-// not have to be const; get_min_path(), which is const, now calls the copy
-// that the solver keeps.
+// not have to be const; get_min_path(), which is const, calls a copy of the
+// distance that the solver keeps.
 TEST(FloydDistance, TakesACallOperatorThatIsNotConst)
 {
   Grafo g;
@@ -810,6 +813,144 @@ TEST(FloydDistance, TakesACallOperatorThatIsNotConst)
   const Floyd_All_Shortest_Paths<Grafo, Not_Const_Dist> floyd(g);
   EXPECT_EQ(dist_of(floyd, a, b), 1);
   EXPECT_EQ(arcs_of(floyd.get_min_path(a, b)), std::vector<GArc *>{light});
+}
+
+namespace {
+
+// The weight of an arc, with a call operator that is not const and changes
+// the distance
+struct Counting_Dist
+{
+  using Distance_Type = int;
+  long calls = 0;
+  int operator()(GArc * a) noexcept
+  {
+    ++calls;
+    return a->get_info();
+  }
+};
+
+// The weight of an arc, with a call operator that is const if Const; counts
+// the copies of the distance in *copies
+template <bool Const>
+struct Copied_Dist
+{
+  using Distance_Type = int;
+  long * copies;
+
+  explicit Copied_Dist(long * c) noexcept : copies(c) {}
+  Copied_Dist(const Copied_Dist & d) noexcept : copies(d.copies) { ++*copies; }
+  Copied_Dist & operator = (const Copied_Dist &) = default;
+
+  int operator()(GArc * a) const noexcept requires Const
+  {
+    return a->get_info();
+  }
+
+  int operator()(GArc * a) noexcept requires (not Const)
+  {
+    return a->get_info();
+  }
+};
+
+} // namespace
+
+// get_min_path(), which is const, called the distance of the solver, whose
+// call operator may change it, so concurrent calls on the same solver raced
+// (ThreadSanitizer saw it)
+TEST(FloydDistance, ConcurrentPathsDoNotShareTheDistance)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  GArc * ab = g.insert_arc(a, b, 1);
+  g.insert_arc(a, b, 5);
+  g.insert_arc(b, c, 7);
+  GArc * bc = g.insert_arc(b, c, 2);
+
+  const Floyd_All_Shortest_Paths<Grafo, Counting_Dist> floyd(g);
+  const std::vector<GArc *> expected = {ab, bc};
+  long wrong[2] = {0, 0};
+  auto work = [&floyd, &expected, a, c](long & mistakes)
+  {
+    for (int i = 0; i < 2000; ++i)
+      if (arcs_of(floyd.get_min_path(a, c)) != expected)
+        ++mistakes;
+  };
+  std::thread first(work, std::ref(wrong[0]));
+  std::thread second(work, std::ref(wrong[1]));
+  first.join();
+  second.join();
+  EXPECT_EQ(wrong[0], 0);
+  EXPECT_EQ(wrong[1], 0);
+}
+
+// get_min_path() copies a distance whose call operator is not const, once
+// for each path, and not one whose call operator is const
+TEST(FloydDistance, GetMinPathCopiesOnlyADistanceThatItMayChange)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, 5);
+  GArc * light = g.insert_arc(a, b, 1);
+
+  long copies = 0;
+  const Floyd_All_Shortest_Paths<Grafo, Copied_Dist<true>>
+    with_const(g, Copied_Dist<true>(&copies));
+  long before = copies;
+  EXPECT_EQ(arcs_of(with_const.get_min_path(a, b)), std::vector<GArc *>{light});
+  EXPECT_EQ(copies, before);
+
+  const Floyd_All_Shortest_Paths<Grafo, Copied_Dist<false>>
+    without_const(g, Copied_Dist<false>(&copies));
+  before = copies;
+  EXPECT_EQ(arcs_of(without_const.get_min_path(a, b)),
+            std::vector<GArc *>{light});
+  EXPECT_EQ(copies, before + 1);
+}
+
+// The constructor that takes a distance took it by value, so the braces of
+// (g, {}) could build either it or the filter, and the call was ambiguous
+TEST(FloydDistance, EmptyBracesAreTheFilter)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, 3);
+
+  Floyd_All_Shortest_Paths<Grafo> floyd(g, {});
+  EXPECT_EQ(dist_of(floyd, a, b), 3);
+
+  Floyd_All_Shortest_Paths<Grafo, Scaled_Dist> scaled(g, {}); // factor 1
+  EXPECT_EQ(dist_of(scaled, a, b), 3);
+}
+
+// The arguments of the class are deduced from a distance, and from a
+// distance and a filter
+TEST(FloydDistance, TheClassIsDeducedFromTheDistance)
+{
+  Grafo g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, 3);
+
+  Floyd_All_Shortest_Paths floyd(g, Scaled_Dist{2});
+  static_assert(std::is_same_v<decltype(floyd),
+                               Floyd_All_Shortest_Paths<Grafo, Scaled_Dist>>);
+  EXPECT_EQ(dist_of(floyd, a, b), 6);
+
+  Floyd_All_Shortest_Paths both(g, Scaled_Dist{2}, Dft_Show_Arc<Grafo>());
+  static_assert(std::is_same_v<decltype(both),
+                               Floyd_All_Shortest_Paths<Grafo, Scaled_Dist>>);
+  EXPECT_EQ(dist_of(both, a, b), 6);
+
+  Dft_Show_Arc<Grafo> sa;
+  Floyd_All_Shortest_Paths filtered(g, sa);
+  static_assert(std::is_same_v<decltype(filtered),
+                               Floyd_All_Shortest_Paths<Grafo>>);
+  EXPECT_EQ(dist_of(filtered, a, b), 3);
 }
 
 // =============================================================================

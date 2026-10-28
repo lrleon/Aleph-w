@@ -977,6 +977,66 @@ TEST(SortUtilsDyndlistSorts, mergesort_dyndlist)
   EXPECT_TRUE(is_sorted(l));
 }
 
+namespace
+{
+  // An item whose order is that of its key alone; seq tells where it was
+  struct Keyed { int key; int seq; };
+
+  struct By_Key
+  {
+    bool operator()(const Keyed & a, const Keyed & b) const noexcept
+    {
+      return a.key < b.key;
+    }
+  };
+
+  // Equal keys keep the order of their seq
+  template <class Container>
+  bool keeps_order_of_equals(const Container & c)
+  {
+    const Keyed * prev = nullptr;
+    for (const Keyed & x : c)
+      {
+        if (prev != nullptr and prev->key == x.key and prev->seq > x.seq)
+          return false;
+        prev = &x;
+      }
+    return true;
+  }
+}
+
+// mergesort() is documented as stable, but, with equal keys, its merges
+// took first the item of the second half, on lists and on arrays
+TEST(SortUtilsStability, mergesort_keeps_the_order_of_equal_items)
+{
+  std::mt19937 gen(3);
+  for (int round = 0; round < 50; ++round)
+    {
+      SCOPED_TRACE(round);
+      std::vector<Keyed> items;
+      const int n = 2 + int(gen() % 300);
+      for (int i = 0; i < n; ++i)
+        items.push_back({int(gen() % 7), i});
+
+      DynList<Keyed> list;
+      DynDlist<Keyed> dlist;
+      for (const Keyed & x : items)
+        {
+          list.append(x);
+          dlist.append(x);
+        }
+      mergesort(list, By_Key());
+      mergesort(dlist, By_Key());
+      EXPECT_TRUE(keeps_order_of_equals(list));
+      EXPECT_TRUE(keeps_order_of_equals(dlist));
+
+      std::vector<Keyed> array = items;
+      mergesort(array.data(), 0, long(array.size()) - 1, By_Key());
+      EXPECT_TRUE(keeps_order_of_equals(array));
+      EXPECT_TRUE(std::is_sorted(array.begin(), array.end(), By_Key()));
+    }
+}
+
 TEST(SortUtilsDyndlistSorts, search_extreme_min)
 {
   DynDlist<int> l = make_dyndlist({4, 1, 3, 2, 0, 2});

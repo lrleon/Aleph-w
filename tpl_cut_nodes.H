@@ -89,6 +89,9 @@
 
 # include <ah-graph-concepts.H>
 
+# include <algorithm>
+
+# include <tpl_dfs_stack.H>
 # include <tpl_graph_utils.H>
 
 namespace Aleph
@@ -160,24 +163,61 @@ components as well as the cross arcs.
 
     enum State { Init, Cut_Nodes_Computed, Painted } state;
 
-    void cut_nodes(typename GT::Node *p, typename GT::Arc *a)
+    // Whether a copy made since the cut nodes were computed marked nodes
+    // and arcs with Build_Subtree
+    bool copies_marked = false;
+
+    // A node that waits for the one that it visits, the arc through which
+    // it was visited, the next arc of it to look at, its low value, and
+    // whether it is a cut node of what was seen. The low value is needed
+    // only while the node is in the stack, so it is kept here instead of
+    // in the cookie of the node.
+    struct Cut_Frame
+    {
+      typename GT::Node *p;
+      typename GT::Arc *a;
+      Node_Arc_Iterator<GT, SA> it;
+      long low;
+      bool p_is_cut_node = false;
+
+      [[gnu::always_inline, gnu::flatten]]
+      Cut_Frame(typename GT::Node *n, typename GT::Arc *arc, SA &sa,
+                const long n_low)
+        : p(n), a(arc), it(n, sa), low(n_low) {}
+
+      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    };
+
+    // Visits p, reached through a, and pushes its frame
+    [[gnu::always_inline]]
+    Cut_Frame *visit(Dfs_Stack<Cut_Frame> &frames,
+                     typename GT::Node *p, typename GT::Arc *a)
     {
       NODE_BITS(p).set_bit(Depth_First, true); // mark p as visited
-      low<GT>(p) = df<GT>(p) = curr_df++; // assign df number
+      const long p_df = df<GT>(p) = curr_df++; // assign df number
+      return &frames.push(p, a, sa, p_df); // its low value starts as it
+    }
 
-      // traverse arcs of p
-      bool p_is_cut_node = false;
-      for (Node_Arc_Iterator<GT, SA> i(p, sa); i.has_curr(); i.next_ne())
+    // Moves the iterator of f to the next arc of f.p that goes to a node
+    // not visited, which it marks, and gives that node, or nullptr when the
+    // arcs of f.p are done. The arcs to nodes visited lower f.low, which is
+    // kept in a local and stored once.
+    [[gnu::always_inline, gnu::flatten]]
+    typename GT::Node *next_child(Cut_Frame &f) noexcept
+    {
+      long p_low = f.low;
+      typename GT::Node *child = nullptr;
+      for (; f.it.has_curr(); f.it.next_ne())
         {
-          auto arc = i.get_curr();
-          if (arc == a)
+          auto arc = f.it.get_curr_ne();
+          if (arc == f.a)
             continue; // a is the parent arc ==> ignore it
 
-          auto tgt = i.get_tgt_node();
+          auto tgt = f.it.get_tgt_node_ne();
           if (IS_NODE_VISITED(tgt, Depth_First))
             {
               if (not IS_ARC_VISITED(arc, Depth_First)) // non-tree arc?
-                low<GT>(p) = std::min(df<GT>(tgt), low<GT>(p));
+                p_low = std::min(df<GT>(tgt), p_low);
               continue;
             }
 
@@ -185,18 +225,46 @@ components as well as the cross arcs.
             continue;
 
           ARC_BITS(arc).set_bit(Depth_First, true); // mark arc
-
-          cut_nodes(tgt, arc);
-          low<GT>(p) = std::min(low<GT>(tgt), low<GT>(p));
-          if (low<GT>(tgt) >= df<GT>(p) and df<GT>(tgt) != 0) // cut node?
-            p_is_cut_node = true;
+          child = tgt;
+          break;
         }
+      f.low = p_low;
+      return child;
+    }
 
-      // at this point, p has already been explored recursively
-      if (p_is_cut_node)
+    // Depth-first search from p, reached through a, that appends to the
+    // list the cut nodes below the root. A path can have as many nodes as
+    // the graph, too many for recursion, so that the search keeps its own
+    // stack; the order of the visits is that of a recursion.
+    void cut_nodes(Dfs_Stack<Cut_Frame> &frames,
+                   typename GT::Node *p, typename GT::Arc *a)
+    {
+      Cut_Frame *f = visit(frames, p, a); // the top one
+      while (true)
         {
-          NODE_BITS(p).set_bit(Cut, true);
-          list_ptr->append(p);
+          if (auto tgt = next_child(*f))
+            { // the iterator of f stays on the arc to tgt, as in a recursion
+              f = visit(frames, tgt, f->it.get_curr_ne());
+              continue;
+            }
+
+          // at this point, f->p has already been explored
+          auto child = f->p;
+          const long child_low = f->low;
+          if (f->p_is_cut_node)
+            {
+              NODE_BITS(child).set_bit(Cut, true);
+              list_ptr->append(child);
+            }
+          frames.pop();
+          if (frames.is_empty())
+            return;
+
+          f = &frames.top(); // the node from which child was visited
+          f->low = std::min(child_low, f->low);
+          if (child_low >= df<GT>(f->p) and df<GT>(child) != 0) // cut node?
+            f->p_is_cut_node = true;
+          f->next_arc(); // past the arc to child
         }
     }
 
@@ -225,14 +293,16 @@ components as well as the cross arcs.
                             {
                               NODE_COUNTER(p) = 0;
                               NODE_BITS(p).reset();
-                              low<GT>(p) = -1;
+                              NODE_COOKIE(p) = nullptr;
                             });
       gptr->reset_arcs();
+      copies_marked = false; // the bits were reset
 
       NODE_BITS(start).set_bit(Depth_First, true); // mark start
       df<GT>(start) = curr_df++;
 
-      int call_counter = 0; // recursion call counter
+      int call_counter = 0; // number of children of start
+      Dfs_Stack<Cut_Frame> frames;
 
       // Traverse arcs from start while the graph is not fully spanned
       for (Node_Arc_Iterator<GT, SA> it(start, sa);
@@ -247,7 +317,7 @@ components as well as the cross arcs.
             continue;
 
           ARC_BITS(arc).set_bit(Depth_First, true);
-          cut_nodes(tgt, arc);
+          cut_nodes(frames, tgt, arc);
           ++call_counter;
         }
 
@@ -261,6 +331,47 @@ components as well as the cross arcs.
     }
 
   private:
+    // The next arc of a node to look at, in the searches that only need it
+    struct Arc_Frame
+    {
+      Node_Arc_Iterator<GT, SA> it;
+
+      [[gnu::always_inline, gnu::flatten]]
+      Arc_Frame(typename GT::Node *p, SA &sa) : it(p, sa) {}
+
+      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    };
+
+    // Moves the iterator of f to the next arc that goes to a node that is
+    // not a cut node and was not painted, and paints both; gives that
+    // node, or nullptr when the arcs are done
+    [[gnu::always_inline, gnu::flatten]]
+    typename GT::Node *next_to_paint(Arc_Frame &f) noexcept
+    {
+      for (; f.it.has_curr(); f.it.next_ne())
+        {
+          auto arc = f.it.get_curr_ne();
+          if (is_arc_painted<GT>(arc))
+            continue;
+
+          auto tgt = f.it.get_tgt_node_ne();
+          if (is_a_cut_node<GT>(tgt))
+            continue;
+
+          paint_arc<GT>(arc, curr_color);
+          if (is_node_painted<GT>(tgt))
+            continue;
+
+          paint_node<GT>(tgt, curr_color);
+          return tgt;
+        }
+      return nullptr;
+    }
+
+    // Paints with curr_color the block of p, which is not a cut node. A
+    // path can have as many nodes as the graph, too many for recursion, so
+    // that the search keeps its own stack; the order of the visits is that
+    // of a recursion.
     void paint_subgraph(typename GT::Node *p)
     {
       assert(not is_a_cut_node <GT> (p));
@@ -270,18 +381,22 @@ components as well as the cross arcs.
 
       paint_node<GT>(p, curr_color);
 
-      for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+      Dfs_Stack<Arc_Frame> frames;
+      Arc_Frame *f = &frames.push(p, sa); // the top one
+      while (true)
         {
-          auto arc = it.get_curr();
-          if (is_arc_painted<GT>(arc))
-            continue;
+          if (auto tgt = next_to_paint(*f))
+            { // the iterator of f stays on the arc to tgt, as in a recursion
+              f = &frames.push(tgt, sa);
+              continue;
+            }
 
-          auto tgt = it.get_tgt_node();
-          if (is_a_cut_node<GT>(tgt))
-            continue;
+          frames.pop();
+          if (frames.is_empty())
+            return;
 
-          paint_arc<GT>(arc, curr_color);
-          paint_subgraph(tgt);
+          f = &frames.top();
+          f->next_arc();
         }
     }
 
@@ -325,28 +440,60 @@ components as well as the cross arcs.
 
       std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
       sg.insert_node(tp_auto.get());
+      NODE_COOKIE(gp) = nullptr; // else it would compose with a former copy
       GT::map_nodes(gp, tp_auto.get());
       NODE_BITS(gp).set_bit(Build_Subtree, true);
 
       return tp_auto.release();
     }
 
+    // A node of the block being copied that waits for the one that the
+    // copy goes to, its image, and the next arc of it to look at
+    struct Map_Frame
+    {
+      typename GT::Node *tsrc;
+      Node_Arc_Iterator<GT, SA> it;
+
+      [[gnu::always_inline, gnu::flatten]]
+      Map_Frame(typename GT::Node *gsrc, SA &sa)
+        : tsrc(mapped_node<GT>(gsrc)), it(gsrc, sa) {}
+
+      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    };
+
+    // Moves the iterator of f to the next arc of the color that was not
+    // copied, and gives it, or nullptr when the arcs are done
+    [[gnu::always_inline, gnu::flatten]]
+    typename GT::Arc *next_to_map(Map_Frame &f, const long & color) noexcept
+    {
+      for (; f.it.has_curr(); f.it.next_ne())
+        {
+          auto garc = f.it.get_curr_ne();
+          if (get_color<GT>(garc) != color or IS_ARC_VISITED(garc, Build_Subtree))
+            continue; // arc has a different color or was already visited
+
+          return garc;
+        }
+      return nullptr;
+    }
+
+    // Copies into sg, from gsrc, whose image is in sg, the arcs of the
+    // given color not copied yet, with the nodes that they reach; the
+    // search goes on from the target of each arc that it copies. A path
+    // can have as many nodes as the graph, too many for recursion, so that
+    // the search keeps its own stack; the order of the visits is that of a
+    // recursion.
     void map_subgraph(GT & sg, typename GT::Node *gsrc, const long & color)
     {
       assert(get_color <GT> (gsrc) == color);
 
-      auto tsrc = mapped_node<GT>(gsrc); // gsrc mapped into sg
-
-      // Traverse arcs of gsrc and insert into sg those with the requested color
-      for (Node_Arc_Iterator<GT, SA> i(gsrc, sa); i.has_curr(); i.next_ne())
+      // Copies garc, an arc of f.it, and gtgt, its target, if gtgt was not
+      // copied; gives the frame of gtgt
+      auto copy = [&](Map_Frame &f, typename GT::Arc *garc)
         {
-          auto garc = i.get_curr();
-          if (get_color<GT>(garc) != color or IS_ARC_VISITED(garc, Build_Subtree))
-            continue; // arc has a different color or was already visited
-
           ARC_BITS(garc).set_bit(Build_Subtree, true);
 
-          auto gtgt = i.get_tgt_node();
+          auto gtgt = f.it.get_tgt_node_ne();
 
           assert(get_color <GT> (gtgt) == color);
 
@@ -356,10 +503,41 @@ components as well as the cross arcs.
           else
             ttgt = create_and_map_node(gtgt, color, sg);
 
-          auto tarc = sg.insert_arc(tsrc, ttgt, garc->get_info());
+          auto tarc = sg.insert_arc(f.tsrc, ttgt, garc->get_info());
+          ARC_COOKIE(garc) = nullptr; // else it would compose with a former copy
           GT::map_arcs(garc, tarc);
+          return Map_Frame(gtgt, sa);
+        };
 
-          map_subgraph(sg, gtgt, color);
+      // The node being visited keeps its iterator in here until the copy
+      // goes on from a target of it; then it waits in frames, where it goes
+      // on when the copy comes back
+      Dfs_Stack<Map_Frame> frames;
+      Map_Frame here(gsrc, sa);
+      while (true)
+        {
+          if (auto garc = next_to_map(here, color))
+            { // the iterator stays on garc, as in a recursion
+              Map_Frame next = copy(here, garc);
+              frames.push(std::move(here));
+              here = std::move(next);
+              continue;
+            }
+
+          while (true) // back to the nodes that wait
+            {
+              if (frames.is_empty())
+                return;
+
+              Map_Frame &f = frames.top();
+              f.next_arc(); // past the arc that was copied
+              if (auto garc = next_to_map(f, color))
+                {
+                  here = copy(f, garc);
+                  break;
+                }
+              frames.pop();
+            }
         }
     }
 
@@ -466,14 +644,27 @@ components as well as the cross arcs.
 
       typename GT::Node *first = nullptr; // find the first node with the requested color
 
+      // A former copy of the color marked its nodes and its arcs with
+      // Build_Subtree, and some node of the color has the mark then
+      bool copied_before = false;
       for (typename GT::Node_Iterator it(*gptr); it.has_curr(); it.next_ne())
         if (get_color<GT>(it.get_curr()) == color)
-          first = it.get_curr();
+          {
+            first = it.get_curr();
+            copied_before = copied_before or IS_NODE_VISITED(first, Build_Subtree);
+          }
 
       if (first == nullptr) // did we find the color?
         {
           ah_domain_error_if(first == nullptr) << "Color does not exist in the graph";
         }
+
+      if (copied_before)
+        {
+          gptr->reset_bit_nodes(Build_Subtree);
+          gptr->reset_bit_arcs(Build_Subtree);
+        }
+      copies_marked = true;
 
       // create first, insert it into sg, and map it
       create_and_map_node(first, color, sg);
@@ -484,6 +675,7 @@ components as well as the cross arcs.
       catch (...)
         {
           clear_graph(sg);
+          throw;
         }
     }
 
@@ -522,6 +714,7 @@ components as well as the cross arcs.
 
           std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
           cut_graph.insert_node(tp_auto.get());
+          NODE_COOKIE(gp) = nullptr; // else it would compose with a former copy
           GT::map_nodes(gp, tp_auto.release());
         }
 
@@ -547,6 +740,7 @@ components as well as the cross arcs.
 
           typename GT::Arc *arc =
               cut_graph.insert_arc(src, tgt, garc->get_info());
+          ARC_COOKIE(garc) = nullptr; // else it would compose with a former copy
           GT::map_arcs(garc, arc);
         }
     }
@@ -560,6 +754,12 @@ components as well as the cross arcs.
 
         If you need all mapped blocks and the cut graph, using this routine is
         more efficient than calling map_subgraph() and map_cut_graph() separately.
+
+        The block of color c is the c-th of block_list. Without cut nodes,
+        the graph is a single block, the only one of the list, and the cut
+        graph is empty. The nodes that the computation of the cut nodes did
+        not reach, which are in other components of the graph, are in no
+        block.
 
         \param[out] block_list list of graphs where mapped copies of connected
         components will be stored.
@@ -577,16 +777,24 @@ components as well as the cross arcs.
       if (state == Cut_Nodes_Computed)
         paint_subgraphs();
 
-      // curr_color is the NEXT unused color, so valid colors are 1 .. curr_color-1.
-      // We allocate curr_color slots (indices 0 .. curr_color-1) so that
-      // block at color c lives at blocks[c-1]; slot [0] remains unused / empty.
-      const long & num_colors = curr_color;
+      if (copies_marked) // by a former copy
+        {
+          gptr->reset_bit_nodes(Build_Subtree);
+          gptr->reset_bit_arcs(Build_Subtree);
+        }
+      copies_marked = true;
+
+      // curr_color is the next unused color, so the colors of the blocks
+      // go from 1 to curr_color - 1, and the block of color c is the
+      // (c - 1)-th. Without cut nodes nothing was painted: the graph is one
+      // block, whose nodes and arcs have color 0.
+      const long num_blocks = curr_color > 1 ? curr_color - 1 : 1;
 
       DynArray<GT *> blocks; // blocks in an array for fast access
-      blocks.reserve(num_colors);
+      blocks.reserve(num_blocks);
 
       // Create an ordered list of empty components by color i
-      for (int i = 0; i < num_colors; ++i)
+      for (long i = 0; i < num_blocks; ++i)
         blocks.access(i) = &block_list.append(GT());
 
       // Traverse nodes and copy/map according to color
@@ -599,9 +807,12 @@ components as well as the cross arcs.
           if (is_a_cut_node<GT>(p))
             continue;
 
+          if (not IS_NODE_VISITED(p, Depth_First))
+            continue; // in a component that cut_nodes() did not reach
+
           const long color = get_color<GT>(p);
 
-          GT & sg = *blocks.access(color - 1);
+          GT & sg = *blocks.access(color == 0 ? 0 : color - 1);
 
           create_and_map_node(p, color, sg);
 
@@ -658,25 +869,44 @@ components as well as the cross arcs.
     SA sa;
     GT *gptr;
 
-    void __dfs(typename GT::Node *p, typename GT::Arc *parent_arc,
-               long & curr_df, DynList<typename GT::Arc *> & bridges)
+    // A node that waits for the one that it visits, the arc through which
+    // it was visited, and the next arc of it to look at
+    struct Frame
     {
-      NODE_BITS(p).set_bit(Depth_First, true);
-      low<GT>(p) = df<GT>(p) = curr_df++;
+      typename GT::Node *p;
+      typename GT::Arc *parent_arc;
+      Node_Arc_Iterator<GT, SA> it;
 
-      for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+      [[gnu::always_inline, gnu::flatten]]
+      Frame(typename GT::Node *n, typename GT::Arc *a, SA &sa)
+        : p(n), parent_arc(a), it(n, sa) {}
+
+      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    };
+
+    // Moves the iterator of f to the next arc of f.p that goes to a node
+    // not visited, which it marks, and gives that node, or nullptr when the
+    // arcs of f.p are done. The back-edges lower low(f.p), which is stored
+    // once: a store in the loop could be to the iterator, which would have
+    // to be read again.
+    [[gnu::always_inline, gnu::flatten]]
+    typename GT::Node *next_child(Frame &f) noexcept
+    {
+      long p_low = low<GT>(f.p);
+      typename GT::Node *child = nullptr;
+      for (; f.it.has_curr(); f.it.next_ne())
         {
-          auto arc = it.get_curr();
-          if (arc == parent_arc)
+          auto arc = f.it.get_curr_ne();
+          if (arc == f.parent_arc)
             continue; // skip the arc we came from
 
-          auto tgt = it.get_tgt_node();
+          auto tgt = f.it.get_tgt_node_ne();
 
           if (IS_NODE_VISITED(tgt, Depth_First))
             {
               // Back-edge: update low if this arc has not been traversed yet
               if (not IS_ARC_VISITED(arc, Depth_First))
-                low<GT>(p) = std::min(df<GT>(tgt), low<GT>(p));
+                p_low = std::min(df<GT>(tgt), p_low);
               continue;
             }
 
@@ -684,13 +914,50 @@ components as well as the cross arcs.
             continue;
 
           ARC_BITS(arc).set_bit(Depth_First, true); // mark tree arc
+          child = tgt;
+          break;
+        }
+      low<GT>(f.p) = p_low;
+      return child;
+    }
 
-          __dfs(tgt, arc, curr_df, bridges);
+    // Depth-first search from p that appends to bridges those below p. A
+    // path can have as many nodes as the graph, too many for recursion, so
+    // that the search keeps its own stack; the order of the visits is that
+    // of a recursion.
+    void __dfs(Dfs_Stack<Frame> & frames, typename GT::Node *p,
+               long & curr_df, DynList<typename GT::Arc *> & bridges)
+    {
+      auto visit = [&frames, &curr_df, this](typename GT::Node *n,
+                                             typename GT::Arc *a)
+        {
+          NODE_BITS(n).set_bit(Depth_First, true);
+          low<GT>(n) = df<GT>(n) = curr_df++;
+          return &frames.push(n, a, sa);
+        };
 
-          low<GT>(p) = std::min(low<GT>(tgt), low<GT>(p));
+      Frame *f = visit(p, nullptr); // the top one
+      while (true)
+        {
+          if (auto tgt = next_child(*f))
+            { // the iterator of f stays on the arc to tgt, as in a recursion
+              f = visit(tgt, f->it.get_curr_ne());
+              continue;
+            }
 
-          if (low<GT>(tgt) > df<GT>(p)) // bridge condition
+          auto child = f->p;
+          auto arc = f->parent_arc;
+          frames.pop();
+          if (frames.is_empty())
+            return;
+
+          f = &frames.top(); // the node from which child was visited
+          low<GT>(f->p) = std::min(low<GT>(child), low<GT>(f->p));
+
+          if (low<GT>(child) > df<GT>(f->p)) // bridge condition
             bridges.append(arc);
+
+          f->next_arc(); // past the arc to child
         }
     }
 
@@ -739,13 +1006,14 @@ components as well as the cross arcs.
       gptr->reset_arcs();
 
       long curr_df = 0;
-      __dfs(start, nullptr, curr_df, bridges);
+      Dfs_Stack<Frame> frames;
+      __dfs(frames, start, curr_df, bridges);
 
       // Cover disconnected components: any node not reached from start.
       gptr->for_each_node([&](auto p)
                             {
                               if (not IS_NODE_VISITED(p, Depth_First))
-                                __dfs(p, nullptr, curr_df, bridges);
+                                __dfs(frames, p, curr_df, bridges);
                             });
 
       // NODE_COOKIE holds low-link values (stored as longs); clear them.

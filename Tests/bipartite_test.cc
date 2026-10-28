@@ -463,8 +463,8 @@ TEST(Bipartite, GraphWithOddCycleAttached)
 // Disconnected Graph Tests
 // ============================================================================
 
-// Note: These tests document the expected behavior.
-// The current implementation may not handle disconnected graphs correctly.
+// compute_bipartite() colored only the component of the first node, so the
+// nodes of the others were in neither set
 
 TEST(Bipartite, TwoDisconnectedNodes)
 {
@@ -475,12 +475,11 @@ TEST(Bipartite, TwoDisconnectedNodes)
 
   DynDlist<Graph::Node *> l, r;
 
-  // Two isolated nodes should be bipartite
-  // Current implementation only processes first node's component
   compute_bipartite<Graph>(g, l, r);
 
-  // At minimum, should process one node without crashing
-  EXPECT_GE(l.size() + r.size(), 1u);
+  // Each one is the first node of its component
+  EXPECT_EQ(l.size(), 2u);
+  EXPECT_EQ(r.size(), 0u);
 }
 
 TEST(Bipartite, DisconnectedBipartiteComponents)
@@ -491,10 +490,8 @@ TEST(Bipartite, DisconnectedBipartiteComponents)
 
   compute_bipartite<Graph>(g, l, r);
 
-  // Should process at least the first component
-  EXPECT_GE(l.size() + r.size(), 2u);
-
-  // Verify what was partitioned is correct
+  EXPECT_EQ(l.size(), 2u);
+  EXPECT_EQ(r.size(), 2u);
   EXPECT_TRUE(verify_bipartition(g, l, r));
 }
 
@@ -801,8 +798,58 @@ TEST(Bipartite, IsolatedNodeWithBipartiteComponent)
 
   compute_bipartite<Graph>(g, l, r);
 
-  // At least the connected component should be processed
-  EXPECT_GE(l.size() + r.size(), 2u);
+  EXPECT_EQ(l.size(), 2u); // the isolated node too
+  EXPECT_EQ(r.size(), 1u);
+  EXPECT_TRUE(verify_bipartition(g, l, r));
+}
+
+// The matching built its network with the nodes of the component of the
+// first node only; the others, with no arcs in the network, were sources
+// and sinks of it, and the maximum flow threw domain_error
+TEST(MaximumMatching, DisconnectedComponents)
+{
+  Graph g;
+  auto * a1 = g.insert_node(1);
+  auto * b1 = g.insert_node(2);
+  g.insert_arc(a1, b1);
+  auto * a2 = g.insert_node(3);
+  auto * b2 = g.insert_node(4);
+  g.insert_arc(a2, b2);
+  auto * a3 = g.insert_node(5);
+  auto * b3 = g.insert_node(6);
+  auto * b4 = g.insert_node(7);
+  g.insert_arc(a3, b3);
+  g.insert_arc(a3, b4);
+
+  DynDlist<Graph::Arc *> matching;
+  compute_maximum_cardinality_bipartite_matching<Graph>(g, matching);
+  EXPECT_EQ(matching.size(), 3u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+// A node without arcs would also be a source and a sink of the network
+TEST(MaximumMatching, NodesWithoutArcs)
+{
+  Graph g;
+  g.insert_node(0);
+  auto * a = g.insert_node(1);
+  auto * b = g.insert_node(2);
+  g.insert_node(3);
+  auto * c = g.insert_node(4);
+  g.insert_arc(a, b);
+  g.insert_arc(b, c);
+
+  DynDlist<Graph::Arc *> matching;
+  compute_maximum_cardinality_bipartite_matching<Graph>(g, matching);
+  EXPECT_EQ(matching.size(), 1u);
+  EXPECT_TRUE(verify_matching(g, matching));
+
+  Graph lonely;
+  lonely.insert_node(0);
+  lonely.insert_node(1);
+  DynDlist<Graph::Arc *> none;
+  compute_maximum_cardinality_bipartite_matching<Graph>(lonely, none);
+  EXPECT_TRUE(none.is_empty());
 }
 
 // ============================================================================

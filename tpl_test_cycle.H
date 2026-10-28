@@ -41,6 +41,7 @@
 
 # include <ah-graph-concepts.H>
 
+# include <tpl_dfs_stack.H>
 # include <tpl_graph.H>
 # include <ah-errors.H>
 
@@ -61,7 +62,7 @@ namespace Aleph {
  *
  * The algorithm uses depth-first traversal with the following logic:
  * 1. Mark all outgoing arcs from the source node
- * 2. For each unmarked adjacent node, recursively explore its paths
+ * 2. For each unmarked adjacent node, explore its paths in depth
  * 3. If any path returns to the source node, a cycle is detected
  * 4. Uses the `Test_Cycle` control bit to mark visited nodes and arcs
  *
@@ -69,7 +70,9 @@ namespace Aleph {
  *
  * - **Time:** O(V + E) where V is the number of nodes and E is the number
  *   of arcs reachable from the source node.
- * - **Space:** O(V) for the recursion stack in the worst case.
+ * - **Space:** O(V) for the stack of the search in the worst case; the
+ *   search does not recurse, so that a long path does not overflow the
+ *   call stack.
  *
  * ## Usage example:
  *
@@ -111,7 +114,10 @@ class Test_For_Cycle
   mutable typename GT::Node * src = nullptr;
   SA sa;
 
-  // Recursive DFS helper to detect if a path from curr returns to src
+  // DFS helper to detect if a path from curr returns to src. A path can
+  // have as many nodes as the graph, too many for recursion, so that the
+  // search keeps its own stack; the order of the visits is that of a
+  // recursion.
   bool test_cycle(typename GT::Node * curr) const
   {
     // Base case: found a path back to source -> cycle detected
@@ -125,25 +131,44 @@ class Test_For_Cycle
     // Mark current node as visited
     NODE_BITS(curr).set_bit(Test_Cycle, true);
 
-    // Explore all outgoing arcs from current node
-    for (Node_Arc_Iterator<GT, SA> it(curr, sa); it.has_curr(); it.next_ne())
+    // Explore the arcs not visited, which it marks. The node being visited
+    // keeps its iterator in here until it visits a node; then it waits in
+    // frames, where it goes on when it comes back.
+    using Frame = Dfs_Arc_Frame<Node_Arc_Iterator<GT, SA>>;
+    Dfs_Stack<Frame> frames;
+    Frame here(curr, sa);
+    while (true)
       {
-        typename GT::Arc * arc = it.get_current_arc_ne();
-        
-        // Skip already-visited arcs to avoid infinite loops
-        if (IS_ARC_VISITED(arc, Test_Cycle)) 
-          continue;
+        if (auto tgt = here.template next_target<Test_Cycle>(src))
+          { // the iterator stays on the arc to tgt, as in a recursion
+            if (tgt == src)
+              return true;
 
-        // Mark arc as visited
-        ARC_BITS(arc).set_bit(Test_Cycle, true);
+            NODE_BITS(tgt).set_bit(Test_Cycle, true);
+            frames.push(std::move(here));
+            here = Frame(tgt, sa);
+            continue;
+          }
 
-        // Recursively check if target node leads to a cycle
-        if (test_cycle(it.get_tgt_node()))
-          return true;
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return false; // all paths from curr explored without finding src
+
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.template next_target<Test_Cycle>(src))
+              {
+                if (tgt == src)
+                  return true;
+
+                NODE_BITS(tgt).set_bit(Test_Cycle, true);
+                here = Frame(tgt, sa);
+                break;
+              }
+            frames.pop();
+          }
       }
-
-    // All paths from curr explored without finding src -> no cycle
-    return false; 
   }  
 
   // Main algorithm entry point
@@ -208,8 +233,8 @@ public:
    * @note The algorithm uses the `Test_Cycle` control bit on both nodes and
    *       arcs. These bits are reset at the beginning of the algorithm.
    *
-   * @warning For large graphs, the recursion depth can be significant.
-   *          Ensure adequate stack space is available.
+   * @note The search does not recurse, so that a path as long as the
+   *       graph does not overflow the call stack.
    */
   bool operator () (const GT & g, typename GT::Node * src_node) const
   {

@@ -86,6 +86,7 @@
 # include <ah-graph-concepts.H>
 # include <generate_tree.H>
 # include <htlist.H>
+# include <tpl_dfs_stack.H>
 # include <tpl_dynMapTree.H>
 # include <tpl_graph.H>
 # include <tpl_tree_node.H>
@@ -210,33 +211,75 @@ namespace Aleph
         return tp;
       }
 
-      // Traverse from p, whose tree node is tp, reached through tree_arc
-      void visit(Node * p, Df_Low_Tree_Node * tp, Arc * tree_arc)
+      // A node whose arcs the traversal goes through: the graph node, its
+      // tree node, the arc through which it was reached, and the next arc
+      // to look at
+      struct Frame
       {
-        Df_Low_Key & key = tp->get_key();
-        for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-          {
-            Arc * a = it.get_curr();
-            if (a == tree_arc)
-              continue;
+        Node * p;
+        Df_Low_Tree_Node * tp;
+        Arc * tree_arc;
+        Node_Arc_Iterator<GT, SA> it;
 
-            Node * t = it.get_tgt_node();
-            if (auto pair = tree_nodes.search(t); pair != nullptr)
-              { // a visited t is an ancestor of p, a descendant or p itself
-                Df_Low_Tree_Node * tt = pair->second;
-                if (tt->get_key().df < key.df)
-                  {
-                    key.low = std::min(key.low, tt->get_key().df);
-                    non_tree_arcs.append(Df_Low_Non_Tree_Arc(tp, tt));
+        Frame(Node * n, Df_Low_Tree_Node * t, Arc * a, SA & filter)
+          : p(n), tp(t), tree_arc(a), it(n, filter) {}
+      };
+
+      // Traverse from src, whose tree node is root. A path can have as many
+      // nodes as the graph, too many for recursion, so that the traversal
+      // keeps its own stack; the order of the visits is that of a
+      // recursion.
+      void visit(Node * src, Df_Low_Tree_Node * root)
+      {
+        Dfs_Stack<Frame> frames;
+        frames.push(src, root, nullptr, sa);
+        while (true)
+          {
+            Frame & f = frames.top();
+            Df_Low_Key & key = f.tp->get_key();
+            Node * next = nullptr;
+            for (; f.it.has_curr(); f.it.next_ne())
+              {
+                Arc * a = f.it.get_curr();
+                if (a == f.tree_arc)
+                  continue;
+
+                Node * t = f.it.get_tgt_node();
+                if (auto pair = tree_nodes.search(t); pair != nullptr)
+                  { // a visited t is an ancestor of p, a descendant or p itself
+                    Df_Low_Tree_Node * tt = pair->second;
+                    if (tt->get_key().df < key.df)
+                      {
+                        key.low = std::min(key.low, tt->get_key().df);
+                        non_tree_arcs.append(Df_Low_Non_Tree_Arc(f.tp, tt));
+                      }
+                    continue;
                   }
+
+                next = t; // the iterator stays on the arc, as in a recursion
+                break;
+              }
+
+            if (next != nullptr)
+              {
+                // a child is linked while it is still a leaf, as Tree_Node
+                // needs
+                Df_Low_Tree_Node * child = new_tree_node(next);
+                f.tp->insert_rightmost_child(child);
+                frames.push(next, child, f.it.get_curr(), sa); // f may move
                 continue;
               }
 
-            // a child is linked while it is still a leaf, as Tree_Node needs
-            Df_Low_Tree_Node * child = new_tree_node(t);
-            tp->insert_rightmost_child(child);
-            visit(t, child, a);
-            key.low = std::min(key.low, child->get_key().low);
+            // the arcs of f.p are done: back to the node that reached it
+            const long low = key.low;
+            frames.pop();
+            if (frames.is_empty())
+              return;
+
+            Frame & parent = frames.top();
+            Df_Low_Key & parent_key = parent.tp->get_key();
+            parent_key.low = std::min(parent_key.low, low);
+            parent.it.next_ne(); // past the arc to the child
           }
       }
 
@@ -256,7 +299,7 @@ namespace Aleph
         try
           {
             Df_Low_Tree_Node * root = new_tree_node(src);
-            visit(src, root, nullptr);
+            visit(src, root);
             root->get_key().low = -1; // as Compute_Cut_Nodes leaves it
             return root;
           }
@@ -331,7 +374,8 @@ namespace Aleph
    *  empty.
    *
    *  @note O((V + E) log V) time for the V nodes and E arcs that @p src
-   *        reaches. The traversal is recursive, as deep as the tree.
+   *        reaches. The traversal does not recurse, so that the tree can
+   *        be as deep as the graph has nodes.
    *
    *  @ingroup Graphs
    */
@@ -380,8 +424,6 @@ namespace Aleph
    *
    *  @throw std::domain_error if @p g is a digraph
    *  @throw std::invalid_argument if @p src is null
-   *  @throw std::overflow_error if the tree has more than
-   *         Max_Tree_Node_Depth levels, more than generate_tree() can write
    *  @throw std::bad_alloc if there is not enough memory
    *
    *  On an exception, @p out may hold part of the picture.

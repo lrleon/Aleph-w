@@ -56,6 +56,7 @@
 #include <tpl_dynListStack.H>
 #include <tpl_dynListQueue.H>
 #include <tpl_binNode.H>
+#include <tpl_dfs_stack.H>
 #include <ah-errors.H>
 
 #define ISROOT(p) ((p)->is_root())
@@ -71,6 +72,14 @@
 #define IS_UNIQUE_SIBLING(p) (SIBLING_LIST(p)->is_empty())
 
 namespace Aleph {
+
+namespace tree_node_detail
+{
+  /// Frees a tree that has no parent nor siblings, without recursion; it
+  /// finds the nodes by their sibling links (see destroy_tree()).
+  template <class Node>
+  void free_detached_tree(Node *root) noexcept;
+}
 
 /// Forward declaration used by CRTP helpers before the full node definition.
 template <class T>
@@ -129,6 +138,10 @@ class Tree_Node : public FunctionalMixin<Tree_Node<T>, Tree_Node<T> *>
 
   LINKNAME_TO_TYPE(Tree_Node, child);
   LINKNAME_TO_TYPE(Tree_Node, sibling);
+
+  // It finds the nodes of a tree by their sibling links
+  template <class Node>
+  friend void tree_node_detail::free_detached_tree(Node *root) noexcept;
 
   Tree_Node *upper_link() const noexcept
   {
@@ -350,13 +363,21 @@ public:
     return c;
   }
 
-  /// Returns the parent of this.
+  /** Returns the parent of this.
+
+      The first child gives the parent. It is reached by the left
+      siblings, or at once from the last child, since the siblings make a
+      circle.
+  */
   Tree_Node *get_parent() const noexcept
   {
     if (is_root())
       return nullptr;
 
     auto *p = const_cast<Tree_Node *>(this);
+    if (ISRIGHTMOST(p)) // the circle of siblings goes back to the first one
+      p = p->right_link();
+
     while (not ISLEFTMOST(p))  // go down to the leftmost node
       p = p->left_link();
 
@@ -666,21 +687,44 @@ public:
   }
 
 private:
+  // Visits root and the nodes below it in preorder while op gives true;
+  // false if op gave false. op takes a Tree_Node *, as the operations of
+  // FunctionalMixin give it. A path can be as long as the tree is deep,
+  // too long for recursion: the next node is found through the links.
   template <class Operation>
   static bool preorder(const Tree_Node *root, Operation &op)
   {
     if (root == nullptr)
       return true;
 
-    if (not op(root))
-      return false;
+    auto *p = const_cast<Tree_Node *>(root);
+    if (p->is_leaf())
+      return op(p);
 
-    for (Tree_Node *child = root->get_left_child(); child != nullptr;
-         child = child->get_right_sibling())
-      if (not preorder(child, op))
-        return false;
+    while (true)
+      {
+        if (not op(p))
+          return false;
 
-    return true;
+        while (not p->is_leaf()) // down the first children, which go first
+          {
+            p = p->lower_link();
+            if (not op(p))
+              return false;
+          }
+
+        // the right sibling of p, or of its lowest ancestor below root
+        // that has one; the first sibling, to which the circle of the
+        // siblings of the last one goes back, gives the parent
+        while (p->is_rightmost())
+          {
+            p = p->right_link()->upper_link();
+            if (p == root)
+              return true;
+          }
+
+        p = p->right_link();
+      }
   }
 
 public:
@@ -927,39 +971,131 @@ struct Tree_Node_Vtl : public Tree_Node<T>
   virtual ~Tree_Node_Vtl() = default;
 };
 
+/** Copies the subtrees of the children of src as children of tgt.
+
+    The children of a node are copied before the subtree of its first
+    child, and the pairs of nodes go in preorder, as a recursion would take
+    them. A path can be as long as the tree is deep, too long for
+    recursion: the parent of a node is found through its left siblings and
+    its first child.
+
+    @param[in] src node whose subtrees are copied.
+    @param[in] tgt node, without children, that takes the copies.
+    @throw bad_alloc if there is not enough memory; anything that the copy
+    of a key throws. Then tgt keeps the copies made so far.
+    @ingroup Trees
+*/
 template <class Node>
 static inline void clone_tree(Node *src, Node *tgt)
 {
-  using It = typename Node::Children_Iterator;
-  for (It it(src); it.has_curr(); it.next_ne())
-    tgt->insert_rightmost_child(new Node(it.get_curr()->get_key()));
-
-  using PItor = Pair_Iterator<It>;
-  for (PItor itor{It(*src), It(*tgt)}; itor.has_curr(); itor.next_ne())
+  Node *s = src, *t = tgt;
+  while (true)
     {
-      auto p = itor.get_curr();
-      clone_tree(p.first, p.second);
+      for (Node *c = s->get_left_child(); c != nullptr; c = c->get_right_sibling())
+        t->insert_rightmost_child(new Node(c->get_key()));
+
+      if (Node *child = s->get_left_child()) // its subtree goes first
+        {
+          s = child;
+          t = t->get_left_child();
+          continue;
+        }
+
+      // the right sibling of s, or of its lowest ancestor below src that
+      // has one
+      while (s != src and s->is_rightmost())
+        {
+          s = s->get_parent();
+          t = t->get_parent();
+        }
+
+      if (s == src)
+        return;
+
+      s = s->get_right_sibling();
+      t = t->get_right_sibling();
     }
 }
 
+/** Returns a copy of the tree rooted at root.
+
+    @param[in] root root of the tree to copy; it may be nullptr.
+    @return the root of the copy; nullptr if root is nullptr.
+    @throw bad_alloc if there is not enough memory; anything that the copy
+    of a key throws. Then nothing is left of the copy.
+    @ingroup Trees
+*/
 template <class Node>
 Node *clone_tree(Node *root)
 {
   if (root == nullptr)
     return nullptr;
+
   Node *ret = new Node(root->get_key());
-  clone_tree(root, ret);
+  try
+    {
+      clone_tree(root, ret);
+    }
+  catch (...)
+    {
+      destroy_tree(ret);
+      throw;
+    }
+
   return ret;
 }
 
+namespace tree_node_detail
+{
+  /// A node of a path that a traversal follows, and its position among
+  /// its siblings
+  template <class Node>
+  struct Position
+  {
+    Node *node; ///< The node
+    int index;  ///< Its position among its siblings
+  };
+} // namespace tree_node_detail
+
+// Visits root and the nodes below it in preorder, as a recursion would.
+// The ancestors of the visited node below root wait in a stack, with their
+// positions: a path can be as long as the tree is deep, too long for
+// recursion.
 template <class Node>
 static inline void __tree_preorder_traversal(Node *root, const int &level, const int &child_index,
                                              void (*visitFct)(Node *, int, int))
 {
-  (*visitFct)(root, level, child_index);
-  Node *child = root->get_left_child();
-  for (int i = 0; child != nullptr; ++i, child = child->get_right_sibling())
-    __tree_preorder_traversal(child, level + 1, i, visitFct);
+  Dfs_Stack<tree_node_detail::Position<Node>> path;
+  Node *p = root;
+  int depth = level, pos = child_index;
+  while (true)
+    {
+      (*visitFct)(p, depth, pos);
+      if (Node *child = p->get_left_child()) // its children go first
+        {
+          path.push(tree_node_detail::Position<Node>{p, pos});
+          p = child;
+          ++depth;
+          pos = 0;
+          continue;
+        }
+
+      // the right sibling of p, or of its lowest ancestor below root that
+      // has one
+      while (p != root and p->is_rightmost())
+        {
+          p = path.top().node;
+          pos = path.top().index;
+          path.pop();
+          --depth;
+        }
+
+      if (p == root)
+        return;
+
+      p = p->get_right_sibling();
+      ++pos;
+    }
 }
 
 /** Preorder traversal of a tree.
@@ -1026,16 +1162,47 @@ inline void forest_preorder_traversal(Node *root, void (*visitFct)(Node *, int, 
     }
 }
 
+// Visits node and the nodes below it in postorder, as a recursion would.
+// The ancestors of the visited node below node wait in a stack, with their
+// positions: a path can be as long as the tree is deep, too long for
+// recursion.
 template <class Node>
 static inline void __tree_postorder_traversal(Node *node, const int &level, const int &child_index,
                                               void (*visitFct)(Node *, int, int))
 {
-  Node *child = node->get_left_child();
+  Dfs_Stack<tree_node_detail::Position<Node>> path;
+  Node *p = node;
+  int depth = level, pos = child_index;
+  while (true)
+    {
+      // down to the first leaf below p, whose visit goes first
+      for (Node *child = p->get_left_child(); child != nullptr; child = p->get_left_child())
+        {
+          path.push(tree_node_detail::Position<Node>{p, pos});
+          p = child;
+          ++depth;
+          pos = 0;
+        }
 
-  for (int i = 0; child not_eq nullptr; i++, child = child->get_right_sibling())
-    __tree_postorder_traversal(child, level + 1, i, visitFct);
+      while (true)
+        {
+          (*visitFct)(p, depth, pos);
+          if (p == node)
+            return;
 
-  (*visitFct)(node, level, child_index);
+          if (not p->is_rightmost()) // the subtree of its right sibling
+            break;
+
+          // the last child: its parent goes next
+          p = path.top().node;
+          pos = path.top().index;
+          path.pop();
+          --depth;
+        }
+
+      p = p->get_right_sibling();
+      ++pos;
+    }
 }
 
 /** Postorder traversal of a tree.
@@ -1102,8 +1269,20 @@ inline void forest_postorder_traversal(Node *root, void (*visitFct)(Node *, int,
     }
 }
 
-/** Returns true if t1 is equal to t2
+/** Returns true if t1 is equal to t2.
 
+    The trees are equal if they have the same shape and eq takes as equal
+    the keys of their nodes at the same places. The nodes go in preorder,
+    as a recursion would take them: the keys of two nodes are compared
+    before their numbers of children, and these before their subtrees. A
+    path can be as long as the tree is deep, too long for recursion: the
+    parent of a node is found through its left siblings and its first child.
+
+    @param[in] t1 root of a tree; it may be nullptr.
+    @param[in] t2 root of the other tree; it may be nullptr.
+    @param[in] eq comparison of two keys.
+    @return true if the trees are equal; two empty trees are.
+    @throw anything that eq throws.
     @ingroup Trees
 */
 template <class Node, class Eq>
@@ -1115,20 +1294,42 @@ inline bool are_tree_equal(Node *t1, Node *t2, Eq &eq)
   if (t2 == nullptr)
     return false;
 
-  if (not eq(t1->get_key(), t2->get_key()))
-    return false;
+  Node *p = t1, *q = t2;
+  while (true)
+    {
+      if (not eq(p->get_key(), q->get_key()))
+        return false;
 
-  try
-    {
-      return zipEq(t1->children_nodes(), t2->children_nodes())
-        .all([&eq](auto p)
+      Node *a = p->get_left_child(), *b = q->get_left_child();
+      while (a != nullptr and b != nullptr) // as many children
         {
-          return are_tree_equal(p.first, p.second, eq);
-        });
-    }
-  catch (const std::length_error &)
-    {
-      return false;
+          a = a->get_right_sibling();
+          b = b->get_right_sibling();
+        }
+
+      if (a != b)
+        return false;
+
+      if (Node *child = p->get_left_child()) // their subtrees go first
+        {
+          p = child;
+          q = q->get_left_child();
+          continue;
+        }
+
+      // the right siblings of p and q, or of their lowest ancestors that
+      // have them
+      while (p != t1 and p->is_rightmost())
+        {
+          p = p->get_parent();
+          q = q->get_parent();
+        }
+
+      if (p == t1)
+        return true;
+
+      p = p->get_right_sibling();
+      q = q->get_right_sibling();
     }
 }
 
@@ -1138,10 +1339,88 @@ inline bool are_tree_equal(Node *t1, Node *t2, Eq &&eq = Eq())
   return are_tree_equal<Node, Eq>(t1, t2, eq);
 }
 
+namespace tree_node_detail
+{
+  /* Frees root and every node below it. root has no parent nor siblings,
+     and the nodes below it are not linked with others: the links among
+     them, which are left as they are, need not keep the invariants of the
+     class while they go. The roots of the subtrees that wait to go are kept
+     in a list, by their sibling links: when a node goes, its children,
+     which a circle of sibling links already joins, join the list as a
+     whole. */
+  template <class Node>
+  void free_detached_tree(Node *root) noexcept
+  {
+    using Base = Tree_Node<typename Node::key_type>;
+
+    Dlink pending;
+    pending.append(SIBLING_LIST(root));
+    while (not pending.is_empty())
+      {
+        auto *p = static_cast<Node *>(Base::sibling_to_Tree_Node(pending.remove_next()));
+        if (not p->is_leaf())
+          {
+            Dlink children; // the header of the circle of the children of p
+            children.wrap_header(SIBLING_LIST(p->get_left_child()));
+            pending.concat_list(children);
+          }
+        delete p;
+      }
+  }
+
+  /* Takes root, with the nodes below it, out of its tree, or out of its
+     forest if root is a tree of one: what is left is as if root had not
+     been inserted. If root is the leftmost child, its right sibling takes
+     its place, and the spine of that sibling goes below the parent (see
+     the class-level note); if root is the only child, the parent becomes
+     a leaf. */
+  template <class Node>
+  void detach_tree(Node *root) noexcept
+  {
+    if (not root->is_root() and root->is_leftmost())
+      {
+        // root and its leftmost descendants leave the spine of the parent:
+        // they are from root to the leaf at the bottom of the spine
+        auto *parent = root->get_parent();
+        Node *leaf = root;
+        while (not leaf->is_leaf())
+          leaf = static_cast<Node *>(leaf->get_left_child());
+
+        Dlink *top = CHILD_LIST(leaf)->get_next(); // of the spine of parent
+        Dlink below = top->cut_list(CHILD_LIST(root));
+        below.del();
+
+        if (IS_UNIQUE_SIBLING(root))
+          parent->set_is_leaf(true);
+        else
+          {
+            auto *next = root->get_right_sibling();
+            next->set_is_leftmost(true);
+            CHILD_LIST(parent)->splice(CHILD_LIST(next));
+            SIBLING_LIST(root)->del();
+          }
+      }
+    else if (not IS_UNIQUE_SIBLING(root))
+      {
+        // a sibling that is not the leftmost child, or a tree of a forest
+        if (root->is_rightmost())
+          root->get_left_sibling()->set_is_rightmost(true);
+        if (root->is_leftmost())
+          root->get_right_sibling()->set_is_leftmost(true);
+        SIBLING_LIST(root)->del();
+      }
+  }
+} // namespace tree_node_detail
+
 /** Destroys (frees memory) the tree whose root is root.
 
     destroy_tree(root) frees all the memory occupied by the
-    tree whose root is root.
+    tree whose root is root. If root has a parent, the tree of the parent
+    is left as if root had not been inserted in it; if root is a tree of
+    a forest, it leaves the forest.
+
+    The nodes are freed without recursion and without memory, so that the
+    depth of the tree does not matter.
 
     @param[in] root root of the tree to be freed.
     @ingroup Trees
@@ -1152,74 +1431,8 @@ inline void destroy_tree(Node *root)
   if (root == nullptr)
     return;
 
-  // If `root` is the leftmost child of a live parent, its `child` field is
-  // spine-linked to that parent (see the class-level note on the shared
-  // spine trick): removing `root` must hand that spine slot to its right
-  // sibling, promoted below to the new leftmost child. Captured before the
-  // sibling list is touched; only usable once `root`'s own children have
-  // been recursively destroyed (see below), so it is applied at the
-  // `CHILD_LIST` cleanup near the end of this function, not here.
-  Node *promoted_leftmost = nullptr;
-
-  if (not IS_UNIQUE_SIBLING(root))
-    {
-      // `root` is about to be unlinked from its sibling list. If it was an
-      // extremal sibling, the neighbor taking its place must inherit the
-      // corresponding flag -- otherwise that neighbor is left with
-      // is_rightmost()/is_leftmost() == false while actually being the new
-      // extremum, so get_right_sibling()/get_left_sibling() no longer
-      // short-circuit to nullptr and instead wrap around the remaining
-      // circular sibling list, corrupting any get_right_sibling()-based
-      // traversal (for_each_child(), Children_Iterator, ...) into an
-      // infinite loop.
-      if (root->is_rightmost())
-        if (auto *new_last = root->get_left_sibling(); new_last != nullptr)
-          new_last->set_is_rightmost(true);
-
-      if (root->is_leftmost())
-        if (auto *new_first = root->get_right_sibling(); new_first != nullptr)
-          {
-            new_first->set_is_leftmost(true);
-            // Only a child-of-a-parent's `child` field is spine-linked (a
-            // top-level forest tree's `child` field is purely private, no
-            // spine to hand over), and only when the promoted sibling is
-            // itself a leaf can that hand-over be done with a single
-            // Dlink::swap(): when the promoted sibling already has its own
-            // children, its `child` field is already the head of its own
-            // (unrelated) spine, and swap() would splice root's parent
-            // directly to that spine's *other* end, orphaning the
-            // promoted sibling's real children -- a separate, deeper,
-            // pre-existing gap in destroy_tree() (reproducible even
-            // without this fix: destroying any node that has its own
-            // children while its parent survives already corrupts the
-            // parent's child spine). Left as a known gap, tracked
-            // separately, rather than risking new corruption here.
-            if (not root->is_root() and new_first->is_leaf())
-              promoted_leftmost = static_cast<Node *>(new_first);
-          }
-
-      SIBLING_LIST(root)->del();  // no ==> remove from sibling list
-    }
-
-  // traverse subtrees from right to left
-  for (Node *p = static_cast<Node *>(root->get_right_child()); p != nullptr; /* nada */)
-    {
-      Node *to_delete = p;                             // backup subtree to delete
-      p = static_cast<Node *>(p->get_left_sibling());  // advance to left sibling
-      destroy_tree(to_delete);                         // recursively delete tree
-    }
-
-  if (promoted_leftmost != nullptr)
-    // root's own children are gone by now, so CHILD_LIST(root) is just its
-    // spine pairing with its (live) parent; hand that slot to the promoted
-    // sibling in one swap (promoted_leftmost is a leaf, i.e. its own
-    // CHILD_LIST is empty, so Dlink::swap() simply relocates root's pairing
-    // there instead of merging two unrelated non-empty lists).
-    CHILD_LIST(root)->swap(CHILD_LIST(promoted_leftmost));
-  else if (root->is_leftmost())  // remove children list?
-    CHILD_LIST(root)->del();
-
-  delete root;
+  tree_node_detail::detach_tree(root);
+  tree_node_detail::free_detached_tree(root);
 }
 
 /** Destroys (frees memory) the forest whose first tree is root.
@@ -1264,30 +1477,56 @@ size_t compute_height(Node *root)
   if (root == nullptr)
     return 0;
 
-  size_t temp_h, max_h = 0;
-  for (Node *aux = root->get_left_child(); aux != nullptr; aux = aux->get_right_sibling())
-    if ((temp_h = compute_height(aux)) > max_h)
-      max_h = temp_h;
+  // In preorder, with the depth of each node. A path can be as long as the
+  // tree is deep, too long for recursion: the parent of a node is found
+  // through its left siblings and its first child.
+  size_t depth = 1, height = 1;
+  Node *p = root;
+  while (true)
+    {
+      if (auto *child = static_cast<Node *>(p->get_left_child()))
+        {
+          p = child;
+          if (++depth > height)
+            height = depth;
+          continue;
+        }
 
-  return max_h + 1;
+      // the right sibling of p, or of its lowest ancestor below root that
+      // has one
+      while (p != root and p->is_rightmost())
+        {
+          p = static_cast<Node *>(p->get_parent());
+          --depth;
+        }
+
+      if (p == root)
+        return height;
+
+      p = static_cast<Node *>(p->get_right_sibling());
+    }
 }
 
+// Follows the positions of path from idx on, a level at a time, from node
 template <class Node>
 static inline Node *__deway_search(Node *node, int path[], const int &idx, const size_t &size)
 {
-  if (node == nullptr)
-    return nullptr;
+  for (int level = idx; node != nullptr; ++level)
+    {
+      ah_out_of_range_error_if(static_cast<size_t>(level) >= size) << "index out of maximum range";
 
-  ah_out_of_range_error_if(static_cast<size_t>(idx) >= size) << "index out of maximum range";
+      if (path[level] < 0)  // check whether the node has been reached
+        return node;
 
-  if (path[idx] < 0)  // check whether the node has been reached
-    return node;
-  // advance to the next child path[0]
-  Node *child = node->get_left_child();
-  for (int i = 0; i < path[idx] and child != nullptr; ++i)
-    child = child->get_right_sibling();
+      // advance to the child path[level]
+      Node *child = node->get_left_child();
+      for (int i = 0; i < path[level] and child != nullptr; ++i)
+        child = child->get_right_sibling();
 
-  return __deway_search(child, path, idx + 1, size);  // next level
+      node = child; // next level
+    }
+
+  return nullptr;
 }
 
 /** Returns a node of a forest given its Dewey number.
@@ -1357,6 +1596,10 @@ inline Node *search_deway(Node *root, const typename Node::key_type &key, int de
   return nullptr;
 }
 
+// Searches key in preorder below root, as a recursion would; deway holds
+// the positions of the nodes of the path. A path can be as long as the
+// tree is deep, too long for recursion: the parent of a node is found
+// through its left siblings and its first child.
 template <class Node, class Equal>
 inline static Node *__search_deway(Node *root, const typename Node::key_type &key,
                                    const size_t &current_level, int deway[], const size_t &size,
@@ -1367,25 +1610,72 @@ inline static Node *__search_deway(Node *root, const typename Node::key_type &ke
   if (root == nullptr)
     return nullptr;
 
-  if (Equal()(root->get_key(), key))
+  Node *p = root;
+  size_t level = current_level;
+  while (true)
     {
-      n = current_level + 1;  // length of the deway array
-      return root;
+      if (Equal()(p->get_key(), key))
+        {
+          n = level + 1;  // length of the deway array
+          return p;
+        }
+
+      if (Node *child = p->get_left_child()) // its children go first
+        {
+          ah_overflow_error_if(level + 1 >= size) << "there is no enough space for deway array";
+          deway[level + 1] = 0;
+          p = child;
+          ++level;
+          continue;
+        }
+
+      // the right sibling of p, or of its lowest ancestor below root that
+      // has one
+      while (p != root and p->is_rightmost())
+        {
+          p = p->get_parent();
+          --level;
+        }
+
+      if (p == root)
+        return nullptr;
+
+      p = p->get_right_sibling();
+      ++deway[level];
     }
-
-  Node *child = root->get_left_child();
-  for (int i = 0; child != nullptr; i++, child = child->get_right_sibling())
-    {
-      ah_overflow_error_if(current_level + 1 >= size) << "there is no enough space for deway array";
-      deway[current_level + 1] = i;
-      Node *result = __search_deway<Node, Equal>(child, key, current_level + 1, deway, size, n);
-
-      if (result != nullptr)
-        return result;
-    }
-
-  return nullptr;
 }
+
+namespace tree_node_detail
+{
+  /// A node of a forest and its node in the binary tree
+  template <class TNode, class BNode>
+  struct Bin_Pair
+  {
+    TNode *tnode; ///< The node of the forest
+    BNode *bnode; ///< Its node in the binary tree
+  };
+
+  /// Frees the binary tree root without recursion nor memory: a node with
+  /// a left child turns into the right child of that child first
+  template <class BNode>
+  void free_bin_tree(BNode *root) noexcept
+  {
+    while (root != BNode::NullPtr)
+      if (LLINK(root) != BNode::NullPtr)
+        {
+          BNode *left = LLINK(root);
+          LLINK(root) = RLINK(left);
+          RLINK(left) = root;
+          root = left;
+        }
+      else
+        {
+          BNode *right = RLINK(root);
+          delete root;
+          root = right;
+        }
+  }
+} // namespace tree_node_detail
 
 /** Converts a forest to its equivalent binary tree.
 
@@ -1398,10 +1688,15 @@ inline static Node *__search_deway(Node *root, const typename Node::key_type &ke
 
     The procedure assumes that both types share the same key type.
 
+    The binary nodes are made in preorder, as a recursion would make them.
+    A path can be as long as the forest is deep, too long for recursion,
+    and the right siblings of a node as many as the nodes.
+
     @param[in] root root of the first tree belonging to
     the forest to convert.
     @return root of the binary tree equivalent to the given forest.
-    @throw bad_alloc if there is not enough memory.
+    @throw bad_alloc if there is not enough memory; anything that the copy
+    of a key throws. Then nothing is left of the binary tree.
     @see bin_to_forest()
     @ingroup Trees
 */
@@ -1412,10 +1707,48 @@ BNode *forest_to_bin(TNode *root)
     return BNode::NullPtr;
 
   auto *result = new BNode(root->get_key());
-  LLINK(result) = static_cast<BNode *>(forest_to_bin<TNode, BNode>(root->get_left_child()));
-  RLINK(result) = forest_to_bin<TNode, BNode>(root->get_right_sibling());
+  try
+    {
+      // The nodes of the path whose right siblings wait, with their
+      // binary nodes
+      Dfs_Stack<tree_node_detail::Bin_Pair<TNode, BNode>> path;
+      TNode *p = root;
+      BNode *b = result;
+      while (true)
+        {
+          if (TNode *child = p->get_left_child()) // its children go first
+            {
+              auto *bchild = new BNode(child->get_key());
+              LLINK(b) = bchild;
+              path.push(tree_node_detail::Bin_Pair<TNode, BNode>{p, b});
+              p = child;
+              b = bchild;
+              continue;
+            }
 
-  return result;
+          // the right sibling of p, or of its lowest ancestor that has one
+          while (p->is_rightmost() and not path.is_empty())
+            {
+              p = path.top().tnode;
+              b = path.top().bnode;
+              path.pop();
+            }
+
+          if (p->is_rightmost())
+            return result;
+
+          TNode *sibling = p->get_right_sibling();
+          auto *bsibling = new BNode(sibling->get_key());
+          RLINK(b) = bsibling;
+          p = sibling;
+          b = bsibling;
+        }
+    }
+  catch (...)
+    {
+      tree_node_detail::free_bin_tree(result);
+      throw;
+    }
 }
 
 template <class TNode, class BNode>
@@ -1438,21 +1771,46 @@ inline static void insert_sibling(BNode *rnode, TNode *tree_node)
   tree_node->insert_right_sibling(sibling);
 }
 
+// Makes the children and the right siblings of troot from the subtrees of
+// broot, in the order of a recursion. The binary nodes whose right
+// subtrees wait for their left ones are kept in a stack, with the nodes
+// made of them: a path can be as long as the binary tree is deep, too long
+// for recursion.
 template <class TNode, class BNode>
 inline static void bin_to_tree(BNode *broot, TNode *troot)
 {
   if (broot == BNode::NullPtr)
     return;
 
-  insert_child(LLINK(broot), troot);
-  TNode *left_child = troot->get_left_child();
+  Dfs_Stack<tree_node_detail::Bin_Pair<TNode, BNode>> pending;
+  BNode *b = broot;
+  TNode *t = troot;
+  while (true)
+    {
+      if (LLINK(b) != BNode::NullPtr) // the left subtree goes first
+        {
+          insert_child(LLINK(b), t);
+          pending.push(tree_node_detail::Bin_Pair<TNode, BNode>{t, b});
+          t = t->get_left_child();
+          b = LLINK(b);
+          continue;
+        }
 
-  bin_to_tree(LLINK(broot), left_child);
+      // the right subtree of b, or of the lowest one that waits
+      while (RLINK(b) == BNode::NullPtr)
+        {
+          if (pending.is_empty())
+            return;
 
-  insert_sibling(RLINK(broot), troot);
-  TNode *right_sibling = troot->get_right_sibling();
+          t = pending.top().tnode;
+          b = pending.top().bnode;
+          pending.pop();
+        }
 
-  bin_to_tree(RLINK(broot), right_sibling);
+      insert_sibling(RLINK(b), t);
+      t = t->get_right_sibling();
+      b = RLINK(b);
+    }
 }
 
 /** Converts a binary tree to its equivalent forest.
@@ -1466,9 +1824,13 @@ inline static void bin_to_tree(BNode *broot, TNode *troot)
 
     The procedure assumes that both types share the same key type.
 
+    The nodes are made in the order of a recursion. A path can be as long
+    as the binary tree is deep, too long for recursion.
+
     @param[in] broot root of the binary tree to convert.
     @return root of the first tree equivalent to the given binary tree.
-    @throw bad_alloc if there is not enough memory.
+    @throw bad_alloc if there is not enough memory; anything that the copy
+    of a key throws. Then nothing is left of the forest.
     @see forest_to_bin()
     @ingroup Trees
 */
@@ -1479,7 +1841,16 @@ inline TNode *bin_to_forest(BNode *broot)
     return nullptr;
 
   auto *troot = new TNode(KEY(broot));
-  bin_to_tree(broot, troot);
+  try
+    {
+      bin_to_tree(broot, troot);
+    }
+  catch (...)
+    {
+      destroy_forest(troot);
+      throw;
+    }
+
   return troot;
 }
 

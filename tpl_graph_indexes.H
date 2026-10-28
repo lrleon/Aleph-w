@@ -139,14 +139,10 @@ class Nodes_Index : public DynSetTree<typename GT::Node *, Tree, Compare>
   GT & g;
   
   /**
-   * @brief Reference to the node iterator filter object.
+   * @brief Initialize the index by inserting the graph nodes that @p sn
+   * shows. The filter is used only here, so that it is not kept.
    */
-  SN & sn;
-
-  /**
-   * @brief Initialize the index by inserting all existing graph nodes
-   */
-  void init()
+  void init(SN & sn)
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
       this->insert(it.get_curr());
@@ -160,9 +156,9 @@ public:
    * @param _sn Node iterator filter
    */
   Nodes_Index(GT & _g, Compare & cmp, SN & _sn)
-    : Tree_Type(cmp), g(_g), sn(_sn)
+    : Tree_Type(cmp), g(_g)
   {
-    init();
+    init(_sn);
   }
 
   /**
@@ -172,9 +168,9 @@ public:
    * @param _sn Node iterator filter
    */
   Nodes_Index(GT & _g, Compare && cmp = Compare(), SN && _sn = SN())
-    : Tree_Type(cmp), g(_g), sn(_sn)
+    : Tree_Type(cmp), g(_g)
   {
-    init();
+    init(_sn);
   }
 
   /**
@@ -363,14 +359,10 @@ class Arcs_Index : public DynSetTree<typename GT::Arc *, Tree, Compare>
   GT & g;
   
   /**
-   * @brief Reference to the arc iterator filter object.
+   * @brief Initializes the index by inserting the arcs of the graph that
+   * @p sa shows. The filter is used only here, so that it is not kept.
    */
-  SA & sa;
-
-  /**
-   * @brief Initializes the index by inserting all arcs from the graph.
-   */
-  void init()
+  void init(SA & sa)
   {
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       this->insert(it.get_curr());
@@ -385,9 +377,9 @@ public:
    * @param _sa Arc iterator filter object
    */
   Arcs_Index(GT & _g, Compare & cmp, SA & _sa)
-    : Tree_Type(cmp), g(_g), sa(_sa)
+    : Tree_Type(cmp), g(_g)
   {
-    init();
+    init(_sa);
   }
 
   /**
@@ -398,9 +390,9 @@ public:
    * @param _sa Arc iterator filter object (default constructed)
    */
   Arcs_Index(GT & _g, Compare && cmp = Compare(), SA && _sa = SA())
-    : Tree_Type(cmp), g(_g), sa(_sa)
+    : Tree_Type(cmp), g(_g)
   {
-    init();
+    init(_sa);
   }
 
   /**

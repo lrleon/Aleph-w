@@ -171,8 +171,8 @@ template <AlephGraph GT,
 	  ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Test_Eulerian
 {
-  SN & sn;
-  SA & sa;
+  Kept_Filter<SN> sn;
+  Kept_Filter<SA> sa;
 
   /**
    * @brief Check connectivity of undirected graph using DFS.
@@ -413,7 +413,7 @@ public:
    * @param __sa Arc filter (default: show all arcs)
    */
   Test_Eulerian(SN && __sn = SN(), SA && __sa = SA()) 
-    : sn(__sn), sa(__sa)
+    : sn(std::move(__sn)), sa(std::move(__sa))
   {
     // empty 
   }
@@ -561,8 +561,8 @@ template <AlephGraph GT,
           ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Find_Eulerian_Path
 {
-  SN & sn;
-  SA & sa;
+  Kept_Filter<SN> sn;
+  Kept_Filter<SA> sa;
 
   /**
    * @brief Find starting vertex for Eulerian path/cycle.
@@ -754,7 +754,7 @@ public:
    * @param __sa Arc filter (default: show all arcs)
    */
   Find_Eulerian_Path(SN && __sn = SN(), SA && __sa = SA()) 
-    : sn(__sn), sa(__sa)
+    : sn(std::move(__sn)), sa(std::move(__sa))
   {
     // empty 
   }
@@ -791,7 +791,7 @@ public:
     Result result;
 
     // First check if Eulerian path/cycle exists
-    Test_Eulerian<GT, SN, SA> tester(std::forward<SN>(sn), std::forward<SA>(sa));
+    Test_Eulerian<GT, SN, SA> tester(SN(sn.get()), SA(sa.get())); // copies
     result.type = tester.compute(g);
 
     if (result.type == Eulerian_Type::None)

@@ -99,16 +99,16 @@ TEST_F(FindPathTest, DFS_NoPath)
   
   g.insert_arc(n1, n2);
   // n3 is disconnected
-  
-  try {
-    Find_Path_Depth_First<GT> finder;
-    Path<GT> path(g);
-    bool found = finder(g, n1, n3, path);
-    EXPECT_FALSE(found);
-  } catch (...) {
-    // Empty path may throw - this is expected
-    SUCCEED();
-  }
+
+  // It threw underflow_error, when it shortened the path to nothing
+  Find_Path_Depth_First<GT> finder;
+  Path<GT> path(g);
+  bool found = finder(g, n1, n3, path);
+  EXPECT_FALSE(found);
+  EXPECT_TRUE(path.is_empty());
+
+  // the free function, too
+  EXPECT_TRUE(find_path_depth_first(g, n1, n3).is_empty());
 }
 
 TEST_F(FindPathTest, DFS_CompleteGraph)
@@ -141,15 +141,9 @@ TEST_F(FindPathTest, DFS_PredicateNotSatisfied)
   const auto nodes = create_linear_graph(5);
 
   // Look for value 100 (doesn't exist) - returns empty path, no exception
-  try
-    {
-      Find_Path_Depth_First<GT> finder;
-      const auto path = finder(g, nodes[0], [](Node* p) { return p->get_info() == 100; });
-    EXPECT_TRUE(path.is_empty());
-  } catch (...) {
-    // Empty path iteration throws exception - this is expected behavior
-    SUCCEED();
-  }
+  Find_Path_Depth_First<GT> finder;
+  const auto path = finder(g, nodes[0], [](Node* p) { return p->get_info() == 100; });
+  EXPECT_TRUE(path.is_empty());
 }
 
 // =============================================================================

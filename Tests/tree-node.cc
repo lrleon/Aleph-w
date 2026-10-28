@@ -37,6 +37,12 @@
  */
 # include <gtest/gtest.h>
 
+# include <algorithm>
+# include <map>
+# include <random>
+# include <stdexcept>
+# include <vector>
+
 # include <tpl_binNode.H>
 # include <tpl_tree_node.H>
 # include <ah-zip.H>
@@ -319,6 +325,242 @@ TEST(Tree_Node, destroy_tree_restores_is_leftmost_on_surviving_sibling)
   EXPECT_EQ(count, 2);  // b, c
 
   destroy_tree(root);
+}
+
+// destroy_tree() gave the place of a leftmost child to its right sibling
+// only if that sibling was a leaf: the children of one with children were
+// lost, and the next traversal of the parent did not end
+TEST(Tree_Node, destroy_tree_of_a_leftmost_child_whose_sibling_has_children)
+{
+  auto *root = new Tree_Node<int>(0);
+  auto *a = new Tree_Node<int>(1);
+  auto *b = new Tree_Node<int>(2);
+  auto *b1 = new Tree_Node<int>(21);
+  auto *b2 = new Tree_Node<int>(22);
+  root->insert_rightmost_child(a);
+  root->insert_rightmost_child(b);
+  a->insert_rightmost_child(new Tree_Node<int>(11));
+  b->insert_rightmost_child(b1);
+  b->insert_rightmost_child(b2);
+
+  destroy_tree(a);
+
+  EXPECT_EQ(root->get_left_child(), b);
+  EXPECT_EQ(root->get_right_child(), b);
+  EXPECT_TRUE(b->is_leftmost());
+  EXPECT_EQ(b->get_parent(), root);
+  EXPECT_EQ(b->get_left_child(), b1);
+  EXPECT_EQ(b->get_right_child(), b2);
+  EXPECT_EQ(b1->get_parent(), b);
+  EXPECT_EQ(b2->get_parent(), b);
+
+  destroy_tree(root);
+}
+
+// The parent of the only child was left as a node with children
+TEST(Tree_Node, destroy_tree_of_the_only_child_makes_the_parent_a_leaf)
+{
+  auto *root = new Tree_Node<int>(0);
+  auto *a = new Tree_Node<int>(1);
+  root->insert_rightmost_child(a);
+  a->insert_rightmost_child(new Tree_Node<int>(11));
+
+  destroy_tree(a);
+
+  EXPECT_TRUE(root->is_leaf());
+  EXPECT_EQ(root->get_left_child(), nullptr);
+
+  root->insert_rightmost_child(new Tree_Node<int>(2)); // the root still works
+  ASSERT_NE(root->get_left_child(), nullptr);
+  EXPECT_EQ(root->get_left_child()->get_key(), 2);
+  EXPECT_EQ(root->get_left_child()->get_parent(), root);
+
+  destroy_tree(root);
+}
+
+TEST(Tree_Node, destroy_tree_of_a_child_with_children_that_is_not_leftmost)
+{
+  auto *root = new Tree_Node<int>(0);
+  auto *a = new Tree_Node<int>(1);
+  auto *b = new Tree_Node<int>(2);
+  auto *c = new Tree_Node<int>(3);
+  root->insert_rightmost_child(a);
+  root->insert_rightmost_child(b);
+  root->insert_rightmost_child(c);
+  b->insert_rightmost_child(new Tree_Node<int>(21));
+  b->get_left_child()->insert_rightmost_child(new Tree_Node<int>(211));
+
+  destroy_tree(b);
+
+  EXPECT_EQ(a->get_right_sibling(), c);
+  EXPECT_EQ(c->get_left_sibling(), a);
+  EXPECT_EQ(c->get_parent(), root);
+
+  destroy_tree(root);
+}
+
+TEST(Tree_Node, destroy_tree_of_a_tree_of_a_forest)
+{
+  auto *t1 = new Tree_Node<int>(1);
+  auto *t2 = new Tree_Node<int>(2);
+  auto *t3 = new Tree_Node<int>(3);
+  t1->insert_right_sibling(t2);
+  t2->insert_right_sibling(t3);
+  t2->insert_rightmost_child(new Tree_Node<int>(21));
+
+  destroy_tree(t2);
+
+  EXPECT_EQ(t1->get_right_tree(), t3);
+  EXPECT_EQ(t3->get_left_tree(), t1);
+
+  destroy_tree(t1); // the last tree of the forest is t3 then
+  EXPECT_TRUE(t3->is_leftmost());
+  EXPECT_EQ(t3->get_left_tree(), nullptr);
+  destroy_tree(t3);
+}
+
+// destroy_tree() recursed as deep as the tree
+TEST(Tree_Node, destroy_tree_of_a_deep_chain)
+{
+  auto *root = new Tree_Node<int>(0);
+  Tree_Node<int> *last = root;
+  for (int i = 1; i < 1000000; ++i)
+    {
+      auto *p = new Tree_Node<int>(i);
+      last->insert_rightmost_child(p);
+      last = p;
+    }
+
+  destroy_tree(root);
+}
+
+namespace
+{
+  using Model_Node = Tree_Node<int>;
+
+  // The parent and the children, in their order, of each node of a tree
+  struct Tree_Model
+  {
+    std::map<Model_Node *, Model_Node *> parent;
+    std::map<Model_Node *, std::vector<Model_Node *>> children;
+
+    void add(Model_Node *p, Model_Node *par)
+    {
+      parent[p] = par;
+      children[p];
+    }
+
+    // Takes p, and the nodes below it, out of the model
+    void erase(Model_Node *p)
+    {
+      auto &siblings = children[parent[p]];
+      siblings.erase(std::find(siblings.begin(), siblings.end(), p));
+      std::vector<Model_Node *> stack = {p};
+      while (not stack.empty())
+        {
+          auto *q = stack.back();
+          stack.pop_back();
+          for (auto *c : children[q])
+            stack.push_back(c);
+          children.erase(q);
+          parent.erase(q);
+        }
+    }
+  };
+
+  // The tree of root is that of the model
+  void expect_model(Model_Node *root, const Tree_Model &model)
+  {
+    for (const auto &[p, kids] : model.children)
+      {
+        if (p != root)
+          {
+            ASSERT_EQ(p->get_parent(), model.parent.at(p));
+          }
+        std::vector<Model_Node *> seen;
+        for (auto *c = p->get_left_child(); c != nullptr and seen.size() <= kids.size();
+             c = c->get_right_sibling())
+          seen.push_back(c);
+        ASSERT_EQ(seen, kids);
+        ASSERT_EQ(p->is_leaf(), kids.empty());
+        if (not kids.empty())
+          {
+            ASSERT_EQ(p->get_right_child(), kids.back());
+          }
+        for (size_t i = 0; i < kids.size(); ++i)
+          {
+            ASSERT_EQ(kids[i]->is_leftmost(), i == 0);
+            ASSERT_EQ(kids[i]->is_rightmost(), i + 1 == kids.size());
+          }
+      }
+  }
+}
+
+// Random insertions, and destroy_tree() of random nodes, which must leave
+// the rest of the tree as if they had not been inserted
+TEST(Tree_Node, destroy_tree_keeps_the_rest_of_the_tree)
+{
+  std::mt19937 gen(7);
+  int key = 0;
+  for (int round = 0; round < 20; ++round)
+    {
+      SCOPED_TRACE(round);
+      Tree_Model model;
+      auto *root = new Model_Node(key++);
+      model.add(root, nullptr);
+      for (int op = 0; op < 300; ++op)
+        {
+          std::vector<Model_Node *> nodes;
+          for (const auto &kv : model.parent)
+            nodes.push_back(kv.first);
+          auto *p = nodes[gen() % nodes.size()];
+          if (p == root or gen() % 10 < 6)
+            {
+              auto *q = new Model_Node(key++);
+              const auto how = p == root ? gen() % 2 : gen() % 4;
+              if (how < 2)
+                {
+                  auto &kids = model.children[p];
+                  if (how == 0)
+                    {
+                      p->insert_rightmost_child(q);
+                      kids.push_back(q);
+                    }
+                  else
+                    {
+                      p->insert_leftmost_child(q);
+                      kids.insert(kids.begin(), q);
+                    }
+                  model.add(q, p);
+                  continue;
+                }
+
+              auto *par = model.parent[p];
+              auto &kids = model.children[par];
+              auto pos = std::find(kids.begin(), kids.end(), p);
+              if (how == 2)
+                {
+                  p->insert_left_sibling(q);
+                  kids.insert(pos, q);
+                }
+              else
+                {
+                  p->insert_right_sibling(q);
+                  kids.insert(pos + 1, q);
+                }
+              model.add(q, par);
+            }
+          else
+            {
+              model.erase(p);
+              destroy_tree(p);
+            }
+          expect_model(root, model);
+          if (HasFatalFailure())
+            return;
+        }
+      destroy_tree(root);
+    }
 }
 
 TEST(Tree_Node, simple_tree_construction_and_destruction)
@@ -650,4 +892,267 @@ TEST_F(Three_Trees, join)
   ASSERT_TRUE(eq(l, order));
 
   destroy_forest(t);
+}
+
+// =============================================================================
+// Deep and wide trees, and the functions that recursed over them
+// =============================================================================
+
+namespace
+{
+  // A chain of n nodes, keyed 0 to n - 1: a tree of n levels
+  Tree_Node<int> *chain_of(const int n)
+  {
+    auto *root = new Tree_Node<int>(0);
+    Tree_Node<int> *last = root;
+    for (int i = 1; i < n; ++i)
+      {
+        auto *p = new Tree_Node<int>(i);
+        last->insert_rightmost_child(p);
+        last = p;
+      }
+    return root;
+  }
+
+  // A root, keyed 0, with n - 1 children, keyed 1 to n - 1
+  Tree_Node<int> *star_of(const int n)
+  {
+    auto *root = new Tree_Node<int>(0);
+    for (int i = 1; i < n; ++i)
+      root->insert_rightmost_child(new Tree_Node<int>(i));
+    return root;
+  }
+
+  // The deepest node of the first children
+  Tree_Node<int> *deepest_of(Tree_Node<int> *p)
+  {
+    while (p->get_left_child() != nullptr)
+      p = p->get_left_child();
+    return p;
+  }
+
+  // Frees a binary tree without recursion: a node with a left child
+  // turns into the right child of that child first
+  template <class BNode>
+  void free_binary(BNode *root)
+  {
+    while (root != BNode::NullPtr)
+      if (LLINK(root) != BNode::NullPtr)
+        {
+          BNode *left = LLINK(root);
+          LLINK(root) = RLINK(left);
+          RLINK(left) = root;
+          root = left;
+        }
+      else
+        {
+          BNode *right = RLINK(root);
+          delete root;
+          root = right;
+        }
+  }
+
+  long visit_sum = 0;
+  long visit_count = 0;
+
+  void sum_visit(Tree_Node<int> *p, int level, int pos)
+  {
+    visit_sum += long(p->get_key()) + level + pos;
+    ++visit_count;
+  }
+}
+
+// These functions recursed as deep as the tree, which a chain of a million
+// nodes overflows
+TEST(Tree_Node, the_functions_on_a_deep_chain_need_no_recursion)
+{
+  constexpr int n = 1000000;
+  Tree_Node<int> *root = chain_of(n);
+  Tree_Node<int> *deepest = deepest_of(root);
+
+  long count = 0;
+  EXPECT_TRUE(root->traverse([&count](Tree_Node<int> *) { ++count; return true; }));
+  EXPECT_EQ(count, n);
+
+  const long sum = 2 * (long(n) * (n - 1) / 2); // keys and levels; positions are 0
+  visit_sum = visit_count = 0;
+  tree_preorder_traversal(root, sum_visit);
+  EXPECT_EQ(visit_count, n);
+  EXPECT_EQ(visit_sum, sum);
+
+  visit_sum = visit_count = 0;
+  tree_postorder_traversal(root, sum_visit);
+  EXPECT_EQ(visit_count, n);
+  EXPECT_EQ(visit_sum, sum);
+
+  EXPECT_EQ(compute_height(root), size_t(n));
+
+  Tree_Node<int> *copy = clone_tree(root);
+  EXPECT_TRUE(are_tree_equal(root, copy));
+  deepest_of(copy)->get_key() = -1;
+  EXPECT_FALSE(are_tree_equal(root, copy));
+  destroy_tree(copy);
+
+  std::vector<int> dewey(n + 1, -7);
+  size_t len = 0;
+  EXPECT_EQ(search_deway(root, n - 1, dewey.data(), dewey.size(), len), deepest);
+  EXPECT_EQ(len, size_t(n));
+  EXPECT_TRUE(std::all_of(dewey.begin(), dewey.begin() + n, [](int i) { return i == 0; }));
+
+  std::vector<int> path(n + 1, 0);
+  path[n] = -1;
+  EXPECT_EQ(deway_search(root, path.data(), path.size()), deepest);
+
+  auto *bin = forest_to_bin<Tree_Node<int>, BinNode<int>>(root);
+  Tree_Node<int> *back = bin_to_forest<Tree_Node<int>, BinNode<int>>(bin);
+  EXPECT_TRUE(are_tree_equal(root, back));
+  destroy_forest(back);
+  free_binary(bin);
+
+  destroy_tree(root);
+}
+
+// forest_to_bin() and bin_to_forest() recursed along the siblings too, as
+// many as the children of a node
+TEST(Tree_Node, the_conversions_of_a_wide_tree_need_no_recursion)
+{
+  constexpr int n = 1000000;
+  Tree_Node<int> *root = star_of(n);
+
+  auto *bin = forest_to_bin<Tree_Node<int>, BinNode<int>>(root);
+  Tree_Node<int> *back = bin_to_forest<Tree_Node<int>, BinNode<int>>(bin);
+  EXPECT_TRUE(are_tree_equal(root, back));
+  EXPECT_EQ(compute_height(back), 2u);
+
+  visit_sum = visit_count = 0;
+  tree_preorder_traversal(back, sum_visit);
+  EXPECT_EQ(visit_count, n);
+  EXPECT_EQ(visit_sum, long(n) * (n - 1)); // keys, levels and positions
+
+  destroy_tree(back);
+  free_binary(bin);
+  destroy_tree(root);
+}
+
+// The operations of FunctionalMixin did not compile on a Tree_Node: the
+// traversal gave them a const Tree_Node *
+TEST(Tree_Node, the_functional_operations_take_the_nodes)
+{
+  auto *root = new Tree_Node<int>(1);
+  root->insert_rightmost_child(new Tree_Node<int>(2));
+  root->insert_rightmost_child(new Tree_Node<int>(3));
+  root->get_left_child()->insert_rightmost_child(new Tree_Node<int>(4));
+
+  // in preorder: 1, 2, 4, 3
+  EXPECT_EQ(root->foldl<long>(0, [](long acc, Tree_Node<int> *p) { return acc * 10 + p->get_key(); }),
+            1243);
+  EXPECT_TRUE(root->exists([](Tree_Node<int> *p) { return p->get_key() == 4; }));
+  EXPECT_TRUE(root->all([](Tree_Node<int> *p) { return p->get_key() > 0; }));
+  EXPECT_EQ(root->length(), 4u);
+
+  int sum = 0;
+  root->for_each([&sum](Tree_Node<int> *p) { sum += p->get_key(); });
+  EXPECT_EQ(sum, 10);
+  EXPECT_EQ(root->maps<int>([](Tree_Node<int> *p) { return p->get_key(); }).size(), 4u);
+  EXPECT_EQ(root->filter([](Tree_Node<int> *p) { return p->get_key() % 2 == 1; }).size(), 2u);
+
+  const Tree_Node<int> *c = root;
+  EXPECT_TRUE(c->traverse([](const Tree_Node<int> *p) { return p->get_key() < 10; }));
+
+  destroy_tree(root);
+}
+
+namespace
+{
+  // A key whose copies can throw, and that counts those alive
+  struct Counted_Key
+  {
+    static inline int alive = 0;
+    static inline int copies_left = 0; // the copy that throws, when it gets to 0
+
+    int value = 0;
+
+    Counted_Key(int v = 0) : value(v) { ++alive; }
+
+    Counted_Key(const Counted_Key &other) : value(other.value)
+    {
+      if (copies_left > 0 and --copies_left == 0)
+        throw std::runtime_error("the copy of a key");
+      ++alive;
+    }
+
+    Counted_Key &operator=(const Counted_Key &) = default;
+
+    ~Counted_Key() { --alive; }
+  };
+}
+
+// clone_tree(), forest_to_bin() and bin_to_forest() lost what they had made
+// when the copy of a key threw
+TEST(Tree_Node, the_copies_of_a_tree_leave_nothing_when_a_key_throws)
+{
+  using Node = Tree_Node<Counted_Key>;
+  using Bin = BinNode<Counted_Key>;
+
+  std::mt19937 gen(3);
+  std::vector<Node *> nodes{new Node(Counted_Key(0))};
+  for (int i = 1; i < 200; ++i)
+    {
+      auto *q = new Node(Counted_Key(i));
+      nodes[gen() % nodes.size()]->insert_rightmost_child(q);
+      nodes.push_back(q);
+    }
+  Node *root = nodes[0];
+  const int before = Counted_Key::alive;
+
+  for (const int k : {1, 2, 50, 200})
+    {
+      Counted_Key::copies_left = k;
+      EXPECT_THROW((void) clone_tree(root), std::runtime_error);
+      EXPECT_EQ(Counted_Key::alive, before);
+
+      Counted_Key::copies_left = k;
+      EXPECT_THROW((void) (forest_to_bin<Node, Bin>(root)), std::runtime_error);
+      EXPECT_EQ(Counted_Key::alive, before);
+    }
+
+  Counted_Key::copies_left = 0;
+  Bin *bin = forest_to_bin<Node, Bin>(root);
+  const int with_bin = Counted_Key::alive;
+  for (const int k : {1, 2, 50, 200})
+    {
+      Counted_Key::copies_left = k;
+      EXPECT_THROW((void) (bin_to_forest<Node, Bin>(bin)), std::runtime_error);
+      EXPECT_EQ(Counted_Key::alive, with_bin);
+    }
+
+  Counted_Key::copies_left = 0;
+  free_binary(bin);
+  destroy_tree(root);
+  EXPECT_EQ(Counted_Key::alive, 0);
+}
+
+// get_parent() goes at once from the last child to the first, around the
+// circle of the siblings
+TEST(Tree_Node, get_parent_of_every_child)
+{
+  std::mt19937 gen(11);
+  std::vector<Tree_Node<int> *> nodes{new Tree_Node<int>(0)};
+  std::vector<Tree_Node<int> *> parents{nullptr};
+  for (int i = 1; i < 3000; ++i)
+    {
+      auto *q = new Tree_Node<int>(i);
+      Tree_Node<int> *p = nodes[gen() % nodes.size()];
+      if (gen() % 3 == 0)
+        p->insert_leftmost_child(q);
+      else
+        p->insert_rightmost_child(q);
+      nodes.push_back(q);
+      parents.push_back(p);
+    }
+
+  for (size_t i = 0; i < nodes.size(); ++i)
+    EXPECT_EQ(nodes[i]->get_parent(), parents[i]);
+
+  destroy_tree(nodes[0]);
 }

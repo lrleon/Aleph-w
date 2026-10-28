@@ -1222,12 +1222,17 @@ public:
         ah_logic_error_unless(ttgt_ptr) << "Target node not found in mapping table";
         auto tarc = tree.insert_arc(tsrc_ptr->second, ttgt_ptr->second, garc->get_info());
         if (with_map)
-          GT::map_arcs(garc, tarc);
+          {
+            ARC_COOKIE(garc) = nullptr; // else it would compose with a former tree
+            GT::map_arcs(garc, tarc);
+          }
       }
 
+    // the cookies of the nodes held their parents, already used
     if (with_map)
       table.for_each([](const auto &p)
       {
+        NODE_COOKIE(p.first) = nullptr;
         GT::map_nodes(p.first, p.second);
       });
   }

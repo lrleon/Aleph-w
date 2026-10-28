@@ -430,10 +430,9 @@ namespace Aleph
 
     /** Iterator over arcs of a graph.
 
-        This iterator traverses each arc of the graph. The visit order
-        can be altered if the arcs are previously sorted.
-
-        @see sort_arcs()
+        This iterator traverses each arc of the graph, in the order of
+        their addresses: the arcs are in a set ordered by them, so there is
+        no sort_arcs(), which the graphs with a list of arcs have.
      */
     class Arc_Iterator : public DynSetArc::Iterator
     {
@@ -515,17 +514,30 @@ namespace Aleph
         imperatively allocated with new.
         @note In general, this routine should not be used. Instead, use
         the other insertion method (which allocates memory automatically).
+        @throw bad_alloc if the set of nodes cannot take p, which is then
+        deleted, as Net_Graph::insert_node() does: the methods that
+        allocate the node and call this one do not free it.
      */
     virtual Node * insert_node(Node *p)
     {
       assert(p->arc_list.is_empty());
 
+      try
+        {
+          node_list.append(p);
+        }
+      catch (...)
+        {
+          delete p;
+          throw;
+        }
       ++this->num_nodes;
-      node_list.append(p);
       return p;
     }
 
   private:
+    // If a list or the set of arcs cannot take the arc, those that took it
+    // give it back, so that the graph is as it was: the caller frees the arc
     Arc * insert_arc(Node *src, Node *tgt, void *a)
     {
       Arc *arc = static_cast<Arc *>(a);
@@ -533,15 +545,36 @@ namespace Aleph
       arc->src_node = src;
       arc->tgt_node = tgt;
 
+      const bool in_tgt = not this->digraph and src != tgt;
+      auto is_arc = [a](void *x) { return x == a; };
+
       src->arc_list.append(a);
-      ++src->num_arcs;
-      if (not this->digraph and src != tgt)
+      try
         {
-          tgt->arc_list.append(a);
-          ++tgt->num_arcs;
+          if (in_tgt)
+            tgt->arc_list.append(a);
+        }
+      catch (...)
+        {
+          src->arc_list.remove_ne(is_arc);
+          throw;
         }
 
-      arc_list.append(arc);
+      try
+        {
+          arc_list.append(arc);
+        }
+      catch (...)
+        {
+          src->arc_list.remove_ne(is_arc);
+          if (in_tgt)
+            tgt->arc_list.remove_ne(is_arc);
+          throw;
+        }
+
+      ++src->num_arcs;
+      if (in_tgt)
+        ++tgt->num_arcs;
       ++this->num_arcs;
 
       return arc;
@@ -581,21 +614,25 @@ namespace Aleph
       delete arc;
     }
 
-    virtual void remove_node(Node *p) noexcept
+    /** Removes the node and its arcs, and frees them.
+
+        @param[in] p Pointer to the node to remove.
+        @throw bad_alloc if there is no memory for the list of the arcs of
+        p, which is made before any is removed: the graph is then as it was.
+     */
+    virtual void remove_node(Node *p)
     {
       DynList<Arc *> arcs_to_remove;
       arc_list.for_each([this, &arcs_to_remove, p](auto arc)
                           {
                             if (this->get_src_node(arc) == p or this->get_tgt_node(arc) == p)
-                              {
-                                this->disconnect_arc(arc);
-                                --this->num_arcs;
-                                arcs_to_remove.append(arc);
-                              }
+                              arcs_to_remove.append(arc);
                           });
 
       arcs_to_remove.for_each([this](auto a)
                                 {
+                                  this->disconnect_arc(a);
+                                  --this->num_arcs;
                                   arc_list.remove(a);
                                   delete a;
                                 });
@@ -628,38 +665,6 @@ namespace Aleph
     {
       arc_list.for_each([](Arc *p) { delete p; });
       node_list.for_each([](Node *p) { delete p; });
-    }
-
-  public:
-    /** Sort all arcs of the graph according to a comparison criteria.
-
-        @note This implementation uses a DynSetTree for arc storage,
-        which maintains its own ordering. Sorting requires extracting
-        arcs to a list, sorting, and rebuilding the set. This is O(E log E).
-
-        @tparam Compare Comparison functor type with signature
-        bool operator()(Arc*, Arc*).
-        @param[in] cmp Comparison functor.
-     */
-    template <class Compare>
-    void sort_arcs(Compare & cmp)
-    {
-      DynList<Arc *> temp_list;
-      arc_list.for_each([&temp_list](Arc *a) { temp_list.append(a); });
-      arc_list.empty();
-
-      // Sort the temporary list
-      mergesort(temp_list, cmp);
-
-      // Rebuild the arc_list from sorted order
-      temp_list.for_each([this](Arc *a) { arc_list.append(a); });
-    }
-
-    /// @overload sort_arcs(Compare &)
-    template <class Compare>
-    void sort_arcs(Compare && cmp = Compare())
-    {
-      sort_arcs(cmp);
     }
   };
 

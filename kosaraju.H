@@ -52,6 +52,7 @@
 
 # include <ah-graph-concepts.H>
 
+# include <tpl_dfs_stack.H>
 # include <tpl_graph_utils.H>
 
 namespace Aleph {
@@ -69,30 +70,104 @@ namespace Aleph {
  *  @param[in] p Starting node for the DFS.
  *  @param[out] df Array where nodes are stored in postorder (finish time order).
  */
+namespace kosaraju_detail
+{
+  /// A node that waits for the one that it visits, and the next of its
+  /// outgoing arcs to look at
+  template <class GT>
+  struct Frame
+  {
+    typename GT::Node * p;
+    typename GT::Out_Iterator it;
+
+    [[gnu::always_inline, gnu::flatten]]
+    Frame(const GT & g, typename GT::Node * n) : p(n), it(g.get_out_it(n)) {}
+
+    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+
+    // Moves the iterator to the next arc not visited whose target was not
+    // visited either, and gives that target; it marks the arcs not visited
+    // that it passes. nullptr when the arcs are done.
+    [[gnu::always_inline, gnu::flatten]] typename GT::Node * next_target() noexcept
+    {
+      for (; it.has_curr(); it.next_ne())
+        {
+          auto a = it.get_current_arc_ne();
+          if (IS_ARC_VISITED(a, Depth_First))
+            continue;
+
+          ARC_BITS(a).set_bit(Depth_First, true);
+          auto tgt = it.get_tgt_node_ne();
+          if (not IS_NODE_VISITED(tgt, Depth_First))
+            return tgt;
+        }
+      return nullptr;
+    }
+  };
+
+  // Depth-first search from p, which visits and enters each node that it
+  // reaches, and leaves it when its arcs are done. A path can have as many
+  // nodes as the graph, too many for recursion, so that the search keeps
+  // its own stack; the order of the visits is that of a recursion. The
+  // node being visited keeps its iterator in a local frame until it visits
+  // a node; then it waits in the stack, where it goes on when it comes
+  // back.
+  template <class GT, class Enter, class Leave>
+  [[gnu::always_inline]] inline void
+  search(const GT & g, typename GT::Node * p, Enter enter, Leave leave)
+  {
+    if (IS_NODE_VISITED(p, Depth_First))
+      return;
+
+    NODE_BITS(p).set_bit(Depth_First, true);
+    enter(p);
+
+    Dfs_Stack<Frame<GT>> frames;
+    Frame<GT> here(g, p);
+    while (true)
+      {
+        if (auto tgt = here.next_target())
+          { // the iterator stays on the arc to tgt, as in a recursion
+            NODE_BITS(tgt).set_bit(Depth_First, true);
+            enter(tgt);
+            frames.push(std::move(here));
+            here = Frame<GT>(g, tgt);
+            continue;
+          }
+
+        leave(here.p);
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return;
+
+            Frame<GT> & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.next_target())
+              {
+                NODE_BITS(tgt).set_bit(Depth_First, true);
+                enter(tgt);
+                here = Frame<GT>(g, tgt);
+                break;
+              }
+            leave(f.p);
+            frames.pop();
+          }
+      }
+  }
+} // namespace kosaraju_detail
+
 template <AlephGraph GT>
 inline static void __dfp_phase1(const GT & g,
                                  typename GT::Node * p,
                                  DynArray<typename GT::Node*> & df)
 {
-  if (IS_NODE_VISITED(p, Depth_First))
-    return;
-
-  NODE_BITS(p).set_bit(Depth_First, true);
-
-  // Traverse outgoing arcs in depth-first order
-  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
-    {
-      auto a = it.get_current_arc_ne();
-      if (IS_ARC_VISITED(a, Depth_First))
-        continue;
-
-      ARC_BITS(a).set_bit(Depth_First, true);
-
-      __dfp_phase1(g, it.get_tgt_node(), df);
-    }
-
-  df.append(p); // Append node in postorder (finish time)
-  NODE_COUNTER(p) = df.size();
+  kosaraju_detail::search(g, p, [](typename GT::Node *) {},
+                          [&df](typename GT::Node * q)
+                          {
+                            df.append(q); // Append node in postorder (finish time)
+                            NODE_COUNTER(q) = df.size();
+                          });
 }
 
 /** @brief DFS on transposed graph that builds an SCC subgraph (Phase 2).
@@ -115,24 +190,13 @@ inline static void __dfp_phase2_subgraph(const GT & g,
                                           GT & blk,
                                           const int & color)
 {
-  if (IS_NODE_VISITED(p, Depth_First))
-    return;
-
-  NODE_BITS(p).set_bit(Depth_First, true);
-
-  auto q = blk.insert_node(p->get_info());
-  NODE_COUNTER(q) = color;
-  GT::map_nodes(p, q);
-
-  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
-    {
-      auto a = it.get_current_arc_ne();
-      if (IS_ARC_VISITED(a, Depth_First))
-        continue;
-      ARC_BITS(a).set_bit(Depth_First, true);
-
-      __dfp_phase2_subgraph(g, it.get_tgt_node(), blk, color);
-    }
+  kosaraju_detail::search(g, p, [&blk, &color](typename GT::Node * q)
+                          {
+                            auto b = blk.insert_node(q->get_info());
+                            NODE_COUNTER(b) = color;
+                            GT::map_nodes(q, b);
+                          },
+                          [](typename GT::Node *) {});
 }
 
 /** @brief DFS on transposed graph that builds an SCC node list (Phase 2).
@@ -152,22 +216,11 @@ inline static void __dfp_phase2_list(const GT & g,
                                       typename GT::Node * p,
                                       DynList<typename GT::Node *> & list)
 {
-  if (IS_NODE_VISITED(p, Depth_First))
-    return;
-
-  NODE_BITS(p).set_bit(Depth_First, true);
-
-  list.append(mapped_node<GT>(p));
-
-  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
-    {
-      auto a = it.get_current_arc_ne();
-      if (IS_ARC_VISITED(a, Depth_First))
-        continue;
-      ARC_BITS(a).set_bit(Depth_First, true);
-
-      __dfp_phase2_list(g, it.get_tgt_node(), list);
-    }
+  kosaraju_detail::search(g, p, [&list](typename GT::Node * q)
+                          {
+                            list.append(mapped_node<GT>(q));
+                          },
+                          [](typename GT::Node *) {});
 }
 
 /** @brief Compute strongly connected components using Kosaraju's algorithm.
@@ -231,15 +284,19 @@ inline void kosaraju_connected_components(const GT & g,
     {
       auto gp = df.access(i);
       auto bp = mapped_node<GT>(gp);
-      if (IS_NODE_VISITED(bp, Depth_First))
-        continue;
+      if (not IS_NODE_VISITED(bp, Depth_First))
+        {
+          GT & blk = blk_list.append(GT());
+          array[color] = &blk;
 
-      GT & blk = blk_list.append(GT());
-      array[color] = &blk;
+          __dfp_phase2_subgraph(gi, bp, blk, color++); // DFS on transposed graph
 
-      __dfp_phase2_subgraph(gi, bp, blk, color++); // DFS on transposed graph
+          assert(NODE_COLOR(mapped_node<GT>(bp)) == color - 1);
+        }
 
-      assert(NODE_COLOR(mapped_node<GT>(bp)) == color - 1);
+      // gp was mapped to bp, of the transposed graph, which goes; now it
+      // maps to the node of its block, which already maps to gp
+      NODE_COOKIE(gp) = mapped_node<GT>(bp);
     }
 
   // Classify arcs: internal to SCC or crossing between SCCs
@@ -249,14 +306,12 @@ inline void kosaraju_connected_components(const GT & g,
       auto gs = g.get_src_node(a);
       auto gt = g.get_tgt_node(a);
 
-      // Double mapping: original graph → transposed graph → SCC subgraph
-      // First mapped_node: original node → transposed graph node
-      // Second mapped_node: transposed graph node → SCC subgraph node
-      auto bs = mapped_node<GT>(mapped_node<GT>(gs));
-      auto bt = mapped_node<GT>(mapped_node<GT>(gt));
+      auto bs = mapped_node<GT>(gs); // the nodes of the blocks
+      auto bt = mapped_node<GT>(gt);
 
       const long & color = NODE_COLOR(bs);
 
+      ARC_COOKIE(a) = nullptr; // it was mapped to the transposed graph
       if (color == NODE_COLOR(bt))
         {
           typename GT::Arc * ba = array.access(color)->insert_arc(bs, bt);
@@ -318,6 +373,7 @@ kosaraju_connected_components(const GT & g)
     {
       auto gp = df.access(i);
       auto bp = mapped_node<GT>(gp);
+      NODE_COOKIE(gp) = nullptr; // it mapped to bp, which goes with gi
       if (IS_NODE_VISITED(bp, Depth_First))
         continue;
 
@@ -325,6 +381,9 @@ kosaraju_connected_components(const GT & g)
 
       __dfp_phase2_list(gi, bp, blk);
     }
+
+  // The arcs of g were mapped to the transposed graph, which goes now
+  g.for_each_arc([](auto a) { ARC_COOKIE(a) = nullptr; });
 
   return list;
 }

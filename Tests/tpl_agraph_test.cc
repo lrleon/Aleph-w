@@ -577,6 +577,61 @@ TEST(ArrayGraph, GetFirstNodeArc)
   EXPECT_EQ(g.get_first_arc(n1), arc);
 }
 
+// In an empty graph, get_first_node() and get_first_arc() gave the header of
+// the list as a node or an arc; List_Graph throws range_error
+TEST(ArrayGraph, GetFirstNodeArcOfAnEmptyGraphThrows)
+{
+  IntGraph g;
+  EXPECT_THROW(g.get_first_node(), std::range_error);
+  EXPECT_THROW(g.get_first_arc(), std::range_error);
+
+  auto n = g.insert_node(1);
+  EXPECT_EQ(g.get_first_node(), n);
+  EXPECT_THROW(g.get_first_arc(), std::range_error);
+}
+
+// compress() called realloc() with a size of 0 for a node without arcs;
+// glibc frees the array then and gives back nullptr, which compress() took
+// for a failure, so it kept the freed array, and the destructor freed it again
+TEST(ArrayGraph, CompressesNodesWithoutArcs)
+{
+  {
+    IntGraph g;
+    auto a = g.insert_node(1);
+    auto b = g.insert_node(2);
+    auto c = g.insert_node(3); // without arcs
+    g.insert_arc(a, b, 10);
+    g.compress();
+    EXPECT_EQ(g.get_num_arcs(c), 0u);
+    EXPECT_EQ(g.get_num_arcs(a), 1u);
+
+    auto ca = g.insert_arc(c, a, 20); // c has room again
+    EXPECT_EQ(g.get_first_arc(c), ca);
+    g.compress();
+    EXPECT_EQ(g.get_num_arcs(a), 2u);
+  } // the destructor frees each array once (ASan checks it)
+}
+
+// The removal of the arcs of a node halves its array down to none, and the
+// node takes arcs again
+TEST(ArrayGraph, RemovingEveryArcOfANodeAndInsertingAgain)
+{
+  IntDigraph g;
+  auto hub = g.insert_node(0);
+  std::vector<IntDigraph::Arc *> arcs;
+  for (int i = 1; i <= 40; ++i)
+    arcs.push_back(g.insert_arc(hub, g.insert_node(i), i));
+  for (auto a : arcs)
+    g.remove_arc(a);
+  EXPECT_EQ(g.get_num_arcs(hub), 0u);
+  g.compress();
+
+  auto n = g.get_first_node();
+  auto a = g.insert_arc(hub, n, 1);
+  EXPECT_EQ(g.get_num_arcs(hub), 1u);
+  EXPECT_EQ(g.get_first_arc(hub), a);
+}
+
 // =============================================================================
 // String Data Type Tests
 // =============================================================================

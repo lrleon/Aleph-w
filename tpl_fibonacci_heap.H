@@ -50,6 +50,7 @@
 # include <ahFunctional.H>
 # include <vector>
 # include <algorithm>
+# include <memory>
 # include <utility>
 
 namespace Aleph
@@ -220,6 +221,11 @@ namespace Aleph
      *
      * Ensures no two roots have the same degree by linking trees
      * of equal degree until all roots have distinct degrees.
+     *
+     * It allocates nothing: extract_min() and delete_node() reserve
+     * consolidate_array_ before they change the heap. If the comparison
+     * throws, every tree is still in the root list and min_node is one of
+     * its roots, perhaps not the minimum.
      */
     void consolidate()
     {
@@ -232,19 +238,22 @@ namespace Aleph
       else
         std::fill(consolidate_array_.begin(), consolidate_array_.end(), nullptr);
 
-      // Collect all root nodes to iterate safely while modifying links
-      std::vector<Node *> root_nodes;
+      // The roots are counted and then visited from min_node on, by their
+      // right links. Only visited roots leave the list when they are linked,
+      // so each root but the last still links to the next one when visited
+      size_t num_roots = 0;
       Node *curr = min_node;
       do
         {
-          root_nodes.push_back(curr);
+          ++num_roots;
           curr = curr->right;
         }
       while (curr != min_node);
 
-      for (Node *w : root_nodes)
+      for (; num_roots > 0; --num_roots)
         {
-          Node *x = w;
+          Node *x = curr;
+          curr = curr->right;
           size_t d = x->degree;
 
           while (d < MAX_DEGREE && consolidate_array_[d] != nullptr)
@@ -255,6 +264,7 @@ namespace Aleph
                 std::swap(x, y);
 
               link(y, x);
+              min_node = x; // a root, if a later comparison throws
               consolidate_array_[d] = nullptr;
               ++d;
             }
@@ -263,31 +273,33 @@ namespace Aleph
             consolidate_array_[d] = x;
         }
 
-      // Reconstruct root list and find new minimum
+      // Find the new minimum, by degree; each root moves right after the
+      // minimum found so far. The roots move within the list, so it keeps
+      // all of them if the comparison throws
       min_node = nullptr;
       for (size_t i = 0; i < MAX_DEGREE; ++i)
         {
-          if (consolidate_array_[i] != nullptr)
-            {
-              consolidate_array_[i]->parent = nullptr;
-              if (min_node == nullptr)
-                {
-                  min_node = consolidate_array_[i];
-                  min_node->left = min_node;
-                  min_node->right = min_node;
-                }
-              else
-                {
-                  // Insert into root list
-                  consolidate_array_[i]->left = min_node;
-                  consolidate_array_[i]->right = min_node->right;
-                  min_node->right->left = consolidate_array_[i];
-                  min_node->right = consolidate_array_[i];
+          Node *x = consolidate_array_[i];
+          if (x == nullptr)
+            continue;
 
-                  if (cmp(consolidate_array_[i]->data, min_node->data))
-                    min_node = consolidate_array_[i];
-                }
+          x->parent = nullptr;
+          if (min_node == nullptr)
+            {
+              min_node = x;
+              continue;
             }
+
+          // Move x right after min_node
+          x->left->right = x->right;
+          x->right->left = x->left;
+          x->left = min_node;
+          x->right = min_node->right;
+          min_node->right->left = x;
+          min_node->right = x;
+
+          if (cmp(x->data, min_node->data))
+            min_node = x;
         }
     }
 
@@ -384,6 +396,9 @@ namespace Aleph
     /**
      * @brief Adds a node to the root list.
      *
+     * The keys are compared before the node enters the list, so that if
+     * the comparison throws the heap is as it was.
+     *
      * @param node The node to add (must not be in any list)
      */
     void add_to_root_list(Node *node)
@@ -397,12 +412,14 @@ namespace Aleph
         }
       else
         {
+          const bool is_min = cmp(node->data, min_node->data);
+
           node->left = min_node;
           node->right = min_node->right;
           min_node->right->left = node;
           min_node->right = node;
 
-          if (cmp(node->data, min_node->data))
+          if (is_min)
             min_node = node;
         }
     }
@@ -525,6 +542,8 @@ namespace Aleph
      *
      * @param val The value to insert
      * @return A handle (pointer) to the created node for later operations
+     * @throws anything that the comparison throws. Then the heap is as it
+     *         was.
      *
      * @note Amortized O(1) time complexity
      * @note The return value can be safely ignored if you don't need
@@ -532,10 +551,10 @@ namespace Aleph
      */
     [[nodiscard]] Node * insert(const T & val)
     {
-      Node *node = new Node(val);
-      add_to_root_list(node);
+      auto node = std::make_unique<Node>(val); // freed if cmp throws
+      add_to_root_list(node.get());
       ++num_nodes;
-      return node;
+      return node.release();
     }
 
     /**
@@ -545,15 +564,17 @@ namespace Aleph
      *
      * @param val The value to insert (will be moved)
      * @return A handle to the created node
+     * @throws anything that the comparison throws. Then the heap is as it
+     *         was.
      *
      * @note Amortized O(1) time complexity
      */
     [[nodiscard]]Node * insert(T && val)
     {
-      Node *node = new Node(std::move(val));
-      add_to_root_list(node);
+      auto node = std::make_unique<Node>(std::move(val)); // freed if cmp throws
+      add_to_root_list(node.get());
       ++num_nodes;
-      return node;
+      return node.release();
     }
 
     /**
@@ -565,16 +586,19 @@ namespace Aleph
      * @tparam Args Types of constructor arguments
      * @param args Arguments to forward to T's constructor
      * @return A handle to the created node
+     * @throws anything that the comparison throws. Then the heap is as it
+     *         was.
      *
      * @note Amortized O(1) time complexity
      */
     template <typename... Args>
     [[nodiscard]] Node * emplace(Args&&... args)
     {
-      Node *node = new Node(std::forward<Args>(args)...);
-      add_to_root_list(node);
+      // freed if cmp throws
+      auto node = std::make_unique<Node>(std::forward<Args>(args)...);
+      add_to_root_list(node.get());
       ++num_nodes;
-      return node;
+      return node.release();
     }
 
     /**
@@ -613,12 +637,18 @@ namespace Aleph
      *
      * @return The minimum element (moved out)
      * @throws std::underflow_error if the heap is empty
+     * @throws anything that the comparison throws. Then the element is out
+     *         of the heap and destroyed, and the heap may be out of order.
      *
      * @note Amortized O(log n) time complexity
      */
     T extract_min()
     {
       ah_underflow_error_if(is_empty()) << "Fibonacci_Heap::extract_min: heap is empty";
+
+      // A heap that was moved from has no room for consolidate(); it is
+      // made before the heap changes, in case the allocation fails
+      consolidate_array_.reserve(MAX_DEGREE);
 
       Node *z = min_node;
 
@@ -646,6 +676,11 @@ namespace Aleph
           z->child = nullptr;
         }
 
+      // z leaves the heap before the keys are compared, so that it is freed
+      // and counted out even if the comparison throws
+      std::unique_ptr<Node> node(z);
+      --num_nodes;
+
       // Remove z from root list
       if (z == z->right)
         {
@@ -660,10 +695,7 @@ namespace Aleph
           consolidate();
         }
 
-      --num_nodes;
-      T data = std::move(z->data);
-      delete z;
-      return data;
+      return std::move(z->data);
     }
 
     /**
@@ -677,6 +709,9 @@ namespace Aleph
      * @param k The new key value (must be <= current key)
      * @throws std::invalid_argument if x is nullptr
      * @throws std::domain_error if k > current key
+     * @throws anything that the comparison throws. Then x is still in the
+     *         heap, with its old key or with the new one, and the heap may
+     *         be out of order.
      *
      * @note Amortized O(1) time complexity
      */
@@ -705,6 +740,9 @@ namespace Aleph
      *
      * @param x Handle to the node
      * @param k The new key value (moved into node)
+     * @throws std::invalid_argument if x is nullptr
+     * @throws std::domain_error if k > current key
+     * @throws anything that the comparison throws, as the copy version.
      */
     void decrease_key(Node *x, T && k)
     {
@@ -736,6 +774,10 @@ namespace Aleph
      * @param k The new key value
      * @return Handle to the node (may be different if key increased)
      * @throws std::invalid_argument if x is nullptr
+     * @throws anything that the comparison throws. If the key decreases, as
+     *         decrease_key(); if it increases, x may be out of the heap and
+     *         destroyed, and the new key not in it. The heap may then be out
+     *         of order.
      *
      * @note O(1) amortized if decreasing, O(log n) amortized if increasing
      */
@@ -767,6 +809,8 @@ namespace Aleph
      *
      * @param x Handle to the node to delete
      * @throws std::invalid_argument if x is nullptr
+     * @throws anything that the comparison throws. Then x is out of the heap
+     *         and destroyed, and the heap may be out of order.
      *
      * @note Amortized O(log n) time complexity
      *
@@ -776,6 +820,9 @@ namespace Aleph
     {
       ah_invalid_argument_if(x == nullptr)
         << "Fibonacci_Heap::delete_node: null node pointer";
+
+      // As in extract_min(), before the heap changes
+      consolidate_array_.reserve(MAX_DEGREE);
 
       // Step 1: If x is not a root, cut it and perform cascading cuts
       if (x->parent != nullptr)
@@ -818,6 +865,10 @@ namespace Aleph
             }
         }
 
+      // As in extract_min(), x leaves the heap before the keys are compared
+      std::unique_ptr<Node> node(x);
+      --num_nodes;
+
       // Remove x from root list
       if (x == x->right)
         {
@@ -835,9 +886,6 @@ namespace Aleph
             min_node = x->right;
           consolidate();
         }
-
-      --num_nodes;
-      delete x;
     }
 
     /**
@@ -847,6 +895,8 @@ namespace Aleph
      * The other heap becomes empty after this operation.
      *
      * @param other The heap to merge (will be emptied)
+     * @throws anything that the comparison throws. Then both heaps are as
+     *         they were.
      *
      * @note O(1) time complexity
      *
@@ -864,6 +914,10 @@ namespace Aleph
         }
       else
         {
+          // Compared before the lists are joined, so that if the comparison
+          // throws each heap keeps its own nodes
+          const bool other_is_min = cmp(other.min_node->data, min_node->data);
+
           // Concatenate root lists
           Node *this_right = min_node->right;
           Node *other_left = other.min_node->left;
@@ -874,7 +928,7 @@ namespace Aleph
           this_right->left = other_left;
 
           // Update minimum if necessary
-          if (cmp(other.min_node->data, min_node->data))
+          if (other_is_min)
             min_node = other.min_node;
 
           num_nodes += other.num_nodes;
@@ -960,6 +1014,19 @@ namespace Aleph
      * @return Copy of the comparison functor
      */
     [[nodiscard]] Compare key_comp() const
+    {
+      return cmp;
+    }
+
+    /**
+     * @brief Returns the comparison functor that orders the heap.
+     *
+     * Changing it while the heap has elements may leave the heap out of
+     * order.
+     *
+     * @return Reference to the comparison functor
+     */
+    [[nodiscard]] Compare & get_compare() noexcept
     {
       return cmp;
     }

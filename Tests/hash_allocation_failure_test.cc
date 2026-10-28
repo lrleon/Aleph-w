@@ -40,6 +40,8 @@
 
 #include <gtest/gtest.h>
 
+#include "allocation_failure.H"
+
 #include <cstdlib>
 #include <new>
 #include <vector>
@@ -51,139 +53,12 @@
 
 using namespace Aleph;
 
-// ThreadSanitizer has its own global operator new and delete, which collide
-// with the ones below at link time; these tests are skipped under it.
-#if defined(__SANITIZE_THREAD__)
-#  define ALEPH_HASH_ALLOCATION_TEST_UNDER_TSAN 1
-#elif defined(__has_feature)
-#  if __has_feature(thread_sanitizer)
-#    define ALEPH_HASH_ALLOCATION_TEST_UNDER_TSAN 1
-#  endif
-#endif
-#ifndef ALEPH_HASH_ALLOCATION_TEST_UNDER_TSAN
-#  define ALEPH_HASH_ALLOCATION_TEST_UNDER_TSAN 0
-#endif
-
-namespace
-{
-  bool fail_allocations = false; // while true, operator new throws
-  size_t refused_allocations = 0;
-  size_t allocations = 0;
-
-  // While it lives, every allocation through operator new fails
-  struct No_Memory
-  {
-    No_Memory() noexcept
-    {
-      refused_allocations = 0;
-      fail_allocations = true;
-    }
-
-    ~No_Memory() { fail_allocations = false; }
-  };
-
-#if !ALEPH_HASH_ALLOCATION_TEST_UNDER_TSAN
-  void * allocate(const std::size_t size)
-  {
-    ++allocations;
-    if (fail_allocations)
-      {
-        ++refused_allocations;
-        throw std::bad_alloc();
-      }
-    if (void * p = std::malloc(size == 0 ? 1 : size))
-      return p;
-    throw std::bad_alloc();
-  }
-#endif
-}
-
-#if !ALEPH_HASH_ALLOCATION_TEST_UNDER_TSAN
-
-void * operator new(const std::size_t size)
-{
-  return allocate(size);
-}
-
-void * operator new[](const std::size_t size)
-{
-  return allocate(size);
-}
-
-// GoogleTest allocates with these too; under AddressSanitizer, its own
-// versions would give the operator delete below memory it did not take
-void * operator new(const std::size_t size, const std::nothrow_t &) noexcept
-{
-  try
-    {
-      return allocate(size);
-    }
-  catch (...)
-    {
-      return nullptr;
-    }
-}
-
-void * operator new[](const std::size_t size, const std::nothrow_t &) noexcept
-{
-  try
-    {
-      return allocate(size);
-    }
-  catch (...)
-    {
-      return nullptr;
-    }
-}
-
-// They free what operator new took from malloc; GCC does not see that
-#if defined(__GNUC__) && !defined(__clang__)
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wmismatched-new-delete"
-#endif
-
-void operator delete(void * p) noexcept
-{
-  std::free(p);
-}
-
-void operator delete[](void * p) noexcept
-{
-  std::free(p);
-}
-
-void operator delete(void * p, std::size_t) noexcept
-{
-  std::free(p);
-}
-
-void operator delete[](void * p, std::size_t) noexcept
-{
-  std::free(p);
-}
-
-void operator delete(void * p, const std::nothrow_t &) noexcept
-{
-  std::free(p);
-}
-
-void operator delete[](void * p, const std::nothrow_t &) noexcept
-{
-  std::free(p);
-}
-
-#if defined(__GNUC__) && !defined(__clang__)
-#  pragma GCC diagnostic pop
-#endif
-
-#endif // !ALEPH_HASH_ALLOCATION_TEST_UNDER_TSAN
-
-// The tests need the operator new above
+// The tests need the operator new of allocation_failure.H
 struct HashTableWithoutMemory : public ::testing::Test
 {
   void SetUp() override
   {
-    if (ALEPH_HASH_ALLOCATION_TEST_UNDER_TSAN)
+    if (ALEPH_ALLOCATION_FAILURE_UNDER_TSAN)
       GTEST_SKIP() << "ThreadSanitizer replaces the global operator new";
   }
 };

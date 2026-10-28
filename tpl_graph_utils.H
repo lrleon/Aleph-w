@@ -52,17 +52,19 @@
 # include <limits>
 # include <memory>
 # include <tuple>
+# include <type_traits>
 # include <utility>
 # include <vector>
 # include <tpl_agraph.H>
 # include <tpl_dynListQueue.H>
+# include <tpl_dfs_stack.H>
 # include <ah-errors.H>
 
 using namespace Aleph;
 
 namespace Aleph {
 
-  /** @brief Internal recursive DFS used by depth_first_traversal().
+  /** @brief Internal DFS used by depth_first_traversal().
    *
    * @tparam GT Graph type.
    * @param[in] g Graph being traversed.
@@ -73,6 +75,9 @@ namespace Aleph {
    * @return `true` if the traversal must stop early; `false` otherwise.
    *
    * @note Uses the `Depth_First` control bit on both nodes and arcs.
+   * @note A path can have as many nodes as the graph, too many for
+   * recursion, so that the search keeps its own stack; the order of the
+   * visits is that of a recursion.
    */
   template <AlephGraph GT> inline static bool
   __depth_first_traversal(const GT & g, typename GT::Node * node,
@@ -83,7 +88,8 @@ namespace Aleph {
 
   /** @brief Depth-first traversal starting from a given node.
    *
-   * Recursively traverses the connected component reachable from `start_node`.
+   * Traverses in depth-first order, without recursion, the connected
+   * component reachable from `start_node`.
    *
    * The callback must have the following signature:
    * `bool visit(const GT& g, typename GT::Node* curr, typename GT::Arc* from)`.
@@ -173,33 +179,67 @@ namespace Aleph {
 
   private:
 
-    bool __dft(typename GT::Node * node, typename GT::Arc * arc = nullptr)
-    {
-      if (IS_NODE_VISITED(node, Depth_First)) 
-        return false; 
+    using Frame = Dfs_Arc_Frame<Node_Arc_Iterator<GT, SA>>;
 
+    // Marks node, reached through arc, counts it and visits it; tells
+    // whether the traversal must stop
+    bool enter(typename GT::Node * node, typename GT::Arc * arc)
+    {
       NODE_BITS(node).set_bit(Depth_First, true);
       count++;
 
       if ((*op_ptr)(*g_ptr, node, arc)) 
         return true;
 
-      if (count == g_ptr->get_num_nodes())
+      return count == g_ptr->get_num_nodes();
+    }
+
+    // A path can have as many nodes as the graph, too many for recursion,
+    // so that the search keeps its own stack; the order of the visits is
+    // that of a recursion.
+    bool __dft(typename GT::Node * node, typename GT::Arc * arc = nullptr)
+    {
+      if (IS_NODE_VISITED(node, Depth_First))
+        return false;
+
+      if (enter(node, arc))
         return true;
 
-      // Recursively traverse arcs incident to `node`.
-      for (Node_Arc_Iterator<GT, SA> it(node, sa); it.has_curr(); it.next_ne())
+      // The node being visited keeps its iterator in here until it visits
+      // a node; then it waits in frames, where it goes on when it comes
+      // back
+      Dfs_Stack<Frame> frames;
+      Frame here(node, sa);
+      while (true)
         {
-          auto arc = it.get_current_arc_ne();
-          if (IS_ARC_VISITED(arc, Depth_First)) 
-            continue;
+          if (auto tgt = here.template next_target<Depth_First>())
+            { // the iterator stays on the arc to tgt, as in a recursion
+              if (enter(tgt, here.it.get_current_arc_ne()))
+                return true;
 
-          ARC_BITS(arc).set_bit(Depth_First, true);
-          if (__dft (it.get_tgt_node_ne(), arc))
-            return true;
+              frames.push(std::move(here));
+              here = Frame(tgt, sa);
+              continue;
+            }
+
+          while (true) // back to the nodes that wait
+            {
+              if (frames.is_empty())
+                return false;
+
+              Frame & f = frames.top();
+              f.next_arc(); // past the arc to the node that was visited
+              if (auto tgt = f.template next_target<Depth_First>())
+                {
+                  if (enter(tgt, f.it.get_current_arc_ne()))
+                    return true;
+
+                  here = Frame(tgt, sa);
+                  break;
+                }
+              frames.pop();
+            }
         }
-
-      return false;
     }
 
     size_t dft(const GT & g, typename GT::Node * start_node, Operation & __op)
@@ -274,28 +314,64 @@ namespace Aleph {
     if (IS_NODE_VISITED(node, Depth_First)) 
       return false; 
 
-    NODE_BITS(node).set_bit(Depth_First, true); // mark node visited
-    count++;
+    // Marks p, reached through a, counts it and visits it; tells whether
+    // the traversal must stop
+    struct Visit
+    {
+      [[gnu::always_inline]] static bool
+      enter(const GT & gr, typename GT::Node * p, typename GT::Arc * a,
+            bool (*v)(const GT &, typename GT::Node *, typename GT::Arc *),
+            size_t & c)
+      {
+        NODE_BITS(p).set_bit(Depth_First, true); // mark node visited
+        c++;
 
-    if (visit != nullptr) // invoke callback if provided
-      if ((*visit)(g, node, arc)) 
-        return true;
+        if (v != nullptr) // invoke callback if provided
+          if ((*v)(gr, p, a))
+            return true;
 
-    if (count == g.get_num_nodes()) // all nodes discovered?
+        return c == gr.get_num_nodes(); // all nodes discovered?
+      }
+    };
+
+    if (Visit::enter(g, node, arc, visit, count))
       return true;
 
-    for (auto it = g.get_arc_it(node); it.has_curr(); it.next_ne())
+    // The node being visited keeps its iterator in here until it visits a
+    // node; then it waits in frames, where it goes on when it comes back
+    using Frame = Dfs_Arc_Frame<typename GT::Node_Arc_Iterator>;
+    Dfs_Stack<Frame> frames;
+    Frame here(g.get_arc_it(node));
+    while (true)
       {
-        auto arc = it.get_current_arc_ne();
-        if (IS_ARC_VISITED(arc, Depth_First)) 
-          continue;
+        if (auto tgt = here.template next_target<Depth_First>())
+          { // the iterator stays on the arc to tgt, as in a recursion
+            if (Visit::enter(g, tgt, here.it.get_current_arc_ne(), visit, count))
+              return true;
 
-        ARC_BITS(arc).set_bit(Depth_First, true); // mark arc visited
-        if (__depth_first_traversal(g, it.get_tgt_node_ne(), arc, visit, count))
-          return true;
+            frames.push(std::move(here));
+            here = Frame(g.get_arc_it(tgt));
+            continue;
+          }
+
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return false; // keep exploring
+
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.template next_target<Depth_First>())
+              {
+                if (Visit::enter(g, tgt, f.it.get_current_arc_ne(), visit, count))
+                  return true;
+
+                here = Frame(g.get_arc_it(tgt));
+                break;
+              }
+            frames.pop();
+          }
       }
-
-    return false; // keep exploring
   } 
 
 
@@ -711,21 +787,54 @@ namespace Aleph {
 
     NODE_BITS(curr).set_bit(Test_Cycle, true);
 
-    for (auto it = g.get_arc_it(curr); it.has_curr(); it.next_ne())
+    // A path can have as many nodes as the graph, too many for recursion,
+    // so that the search keeps its own stack; the order of the visits is
+    // that of a recursion. The node being visited keeps its iterator in
+    // here until it visits a node; then it waits in frames, where it goes
+    // on when it comes back.
+    using Frame = Dfs_Arc_Frame<typename GT::Node_Arc_Iterator>;
+    Dfs_Stack<Frame> frames;
+    Frame here(g.get_arc_it(curr));
+    while (true)
       {
-        auto arc = it.get_curr();
-        if (IS_ARC_VISITED(arc, Test_Cycle)) 
-          continue;
+        if (auto tgt = here.template next_target<Test_Cycle>(src))
+          { // the iterator stays on the arc to tgt, as in a recursion
+            if (tgt == src)
+              return true; // detected cycle
 
-        ARC_BITS(arc).set_bit(Test_Cycle, true);
-        if (__test_cycle(g, src, it.get_tgt_node_ne()))
-          return true;
+            NODE_BITS(tgt).set_bit(Test_Cycle, true);
+            frames.push(std::move(here));
+            here = Frame(g.get_arc_it(tgt));
+            continue;
+          }
+
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return false;
+
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.template next_target<Test_Cycle>(src))
+              {
+                if (tgt == src)
+                  return true; // detected cycle
+
+                NODE_BITS(tgt).set_bit(Test_Cycle, true);
+                here = Frame(g.get_arc_it(tgt));
+                break;
+              }
+            frames.pop();
+          }
       }
-
-    return false; 
   }  
 
-  /** @brief Internal DFS used by is_graph_acyclique(). */
+  /** @brief Internal DFS used by is_graph_acyclique().
+   *
+   * A path can have as many nodes as the graph, too many for recursion, so
+   * that the search keeps its own stack; the order of the visits is that
+   * of a recursion.
+   */
   template <AlephGraph GT> inline static
   bool __is_graph_acyclique(const GT & g, typename GT::Node * curr_node)
   {
@@ -734,19 +843,43 @@ namespace Aleph {
 
     NODE_BITS(curr_node).set_bit(Test_Cycle, true);
 
-    for (auto it = g.get_arc_it(curr_node); it.has_curr(); it.next_ne())
+    // The node being visited keeps its iterator in here until it visits a
+    // node; then it waits in frames, where it goes on when it comes back
+    using Frame = Dfs_Arc_Frame<typename GT::Node_Arc_Iterator>;
+    Dfs_Stack<Frame> frames;
+    Frame here(g.get_arc_it(curr_node));
+    while (true)
       {
-        auto arc = it.get_current_arc_ne();
-        if (IS_ARC_VISITED(arc, Test_Cycle)) 
-          continue; 
+        if (auto tgt = here.template next_target<Test_Cycle, true>())
+          { // the iterator stays on the arc to tgt, as in a recursion
+            if (IS_NODE_VISITED(tgt, Test_Cycle)) // reached again
+              return false;
 
-        ARC_BITS(arc).set_bit(Test_Cycle, true); 
+            NODE_BITS(tgt).set_bit(Test_Cycle, true);
+            frames.push(std::move(here));
+            here = Frame(g.get_arc_it(tgt));
+            continue;
+          }
 
-        if (not __is_graph_acyclique(g, it.get_tgt_node_ne())) 
-          return false;
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return true; // all the arcs explored without a back edge
+
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.template next_target<Test_Cycle, true>())
+              {
+                if (IS_NODE_VISITED(tgt, Test_Cycle)) // reached again
+                  return false;
+
+                NODE_BITS(tgt).set_bit(Test_Cycle, true);
+                here = Frame(g.get_arc_it(tgt));
+                break;
+              }
+            frames.pop();
+          }
       }
-    // All outgoing arcs explored without detecting a back edge.
-    return true; 
   }
 
 
@@ -758,6 +891,7 @@ namespace Aleph {
    *
    * @note Uses the `Test_Cycle` control bit on both nodes and arcs.
    * @note Returns `true` for empty graphs.
+   * @note A loop is a cycle, and so are two arcs between the same nodes.
    *
    * @param[in] g Graph to test.
    * @param[in] start_node Starting node (must be non-null and belong to `g`).
@@ -781,12 +915,8 @@ namespace Aleph {
     ah_invalid_argument_if(start_node == nullptr)
       << "is_graph_acyclique(): start_node must be non-null";
 
-    if (num_nodes == 1)
-      return true;
-  
-    if (g.get_num_arcs() >= num_nodes) 
-      return false; 
-
+    // as many arcs as nodes give a cycle somewhere in g, perhaps not in the
+    // component of start_node
     g.reset_bit_arcs(Test_Cycle);
     g.reset_bit_nodes(Test_Cycle);
 
@@ -800,6 +930,7 @@ namespace Aleph {
    *
    * @note Uses the `Test_Cycle` control bit on both nodes and arcs.
    * @note Returns `true` for empty graphs.
+   * @note A loop is a cycle, and so are two arcs between the same nodes.
    *
    * @param[in] g Graph to test.
    * @return `true` if `g` is acyclic; `false` otherwise.
@@ -818,10 +949,7 @@ namespace Aleph {
     if (num_nodes == 0)
       return true;
 
-    if (num_nodes == 1)
-      return true;
-
-    if (g.get_num_arcs() >= num_nodes) 
+    if (g.get_num_arcs() >= num_nodes) // a forest has fewer arcs than nodes
       return false; 
 
     g.reset_bit_arcs(Test_Cycle);
@@ -896,7 +1024,12 @@ namespace Aleph {
   }
 
 
-  /** @brief Internal recursive DFS used by test_for_path(). */
+  /** @brief Internal DFS used by test_for_path().
+   *
+   * A path can have as many nodes as the graph, too many for recursion, so
+   * that the search keeps its own stack; the order of the visits is that
+   * of a recursion.
+   */
   template <AlephGraph GT> inline static
   bool __test_for_path(const GT & g, typename GT::Node * curr_node, 
                        typename GT::Node * end_node)  
@@ -909,18 +1042,43 @@ namespace Aleph {
 
     NODE_BITS(curr_node).set_bit(Find_Path, true);
 
-    for (auto it = g.get_arc_it(curr_node); it.has_curr(); it.next_ne())
-      { 
-        auto arc = it.get_current_arc_ne();
-        if (IS_ARC_VISITED(arc, Find_Path)) 
-          continue; 
+    // The node being visited keeps its iterator in here until it visits a
+    // node; then it waits in frames, where it goes on when it comes back
+    using Frame = Dfs_Arc_Frame<typename GT::Node_Arc_Iterator>;
+    Dfs_Stack<Frame> frames;
+    Frame here(g.get_arc_it(curr_node));
+    while (true)
+      {
+        if (auto tgt = here.template next_target<Find_Path>(end_node))
+          { // the iterator stays on the arc to tgt, as in a recursion
+            if (tgt == end_node)
+              return true;
 
-        ARC_BITS(arc).set_bit(Find_Path, true);
-        if (__test_for_path(g, it.get_tgt_node_ne(), end_node)) 
-          return true;
+            NODE_BITS(tgt).set_bit(Find_Path, true);
+            frames.push(std::move(here));
+            here = Frame(g.get_arc_it(tgt));
+            continue;
+          }
+
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return false;
+
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.template next_target<Find_Path>(end_node))
+              {
+                if (tgt == end_node)
+                  return true;
+
+                NODE_BITS(tgt).set_bit(Find_Path, true);
+                here = Frame(g.get_arc_it(tgt));
+                break;
+              }
+            frames.pop();
+          }
       }
-
-    return false;
   }
 
   /// @brief Forward declaration for inconnected_components().
@@ -1002,41 +1160,103 @@ namespace Aleph {
     if (IS_NODE_VISITED(g_src, Build_Subtree)) 
       return;
 
-    NODE_BITS(g_src).set_bit(Build_Subtree, true);
-    ++node_count; 
+    // A node that waits for the one that it visits, its image in sg, and
+    // the next arc of it to look at
+    struct Frame
+    {
+      typename GT::Node * sg_src;
+      typename GT::Node_Arc_Iterator it;
 
-    auto sg_src = mapped_node<GT>(g_src);
-    if (sg_src == nullptr) // not mapped yet
+      [[gnu::always_inline, gnu::flatten]]
+      Frame(const GT & gr, typename GT::Node * p, typename GT::Node * image)
+        : sg_src(image), it(gr.get_arc_it(p)) {}
+
+      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+
+      // Marks p, counts it and gives its frame, with its image in sg,
+      // which it inserts if p has none
+      [[gnu::always_inline]] static Frame
+      visit(const GT & gr, GT & sgr, typename GT::Node * p, size_t & count)
       {
-        sg_src = sg.insert_node(g_src->get_info());
-        GT::map_nodes(g_src, sg_src);
+        NODE_BITS(p).set_bit(Build_Subtree, true);
+        ++count;
+
+        auto sg_p = mapped_node<GT>(p);
+        if (sg_p == nullptr) // not mapped yet
+          {
+            sg_p = sgr.insert_node(p->get_info());
+            GT::map_nodes(p, sg_p);
+          }
+        return Frame(gr, p, sg_p);
       }
 
-    for (auto it = g.get_arc_it(g_src); 
-         node_count < g.get_num_nodes() and it.has_curr(); it.next_ne())
+      // Copies into sg, while not all the nodes were visited, the arcs
+      // that were not, with their targets, up to one whose target was not
+      // visited, which it gives, with the iterator on that arc; nullptr
+      // when the arcs are done
+      [[gnu::always_inline]] typename GT::Node *
+      next_to_visit(const GT & gr, GT & sgr, const size_t & count)
       {
-        auto arc = it.get_current_arc_ne();
-        if (IS_ARC_VISITED(arc, Build_Subtree)) 
-          continue; 
-
-        ARC_BITS(arc).set_bit(Build_Subtree, true);
-        auto g_tgt  = it.get_tgt_node_ne();
-        auto sg_tgt = mapped_node<GT>(g_tgt);
-        if (sg_tgt == nullptr) // sg_tgt mapped in sg?
+        for (; count < gr.get_num_nodes() and it.has_curr(); next_arc())
           {
-            sg_tgt = sg.insert_node(g_tgt->get_info()); 
-            GT::map_nodes(g_tgt, sg_tgt); 
+            auto arc = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(arc, Build_Subtree))
+              continue;
+
+            ARC_BITS(arc).set_bit(Build_Subtree, true);
+            auto g_tgt  = it.get_tgt_node_ne();
+            auto sg_tgt = mapped_node<GT>(g_tgt);
+            if (sg_tgt == nullptr) // sg_tgt mapped in sg?
+              {
+                sg_tgt = sgr.insert_node(g_tgt->get_info());
+                GT::map_nodes(g_tgt, sg_tgt);
+              }
+
+            auto sg_arc = sgr.insert_arc(sg_src, sg_tgt, arc->get_info());
+            GT::map_arcs(arc, sg_arc);
+
+            if (not IS_NODE_VISITED(g_tgt, Build_Subtree))
+              return g_tgt;
+          }
+        return nullptr;
+      }
+    };
+
+    // A path can have as many nodes as the graph, too many for recursion,
+    // so that the search keeps its own stack; the order of the visits is
+    // that of a recursion. The node being visited keeps its iterator in
+    // here until it visits a node; then it waits in frames, where it goes
+    // on when it comes back.
+    Dfs_Stack<Frame> frames;
+    Frame here = Frame::visit(g, sg, g_src, node_count);
+    while (true)
+      {
+        if (auto g_tgt = here.next_to_visit(g, sg, node_count))
+          { // the iterator stays on the arc to g_tgt, as in a recursion
+            frames.push(std::move(here));
+            here = Frame::visit(g, sg, g_tgt, node_count);
+            continue;
           }
 
-        auto sg_arc = sg.insert_arc(sg_src, sg_tgt, arc->get_info());
-        GT::map_arcs(arc, sg_arc); 
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return;
 
-        build_subgraph(g, sg, g_tgt, node_count);
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto g_tgt = f.next_to_visit(g, sg, node_count))
+              {
+                here = Frame::visit(g, sg, g_tgt, node_count);
+                break;
+              }
+            frames.pop();
+          }
       }
   }
 
   
-  /** @brief Internal recursive DFS used by find_depth_first_spanning_tree(). */
+  /** @brief Internal DFS used by find_depth_first_spanning_tree(). */
   template <AlephGraph GT> inline static
   bool __find_depth_first_spanning_tree(const GT &          g, 
                                         typename GT::Node * gnode, 
@@ -1106,36 +1326,106 @@ namespace Aleph {
                                         typename GT::Arc *  garc, 
                                         GT & tree, typename GT::Node * tnode)
   {
-    NODE_BITS(gnode).set_bit(Spanning_Tree, true);
-    ARC_BITS(garc).set_bit(Spanning_Tree, true);
+    // A node of the tree that waits for the one that it visits, its image
+    // in the tree, and the next arc of it to look at
+    struct Frame
+    {
+      typename GT::Node * tnode;
+      typename GT::Node_Arc_Iterator it;
 
-    auto tree_tgt_node = tree.insert_node(gnode->get_info());
-    GT::map_nodes(gnode, tree_tgt_node);
+      [[gnu::always_inline, gnu::flatten]]
+      Frame(const GT & gr, typename GT::Node * p, typename GT::Node * image)
+        : tnode(image), it(gr.get_arc_it(p)) {}
 
-    auto tarc = tree.insert_arc(tnode, tree_tgt_node, garc->get_info()); 
-    GT::map_arcs(garc, tarc);
+      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
 
-    tnode = tree_tgt_node; 
-    if (tree.get_num_nodes() == g.get_num_nodes())
+      // Moves the iterator to the next arc not in the tree whose target is
+      // not in the tree either, and gives that target, or nullptr when the
+      // arcs are done
+      [[gnu::always_inline, gnu::flatten]] typename GT::Node * next_target() noexcept
+      {
+        for (; it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(arc, Spanning_Tree))
+              continue;
+
+            auto arc_tgt_node = it.get_tgt_node_ne();
+            if (not IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
+              return arc_tgt_node;
+          }
+        return nullptr;
+      }
+    };
+
+    // Puts in the tree p, reached through a from the node whose image is
+    // t, and gives the image of p, or nullptr if the tree is complete
+    struct Tree
+    {
+      [[gnu::always_inline]] static typename GT::Node *
+      put(const GT & gr, GT & tr, typename GT::Node * p, typename GT::Arc * a,
+          typename GT::Node * t)
+      {
+        NODE_BITS(p).set_bit(Spanning_Tree, true);
+        ARC_BITS(a).set_bit(Spanning_Tree, true);
+
+        auto tree_tgt_node = tr.insert_node(p->get_info());
+        GT::map_nodes(p, tree_tgt_node);
+
+        auto tarc = tr.insert_arc(t, tree_tgt_node, a->get_info());
+        GT::map_arcs(a, tarc);
+
+        if (tr.get_num_nodes() == gr.get_num_nodes())
+          return nullptr;
+
+        assert(tr.get_num_nodes() > tr.get_num_arcs()); // tree invariant
+        return tree_tgt_node;
+      }
+    };
+
+    // A path can have as many nodes as the graph, too many for recursion,
+    // so that the search keeps its own stack; the order of the visits is
+    // that of a recursion. The node being visited keeps its iterator in
+    // here until it visits a node; then it waits in frames, where it goes
+    // on when it comes back.
+    auto image = Tree::put(g, tree, gnode, garc, tnode);
+    if (image == nullptr)
       return true;
 
-    assert(tree.get_num_nodes() > tree.get_num_arcs()); // tree invariant
-
-    for (auto it = g.get_arc_it(gnode); it.has_curr(); it.next_ne())
+    Dfs_Stack<Frame> frames;
+    Frame here(g, gnode, image);
+    while (true)
       {
-        auto arc = it.get_current_arc_ne();
-        if (IS_ARC_VISITED(arc, Spanning_Tree)) 
-          continue;
+        if (auto tgt = here.next_target())
+          { // the iterator stays on the arc to tgt, as in a recursion
+            image = Tree::put(g, tree, tgt, here.it.get_current_arc_ne(), here.tnode);
+            if (image == nullptr)
+              return true; // spanning tree completed
 
-        auto arc_tgt_node = it.get_tgt_node_ne();
-        if (IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
-          continue;
+            frames.push(std::move(here));
+            here = Frame(g, tgt, image);
+            continue;
+          }
 
-        if (__find_depth_first_spanning_tree(g, arc_tgt_node, arc, tree, tnode))
-          return true; // spanning tree completed
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return false;
+
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.next_target())
+              {
+                image = Tree::put(g, tree, tgt, f.it.get_current_arc_ne(), f.tnode);
+                if (image == nullptr)
+                  return true; // spanning tree completed
+
+                here = Frame(g, tgt, image);
+                break;
+              }
+            frames.pop();
+          }
       }
-
-    return false;
   }
 
   /** @brief Build a breadth-first spanning tree (mapped to the original graph).
@@ -1166,6 +1456,7 @@ namespace Aleph {
 
     std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
     tree.insert_node(tp_auto.get());
+    NODE_COOKIE(gp) = nullptr; // else it would compose with a former tree
     GT::map_nodes(gp, tp_auto.release());
     NODE_BITS(gp).set_bit(Spanning_Tree, true);
 
@@ -1194,10 +1485,12 @@ namespace Aleph {
         std::unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
         tree.insert_node(ttgt_auto.get());
         auto ttgt = ttgt_auto.release();
+        NODE_COOKIE(gtgt) = nullptr; // else it would compose with a former tree
         GT::map_nodes(gtgt, ttgt);
 
         // Insert and map the new tree arc.
         auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
+        ARC_COOKIE(garc) = nullptr;
         GT::map_arcs(garc, tarc);
         if (tree.get_num_nodes() == g.get_num_nodes())
           break; 
@@ -1298,9 +1591,78 @@ namespace Aleph {
     return reinterpret_cast<long&>(NODE_COOKIE(p));
   }
 
+  namespace graph_utils_detail
+  {
+    /// A node that waits for the one that it visits, the arc through which
+    /// it was visited, the next arc of it to look at, its low value, and
+    /// whether it is a cut node of what was seen. The low value is needed
+    /// only while the node is in the stack, so it is kept here instead of
+    /// in the cookie of the node.
+    template <class GT>
+    struct Cut_Frame
+    {
+      typename GT::Node * p;
+      typename GT::Arc * a;
+      typename GT::Node_Arc_Iterator it;
+      long low;
+      bool p_is_cut_node = false;
+
+      [[gnu::always_inline, gnu::flatten]]
+      Cut_Frame(const GT & g, typename GT::Node * n, typename GT::Arc * arc,
+                const long n_low)
+        : p(n), a(arc), it(g.get_arc_it(n)), low(n_low) {}
+
+      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    };
+
+    // Visits n, reached through arc, and pushes its frame
+    template <class GT>
+    [[gnu::always_inline]] inline Cut_Frame<GT> *
+    visit_cut(const GT & g, Dfs_Stack<Cut_Frame<GT>> & frames,
+              typename GT::Node * n, typename GT::Arc * arc, long & curr_df)
+    {
+      NODE_BITS(n).set_bit(Depth_First, true);
+      const long n_df = df<GT>(n) = curr_df++;
+      return &frames.push(g, n, arc, n_df); // its low value starts as it
+    }
+
+    // Moves the iterator of f to the next arc of f.p that goes to a node
+    // not visited, which it marks, and gives that node, or nullptr when
+    // the arcs of f.p are done. The arcs to nodes visited lower f.low.
+    template <class GT>
+    [[gnu::always_inline, gnu::flatten]] inline typename GT::Node *
+    next_cut_child(Cut_Frame<GT> & f) noexcept
+    {
+      for (; f.it.has_curr(); f.it.next_ne())
+        {
+          auto arc = f.it.get_current_arc_ne();
+          if (arc == f.a)
+            continue; // parent arc
+
+          auto tgt = f.it.get_tgt_node_ne();
+          if (IS_NODE_VISITED(tgt, Depth_First))
+            {
+              if (not IS_ARC_VISITED(arc, Depth_First))
+                if (df<GT>(tgt) < f.low)
+                  f.low = df<GT>(tgt);
+
+              continue;
+            }
+
+          if (IS_ARC_VISITED(arc, Depth_First))
+            continue;
+
+          ARC_BITS(arc).set_bit(Depth_First, true);
+          return tgt;
+        }
+      return nullptr;
+    }
+  } // namespace graph_utils_detail
+
   /** @brief Internal DFS step used by compute_cut_nodes(). */
   template <AlephGraph GT> inline static
-  void __compute_cut_nodes(const GT & g, DynList<typename GT::Node *> & list, 
+  void __compute_cut_nodes(const GT & g, DynList<typename GT::Node *> & list,
+                           Dfs_Stack<graph_utils_detail::Cut_Frame<GT>> & frames,
                            typename GT::Node * p, typename GT::Arc * a,
                            long & curr_df);
 
@@ -1314,8 +1676,7 @@ namespace Aleph {
    * - Resets node counters and control bits (all node bit fields are cleared).
    * - Uses the `Depth_First` and `Cut` control bits on nodes, and `Depth_First`
    *   on arcs.
-   * - Temporarily stores low-link values in node cookies and clears all node
-   *   cookies to `nullptr` before returning.
+   * - Sets all node cookies to `nullptr`.
    *
    * @note For a disconnected graph, only the connected component reachable
    * from `start` is analyzed.
@@ -1344,39 +1705,19 @@ namespace Aleph {
     ah_invalid_argument_if(start == nullptr)
       << "compute_cut_nodes(): start must be non-null";
 
-    using Node = typename GT::Node;
-
-    std::vector<Node*> nodes;
-    nodes.reserve(g.get_num_nodes());
-    for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
-      nodes.push_back(it.get_curr());
-
-    std::vector<long> low_values(nodes.size(), -1);
-
-    for (size_t i = 0; i < nodes.size(); ++i)
-      {
-        auto p = nodes[i];
-        NODE_COUNTER(p) = 0;
-        NODE_BITS(p).reset();
-        NODE_COOKIE(p) = &low_values[i];
-      }
-
-    struct Cookie_Guard
-    {
-      std::vector<Node*> & nodes;
-
-      ~Cookie_Guard()
-      {
-        for (auto p : nodes)
-          NODE_COOKIE(p) = nullptr;
-      }
-    } cookie_guard{nodes};
+    g.for_each_node([](auto p)
+                    {
+                      NODE_COUNTER(p) = 0;
+                      NODE_BITS(p).reset();
+                      NODE_COOKIE(p) = nullptr;
+                    });
 
     g.reset_arcs();
     long current_df = 0;
     NODE_BITS(start).set_bit(Depth_First, true);
-    low<GT>(start) = df<GT>(start) = current_df++;
+    df<GT>(start) = current_df++;
     int call_counter = 0;
+    Dfs_Stack<graph_utils_detail::Cut_Frame<GT>> frames;
   
     // Traverse arcs incident to `start`.
     for (auto it = g.get_arc_it(start); 
@@ -1391,7 +1732,7 @@ namespace Aleph {
           continue;
 
         ARC_BITS(arc).set_bit(Depth_First, true);
-        __compute_cut_nodes(g, list, tgt, arc, current_df); 
+        __compute_cut_nodes(g, list, frames, tgt, arc, current_df);
         ++call_counter;
       }
 
@@ -1412,50 +1753,51 @@ namespace Aleph {
     return compute_cut_nodes(g, g.get_node());
   }
       
-  /** @brief Internal recursive step for compute_cut_nodes(). */
+  /** @brief Internal step for compute_cut_nodes(): the search from `p`.
+   *
+   * Visits `p`, reached through `a`, and what it reaches, and appends to
+   * `list` the cut nodes among them. A path can have as many nodes as the
+   * graph, too many for recursion, so that the search keeps its frames in
+   * `frames`; the order of the visits is that of a recursion.
+   */
   template <AlephGraph GT> inline static
-  void __compute_cut_nodes(const GT & g, DynList<typename GT::Node *> & list, 
-                           typename GT::Node * p, typename GT::Arc * a, 
+  void __compute_cut_nodes(const GT & g, DynList<typename GT::Node *> & list,
+                           Dfs_Stack<graph_utils_detail::Cut_Frame<GT>> & frames,
+                           typename GT::Node * p, typename GT::Arc * a,
                            long & curr_df)
   {
-    NODE_BITS(p).set_bit(Depth_First, true);
-    low<GT>(p) = df<GT>(p) = curr_df++;
+    using Frame = graph_utils_detail::Cut_Frame<GT>;
+    using graph_utils_detail::next_cut_child;
+    using graph_utils_detail::visit_cut;
 
-    bool p_is_cut_node = false;
-    for (auto it = g.get_arc_it(p); it.has_curr(); it.next_ne())
+    Frame * f = visit_cut(g, frames, p, a, curr_df); // the top one
+    while (true)
       {
-        auto arc = it.get_current_arc_ne();
-        if (arc == a) 
-          continue; // parent arc
-
-        auto tgt = it.get_tgt_node_ne();
-        if (IS_NODE_VISITED(tgt, Depth_First)) 
-          { 
-            if (not IS_ARC_VISITED(arc, Depth_First))
-              if (df<GT>(tgt) < low<GT>(p))
-                low<GT>(p) = df<GT>(tgt);
-
+        if (auto tgt = next_cut_child(*f))
+          { // the iterator of f stays on the arc to tgt, as in a recursion
+            f = visit_cut(g, frames, tgt, f->it.get_current_arc_ne(), curr_df);
             continue;
           }
 
-        if (IS_ARC_VISITED(arc, Depth_First)) 
-          continue;
+        auto child = f->p;
+        const long child_low = f->low;
+        if (f->p_is_cut_node)
+          {
+            NODE_BITS(child).set_bit(Cut, true);
+            list.append(child);
+          }
+        frames.pop();
+        if (frames.is_empty())
+          return;
 
-        ARC_BITS(arc).set_bit(Depth_First, true);
+        f = &frames.top(); // the node from which child was visited
+        if (child_low < f->low)
+          f->low = child_low;
 
-        __compute_cut_nodes(g, list, tgt, arc, curr_df);
+        if (child_low >= df<GT>(f->p) and df<GT>(child) != 0)
+          f->p_is_cut_node = true;
 
-        if (low<GT>(tgt) < low<GT>(p)) 
-          low<GT>(p) = low<GT>(tgt);
-
-        if (low<GT>(tgt) >= df<GT>(p) and df<GT>(tgt) != 0)
-          p_is_cut_node = true;
-      }
-
-    if (p_is_cut_node)
-      {
-        NODE_BITS(p).set_bit(Cut, true);
-        list.append(p);
+        f->next_arc(); // past the arc to child
       }
   }
 
@@ -1528,9 +1870,57 @@ namespace Aleph {
     return ARC_COUNTER(a);
   }
 
-  /** @brief Internal DFS that paints a non-cut block with `current_color`. */
+  namespace graph_utils_detail
+  {
+    /// The next arc of a node of a block being painted
+    template <class GT>
+    struct Paint_Frame
+    {
+      typename GT::Node_Arc_Iterator it;
+
+      [[gnu::always_inline, gnu::flatten]]
+      Paint_Frame(const GT & g, typename GT::Node * n) : it(g.get_arc_it(n)) {}
+
+      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+
+      // Moves the iterator to the next arc that goes to a node that is not
+      // a cut node and was not painted, and paints both; gives that node,
+      // or nullptr when the arcs are done
+      [[gnu::always_inline, gnu::flatten]]
+      typename GT::Node * next_to_paint(const long color) noexcept
+      {
+        for (; it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_current_arc_ne();
+            if (is_arc_painted <GT> (arc))
+              continue;
+
+            auto tgt = it.get_tgt_node_ne();
+            if (is_a_cut_node <GT> (tgt))
+              continue;
+
+            paint_arc <GT> (arc, color);
+            if (is_node_painted <GT> (tgt))
+              continue;
+
+            paint_node <GT> (tgt, color);
+            return tgt;
+          }
+        return nullptr;
+      }
+    };
+  } // namespace graph_utils_detail
+
+  /** @brief Internal DFS that paints a non-cut block with `current_color`.
+   *
+   * A path can have as many nodes as the graph, too many for recursion, so
+   * that the search keeps its own stack; the order of the visits is that
+   * of a recursion.
+   */
   template <AlephGraph GT> inline static
-  void __paint_subgraph(const GT & g, typename GT::Node * p, long current_color)
+  void __paint_subgraph(const GT & g,
+                        Dfs_Stack<graph_utils_detail::Paint_Frame<GT>> & frames,
+                        typename GT::Node * p, long current_color)
   {
     assert(not is_a_cut_node <GT> (p));
 
@@ -1539,26 +1929,43 @@ namespace Aleph {
 
     paint_node <GT> (p, current_color);
 
-    for (auto it = g.get_arc_it(p); it.has_curr(); it.next_ne())
+    using Frame = graph_utils_detail::Paint_Frame<GT>;
+
+    // The node being visited keeps its iterator in here until it visits a
+    // node; then it waits in frames, where it goes on when it comes back
+    Frame here(g, p);
+    while (true)
       {
-        auto arc = it.get_current_arc_ne();
-        if (is_arc_painted <GT> (arc))
-          continue;
+        if (auto tgt = here.next_to_paint(current_color))
+          { // the iterator stays on the arc to tgt, as in a recursion
+            frames.push(std::move(here));
+            here = Frame(g, tgt);
+            continue;
+          }
 
-        auto tgt = it.get_tgt_node_ne();
-        if (is_a_cut_node <GT> (tgt))
-          continue;
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return;
 
-        paint_arc <GT> (arc, current_color); 
-
-        __paint_subgraph(g, tgt, current_color); 
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.next_to_paint(current_color))
+              {
+                here = Frame(g, tgt);
+                break;
+              }
+            frames.pop();
+          }
       }
   }
 
   /** @brief Internal step that paints all blocks adjacent to a cut node. */
   template <AlephGraph GT> inline static
   void 
-  __paint_from_cut_node(const GT & g, typename GT::Node * p, long & current_color)
+  __paint_from_cut_node(const GT & g,
+                        Dfs_Stack<graph_utils_detail::Paint_Frame<GT>> & frames,
+                        typename GT::Node * p, long & current_color)
   {
     assert(is_a_cut_node <GT> (p));
 
@@ -1582,7 +1989,7 @@ namespace Aleph {
               continue; 
           }
 
-        __paint_subgraph(g, tgt_node, current_color);
+        __paint_subgraph(g, frames, tgt_node, current_color);
 
         ++current_color;
 
@@ -1632,31 +2039,64 @@ namespace Aleph {
     g.reset_counter_arcs();
     long current_color = 1;
 
+    Dfs_Stack<graph_utils_detail::Paint_Frame<GT>> frames;
     for (auto it = cut_node_list.get_it(); it.has_curr(); it.next_ne())
-      __paint_from_cut_node(g, it.get_curr(), current_color);
+      __paint_from_cut_node(g, frames, it.get_curr(), current_color);
 
     return current_color;
   }
 
-  /** @brief Internal recursive step used by map_subgraph(). */
+  /** @brief Internal step used by map_subgraph().
+   *
+   * Copies into `sg`, from `gsrc`, whose image is in `sg`, the arcs of the
+   * given color not copied yet, with the nodes that they reach; the search
+   * goes on from the target of each arc that it copies. A path can have as
+   * many nodes as the graph, too many for recursion, so that the search
+   * keeps its own stack; the order of the visits is that of a recursion.
+   */
   template <AlephGraph GT> inline static
   void __map_subgraph(const GT & g, GT & sg, typename GT::Node * gsrc, 
                       const long color)
   {
     assert(get_color <GT> (gsrc) == color);
 
-    auto tsrc = mapped_node<GT>(gsrc); // image of gsrc in sg
+    // A node that waits for the one that the copy goes to, its image in
+    // sg, and the next arc of it to look at
+    struct Frame
+    {
+      typename GT::Node * tsrc;
+      typename GT::Node_Arc_Iterator it;
 
-    // Traverse arcs and copy those with the requested color.
-    for (auto it = g.get_arc_it(gsrc); it.has_curr(); it.next_ne())
+      [[gnu::always_inline, gnu::flatten]]
+      Frame(const GT & gr, typename GT::Node * n)
+        : tsrc(mapped_node<GT>(n)), it(gr.get_arc_it(n)) {}
+
+      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+
+      // Moves the iterator to the next arc of the color that was not
+      // copied, and gives it, or nullptr when the arcs are done
+      [[gnu::always_inline, gnu::flatten]]
+      typename GT::Arc * next_to_map(const long c) noexcept
       {
-        auto garc = it.get_current_arc_ne();
-        if (get_color<GT>(garc) != color or IS_ARC_VISITED(garc, Build_Subtree))
-          continue;
+        for (; it.has_curr(); it.next_ne())
+          {
+            auto garc = it.get_current_arc_ne();
+            if (get_color<GT>(garc) != c or IS_ARC_VISITED(garc, Build_Subtree))
+              continue;
 
+            return garc;
+          }
+        return nullptr;
+      }
+    };
+
+    // Copies garc, an arc of f.it, and gtgt, its target, if gtgt was not
+    // copied
+    auto copy = [&](Frame & f, typename GT::Arc * garc)
+      {
         ARC_BITS(garc).set_bit(Build_Subtree, true); 
 
-        auto gtgt = it.get_tgt_node_ne(); 
+        auto gtgt = f.it.get_tgt_node_ne();
 
         assert(get_color <GT> (gtgt) == color);
 
@@ -1667,15 +2107,48 @@ namespace Aleph {
           {     // gtgt not in sg yet: copy & map it
             std::unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
             sg.insert_node(ttgt_auto.get());
+            NODE_COOKIE(gtgt) = nullptr; // else it would compose with a former copy
             GT::map_nodes(gtgt, ttgt_auto.get());
             NODE_BITS(gtgt).set_bit(Build_Subtree, true); 
             ttgt = ttgt_auto.release(); 
           }
 
-        auto tarc = sg.insert_arc(tsrc, ttgt, garc->get_info());
+        auto tarc = sg.insert_arc(f.tsrc, ttgt, garc->get_info());
+        ARC_COOKIE(garc) = nullptr; // else it would compose with a former copy
         GT::map_arcs(garc, tarc);
+        return Frame(g, gtgt);
+      };
 
-        __map_subgraph(g, sg, gtgt, color);
+    // The node being visited keeps its iterator in here until the copy
+    // goes on from a target of it; then it waits in frames, where it goes
+    // on when the copy comes back
+    Dfs_Stack<Frame> frames;
+    Frame here(g, gsrc);
+    while (true)
+      {
+        // Traverse arcs and copy those with the requested color.
+        if (auto garc = here.next_to_map(color))
+          { // the iterator stays on garc, as in a recursion
+            Frame next = copy(here, garc);
+            frames.push(std::move(here));
+            here = std::move(next);
+            continue;
+          }
+
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return;
+
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc that was copied
+            if (auto garc = f.next_to_map(color))
+              {
+                here = copy(f, garc);
+                break;
+              }
+            frames.pop();
+          }
       }
   }
 
@@ -1718,6 +2191,7 @@ namespace Aleph {
     GT sg;
     std::unique_ptr<typename GT::Node> auto_tsrc(new typename GT::Node(first));
     sg.insert_node(auto_tsrc.get());
+    NODE_COOKIE(first) = nullptr; // else it would compose with a former copy
     GT::map_nodes(first, auto_tsrc.release());
     NODE_BITS(first).set_bit(Build_Subtree, true);
 
@@ -1761,6 +2235,7 @@ namespace Aleph {
 
         std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
         cut_graph.insert_node(tp_auto.get());
+        NODE_COOKIE(gp) = nullptr; // else it would compose with a former copy
         GT::map_nodes(gp, tp_auto.release());
       }
 
@@ -1783,10 +2258,12 @@ namespace Aleph {
         assert(src != nullptr and tgt != nullptr);
 
         auto arc = cut_graph.insert_arc(src, tgt, garc->get_info());
+        ARC_COOKIE(garc) = nullptr; // else it would compose with a former copy
         GT::map_arcs(garc, arc);
       }
-  
-    return { cut_graph, cross_arc_list };
+
+    // moved, so that the nodes and arcs that g maps to are those returned
+    return { std::move(cut_graph), std::move(cross_arc_list) };
   }
 
 
