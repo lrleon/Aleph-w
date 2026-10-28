@@ -2708,12 +2708,11 @@ Las salidas avanzadas son opt-in mediante `Planarity_Test_Options`:
 
 Modelo de garantía del embedding:
 - la decisión de planaridad (`is_planar`) viene de la prueba LR y se mantiene exacta.
-- el modo estricto de embedding LR (`embedding_allow_bruteforce_fallback = false`) es una
-  estrategia constructiva acotada; si llega al presupuesto, el embedding puede faltar
-  (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`)
-  incluso para grafos planares.
-- si necesitas completitud del embedding, mantén el fallback habilitado y provee suficiente
-  presupuesto `embedding_max_combinations`.
+- el embedding LR (`embedding_prefer_lr_linear = true`) es completo: da un embedding
+  para todo grafo planar, también en modo estricto y sin presupuesto de combinaciones.
+- con `embedding_prefer_lr_linear = false`, la búsqueda exacta acotada puede agotar
+  `embedding_max_combinations` y dejar el embedding sin construir
+  (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`).
 
 APIs de cara y dual:
 - `planar_dual_metadata(result)`:

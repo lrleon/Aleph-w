@@ -438,13 +438,13 @@ components as well as the cross arcs.
       assert(get_color<GT>(gp) == color);
       assert(not IS_NODE_VISITED(gp, Build_Subtree));
 
-      std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
-      sg.insert_node(tp_auto.get());
+      // insert_node() frees the node if it cannot take it
+      auto tp = sg.insert_node(new typename GT::Node(gp));
       NODE_COOKIE(gp) = nullptr; // else it would compose with a former copy
-      GT::map_nodes(gp, tp_auto.get());
+      GT::map_nodes(gp, tp);
       NODE_BITS(gp).set_bit(Build_Subtree, true);
 
-      return tp_auto.release();
+      return tp;
     }
 
     // A node of the block being copied that waits for the one that the
@@ -491,9 +491,10 @@ components as well as the cross arcs.
       // copied; gives the frame of gtgt
       auto copy = [&](Map_Frame &f, typename GT::Arc *garc)
         {
-          ARC_BITS(garc).set_bit(Build_Subtree, true);
-
+          // the target before the mark, which the compiler takes for a
+          // store that could change the iterator
           auto gtgt = f.it.get_tgt_node_ne();
+          ARC_BITS(garc).set_bit(Build_Subtree, true);
 
           assert(get_color <GT> (gtgt) == color);
 
@@ -712,10 +713,10 @@ components as well as the cross arcs.
 
           assert(is_a_cut_node <GT> (gp));
 
-          std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
-          cut_graph.insert_node(tp_auto.get());
+          // insert_node() frees the node if it cannot take it
+          auto tp = cut_graph.insert_node(new typename GT::Node(gp));
           NODE_COOKIE(gp) = nullptr; // else it would compose with a former copy
-          GT::map_nodes(gp, tp_auto.release());
+          GT::map_nodes(gp, tp);
         }
 
       // Traverse arcs of g:

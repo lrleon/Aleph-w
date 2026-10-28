@@ -132,8 +132,10 @@ namespace Aleph
           if (IS_ARC_VISITED(next_arc, Find_Path))
             continue;
 
-          ARC_BITS(next_arc).set_bit(Find_Path, true);
+          // the target before the mark, which the compiler takes for a
+          // store that could change the frame
           auto next_node = g_ptr->get_connected_node(next_arc, f.curr);
+          ARC_BITS(next_arc).set_bit(Find_Path, true);
           if (op(next_node)) // goal node reached?
             {
               found = true;

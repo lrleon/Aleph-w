@@ -847,6 +847,67 @@ TEST_F(GraphFunctionalTest, ForEachArcFromNodeMethod)
   EXPECT_DOUBLE_EQ(sum, 7.0); // 1+2+4
 }
 
+// traverse_arcs<Itor>() and for_each_arc<Itor>() go through the arcs that
+// the iterator gives, with an iterator that has get_curr_ne() and with one
+// that has only get_curr()
+TEST(GraphFunctionalItor, TheArcsOfANodeThroughAGivenIterator)
+{
+  ListDigraph g;
+  auto a = g.insert_node(1);
+  auto b = g.insert_node(2);
+  auto c = g.insert_node(3);
+  g.insert_arc(a, b, 1);
+  g.insert_arc(a, c, 2);
+  g.insert_arc(b, a, 4);
+
+  // the iterator over the arcs of a node, without get_curr_ne()
+  struct Checked_Only
+  {
+    ListDigraph::Node_Arc_Iterator it;
+
+    explicit Checked_Only(ListDigraph::Node * p) : it(p) {}
+
+    bool has_curr() const { return it.has_curr(); }
+
+    void next_ne() noexcept { it.next_ne(); }
+
+    ListDigraph::Arc * get_curr() const { return it.get_curr(); }
+  };
+
+  double sum = 0;
+  auto add = [&sum](ListDigraph::Arc * arc) { sum += arc->get_info(); };
+  auto add_all = [&sum](ListDigraph::Arc * arc)
+    {
+      sum += arc->get_info();
+      return true;
+    };
+  auto add_first = [&sum](ListDigraph::Arc * arc)
+    {
+      sum += arc->get_info();
+      return false;
+    };
+
+  g.for_each_arc<ListDigraph::Out_Iterator>(a, add);
+  EXPECT_DOUBLE_EQ(sum, 3.0);
+
+  sum = 0;
+  EXPECT_TRUE(g.traverse_arcs<ListDigraph::Out_Iterator>(a, add_all));
+  EXPECT_DOUBLE_EQ(sum, 3.0);
+
+  sum = 0;
+  g.for_each_arc<Checked_Only>(b, add);
+  EXPECT_DOUBLE_EQ(sum, 4.0);
+
+  sum = 0;
+  EXPECT_TRUE(g.traverse_arcs<Checked_Only>(a, add_all));
+  EXPECT_DOUBLE_EQ(sum, 3.0);
+
+  sum = 0;
+  EXPECT_FALSE(g.traverse_arcs<Checked_Only>(a, add_first));
+  EXPECT_GT(sum, 0.0);
+  EXPECT_LT(sum, 3.0);
+}
+
 // ==================== foldl method tests ====================
 
 TEST_F(GraphFunctionalTest, FoldlNodesMethod)

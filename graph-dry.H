@@ -90,6 +90,24 @@ namespace Aleph::graph_dry_detail
     using type = decltype(std::declval<typename concepts_detail::defer<GT, D>::type::Node_Arc_Iterator &>().get_curr());
   };
 
+  /** @brief The current item of `it`, which must have one.
+   *
+   *  `get_curr_ne()`, if `It` has it: the loops that ask `has_curr()` first
+   *  do not need the check of `get_curr()`, whose code for the exception
+   *  can make the compiler leave it out of line.
+   *
+   *  @param[in] it an iterator on an item.
+   *  @return the current item of `it`.
+   */
+  template <class It>
+  [[gnu::always_inline]] inline decltype(auto) curr_ne(const It & it)
+  {
+    if constexpr (requires { it.get_curr_ne(); })
+      return it.get_curr_ne();
+    else
+      return it.get_curr();
+  }
+
 } // namespace Aleph::graph_dry_detail
 
 // ============================================================================
@@ -1363,7 +1381,7 @@ public:
   bool traverse_nodes(Operation & op) const
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr()))
+      if (not op(graph_dry_detail::curr_ne(it)))
         return false;
     return true;
   }
@@ -1430,7 +1448,7 @@ public:
   bool traverse_arcs(Operation & op) const
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr()))
+      if (not op(graph_dry_detail::curr_ne(it)))
         return false;
     return true;
   }
@@ -1499,7 +1517,7 @@ public:
   bool traverse_arcs(Node *p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr()))
+      if (not op(graph_dry_detail::curr_ne(it)))
         return false;
     return true;
   }
@@ -1541,7 +1559,7 @@ public:
   void for_each_node(Operation & operation) const
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      operation(it.get_curr());
+      operation(graph_dry_detail::curr_ne(it));
   }
 
   /// Overload of `for_each_node(Operation&)` that accepts rvalues.
@@ -1581,7 +1599,7 @@ public:
   void for_each_arc(Operation & op) const
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      op(it.get_curr());
+      op(graph_dry_detail::curr_ne(it));
   }
 
   /// Overload of `for_each_arc(Operation&)` that accepts rvalues.
@@ -1630,7 +1648,7 @@ public:
   void for_each_arc(Node *p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
-      op(it.get_curr());
+      op(graph_dry_detail::curr_ne(it));
   }
 
   /// Overload of `for_each_arc(Node*, Operation&)` that accepts rvalues.
@@ -3417,7 +3435,7 @@ public:
   bool traverse_arcs(Node *p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr()))
+      if (not op(graph_dry_detail::curr_ne(it)))
         return false;
     return true;
   }
@@ -3428,7 +3446,7 @@ public:
   void for_each_arc(Node *p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
-      op(it.get_curr());
+      op(graph_dry_detail::curr_ne(it));
   }
 
   /// Traverse the incoming arcs of node `p` executing the conditioned

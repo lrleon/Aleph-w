@@ -385,7 +385,19 @@ public:
   {
     try
       {
-        forward();
+        // forward(), but for the checks of the moves of It, which cannot
+        // fail once there is a current item
+        if constexpr (requires (It & i) { i.next_ne(); i.get_curr_ne(); })
+          {
+            if (not this->It::has_curr())
+              return;
+
+            this->It::next_ne();
+            while (this->It::has_curr() and not show_item(this->It::get_curr_ne()))
+              this->It::next_ne();
+          }
+        else
+          forward();
       }
     catch (...) {}
   }

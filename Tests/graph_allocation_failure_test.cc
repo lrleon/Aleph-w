@@ -48,7 +48,9 @@
 #include <vector>
 
 #include <tpl_agraph.H>
+#include <tpl_cut_nodes.H>
 #include <tpl_graph.H>
+#include <tpl_graph_utils.H>
 #include <tpl_net.H>
 #include <tpl_sgraph.H>
 
@@ -398,4 +400,105 @@ TYPED_TEST(GraphWithoutMemory, InsertNodeLeavesTheGraphAsItWas)
         }
       EXPECT_EQ(nodes, 1u);
     }
+}
+
+namespace
+{
+  // The tests need the operator new of allocation_failure.H
+  template <class G>
+  struct CopiesWithoutMemory : public ::testing::Test
+  {
+    void SetUp() override
+    {
+      if (ALEPH_ALLOCATION_FAILURE_UNDER_TSAN)
+        GTEST_SKIP() << "ThreadSanitizer replaces the global operator new";
+    }
+  };
+
+  using Undirected_Kinds =
+    ::testing::Types<List_Graph<Graph_Node<int>, Graph_Arc<int>>,
+                     List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>,
+                     Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>>;
+
+  // Two triangles joined at the node 2, the second one with a tail: the
+  // cut nodes are 2 and 4
+  template <class G>
+  std::vector<typename G::Node *> bow(G & g)
+  {
+    std::vector<typename G::Node *> v;
+    for (int i = 0; i < 6; ++i)
+      v.push_back(g.insert_node(i));
+
+    const int arcs[][2] = {{0, 1}, {1, 2}, {2, 0}, {2, 3}, {3, 4}, {4, 2}, {4, 5}};
+    int k = 1;
+    for (const auto & a : arcs)
+      g.insert_arc(v[a[0]], v[a[1]], k++);
+    return v;
+  }
+
+  // Runs copy failing at its allocations, one after the other, until it
+  // does not throw
+  template <class Copy>
+  void fail_each_allocation(Copy copy)
+  {
+    for (size_t k = 1; ; ++k)
+      {
+        SCOPED_TRACE(testing::Message() << "allocation " << k);
+        bool thrown = false;
+        {
+          Fail_At failing(k);
+          try
+            {
+              copy();
+            }
+          catch (const std::bad_alloc &)
+            {
+              thrown = true;
+            }
+        }
+        if (not thrown)
+          return;
+      }
+  }
+}
+
+TYPED_TEST_SUITE(CopiesWithoutMemory, Undirected_Kinds);
+
+// The copies kept each new node in a unique_ptr while they inserted it,
+// but List_SGraph::insert_node() deletes the node that it cannot take, so
+// that the node was deleted twice; Array_Graph::insert_node() did not
+// delete it, so that the nodes that insert_node(info) made were lost.
+// AddressSanitizer stops at a node deleted twice, and LeakSanitizer
+// reports a lost one
+TYPED_TEST(CopiesWithoutMemory, EachNodeIsDeletedOnce)
+{
+  using G = TypeParam;
+  G g;
+  auto v = bow(g);
+  auto cuts = compute_cut_nodes(g, v[0]);
+  ASSERT_EQ(cuts.size(), 2u);
+  paint_subgraphs(g, cuts);
+  const long color = NODE_COUNTER(v[0]);
+
+  fail_each_allocation([&] { G tree = find_breadth_first_spanning_tree(g, v[0]); });
+  fail_each_allocation([&] { G block = map_subgraph(g, color); });
+  fail_each_allocation([&] { auto copies = map_cut_graph(g, cuts); });
+
+  Compute_Cut_Nodes<G> cc(g);
+  DynDlist<typename G::Node *> cut_list;
+  cc(v[0], cut_list);
+  cc.paint_subgraphs();
+  fail_each_allocation([&]
+    {
+      G block;
+      cc.map_subgraph(block, NODE_COUNTER(v[0]));
+    });
+  fail_each_allocation([&]
+    {
+      G cut_graph;
+      DynDlist<typename G::Arc *> cross;
+      cc.map_cut_graph(cut_graph, cross);
+    });
+
+  fail_each_allocation([&] { (void) g.insert_node(7); });
 }

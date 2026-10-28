@@ -45,6 +45,9 @@
 
 #include <gtest/gtest.h>
 
+#include <random>
+#include <stdexcept>
+
 #include <filter_iterator.H>
 #include <tpl_dynDlist.H>
 
@@ -383,6 +386,59 @@ TEST(FilterIteratorBidirectional, NextNeNoException) {
   // Should not throw
   EXPECT_NO_THROW(it.next_ne());
   ASSERT_FALSE(it.has_curr());
+}
+
+// next_ne() goes where next() goes, without the checks of the moves of the
+// iterator over the list, which cannot fail once there is a current item;
+// what the filter throws, next() lets go and next_ne() does not
+TEST(FilterIteratorBidirectional, NextNeMovesAsNext)
+{
+  struct Throws_On
+  {
+    const bool * armed;
+    int bad;
+
+    bool operator()(const int x) const
+    {
+      if (*armed and x == bad)
+        throw std::runtime_error("filter failed");
+      return x % 3 != 0;
+    }
+  };
+
+  std::mt19937 gen(7);
+  for (int round = 0; round < 300; ++round)
+    {
+      SCOPED_TRACE(round);
+      DL list;
+      const int n = int(gen() % 12);
+      for (int i = 0; i < n; ++i)
+        list.append(int(gen() % 10));
+
+      bool armed = false; // the constructors do not throw
+      const Throws_On filter{&armed, int(gen() % 12)}; // perhaps no such item
+      Filter_Iterator<DL, DL_It, Throws_On> ne(list, filter), checked(list, filter);
+      armed = true;
+      for (int step = 0; step <= n + 1; ++step)
+        {
+          SCOPED_TRACE(step);
+          try
+            {
+              checked.next();
+            }
+          catch (const std::runtime_error &)
+            {
+              // the filter threw on the item where checked is
+            }
+          EXPECT_NO_THROW(ne.next_ne());
+
+          ASSERT_EQ(ne.has_curr(), checked.has_curr());
+          if (checked.has_curr())
+            {
+              ASSERT_EQ(&ne.get_curr(), &checked.get_curr());
+            }
+        }
+    }
 }
 
 TEST(FilterIteratorBidirectional, PrevNeNoException) {

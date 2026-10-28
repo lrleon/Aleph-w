@@ -2917,12 +2917,11 @@ Advanced outputs are opt-in through `Planarity_Test_Options`:
 
 Embedding guarantee model:
 - planarity decision itself (`is_planar`) comes from the LR test and remains exact.
-- strict LR embedding mode (`embedding_allow_bruteforce_fallback = false`) is a
-  bounded constructive strategy; if it reaches budget, embedding can be missing
-  (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`)
-  even for planar graphs.
-- if embedding completeness is required, keep fallback enabled and provide enough
-  `embedding_max_combinations` budget.
+- the LR embedding (`embedding_prefer_lr_linear = true`) is complete: it embeds
+  every planar graph, in strict mode too and with no combination budget.
+- with `embedding_prefer_lr_linear = false`, the bounded exact search may run out
+  of `embedding_max_combinations` and leave no embedding
+  (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`).
 
 Face and dual APIs:
 - `planar_dual_metadata(result)`:

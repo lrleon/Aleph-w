@@ -159,9 +159,10 @@ namespace Aleph
     // the stack has none, or else a room four times as large, and of
     // Second_Capacity frames at least, so that a search that goes deep
     // moves a third of the frames that doubling would, to which it moves
-    // the frames. If it throws, the stack is as it was, unless a frame that
-    // cannot be copied threw while it was moved. Out of line, so that
-    // push() stays small.
+    // the frames. If it throws, the new room goes back and the stack is as
+    // it was, unless a frame that cannot be copied threw while it was
+    // moved: those moved before it are left moved from. Out of line, so
+    // that push() stays small.
     [[gnu::noinline]] void grow()
     {
       if (room == nullptr)
@@ -182,14 +183,16 @@ namespace Aleph
       const size_t new_bytes = frames * sizeof(T);
       void *new_room = ::operator new(new_bytes);
       T *new_base = static_cast<T *>(new_room);
-      if constexpr (std::is_nothrow_move_constructible_v<T>
-                    or not std::is_copy_constructible_v<T>)
+      if constexpr (std::is_nothrow_move_constructible_v<T>)
         std::uninitialized_move(base, top_ptr, new_base);
       else
         {
           try
             {
-              std::uninitialized_copy(base, top_ptr, new_base);
+              if constexpr (std::is_copy_constructible_v<T>)
+                std::uninitialized_copy(base, top_ptr, new_base);
+              else // the frames that were moved are left moved from
+                std::uninitialized_move(base, top_ptr, new_base);
             }
           catch (...)
             {
@@ -254,7 +257,9 @@ namespace Aleph
         @param args Arguments for the constructor of the frame.
         @return Reference to the new frame.
         @throw bad_alloc if there is not enough memory; anything that the
-        constructor of the frame throws. Then the stack is as it was.
+        constructor of the frame throws, or, when the stack grows, the copy
+        or the move of a frame. Then the stack is as it was, but for the
+        frames that cannot be copied that the stack moved before one threw.
         @note Always inlined, since a search pushes a frame for each node.
     */
     template <class... Args>
@@ -342,8 +347,10 @@ namespace Aleph
           if (arc->attrs.control_bits.get_bit(Bit))
             continue;
 
-          arc->attrs.control_bits.set_bit(Bit, true);
+          // the target before the mark, which the compiler takes for a
+          // store that could change the iterator
           auto tgt = it.get_tgt_node_ne();
+          arc->attrs.control_bits.set_bit(Bit, true);
           if (Marked_Too or tgt == goal or not tgt->attrs.control_bits.get_bit(Bit))
             return tgt;
         }

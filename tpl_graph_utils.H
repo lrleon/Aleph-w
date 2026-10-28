@@ -1203,8 +1203,10 @@ namespace Aleph {
             if (IS_ARC_VISITED(arc, Build_Subtree))
               continue;
 
-            ARC_BITS(arc).set_bit(Build_Subtree, true);
+            // the target before the mark, which the compiler takes for a
+            // store that could change the iterator
             auto g_tgt  = it.get_tgt_node_ne();
+            ARC_BITS(arc).set_bit(Build_Subtree, true);
             auto sg_tgt = mapped_node<GT>(g_tgt);
             if (sg_tgt == nullptr) // sg_tgt mapped in sg?
               {
@@ -1454,10 +1456,10 @@ namespace Aleph {
 
     GT tree;
 
-    std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
-    tree.insert_node(tp_auto.get());
+    // insert_node() frees the node if it cannot take it
+    auto tp = tree.insert_node(new typename GT::Node(gp));
     NODE_COOKIE(gp) = nullptr; // else it would compose with a former tree
-    GT::map_nodes(gp, tp_auto.release());
+    GT::map_nodes(gp, tp);
     NODE_BITS(gp).set_bit(Spanning_Tree, true);
 
     DynListQueue<typename GT::Arc*> q;
@@ -1482,9 +1484,7 @@ namespace Aleph {
         NODE_BITS(gtgt).set_bit(Spanning_Tree, true);
 
         // Create and map the new tree node.
-        std::unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
-        tree.insert_node(ttgt_auto.get());
-        auto ttgt = ttgt_auto.release();
+        auto ttgt = tree.insert_node(new typename GT::Node(gtgt));
         NODE_COOKIE(gtgt) = nullptr; // else it would compose with a former tree
         GT::map_nodes(gtgt, ttgt);
 
@@ -2090,13 +2090,31 @@ namespace Aleph {
       }
     };
 
-    // Copies garc, an arc of f.it, and gtgt, its target, if gtgt was not
-    // copied
-    auto copy = [&](Frame & f, typename GT::Arc * garc)
+    // The node being visited keeps its iterator in here until the copy
+    // goes on from a target of it; then it waits in frames until the copy
+    // comes back to it, and goes on in here, where the iterator can stay
+    // in registers
+    Dfs_Stack<Frame> frames;
+    Frame here(g, gsrc);
+    while (true)
       {
-        ARC_BITS(garc).set_bit(Build_Subtree, true); 
+        // Traverse arcs and copy those with the requested color.
+        auto garc = here.next_to_map(color);
+        if (garc == nullptr)
+          {
+            if (frames.is_empty())
+              return;
 
-        auto gtgt = f.it.get_tgt_node_ne();
+            here = std::move(frames.top()); // back to the node that waits
+            frames.pop();
+            here.next_arc(); // past the arc that was copied
+            continue;
+          }
+
+        // the target before the mark, which the compiler takes for a
+        // store that could change the iterator
+        auto gtgt = here.it.get_tgt_node_ne();
+        ARC_BITS(garc).set_bit(Build_Subtree, true);
 
         assert(get_color <GT> (gtgt) == color);
 
@@ -2105,50 +2123,20 @@ namespace Aleph {
           ttgt = mapped_node<GT> (gtgt);
         else
           {     // gtgt not in sg yet: copy & map it
-            std::unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
-            sg.insert_node(ttgt_auto.get());
+            // insert_node() frees the node if it cannot take it
+            ttgt = sg.insert_node(new typename GT::Node(gtgt));
             NODE_COOKIE(gtgt) = nullptr; // else it would compose with a former copy
-            GT::map_nodes(gtgt, ttgt_auto.get());
-            NODE_BITS(gtgt).set_bit(Build_Subtree, true); 
-            ttgt = ttgt_auto.release(); 
+            GT::map_nodes(gtgt, ttgt);
+            NODE_BITS(gtgt).set_bit(Build_Subtree, true);
           }
 
-        auto tarc = sg.insert_arc(f.tsrc, ttgt, garc->get_info());
+        auto tarc = sg.insert_arc(here.tsrc, ttgt, garc->get_info());
         ARC_COOKIE(garc) = nullptr; // else it would compose with a former copy
         GT::map_arcs(garc, tarc);
-        return Frame(g, gtgt);
-      };
 
-    // The node being visited keeps its iterator in here until the copy
-    // goes on from a target of it; then it waits in frames, where it goes
-    // on when the copy comes back
-    Dfs_Stack<Frame> frames;
-    Frame here(g, gsrc);
-    while (true)
-      {
-        // Traverse arcs and copy those with the requested color.
-        if (auto garc = here.next_to_map(color))
-          { // the iterator stays on garc, as in a recursion
-            Frame next = copy(here, garc);
-            frames.push(std::move(here));
-            here = std::move(next);
-            continue;
-          }
-
-        while (true) // back to the nodes that wait
-          {
-            if (frames.is_empty())
-              return;
-
-            Frame & f = frames.top();
-            f.next_arc(); // past the arc that was copied
-            if (auto garc = f.next_to_map(color))
-              {
-                here = copy(f, garc);
-                break;
-              }
-            frames.pop();
-          }
+        // the iterator stays on garc, as in a recursion
+        frames.push(std::move(here));
+        here = Frame(g, gtgt);
       }
   }
 
@@ -2189,10 +2177,10 @@ namespace Aleph {
       << "Color does not exist in the graph";
 
     GT sg;
-    std::unique_ptr<typename GT::Node> auto_tsrc(new typename GT::Node(first));
-    sg.insert_node(auto_tsrc.get());
+    // insert_node() frees the node if it cannot take it
+    auto tsrc = sg.insert_node(new typename GT::Node(first));
     NODE_COOKIE(first) = nullptr; // else it would compose with a former copy
-    GT::map_nodes(first, auto_tsrc.release());
+    GT::map_nodes(first, tsrc);
     NODE_BITS(first).set_bit(Build_Subtree, true);
 
     __map_subgraph(g, sg, first, color);
@@ -2233,10 +2221,10 @@ namespace Aleph {
 
         assert(is_a_cut_node <GT> (gp));
 
-        std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
-        cut_graph.insert_node(tp_auto.get());
+        // insert_node() frees the node if it cannot take it
+        auto tp = cut_graph.insert_node(new typename GT::Node(gp));
         NODE_COOKIE(gp) = nullptr; // else it would compose with a former copy
-        GT::map_nodes(gp, tp_auto.release());
+        GT::map_nodes(gp, tp);
       }
 
     // cut_graph contains cut-to-cut arcs; cross_arc_list collects cut-to-noncut arcs.

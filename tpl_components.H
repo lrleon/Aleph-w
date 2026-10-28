@@ -165,11 +165,14 @@ public:
         if (IS_ARC_VISITED(arc, Build_Subtree))
           continue;
 
+        // Get the target before the mark, which the compiler takes for a
+        // store that could change the iterator
+        auto g_tgt = f.it.get_tgt_node_ne();
+
         // Mark arc as visited
         ARC_BITS(arc).set_bit(Build_Subtree, true);
 
         // Get or create mapped target node
-        auto g_tgt = f.it.get_tgt_node_ne();
         auto sg_tgt = mapped_node<GT>(g_tgt);
         if (sg_tgt == nullptr)
           {
@@ -248,9 +251,10 @@ public:
           if (IS_ARC_VISITED(arc, Build_Subtree))
             continue;
 
-          // Mark arc as visited
-          ARC_BITS(arc).set_bit(Build_Subtree, true);
+          // Mark arc as visited, after taking its target: the compiler
+          // takes the mark for a store that could change the iterator
           auto tgt = it.get_tgt_node_ne();
+          ARC_BITS(arc).set_bit(Build_Subtree, true);
           if (not IS_NODE_VISITED(tgt, Build_Subtree))
             return tgt;
         }

@@ -37,7 +37,10 @@
  */
 #include <gtest/gtest.h>
 #include <tpl_agraph.H>
+#include <random>
 #include <string>
+#include <utility>
+#include <vector>
 
 using namespace Aleph;
 
@@ -314,6 +317,155 @@ TEST(ArrayGraph, NodeArcIterator)
   
   EXPECT_EQ(count, 3);
   EXPECT_EQ(sum, 39);  // 12 + 13 + 14
+}
+
+// The iterator over the arcs of a node keeps only what it needs; it does
+// what the Array_Iterator over the array of the arcs, from which it was
+// derived, did, also where that one threw
+TEST(ArrayGraph, NodeArcIteratorDoesWhatTheArrayIteratorDid)
+{
+  IntGraph g;
+  auto hub = g.insert_node(0);
+  for (int k = 1; k <= 5; ++k)
+    g.insert_arc(hub, g.insert_node(k), 10 * k);
+  auto leaf = g.insert_node(6);
+  g.insert_arc(leaf, hub, 60);
+  auto lonely = g.insert_node(7);
+
+  std::mt19937 gen(5);
+  for (auto p : {hub, leaf, lonely})
+    {
+      const long n = long(p->num_arcs);
+      IntGraph::Node_Arc_Iterator it(p);
+      Array_Iterator<void *> ref(no_exception_ctor, p->arc_array, p->arcs_dim,
+                                 p->num_arcs);
+      EXPECT_EQ(it.get_base(), p->arc_array);
+      EXPECT_EQ(std::as_const(it).get_base(), p->arc_array);
+
+      // what get_curr() gives or throws, as a number
+      auto curr_of = [](auto & i) -> long
+        {
+          try
+            {
+              return long(static_cast<IntGraph::Arc *>(i.get_curr())->get_info());
+            }
+          catch (const std::underflow_error &)
+            {
+              return -1;
+            }
+          catch (const std::overflow_error &)
+            {
+              return -2;
+            }
+        };
+
+      // what an operation that can throw does, as a number
+      auto run = [](auto op) -> int
+        {
+          try
+            {
+              op();
+              return 0;
+            }
+          catch (const std::underflow_error &)
+            {
+              return 1;
+            }
+          catch (const std::overflow_error &)
+            {
+              return 2;
+            }
+        };
+
+      for (int step = 0; step < 400; ++step)
+        {
+          const int what = int(gen() % 9);
+          const long new_pos = long(gen() % (n + 3)) - 1; // from -1 to n + 1
+          switch (what)
+            {
+            case 0:
+              EXPECT_EQ(run([&] { it.next(); }), run([&] { ref.next(); }));
+              break;
+            case 1:
+              EXPECT_EQ(run([&] { it.prev(); }), run([&] { ref.prev(); }));
+              break;
+            case 2:
+              if (ref.has_curr())
+                {
+                  it.next_ne();
+                  ref.next_ne();
+                }
+              break;
+            case 3:
+              if (ref.has_curr())
+                {
+                  it.prev_ne();
+                  ref.prev_ne();
+                }
+              break;
+            case 4:
+              it.reset();
+              ref.reset();
+              break;
+            case 5:
+              it.reset_first();
+              ref.reset_first();
+              break;
+            case 6:
+              it.reset_last();
+              ref.reset_last();
+              break;
+            case 7:
+              it.end();
+              ref.end();
+              break;
+            default:
+              it.set_pos(new_pos);
+              ref.set_pos(new_pos);
+              break;
+            }
+
+          ASSERT_EQ(it.has_curr(), ref.has_curr()) << "step " << step;
+          ASSERT_EQ(it.is_last(), ref.is_last()) << "step " << step;
+          ASSERT_EQ(it.get_pos(), ref.get_pos()) << "step " << step;
+          ASSERT_EQ(curr_of(it), curr_of(ref)) << "step " << step;
+          if (ref.has_curr())
+            {
+              ASSERT_EQ(it.get_curr_ne(), ref.get_curr_ne());
+              ASSERT_EQ(it.get_current_arc_ne(), ref.get_curr_ne());
+              ASSERT_EQ(it.get_tgt_node(),
+                        g.get_connected_node(it.get_current_arc(), p));
+              ASSERT_EQ(it.get_tgt_node_ne(), it.get_tgt_node());
+            }
+        }
+    }
+}
+
+// Filter_Iterator goes over the arcs of a node backwards, too
+TEST(ArrayGraph, FilteredNodeArcIteratorGoesBothWays)
+{
+  IntGraph g;
+  auto hub = g.insert_node(0);
+  for (int k = 1; k <= 6; ++k)
+    g.insert_arc(hub, g.insert_node(k), 10 * k);
+
+  struct Even_Tens
+  {
+    bool operator () (IntGraph::Arc * a) const noexcept
+    {
+      return a->get_info() % 20 == 0;
+    }
+  };
+
+  std::vector<int> forward, backward;
+  Node_Arc_Iterator<IntGraph, Even_Tens> it(hub);
+  for (; it.has_curr(); it.next())
+    forward.push_back(it.get_curr()->get_info());
+  for (it.reset_last(); it.has_curr(); it.prev())
+    backward.push_back(it.get_curr()->get_info());
+
+  EXPECT_EQ(forward, (std::vector<int>{20, 40, 60}));
+  EXPECT_EQ(backward, (std::vector<int>{60, 40, 20}));
 }
 
 // =============================================================================

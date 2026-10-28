@@ -81,6 +81,29 @@ namespace
     ~Counted() { --alive; }
   };
 
+  // A frame that cannot be copied, and whose move can throw
+  struct Move_Only
+  {
+    static inline long alive = 0;
+    static inline long throw_at = -1;
+
+    long value;
+
+    explicit Move_Only(long v) : value(v) { ++alive; }
+
+    Move_Only(Move_Only && other) : value(other.value)
+    {
+      if (value == throw_at)
+        throw std::runtime_error("moved from throw_at");
+      other.value = -1;
+      ++alive;
+    }
+
+    Move_Only(const Move_Only &) = delete;
+
+    ~Move_Only() { --alive; }
+  };
+
   // Resets the counters of Counted around a test
   struct CountedFrames : public ::testing::Test
   {
@@ -188,6 +211,39 @@ TEST_F(CountedFrames, ACopyThatThrowsWhileGrowingLeavesTheStackAsItWas)
       stack.pop();
     }
   EXPECT_EQ(Counted::alive, 0);
+}
+
+// A frame that cannot be copied, and whose move throws while the stack
+// grows: the new room went to no one, which LeakSanitizer reports
+TEST(DfsStack, AMoveThatThrowsWhileGrowingFreesTheNewRoom)
+{
+  Move_Only::alive = 0;
+  {
+    Dfs_Stack<Move_Only> stack;
+    for (long i = 0; i < 10; ++i)
+      stack.push(i);
+
+    Move_Only::throw_at = 5; // moving the frame 5 throws, so growing does
+    long next = 10;
+    bool thrown = false;
+    while (not thrown and next < 10000000)
+      try
+        {
+          stack.push(next);
+          ++next;
+        }
+      catch (const std::runtime_error &)
+        {
+          thrown = true;
+        }
+    Move_Only::throw_at = -1;
+
+    ASSERT_TRUE(thrown);
+    EXPECT_EQ(stack.size(), size_t(next)); // the frame 5 and the next ones
+    EXPECT_EQ(stack.top().value, next - 1);
+    EXPECT_EQ(Move_Only::alive, next);
+  }
+  EXPECT_EQ(Move_Only::alive, 0);
 }
 
 TEST(DfsStack, MovesTakeTheFrames)

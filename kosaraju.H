@@ -96,8 +96,10 @@ namespace kosaraju_detail
           if (IS_ARC_VISITED(a, Depth_First))
             continue;
 
-          ARC_BITS(a).set_bit(Depth_First, true);
+          // the target before the mark, which the compiler takes for a
+          // store that could change the iterator
           auto tgt = it.get_tgt_node_ne();
+          ARC_BITS(a).set_bit(Depth_First, true);
           if (not IS_NODE_VISITED(tgt, Depth_First))
             return tgt;
         }
