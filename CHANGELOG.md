@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fixes
 
 * Address the 7.2.2 and 7.3.1 reviews and the graph audit ([#151](https://github.com/lrleon/Aleph-w/issues/151)) ([7143029](https://github.com/lrleon/Aleph-w/commit/714302931affdd833b0db3d12459691ce547271f))
+* **errors:** Make the throwing macros a loop that runs once, and reject a message that gives void ([#151](https://github.com/lrleon/Aleph-w/issues/151)) ([7143029](https://github.com/lrleon/Aleph-w/commit/714302931affdd833b0db3d12459691ce547271f))
+* **graph:** Make the depth-first searches iterative ([#151](https://github.com/lrleon/Aleph-w/issues/151)) ([7143029](https://github.com/lrleon/Aleph-w/commit/714302931affdd833b0db3d12459691ce547271f))
+* **graph:** Give every planar graph its LR embedding ([#151](https://github.com/lrleon/Aleph-w/issues/151)) ([7143029](https://github.com/lrleon/Aleph-w/commit/714302931affdd833b0db3d12459691ce547271f))
+* **graph:** Make the copies of the graph algorithms map back to the graph ([#151](https://github.com/lrleon/Aleph-w/issues/151)) ([7143029](https://github.com/lrleon/Aleph-w/commit/714302931affdd833b0db3d12459691ce547271f))
+* **graph:** Let the random generators build one graph after another ([#151](https://github.com/lrleon/Aleph-w/issues/151)) ([7143029](https://github.com/lrleon/Aleph-w/commit/714302931affdd833b0db3d12459691ce547271f))
+* **heap:** Keep the Fibonacci heaps whole when the comparison throws ([#151](https://github.com/lrleon/Aleph-w/issues/151)) ([7143029](https://github.com/lrleon/Aleph-w/commit/714302931affdd833b0db3d12459691ce547271f))
+* **sort:** Make mergesort() stable ([#151](https://github.com/lrleon/Aleph-w/issues/151)) ([7143029](https://github.com/lrleon/Aleph-w/commit/714302931affdd833b0db3d12459691ce547271f))
+* **tree:** Make the functions of the trees and their writers iterative ([#151](https://github.com/lrleon/Aleph-w/issues/151)) ([7143029](https://github.com/lrleon/Aleph-w/commit/714302931affdd833b0db3d12459691ce547271f))
 * **heap:** Let DynBinHeap pass on what the comparison throws ([#149](https://github.com/lrleon/Aleph-w/issues/149)) ([87a2a34](https://github.com/lrleon/Aleph-w/commit/87a2a341cff6881ce8e2fcd4d2fe6e34947473fb))
 
 ## [7.3.1](https://github.com/lrleon/Aleph-w/compare/v7.3.0...v7.3.1) (2026-10-26)
