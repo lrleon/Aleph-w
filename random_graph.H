@@ -54,6 +54,7 @@
 # include <single_graph.H>
 # include <Tarjan.H>
 # include <ah-errors.H>
+# include <ah_init_guard.H>
 
 namespace Aleph
 {
@@ -120,8 +121,8 @@ namespace Aleph
     GT g;
 
     bool save_parity; // indicates whether to track parity relations
-                       // among nodes (only for building Eulerian
-                       // and Hamiltonian graphs)
+                       // among nodes (only while eulerian() builds
+                       // its graph)
 
     virtual void
     update_parity_after_arc_insertion(GT_Node *src, GT_Node *tgt) = 0;
@@ -167,11 +168,21 @@ namespace Aleph
 
     virtual void connect() = 0;
 
+    // What a generator resets before each graph: the graph that it gives
+    // is g moved out, which leaves the rest of its state behind
+    virtual void prepare_new_graph()
+    {
+      // empty
+    }
+
     void initialize_and_create_nodes(const size_t & __num_nodes,
                                      const size_t & __num_arcs)
     {
       ah_domain_error_if(__num_nodes == 0)
           << "Number of nodes must be greater than 0";
+
+      clear_graph(g); // what a former call left, if it threw
+      prepare_new_graph();
 
       num_nodes = __num_nodes;
 
@@ -246,10 +257,13 @@ namespace Aleph
         @param[in] __num_arcs Number of arcs the graph should have.
         @return The randomly created graph.
         @throw bad_alloc if there is not enough memory.
+        @throw domain_error if the graph cannot be made Eulerian by
+        adding arcs to it.
      */
     GT eulerian(const size_t & __num_nodes, const size_t & __num_arcs)
     {
       save_parity = true;
+      Init_Guard parity_off([this] { save_parity = false; });
       g = this->create(__num_nodes, __num_arcs, true);
       make_eulerian();
 
@@ -272,10 +286,13 @@ namespace Aleph
         @return The randomly created graph.
         @throw bad_alloc if there is not enough memory.
         @throw domain_error if `p` is not in the range (0, 1].
+        @throw domain_error if the graph cannot be made Eulerian by
+        adding arcs to it.
      */
     GT eulerian(const size_t & __num_nodes, const double & p)
     {
       save_parity = true;
+      Init_Guard parity_off([this] { save_parity = false; });
       g = this->create_p(__num_nodes, p, true);
       make_eulerian();
 
@@ -375,7 +392,7 @@ namespace Aleph
     DynSetRandTree<GT_Node *> odd_nodes;  // nodes with odd degree
     DynSetRandTree<GT_Node *> even_nodes; // nodes with even degree
 
-    virtual void update_parity_after_arc_insertion(GT_Node *src, GT_Node *tgt)
+    void update_parity_after_arc_insertion(GT_Node *src, GT_Node *tgt) override
     {
       if (not this->save_parity)
         return;
@@ -401,6 +418,13 @@ namespace Aleph
           this->even_nodes.remove(tgt);
           this->odd_nodes.insert(tgt);
         }
+    }
+
+    // The parities of the nodes of a former graph
+    void prepare_new_graph() override
+    {
+      odd_nodes.empty();
+      even_nodes.empty();
     }
 
     void create_nodes_and_initialize_arc_index() override
@@ -555,40 +579,103 @@ namespace Aleph
     }
 
   private:
+    // Join the odd nodes src and tgt, which have an arc, through a node
+    // adjacent to neither, whose degree keeps its parity with an arc to
+    // each: a random even node, as many times as there are even nodes, and
+    // then any node. The search had no end when there was no such node.
+    bool join_through_a_node(GT_Node *src, GT_Node *tgt)
+    {
+      auto fits = [&] (GT_Node *p)
+      {
+        return p != src and p != tgt and
+          this->idx_arc->search(src, p) == nullptr and
+          this->idx_arc->search(tgt, p) == nullptr;
+      };
+
+      GT_Node *p = nullptr;
+      for (size_t tries = this->even_nodes.size(); tries > 0 and p == nullptr;
+           --tries)
+        {
+          auto q = this->even_nodes.select
+              (gsl_rng_uniform_int(this->r, this->even_nodes.size()));
+          if (fits(q))
+            p = q;
+        }
+
+      for (size_t i = 0; p == nullptr and i < this->nodes->size(); ++i)
+        if (fits(this->nodes->access(i)))
+          p = this->nodes->access(i);
+
+      if (p == nullptr)
+        return false;
+
+      this->insert_arc(src, p);
+      this->insert_arc(p, tgt);
+
+      return true;
+    }
+
+    // Random pairs of odd nodes until one without an arc, which the arc
+    // joins, as many as there are odd nodes; two odd nodes with an arc
+    // are joined through a node. The pairs had no end when all the odd
+    // nodes were adjacent.
+    bool join_random_odd_nodes()
+    {
+      for (size_t tries = this->odd_nodes.size(); tries > 0; --tries)
+        {
+          GT_Node *src = this->odd_nodes.select
+              (gsl_rng_uniform_int(this->r, this->odd_nodes.size()));
+          GT_Node *tgt = nullptr;
+          do
+            tgt = this->odd_nodes.select
+                (gsl_rng_uniform_int(this->r, this->odd_nodes.size()));
+          while (tgt == src);
+
+          if (this->idx_arc->search(src, tgt) == nullptr)
+            {
+              this->insert_arc(src, tgt);
+              return true;
+            }
+
+          if (this->odd_nodes.size() == 2)
+            return join_through_a_node(src, tgt);
+        }
+
+      return false;
+    }
+
+    // Any pair of odd nodes without an arc, as the random pairs would find
+    // in the end; or else any pair that a node joins
+    bool join_any_odd_nodes()
+    {
+      DynArray<GT_Node *> odd; // the set changes when the arcs go in
+      for (typename DynSetRandTree<GT_Node *>::Iterator it(this->odd_nodes);
+           it.has_curr(); it.next_ne())
+        odd.append(it.get_curr_ne());
+
+      for (size_t i = 0; i < odd.size(); ++i)
+        for (size_t j = i + 1; j < odd.size(); ++j)
+          if (this->idx_arc->search(odd.access(i), odd.access(j)) == nullptr)
+            {
+              this->insert_arc(odd.access(i), odd.access(j));
+              return true;
+            }
+
+      for (size_t i = 0; i < odd.size(); ++i)
+        for (size_t j = i + 1; j < odd.size(); ++j)
+          if (join_through_a_node(odd.access(i), odd.access(j)))
+            return true;
+
+      return false;
+    }
+
     void make_eulerian() override
     {
       while (this->odd_nodes.size() > 1)
         {
-          GT_Node *src = nullptr;
-          GT_Node *tgt = nullptr;
-
-          while (true)
-            {
-              src = this->odd_nodes.select
-                  (gsl_rng_uniform_int(this->r, this->odd_nodes.size()));
-              do
-                tgt = this->odd_nodes.select
-                    (gsl_rng_uniform_int(this->r, this->odd_nodes.size()));
-              while (tgt == src);
-
-              if (this->idx_arc->search(src, tgt) == nullptr)
-                break;
-              else if (this->odd_nodes.size() == 2)
-                { // select random node that has no arc to src or tgt
-                  GT_Node *p = nullptr;
-                  do
-                    p = this->even_nodes.select
-                        (gsl_rng_uniform_int(this->r, this->even_nodes.size()));
-                  while (this->idx_arc->search(src, p) != nullptr or
-                         this->idx_arc->search(tgt, p) != nullptr);
-                  this->insert_arc(src, p);
-                  this->insert_arc(p, tgt);
-
-                  return;
-                }
-            }
-
-          this->insert_arc(src, tgt);
+          const bool joined = join_random_odd_nodes() or join_any_odd_nodes();
+          ah_domain_error_if(not joined)
+            << "The graph cannot be made Eulerian by adding arcs to it";
         }
 
       assert(this->odd_nodes.size() == 0);
@@ -643,10 +730,14 @@ namespace Aleph
         @param[in] __num_arcs Number of arcs the graph should have.
         @return The randomly created graph.
         @throw bad_alloc if there is not enough memory.
+        @throw domain_error if the graph cannot be made Eulerian by
+        adding arcs to it, as a complete graph of an even number of
+        nodes.
      */
     GT eulerian(const size_t & __num_nodes, const size_t & __num_arcs)
     {
       this->save_parity = true;
+      Init_Guard parity_off([this] { this->save_parity = false; });
       this->g = this->create(__num_nodes, __num_arcs, true);
       make_eulerian();
 
@@ -669,10 +760,14 @@ namespace Aleph
         @return The randomly created graph.
         @throw bad_alloc if there is not enough memory.
         @throw domain_error if `p` is not in the range (0, 1].
+        @throw domain_error if the graph cannot be made Eulerian by
+        adding arcs to it, as a complete graph of an even number of
+        nodes.
      */
     GT eulerian(const size_t & __num_nodes, const double & p)
     {
       this->save_parity = true;
+      Init_Guard parity_off([this] { this->save_parity = false; });
       this->g = this->create_p(__num_nodes, p, true);
       make_eulerian();
 
@@ -728,7 +823,9 @@ namespace Aleph
       respectively.
 
       Template parameters:
-      - **GT**: The graph type to construct (must be directed).
+      - **GT**: The graph type to construct. A graph of an undirected
+        type is built as a digraph: it says that it is directed (see
+        `set_digraph()`).
       - **Init_Node**: Functor class for initializing node data.
       - **Init_Arc**: Functor class for initializing arc data.
 
@@ -832,7 +929,7 @@ namespace Aleph
 
     // This call is made right after inserting a new arc src-->tgt.
     // This implies that out(src) is updated, but in(tgt) is not.
-    virtual void update_parity_after_arc_insertion(GT_Node *src, GT_Node *tgt)
+    void update_parity_after_arc_insertion(GT_Node *src, GT_Node *tgt) override
     {
       if (not this->save_parity)
         return;
@@ -880,6 +977,17 @@ namespace Aleph
           else
             assert(this->smaller.search(tgt) != nullptr);
         }
+    }
+
+    // The former graph took the flag of g with it when it was moved out:
+    // g says again that it is directed, also if its type is undirected
+    // (see set_digraph()). The parities of the nodes of that graph go.
+    void prepare_new_graph() override
+    {
+      this->g.set_digraph(true);
+      greater.empty();
+      smaller.empty();
+      equal.empty();
     }
 
     void create_nodes_and_initialize_arc_index() override
@@ -998,7 +1106,7 @@ namespace Aleph
                    const Init_Arc & __init_arc)
       : Random_Graph_Base<GT, Init_Node, Init_Arc>(seed, __init_node, __init_arc)
     {
-      this->g.set_digraph(true);
+      // empty
     }
 
     Random_Digraph(unsigned long seed = time(nullptr),
@@ -1014,11 +1122,6 @@ namespace Aleph
       : Random_Digraph(time(nullptr), __init_node, __init_arc)
     {
       // empty
-    }
-
-    ~Random_Digraph()
-    {
-      this->g.set_digraph(false);
     }
 
     /** Create a sparse random digraph.
@@ -1074,6 +1177,78 @@ namespace Aleph
     }
 
   private:
+    // The arc src --> tgt, from a node with more arcs in than out to one
+    // with more out than in; or, if it is there, a node mid with the arcs
+    // src --> mid and mid --> tgt, which keep its balance: a random node
+    // of equal, as many times as there are, and then any node. equal could
+    // be empty, and the search had no end when no node was free.
+    bool join(GT_Node *src, GT_Node *tgt)
+    {
+      if (this->idx_arc->search_directed(src, tgt) == nullptr)
+        {
+          this->insert_arc(src, tgt);
+          return true;
+        }
+
+      auto fits = [&] (GT_Node *p)
+      {
+        return p != src and p != tgt and
+          this->idx_arc->search_directed(src, p) == nullptr and
+          this->idx_arc->search_directed(p, tgt) == nullptr;
+      };
+
+      GT_Node *mid = nullptr;
+      for (size_t tries = this->equal.size(); tries > 0 and mid == nullptr;
+           --tries)
+        {
+          auto p = this->equal.select
+              (gsl_rng_uniform_int(this->r, this->equal.size()));
+          if (fits(p))
+            mid = p;
+        }
+
+      for (size_t i = 0; mid == nullptr and i < this->nodes->size(); ++i)
+        if (fits(this->nodes->access(i)))
+          mid = this->nodes->access(i);
+
+      if (mid == nullptr)
+        return false;
+
+      this->insert_arc(src, mid);
+      this->insert_arc(mid, tgt);
+
+      return true;
+    }
+
+    // Any pair of unbalanced nodes without the arc; or else any pair that
+    // join() joins through a node
+    bool join_any_unbalanced_nodes()
+    {
+      DynArray<GT_Node *> srcs, tgts; // the sets change when the arcs go in
+      for (typename DynSetRandTree<GT_Node *>::Iterator it(this->smaller);
+           it.has_curr(); it.next_ne())
+        srcs.append(it.get_curr_ne());
+      for (typename DynSetRandTree<GT_Node *>::Iterator it(this->greater);
+           it.has_curr(); it.next_ne())
+        tgts.append(it.get_curr_ne());
+
+      for (size_t i = 0; i < srcs.size(); ++i)
+        for (size_t j = 0; j < tgts.size(); ++j)
+          if (this->idx_arc->search_directed(srcs.access(i), tgts.access(j))
+              == nullptr)
+            {
+              this->insert_arc(srcs.access(i), tgts.access(j));
+              return true;
+            }
+
+      for (size_t i = 0; i < srcs.size(); ++i)
+        for (size_t j = 0; j < tgts.size(); ++j)
+          if (join(srcs.access(i), tgts.access(j)))
+            return true;
+
+      return false;
+    }
+
     void make_eulerian() override
     {
       GT_Node *src = nullptr;
@@ -1090,22 +1265,9 @@ namespace Aleph
             }
           while (src == tgt);
 
-          if (this->idx_arc->search_directed(src, tgt) == nullptr)
-            this->insert_arc(src, tgt);
-          else
-            {
-              auto mid =
-                  this->equal.select(gsl_rng_uniform_int(this->r,
-                                                         this->equal.size()));
-
-              while (this->idx_arc->search_directed(src, mid) != nullptr or
-                     this->idx_arc->search_directed(mid, tgt) != nullptr)
-                mid = this->equal.select
-                    (gsl_rng_uniform_int(this->r, this->equal.size()));
-
-              this->insert_arc(src, mid);
-              this->insert_arc(mid, tgt);
-            }
+          const bool joined = join(src, tgt) or join_any_unbalanced_nodes();
+          ah_domain_error_if(not joined)
+            << "The digraph cannot be made Eulerian by adding arcs to it";
         }
     }
 

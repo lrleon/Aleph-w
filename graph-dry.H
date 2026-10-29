@@ -706,12 +706,12 @@ protected:
     digraph = false;
   }
 
-  // Both graphs must be directed, or neither: each links its arcs as its
-  // flag says. Digraph deletes the swap with its base, which would take
-  // an undirected graph.
+  // Each graph links its arcs as its flag says, so the flags go with the
+  // arcs: a graph of an undirected type can say that it is directed (see
+  // set_digraph()). Digraph deletes the swap with its base, which would
+  // leave a digraph with the arcs and the flag of an undirected graph.
   void common_swap(GT & g) noexcept
   {
-    assert(digraph == g.digraph);
     std::swap(num_nodes, g.num_nodes);
     std::swap(num_arcs, g.num_arcs);
     std::swap(digraph, g.digraph);
@@ -3947,9 +3947,9 @@ public:
     swap(g);                                                                 \
   }                                                                          \
                                                                              \
-  /** Copy assignment. Replaces contents with a deep copy of g, made     \
-      first, so that if it throws the graph is as it was. The graph keeps  \
-      its cookie, and whether it is directed. */                           \
+  /** Copy assignment. Replaces contents with a deep copy of g, made         \
+      first, so that if it throws the graph is as it was. The graph keeps    \
+      its cookie, and whether it is directed. */                             \
   GraphClass & operator=(const GraphClass & g)                               \
   {                                                                          \
     if (this == &g)                                                          \

@@ -53,6 +53,8 @@
 #include <random>
 #include <string>
 #include <tpl_graph.H>
+#include <tpl_agraph.H>
+#include <tpl_sgraph.H>
 
 using namespace std;
 using namespace testing;
@@ -1312,6 +1314,60 @@ TEST(DigraphSwap, SwapsOnlyWithADigraph)
   TestDigraph moved(std::move(b));
   EXPECT_TRUE(moved.is_digraph());
   EXPECT_EQ(moved.get_num_arcs(), 1u);
+}
+
+// A graph of an undirected type that set_digraph() marks as directed, as
+// Random_Digraph does with its graph, links its arcs as a digraph, so its
+// flag goes with them: a move from such a graph aborted, on an assertion
+// that both graphs of a swap had the same flag
+template <class G>
+struct DirectedFlag : public ::testing::Test {};
+
+using Undirected_Graph_Kinds =
+  ::testing::Types<List_Graph<Graph_Node<int>, Graph_Arc<int>>,
+                   List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>,
+                   Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>>;
+TYPED_TEST_SUITE(DirectedFlag, Undirected_Graph_Kinds);
+
+TYPED_TEST(DirectedFlag, GoesWithTheArcs)
+{
+  using G = TypeParam;
+  G g;
+  g.set_digraph(true);
+  auto p = g.insert_node(1);
+  auto q = g.insert_node(2);
+  auto pq = g.insert_arc(p, q, 0);
+  ASSERT_EQ(g.get_num_arcs(q), 0u); // a directed arc is only in its source
+
+  G moved(std::move(g));
+  EXPECT_TRUE(moved.is_digraph());
+  EXPECT_EQ(moved.get_num_arcs(), 1u);
+  EXPECT_EQ(g.get_num_nodes(), 0u);
+
+  G other;
+  other.insert_node(3);
+  other = std::move(moved);
+  EXPECT_TRUE(other.is_digraph());
+  EXPECT_FALSE(moved.is_digraph()); // it has what other had
+  EXPECT_EQ(moved.get_num_nodes(), 1u);
+
+  G undirected;
+  auto r = undirected.insert_node(4);
+  auto s = undirected.insert_node(5);
+  auto rs = undirected.insert_arc(r, s, 0);
+  undirected.swap(other);
+  ASSERT_TRUE(undirected.is_digraph());
+  ASSERT_FALSE(other.is_digraph());
+  EXPECT_EQ(other.get_num_arcs(s), 1u); // an undirected arc is in both nodes
+
+  // each one removes its arc as its flag says
+  undirected.remove_arc(pq);
+  other.remove_arc(rs);
+  EXPECT_EQ(undirected.get_num_arcs(), 0u);
+  EXPECT_EQ(undirected.get_num_arcs(p), 0u);
+  EXPECT_EQ(other.get_num_arcs(), 0u);
+  EXPECT_EQ(other.get_num_arcs(r), 0u);
+  EXPECT_EQ(other.get_num_arcs(s), 0u);
 }
 
 // =============================================================================
