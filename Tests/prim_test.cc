@@ -703,6 +703,56 @@ TEST(PrimPainting, LeavesTheCookiesNullWithALoopOnTheFirstNode)
   EXPECT_EQ(NODE_COOKIE(n2), nullptr);
 }
 
+namespace {
+
+// The weight of an arc; tells in *read whether it read that of watched
+struct Watching_Distance
+{
+  using Distance_Type = int;
+
+  Arc *watched = nullptr;
+  bool *read = nullptr;
+
+  int operator()(Arc *a) const
+  {
+    if (a == watched)
+      *read = true;
+    return a->get_info();
+  }
+};
+
+} // namespace
+
+// The version that builds the tree put the loops of the first node in the
+// heap, and it marked in g the one that came out, as if it were in the tree
+TEST(PrimMapping, LeavesOutALoopOnTheFirstNode)
+{
+  GT g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  auto loop = g.insert_arc(n0, n0, 0);
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, 2);
+  g.insert_arc(n0, n2, 3);
+
+  bool read = false;
+  Prim_Min_Spanning_Tree<GT, Watching_Distance>
+    prim(Watching_Distance{loop, &read});
+  GT tree;
+  prim(g, n0, tree);
+  EXPECT_EQ(tree.get_num_arcs(), 2u);
+  EXPECT_EQ(tree_total_weight(tree), 1 + 2);
+  EXPECT_FALSE(IS_ARC_VISITED(loop, Aleph::Spanning_Tree));
+  EXPECT_EQ(painted_arcs(g), 2u); // the arcs of the tree, as when painting
+  EXPECT_FALSE(read);             // the loop did not enter the heap
+
+  prim(g, n0);
+  EXPECT_FALSE(IS_ARC_VISITED(loop, Aleph::Spanning_Tree));
+  EXPECT_EQ(painted_arcs(g), 2u);
+  EXPECT_FALSE(read);
+}
+
 // =============================================================================
 // Exception Tests
 // =============================================================================

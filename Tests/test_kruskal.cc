@@ -1101,6 +1101,128 @@ TEST(KruskalTest, PaintedMinSpanningTreeLetsWhatTheDistanceThrowsThrough) {
   ASSERT_EQ(filter.dist, 1);
 }
 
+namespace {
+
+template <class G>
+struct KruskalOnEveryGraph : public ::testing::Test {};
+
+using Graph_Kinds =
+  ::testing::Types<GT, List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>, AGT>;
+
+// A square of heavy arcs, inserted first, with its diagonals and a
+// parallel arc of weight 1
+template <class G>
+std::vector<typename G::Node *> heavy_square(G & g)
+{
+  std::vector<typename G::Node *> n;
+  for (int i = 0; i < 4; ++i)
+    n.push_back(g.insert_node(i));
+  g.insert_arc(n[0], n[1], 100);
+  g.insert_arc(n[1], n[2], 100);
+  g.insert_arc(n[2], n[3], 100);
+  g.insert_arc(n[3], n[0], 100);
+  g.insert_arc(n[0], n[2], 1);
+  g.insert_arc(n[1], n[3], 1);
+  g.insert_arc(n[0], n[1], 1);
+  return n;
+}
+
+} // namespace
+
+TYPED_TEST_SUITE(KruskalOnEveryGraph, Graph_Kinds);
+
+// Kruskal sorted the arcs of g with sort_arcs(), which does not reorder those
+// of List_SGraph: they are in a set ordered by address, so the tree took the
+// arcs in that order, and weighed 300 instead of 3
+TYPED_TEST(KruskalOnEveryGraph, TakesTheLightestArcs)
+{
+  TypeParam g;
+  heavy_square(g);
+
+  TypeParam tree;
+  Kruskal_Min_Spanning_Tree<TypeParam>()(g, tree);
+  EXPECT_EQ(tree.get_num_arcs(), 3u);
+  EXPECT_EQ(tree_total_weight(tree), 3);
+  EXPECT_EQ(painted_total_weight(g), 3);
+}
+
+// The arcs of g keep their order, and so a second run gives the same tree:
+// the sort of the arcs of g did not keep the order of equal arcs, so each
+// run reordered them and could take others
+TEST(KruskalTest, LeavesTheArcsOfTheGraphInTheirOrder)
+{
+  GT g;
+  std::mt19937 gen(7);
+  std::vector<Node *> n;
+  for (int i = 0; i < 60; ++i)
+    n.push_back(g.insert_node(i));
+  for (int i = 1; i < 60; ++i)
+    g.insert_arc(n[i], n[gen() % i], int(gen() % 4)); // many equal weights
+  for (int k = 0; k < 400; ++k)
+    g.insert_arc(n[gen() % 60], n[gen() % 60], int(gen() % 4));
+
+  std::vector<Arc *> order;
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+    order.push_back(it.get_current_arc_ne());
+
+  auto tree_arcs = [&g, &order]
+  {
+    GT tree;
+    Kruskal_Min_Spanning_Tree<GT>()(g, tree);
+    std::vector<Arc *> arcs, now;
+    for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+      {
+        now.push_back(it.get_current_arc_ne());
+        if (IS_ARC_VISITED(now.back(), Aleph::Spanning_Tree))
+          arcs.push_back(now.back());
+      }
+    EXPECT_EQ(now, order);
+    return arcs;
+  };
+
+  const auto first = tree_arcs();
+  EXPECT_EQ(first.size(), 59u);
+  EXPECT_EQ(tree_arcs(), first);
+}
+
+// The tree mapped its nodes to those of g with map_nodes(), which chains a
+// cookie left by an earlier run: after a run whose tree was destroyed, the
+// nodes of the new tree mapped to freed nodes
+TEST(KruskalTest, MapsANewTreeAfterTheOldOneIsGone)
+{
+  GT g;
+  std::vector<Node *> n;
+  for (int i = 0; i < 3; ++i)
+    n.push_back(g.insert_node(i));
+  g.insert_arc(n[0], n[1], 1);
+  g.insert_arc(n[1], n[2], 2);
+  g.insert_arc(n[0], n[2], 3);
+
+  Kruskal_Min_Spanning_Tree<GT> kruskal;
+  {
+    GT old_tree;
+    kruskal(g, old_tree);
+  }
+
+  GT tree;
+  kruskal(g, tree);
+  for (auto p : n)
+    {
+      auto tp = mapped_node<GT>(p);
+      ASSERT_NE(tp, nullptr);
+      EXPECT_EQ(mapped_node<GT>(tp), p);
+      EXPECT_EQ(tp->get_info(), p->get_info());
+    }
+  for (auto it = tree.get_arc_it(); it.has_curr(); it.next_ne())
+    {
+      auto ta = it.get_current_arc_ne();
+      auto ga = mapped_arc<GT>(ta);
+      ASSERT_NE(ga, nullptr);
+      EXPECT_EQ(mapped_arc<GT>(ga), ta);
+      EXPECT_EQ(ga->get_info(), ta->get_info());
+    }
+}
+
 // ========== GoogleTest main ==========
 int main(int argc, char **argv)
 {

@@ -90,6 +90,26 @@ namespace Aleph::graph_dry_detail
     using type = decltype(std::declval<typename concepts_detail::defer<GT, D>::type::Node_Arc_Iterator &>().get_curr());
   };
 
+  /** @brief The current item of `it`, which must have one.
+   *
+   *  `get_curr_ne()`, if it gives what `get_curr()` gives
+   *  (`AlephUncheckedIterator`): the loops that ask `has_curr()` first do
+   *  not need the check of `get_curr()`, whose code for the exception can
+   *  make the compiler leave it out of line. Otherwise `get_curr()`, which
+   *  need not be `const`.
+   *
+   *  @param[in] it an iterator on an item.
+   *  @return the current item of `it`.
+   */
+  template <class It>
+  [[gnu::always_inline]] inline decltype(auto) curr_ne(It & it)
+  {
+    if constexpr (AlephUncheckedIterator<It>)
+      return it.get_curr_ne();
+    else
+      return it.get_curr();
+  }
+
 } // namespace Aleph::graph_dry_detail
 
 // ============================================================================
@@ -416,15 +436,16 @@ struct Cmp_Dlink_Node
 
   Cmp & cmp;
 
-  Cmp_Dlink_Node(Cmp && __cmp = Cmp()) noexcept : cmp(__cmp)
-  { /* empty */
-  }
+  // From a temporary, cmp would refer to it once it is gone
+  Cmp_Dlink_Node(Cmp &&) = delete;
 
   Cmp_Dlink_Node(Cmp & __cmp) noexcept : cmp(__cmp)
   { /* empty */
   }
 
-  bool operator ()(Dlink *d1, Dlink *d2) const noexcept
+  bool operator ()(Dlink *d1, Dlink *d2) const
+    noexcept(noexcept(std::declval<Cmp &>()(std::declval<Node *>(),
+                                           std::declval<Node *>())))
   {
     Node *p1 = static_cast<Node *>(d1);
     Node *p2 = static_cast<Node *>(d2);
@@ -443,15 +464,16 @@ struct Cmp_Dlink_Arc
 
   Cmp & cmp;
 
-  Cmp_Dlink_Arc(Cmp && __cmp = Cmp()) noexcept : cmp(__cmp)
-  { /* empty */
-  }
+  // From a temporary, cmp would refer to it once it is gone
+  Cmp_Dlink_Arc(Cmp &&) = delete;
 
   Cmp_Dlink_Arc(Cmp & __cmp) noexcept : cmp(__cmp)
   { /* empty */
   }
 
-  bool operator ()(Dlink *d1, Dlink *d2) const noexcept
+  bool operator ()(Dlink *d1, Dlink *d2) const
+    noexcept(noexcept(std::declval<Cmp &>()(std::declval<Arc *>(),
+                                           std::declval<Arc *>())))
   {
     Arc *arc1 = static_cast<Arc *>(d1);
     Arc *arc2 = static_cast<Arc *>(d2);
@@ -684,6 +706,10 @@ protected:
     digraph = false;
   }
 
+  // Each graph links its arcs as its flag says, so the flags go with the
+  // arcs: a graph of an undirected type can say that it is directed (see
+  // set_digraph()). Digraph deletes the swap with its base, which would
+  // leave a digraph with the arcs and the flag of an undirected graph.
   void common_swap(GT & g) noexcept
   {
     std::swap(num_nodes, g.num_nodes);
@@ -846,7 +872,7 @@ public:
   /// Return a reference to control fields of `node`
   Bit_Fields &get_control_bits(Node *node) const noexcept
   {
-    return NODE_BITS(node).reset();
+    return NODE_BITS(node);
   }
 
   /// Reset the `bit` of `node` (to zero)
@@ -1217,7 +1243,7 @@ public:
   template <typename... Args>
   Node * emplace_node(Args &&... args)
   {
-    return me()->insert_node(Node_Type(args...));
+    return me()->insert_node(Node_Type(std::forward<Args>(args)...));
   }
 
   /** Create and insert a new arc linking two nodes and copying data.
@@ -1303,7 +1329,7 @@ public:
   template <typename... Args>
   Arc * emplace_arc(Node *src, Node *tgt, Args &&... args)
   {
-    return me()->insert_arc(src, tgt, Arc_Type(args...));
+    return me()->insert_arc(src, tgt, Arc_Type(std::forward<Args>(args)...));
   }
 
   /** Conditioned traversal of all the nodes of a graph.
@@ -1357,7 +1383,7 @@ public:
   bool traverse_nodes(Operation & op) const
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr()))
+      if (not op(graph_dry_detail::curr_ne(it)))
         return false;
     return true;
   }
@@ -1424,7 +1450,7 @@ public:
   bool traverse_arcs(Operation & op) const
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr()))
+      if (not op(graph_dry_detail::curr_ne(it)))
         return false;
     return true;
   }
@@ -1493,7 +1519,7 @@ public:
   bool traverse_arcs(Node *p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr()))
+      if (not op(graph_dry_detail::curr_ne(it)))
         return false;
     return true;
   }
@@ -1535,7 +1561,7 @@ public:
   void for_each_node(Operation & operation) const
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      operation(it.get_curr());
+      operation(graph_dry_detail::curr_ne(it));
   }
 
   /// Overload of `for_each_node(Operation&)` that accepts rvalues.
@@ -1575,7 +1601,7 @@ public:
   void for_each_arc(Operation & op) const
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      op(it.get_curr());
+      op(graph_dry_detail::curr_ne(it));
   }
 
   /// Overload of `for_each_arc(Operation&)` that accepts rvalues.
@@ -1624,7 +1650,7 @@ public:
   void for_each_arc(Node *p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
-      op(it.get_curr());
+      op(graph_dry_detail::curr_ne(it));
   }
 
   /// Overload of `for_each_arc(Node*, Operation&)` that accepts rvalues.
@@ -3411,7 +3437,7 @@ public:
   bool traverse_arcs(Node *p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr()))
+      if (not op(graph_dry_detail::curr_ne(it)))
         return false;
     return true;
   }
@@ -3422,7 +3448,7 @@ public:
   void for_each_arc(Node *p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
-      op(it.get_curr());
+      op(graph_dry_detail::curr_ne(it));
   }
 
   /// Traverse the incoming arcs of node `p` executing the conditioned
@@ -3804,6 +3830,8 @@ public:
       nodes by the `Node_Iterator` will be sorted**.
 
       @param cmp comparison operation that defines the sorting criteria
+      @throw anything that cmp throws. Then the graph keeps all its nodes,
+      in an unspecified order.
       @note Not available for List_SGraph (uses DynSetTree instead of Dlink)
   */
   template <class U>
@@ -3814,8 +3842,13 @@ public:
   static constexpr bool has_arc_dlink_v =
     requires(U & u) { { u.get_arc_dlink() } -> std::same_as<Dlink&>; };
 
+  // Whether cmp, which compares pointers to T, does not throw
+  template <class Compare, class T>
+  static constexpr bool nothrow_cmp_v =
+    noexcept(std::declval<Compare &>()(std::declval<T *>(), std::declval<T *>()));
+
   template <class Compare>
-  void sort_nodes(Compare & cmp) noexcept
+  void sort_nodes(Compare & cmp) noexcept(nothrow_cmp_v<Compare, Node>)
     requires(has_node_dlink_v<GT>)
   {
     Cmp_Dlink_Node<GT, Compare> c = cmp;
@@ -3824,7 +3857,7 @@ public:
 
   /// \overload sort_nodes(Compare & cmp)
   template <class Compare>
-  void sort_nodes(Compare && cmp = Compare()) noexcept
+  void sort_nodes(Compare && cmp = Compare()) noexcept(nothrow_cmp_v<Compare, Node>)
     requires(has_node_dlink_v<GT>)
   {
     sort_nodes(cmp);
@@ -3846,10 +3879,12 @@ public:
       arcs by the `Arc_Iterator` will be sorted**.
 
       @param cmp comparison operation that defines the sorting criteria
+      @throw anything that cmp throws. Then the graph keeps all its arcs,
+      in an unspecified order.
       @note Not available for List_SGraph (uses DynSetTree instead of Dlink)
   */
   template <class Compare>
-  void sort_arcs(Compare & cmp) noexcept
+  void sort_arcs(Compare & cmp) noexcept(nothrow_cmp_v<Compare, Arc>)
     requires(has_arc_dlink_v<GT>)
   {
     Cmp_Dlink_Arc<GT, Compare> c = cmp;
@@ -3858,7 +3893,7 @@ public:
 
   /// \overload sort_arcs(Compare & cmp)
   template <class Compare>
-  void sort_arcs(Compare && cmp = Compare()) noexcept
+  void sort_arcs(Compare && cmp = Compare()) noexcept(nothrow_cmp_v<Compare, Arc>)
     requires(has_arc_dlink_v<GT>)
   {
     sort_arcs(cmp);
@@ -3912,12 +3947,18 @@ public:
     swap(g);                                                                 \
   }                                                                          \
                                                                              \
-  /** Copy assignment. Replaces contents with a deep copy of g. */           \
+  /** Copy assignment. Replaces contents with a deep copy of g, made         \
+      first, so that if it throws the graph is as it was. The graph keeps    \
+      its cookie, and whether it is directed. */                             \
   GraphClass & operator=(const GraphClass & g)                               \
   {                                                                          \
     if (this == &g)                                                          \
       return *this;                                                          \
-    copy_graph(*this, g);                                                    \
+    GraphClass copy;                                                         \
+    copy.digraph = this->digraph;                                            \
+    copy_graph(copy, g);                                                     \
+    copy.cookie = this->cookie;                                              \
+    swap(copy);                                                              \
     return *this;                                                            \
   }                                                                          \
                                                                              \
@@ -4002,21 +4043,39 @@ public:
     this->swap(dg);
   }
 
+  /** Swap in constant time this digraph with `g`.
+
+      @param[in] g The digraph to swap with.
+  */
+  void swap(Digraph & g) noexcept
+  {
+    BaseGraph::swap(g);
+  }
+
+  /** A digraph does not swap with an undirected graph: the swap of the
+      base graph would give this digraph the arcs of the other graph, and
+      its flag, which says that it is not directed.
+  */
+  void swap(BaseGraph & g) = delete;
+
   /** Copy assignment operator.
 
-      Replaces the contents of this digraph with a deep copy of `g`.
-      All existing nodes and arcs are removed first.
+      Replaces the contents of this digraph with a deep copy of `g`. The
+      copy is made first, so that if it throws this digraph is as it was.
+      The digraph keeps its cookie.
 
       @param[in] g The digraph to copy.
       @return Reference to this digraph.
+      @throw bad_alloc if there is not enough memory for the copy.
   */
   Digraph & operator = (const Digraph & g)
   {
     if (this == &g)
       return *this;
 
-    this->digraph = true;
-    copy_graph(*this, g, false);
+    Digraph copy(g);
+    copy.cookie = this->cookie;
+    swap(copy);
 
     return *this;
   }

@@ -2684,17 +2684,18 @@ La prueba se hace sobre el grafo simple no dirigido subyacente:
 
 Las salidas avanzadas son opt-in mediante `Planarity_Test_Options`:
 - `compute_embedding`: embedding combinatorio (rotation system + caras)
-  - modo primario: construcción LR-first (`embedding_is_lr_linear = true`)
-    con reparación LR-local determinística (candidatos reversal/swap,
-    multi-start coordinate descent)
-  - fallback opcional: búsqueda exacta acotada si el embedding LR falla validación
+  - modo primario: la fase de embedding del algoritmo LR
+    (`embedding_is_lr_linear = true`), que da un embedding para todo grafo planar
+  - resguardos, si un embedding no pasa la validación: reparación local
+    determinística (candidatos reversal/swap, multi-start coordinate descent)
+    y una búsqueda exacta acotada opcional
   - perfil estricto (`embedding_allow_bruteforce_fallback = false`) evita
-    fallback exhaustivo y típicamente es más rápido (sin backtracking exponencial),
-    pero puede retornar `is_planar = true` sin embedding
+    la búsqueda exhaustiva
+  - `embedding_max_combinations` es el presupuesto de evaluación de la
+    reparación local y de la búsqueda exacta; con
+    `embedding_prefer_lr_linear = false`, la búsqueda exacta sola puede
+    agotarlo y retornar `is_planar = true` sin embedding
     (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`)
-  - `embedding_max_combinations` es el presupuesto de evaluación de LR local-repair
-    en modo estricto (y el presupuesto de búsqueda exacta cuando se usa fallback)
-  - perfil robusto (recomendado para workflows de cara/dual): mantener fallback habilitado
 - `compute_nonplanar_certificate`: witness de no-planaridad
   - primero reduce a una obstrucción mínima por pasadas de borrado de aristas/vértices
   - luego busca patrones de Kuratowski en el branch-core
@@ -2707,12 +2708,11 @@ Las salidas avanzadas son opt-in mediante `Planarity_Test_Options`:
 
 Modelo de garantía del embedding:
 - la decisión de planaridad (`is_planar`) viene de la prueba LR y se mantiene exacta.
-- el modo estricto de embedding LR (`embedding_allow_bruteforce_fallback = false`) es una
-  estrategia constructiva acotada; si llega al presupuesto, el embedding puede faltar
-  (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`)
-  incluso para grafos planares.
-- si necesitas completitud del embedding, mantén el fallback habilitado y provee suficiente
-  presupuesto `embedding_max_combinations`.
+- el embedding LR (`embedding_prefer_lr_linear = true`) es completo: da un embedding
+  para todo grafo planar, también en modo estricto y sin presupuesto de combinaciones.
+- con `embedding_prefer_lr_linear = false`, la búsqueda exacta acotada puede agotar
+  `embedding_max_combinations` y dejar el embedding sin construir
+  (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`).
 
 APIs de cara y dual:
 - `planar_dual_metadata(result)`:

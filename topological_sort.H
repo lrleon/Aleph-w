@@ -36,7 +36,8 @@
     This header provides two implementations of topological sorting:
 
     1. `Topological_Sort`: Uses depth-first search with postfix ordering.
-       Visits nodes recursively and inserts them in reverse postorder.
+       Visits nodes in depth and inserts them in reverse postorder,
+       without recursion.
 
     2. `Q_Topological_Sort`: Uses breadth-first search (Kahn's algorithm).
        Repeatedly removes source nodes (in-degree 0) and updates degrees.
@@ -54,6 +55,7 @@
 
 # include <ah-graph-concepts.H>
 
+#include <tpl_dfs_stack.H>
 #include <tpl_dynListQueue.H>
 #include <tpl_graph.H>
 
@@ -61,9 +63,9 @@ namespace Aleph {
 
 /** @brief Computes topological ordering using depth-first search.
 
-    This class performs topological sorting by recursively visiting
-    nodes in depth-first order and inserting them in postfix order
-    (after all successors have been visited).
+    This class performs topological sorting by visiting nodes in
+    depth-first order and inserting them in postfix order (after all
+    successors have been visited).
 
     The resulting order is a valid topological ordering where for
     every directed edge (u, v), u appears before v in the list.
@@ -79,7 +81,7 @@ template <AlephGraph GT,
           ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Topological_Sort
 {
-  SA & sa;
+  Kept_Filter<SA> sa;
   const GT * gptr;
 
 public:
@@ -88,7 +90,7 @@ public:
       @param __sa Arc filter/selector (moved).
   */
   Topological_Sort(SA && __sa = SA())
-    : sa(__sa), gptr(nullptr) { /* empty */ }
+    : sa(std::move(__sa)), gptr(nullptr) { /* empty */ }
 
   /** @brief Constructor with lvalue arc filter.
       @param __sa Arc filter/selector (referenced).
@@ -98,9 +100,42 @@ public:
 
 private:
 
-  /// @brief Recursive helper for DFS-based topological sort.
-  /// @param curr Current node being visited.
+  // A node that waits for the one that it visits, and the next of its
+  // arcs to look at
+  struct Frame
+  {
+    typename GT::Node * curr;
+    Itor<GT, SA> it;
+
+    [[gnu::always_inline, gnu::flatten]]
+    Frame(typename GT::Node * p, SA & sa) : curr(p), it(p, sa) {}
+
+    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+
+    // Moves the iterator, if list has less than n nodes, to the next arc
+    // whose target was not visited, and gives that target; nullptr when
+    // the arcs are done or list has n nodes. The list does not change
+    // while the iterator moves.
+    template <class L>
+    [[gnu::always_inline, gnu::flatten]]
+    typename GT::Node * next_target(const L & list, const size_t n)
+    {
+      if (list.size() >= n)
+        return nullptr;
+
+      for (; it.has_curr(); it.next_ne())
+        if (auto tgt = it.get_tgt_node_ne(); not IS_NODE_VISITED(tgt, Depth_First))
+          return tgt;
+      return nullptr;
+    }
+  };
+
+  /// @brief Helper for DFS-based topological sort.
+  /// @param curr Node from which to visit.
   /// @param list Output list accumulating sorted nodes.
+  /// @note A path can have as many nodes as the graph, too many for
+  /// recursion, so that the search keeps its own stack; the order of the
+  /// visits is that of a recursion.
   template <template <class> class List>
   void topological_sort(typename GT::Node * curr,
                         List<typename GT::Node*> & list)
@@ -114,11 +149,26 @@ private:
 
     const auto & n = gptr->get_num_nodes();
 
-    // recursively visit adjacent nodes in postfix order
-    for (Itor<GT,SA> it(curr,sa); it.has_curr() and list.size() < n; it.next_ne())
-      topological_sort(it.get_tgt_node_ne(), list);
+    // visit adjacent nodes in postfix order
+    Dfs_Stack<Frame> frames;
+    Frame * f = &frames.push(curr, sa); // the top one
+    while (true)
+      {
+        if (auto tgt = f->next_target(list, n))
+          { // the iterator stays on the arc to tgt, as in a recursion
+            NODE_BITS(tgt).set_bit(Depth_First, 1);
+            f = &frames.push(tgt, sa);
+            continue;
+          }
 
-    list.insert(curr); // postfix insertion of node that became a sink
+        list.insert(f->curr); // postfix insertion of node that became a sink
+        frames.pop();
+        if (frames.is_empty())
+          return;
+
+        f = &frames.top();
+        f->next_arc(); // past the arc to the node that was visited
+      }
   }
 
 public:
@@ -192,7 +242,7 @@ template <AlephGraph GT,
           ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Q_Topological_Sort
 {
-  SA & sa;
+  Kept_Filter<SA> sa;
 
 public:
 
@@ -200,7 +250,7 @@ public:
       @param __sa Arc filter/selector (moved).
   */
   Q_Topological_Sort(SA && __sa = SA())
-    : sa(__sa) { /* empty */ }
+    : sa(std::move(__sa)) { /* empty */ }
 
   /** @brief Constructor with lvalue arc filter.
       @param __sa Arc filter/selector (referenced).

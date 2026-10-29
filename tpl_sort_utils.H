@@ -1091,12 +1091,14 @@ inline void insertion_sort(Dnode<T> &list, const Compare &cmp = Compare())
  *  Merges the sorted subarrays [l..m] and [m+1..r] into a single sorted
  *  subarray [l..r]. Uses a provided buffer to avoid repeated allocations.
  *
- *  This is the core operation of merge sort. The technique copies elements
- *  to a buffer with the right half reversed, then merges from both ends
- *  toward the middle - eliminating the need for end-of-array checks.
+ *  This is the core operation of merge sort. The first partition is moved
+ *  to the buffer and merged back with the second, which is in place; with
+ *  equal elements, those of the first partition go first, so that the
+ *  merge is stable.
  *
  *  Time complexity: O(n), where n = r - l + 1
- *  Space complexity: O(n) for the buffer
+ *  Space complexity: O(n) for the buffer, which needs room for the first
+ *  partition
  *
  *  @tparam T Element type (must be move-assignable and comparable).
  *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
@@ -1118,7 +1120,7 @@ template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
                   const Compare &cmp = Compare())
 {
-  const long s = r - l + 1;
+  const long s = m - l + 1; // the first partition
 
   // Grow the buffer's logical size once instead of multiple push_back
   // calls. Array::putn() is additive (adds to the current logical size)
@@ -1130,25 +1132,24 @@ inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
   if (buf.size() < static_cast<size_t>(s))
     buf.putn(static_cast<size_t>(s) - buf.size());
 
-  // Copy left partition [l..m] to buffer start
-  long buf_idx = 0;
-  for (long i = l; i <= m; ++i)
-    buf[buf_idx++] = std::move(a[i]);
+  // Move left partition [l..m] to buffer start
+  for (long i = 0; i < s; ++i)
+    buf[i] = std::move(a[l + i]);
 
-  // Copy right partition [m+1..r] in reverse to buffer end
-  buf_idx = s - 1;
-  for (long j = m + 1; j <= r; ++j)
-    buf[buf_idx--] = std::move(a[j]);
-
-  // Merge from both ends toward the middle
+  // Merge it with the right partition, which is in place: the next place
+  // to write, k, is never past the next element of the right one, j. An
+  // element of the right one goes first only if it is smaller.
   long i = 0;
-  long j = s - 1;
-
-  for (long k = l; k <= r; ++k)
-    if (not cmp(buf[j], buf[i]))
-      a[k] = std::move(buf[i++]);
+  long j = m + 1;
+  long k = l;
+  while (i < s and j <= r)
+    if (cmp(a[j], buf[i]))
+      a[k++] = std::move(a[j++]);
     else
-      a[k] = std::move(buf[j--]);
+      a[k++] = std::move(buf[i++]);
+
+  while (i < s) // what is left of the right partition is in place
+    a[k++] = std::move(buf[i++]);
 }
 
 /** Merges two ordered partitions stored in an array.
@@ -1168,7 +1169,7 @@ inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
 template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void merge(T *a, const long l, const long m, const long r, const Compare &cmp = Compare())
 {
-  auto buf = Array<T>::create_reserved(static_cast<size_t>(r - l + 1));
+  auto buf = Array<T>::create_reserved(static_cast<size_t>(m - l + 1));
   merge(a, l, m, r, buf, cmp);
 }
 
@@ -1236,7 +1237,8 @@ inline void mergesort(T *a, const long l, const long r, const Compare &cmp = Com
   if (l >= r)
     return;
 
-  auto buf = Array<T>::create_reserved(static_cast<size_t>(r - l + 1));
+  // room for the largest first partition of a merge
+  auto buf = Array<T>::create_reserved(static_cast<size_t>((r - l) / 2 + 1));
   mergesort(a, l, r, buf, cmp);
 }
 
@@ -1259,6 +1261,7 @@ inline void mergesort(T *a, const long l, const long r, const Compare &cmp = Com
  *
  *  @pre l1 and l2 must be sorted; result must be empty.
  *  @post l1 and l2 are empty; result contains all elements in sorted order.
+ *  With equal items, those of l1 go first, so that the merge is stable.
  *
  *  @warning Does not verify that input lists are sorted.
  *
@@ -1270,8 +1273,9 @@ inline void merge_lists(Tlist &l1, Tlist &l2, Tlist &result, const Compare &cmp 
 {
   assert(result.is_empty());
 
+  // with equal items, that of l1 goes first, so that the merge is stable
   while (not l1.is_empty() and not l2.is_empty())
-    if (cmp(l1.get_first_ne(), l2.get_first_ne()))
+    if (not cmp(l2.get_first_ne(), l1.get_first_ne()))
       result.append(l1.remove_first_ne());
     else
       result.append(l2.remove_first_ne());
@@ -1325,6 +1329,8 @@ inline void merge_lists(Dnode<T> &l1, Dnode<T> &l2, Dnode<T> &result, const Comp
  *
  *  @param[in,out] list The list to sort.
  *  @param cmp Comparison functor.
+ *  @throw anything that cmp throws. Then list keeps all its elements, in
+ *  an unspecified order.
  *
  *  @see merge_lists(), quicksort()
  *  @ingroup Algorithms
@@ -1338,10 +1344,30 @@ inline void mergesort(Tlist &list, const Compare &cmp = Compare())
   Tlist l, r;
   list.split_list_ne(l, r);  // split into two lists
 
-  mergesort<Tlist, Compare>(l, cmp);
-  mergesort<Tlist, Compare>(r, cmp);
+  // Only the comparison can throw; then what is not merged yet goes back
+  // to list. A comparison that does not throw needs no handler, which
+  // would change the code of the sort.
+  if constexpr (noexcept(cmp(l.get_first_ne(), r.get_first_ne())))
+    {
+      mergesort<Tlist, Compare>(l, cmp);
+      mergesort<Tlist, Compare>(r, cmp);
 
-  merge_lists<Tlist, Compare>(l, r, list, cmp);  // merge them
+      merge_lists<Tlist, Compare>(l, r, list, cmp);  // merge them
+    }
+  else
+    try
+      {
+        mergesort<Tlist, Compare>(l, cmp);
+        mergesort<Tlist, Compare>(r, cmp);
+
+        merge_lists<Tlist, Compare>(l, r, list, cmp);  // merge them
+      }
+    catch (...)
+      {
+        list.concat_list(l);
+        list.concat_list(r);
+        throw;
+      }
 }
 
 /** Sort a list by mergesort

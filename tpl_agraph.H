@@ -125,17 +125,49 @@ namespace Aleph
         free(arc_array);
     }
 
+  private:
+    // Gives the array room for new_size arcs, or frees it if new_size is 0:
+    // realloc() with a size of 0 may free the array and give back nullptr,
+    // which would look like a failure. If realloc() fails, the array is as
+    // it was, and the result is false.
+    bool resize_arc_array(const size_t new_size) noexcept
+    {
+      if (new_size == 0)
+        {
+          free(arc_array);
+          arc_array = nullptr;
+          arcs_dim = 0;
+          contract_threshold = 0;
+          return true;
+        }
+
+      const auto new_array = static_cast<void **>(realloc(arc_array, new_size * sizeof(void *)));
+      if (new_array == nullptr)
+        return false;
+
+      arc_array = new_array;
+      arcs_dim = new_size;
+      contract_threshold = arcs_dim / Contract_Factor;
+      return true;
+    }
+
+    // After a removal, halves the array if it has room for four times the
+    // arcs; if realloc() fails, the array keeps its room
+    void contract_arc_array() noexcept
+    {
+      if (this->num_arcs > contract_threshold)
+        return;
+
+      (void) resize_arc_array(arcs_dim >> 1); // num_arcs/2
+    }
+
+  public:
     void allocate_more(size_t new_size)
     {
       if (new_size == 0)
         new_size = 1;
 
-      const auto new_array = static_cast<void **>(realloc(arc_array, new_size * sizeof(void *)));
-      ah_bad_alloc_if(new_array == nullptr);
-
-      arc_array = new_array;
-      arcs_dim = new_size;
-      contract_threshold = arcs_dim / Contract_Factor;
+      ah_bad_alloc_if(not resize_arc_array(new_size));
     }
 
     void * insert_arc(void * arc) 
@@ -170,14 +202,7 @@ namespace Aleph
             break;
           }
 
-      if (this->num_arcs > contract_threshold)
-        return;
-
-      // contraction
-      const size_t new_sz = arcs_dim >> 1; // num_arcs/2
-      arc_array = static_cast<void **>(realloc(arc_array, new_sz * sizeof(void *)));
-      arcs_dim = new_sz;
-      contract_threshold = arcs_dim / Contract_Factor;
+      contract_arc_array();
     }
 
     void remove_arc(const void *arc)
@@ -193,28 +218,12 @@ namespace Aleph
 
       ah_domain_error_if(not removed) << "arc for deleting not found";
 
-      if (this->num_arcs > contract_threshold)
-        return;
-
-      // contraction
-      const size_t new_sz = arcs_dim >> 1; // num_arcs/2
-      arc_array = static_cast<void **>(realloc(arc_array, new_sz * sizeof(void *)));
-      arcs_dim = new_sz;
-      contract_threshold = arcs_dim / Contract_Factor;
+      contract_arc_array();
     }
 
     bool compress() noexcept
     {
-      const auto new_array = static_cast<void **>(realloc(arc_array,
-                                                          this->num_arcs * sizeof(void *)));
-      if (new_array == nullptr)
-        return false;
-
-      arc_array = new_array;
-      arcs_dim = this->num_arcs;
-      contract_threshold = this->num_arcs / Contract_Factor;
-
-      return true;
+      return resize_arc_array(this->num_arcs);
     }
   };
 
@@ -333,8 +342,19 @@ namespace Aleph
       }
     };
 
-    class Node_Arc_Iterator : public Array_Iterator<void *>
+    /** Iterator over the arcs of a node.
+
+        It goes through the arcs that the node has when the iterator is
+        built, in the order of its array of arcs, with the operations of an
+        Array_Iterator. It keeps only the array, the number of arcs, the
+        position and the node, so that a search that keeps an iterator for
+        each node of a path, as the depth-first ones do, copies little.
+    */
+    class Node_Arc_Iterator
     {
+      void **arcs = nullptr;
+      long num_arcs = 0;
+      long pos = 0; // the position of the current arc
       Node *src_node = nullptr;
 
     public:
@@ -351,24 +371,95 @@ namespace Aleph
 
       /// Instantiate an iterator over node src.
       Node_Arc_Iterator(Node *src) noexcept
-        : Array_Iterator<void *>(no_exception_ctor,
-                                 src->arc_array, src->arcs_dim, src->num_arcs),
+        : arcs(src->arc_array), num_arcs(static_cast<long>(src->num_arcs)),
           src_node(src)
       {
         // empty
       }
 
-      Arc * get_curr() const
+      /// Return the array of the arcs of the node.
+      void ** get_base() noexcept { return arcs; }
+
+      /// Return the array of the arcs of the node.
+      void * const * get_base() const noexcept { return arcs; }
+
+      /// Return true if the iterator is on an arc.
+      bool has_curr() const noexcept { return pos >= 0 and pos < num_arcs; }
+
+      /// Return true if the iterator is on the last arc.
+      bool is_last() const noexcept
       {
-        return static_cast<Arc *>(const_cast<Node_Arc_Iterator *>(this)->
-          Array_Iterator<void *>::get_curr());
+        return has_curr() and pos == num_arcs - 1;
       }
 
+      /// Return the position of the current arc, counted from 0.
+      long get_pos() const noexcept { return pos; }
+
+      /** Return the current arc.
+
+          @throw underflow_error if the iterator is before the first arc.
+          @throw overflow_error if the iterator is past the last arc.
+      */
+      Arc * get_curr() const
+      {
+        ah_underflow_error_if(pos < 0)
+          << "Array_Iterator::get_curr(): no current item";
+        ah_overflow_error_if(pos >= num_arcs)
+          << "Array_Iterator::get_curr(): no current item";
+        return get_curr_ne();
+      }
+
+      /// Return the current arc, which must exist.
       Arc * get_curr_ne() const noexcept
       {
-        return static_cast<Arc *>(const_cast<Node_Arc_Iterator *>(this)->
-          Array_Iterator<void *>::get_curr_ne());
+        return static_cast<Arc *>(arcs[pos]);
       }
+
+      /// Move to the next arc; the iterator must be on an arc.
+      void next_ne() noexcept { ++pos; }
+
+      /** Move to the next arc.
+
+          @throw overflow_error if the iterator is not on an arc, or is
+          past the last one.
+      */
+      void next()
+      {
+        ah_overflow_error_if(num_arcs == 0 or pos >= num_arcs)
+          << "Array_Iterator::next(): no current item";
+        next_ne();
+      }
+
+      /// Move to the previous arc; the iterator must be on an arc.
+      void prev_ne() noexcept { --pos; }
+
+      /** Move to the previous arc.
+
+          @throw underflow_error if the iterator is not on an arc, or is
+          before the first one.
+      */
+      void prev()
+      {
+        ah_underflow_error_if(num_arcs == 0 or pos < 0)
+          << "Array_Iterator::prev(): no current item";
+        prev_ne();
+      }
+
+      /// Put the iterator on the first arc.
+      void reset() noexcept { pos = 0; }
+
+      /// Put the iterator on the first arc.
+      void reset_first() noexcept { reset(); }
+
+      /// Put the iterator on the last arc.
+      void reset_last() noexcept { pos = num_arcs - 1; }
+
+      /// Put the iterator on position new_pos; the number of arcs is the
+      /// position past the last one.
+      void set_pos(const long new_pos) noexcept { pos = new_pos; }
+
+      /// Put the iterator past the last arc.
+      void end() noexcept { pos = num_arcs; }
 
       /// Return the current arc.
       Arc * get_current_arc_ne() const noexcept { return get_curr_ne(); }
@@ -383,6 +474,7 @@ namespace Aleph
         return static_cast<Node *>(a->get_connected_node(src_node));
       }
 
+      /// Return the target node of the current arc; it throws as get_curr().
       Node * get_tgt_node() const
       {
         Arc *a = get_curr();
@@ -390,12 +482,29 @@ namespace Aleph
       }
     };
 
+    /** Inserts the node p, made with new, which the graph takes.
+
+        @param[in] p node without arcs that belongs to no graph.
+        @return p.
+        @throw bad_alloc if the set of nodes cannot take p, which is then
+        deleted, as List_SGraph::insert_node() and Net_Graph::insert_node()
+        do: the methods that allocate the node and call this one do not
+        free it.
+    */
     virtual Node * insert_node(Node *p)
     {
       assert(p != nullptr);
       assert(p->num_arcs == 0);
 
-      node_set.append(p);
+      try
+        {
+          node_set.append(p);
+        }
+      catch (...)
+        {
+          delete p;
+          throw;
+        }
       ++this->num_nodes;
 
       return p;
@@ -516,13 +625,17 @@ namespace Aleph
       delete p;
     }
 
+    /// @throw range_error if the graph has no nodes
     Node * get_first_node() const
     {
+      ah_range_error_if(this->num_nodes == 0) << "Graph has not nodes";
       return static_cast<Node *>(node_set.get_first());
     }
 
+    /// @throw range_error if the graph has no arcs
     Arc * get_first_arc() const
     {
+      ah_range_error_if(this->num_arcs == 0) << "Graph has not arcs";
       return static_cast<Arc *>(arc_set.get_first());
     }
 

@@ -454,6 +454,7 @@ namespace Aleph
       for (long i = 0; i < num_reachable; ++i)
         {
           auto tn = tree.insert_node(vertex[i]->get_info());
+          NODE_COOKIE(vertex[i]) = nullptr; // else it would compose with a former tree
           GT::map_nodes(vertex[i], tn);
           tree_nodes[i] = tn;
         }

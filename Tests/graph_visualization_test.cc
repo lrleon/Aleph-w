@@ -42,6 +42,7 @@
 
 #include <gtest/gtest.h>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 #include <tpl_graph.H>
@@ -361,6 +362,66 @@ TEST_F(TreeGraphTest, GraphToTreeNodeThrowsOnCyclicGraph)
 
   using Converter = Graph_To_Tree_Node<Graph, int, IntConvert>;
   EXPECT_THROW(Converter()(tree, root), std::domain_error);
+}
+
+// A conversion marked the arcs, so that the next one on the same graph
+// stopped at the root
+TEST_F(TreeGraphTest, GraphToTreeNodeConvertsTheSameGraphAgain)
+{
+  for (int i = 0; i < 4; ++i)
+    {
+      SCOPED_TRACE(i);
+      Tree_Node<int> * t = i < 2
+        ? Graph_To_Tree_Node<Graph, int, IntConvert>()(tree, root)
+        : graph_to_tree_node<Graph, int, IntConvert>(tree, root);
+      size_t nodes = 0;
+      t->traverse([&nodes](auto) { ++nodes; return true; });
+      EXPECT_EQ(nodes, 4u);
+      destroy_tree(t);
+    }
+}
+
+namespace
+{
+  // A key that counts the keys that live
+  struct Counted_Key
+  {
+    static inline long live = 0;
+    int value = 0;
+
+    Counted_Key() { ++live; }
+    Counted_Key(const Counted_Key & k) : value(k.value) { ++live; }
+    Counted_Key & operator = (const Counted_Key &) = default;
+    ~Counted_Key() { --live; }
+  };
+
+  // Converts the first two nodes, and throws on the third
+  struct Failing_Convert
+  {
+    static inline int calls = 0;
+
+    void operator()(List_Graph<Graph_Node<int>, Graph_Arc<int>>::Node * gnode,
+                    Tree_Node<Counted_Key> * tnode) const
+    {
+      if (++calls == 3)
+        throw std::runtime_error("conversion");
+      tnode->get_key().value = gnode->get_info();
+    }
+  };
+}
+
+// If the conversion threw, the tree built so far was lost
+TEST_F(TreeGraphTest, GraphToTreeNodeFreesTheTreeIfTheConversionThrows)
+{
+  Failing_Convert::calls = 0;
+  EXPECT_THROW((Graph_To_Tree_Node<Graph, Counted_Key, Failing_Convert>()(tree, root)),
+               std::runtime_error);
+  EXPECT_EQ(Counted_Key::live, 0);
+
+  Failing_Convert::calls = 0;
+  EXPECT_THROW((graph_to_tree_node<Graph, Counted_Key, Failing_Convert>(tree, root)),
+               std::runtime_error);
+  EXPECT_EQ(Counted_Key::live, 0);
 }
 
 // ============================================================================

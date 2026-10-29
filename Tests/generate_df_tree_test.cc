@@ -322,9 +322,11 @@ TEST(Df_Low_Tree, an_exception_leaves_nothing_behind)
   EXPECT_TRUE(out.str().empty());
 }
 
-TEST(Df_Low_Tree, a_tree_with_more_levels_than_generate_tree_writes_throws)
+// write_df_low_tree() refused the trees of more levels than generate_tree()
+// wrote, Max_Tree_Node_Depth
+TEST(Df_Low_Tree, a_tree_of_any_depth_is_written)
 {
-  for (const size_t n : {Max_Tree_Node_Depth, Max_Tree_Node_Depth + 1})
+  for (const size_t n : {Max_Tree_Node_Depth, Max_Tree_Node_Depth + 1, size_t(3000)})
     {
       Graph g; // a path of n nodes, a tree of n levels
       Node * first = g.insert_node(0);
@@ -337,10 +339,15 @@ TEST(Df_Low_Tree, a_tree_with_more_levels_than_generate_tree_writes_throws)
         }
 
       std::ostringstream out;
-      if (n <= Max_Tree_Node_Depth)
-        EXPECT_NO_THROW(write_df_low_tree(g, first, out));
-      else
-        EXPECT_THROW(write_df_low_tree(g, first, out), std::overflow_error);
+      EXPECT_NO_THROW(write_df_low_tree(g, first, out));
+
+      // the root and a node for each other one
+      const std::string s = out.str();
+      size_t nodes = 0;
+      for (size_t pos = s.find("Node "); pos != std::string::npos; pos = s.find("Node ", pos + 1))
+        ++nodes;
+      EXPECT_EQ(s.rfind("Root ", 0), 0u);
+      EXPECT_EQ(nodes, n - 1);
     }
 }
 

@@ -54,6 +54,7 @@
 
 # include <ah-graph-concepts.H>
 
+# include <tpl_dfs_stack.H>
 # include <tpl_graph.H>
 # include <tpl_graph_utils.H>
 # include <ah-errors.H>
@@ -72,14 +73,16 @@ namespace Aleph {
  * ## Algorithm:
  *
  * 1. Start from a source node and mark it as visited
- * 2. For each unvisited adjacent node, recursively build the tree
+ * 2. For each unvisited adjacent node, build the tree in depth
  * 3. Copy visited nodes and traversed arcs to the output tree
  * 4. Maintain node/arc mappings between original graph and tree
  *
  * ## Complexity:
  *
  * - **Time:** O(V + E) where V is vertices and E is edges
- * - **Space:** O(V) for recursion stack + O(V + E) for output tree
+ * - **Space:** O(V) for the stack of the search + O(V + E) for output
+ *   tree; the search does not recurse, so that a long path does not
+ *   overflow the call stack
  *
  * ## Usage example:
  *
@@ -116,9 +119,45 @@ class Find_Depth_First_Spanning_Tree
   GT * gptr = nullptr;
   GT * tptr = nullptr;
 
-  // Recursive DFS helper to build the spanning tree
-  bool build_tree(typename GT::Node * gnode, typename GT::Arc * garc, 
-                  typename GT::Node * tnode)
+  // A node of the tree that waits for the one that it visits, its image
+  // in the tree, and the next arc of it to look at
+  struct Frame
+  {
+    typename GT::Node * tnode;
+    Node_Arc_Iterator<GT, SA> it;
+
+    [[gnu::always_inline, gnu::flatten]]
+    Frame(typename GT::Node * gnode, typename GT::Node * image, SA & sa)
+      : tnode(image), it(gnode, sa) {}
+
+    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+
+    // Moves the iterator, while the tree is not complete, to the next arc
+    // not in the tree whose target is not in the tree either, and gives
+    // that target; nullptr when the arcs are done or the tree is complete
+    [[gnu::always_inline, gnu::flatten]] typename GT::Node *
+    next_target(const GT & tree, const GT & g) noexcept
+    {
+      for (; it.has_curr() and tree.get_num_nodes() < g.get_num_nodes(); it.next_ne())
+        {
+          auto arc = it.get_current_arc_ne();
+          if (IS_ARC_VISITED(arc, Spanning_Tree))
+            continue;
+
+          auto arc_tgt_node = it.get_tgt_node_ne();
+          if (not IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
+            return arc_tgt_node;  // Target not visited through another arc
+        }
+      return nullptr;
+    }
+  };
+
+  // Puts gnode in the tree, reached through garc from the node whose image
+  // is tnode, and gives the image of gnode, or nullptr if the tree is
+  // complete
+  [[gnu::always_inline]]
+  typename GT::Node * put_in_tree(typename GT::Node * gnode, typename GT::Arc * garc,
+                                  typename GT::Node * tnode)
   {
     // Mark node and arc as part of spanning tree
     NODE_BITS(gnode).set_bit(Spanning_Tree, true);
@@ -132,33 +171,62 @@ class Find_Depth_First_Spanning_Tree
     auto tarc = tptr->insert_arc(tnode, tree_tgt_node, garc->get_info()); 
     GT::map_arcs(garc, tarc);
 
-    tnode = tree_tgt_node; 
-    
     // Check if spanning tree is complete (all nodes covered)
     if (tptr->get_num_nodes() == gptr->get_num_nodes())
-      return true;
+      return nullptr;
 
     // Invariant: tree must be acyclic (nodes > arcs)
     assert(tptr->get_num_nodes() > tptr->get_num_arcs());
+    return tree_tgt_node;
+  }
 
-    // Explore adjacent nodes via DFS
-    for (Node_Arc_Iterator<GT, SA> i(gnode, sa); 
-         i.has_curr() and tptr->get_num_nodes() < gptr->get_num_nodes();
-         i.next_ne())
+  // DFS helper to build the spanning tree. A path can have as many nodes
+  // as the graph, too many for recursion, so that the search keeps its own
+  // stack; the order of the visits is that of a recursion.
+  bool build_tree(typename GT::Node * gnode, typename GT::Arc * garc,
+                  typename GT::Node * tnode)
+  {
+    auto image = put_in_tree(gnode, garc, tnode);
+    if (image == nullptr)
+      return true;
+
+    // Explore adjacent nodes via DFS. The node being visited keeps its
+    // iterator in here until it visits a node; then it waits in frames,
+    // where it goes on when it comes back.
+    Dfs_Stack<Frame> frames;
+    Frame here(gnode, image, sa);
+    while (true)
       {
-        auto arc = i.get_current_arc_ne();
-        if (IS_ARC_VISITED(arc, Spanning_Tree)) 
-          continue;
+        if (auto tgt = here.next_target(*tptr, *gptr))
+          { // the iterator stays on the arc to tgt, as in a recursion
+            image = put_in_tree(tgt, here.it.get_current_arc_ne(), here.tnode);
+            if (image == nullptr)
+              return true;
 
-        auto arc_tgt_node = i.get_tgt_node();
-        if (IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
-          continue;  // Target already visited via another arc
+            frames.push(std::move(here));
+            here = Frame(tgt, image, sa);
+            continue;
+          }
 
-        if (build_tree(arc_tgt_node, arc, tnode))
-          return true;
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return false;
+
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.next_target(*tptr, *gptr))
+              {
+                image = put_in_tree(tgt, f.it.get_current_arc_ne(), f.tnode);
+                if (image == nullptr)
+                  return true;
+
+                here = Frame(tgt, image, sa);
+                break;
+              }
+            frames.pop();
+          }
       }
-
-    return false;
   }
 
   // Main algorithm entry point
@@ -327,8 +395,10 @@ class Find_Breadth_First_Spanning_Tree
     // Ensure output tree is empty
     clear_graph(tree); 
 
-    // Create root node in tree and establish mapping
+    // Create root node in tree and establish mapping; the cookie is
+    // cleared, else the mapping would compose with a former tree
     auto tp = tree.insert_node(gp->get_info());
+    NODE_COOKIE(gp) = nullptr;
     GT::map_nodes(gp, tp);
 
     // Initialize queue with arcs adjacent to starting node
@@ -361,10 +431,12 @@ class Find_Breadth_First_Spanning_Tree
 
         // Create new node in tree and establish mapping
         auto ttgt = tree.insert_node(gtgt->get_info());
+        NODE_COOKIE(gtgt) = nullptr;
         GT::map_nodes(gtgt, ttgt);
 
         // Create new arc in tree and establish mapping
         auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
+        ARC_COOKIE(garc) = nullptr;
         GT::map_arcs(garc, tarc);
         
         // Check if spanning tree is complete

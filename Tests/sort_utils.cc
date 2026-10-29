@@ -43,6 +43,7 @@
 #include <functional>
 #include <limits>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -975,6 +976,152 @@ TEST(SortUtilsDyndlistSorts, mergesort_dyndlist)
   DynDlist<int> l = make_dyndlist({4, 1, 3, 2, 0, 2});
   mergesort(l);
   EXPECT_TRUE(is_sorted(l));
+}
+
+namespace
+{
+  // An item whose order is that of its key alone; seq tells where it was
+  struct Keyed { int key; int seq; };
+
+  struct By_Key
+  {
+    bool operator()(const Keyed & a, const Keyed & b) const noexcept
+    {
+      return a.key < b.key;
+    }
+  };
+
+  // Equal keys keep the order of their seq
+  template <class Container>
+  bool keeps_order_of_equals(const Container & c)
+  {
+    const Keyed * prev = nullptr;
+    for (const Keyed & x : c)
+      {
+        if (prev != nullptr and prev->key == x.key and prev->seq > x.seq)
+          return false;
+        prev = &x;
+      }
+    return true;
+  }
+
+  // The keys do not decrease
+  template <class Container>
+  bool sorted_by_key(const Container & c)
+  {
+    const Keyed * prev = nullptr;
+    for (const Keyed & x : c)
+      {
+        if (prev != nullptr and By_Key()(x, *prev))
+          return false;
+        prev = &x;
+      }
+    return true;
+  }
+}
+
+// mergesort() is documented as stable, but, with equal keys, its merges
+// took first the item of the second half, on lists and on arrays
+TEST(SortUtilsStability, mergesort_keeps_the_order_of_equal_items)
+{
+  std::mt19937 gen(3);
+  for (int round = 0; round < 50; ++round)
+    {
+      SCOPED_TRACE(round);
+      std::vector<Keyed> items;
+      const int n = 2 + int(gen() % 300);
+      for (int i = 0; i < n; ++i)
+        items.push_back({int(gen() % 7), i});
+
+      DynList<Keyed> list;
+      DynDlist<Keyed> dlist;
+      for (const Keyed & x : items)
+        {
+          list.append(x);
+          dlist.append(x);
+        }
+      mergesort(list, By_Key());
+      mergesort(dlist, By_Key());
+      EXPECT_TRUE(sorted_by_key(list));
+      EXPECT_TRUE(sorted_by_key(dlist));
+      EXPECT_TRUE(keeps_order_of_equals(list));
+      EXPECT_TRUE(keeps_order_of_equals(dlist));
+
+      std::vector<Keyed> array = items;
+      mergesort(array.data(), 0, long(array.size()) - 1, By_Key());
+      EXPECT_TRUE(keeps_order_of_equals(array));
+      EXPECT_TRUE(std::is_sorted(array.begin(), array.end(), By_Key()));
+    }
+}
+
+namespace
+{
+  // Compares ints, and throws at the comparison number at
+  struct Throws_At
+  {
+    int * count;
+    int at;
+
+    bool operator()(const int a, const int b) const
+    {
+      if (++*count == at)
+        throw std::runtime_error("comparison failed");
+      return a < b;
+    }
+  };
+
+  // The items of c, sorted
+  template <class Container>
+  std::vector<int> sorted_items(const Container & c)
+  {
+    std::vector<int> v;
+    for (const int x : c)
+      v.push_back(x);
+    std::sort(v.begin(), v.end());
+    return v;
+  }
+}
+
+// mergesort() of a list promises that, if the comparison throws, the list
+// keeps all its items; the comparison throws here at each of the ones that
+// the sort makes
+TEST(SortUtilsStability, mergesort_of_a_list_keeps_its_items_if_the_comparison_throws)
+{
+  std::mt19937 gen(11);
+  std::vector<int> items;
+  for (int i = 0; i < 60; ++i)
+    items.push_back(int(gen() % 20));
+  const std::vector<int> all = sorted_items(items);
+
+  int total = 0; // the comparisons of a sort that does not throw
+  {
+    DynList<int> list;
+    for (const int x : items)
+      list.append(x);
+    mergesort(list, Throws_At{&total, -1});
+    ASSERT_EQ(sorted_items(list), all);
+  }
+  ASSERT_GT(total, 0);
+
+  for (int at = 1; at <= total; ++at)
+    {
+      SCOPED_TRACE(at);
+      DynList<int> list;
+      DynDlist<int> dlist;
+      for (const int x : items)
+        {
+          list.append(x);
+          dlist.append(x);
+        }
+
+      int count = 0;
+      EXPECT_THROW(mergesort(list, Throws_At{&count, at}), std::runtime_error);
+      count = 0;
+      EXPECT_THROW(mergesort(dlist, Throws_At{&count, at}), std::runtime_error);
+
+      EXPECT_EQ(sorted_items(list), all);
+      EXPECT_EQ(sorted_items(dlist), all);
+    }
 }
 
 TEST(SortUtilsDyndlistSorts, search_extreme_min)

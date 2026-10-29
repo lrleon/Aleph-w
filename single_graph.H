@@ -63,15 +63,15 @@ template <AlephGraph GT,
 	  ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Test_Single_Graph
 {
-  SN & sn;
-  SA & sa;
+  Kept_Filter<SN> sn;
+  Kept_Filter<SA> sa;
 
   typedef typename GT::Node GT_Node;
 
 public:
 
   Test_Single_Graph(SN && __sn = SN(), SA && __sa = SA()) 
-    : sn(__sn), sa(__sa)
+    : sn(std::move(__sn)), sa(std::move(__sa))
   {
     // empty 
   }

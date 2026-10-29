@@ -56,20 +56,19 @@ template <class GT,
 class ArcHeap
     : public BinHeap<typename GT::Arc *, Distance_Compare<GT, Distance>>
 {
-  Distance dist;
   Access_Heap_Node access_node;
-  Distance_Compare<GT, Distance> dist_cmp;
 
 public:
-  /// Return the distance functor used to compare arcs in this heap.
-  Distance &get_distance() { return dist; }
+  /// Return the distance functor of the comparison that orders the arcs of
+  /// this heap and chooses between two arcs to the same node. Changing it
+  /// while the heap has arcs may leave the heap out of order.
+  Distance &get_distance() { return this->get_compare().dist; }
 
   /// Construct an empty arc heap with the given distance functor and
   /// heap-node access policy.
   ArcHeap(Distance __dist = Distance(),
           Access_Heap_Node acc = Access_Heap_Node())
-    : Heap(Distance_Compare<GT, Distance>(__dist)), // orders the heap
-      dist(__dist), access_node(acc), dist_cmp(dist)
+    : Heap(Distance_Compare<GT, Distance>(__dist)), access_node(acc)
   {
     // empty
   }
@@ -78,26 +77,24 @@ public:
   ArcHeap(const ArcHeap &) = delete;
   ArcHeap & operator=(const ArcHeap &) = delete;
 
-  /// Move construction transfers ownership of heap nodes. (The base heap
-  /// cannot be moved: it points to its own header, so it is swapped.)
+  /// Move construction transfers ownership of heap nodes and the distance.
+  /// (The base heap cannot be moved: it points to its own header, so it is
+  /// swapped, with its comparison.)
   ArcHeap(ArcHeap && other) noexcept
-    : Heap(other.get_compare()), dist(std::move(other.dist)),
-      access_node(std::move(other.access_node)), dist_cmp(dist)
+    : Heap(other.get_compare()), access_node(std::move(other.access_node))
   {
     this->swap(other);
   }
 
-  /// Move assignment transfers ownership of heap nodes, after emptying this
-  /// heap as empty() does
+  /// Move assignment transfers ownership of heap nodes and the distance,
+  /// after emptying this heap as empty() does
   ArcHeap & operator=(ArcHeap && other) noexcept
   {
     if (this != &other)
       {
         empty();
         this->swap(other);
-        dist = std::move(other.dist);
         access_node = std::move(other.access_node);
-        dist_cmp = Distance_Compare<GT, Distance>(dist);
       }
     return *this;
   }
@@ -129,7 +126,9 @@ private:
 public:
 
   /// Insert or update an arc associated with a target node, keeping the
-  /// smallest-distance arc per node in the heap.
+  /// smallest-distance arc per node in the heap. If the distance throws,
+  /// tgt has in the heap the arc that it had or arc, and the heap may be
+  /// out of order.
   void put_arc(typename GT::Arc *arc, typename GT::Node *tgt)
   {
     auto & handle_storage = access_node(tgt);
@@ -149,7 +148,7 @@ public:
     typename GT::Arc *& arc_in_heap = heap_node->get_key();
 
     // Does arc_in_heap have a shorter distance than arc?
-    if (dist_cmp(arc_in_heap, arc))
+    if (this->get_compare()(arc_in_heap, arc))
       return; // old arc remains in the heap; new one is ignored
 
     // arc_in_heap will be the newly inserted arc
@@ -216,9 +215,7 @@ public:
   using handle_type = typename Heap::handle_type;
 
 private:
-  Distance dist;
   Access_Heap_Node access_node;
-  Compare dist_cmp;
   Heap heap;
 
   handle_type & handle_ref(typename GT::Node *p)
@@ -273,14 +270,16 @@ private:
   }
 
 public:
-  /// Return the distance functor used to compare arcs in this heap.
-  Distance &get_distance() { return dist; }
+  /// Return the distance functor of the comparison that orders the arcs of
+  /// this heap and chooses between two arcs to the same node. Changing it
+  /// while the heap has arcs may leave the heap out of order.
+  Distance &get_distance() { return heap.get_compare().dist; }
 
   /// Construct an empty Fibonacci arc heap with the given distance functor and
   /// heap-node access policy.
   ArcFibonacciHeap(Distance __dist = Distance(),
                    Access_Heap_Node acc = Access_Heap_Node())
-    : dist(__dist), access_node(acc), dist_cmp(dist), heap(dist_cmp)
+    : access_node(acc), heap(Compare(__dist))
   {
     // empty
   }
@@ -289,29 +288,28 @@ public:
   ArcFibonacciHeap(const ArcFibonacciHeap &) = delete;
   ArcFibonacciHeap & operator=(const ArcFibonacciHeap &) = delete;
 
-  /// Move construction transfers ownership of heap nodes
+  /// Move construction transfers ownership of heap nodes and the distance
   ArcFibonacciHeap(ArcFibonacciHeap && other) noexcept
-    : dist(std::move(other.dist)), access_node(std::move(other.access_node)),
-      dist_cmp(dist), heap(std::move(other.heap))
+    : access_node(std::move(other.access_node)), heap(std::move(other.heap))
   {}
 
-  /// Move assignment transfers ownership of heap nodes, after emptying this
-  /// heap as empty() does
+  /// Move assignment transfers ownership of heap nodes and the distance,
+  /// after emptying this heap as empty() does
   ArcFibonacciHeap & operator=(ArcFibonacciHeap && other) noexcept
   {
     if (this != &other)
       {
         empty();
-        dist = std::move(other.dist);
         access_node = std::move(other.access_node);
-        dist_cmp = Compare(dist);
         heap = std::move(other.heap);
       }
     return *this;
   }
 
   /// Insert or update an arc associated with a target node, keeping the
-  /// smallest-distance arc per node in the heap.
+  /// smallest-distance arc per node in the heap. If the distance throws,
+  /// tgt has in the heap the arc that it had or arc in its place, and the
+  /// heap may be out of order; if tgt had no arc in the heap, it has none.
   void put_arc(typename GT::Arc *arc, typename GT::Node *tgt)
   {
     auto & heap_node = handle_ref(tgt);
@@ -326,14 +324,16 @@ public:
     typename GT::Arc *arc_in_heap = heap_node->data;
 
     // Does arc_in_heap have a shorter distance than arc?
-    if (dist_cmp(arc_in_heap, arc))
+    if (heap.get_compare()(arc_in_heap, arc))
       return; // old arc remains in the heap; new one is ignored
 
     heap.decrease_key(heap_node, arc);
   }
 
   /// Extract the arc with minimum distance from the heap and clear its
-  /// node-to-heap mapping.
+  /// node-to-heap mapping. If the distance throws while the other arcs
+  /// are put back in order, the arc is already out of the heap, its heap
+  /// node freed and its mapping cleared.
   typename GT::Arc * get_min_arc()
   {
     ah_underflow_error_if(heap.is_empty()) << "ArcFibonacciHeap is empty";

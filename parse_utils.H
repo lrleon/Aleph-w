@@ -688,7 +688,7 @@ public:
  *           Includes automatic file and line information.
  */
 #define ah_parse_error()                                                                           \
-  Aleph::ExceptionBuilder<Aleph::ParseError>(),                                                    \
+  Aleph::ExceptionBuilder<Aleph::ParseError>() <<=                                                 \
     std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_parse_error_if(C)
@@ -697,9 +697,9 @@ public:
  *  @throw ParseError if C is true
  */
 #define ah_parse_error_if(C)                                                                       \
-  while (C) [[unlikely]]                                                                           \
-  Aleph::ExceptionBuilder<Aleph::ParseError>(),                                                    \
-    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE; AH_ERROR_ONCE = false)            \
+    [[unlikely]] Aleph::ExceptionBuilder<Aleph::ParseError>() <<=                                  \
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_parse_error_unless(C)
  *  @brief Throws a ParseError if condition does NOT hold
@@ -707,9 +707,9 @@ public:
  *  @throw ParseError if C is false
  */
 #define ah_parse_error_unless(C)                                                                   \
-  while (not (C)) [[unlikely]]                                                                     \
-  Aleph::ExceptionBuilder<Aleph::ParseError>(),                                                    \
-    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE; AH_ERROR_ONCE = false)                         \
+    [[unlikely]] Aleph::ExceptionBuilder<Aleph::ParseError>() <<=                                  \
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 // ============================================================================
 // Lookahead and Backtracking

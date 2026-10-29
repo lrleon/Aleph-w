@@ -45,7 +45,12 @@
 
 #include <gtest/gtest.h>
 
+#include <random>
+#include <stdexcept>
+#include <vector>
+
 #include <filter_iterator.H>
+#include <tpl_array.H>
 #include <tpl_dynDlist.H>
 
 using namespace Aleph;
@@ -383,6 +388,110 @@ TEST(FilterIteratorBidirectional, NextNeNoException) {
   // Should not throw
   EXPECT_NO_THROW(it.next_ne());
   ASSERT_FALSE(it.has_curr());
+}
+
+// next_ne() goes where next() goes, without the checks of the moves of the
+// iterator over the list, which cannot fail once there is a current item;
+// what the filter throws, next() lets go and next_ne() does not
+TEST(FilterIteratorBidirectional, NextNeMovesAsNext)
+{
+  struct Throws_On
+  {
+    const bool * armed;
+    int bad;
+
+    bool operator()(const int x) const
+    {
+      if (*armed and x == bad)
+        throw std::runtime_error("filter failed");
+      return x % 3 != 0;
+    }
+  };
+
+  std::mt19937 gen(7);
+  for (int round = 0; round < 300; ++round)
+    {
+      SCOPED_TRACE(round);
+      DL list;
+      const int n = int(gen() % 12);
+      for (int i = 0; i < n; ++i)
+        list.append(int(gen() % 10));
+
+      bool armed = false; // the constructors do not throw
+      const Throws_On filter{&armed, int(gen() % 12)}; // perhaps no such item
+      Filter_Iterator<DL, DL_It, Throws_On> ne(list, filter), checked(list, filter);
+      armed = true;
+      for (int step = 0; step <= n + 1; ++step)
+        {
+          SCOPED_TRACE(step);
+          try
+            {
+              checked.next();
+            }
+          catch (const std::runtime_error &)
+            {
+              // the filter threw on the item where checked is
+            }
+          EXPECT_NO_THROW(ne.next_ne());
+
+          ASSERT_EQ(ne.has_curr(), checked.has_curr());
+          if (checked.has_curr())
+            {
+              ASSERT_EQ(&ne.get_curr(), &checked.get_curr());
+            }
+        }
+    }
+}
+
+// After prev(), a filter iterator over an array is before the first item,
+// without a current item; next_ne() goes then to the first item shown, as
+// next() does
+TEST(FilterIteratorBidirectional, NextNeFromBeforeTheFirstItem)
+{
+  Array<int> a;
+  for (int i = 1; i <= 6; ++i)
+    a.append(i);
+
+  Filter_Iterator<Array<int>, Array<int>::Iterator, ShowEven> ne(a), checked(a);
+  ne.prev();
+  checked.prev();
+  ASSERT_FALSE(ne.has_curr());
+  ASSERT_FALSE(checked.has_curr());
+
+  checked.next();
+  ne.next_ne();
+  ASSERT_TRUE(checked.has_curr());
+  ASSERT_TRUE(ne.has_curr());
+  EXPECT_EQ(checked.get_curr(), 2);
+  EXPECT_EQ(ne.get_curr(), 2);
+}
+
+// An iterator that redefines get_curr() alone keeps the get_curr_ne() of its
+// base, here that of the nodes: next_ne() takes then the items through
+// get_curr(), as next() does
+TEST(FilterIteratorBidirectional, NextNeTakesTheItemsThatGetCurrGives)
+{
+  struct Items_Of_Nodes : Dnode<int>::Iterator
+  {
+    using Item_Type = int;
+
+    Items_Of_Nodes(DL & l) noexcept : Dnode<int>::Iterator(l) {}
+
+    int & get_curr() const { return Dnode<int>::Iterator::get_curr()->get_data(); }
+  };
+
+  DL list;
+  for (int i = 1; i <= 7; ++i)
+    list.append(i);
+
+  std::vector<int> by_next, by_next_ne;
+  for (Filter_Iterator<DL, Items_Of_Nodes, ShowEven> it(list); it.has_curr(); it.next())
+    by_next.push_back(it.get_curr());
+  for (Filter_Iterator<DL, Items_Of_Nodes, ShowEven> it(list); it.has_curr(); it.next_ne())
+    by_next_ne.push_back(it.get_curr());
+
+  EXPECT_EQ(by_next, (std::vector<int>{2, 4, 6}));
+  EXPECT_EQ(by_next_ne, by_next);
 }
 
 TEST(FilterIteratorBidirectional, PrevNeNoException) {

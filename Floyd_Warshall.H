@@ -138,7 +138,10 @@ namespace Aleph
       The solver keeps copies of the distance accessor and of the arc
       filter. A distance passed to the constructor may have state, or no
       default constructor; the constructors that do not take one build it
-      with `Distance()`.
+      with `Distance()`. get_min_path(), which is const, measures the
+      parallel arcs with the copy of the solver if the call operator of the
+      distance is const, and with a copy of it otherwise, so that concurrent
+      calls do not share the state of the distance.
 
       Template parameters:
       -# `GT`: graph type.
@@ -175,19 +178,28 @@ namespace Aleph
     DynMatrix<Distance_Type> dist;
     SA sa;
 
-    // mutable: get_min_path() is const, and the call operator of the
-    // distance does not have to be
-    mutable Distance distance;
+    Distance distance;
+
+    // The distance with which get_min_path() measures the arcs: that of the
+    // solver, if its call operator is const; otherwise a copy, so that
+    // concurrent calls do not share its state
+    decltype(auto) path_distance() const
+    {
+      if constexpr (std::is_invocable_v<const Distance &, Arc *>)
+        return (distance);
+      else
+        return Distance(distance);
+    }
 
     // Appends to path the lightest arc that sa shows from p to q: the one
-    // whose weight is in the matrix
-    void append_lightest_arc(Path<GT> & path, Node *p, Node *q) const
+    // whose weight, as d measures it, is in the matrix
+    template <class D>
+    void append_lightest_arc(Path<GT> & path, Node *p, Node *q, D & d) const
     {
       Arc *lightest = nullptr;
       for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
         if (it.get_tgt_node_ne() == q and
-            (lightest == nullptr or
-             distance(it.get_current_arc_ne()) < distance(lightest)))
+            (lightest == nullptr or d(it.get_current_arc_ne()) < d(lightest)))
           lightest = it.get_current_arc_ne();
 
       assert(lightest != nullptr);
@@ -326,6 +338,11 @@ namespace Aleph
         pairs of nodes in the graph using the Floyd-Warshall algorithm.
         Handles negative weights but detects negative cycles.
 
+        The type of the distance is a parameter of the constructor, so that
+        braces, as in `(g, {})`, which give it no type, take the constructor
+        with the filter.
+
+        @tparam D Type of the distance, which converts to `Distance`.
         @param[in] __g Input graph (will be treated as const).
         @param[in] __distance Distance accessor for the arc weights.
         @param[in] __sa Arc filter for considering which arcs to include.
@@ -336,11 +353,16 @@ namespace Aleph
         found, which needs a weight below `lowest() / (2 (n - 1))`, with `n`
         nodes. A sum above `max()` does not count.
      */
-    Floyd_All_Shortest_Paths(const GT & __g, Distance __distance,
-                             SA __sa = SA())
+    // The condition on D is an argument of the template, not a requires
+    // clause: Clang 14 leaves the clause out of the deduction guide that it
+    // makes from the constructor, and then `(g, sa)` would be ambiguous
+    template <class D,
+              std::enable_if_t<std::is_convertible_v<D, Distance>, int> = 0>
+    Floyd_All_Shortest_Paths(const GT & __g, D && __distance, SA __sa = SA())
       : g(const_cast<GT &>(__g)), n(g.get_num_nodes()),
         Inf(std::numeric_limits<Distance_Type>::max()),
-        path_mat(n, n), dist(n, n), sa(__sa), distance(__distance)
+        path_mat(n, n), dist(n, n), sa(__sa),
+        distance(std::forward<D>(__distance))
     {
       ah_invalid_argument_if(n <= 0) << "Graph must contain at least one node";
 
@@ -520,6 +542,8 @@ namespace Aleph
         @return Path object containing the shortest path.
         @throw std::out_of_range if indices are invalid.
         @throw std::domain_error if the graph has a negative cycle.
+        @note With a distance whose call operator is not const, it measures
+        the parallel arcs with a copy of the distance of the solver.
      */
     Path<GT> get_min_path(const long src_idx, const long tgt_idx) const
     {
@@ -540,11 +564,12 @@ namespace Aleph
       if (src_idx == tgt_idx)
         return path;
 
+      auto && d = path_distance();
       long i = src_idx;
       while (true)
         {
           const auto & k = path_mat(i, tgt_idx);
-          append_lightest_arc(path, nodes(i), nodes(k));
+          append_lightest_arc(path, nodes(i), nodes(k), d);
           if (k == tgt_idx)
             break;
           i = k;
@@ -571,6 +596,16 @@ namespace Aleph
       return get_min_path(index_node(src), index_node(tgt));
     }
   };
+
+  /** The type of a distance given to the constructor is deduced from it:
+      that of the constructor is not, since it is a parameter of its own.
+
+      @relates Floyd_All_Shortest_Paths
+   */
+  template <AlephGraph GT, ArcDistance<GT> Distance,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
+  Floyd_All_Shortest_Paths(const GT &, Distance, SA = SA())
+    -> Floyd_All_Shortest_Paths<GT, Distance, SA>;
 } // end namespace Aleph
 
 # endif // FLOYD_WARSHALL_H

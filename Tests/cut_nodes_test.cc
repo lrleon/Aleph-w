@@ -709,7 +709,7 @@ TEST(CutNodes, ComputeBlocksAutoPaints)
 
   // compute_blocks should auto-paint
   EXPECT_NO_THROW(alg.compute_blocks(blocks, cg, cross));
-  EXPECT_GE(blocks.size(), 4U); // at least 4 leaf blocks (may have empty slots)
+  EXPECT_EQ(blocks.size(), 4U); // the 4 leaves; an empty block followed them
 }
 
 TEST(CutNodes, ComputeBlocksGeneratesAllBlocks)
@@ -732,7 +732,7 @@ TEST(CutNodes, ComputeBlocksGeneratesAllBlocks)
   DynDlist<Graph::Arc *> cross;
   alg.compute_blocks(blocks, cg, cross);
 
-  EXPECT_GE(blocks.size(), 4U); // at least 4 leaf components (may have empty slots)
+  EXPECT_EQ(blocks.size(), 4U); // the 4 leaves; an empty block followed them
 }
 
 TEST(CutNodes, ComputeBlocksGeneratesCutGraph)
@@ -773,6 +773,70 @@ TEST(CutNodes, ComputeBlocksGeneratesCrossArcList)
   alg.compute_blocks(blocks, cg, cross);
 
   EXPECT_FALSE(cross.is_empty());
+}
+
+// Without cut nodes nothing is painted, and compute_blocks() read out of its
+// array of blocks with the color of the nodes, 0
+TEST(CutNodes, ComputeBlocksOfAGraphWithoutCutNodesGivesTheGraph)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 3);
+  g.insert_arc(nodes[0], nodes[1], 1);
+  g.insert_arc(nodes[1], nodes[2], 2);
+  g.insert_arc(nodes[2], nodes[0], 3);
+
+  DynDlist<Graph::Node *> cuts;
+  Compute_Cut_Nodes<Graph> alg(g);
+  alg(nodes[0], cuts);
+  ASSERT_TRUE(cuts.is_empty());
+
+  DynDlist<Graph> blocks;
+  Graph cg;
+  DynDlist<Graph::Arc *> cross;
+  alg.compute_blocks(blocks, cg, cross);
+
+  ASSERT_EQ(blocks.size(), 1U);
+  const Graph & block = blocks.get_first();
+  EXPECT_EQ(block.get_num_nodes(), 3U);
+  EXPECT_EQ(block.get_num_arcs(), 3U);
+  for (Graph::Node_Iterator it(block); it.has_curr(); it.next_ne())
+    {
+      auto p = static_cast<Graph::Node *>(NODE_COOKIE(it.get_curr()));
+      EXPECT_EQ(NODE_COOKIE(p), it.get_curr()); // mapped to g
+    }
+  EXPECT_EQ(cg.get_num_nodes(), 0U);
+  EXPECT_TRUE(cross.is_empty());
+}
+
+// The nodes of a component that the computation of the cut nodes did not
+// reach have color 0 too
+TEST(CutNodes, ComputeBlocksLeavesOutTheComponentsNotReached)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 6);
+  g.insert_arc(nodes[0], nodes[1], 1);
+  g.insert_arc(nodes[1], nodes[2], 2);
+  g.insert_arc(nodes[2], nodes[0], 3);
+  g.insert_arc(nodes[2], nodes[3], 4); // nodes[2] is a cut node
+  g.insert_arc(nodes[4], nodes[5], 5); // another component
+
+  DynDlist<Graph::Node *> cuts;
+  Compute_Cut_Nodes<Graph> alg(g);
+  alg(nodes[0], cuts);
+  ASSERT_EQ(cuts.size(), 1U);
+
+  DynDlist<Graph> blocks;
+  Graph cg;
+  DynDlist<Graph::Arc *> cross;
+  alg.compute_blocks(blocks, cg, cross);
+
+  ASSERT_EQ(blocks.size(), 2U);
+  size_t block_nodes = 0;
+  for (auto it = blocks.get_it(); it.has_curr(); it.next_ne())
+    block_nodes += it.get_curr().get_num_nodes();
+  EXPECT_EQ(block_nodes, 3U); // nodes[0], nodes[1] and nodes[3]
+  EXPECT_EQ(cg.get_num_nodes(), 1U);
+  EXPECT_EQ(cross.size(), 3U);
 }
 
 // ============================================================================

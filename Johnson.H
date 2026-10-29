@@ -150,6 +150,37 @@ private:
     }
   };
 
+  // Paints on the copy of the graph the tree of the shortest paths from a
+  // node: the last one is kept, so that the queries from that node do not
+  // run Dijkstra again
+  Dijkstra_Min_Paths<GT, Reweighted_Dist, NAit, SA> painter;
+
+  // The node of the copy from which painter painted it last, or nullptr. A
+  // move of the solver forgets it.
+  struct Painted_Source
+  {
+    Node * node = nullptr;
+
+    Painted_Source() = default;
+    Painted_Source(Painted_Source &&) noexcept { /* forgotten */ }
+    Painted_Source & operator = (Painted_Source &&) noexcept
+    {
+      node = nullptr;
+      return *this;
+    }
+  } painted;
+
+  // Paints the tree of the shortest paths from csrc, unless it is painted
+  void paint_from(Node * csrc)
+  {
+    if (painted.node == csrc)
+      return;
+
+    painted.node = nullptr; // if the painting throws, there is no tree
+    painter.paint_min_paths_tree(graph_copy.get_graph(), csrc);
+    painted.node = csrc;
+  }
+
   static Distance_Type checked_add(const Distance_Type& a, const Distance_Type& b)
   {
     return shortest_path_detail::checked_add(a, b);
@@ -169,6 +200,30 @@ private:
       }
 
     return a - b;
+  }
+
+  // The distance to a node that cannot be reached: infinity, or max() for
+  // a type that has none, as an integer type, whose infinity() is 0
+  static constexpr Distance_Type unreachable() noexcept
+  {
+    if constexpr (std::numeric_limits<Distance_Type>::has_infinity)
+      return std::numeric_limits<Distance_Type>::infinity();
+    else
+      return std::numeric_limits<Distance_Type>::max();
+  }
+
+  // The distance d(s, t) from d'(s, t), that of the reweighted arcs:
+  // d'(s, t) - h(s) + h(t). With an integer type, h(t) is added first: as
+  // d' >= 0 and h <= 0, that cannot overflow, and subtracting h(s) then
+  // overflows only if d(s, t) does
+  static Distance_Type unweighted(const Distance_Type & d_prime,
+                                  const Distance_Type & hs,
+                                  const Distance_Type & ht)
+  {
+    if constexpr (std::is_integral_v<Distance_Type>)
+      return checked_sub(checked_add(d_prime, ht), hs);
+    else
+      return d_prime - hs + ht;
   }
 
   /** Reweight all arcs using node potentials.
@@ -284,7 +339,8 @@ public:
       @throw std::domain_error if a negative cycle is detected.
    */
   explicit Johnson(const GT& g, Distance d = Distance(), SA __sa = SA())
-    : orig_graph(&g), graph_copy(g), dist(d), sa(__sa)
+    : orig_graph(&g), graph_copy(g), dist(d), sa(__sa),
+      painter(Reweighted_Dist(), sa)
   {
     GT& gc = graph_copy.get_graph();
 
@@ -311,10 +367,17 @@ public:
 
   /** Get the shortest distance from source to target.
 
+      The tree of the shortest paths from the last source is kept, so that
+      the queries from it do not run Dijkstra again.
+
       @param[in] src Source node (from original graph).
       @param[in] tgt Target node (from original graph).
-      @return The shortest distance from src to tgt, or infinity if unreachable.
+      @return The shortest distance from src to tgt or, if tgt cannot be
+      reached, `std::numeric_limits<Distance_Type>::infinity()`, or `max()`
+      for a type without infinity, as an integer type.
       @throw std::domain_error if not initialized or nodes not found.
+      @throw std::overflow_error if, with an integer type, the distance is
+      above `max()`.
    */
   Distance_Type get_distance(Node* src, Node* tgt)
     requires std::is_convertible_v<typename GT::Arc_Type, Distance_Type>
@@ -330,24 +393,21 @@ public:
     Node* csrc = graph_copy.get_copy(src);
     Node* ctgt = graph_copy.get_copy(tgt);
     
-    GT& gc = graph_copy.get_graph();
-    
-    // Run Dijkstra from csrc on reweighted graph
-    Dijkstra_Min_Paths<GT, Reweighted_Dist, NAit, SA> dijkstra(Reweighted_Dist(), sa);
-    dijkstra.paint_min_paths_tree(gc, csrc);
+    // Run Dijkstra from csrc on reweighted graph, if its tree is not the
+    // one that is painted
+    paint_from(csrc);
     
     if (not IS_NODE_VISITED(ctgt, Aleph::Spanning_Tree))
-      return std::numeric_limits<Distance_Type>::infinity();
+      return unreachable();
 
-    // Get reweighted distance (may throw if unreachable)
-    Path<GT> path(gc);
-    Distance_Type d_prime = dijkstra.get_min_path(ctgt, path);
+    // Get reweighted distance, from the painted tree without making a path
+    Distance_Type d_prime = painter.get_distance(ctgt);
     
     // Adjust back: d(s,t) = d'(s,t) - h(s) + h(t)
     Distance_Type hs = h.find(csrc);
     Distance_Type ht = h.find(ctgt);
     
-    return d_prime - hs + ht;
+    return unweighted(d_prime, hs, ht);
   }
 
   /** Find the shortest path from source to target.
@@ -369,24 +429,27 @@ public:
     
     GT& gc = graph_copy.get_graph();
     
-    // Run Dijkstra from csrc on reweighted graph
-    Dijkstra_Min_Paths<GT, Reweighted_Dist, NAit, SA> dijkstra(Reweighted_Dist(), sa);
-    dijkstra.paint_min_paths_tree(gc, csrc);
+    // Run Dijkstra from csrc on reweighted graph, if its tree is not the
+    // one that is painted
+    paint_from(csrc);
 
     if (not IS_NODE_VISITED(ctgt, Aleph::Spanning_Tree))
       return Path<GT>(*orig_graph);
     
     // Get path in copy graph
     Path<GT> copy_path(gc);
-    dijkstra.get_min_path(ctgt, copy_path);
+    painter.get_min_path(ctgt, copy_path);
 
     return map_copy_path_to_original(copy_path);
   }
 
   /** Compute the shortest distance for all pairs.
 
-      @return A map where key is (src, tgt) pair and value is shortest distance.
+      @return A map where key is (src, tgt) pair and value is shortest
+      distance, or, for a target that cannot be reached, the value that
+      get_distance() gives.
       @throw std::domain_error if not initialized.
+      @throw std::overflow_error as get_distance().
    */
   DynMapTree<std::pair<Node*, Node*>, Distance_Type> 
   compute_all_pairs_distances()
@@ -395,13 +458,11 @@ public:
     ah_domain_error_if(!initialized) << "Johnson not initialized";
     
     DynMapTree<std::pair<Node*, Node*>, Distance_Type> result;
-    GT& gc = graph_copy.get_graph();
     
     // For each node as source
     graph_copy.for_each_mapping([&](Node* orig_src, Node* copy_src) {
       // Run Dijkstra from copy_src
-      Dijkstra_Min_Paths<GT, Reweighted_Dist, NAit, SA> dijkstra(Reweighted_Dist(), sa);
-      dijkstra.paint_min_paths_tree(gc, copy_src);
+      paint_from(copy_src);
       
       Distance_Type hs = h.find(copy_src);
       
@@ -409,15 +470,14 @@ public:
       graph_copy.for_each_mapping([&](Node* orig_tgt, Node* copy_tgt) {
         if (not IS_NODE_VISITED(copy_tgt, Aleph::Spanning_Tree))
           {
-            result.insert(std::make_pair(orig_src, orig_tgt),
-                          std::numeric_limits<Distance_Type>::infinity());
+            result.insert(std::make_pair(orig_src, orig_tgt), unreachable());
             return;
           }
 
-        Path<GT> path(gc);
-        Distance_Type d_prime = dijkstra.get_min_path(copy_tgt, path);
+        // From the painted tree, without making a path for each pair
+        Distance_Type d_prime = painter.get_distance(copy_tgt);
         Distance_Type ht = h.find(copy_tgt);
-        Distance_Type d = d_prime - hs + ht;
+        Distance_Type d = unweighted(d_prime, hs, ht);
         result.insert(std::make_pair(orig_src, orig_tgt), d);
       });
     });

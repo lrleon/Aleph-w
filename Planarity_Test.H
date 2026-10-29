@@ -58,9 +58,11 @@
  *  ## Optional advanced outputs
  *
  *  - Combinatorial embedding (rotation system + face walk summary):
- *    LR construction first, then bounded deterministic LR-local repair
- *    (reversals/swaps, multi-start coordinate descent),
- *    with optional bounded exact fallback.
+ *    the embedding phase of the LR algorithm (Brandes), which gives one
+ *    for every planar graph; a bounded deterministic local repair
+ *    (reversals/swaps, multi-start coordinate descent) and an optional
+ *    bounded exact fallback remain for an embedding that fails its check,
+ *    and the latter for when the LR embedding is not preferred.
  *  - Embedding-aware geometric drawing:
  *    2D node coordinates with harmonic relaxation and optional crossing validation.
  *  - Certificate export:
@@ -76,7 +78,8 @@
  *  - Normalization: O(E log E)
  *  - LR planarity test on simplified graph: O(V + E)
  *  - Optional embedding:
- *    - LR-first + bounded LR-local repair
+ *    - LR embedding: O(V + E), plus the sort of the edges that leave each
+ *      node and an O(E log E) check of its faces
  *    - optional bounded exponential exact fallback
  *  - Optional certificate extraction: O(M * (V + E)) LR invocations in practice
  *
@@ -99,6 +102,7 @@
 
 #include <ah-errors.H>
 #include <tpl_array.H>
+#include <tpl_dfs_stack.H>
 #include <tpl_dynMapTree.H>
 #include <tpl_dynSetTree.H>
 #include <tpl_graph.H>
@@ -156,13 +160,14 @@ struct Planarity_Test_Options
    */
   bool compute_embedding = false;
 
-  /** If true, the algorithm tries to construct the embedding using a
-   *  linear-time Left-Right (LR) heuristic first.
+  /** If true, the embedding is that of the embedding phase of the
+   *  Left-Right (LR) algorithm, which finds one for every planar graph in
+   *  linear time, after a sort of the edges of each node.
    */
   bool embedding_prefer_lr_linear = true;
 
-  /** If the LR heuristic fails to find a valid embedding, allows
-   *  falling back to an exact but potentially exponential-time search.
+  /** Allows an exact but potentially exponential-time search when the LR
+   *  embedding is not preferred, or if it failed its check.
    *
    *  The search is still bounded by @ref embedding_max_combinations.
    */
@@ -256,7 +261,7 @@ struct Planarity_Test_Result
 
   // --- Planar Embedding Output ---
   bool has_combinatorial_embedding = false; /**< True if embedding is valid. */
-  bool embedding_is_lr_linear = false;      /**< True if LR linear heuristic worked. */
+  bool embedding_is_lr_linear = false;      /**< True if the embedding is that of the LR algorithm. */
   bool embedding_search_truncated = false;  /**< True if search limit was reached. */
   size_t embedding_num_faces = 0;           /**< Total number of faces found. */
   Array<Rotation_Entry> embedding_rotation; /**< Full rotation system. */
@@ -1032,61 +1037,118 @@ class LR_Planarity_Checker
     return std::min(lowpt_[p.left.low], lowpt_[p.right.low]);
   }
 
-  void orient_dfs(const size_t v)
+  // The work on the oriented edge e, from v, once the search of its target
+  // is done, if it is a tree edge: its nesting depth, and the low points
+  // of the edge from which v was reached
+  [[gnu::always_inline]]
+  void finish_oriented_edge(const size_t v, const size_t e)
+  {
+    nesting_depth_[e] = 2 * lowpt_[e] + (lowpt2_[e] < height_[v] ? 1 : 0);
+
+    if (parent_edge_[v] == Null_Edge)
+      return;
+
+    const size_t pe = parent_edge_[v];
+    if (lowpt_[e] < lowpt_[pe])
+      {
+        lowpt2_[pe] = std::min(lowpt_[pe], lowpt2_[e]);
+        lowpt_[pe] = lowpt_[e];
+      }
+    else if (lowpt_[e] > lowpt_[pe])
+      lowpt2_[pe] = std::min(lowpt2_[pe], lowpt_[e]);
+    else
+      lowpt2_[pe] = std::min(lowpt2_[pe], lowpt2_[e]);
+  }
+
+  // The items of a, from the first to one past the last; a does not grow
+  // while they are used
+  static std::pair<const size_t *, const size_t *>
+  range_of(const Array<size_t> &a) noexcept
+  {
+    if (a.is_empty())
+      return {nullptr, nullptr};
+
+    const size_t *first = &a.base();
+    return {first, first + a.size()};
+  }
+
+  // A node whose incident edges the orientation goes through: the node,
+  // the next of its edges to look at, one past the last, and the tree edge
+  // whose target is being searched, or Null_Edge
+  struct Orient_Frame
+  {
+    size_t v;
+    const size_t *next;
+    const size_t *end;
+    size_t waiting;
+  };
+
+  Orient_Frame orient_frame_of(const size_t v) const noexcept
+  {
+    const auto [first, end] = range_of(incident_edges_[v]);
+    return Orient_Frame{v, first, end, Null_Edge};
+  }
+
+  // Orients the edges that root reaches, depth-first. A path can have as
+  // many nodes as the graph, too many for recursion, so that the search
+  // keeps its own stack; the order of the visits is that of a recursion.
+  void orient_dfs(const size_t root)
   {
     if (not planar_)
       return;
 
-    for (auto it = incident_edges_[v].get_it(); it.has_curr(); it.next_ne())
+    Dfs_Stack<Orient_Frame> frames;
+    frames.push(orient_frame_of(root));
+    while (not frames.is_empty())
       {
-        const size_t uedge = it.get_curr_ne();
-        if (undirected_edge_seen_[uedge])
-          continue;
-
-        undirected_edge_seen_[uedge] = 1;
-        const size_t w = other_endpoint(uedge, v);
-
-        const size_t e = add_oriented_edge(v, w);
-        undirected_to_oriented_[uedge] = e;
-        child_edges_[v].append(e);
-
-        lowpt_[e] = height_[v];
-        lowpt2_[e] = height_[v];
-
-        if (height_[w] == -1)
+        Orient_Frame &f = frames.top();
+        const size_t v = f.v;
+        if (f.waiting != Null_Edge) // its target was searched
           {
-            parent_edge_[w] = e;
-            height_[w] = height_[v] + 1;
-            orient_dfs(w);
+            finish_oriented_edge(v, f.waiting);
+            f.waiting = Null_Edge;
           }
-        else
-          lowpt_[e] = height_[w];
 
-        nesting_depth_[e] = 2 * lowpt_[e] + (lowpt2_[e] < height_[v] ? 1 : 0);
-
-        if (parent_edge_[v] == Null_Edge)
-          continue;
-
-        const size_t pe = parent_edge_[v];
-        if (lowpt_[e] < lowpt_[pe])
+        bool descends = false;
+        while (f.next != f.end)
           {
-            lowpt2_[pe] = std::min(lowpt_[pe], lowpt2_[e]);
-            lowpt_[pe] = lowpt_[e];
+            const size_t uedge = *f.next++;
+            if (undirected_edge_seen_[uedge])
+              continue;
+
+            undirected_edge_seen_[uedge] = 1;
+            const size_t w = other_endpoint(uedge, v);
+
+            const size_t e = add_oriented_edge(v, w);
+            undirected_to_oriented_[uedge] = e;
+            child_edges_[v].append(e);
+
+            lowpt_[e] = height_[v];
+            lowpt2_[e] = height_[v];
+
+            if (height_[w] == -1)
+              {
+                parent_edge_[w] = e;
+                height_[w] = height_[v] + 1;
+                f.waiting = e;
+                frames.push(orient_frame_of(w)); // f may move
+                descends = true;
+                break;
+              }
+
+            lowpt_[e] = height_[w];
+            finish_oriented_edge(v, e);
           }
-        else if (lowpt_[e] > lowpt_[pe])
-          lowpt2_[pe] = std::min(lowpt2_[pe], lowpt_[e]);
-        else
-          lowpt2_[pe] = std::min(lowpt2_[pe], lowpt2_[e]);
+
+        if (not descends)
+          frames.pop();
       }
   }
 
-  void test_dfs(const size_t v)
+  // Sorts the child edges of v by their nesting depth, as the test of v
+  // takes them
+  void sort_child_edges(const size_t v)
   {
-    if (not planar_)
-      return;
-
-    const size_t e = parent_edge_[v];
-
     auto &E = child_edges_[v];
     for (size_t i = 1; i < E.size(); ++i)
       {
@@ -1099,104 +1161,108 @@ class LR_Planarity_Checker
           }
         E[j] = key;
       }
+  }
 
-    for (auto it = E.get_it(); it.has_curr(); it.next_ne())
+  // The work on the child edge ei of v, whose first child edge is first,
+  // once the test of its target is done, if it is a tree edge, or once its
+  // conflict pair is pushed, if it is a back edge; false if it finds that
+  // the graph is not planar
+  [[gnu::always_inline]]
+  bool finish_child_edge(const size_t v, const size_t first, const size_t ei)
+  {
+    if (not planar_)
+      return false;
+
+    if (lowpt_[ei] < height_[v])
+      return merge_child_edge(v, first, ei);
+
+    return true;
+  }
+
+  // The part of finish_child_edge() for a child edge ei of v that returns
+  // above v: its conflicts with those of the former child edges
+  [[gnu::noinline]]
+  bool merge_child_edge(const size_t v, const size_t first, const size_t ei)
+  {
+    const size_t e = parent_edge_[v];
+    if (ei == first)
       {
-        const size_t ei = it.get_curr_ne();
-        stack_bottom_[ei] = stack_.get_last();
-
-        const size_t w = oriented_tgt_[ei];
-        if (ei == parent_edge_[w])
-          test_dfs(w);
-        else
+        if (e != Null_Edge)
+          lowpt_edge_[e] = lowpt_edge_[first];
+      }
+    else
+      {
+        Conflict_Pair p;
+        do
           {
-            lowpt_edge_[ei] = ei;
-            Conflict_Pair cp;
-            cp.right.low = ei;
-            cp.right.high = ei;
-            stack_.append(cp);
-          }
+            Conflict_Pair q = stack_.get_last();
+            (void) stack_.remove_last();
 
-        if (not planar_)
-          return;
+            if (not interval_empty(q.left))
+              std::swap(q.left, q.right);
 
-        if (lowpt_[ei] < height_[v])
-          {
-            if (const size_t first = E[0]; ei == first)
+            if (not interval_empty(q.left))
               {
-                if (e != Null_Edge)
-                  lowpt_edge_[e] = lowpt_edge_[first];
+                planar_ = false;
+                return false;
+              }
+
+            if (lowpt_[q.right.low] > lowpt_[e])
+              {
+                if (interval_empty(p.right))
+                  p.right.high = q.right.high;
+                else
+                  ref_[p.right.low] = q.right.high;
+
+                p.right.low = q.right.low;
               }
             else
               {
-                Conflict_Pair p;
-                do
-                  {
-                    Conflict_Pair q = stack_.get_last();
-                    (void) stack_.remove_last();
-
-                    if (not interval_empty(q.left))
-                      std::swap(q.left, q.right);
-
-                    if (not interval_empty(q.left))
-                      {
-                        planar_ = false;
-                        return;
-                      }
-
-                    if (lowpt_[q.right.low] > lowpt_[e])
-                      {
-                        if (interval_empty(p.right))
-                          p.right.high = q.right.high;
-                        else
-                          ref_[p.right.low] = q.right.high;
-
-                        p.right.low = q.right.low;
-                      }
-                    else
-                      {
-                        ref_[q.right.low] = lowpt_edge_[e];
-                      }
-                } while (not(stack_.get_last() == stack_bottom_[ei]));
-
-                while (conflicting(stack_.get_last().left, ei) or
-                       conflicting(stack_.get_last().right, ei))
-                  {
-                    Conflict_Pair q = stack_.get_last();
-                    (void) stack_.remove_last();
-
-                    if (conflicting(q.right, ei))
-                      std::swap(q.left, q.right);
-
-                    if (conflicting(q.right, ei))
-                      {
-                        planar_ = false;
-                        return;
-                      }
-
-                    if (p.right.low != Null_Edge)
-                      ref_[p.right.low] = q.right.high;
-
-                    if (not interval_empty(q.right))
-                      p.right.low = q.right.low;
-
-                    if (q.left.low != Null_Edge)
-                      side_[q.left.low] = -1;
-
-                    if (interval_empty(p.left))
-                      p.left.high = q.left.high;
-                    else
-                      ref_[p.left.low] = q.left.high;
-
-                    p.left.low = q.left.low;
-                  }
-
-                if (not pair_empty(p))
-                  stack_.append(p);
+                ref_[q.right.low] = lowpt_edge_[e];
               }
+        } while (not(stack_.get_last() == stack_bottom_[ei]));
+
+        while (conflicting(stack_.get_last().left, ei) or
+               conflicting(stack_.get_last().right, ei))
+          {
+            Conflict_Pair q = stack_.get_last();
+            (void) stack_.remove_last();
+
+            if (conflicting(q.right, ei))
+              std::swap(q.left, q.right);
+
+            if (conflicting(q.right, ei))
+              {
+                planar_ = false;
+                return false;
+              }
+
+            if (p.right.low != Null_Edge)
+              ref_[p.right.low] = q.right.high;
+
+            if (not interval_empty(q.right))
+              p.right.low = q.right.low;
+
+            if (interval_empty(p.left))
+              p.left.high = q.left.high;
+            else
+              ref_[p.left.low] = q.left.high;
+
+            p.left.low = q.left.low;
           }
+
+        if (not pair_empty(p))
+          stack_.append(p);
       }
 
+    return true;
+  }
+
+  // The work on v once its child edges are done: the back edges that
+  // return to the parent of v leave the stack
+  void finish_test(const size_t v)
+  {
+    const size_t e = parent_edge_[v];
     if (e == Null_Edge)
       return;
 
@@ -1228,6 +1294,7 @@ class LR_Planarity_Checker
         if (p.right.high == Null_Edge and p.right.low != Null_Edge)
           {
             ref_[p.right.low] = p.left.low;
+            side_[p.right.low] = -1;
             p.right.low = Null_Edge;
           }
 
@@ -1244,6 +1311,74 @@ class LR_Planarity_Checker
           ref_[e] = h_left;
         else
           ref_[e] = h_right;
+      }
+  }
+
+  // A node whose child edges the test goes through, sorted: the node, the
+  // first of them, the next one and one past the last
+  struct Test_Frame
+  {
+    size_t v;
+    const size_t *first;
+    const size_t *next;
+    const size_t *end;
+  };
+
+  // The frame of v, whose child edges it sorts first
+  Test_Frame test_frame_of(const size_t v)
+  {
+    sort_child_edges(v);
+    const auto [first, end] = range_of(child_edges_[v]);
+    return Test_Frame{v, first, first, end};
+  }
+
+  // The LR test of the edges that root reaches. A path can have as many
+  // nodes as the graph, too many for recursion, so that the test keeps
+  // its own stack; the order of its steps is that of a recursion.
+  void test_dfs(const size_t root)
+  {
+    if (not planar_)
+      return;
+
+    Dfs_Stack<Test_Frame> frames;
+    frames.push(test_frame_of(root));
+    while (true)
+      {
+        Test_Frame &f = frames.top();
+        const size_t v = f.v;
+        if (f.next != f.end)
+          {
+            const size_t ei = *f.next;
+            stack_bottom_[ei] = stack_.get_last();
+
+            const size_t w = oriented_tgt_[ei];
+            if (ei == parent_edge_[w])
+              { // the test of w goes first; then that of ei
+                frames.push(test_frame_of(w)); // f may move
+                continue;
+              }
+
+            lowpt_edge_[ei] = ei;
+            Conflict_Pair cp;
+            cp.right.low = ei;
+            cp.right.high = ei;
+            stack_.append(cp);
+
+            if (not finish_child_edge(v, *f.first, ei))
+              return;
+            ++f.next;
+            continue;
+          }
+
+        finish_test(v);
+        frames.pop();
+        if (frames.is_empty())
+          return;
+
+        Test_Frame &p = frames.top(); // the test of the edge to v goes on
+        if (not finish_child_edge(p.v, *p.first, *p.next))
+          return;
+        ++p.next;
       }
   }
 
@@ -1998,72 +2133,175 @@ class LR_Planarity_Checker
     Array<long> final_side = side_;
     Array<char> vis(oriented_src_.size(), static_cast<char>(0));
 
-    auto sign_of = [&](auto &&self, const size_t e) -> long
+    // The sign of e is its side times the sign of the edge that it refers
+    // to. A chain of references can be as long as the edges, too long for
+    // recursion: it is followed first, and then the signs are taken back
+    // along it, in the order of a recursion
+    Array<size_t> chain;
+    auto sign_of = [&](const size_t e) -> long
     {
-      if (vis[e] == 2)
-        return final_side[e];
-      if (vis[e] == 1)
-        return final_side[e];
+      for (size_t x = e; vis[x] == 0; x = ref_[x])
+        {
+          vis[x] = 1;
+          chain.append(x);
+          if (ref_[x] == Null_Edge)
+            break;
+        }
 
-      vis[e] = 1;
-      if (ref_[e] != Null_Edge)
-        final_side[e] *= self(self, ref_[e]);
-      vis[e] = 2;
+      while (not chain.is_empty())
+        {
+          const size_t y = chain.remove_last();
+          if (ref_[y] != Null_Edge)
+            final_side[y] *= final_side[ref_[y]];
+          vis[y] = 2;
+        }
+
       return final_side[e];
     };
 
     Array<long> signed_depth(oriented_src_.size(), 0);
     for (size_t e = 0; e < oriented_src_.size(); ++e)
       {
-        const long s = sign_of(sign_of, e);
+        const long s = sign_of(e);
         signed_depth[e] = s < 0 ? -nesting_depth_[e] : nesting_depth_[e];
       }
 
-    size_t isolated_vertices = 0;
-    for (size_t v = 0; v < result_.simplified_num_nodes; ++v)
-      {
-        auto &ord = order[v];
-        ord.reserve(incident_edges_[v].size());
+    // The embedding phase of the LR algorithm (Brandes, "The Left-Right
+    // Planarity Test", 2009). The edges that leave a node in the
+    // orientation go around it in the order of their signed nesting
+    // depths; then a third depth-first search puts each edge that comes
+    // into a node next to the reference of its side there. The rotation
+    // of a node is a circular list of half edges: 2 e at the source of the
+    // oriented edge e, and 2 e + 1 at its target.
+    const size_t num_nodes = result_.simplified_num_nodes;
+    const size_t num_halves = 2 * oriented_src_.size();
+    Array<size_t> cw(num_halves, Null_Edge);  // the next half edge around
+    Array<size_t> ccw(num_halves, Null_Edge); // the former one
+    Array<size_t> first(num_nodes, Null_Edge);
+    Array<size_t> left_ref(num_nodes, Null_Edge);
+    Array<size_t> right_ref(num_nodes, Null_Edge);
 
-        if (incident_edges_[v].is_empty())
-          ++isolated_vertices;
-
-        for (auto it = incident_edges_[v].get_it(); it.has_curr(); it.next_ne())
-          ord.append(it.get_curr_ne());
-
-        auto less_local = [&](const size_t ue_a, const size_t ue_b) -> bool
+    // Puts h after ref around v, or alone if ref is Null_Edge
+    auto put_after = [&](const size_t v, const size_t h, const size_t ref)
+    {
+      if (ref == Null_Edge)
         {
-          const size_t oe_a = undirected_to_oriented_[ue_a];
-          const size_t oe_b = undirected_to_oriented_[ue_b];
+          cw[h] = ccw[h] = h;
+          first[v] = h;
+          return;
+        }
 
-          const long a0 = (oriented_src_[oe_a] == v ? signed_depth[oe_a] : -signed_depth[oe_a]);
-          const long b0 = (oriented_src_[oe_b] == v ? signed_depth[oe_b] : -signed_depth[oe_b]);
-          if (a0 != b0)
-            return a0 < b0;
+      const size_t next = cw[ref];
+      cw[ref] = h;
+      ccw[h] = ref;
+      cw[h] = next;
+      ccw[next] = h;
+    };
 
-          const size_t a1 = other_endpoint(ue_a, v);
-          const size_t b1 = other_endpoint(ue_b, v);
-          if (a1 != b1)
-            return a1 < b1;
+    // Puts h before ref around v; h is the first if ref was
+    auto put_before = [&](const size_t v, const size_t h, const size_t ref)
+    {
+      if (ref == Null_Edge)
+        {
+          put_after(v, h, ref);
+          return;
+        }
 
-          return ue_a < ue_b;
-        };
+      put_after(v, h, ccw[ref]);
+      if (ref == first[v])
+        first[v] = h;
+    };
 
-        for (size_t i = 1; i < ord.size(); ++i)
+    // the test is done: the edges that leave each node can be sorted again
+    for (size_t v = 0; v < num_nodes; ++v)
+      {
+        auto &E = child_edges_[v];
+        for (size_t i = 1; i < E.size(); ++i)
           {
-            const size_t key_ue = ord[i];
-
+            const size_t key = E[i];
             size_t j = i;
-            while (j > 0 and less_local(key_ue, ord[j - 1]))
+            while (j > 0 and signed_depth[key] < signed_depth[E[j - 1]])
               {
-                ord[j] = ord[j - 1];
+                E[j] = E[j - 1];
                 --j;
               }
-            ord[j] = key_ue;
+            E[j] = key;
           }
 
-        for (size_t &i : ord)
-          i = other_endpoint(i, v);
+        size_t prev = Null_Edge;
+        for (size_t i = 0; i < E.size(); ++i)
+          {
+            put_after(v, 2 * E[i], prev);
+            prev = 2 * E[i];
+          }
+      }
+
+    // A node whose edges the third search goes through: the node, the next
+    // of the edges that leave it, and one past the last
+    struct Embed_Frame
+    {
+      size_t v;
+      const size_t *next;
+      const size_t *end;
+    };
+
+    // A path can have as many nodes as the graph, too many for recursion,
+    // so that the search keeps its own stack; the order of its steps is
+    // that of a recursion
+    Dfs_Stack<Embed_Frame> frames;
+    for (auto rit = roots_.get_it(); rit.has_curr(); rit.next_ne())
+      {
+        const size_t root = rit.get_curr_ne();
+        const auto [root_first, root_end] = range_of(child_edges_[root]);
+        frames.push(Embed_Frame{root, root_first, root_end});
+        while (not frames.is_empty())
+          {
+            Embed_Frame &f = frames.top();
+            if (f.next == f.end)
+              {
+                frames.pop();
+                continue;
+              }
+
+            const size_t v = f.v;
+            const size_t e = *f.next++;
+            const size_t w = oriented_tgt_[e];
+            if (e == parent_edge_[w]) // a tree edge: v goes first around w
+              {
+                put_before(w, 2 * e + 1, first[w]);
+                left_ref[v] = right_ref[v] = 2 * e;
+                const auto [w_first, w_end] = range_of(child_edges_[w]);
+                frames.push(Embed_Frame{w, w_first, w_end}); // f may move
+              }
+            else if (final_side[e] > 0) // a back edge, on the right
+              put_after(w, 2 * e + 1, right_ref[w]);
+            else // on the left
+              {
+                put_before(w, 2 * e + 1, left_ref[w]);
+                left_ref[w] = 2 * e + 1;
+              }
+          }
+      }
+
+    size_t isolated_vertices = 0;
+    for (size_t v = 0; v < num_nodes; ++v)
+      {
+        if (first[v] == Null_Edge)
+          {
+            ++isolated_vertices;
+            continue;
+          }
+
+        auto &ord = order[v];
+        ord.reserve(incident_edges_[v].size());
+        size_t h = first[v];
+        do
+          {
+            const size_t e = h / 2;
+            ord.append(h % 2 == 0 ? oriented_tgt_[e] : oriented_src_[e]);
+            h = cw[h];
+          }
+        while (h != first[v]);
       }
 
     const size_t num_components = count_components();

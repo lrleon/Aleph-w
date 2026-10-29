@@ -56,6 +56,7 @@
 
 # include <tpl_dynListStack.H>
 # include <tpl_dynListQueue.H>
+# include <tpl_dfs_stack.H>
 # include <tpl_graph_utils.H>
 # include <ah-errors.H>
 
@@ -71,10 +72,10 @@ namespace Aleph
 
       Find_Path_Depth_First searches depth-first for a path between
       start_node and end_node, building a path equivalent to the
-      recursive depth of the search as it goes. If a path is found,
+      depth of the search as it goes. If a path is found,
       the method returns true and the path parameter holds the path
       in question; otherwise, the function returns false and the
-      path's value is indeterminate.
+      path is empty.
 
       The class takes two type parameters:
       -# GT: the graph type, which must be derived from List_Graph
@@ -95,12 +96,65 @@ namespace Aleph
             ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Find_Path_Depth_First
   {
-    SA & sa;
+    Kept_Filter<SA> sa;
     GT *g_ptr = nullptr;
 
+    // A node of the path that waits for the one that it visits, and the
+    // next arc of it to look at
+    struct Frame
+    {
+      typename GT::Node *curr;
+      Itor<GT, SA> it;
+
+      [[gnu::always_inline, gnu::flatten]]
+      Frame(typename GT::Node *p, SA &sa) : curr(p), it(p, sa) {}
+
+      // next() and not next_ne(), so that what the filter throws goes on
+      [[gnu::always_inline, gnu::flatten]] void next_arc() { it.next(); }
+    };
+
+    // Takes the last node out of path; inlined, with what it calls, in the
+    // loop of find_path()
+    [[gnu::always_inline, gnu::flatten]]
+    static void remove_last_node(Path<GT> & path) { path.remove_last_node(); }
+
+    // Moves the iterator of f to the next arc not visited, which it
+    // marks, whose target is the goal or was not visited, and gives that
+    // target, with found telling whether it is the goal; nullptr when the
+    // arcs are done
     template <class Op>
-    bool find_path(typename GT::Node *curr, typename GT::Arc *arc,
-                   Path<GT> & path, Op & op)
+    [[gnu::always_inline]]
+    typename GT::Node *next_target(Frame &f, Op &op, bool &found)
+    {
+      for (; f.it.has_curr(); f.next_arc())
+        {
+          auto next_arc = dfs_curr(f.it);
+          if (IS_ARC_VISITED(next_arc, Find_Path))
+            continue;
+
+          // the target before the mark, which the compiler takes for a
+          // store that could change the frame
+          auto next_node = g_ptr->get_connected_node(next_arc, f.curr);
+          ARC_BITS(next_arc).set_bit(Find_Path, true);
+          if (op(next_node)) // goal node reached?
+            {
+              found = true;
+              return next_node;
+            }
+
+          if (not IS_NODE_VISITED(next_node, Find_Path)) // there is no path from a visited one
+            return next_node;
+        }
+      return nullptr;
+    }
+
+    // Searches from curr, reached through arc, a node for which op() is
+    // true, and puts in path the path to it. A path can have as many nodes
+    // as the graph, too many for recursion, so that the search keeps its
+    // own stack; the order of the visits is that of a recursion.
+    template <class Op>
+    bool find_path(Dfs_Stack<Frame> & frames, typename GT::Node *curr,
+                   typename GT::Arc *arc, Path<GT> & path, Op & op)
     {
       if (op(curr)) // goal node reached?
         {
@@ -114,22 +168,49 @@ namespace Aleph
       path.append(arc); // add curr_arc to the path
       NODE_BITS(curr).set_bit(Find_Path, true);
 
-      // recursively search through curr_node's arcs
-      for (Itor<GT, SA> i(curr, sa); i.has_curr(); i.next())
+      // The node being visited keeps its iterator in here until it visits
+      // a node; then it waits in frames, where it goes on when it comes
+      // back
+      frames.clear();
+      Frame here(curr, sa);
+      bool found = false;
+      while (true)
         {
-          auto next_arc = i.get_curr();
-          if (IS_ARC_VISITED(next_arc, Find_Path))
-            continue;
+          if (auto next = next_target(here, op, found))
+            { // the iterator stays on the arc to next, as in a recursion
+              path.append(dfs_curr(here.it));
+              if (found)
+                return true;
 
-          ARC_BITS(next_arc).set_bit(Find_Path, true);
-          auto next_node = g_ptr->get_connected_node(next_arc, curr);
-          if (find_path(next_node, next_arc, path, op))
-            return true; // a path was found
+              NODE_BITS(next).set_bit(Find_Path, true);
+              frames.push(std::move(here));
+              here = Frame(next, sa);
+              continue;
+            }
+
+          remove_last_node(path);
+          while (true) // back to the nodes that wait
+            {
+              if (frames.is_empty())
+                return false;
+
+              Frame & f = frames.top();
+              f.next_arc(); // past the arc to the node that was visited
+              if (auto next = next_target(f, op, found))
+                {
+                  path.append(dfs_curr(f.it));
+                  if (found)
+                    return true;
+
+                  NODE_BITS(next).set_bit(Find_Path, true);
+                  here = Frame(next, sa);
+                  break;
+                }
+
+              remove_last_node(path);
+              frames.pop();
+            }
         }
-
-      path.remove_last_node();
-
-      return false;
     }
 
     template <class Op>
@@ -146,7 +227,8 @@ namespace Aleph
 
       NODE_BITS(start).set_bit(Find_Path, true);
 
-      // recursively explore each of start's arcs
+      // explore each of start's arcs
+      Dfs_Stack<Frame> frames;
       for (Itor<GT, SA> i(start, sa); i.has_curr(); i.next())
         {
           auto arc = i.get_curr();
@@ -156,11 +238,11 @@ namespace Aleph
           if (IS_NODE_VISITED(next_node, Find_Path))
             continue;
 
-          if (find_path(next_node, arc, path, op))
+          if (find_path(frames, next_node, arc, path, op))
             return true;
         }
 
-      path.remove_last_node();
+      path.empty(); // there is no path
 
       return false;
     }
@@ -173,7 +255,7 @@ namespace Aleph
 
   public:
     Find_Path_Depth_First(SA && __sa = SA())
-      : sa(__sa)
+      : sa(std::move(__sa))
     { /* empty */
     }
 
@@ -188,7 +270,8 @@ namespace Aleph
         @param[in] start pointer to the path's starting node.
         @param[in] end pointer to the path's destination node.
         @param[out] path the path seen during the depth-first
-        search; only meaningful if the return value is true.
+        search; empty if the return value is false.
+        @return true if a path from start to end was found.
         @throw bad_alloc if there is not enough memory to keep
         building the path
     */
@@ -274,7 +357,7 @@ shown to the traversal
             ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Find_Path_Breadth_First
   {
-    SA & sa;
+    Kept_Filter<SA> sa;
 
     template <class Op>
     bool find_path(const GT & g, typename GT::Node *start,
@@ -364,7 +447,7 @@ shown to the traversal
     }
 
     Find_Path_Breadth_First(SA && _sa = SA())
-      : sa(_sa)
+      : sa(std::move(_sa))
     { /* Empty */
     }
 
@@ -438,7 +521,7 @@ shown to the traversal
   class Directed_Find_Path
   {
     const GT & g;
-    SA & sa;
+    Kept_Filter<SA> sa;
 
     template <template <typename T> class Q, class Op>
     Path<GT> find(typename GT::Node *start, Op & op)
@@ -515,7 +598,8 @@ shown to the traversal
   public:
     Directed_Find_Path(const GT & __g, SA & __sa) : g(__g), sa(__sa) {}
 
-    Directed_Find_Path(const GT & __g, SA && __sa = SA()) : g(__g), sa(__sa) {}
+    Directed_Find_Path(const GT & __g, SA && __sa = SA())
+      : g(__g), sa(std::move(__sa)) {}
 
     template <class Op>
     Path<GT> dfs(typename GT::Node *start, Op & op)

@@ -41,9 +41,10 @@ protected:
 TEST_F(TestAcycliqueTest, EmptyGraphIsAcyclic)
 {
   Is_Graph_Acyclique<GT> checker;
-  
-  // Empty graph behavior: library returns false (no nodes to check)
-  EXPECT_FALSE(checker(g));
+
+  // no arc closes a cycle; the count of arcs, 0, said that it had one
+  EXPECT_TRUE(checker(g));
+  EXPECT_TRUE(checker(g, 0));
 }
 
 TEST_F(TestAcycliqueTest, SingleNodeIsAcyclic)
@@ -182,9 +183,9 @@ TEST_F(TestAcycliqueTest, LargeCycle)
 TEST_F(TestAcycliqueTest, HasCycle_EmptyGraph)
 {
   Has_Cycle<GT> checker;
-  
-  // Empty graph: Has_Cycle returns true (inverse of Is_Graph_Acyclique)
-  EXPECT_TRUE(checker(g));
+
+  EXPECT_FALSE(checker(g));
+  EXPECT_FALSE(checker(g, 0));
 }
 
 TEST_F(TestAcycliqueTest, HasCycle_AcyclicGraph)
@@ -491,4 +492,63 @@ TEST_F(TestAcycliqueTest, ArcCountOptimization_ExactlyNMinus1Arcs)
   Is_Graph_Acyclique<GT> checker;
   
   EXPECT_TRUE(checker(g));
+}
+
+// =============================================================================
+// Filters and agreement with the functions of tpl_graph_utils.H
+// =============================================================================
+
+namespace
+{
+  // Hides the arcs whose info is 0
+  struct Hide_Zero
+  {
+    bool operator()(Arc * a) const noexcept { return a->get_info() != 0; }
+  };
+}
+
+// The count of all the arcs says nothing about those that a filter shows:
+// with as many arcs as nodes, the graph was taken as cyclic
+TEST_F(TestAcycliqueTest, AFilterThatHidesArcsIsSearched)
+{
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, 1);
+  g.insert_arc(n2, n0, 0); // closes the triangle; the filter hides it
+
+  EXPECT_TRUE((Is_Graph_Acyclique<GT, Hide_Zero>()(g)));
+  EXPECT_FALSE((Has_Cycle<GT, Hide_Zero>()(g)));
+  EXPECT_TRUE((Is_Graph_Acyclique<GT, Hide_Zero>()(g, 2)));
+  EXPECT_FALSE((Has_Cycle<GT, Hide_Zero>()(g, 2)));
+
+  EXPECT_FALSE(Is_Graph_Acyclique<GT>()(g));
+  EXPECT_TRUE(Has_Cycle<GT>()(g));
+
+  g.insert_arc(n0, n2, 2); // a cycle that the filter shows
+  EXPECT_FALSE((Is_Graph_Acyclique<GT, Hide_Zero>()(g)));
+  EXPECT_TRUE((Has_Cycle<GT, Hide_Zero>()(g)));
+}
+
+// The class and is_graph_acyclique() took an empty graph and a node with a
+// loop in opposite ways
+TEST_F(TestAcycliqueTest, AgreesWithTheFunctionsOfGraphUtils)
+{
+  EXPECT_TRUE(Is_Graph_Acyclique<GT>()(g));
+  EXPECT_TRUE(is_graph_acyclique(g));
+  EXPECT_FALSE(Has_Cycle<GT>()(g));
+  EXPECT_FALSE(has_cycle(g));
+
+  auto p = g.insert_node(0);
+  EXPECT_TRUE(Is_Graph_Acyclique<GT>()(g));
+  EXPECT_TRUE(is_graph_acyclique(g));
+  EXPECT_TRUE(is_graph_acyclique(g, p));
+
+  g.insert_arc(p, p, 0);
+  EXPECT_FALSE(Is_Graph_Acyclique<GT>()(g));
+  EXPECT_FALSE(is_graph_acyclique(g));
+  EXPECT_FALSE(is_graph_acyclique(g, p));
+  EXPECT_TRUE(Has_Cycle<GT>()(g));
+  EXPECT_TRUE(has_cycle(g));
 }

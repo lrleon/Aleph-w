@@ -37,6 +37,7 @@
 # include <gtest/gtest.h>
 
 # include <algorithm>
+# include <array>
 # include <cstdlib>
 # include <cstdint>
 # include <filesystem>
@@ -366,6 +367,101 @@ namespace
     };
 
     return dfs(0);
+  }
+
+
+  // Whether the rotations of r are a planar embedding of the simple graph
+  // of edges: each rotation is a permutation of the neighbors of its node,
+  // and the faces that they trace satisfy Euler's formula in each component
+  bool is_planar_embedding(const Built_Graph<UGraph> & built,
+                           const std::vector<Edge> & edges,
+                           const Planarity_Test_Result<UGraph> & r)
+  {
+    const size_t n = built.nodes.size();
+    std::unordered_map<UNode *, size_t> idx;
+    for (size_t i = 0; i < n; ++i)
+      idx[built.nodes[i]] = i;
+
+    std::vector<std::vector<size_t>> adj(n);
+    std::vector<Edge> simple;
+    for (const auto & [u, v] : edges)
+      if (u != v and std::find(adj[u].begin(), adj[u].end(), v) == adj[u].end())
+        {
+          adj[u].push_back(v);
+          adj[v].push_back(u);
+          simple.emplace_back(u, v);
+        }
+
+    if (r.embedding_rotation.size() != n)
+      return false;
+
+    std::vector<std::vector<size_t>> rot(n);
+    for (size_t i = 0; i < r.embedding_rotation.size(); ++i)
+      {
+        const auto & re = r.embedding_rotation[i];
+        auto & ro = rot[idx.at(re.node)];
+        for (size_t j = 0; j < re.cw_neighbors.size(); ++j)
+          ro.push_back(idx.at(re.cw_neighbors[j]));
+      }
+
+    for (size_t u = 0; u < n; ++u)
+      {
+        auto a = rot[u], b = adj[u];
+        std::sort(a.begin(), a.end());
+        std::sort(b.begin(), b.end());
+        if (a != b)
+          return false;
+      }
+
+    // from the dart u -> v, the face goes on from v to the neighbor that
+    // follows u around v
+    std::unordered_map<uint64_t, bool> seen;
+    size_t faces = 0;
+    for (size_t u = 0; u < n; ++u)
+      for (const size_t v : rot[u])
+        {
+          if (seen.count(dart_key(int(u), int(v))))
+            continue;
+
+          ++faces;
+          size_t a = u, b = v;
+          while (not seen.count(dart_key(int(a), int(b))))
+            {
+              seen[dart_key(int(a), int(b))] = true;
+              const auto & rb = rot[b];
+              const size_t pos = size_t(std::find(rb.begin(), rb.end(), a) - rb.begin());
+              const size_t c = rb[(pos + 1) % rb.size()];
+              a = b;
+              b = c;
+            }
+        }
+
+    size_t isolated = 0;
+    for (size_t u = 0; u < n; ++u)
+      isolated += adj[u].empty();
+
+    const size_t with_edges = component_count(n, simple) - isolated;
+    return long(n - isolated) - long(simple.size()) + long(faces) == 2 * long(with_edges);
+  }
+
+  // A maximal planar graph of n nodes: a triangle, and then each node in a
+  // random face, joined to its three corners
+  std::vector<Edge> random_maximal_planar_edges(const size_t n, std::mt19937 & gen)
+  {
+    std::vector<std::array<size_t, 3>> faces = {{0, 1, 2}, {0, 2, 1}};
+    std::vector<Edge> edges = {{0, 1}, {1, 2}, {2, 0}};
+    for (size_t d = 3; d < n; ++d)
+      {
+        const size_t f = gen() % faces.size();
+        const auto [a, b, c] = faces[f];
+        faces[f] = {a, b, d};
+        faces.push_back({b, c, d});
+        faces.push_back({c, a, d});
+        edges.emplace_back(a, d);
+        edges.emplace_back(b, d);
+        edges.emplace_back(c, d);
+      }
+    return edges;
   }
 
 
@@ -984,7 +1080,9 @@ TEST(PlanarityTest, K5MinusEdgeHasStrictLREmbeddingWithoutFallback)
 }
 
 
-TEST(PlanarityTest, StrictLREmbeddingCanBeBudgetTruncated)
+// The LR embedding of K5 - e needed local repairs, which a budget of one
+// combination cut; the embedding phase of the LR algorithm needs none
+TEST(PlanarityTest, StrictLREmbeddingNeedsNoRepairBudget)
 {
   auto edges = complete_graph_edges(5);
   edges.erase(edges.begin()); // K5 - e, planar
@@ -993,13 +1091,134 @@ TEST(PlanarityTest, StrictLREmbeddingCanBeBudgetTruncated)
   Planarity_Test_Options opts;
   opts.compute_embedding = true;
   opts.embedding_allow_bruteforce_fallback = false;
-  opts.embedding_max_combinations = 1; // very low LR local-repair budget
+  opts.embedding_max_combinations = 0; // no local repair at all
 
   const auto r = planarity_test(built.g, opts);
 
   EXPECT_TRUE(r.is_planar);
-  EXPECT_FALSE(r.has_combinatorial_embedding);
-  EXPECT_TRUE(r.embedding_search_truncated);
+  EXPECT_TRUE(r.has_combinatorial_embedding);
+  EXPECT_TRUE(r.embedding_is_lr_linear);
+  EXPECT_FALSE(r.embedding_search_truncated);
+  EXPECT_EQ(r.embedding_num_faces, edges.size() - 5 + 2);
+  EXPECT_TRUE(is_planar_embedding(built, edges, r));
+}
+
+
+namespace
+{
+  // The embedding of a planar graph, which the LR algorithm must give alone
+  Planarity_Test_Result<UGraph> strict_lr_embedding(const Built_Graph<UGraph> & built)
+  {
+    Planarity_Test_Options opts;
+    opts.compute_embedding = true;
+    opts.embedding_allow_bruteforce_fallback = false;
+    opts.embedding_max_combinations = 0;
+    return planarity_test(built.g, opts);
+  }
+
+  std::vector<Edge> grid_edges(const size_t w)
+  {
+    std::vector<Edge> edges;
+    for (size_t i = 0; i < w; ++i)
+      for (size_t j = 0; j < w; ++j)
+        {
+          if (j + 1 < w)
+            edges.emplace_back(i * w + j, i * w + j + 1);
+          if (i + 1 < w)
+            edges.emplace_back(i * w + j, (i + 1) * w + j);
+        }
+    return edges;
+  }
+}
+
+
+// The LR embedding failed for every grid from 4 x 4 on, and the local
+// repairs took long to give up: 0.8 s for that grid, 5 min for 40 x 40
+TEST(PlanarityTest, StrictLREmbeddingOfGrids)
+{
+  for (const size_t w : {2u, 3u, 4u, 6u, 20u, 40u})
+    {
+      SCOPED_TRACE("grid " + std::to_string(w));
+      const auto edges = grid_edges(w);
+      auto built = build_ugraph(w * w, edges);
+      const auto r = strict_lr_embedding(built);
+
+      ASSERT_TRUE(r.is_planar);
+      ASSERT_TRUE(r.has_combinatorial_embedding);
+      EXPECT_TRUE(r.embedding_is_lr_linear);
+      EXPECT_EQ(r.embedding_num_faces, (w - 1) * (w - 1) + 1);
+      EXPECT_TRUE(is_planar_embedding(built, edges, r));
+    }
+}
+
+
+// Maximal planar graphs, with all their edges or some of them, are the
+// densest: each face of their embeddings is a triangle
+TEST(PlanarityTest, StrictLREmbeddingOfMaximalPlanarGraphs)
+{
+  std::mt19937 gen(0x5EED);
+  for (size_t trial = 0; trial < 60; ++trial)
+    {
+      const size_t n = 4 + gen() % 80;
+      auto edges = random_maximal_planar_edges(n, gen);
+      const bool all = trial % 3 == 0;
+      if (not all)
+        {
+          std::shuffle(edges.begin(), edges.end(), gen);
+          edges.resize(edges.size() - gen() % (edges.size() / 2));
+        }
+
+      SCOPED_TRACE("trial " + std::to_string(trial) + " n " + std::to_string(n));
+      auto built = build_ugraph(n, edges);
+      const auto r = strict_lr_embedding(built);
+
+      ASSERT_TRUE(r.is_planar);
+      ASSERT_TRUE(r.has_combinatorial_embedding);
+      EXPECT_TRUE(r.embedding_is_lr_linear);
+      EXPECT_TRUE(is_planar_embedding(built, edges, r));
+      if (all)
+        {
+          EXPECT_EQ(r.embedding_num_faces, 2 * n - 4);
+        }
+    }
+}
+
+
+// Grids with a diagonal in each cell, and some of their edges
+TEST(PlanarityTest, StrictLREmbeddingOfTriangulatedGrids)
+{
+  std::mt19937 gen(0xD1A6);
+  for (size_t trial = 0; trial < 60; ++trial)
+    {
+      const size_t w = 2 + gen() % 12, h = 2 + gen() % 12;
+      std::vector<Edge> edges;
+      for (size_t i = 0; i < h; ++i)
+        for (size_t j = 0; j < w; ++j)
+          {
+            if (j + 1 < w)
+              edges.emplace_back(i * w + j, i * w + j + 1);
+            if (i + 1 < h)
+              edges.emplace_back(i * w + j, (i + 1) * w + j);
+            if (i + 1 < h and j + 1 < w)
+              {
+                if (gen() % 2)
+                  edges.emplace_back(i * w + j, (i + 1) * w + j + 1);
+                else
+                  edges.emplace_back(i * w + j + 1, (i + 1) * w + j);
+              }
+          }
+      std::shuffle(edges.begin(), edges.end(), gen);
+      edges.resize(edges.size() - gen() % (edges.size() / 3 + 1));
+
+      SCOPED_TRACE("trial " + std::to_string(trial));
+      auto built = build_ugraph(w * h, edges);
+      const auto r = strict_lr_embedding(built);
+
+      ASSERT_TRUE(r.is_planar);
+      ASSERT_TRUE(r.has_combinatorial_embedding);
+      EXPECT_TRUE(r.embedding_is_lr_linear);
+      EXPECT_TRUE(is_planar_embedding(built, edges, r));
+    }
 }
 
 

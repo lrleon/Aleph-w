@@ -510,6 +510,153 @@ TYPED_TEST(ArcHeapLifecycle, MoveAssignmentEmptiesTheTarget)
 
 namespace
 {
+  // Either heap of arcs, with the distance Dist
+  struct BinaryArcHeapOf
+  {
+    template <class Dist>
+    using Heap = ArcHeap<Graph, Dist, VoidMapAccess>;
+  };
+
+  struct FibonacciArcHeapOf
+  {
+    template <class Dist>
+    using Heap = ArcFibonacciHeap<Graph, Dist, VoidMapAccess>;
+  };
+
+  template <class Kind>
+  struct ArcHeapWithDistance : public ::testing::Test
+  {
+    template <class Dist>
+    using Heap = typename Kind::template Heap<Dist>;
+
+    Graph g;
+    std::vector<Node *> nodes = make_nodes(g, 8);
+  };
+
+  using ArcHeapsOf = ::testing::Types<BinaryArcHeapOf, FibonacciArcHeapOf>;
+
+  // The calls of a distance, and the one that throws (0 for none)
+  struct Distance_Calls
+  {
+    long calls = 0;
+    long fail_at = 0;
+  };
+
+  // The weight of an arc; counts its calls in calls, which the copies of
+  // the distance share
+  struct Shared_Failing_Dist
+  {
+    Distance_Calls *calls = nullptr;
+
+    int operator()(Arc *a) const
+    {
+      if (calls != nullptr and ++calls->calls == calls->fail_at)
+        throw std::runtime_error("arc weight not available");
+      return a->get_info();
+    }
+  };
+} // namespace
+
+TYPED_TEST_SUITE(ArcHeapWithDistance, ArcHeapsOf);
+
+// get_distance() gave a copy that the heap did not use: changing it changed
+// neither the order of the arcs nor the choice between two arcs to the same
+// node
+TYPED_TEST(ArcHeapWithDistance, GetDistanceGivesTheDistanceThatOrders)
+{
+  using Heap = typename TestFixture::template Heap<SignedWeightDist>;
+  auto & nodes = this->nodes;
+  Arc *a1 = this->g.insert_arc(nodes[0], nodes[1], 1);
+  Arc *a2 = this->g.insert_arc(nodes[0], nodes[2], 2);
+  Arc *a3 = this->g.insert_arc(nodes[0], nodes[3], 3);
+  Arc *a4 = this->g.insert_arc(nodes[0], nodes[3], 4); // parallel to a3
+
+  std::unordered_map<Node *, void *> handles;
+  Heap heap(SignedWeightDist{false}, VoidMapAccess{&handles});
+  EXPECT_FALSE(heap.get_distance().negated);
+  heap.get_distance().negated = true; // the heaviest arcs first
+
+  heap.put_arc(a1, nodes[1]);
+  heap.put_arc(a2, nodes[2]);
+  heap.put_arc(a3, nodes[3]);
+  heap.put_arc(a4, nodes[3]); // replaces a3, which is lighter
+
+  Heap moved(std::move(heap)); // with its distance
+  EXPECT_TRUE(moved.get_distance().negated);
+  EXPECT_EQ(moved.get_min_arc(), a4);
+  EXPECT_EQ(moved.get_min_arc(), a2);
+  EXPECT_EQ(moved.get_min_arc(), a1);
+  EXPECT_TRUE(moved.is_empty());
+
+  Heap assigned(SignedWeightDist{false}, VoidMapAccess{&handles});
+  assigned = std::move(moved);
+  EXPECT_TRUE(assigned.get_distance().negated);
+}
+
+// If the distance throws, each arc in the heap has its handle, and each
+// handle that is set is that of an arc in the heap. ArcFibonacciHeap lost
+// the node that it was taking out and could leave the others out of the
+// heap, and it kept the node of a new arc whose handle was not set.
+TYPED_TEST(ArcHeapWithDistance, WhatTheDistanceThrowsLeavesEachArcWithItsHandle)
+{
+  using Heap = typename TestFixture::template Heap<Shared_Failing_Dist>;
+  auto & nodes = this->nodes;
+  std::vector<std::pair<Arc *, Node *>> puts;
+  for (int i = 1; i < 8; ++i)
+    puts.emplace_back(this->g.insert_arc(nodes[0], nodes[i], 10 * i), nodes[i]);
+  for (int i = 1; i < 8; i += 2) // lighter arcs that replace others
+    puts.emplace_back(this->g.insert_arc(nodes[0], nodes[i], 10 * i - 7),
+                      nodes[i]);
+
+  // Puts the arcs in a heap and takes them out, with a distance that
+  // fails at the call calls.fail_at
+  auto put_and_take = [&puts](Distance_Calls & calls)
+  {
+    std::unordered_map<Node *, void *> handles;
+    Heap heap(Shared_Failing_Dist{&calls}, VoidMapAccess{&handles});
+    try
+      {
+        std::vector<int> weights;
+        for (auto [arc, tgt] : puts)
+          heap.put_arc(arc, tgt);
+        while (not heap.is_empty())
+          weights.push_back(heap.get_min_arc()->get_info());
+        return weights;
+      }
+    catch (...)
+      {
+        calls.fail_at = 0;
+        const auto set = std::count_if(handles.begin(), handles.end(),
+                                       [](const auto & entry)
+                                       { return entry.second != nullptr; });
+        long taken = 0;
+        while (not heap.is_empty())
+          {
+            (void) heap.get_min_arc();
+            ++taken;
+          }
+        EXPECT_EQ(taken, long(set));
+        EXPECT_TRUE(std::all_of(handles.begin(), handles.end(),
+                                [](const auto & entry)
+                                { return entry.second == nullptr; }));
+        throw;
+      }
+  };
+
+  Distance_Calls calls;
+  EXPECT_EQ(put_and_take(calls),
+            (std::vector<int>{3, 20, 23, 40, 43, 60, 63}));
+
+  for (long k = 1; k <= calls.calls; ++k)
+    {
+      Distance_Calls failing;
+      failing.fail_at = k;
+      EXPECT_THROW(put_and_take(failing), std::runtime_error) << "call " << k;
+    }
+}
+
+namespace
+{
   using FibonacciHeapOfArcs =
     ArcFibonacciHeap<Graph, ArcWeightDist, VoidMapAccess>;
   using FibonacciNode = FibonacciHeapOfArcs::handle_type;

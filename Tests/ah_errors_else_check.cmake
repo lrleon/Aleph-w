@@ -4,6 +4,10 @@
 # with that else must fail to compile, on the line of the else; and a
 # function with all the macros, without it, must compile.
 #
+# Neither must a message, given to a macro that throws, whose last << gives
+# back void, as a << of the caller may after std::endl: it would not reach
+# the operator that throws, and nothing would be thrown.
+#
 # Run with: cmake -DCXX_COMPILER=<compiler> -DSOURCE_DIR=<repository>
 #                 -DWORK_DIR=<directory> -P ah_errors_else_check.cmake
 
@@ -126,6 +130,96 @@ foreach(entry IN LISTS CALLS)
   math(EXPR index "${index} + 1")
 endforeach()
 
+# The macros that throw, and the header that defines each one
+set(THROWING
+  "ah-errors.H:ah_range_error_if(x < 0)"
+  "ah-errors.H:ah_range_error_unless(x < 0)"
+  "ah-errors.H:ah_range_error()"
+  "ah-errors.H:ah_range_error_if_constexpr(sizeof(int) == 0)"
+  "ah-errors.H:ah_range_error_unless_constexpr(sizeof(int) > 0)"
+  "ah-errors.H:ah_runtime_error_if(x < 0)"
+  "ah-errors.H:ah_runtime_error_unless(x < 0)"
+  "ah-errors.H:ah_runtime_error()"
+  "ah-errors.H:ah_runtime_error_if_constexpr(sizeof(int) == 0)"
+  "ah-errors.H:ah_runtime_error_unless_constexpr(sizeof(int) > 0)"
+  "ah-errors.H:ah_logic_error_if(x < 0)"
+  "ah-errors.H:ah_logic_error_unless(x < 0)"
+  "ah-errors.H:ah_logic_error()"
+  "ah-errors.H:ah_logic_error_if_constexpr(sizeof(int) == 0)"
+  "ah-errors.H:ah_logic_error_unless_constexpr(sizeof(int) > 0)"
+  "ah-errors.H:ah_underflow_error_if(x < 0)"
+  "ah-errors.H:ah_underflow_error_unless(x < 0)"
+  "ah-errors.H:ah_underflow_error()"
+  "ah-errors.H:ah_underflow_error_if_constexpr(sizeof(int) == 0)"
+  "ah-errors.H:ah_underflow_error_unless_constexpr(sizeof(int) > 0)"
+  "ah-errors.H:ah_overflow_error_if(x < 0)"
+  "ah-errors.H:ah_overflow_error_unless(x < 0)"
+  "ah-errors.H:ah_overflow_error()"
+  "ah-errors.H:ah_overflow_error_if_constexpr(sizeof(int) == 0)"
+  "ah-errors.H:ah_overflow_error_unless_constexpr(sizeof(int) > 0)"
+  "ah-errors.H:ah_domain_error_if(x < 0)"
+  "ah-errors.H:ah_domain_error_unless(x < 0)"
+  "ah-errors.H:ah_domain_error()"
+  "ah-errors.H:ah_domain_error_if_constexpr(sizeof(int) == 0)"
+  "ah-errors.H:ah_domain_error_unless_constexpr(sizeof(int) > 0)"
+  "ah-errors.H:ah_out_of_range_error_if(x < 0)"
+  "ah-errors.H:ah_out_of_range_error_unless(x < 0)"
+  "ah-errors.H:ah_out_of_range_error()"
+  "ah-errors.H:ah_out_of_range_error_if_constexpr(sizeof(int) == 0)"
+  "ah-errors.H:ah_out_of_range_error_unless_constexpr(sizeof(int) > 0)"
+  "ah-errors.H:ah_invalid_argument_if(x < 0)"
+  "ah-errors.H:ah_invalid_argument_unless(x < 0)"
+  "ah-errors.H:ah_invalid_argument()"
+  "ah-errors.H:ah_invalid_argument_if_constexpr(sizeof(int) == 0)"
+  "ah-errors.H:ah_invalid_argument_unless_constexpr(sizeof(int) > 0)"
+  "ah-errors.H:ah_length_error_if(x < 0)"
+  "ah-errors.H:ah_length_error_unless(x < 0)"
+  "ah-errors.H:ah_length_error()"
+  "ah-errors.H:ah_length_error_if_constexpr(sizeof(int) == 0)"
+  "ah-errors.H:ah_length_error_unless_constexpr(sizeof(int) > 0)"
+  "ah-errors.H:ah_fatal_error()"
+  "parse_utils.H:ah_parse_error_if(x < 0)"
+  "parse_utils.H:ah_parse_error_unless(x < 0)"
+  "parse_utils.H:ah_parse_error()"
+)
+
+# A message whose last << gives back void, after std::endl, must not
+# compile, on the line of the message
+set(void_index 0)
+foreach(entry IN LISTS THROWING)
+  string(FIND "${entry}" ":" colon)
+  string(SUBSTRING "${entry}" 0 ${colon} header)
+  math(EXPR start "${colon} + 1")
+  string(SUBSTRING "${entry}" ${start} -1 call)
+
+  # The message is on line 7
+  set(source "${WORK_DIR}/void_tail_${void_index}.cc")
+  file(WRITE "${source}"
+    "#include <${header}>\n"
+    "#include <iostream>\n"
+    "struct Void_Tail {};\n"
+    "void operator<<(std::ostream &, const Void_Tail &) {}\n"
+    "int f(int x)\n"
+    "{\n"
+    "  ${call} << \"m\" << std::endl << Void_Tail{};\n"
+    "  return x;\n"
+    "}\n")
+  execute_process(
+    COMMAND "${CXX_COMPILER}" ${FLAGS} "${source}"
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE output
+    ERROR_VARIABLE output)
+  string(REGEX MATCH "[^\n]*: error:[^\n]*" first_error "${output}")
+  if(result EQUAL 0)
+    list(APPEND failures "${call}: a message that gives back void compiles")
+  elseif(NOT output MATCHES "void_tail_${void_index}\\.cc:7:")
+    # GCC gives the line of the macro, and that of the call in a note
+    list(APPEND failures
+      "${call}: the error is not on the line of the message: ${first_error}")
+  endif()
+  math(EXPR void_index "${void_index} + 1")
+endforeach()
+
 # Without the else, every call compiles
 set(source "${WORK_DIR}/calls_without_else.cc")
 file(WRITE "${source}"
@@ -143,4 +237,4 @@ if(failures)
   string(REPLACE ";" "\n" failures "${failures}")
   message(FATAL_ERROR "${failures}")
 endif()
-message(STATUS "${index} calls checked")
+message(STATUS "${index} calls checked, ${void_index} with a message that gives back void")

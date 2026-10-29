@@ -41,6 +41,7 @@
 
 # include <ah-graph-concepts.H>
 
+# include <tpl_dfs_stack.H>
 # include <tpl_graph.H>
 
 namespace Aleph {
@@ -71,6 +72,9 @@ class Test_For_Path
   SA sa;
   typename GT::Node * tgt = nullptr;
 
+  // DFS from curr that tells whether tgt is reached. A path can have as
+  // many nodes as the graph, too many for recursion, so that the search
+  // keeps its own stack; the order of the visits is that of a recursion.
   bool test_path(typename GT::Node * curr)  
   {
     if (curr == tgt) 
@@ -81,34 +85,58 @@ class Test_For_Path
 
     NODE_BITS(curr).set_bit(Find_Path, true); // paint curr_node
 
-    // recursively search through curr's arcs 
-    for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_curr(); i.next_ne())
-      { 
-        typename GT::Arc * arc = i.get_current_arc_ne();
-        if (IS_ARC_VISITED(arc, Find_Path)) 
-          continue; 
+    // search through the arcs not painted, which it paints. The node being
+    // visited keeps its iterator in here until it visits a node; then it
+    // waits in frames, where it goes on when it comes back.
+    using Frame = Dfs_Arc_Frame<Node_Arc_Iterator<GT, SA>>;
+    Dfs_Stack<Frame> frames;
+    Frame here(curr, sa);
+    while (true)
+      {
+        if (auto next = here.template next_target<Find_Path>(tgt))
+          { // the iterator stays on the arc to next, as in a recursion
+            if (next == tgt)
+              return true;
 
-        ARC_BITS(arc).set_bit(Find_Path, true); // paint arc
-        if (test_path(i.get_tgt_node())) 
-          return true;
+            NODE_BITS(next).set_bit(Find_Path, true);
+            frames.push(std::move(here));
+            here = Frame(next, sa);
+            continue;
+          }
+
+        while (true) // back to the nodes that wait
+          {
+            // all of curr_node's adjacent arcs were explored without
+            // finding end_node ==> there is no path through curr_node
+            if (frames.is_empty())
+              return false;
+
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto next = f.template next_target<Find_Path>(tgt))
+              {
+                if (next == tgt)
+                  return true;
+
+                NODE_BITS(next).set_bit(Find_Path, true);
+                here = Frame(next, sa);
+                break;
+              }
+            frames.pop();
+          }
       }
-
-    // all of curr_node's adjacent arcs were explored without
-    // finding end_node ==> there is no path through curr_node
-    return false;
   }
 
+  // It concluded that there was a path in an undirected graph with as many
+  // arcs as nodes; a graph that is not connected can have them
   bool test_path(const GT & g, typename GT::Node * src, typename GT::Node * dest)
-  {      // if the graph is connected ==> a path exists
-    if (not g.is_digraph() and g.get_num_arcs() >= g.get_num_nodes()) 
-      return true;
-
+  {
     g.reset_bit_nodes(Find_Path); 
     g.reset_bit_arcs(Find_Path);
 
     tgt = dest;
 
-        // recursively search through src's adjacent arcs
+        // search through src's adjacent arcs
     for (Node_Arc_Iterator<GT, SA> i(src, sa); i.has_curr(); i.next_ne())
       {
         typename GT::Arc * arc = i.get_current_arc_ne();

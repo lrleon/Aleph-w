@@ -54,6 +54,7 @@
 # include <ah-graph-concepts.H>
 
 # include <tpl_agraph.H>
+# include <tpl_dfs_stack.H>
 # include <ah-errors.H>
 
 namespace Aleph {
@@ -77,7 +78,9 @@ namespace Aleph {
  * ## Complexity:
  *
  * - **Time:** O(V + E) where V is vertices and E is edges in the component
- * - **Space:** O(V) for recursion stack + O(V + E) for output subgraph
+ * - **Space:** O(V) for the stack of the search + O(V + E) for output
+ *   subgraph; the search does not recurse, so that a long path does not
+ *   overflow the call stack
  *
  * ## Usage example:
  *
@@ -119,36 +122,57 @@ public:
 
   private:
 
-  // Recursive DFS to build mapped subgraph
-  void build_subgraph(GT & sg, typename GT::Node * g_src)
+  // A node that waits for the one that it visits, its image in the
+  // subgraph, and the next arc of it to look at
+  struct Map_Frame
   {
-    if (IS_NODE_VISITED(g_src, Build_Subtree))
-      return;
+    typename GT::Node * sg_src;
+    Node_Arc_Iterator<GT, SA> it;
 
-    // Mark source node as visited
-    NODE_BITS(g_src).set_bit(Build_Subtree, true);
+    [[gnu::always_inline, gnu::flatten]]
+    Map_Frame(typename GT::Node * g_src, typename GT::Node * image, SA & sa)
+      : sg_src(image), it(g_src, sa) {}
+
+    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+  };
+
+  // Marks p and counts it, and gives its frame, with its image in sg,
+  // which it inserts if p has none
+  [[gnu::always_inline]] Map_Frame visit(GT & sg, typename GT::Node * p)
+  {
+    NODE_BITS(p).set_bit(Build_Subtree, true);
     ++count;
 
     // Get or create mapped node in subgraph
-    auto sg_src = mapped_node<GT>(g_src);
-    if (sg_src == nullptr)
+    auto sg_p = mapped_node<GT>(p);
+    if (sg_p == nullptr)
       {
-        sg_src = sg.insert_node(g_src->get_info());
-        GT::map_nodes(g_src, sg_src);
+        sg_p = sg.insert_node(p->get_info());
+        GT::map_nodes(p, sg_p);
       }
+    return Map_Frame(p, sg_p, sa);
+  }
 
-    // Explore adjacent arcs
-    for (Node_Arc_Iterator<GT, SA> i(g_src, sa); i.has_curr(); i.next_ne())
+  // Copies into sg the arcs of f that were not, with their targets, up to
+  // one whose target was not visited, which it gives, with the iterator
+  // on that arc; nullptr when the arcs are done
+  [[gnu::always_inline]]
+  typename GT::Node * next_to_visit(GT & sg, Map_Frame & f)
+  {
+    for (; f.it.has_curr(); f.next_arc())
       {
-        auto arc = i.get_current_arc_ne();
+        auto arc = f.it.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Build_Subtree))
           continue;
+
+        // Get the target before the mark, which the compiler takes for a
+        // store that could change the iterator
+        auto g_tgt = f.it.get_tgt_node_ne();
 
         // Mark arc as visited
         ARC_BITS(arc).set_bit(Build_Subtree, true);
 
         // Get or create mapped target node
-        auto g_tgt = i.get_tgt_node();
         auto sg_tgt = mapped_node<GT>(g_tgt);
         if (sg_tgt == nullptr)
           {
@@ -157,37 +181,135 @@ public:
           }
 
         // Insert arc in subgraph and establish mapping
-        auto sg_arc = sg.insert_arc(sg_src, sg_tgt, arc->get_info());
+        auto sg_arc = sg.insert_arc(f.sg_src, sg_tgt, arc->get_info());
         GT::map_arcs(arc, sg_arc);
 
-        // Recurse on target node
-        build_subgraph(sg, g_tgt);
+        if (not IS_NODE_VISITED(g_tgt, Build_Subtree))
+          return g_tgt;
+      }
+    return nullptr;
+  }
+
+  // DFS that builds a mapped subgraph. A path can have as many nodes as
+  // the graph, too many for recursion, so that the search keeps its own
+  // stack; the order of the visits is that of a recursion.
+  void build_subgraph(GT & sg, typename GT::Node * g_src)
+  {
+    if (IS_NODE_VISITED(g_src, Build_Subtree))
+      return;
+
+    // The node being visited keeps its iterator in here until it visits a
+    // node; then it waits in frames, where it goes on when it comes back
+    Dfs_Stack<Map_Frame> frames;
+    Map_Frame here = visit(sg, g_src);
+    while (true)
+      {
+        if (auto g_tgt = next_to_visit(sg, here))
+          { // the iterator stays on the arc to g_tgt, as in a recursion
+            frames.push(std::move(here));
+            here = visit(sg, g_tgt);
+            continue;
+          }
+
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return;
+
+            Map_Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto g_tgt = next_to_visit(sg, f))
+              {
+                here = visit(sg, g_tgt);
+                break;
+              }
+            frames.pop();
+          }
       }
   }
 
-  // Recursive DFS to build list of reachable nodes
+  // The next arc of a node to look at
+  struct Arc_Frame
+  {
+    Node_Arc_Iterator<GT, SA> it;
+
+    [[gnu::always_inline, gnu::flatten]]
+    Arc_Frame(typename GT::Node * p, SA & sa) : it(p, sa) {}
+
+    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+
+    // Moves the iterator, while count < n, to the next arc not visited
+    // whose target was not visited either, and gives that target; it marks
+    // the arcs not visited that it passes. nullptr when the arcs are done
+    // or count == n.
+    [[gnu::always_inline, gnu::flatten]]
+    typename GT::Node * next_target(const size_t & count, const size_t n) noexcept
+    {
+      for (; count < n and it.has_curr(); it.next_ne())
+        {
+          auto arc = it.get_current_arc_ne();
+          if (IS_ARC_VISITED(arc, Build_Subtree))
+            continue;
+
+          // Mark arc as visited, after taking its target: the compiler
+          // takes the mark for a store that could change the iterator
+          auto tgt = it.get_tgt_node_ne();
+          ARC_BITS(arc).set_bit(Build_Subtree, true);
+          if (not IS_NODE_VISITED(tgt, Build_Subtree))
+            return tgt;
+        }
+      return nullptr;
+    }
+  };
+
+  // DFS that builds the list of the nodes reachable from p. A path can
+  // have as many nodes as the graph, too many for recursion, so that the
+  // search keeps its own stack; the order of the visits is that of a
+  // recursion.
   template <template <class> class List>
   void build_subgraph(List<typename GT::Node*> & l, typename GT::Node * p)
   {
     if (IS_NODE_VISITED(p, Build_Subtree))
       return;
 
-    // Mark node as visited and add to list
-    NODE_BITS(p).set_bit(Build_Subtree, true);
-    ++count;
-    l.append(p);
+    const size_t n = gptr->get_num_nodes();
 
-    // Explore adjacent arcs
-    for (Node_Arc_Iterator<GT, SA> it(p, sa);
-         count < gptr->get_num_nodes() and it.has_curr(); it.next_ne())
+    // Marks q, appends it to l and gives its frame
+    auto visit = [this, &l](typename GT::Node * q)
       {
-        auto arc = it.get_current_arc_ne();
-        if (IS_ARC_VISITED(arc, Build_Subtree))
-          continue;
+        NODE_BITS(q).set_bit(Build_Subtree, true);
+        ++count;
+        l.append(q);
+        return Arc_Frame(q, sa);
+      };
 
-        // Mark arc as visited and recurse
-        ARC_BITS(arc).set_bit(Build_Subtree, true);
-        build_subgraph(l, it.get_tgt_node());
+    // The node being visited keeps its iterator in here until it visits a
+    // node; then it waits in frames, where it goes on when it comes back
+    Dfs_Stack<Arc_Frame> frames;
+    Arc_Frame here = visit(p);
+    while (true)
+      {
+        if (auto tgt = here.next_target(count, n))
+          { // the iterator stays on the arc to tgt, as in a recursion
+            frames.push(std::move(here));
+            here = visit(tgt);
+            continue;
+          }
+
+        while (true) // back to the nodes that wait
+          {
+            if (frames.is_empty())
+              return;
+
+            Arc_Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.next_target(count, n))
+              {
+                here = visit(tgt);
+                break;
+              }
+            frames.pop();
+          }
       }
   }
 

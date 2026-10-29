@@ -39,7 +39,9 @@
  *
  *  Each conditional macro is a `for` of one iteration, which takes no
  *  `else`: an `else` written after an invocation belongs to the `if` around
- *  it, and one with no `if` around it does not compile.
+ *  it, and one with no `if` around it does not compile. Its condition is
+ *  evaluated once, and it must be an expression, not a declaration as in
+ *  `if (auto e = f())`.
  *
  *  @ingroup Utilities
  *  @author Leandro Rabindranath León

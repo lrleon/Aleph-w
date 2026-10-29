@@ -37,8 +37,12 @@
  */
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <random>
 #include <set>
+#include <vector>
 
+#include <tpl_maxflow.H>
 #include <tpl_net.H>
 
 using namespace Aleph;
@@ -338,4 +342,161 @@ TEST(NetGraphMinCut, ComputesCutCapacity)
     cut_cap += it.get_curr()->cap;
 
   EXPECT_EQ(cut_cap, value);
+}
+
+// insert_arc() checked the flow after the arc was in the network, with the
+// sources and the sinks updated, so an arc with more flow than capacity was
+// left in it
+TEST(NetGraphBasics, AnArcWithMoreFlowThanCapacityIsNotInserted)
+{
+  Net net;
+  auto s = net.insert_node(1);
+  auto t = net.insert_node(2);
+
+  EXPECT_THROW(net.insert_arc(s, t, 2, 3), std::overflow_error);
+  EXPECT_THROW(net.insert_arc(s, t, 2, -1), std::overflow_error);
+  EXPECT_EQ(net.get_num_arcs(), 0u);
+  EXPECT_TRUE(net.is_sink(s));
+  EXPECT_TRUE(net.is_source(t));
+
+  auto arc = net.insert_arc(s, t, 2, 2);
+  EXPECT_EQ(net.get_num_arcs(), 1u);
+  EXPECT_EQ(arc->flow, 2);
+  EXPECT_FALSE(net.is_sink(s));
+  EXPECT_FALSE(net.is_source(t));
+}
+
+// The copy constructor inserts the arcs with two arguments, and the
+// overload that took them was disabled for an arithmetic arc info, so a
+// network with one did not compile its copy
+TEST(NetGraphBasics, CopiesANetworkWithAnArithmeticArcInfo)
+{
+  using Info_Net = Net_Graph<Net_Node<int>, Net_Arc<int, double>>;
+  Info_Net net;
+  auto s = net.insert_node(1);
+  auto a = net.insert_node(2);
+  auto t = net.insert_node(3);
+  net.insert_arc(s, a, 5.0, 2.0, 7);
+  net.insert_arc(a, t, 4.0, 1.5, 8);
+
+  Info_Net copy(net);
+  ASSERT_EQ(copy.get_num_nodes(), 3u);
+  ASSERT_EQ(copy.get_num_arcs(), 2u);
+  EXPECT_TRUE(copy.is_single_source());
+  EXPECT_TRUE(copy.is_single_sink());
+  double cap = 0, flow = 0;
+  int info = 0;
+  for (Info_Net::Arc_Iterator it(copy); it.has_curr(); it.next_ne())
+    {
+      cap += it.get_curr()->cap;
+      flow += it.get_curr()->flow;
+      info += it.get_curr()->get_info();
+    }
+  EXPECT_EQ(cap, 9.0);
+  EXPECT_EQ(flow, 3.5);
+  EXPECT_EQ(info, 15);
+
+  Info_Net assigned;
+  assigned = net;
+  EXPECT_EQ(assigned.get_num_arcs(), 2u);
+
+  auto zero = copy.insert_arc(copy.get_first_node(), copy.get_first_node());
+  EXPECT_EQ(zero->cap, 0.0);
+  EXPECT_EQ(zero->get_info(), 0);
+}
+
+// The search kept in each node the node it came from, and the path took,
+// of the arcs between both, the first one with some slack: with parallel
+// arcs, one with less slack than asked for
+TEST(NetGraphAugmentingPaths, ASemiPathHasTheSlackItWasAskedFor)
+{
+  for (bool light_first : {true, false})
+    {
+      SCOPED_TRACE(light_first ? "light arc first" : "heavy arc first");
+      Net net;
+      auto s = net.insert_node(0);
+      auto a = net.insert_node(1);
+      auto t = net.insert_node(2);
+      if (light_first)
+        net.insert_arc(s, a, 1, 0);
+      auto heavy = net.insert_arc(s, a, 5, 0);
+      if (not light_first)
+        net.insert_arc(s, a, 1, 0);
+      net.insert_arc(a, t, 4, 0);
+
+      DynList<Parc<Net>> path;
+      const auto slack =
+        Find_Aumenting_Path_BFS<Net>(net).semi_path(s, t, path, 3);
+      EXPECT_EQ(slack, 4);
+      ASSERT_EQ(path.size(), 2u);
+      EXPECT_EQ(get<0>(path.get_first()), heavy);
+
+      Path<Net> nodes = Find_Aumenting_Path_DFS<Net>(net)(s, t, 3);
+      EXPECT_EQ(nodes.size(), 3u);
+    }
+}
+
+namespace
+{
+  using Double_Net = Net_Graph<Net_Node<int>, Net_Arc<int, double>>;
+
+  // A random network with a path from the node 0 to the last one, so that
+  // it has one source and one sink, and capacities that are random reals,
+  // or tenths, whose sums round
+  Double_Net random_double_network(unsigned seed)
+  {
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<double> real(0.01, 10.0);
+    Double_Net net;
+    std::vector<Double_Net::Node *> v;
+    const int n = 4 + int(gen() % 20);
+    for (int i = 0; i < n; ++i)
+      v.push_back(net.insert_node(i));
+    auto cap = [&]() { return seed % 2 ? real(gen) : 0.1 * double(1 + gen() % 9); };
+    for (int i = 0; i + 1 < n; ++i)
+      net.insert_arc(v[i], v[i + 1], cap(), 0.0);
+    for (int k = 0, m = int(gen() % 80); k < m; ++k)
+      {
+        const int a = int(gen() % (n - 1)), b = 1 + int(gen() % (n - 1));
+        if (a < b)
+          net.insert_arc(v[a], v[b], cap(), 0.0);
+      }
+    return net;
+  }
+
+  // Every flow is between zero and the capacity of its arc
+  bool flows_within_capacities(Double_Net & net)
+  {
+    for (Double_Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+      if (auto a = it.get_curr(); a->flow < 0 or a->flow > a->cap)
+        return false;
+    return true;
+  }
+}
+
+// With a floating type of flow, an augmentation could leave a flow above
+// the capacity of its arc, below zero, or next to zero on an arc of a node
+// without other flow, by rounding: the checks of the network then failed,
+// and so did its assertion in increase_flow(), in a build that has them
+TEST(NetGraphAugmentingPaths, FloatingFlowsStayWithinTheirCapacities)
+{
+  for (unsigned seed = 0; seed < 300; ++seed)
+    {
+      SCOPED_TRACE(seed);
+      Double_Net ff_net = random_double_network(seed);
+      Double_Net ek_net = random_double_network(seed);
+      Double_Net dinic_net = random_double_network(seed);
+      ASSERT_TRUE(ff_net.is_single_source() and ff_net.is_single_sink());
+
+      const double ff = ford_fulkerson_maximum_flow(ff_net);
+      const double ek = edmonds_karp_maximum_flow(ek_net);
+      const double dinic = dinic_maximum_flow(dinic_net);
+
+      EXPECT_NEAR(ff, dinic, 1e-9 * std::max(1.0, dinic));
+      EXPECT_NEAR(ek, dinic, 1e-9 * std::max(1.0, dinic));
+      EXPECT_TRUE(flows_within_capacities(ff_net));
+      EXPECT_TRUE(flows_within_capacities(ek_net));
+      EXPECT_TRUE(ff_net.check_network());
+      EXPECT_TRUE(ek_net.check_network());
+    }
 }

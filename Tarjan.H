@@ -93,6 +93,11 @@
 
 # include <ah-graph-concepts.H>
 
+# include <algorithm>
+# include <cstddef>
+# include <type_traits>
+
+#include <tpl_dfs_stack.H>
 #include <tpl_dynListStack.H>
 #include <tpl_dynSetTree.H>
 #include <htlist.H>
@@ -178,6 +183,25 @@ class Tarjan_Connected_Components
 
   Path<GT> *path_ptr_ = nullptr;
 
+  // A node that waits in search() for the one that it visits, and the
+  // next arc of it to look at.
+  //
+  // The functions that search() calls for each node or arc are inlined
+  // with all that they call: GCC would leave out of line the iterators and
+  // the stack, which then cost more than a recursion.
+  struct Frame
+  {
+    typename GT::Node *v;
+    Itor<GT, SA> it;
+
+    [[gnu::always_inline, gnu::flatten]]
+    Frame(typename GT::Node *p, const SA &sa) : v(p), it(p, sa) {}
+
+    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+  };
+
+  Dfs_Stack<Frame> frames_; // of search(), which so reuses their room
+
 public:
   /// Tarjan instances should not be copied (they hold internal traversal state)
   Tarjan_Connected_Components(const Tarjan_Connected_Components &) = delete;
@@ -230,6 +254,7 @@ private:
    *
    *  @param p The node to initialize and push.
    */
+  [[gnu::always_inline, gnu::flatten]]
   void init_node_and_push_in_stack(typename GT::Node *p)
   {
     assert(not is_node_in_stack(p));
@@ -243,6 +268,7 @@ private:
   /** @brief Pop a node from the traversal stack.
    *  @return The popped node.
    */
+  [[gnu::always_inline, gnu::flatten]]
   typename GT::Node *pop_from_stack()
   {
     auto ret = stack_.pop();
@@ -251,128 +277,226 @@ private:
     return ret;
   }
 
-  /** @brief Recursive DFS to find SCCs and build mapped subgraphs.
+  // Moves the iterator of f past the arcs of f.v whose targets were
+  // visited, of which those still in the stack lower low(f.v), and gives the
+  // target of the arc where it stops: a node not visited or, if Loops, f.v
+  // itself for a loop. When the arcs of f.v are done, nullptr. low(f.v) is
+  // stored once: a store in the loop could be to the iterator, which would
+  // have to be read again.
+  template <bool Loops>
+  [[gnu::always_inline, gnu::flatten]]
+  typename GT::Node *next_target(Frame &f) noexcept
+  {
+    auto v = f.v;
+    auto g = g_ptr_;
+    long v_low = low<GT>(v);
+    typename GT::Node *next = nullptr;
+    for (; f.it.has_curr(); f.it.next_ne())
+      {
+        auto w = g->get_tgt_node(dfs_curr(f.it));
+        if constexpr (Loops)
+          if (w == v)
+            {
+              next = w;
+              break;
+            }
+
+        if (not IS_NODE_VISITED(w, Aleph::Depth_First))
+          {
+            next = w;
+            break;
+          }
+
+        if (is_node_in_stack(w)) // if on stack ==> v was visited before w
+          v_low = std::min(v_low, df<GT>(w));
+      }
+    low<GT>(v) = v_low;
+    return next;
+  }
+
+  /** @brief Depth-first search of Tarjan from root, with a stack of its own.
+
+      A path can have as many nodes as the graph, too many for recursion,
+      which keeps a frame of the call stack for each one. For each arc of
+      the node v being visited, its target w is visited if it was not;
+      otherwise, if w is still in the stack of the search, df(w) lowers
+      low(v). When the search leaves v, finish(v) closes its component if
+      low(v) == df(v), and the low that v had lowers that of the node from
+      which v was visited. The order of the visits is that of a recursion.
+
+      @param root The node from which to search, not visited yet.
+      @param on_loop Called with v for an arc from v to v; if it returns
+      true, the search stops. go_on_with_loops if no loop stops it.
+      @param finish Called with v when the search leaves v; if it returns
+      true, the search stops.
+      @return true if on_loop() or finish() stopped the search.
+   */
+  template <class On_Loop, class Finish>
+  bool search(typename GT::Node *root, On_Loop on_loop, Finish finish)
+  {
+    // a loop that does not stop the search lowers nothing: df(v) >= low(v)
+    constexpr bool loops = not std::is_null_pointer_v<On_Loop>;
+
+    frames_.clear(); // a search that stopped may have left some
+
+    // The node being visited keeps its iterator in here until it visits a
+    // node; then it waits in frames_, where it goes on when it comes back
+    init_node_and_push_in_stack(root);
+    Frame here(root, sa_);
+    while (true)
+      {
+        auto w = next_target<loops>(here);
+        if constexpr (loops)
+          if (w == here.v)
+            {
+              if (on_loop(w))
+                return true;
+              here.next_arc();
+              continue;
+            }
+
+        if (w != nullptr) // the iterator stays on the arc to w, as in a recursion
+          {
+            frames_.push(std::move(here));
+            init_node_and_push_in_stack(w);
+            here = Frame(w, sa_);
+            continue;
+          }
+
+        // here.v is done; finish() may reuse the cookie that holds its low
+        long v_low = low<GT>(here.v);
+        if (finish(here.v))
+          return true;
+
+        while (true) // back to the nodes that wait
+          {
+            if (frames_.is_empty())
+              return false;
+
+            Frame &f = frames_.top(); // the node from which the last one was visited
+            low<GT>(f.v) = std::min(low<GT>(f.v), v_low);
+            do
+              {
+                f.next_arc(); // past the arc to that node, or past a loop
+                w = next_target<loops>(f);
+                if constexpr (loops)
+                  if (w == f.v and on_loop(w))
+                    return true;
+              }
+            while (loops and w == f.v);
+
+            if (w != nullptr)
+              {
+                init_node_and_push_in_stack(w);
+                here = Frame(w, sa_);
+                break;
+              }
+
+            v_low = low<GT>(f.v);
+            auto v = f.v;
+            frames_.pop();
+            if (finish(v))
+              return true;
+          }
+      }
+  }
+
+  // on_loop of search() when no loop stops it
+  static constexpr std::nullptr_t go_on_with_loops = nullptr;
+
+  /** @brief Depth-first search that finds SCCs and builds mapped subgraphs.
    *
    *  For each SCC found, creates a mapped copy subgraph and appends
    *  it to block_list.
    *
-   *  @param v The current node being visited.
-   *  @param[out] blk_list block list where the SCC will be put
+   *  @param root The node from which to search.
+   *  @param[out] blk_list block list where the SCCs will be put
    */
-  long scc_by_blocks(typename GT::Node *v, DynList<GT> &blk_list)
+  void scc_by_blocks(typename GT::Node *root, DynList<GT> &blk_list)
   {
-    init_node_and_push_in_stack(v);
-
-    // depth-first traverse all nodes connected to v
-    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
-      if (auto w = g_ptr_->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
-        {
-          // map_nodes() called inside scc_by_blocks corrupts low<GT>(w)
-          // via NODE_COOKIE when w's SCC is finalized.  Save the result
-          // before that corruption can propagate to v.
-          const long w_low = scc_by_blocks(w, blk_list);
-          low<GT>(v) = std::min(low<GT>(v), w_low);
-        }
-      else if (is_node_in_stack(w))
-        // if on stack ==> v was visited before w
-        low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
-
-    // Save low[v] before the SCC-finalization loop overwrites NODE_COOKIE
-    // (via map_nodes) and NODE_COUNTER (with blk_idx) on every node in v's SCC.
-    const long result = low<GT>(v);
-
-    if (low<GT>(v) == df<GT>(v))                 // first visited node of the block?
-      {                                          // yes ==> pop block nodes from stack
-        const size_t blk_idx = blk_list.size();  // capture by value, not reference
-        GT &blk = blk_list.append(GT());
-
-        while (true)  // remove block from stack until v is removed
-          {
-            auto p = pop_from_stack();
-            auto q = blk.insert_node(p->get_info());
-            *q = *p;  // copy node content
-            NODE_COOKIE(p) = NODE_COOKIE(q) = nullptr;
-            GT::map_nodes(p, q);
-            NODE_COUNTER(p) = NODE_COUNTER(q) = static_cast<long>(blk_idx);
-            if (p == v)
-              break;
-          }
-      }
-    return result;
+    search(root, go_on_with_loops, [this, &blk_list](typename GT::Node *v)
+      {
+        if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
+          pop_block(v, blk_list);
+        return false;
+      });
   }
 
-  /** @brief Recursive DFS to find SCCs and collect nodes into lists.
+  // Pops from the stack the block whose first visited node is v, and
+  // appends to blk_list a mapped copy of its nodes. Out of line, as the
+  // other work done once per block, so that search() stays small.
+  [[gnu::noinline]] void pop_block(typename GT::Node *v, DynList<GT> &blk_list)
+  {
+    const size_t blk_idx = blk_list.size();  // capture by value, not reference
+    GT &blk = blk_list.append(GT());
+
+    while (true)  // remove block from stack until v is removed
+      {
+        auto p = pop_from_stack();
+        auto q = blk.insert_node(p->get_info());
+        *q = *p;  // copy node content
+        NODE_COOKIE(p) = NODE_COOKIE(q) = nullptr;
+        GT::map_nodes(p, q);
+        NODE_COUNTER(p) = NODE_COUNTER(q) = static_cast<long>(blk_idx);
+        if (p == v)
+          break;
+      }
+  }
+
+  /** @brief Depth-first search that finds SCCs and collects their nodes.
    *
    *  For each SCC found, collects the node pointers into a list
-   *  and appends it to list_list_ptr.
+   *  and appends it to blks.
    *
-   *  @param v The current node being visited.
+   *  @param root The node from which to search.
    *  @param blks block list where the SCC node lists will be put
    */
-  void scc_by_lists(typename GT::Node *v, DynList<DynList<typename GT::Node *>> &blks)
+  void scc_by_lists(typename GT::Node *root, DynList<DynList<typename GT::Node *>> &blks)
   {
-    init_node_and_push_in_stack(v);
-
-    // depth traversal all nodes connected to v
-    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
-      if (auto w = g_ptr_->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
-        {
-          scc_by_lists(w, blks);
-          low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
-        }
-      else if (is_node_in_stack(w))
-        // if on stack ==> v was visited before w
-        low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
-
-    if (low<GT>(v) == df<GT>(v))  // first visited node of the block?
-      {                           // yes pop out block nodes that are on stack
-        auto &l = blks.append(DynList<typename GT::Node *>());
-        while (true)  // remove block from stack until reaching v
-          {
-            auto p = pop_from_stack();
-            l.append(p);
-            if (p == v)
-              break;
+    search(root, go_on_with_loops, [this, &blks](typename GT::Node *v)
+      {
+        if (low<GT>(v) == df<GT>(v))  // first visited node of the block?
+          {                           // yes pop out block nodes that are on stack
+            auto &l = blks.append(DynList<typename GT::Node *>());
+            while (true)  // remove block from stack until reaching v
+              {
+                auto p = pop_from_stack();
+                l.append(p);
+                if (p == v)
+                  break;
+              }
           }
-      }
+        return false;
+      });
   }
 
-  /** @brief Recursive DFS to find SCCs and count their sizes.
+  /** @brief Depth-first search that finds SCCs and counts their sizes.
    *
    *  For each SCC found, counts the number of nodes and appends
-   *  the count to list_len_ptr.
+   *  the count to sizes.
    *
-   *  @param v The current node being visited.
+   *  @param root The node from which to search.
    *  @param sizes list of block sizes in number of nodes
    */
-  void scc_by_len(typename GT::Node *v, DynList<size_t> &sizes)
+  void scc_by_len(typename GT::Node *root, DynList<size_t> &sizes)
   {
-    init_node_and_push_in_stack(v);
+    search(root, go_on_with_loops, [this, &sizes](typename GT::Node *v)
+      {
+        if (low<GT>(v) == df<GT>(v))  // first visited node of the block?
+          {                           // yes, pop out block nodes that are on the stack
+            size_t count = 0;
+            while (true)  // remove block from the stack until reaching v
+              {
+                auto p = pop_from_stack();
+                ++count;
 
-    // depth traverse all nodes connected to v
-    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
-      if (auto w = g_ptr_->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
-        {
-          scc_by_len(w, sizes);
-          low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
-        }
-      else if (is_node_in_stack(w))
-        // if on stack ==> v was visited before w
-        low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
-
-    if (low<GT>(v) == df<GT>(v))  // first visited node of the block?
-      {                           // yes, pop out block nodes that are on the stack
-        size_t count = 0;
-        while (true)  // remove block from the stack until reaching v
-          {
-            auto p = pop_from_stack();
-            ++count;
-
-            if (p == v)
-              break;
+                if (p == v)
+                  break;
+              }
+            sizes.append(count);
           }
-        sizes.append(count);
-      }
+        return false;
+      });
   }
 
   /** @brief Initialize internal state for a Tarjan traversal.
@@ -396,53 +520,32 @@ private:
     g_ptr_ = &const_cast<GT &>(g);
   }
 
-  /** @brief Recursive DFS to detect if a cycle exists starting from v.
+  /** @brief Depth-first search that detects a cycle reachable from root.
    *
    *  Detects cycles including self-loops (cycles of length 1) and
    *  strongly connected components with 2+ nodes.
    *
-   *  @param v The current node being visited.
+   *  @param root The node from which to search.
    *  @return true if a cycle is found, false otherwise.
    */
-  bool has_cycle(typename GT::Node *v)
+  bool has_cycle(typename GT::Node *root)
   {
-    init_node_and_push_in_stack(v);
+    return search(root, [](typename GT::Node *) { return true; }, // a loop
+                  [this](typename GT::Node *v)
+                  {
+                    if (low<GT>(v) != df<GT>(v))  // not the first node of its block
+                      return false;
 
-    // depth traverse all nodes connected to v
-    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
-      {
-        auto w = g_ptr_->get_tgt_node(it.get_curr());
+                    size_t count = 0; // of the nodes of the block
+                    while (true)
+                      {
+                        ++count;
+                        if (pop_from_stack() == v)
+                          break;
+                      }
 
-        // Check for self-loop (a cycle of length 1)
-        if (w == v)
-          return true;
-
-        if (not IS_NODE_VISITED(w, Aleph::Depth_First))
-          {
-            if (has_cycle(w))
-              return true;
-
-            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
-          }
-        else if (is_node_in_stack(w))
-          // if on stack ==> v was visited before w
-          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
-      }
-
-    if (low<GT>(v) == df<GT>(v))  // first visited node of block?
-      {                           // yes, check if component has two or more nodes
-        size_t count = 0;
-        while (true)
-          {
-            ++count;
-            if (pop_from_stack() == v)
-              break;
-          }
-
-        return count >= 2;  // if count >= 2 ==> there is a cycle
-      }
-
-    return false;  // everything was covered without finding a cycle
+                    return count >= 2;  // if count >= 2 ==> there is a cycle
+                  });
   }
 
   /** @brief Build a cycle path from a strongly connected block.
@@ -473,131 +576,108 @@ private:
     path_ptr_->append_directed(path_ptr_->get_first_node());
   }
 
-  /** @brief Recursive DFS to find and construct a cycle starting from v.
+  /** @brief Depth-first search that finds a cycle reachable from root.
    *
    *  If a cycle is found (including self-loops), constructs it in path_ptr.
    *
-   *  @param v The current node being visited.
+   *  @param root The node from which to search.
    *  @return true if a cycle is found and stored in path_ptr, false otherwise.
    */
-  bool build_cycle(typename GT::Node *v)
+  bool build_cycle(typename GT::Node *root)
   {
-    init_node_and_push_in_stack(v);
-
-    // depth traverse all nodes connected to v
-    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
+    return search(root, [this](typename GT::Node *v) { return build_loop(v); },
+      [this](typename GT::Node *v)
       {
-        auto w = g_ptr_->get_tgt_node(it.get_curr());
-
-        // Check for self-loop (a cycle of length 1)
-        if (w == v)
+        if (low<GT>(v) != df<GT>(v))  // not the first visited node of the block?
           {
-            // Build a simple self-loop path: v -> v
-            path_ptr_->empty();
-            path_ptr_->init(v);
-            path_ptr_->append_directed(v);
-            return true;
+            assert(path_ptr_->is_empty());
+            return false;
           }
 
-        if (not IS_NODE_VISITED(w, Aleph::Depth_First))
-          {
-            if (build_cycle(w))
-              return true;
-
-            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
-          }
-        else if (is_node_in_stack(w))
-          // if on stack ==> v was visited before w
-          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
-      }
-
-    if (low<GT>(v) == df<GT>(v))  // first visited node of the block?
-      {
-        GT blk;  // auxiliary graph
-
-        // g node mapping to blk (cookies are busy)
-        DynMapAvlTree<typename GT::Node *, typename GT::Node *> table;
-
-        // pop nodes from stack and insert them into auxiliary block
-        while (true)  // pop the component and insert into blk
-          {
-            auto p = pop_from_stack();
-            auto q = blk.insert_node();
-            *q = *p;  // copy node content
-            table.insert(q, p);
-            table.insert(p, q);
-            if (p == v)
-              break;
-          }
-
-        if (blk.get_num_nodes() == 1)
-          return false;  // single node without self-loop ==> no cycle
-
-        // finish constructing the block with the arcs
-        for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next_ne())
-          {
-            auto bsrc = j.get_curr();
-            auto gsrc = table.find(bsrc);
-
-            // traverse the arcs of gsrc
-            for (Itor<GT, SA> k(gsrc, sa_); k.has_curr(); k.next_ne())
-              {
-                auto ga = k.get_curr();
-                auto gtgt = g_ptr_->get_tgt_node(ga);
-                auto ptr = table.search(gtgt);
-                if (ptr == nullptr)  // arc of the block?
-                  continue;
-
-                auto ta = blk.insert_arc(bsrc, ptr->second);
-                *ta = *ga;  // copy arc content
-              }
-          }
-
-        build_path(blk, table);
-
-        return true;
-      }
-
-    assert(path_ptr_->is_empty());
-
-    return false;
+        return pop_block_and_build_cycle(v);
+      });
   }
 
-  /** @brief Recursive DFS to test if the graph is strongly connected.
-   *
-   *  Returns true if and only if all nodes belong to a single SCC.
-   *  The algorithm detects early if multiple SCCs exist.
-   *
-   *  @param v The current node being visited.
-   *  @return true if all visited nodes so far form one SCC, false otherwise.
-   */
-  bool is_connected(typename GT::Node *v)
+  // Puts in path_ptr_ the loop v -> v
+  [[gnu::noinline]] bool build_loop(typename GT::Node *v)
   {
-    init_node_and_push_in_stack(v);
+    path_ptr_->empty();
+    path_ptr_->init(v);
+    path_ptr_->append_directed(v);
+    return true;
+  }
 
-    // depth-first traverse all nodes connected to v
-    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
+  // Pops from the stack the block whose first visited node is v and, if it
+  // has more than one node, puts in path_ptr_ a cycle of it
+  [[gnu::noinline]] bool pop_block_and_build_cycle(typename GT::Node *v)
+  {
+    GT blk;  // auxiliary graph
+
+    // g node mapping to blk (cookies are busy)
+    DynMapAvlTree<typename GT::Node *, typename GT::Node *> table;
+
+    // pop nodes from stack and insert them into auxiliary block
+    while (true)  // pop the component and insert into blk
       {
-        if (auto w = g_ptr_->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
-          {
-            if (not is_connected(w))
-              return false;
-
-            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
-          }
-        else if (is_node_in_stack(w))
-          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
+        auto p = pop_from_stack();
+        auto q = blk.insert_node();
+        *q = *p;  // copy node content
+        table.insert(q, p);
+        table.insert(p, q);
+        if (p == v)
+          break;
       }
 
-    if (low<GT>(v) == df<GT>(v))  // first visited node of the block?
-      {                           // pop nodes from stack until v is found
+    if (blk.get_num_nodes() == 1)
+      return false;  // single node without self-loop ==> no cycle
+
+    // finish constructing the block with the arcs
+    for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next_ne())
+      {
+        auto bsrc = j.get_curr();
+        auto gsrc = table.find(bsrc);
+
+        // traverse the arcs of gsrc
+        for (Itor<GT, SA> k(gsrc, sa_); k.has_curr(); k.next_ne())
+          {
+            auto ga = k.get_curr();
+            auto gtgt = g_ptr_->get_tgt_node(ga);
+            auto ptr = table.search(gtgt);
+            if (ptr == nullptr)  // arc of the block?
+              continue;
+
+            auto ta = blk.insert_arc(bsrc, ptr->second);
+            *ta = *ga;  // copy arc content
+          }
+      }
+
+    build_path(blk, table);
+
+    return true;
+  }
+
+  /** @brief Depth-first search that tests if the graph is strongly connected.
+   *
+   *  Returns true if and only if all nodes reached belong to the SCC of
+   *  root. The search stops as soon as another SCC closes.
+   *
+   *  @param root The node from which to search.
+   *  @return true if all visited nodes form one SCC, false otherwise.
+   */
+  bool is_connected(typename GT::Node *root)
+  {
+    return not search(root, go_on_with_loops, [this](typename GT::Node *v)
+      {
+        if (low<GT>(v) != df<GT>(v))  // not the first visited node of the block?
+          return false;
+
+        // pop nodes from stack until v is found; a block that does not
+        // reach the bottom of the stack is not that of root
         while (pop_from_stack() != v)
           ;
 
-        return stack_.is_empty();
-      }
-
-    return true;
+        return not stack_.is_empty();
+      });
   }
 
 public:
@@ -653,6 +733,7 @@ public:
                 auto btgt = mapped_node<GT>(gtgt);
                 auto ba = blk.insert_arc(bsrc, btgt);
                 *ba = *ga;  // copy arc content
+                ARC_COOKIE(ga) = ARC_COOKIE(ba) = nullptr; // else it would compose with a former block
                 GT::map_arcs(ga, ba);
               }
           }

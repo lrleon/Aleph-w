@@ -266,8 +266,8 @@ namespace Aleph
         {
           typename GT::Arc *arc = it.get_current_arc_ne();
           typename GT::Node *tgt = it.get_tgt_node_ne();
-          if (tgt == first)
-            continue; // a loop would close a cycle in the tree
+          if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+            continue; // a loop of first, which would close a cycle
           heap.put_arc(arc, tgt);
         }
 
@@ -280,8 +280,6 @@ namespace Aleph
           if (IS_ARC_VISITED(min_arc, Aleph::Spanning_Tree))
             continue;
 
-          ARC_BITS(min_arc).set_bit(Aleph::Spanning_Tree, true);
-
           typename GT::Node *src = g.get_src_node(min_arc);
           typename GT::Node *tgt = g.get_tgt_node(min_arc);
           if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and
@@ -291,6 +289,7 @@ namespace Aleph
           typename GT::Node *tgt_node =
               IS_NODE_VISITED(src, Aleph::Spanning_Tree) ? tgt : src;
 
+          ARC_BITS(min_arc).set_bit(Aleph::Spanning_Tree, true); // in the tree
           NODE_BITS(tgt_node).set_bit(Aleph::Spanning_Tree, true);
 
           // insert tgt_node's unvisited arcs into the heap
@@ -309,7 +308,6 @@ namespace Aleph
             }
 
           ++count;
-          ARC_BITS(min_arc).set_bit(Aleph::Spanning_Tree, true);
         }
     }
 
@@ -351,7 +349,10 @@ namespace Aleph
       for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next_ne())
         {
           typename GT::Arc *arc = it.get_current_arc_ne();
-          heap.put_arc(arc, it.get_tgt_node_ne());
+          typename GT::Node *tgt = it.get_tgt_node_ne();
+          if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+            continue; // a loop of first, which would close a cycle
+          heap.put_arc(arc, tgt);
         }
 
       const size_t V1 = g.get_num_nodes() - 1;
@@ -362,8 +363,6 @@ namespace Aleph
           if (IS_ARC_VISITED(min_arc, Aleph::Spanning_Tree))
             continue;
 
-          ARC_BITS(min_arc).set_bit(Aleph::Spanning_Tree, true);
-
           typename GT::Node *src = g.get_src_node(min_arc);
           typename GT::Node *tgt = g.get_tgt_node(min_arc);
           if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and
@@ -373,6 +372,7 @@ namespace Aleph
           typename GT::Node *tgt_node =
               IS_NODE_VISITED(src, Aleph::Spanning_Tree) ? tgt : src;
 
+          ARC_BITS(min_arc).set_bit(Aleph::Spanning_Tree, true); // in the tree
           NODE_BITS(tgt_node).set_bit(Aleph::Spanning_Tree, true);
 
           // insert tgt_node's unvisited arcs into the heap

@@ -56,6 +56,9 @@
 
 # if defined(__clang__)
 #   pragma clang diagnostic error "-Wdangling-else"
+// [[unlikely]] in a loop whose condition is constant, which Clang calls
+// infinite, has no effect, and Clang warns when it emits the code
+#   pragma clang diagnostic error "-Wignored-attributes"
 # elif defined(__GNUC__)
 #   pragma GCC diagnostic error "-Wdangling-else"
 # endif
@@ -447,21 +450,165 @@ TEST(AhErrorsElse, TheMacrosThatWriteHideNoNameOfTheCaller)
   EXPECT_EQ(occurrences(ah_msg_once_.str(), "<m>"), 1u);
 }
 
+// The variable of the loop of the macros that throw hides no name of the
+// caller in the condition, which would initialize the variable with itself
+TEST(AhErrorsElse, TheMacrosThatThrowHideNoNameOfTheCaller)
+{
+  const bool ah_error_once_ = true;
+  EXPECT_THROW(ah_domain_error_if(ah_error_once_) << "<1>", std::domain_error);
+  EXPECT_THROW(ah_domain_error_unless(not ah_error_once_) << "<2>",
+               std::domain_error);
+  EXPECT_THROW(ah_parse_error_if(ah_error_once_) << "<3>", Aleph::ParseError);
+  EXPECT_NO_THROW(ah_domain_error_if(not ah_error_once_) << "<4>");
+}
+
 namespace
 {
+  // Constant conditions, and functions that the compiler emits with them
+  constexpr bool always = true;
+
+  template <int N>
+  int positive()
+  {
+    ah_invalid_argument_if(N <= 0) << "N is " << N;
+    ah_invalid_argument_unless(N > 0) << "N is " << N;
+    return N;
+  }
+
+  int with_constant_conditions(int k)
+  {
+    if (k == 0)
+      ah_domain_error_if(true) << "k is 0";
+    if (k == 1)
+      ah_domain_error_unless(false) << "k is 1";
+    if (k == 2)
+      ah_runtime_error_if(always) << "k is 2";
+    if (k == 3)
+      ah_parse_error_if(true) << "k is 3";
+    if (k == 4)
+      ah_parse_error_unless(false) << "k is 4";
+    if (k == 5)
+      return positive<0>();
+    return positive<1>();
+  }
+}
+
+// The macros that throw were a while with [[unlikely]], and Clang warned,
+// as -Wignored-attributes does by default, that the attribute has no effect
+// on a loop whose condition is constant
+TEST(AhErrorsElse, ConstantConditionsDoNotWarn)
+{
+  EXPECT_THROW(with_constant_conditions(0), std::domain_error);
+  EXPECT_THROW(with_constant_conditions(1), std::domain_error);
+  EXPECT_THROW(with_constant_conditions(2), std::runtime_error);
+  EXPECT_THROW(with_constant_conditions(3), Aleph::ParseError);
+  EXPECT_THROW(with_constant_conditions(4), Aleph::ParseError);
+  EXPECT_THROW(with_constant_conditions(5), std::invalid_argument);
+  EXPECT_EQ(with_constant_conditions(6), 1);
+}
+
+namespace
+{
+  enum Check_Flags : unsigned { Checked = 1u << 1 };
+
+  // A constant that converts to bool only explicitly
+  struct Enabled
+  {
+    bool on;
+
+    constexpr explicit operator bool() const noexcept { return on; }
+  };
+
+  template <unsigned F>
+  int masked(int x)
+  {
+    ah_domain_error_if_constexpr(F & Checked) << "checked";
+    return x;
+  }
+
+  template <bool B>
+  int enabled(int x)
+  {
+    ah_invalid_argument_if_constexpr(Enabled{not B}) << "disabled";
+    return x;
+  }
+}
+
+// The _constexpr forms gave their condition to std::bool_constant, which
+// takes neither a narrowing conversion, as that of 2 to bool, nor an
+// explicit one; if constexpr takes both
+TEST(AhErrorsElse, ConstexprFormsConvertTheirConditionAsIfConstexpr)
+{
+  EXPECT_THROW(masked<Checked>(1), std::domain_error);
+  EXPECT_EQ(masked<0>(10), 10);
+  EXPECT_THROW(enabled<false>(1), std::invalid_argument);
+  EXPECT_EQ(enabled<true>(100), 100);
+}
+
+namespace
+{
+  // An indentation, whose << gives back a wrapper of the stream
+  struct Indent
+  {
+    int width;
+  };
+
+  struct Indented
+  {
+    std::ostream & out;
+
+    operator std::ostream & () const { return out; }
+  };
+
+  Indented operator << (std::ostream & out, const Indent & indent)
+  {
+    out << std::string(indent.width, ' ');
+    return Indented{out};
+  }
+
   // What a message gives back when its last << does not give back a stream
   struct Not_A_Stream {};
 
   template <class Tail>
   constexpr bool throws_with = requires (Tail && tail)
     {
-      Aleph::ExceptionBuilder<std::domain_error>(), std::forward<Tail>(tail);
+      Aleph::ExceptionBuilder<std::domain_error>() <<= std::forward<Tail>(tail);
+    };
+
+  template <class F>
+  constexpr bool throws_with_the_result_of = requires (F f)
+    {
+      Aleph::ExceptionBuilder<std::domain_error>() <<= f();
     };
 }
 
-// Otherwise the comma of the macro would not throw, and its while would not
-// end
+// The operator that throws takes a stream, or what converts to one; a
+// message whose last << gives back something else, as void, does not
+// compile, since it would not reach the operator. The comma, with its
+// built-in version, took a void and threw nothing.
 static_assert(throws_with<std::ostringstream &>);
+static_assert(throws_with<std::ostringstream &&>);
 static_assert(throws_with<std::ostream &>);
+static_assert(throws_with<Indented>);
 static_assert(not throws_with<Not_A_Stream>);
 static_assert(not throws_with<int>);
+static_assert(not throws_with<const char *>);
+static_assert(not throws_with_the_result_of<void (*)()>);
+
+// The comma that threw was deleted for what does not derive from a stream,
+// so a message that gave back a wrapper that converts to the stream did
+// not compile
+TEST(AhErrorsElse, AMessageThatGivesBackAWrapperOfTheStreamIsThrown)
+{
+  std::string what;
+  try
+    {
+      ah_domain_error_if(counted(true)) << "first line" << std::endl
+                                        << Indent{2};
+    }
+  catch (const std::domain_error & e)
+    {
+      what = e.what();
+    }
+  EXPECT_NE(what.find(") | first line\n  "), std::string::npos) << what;
+}

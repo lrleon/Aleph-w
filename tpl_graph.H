@@ -46,6 +46,7 @@
 
 # include <memory>
 # include <cassert>
+# include <optional>
 # include <tuple>
 # include <utility>
 # include <functional>
@@ -61,6 +62,7 @@
 # include <ah-graph-concepts.H>
 # include <ah-errors.H>
 # include <ah-iterator.H>
+# include <tpl_dfs_stack.H>
 
 using namespace Aleph;
 
@@ -136,7 +138,9 @@ namespace Aleph
 
           @note The copy constructor of `Node_Info` must be defined
       */
-    Graph_Node(const Node_Info & info) noexcept : Base(info)
+    Graph_Node(const Node_Info & info)
+      noexcept(std::is_nothrow_copy_constructible_v<Node_Info>)
+      : Base(info)
     { /* empty */
     }
 
@@ -149,13 +153,15 @@ namespace Aleph
 
           @note The move constructor of `Node_Info` must be defined
       */
-    Graph_Node(Node_Info && info = Node_Info()) noexcept
+    Graph_Node(Node_Info && info = Node_Info())
+      noexcept(std::is_nothrow_move_constructible_v<Node_Info>)
       : Base(std::move(info))
     {
       /* empty */
     }
 
-    Graph_Node(const Graph_Node & node) noexcept
+    Graph_Node(const Graph_Node & node)
+      noexcept(std::is_nothrow_copy_constructible_v<Node_Info>)
       : Graph_Node(node.node_info)
     {
       // empty
@@ -240,7 +246,8 @@ namespace Aleph
 
           @note The copy constructor of `Arc_Info` must be defined
       */
-    Graph_Arc(const Arc_Info & info) noexcept
+    Graph_Arc(const Arc_Info & info)
+      noexcept(std::is_nothrow_copy_constructible_v<Arc_Info>)
       : Base(info)
     {
       /* empty */
@@ -255,7 +262,8 @@ namespace Aleph
 
           @note The move constructor of `Arc_Info` must be defined
       */
-    Graph_Arc(Arc_Info && info = Arc_Info()) noexcept
+    Graph_Arc(Arc_Info && info = Arc_Info())
+      noexcept(std::is_nothrow_move_constructible_v<Arc_Info>)
       : Base(std::move(info))
     {
       /* empty */
@@ -541,8 +549,11 @@ namespace Aleph
           **\f$O(E)\f$ on `List_Digraph` objects**.
 
           @param[in] node to be removed and freed
+          @throw bad_alloc if, in a digraph, there is no memory for the list
+          of the arcs of node, which is made before any is removed: the
+          graph is then as it was.
       */
-    virtual void remove_node(Node *node) noexcept
+    virtual void remove_node(Node *node)
     {
       assert(node != nullptr);
       if (not this->digraph)
@@ -1196,6 +1207,51 @@ namespace Aleph
     {
       return true;
     }
+  };
+
+  /** A filter that an algorithm object keeps: one given as an lvalue is
+      used where it is, so that the caller sees what the algorithm does to
+      it; one given as an rvalue is moved into the keeper, so that it lives
+      as long as the object.
+
+      A keeper converts to a reference to its filter. The copy of a keeper
+      of a moved filter has a copy of it; that of a keeper of an lvalue
+      uses the same lvalue.
+
+      @tparam F Type of the filter.
+      @ingroup Graphs
+  */
+  template <class F>
+  class Kept_Filter
+  {
+    std::optional<F> own; // the filter, if it was given as an rvalue
+    F * filter;           // the filter that is used
+
+  public:
+    /// Use @p f where it is.
+    Kept_Filter(F & f) noexcept : filter(&f) {}
+
+    /// Keep @p f, moved.
+    Kept_Filter(F && f) noexcept(std::is_nothrow_move_constructible_v<F>)
+      : own(std::move(f)), filter(&*own) {}
+
+    /// Copy a moved filter, or use the same lvalue.
+    Kept_Filter(const Kept_Filter & k)
+      noexcept(std::is_nothrow_copy_constructible_v<F>)
+      : own(k.own), filter(own ? &*own : k.filter) {}
+
+    /// Move a moved filter, or use the same lvalue.
+    Kept_Filter(Kept_Filter && k)
+      noexcept(std::is_nothrow_move_constructible_v<F>)
+      : own(std::move(k.own)), filter(own ? &*own : k.filter) {}
+
+    Kept_Filter & operator = (const Kept_Filter &) = delete;
+
+    /// The filter.
+    F & get() const noexcept { return *filter; }
+
+    /// The filter.
+    operator F & () const noexcept { return *filter; }
   };
 
   /** Filtered iterator on the nodes of a graph.
@@ -2609,7 +2665,9 @@ namespace Aleph
         @param[in] gtgt target graph
         @param[in] cookie_map boolean indicating if the result must be
         mapped through the nodes and arcs cookies.
-        @throw bad_alloc if there is no enough memory
+        @throw bad_alloc if there is no enough memory. Then gtgt is empty:
+        the copy assignments of the graphs, which copy to a new graph and
+        swap, keep their contents instead.
         @ingroup Graphs
     */
   template <AlephGraph GT>
@@ -2618,11 +2676,18 @@ namespace Aleph
 
   /** Clean a graph: all its nodes and arcs are removed and freed.
 
+        The arcs are removed first, so that the removal of a node does not
+        allocate.
+
         @param[in] g the graph
+        @throw anything that the removal of an arc throws: that of
+        Net_Graph puts the ends of the arc in its sets of sources and sinks,
+        which may throw bad_alloc. Then the arcs removed are gone, and the
+        graph keeps the others and all its nodes.
         @ingroup Graphs
     */
   template <AlephGraph GT>
-  inline void clear_graph(GT & g) noexcept;
+  inline void clear_graph(GT & g);
 
   /** Functor that traverses the nodes of a graph and performs an
         operation.
@@ -3275,13 +3340,16 @@ namespace Aleph
 
     /** Remove the last node of path
 
+          The path may be left empty.
+
           \return pointer to the extracted node
-          \throw overflow_error if path is empty
+          \throw underflow_error if path is empty
       */
     Node * remove_last_node()
     {
       auto d = list.remove_last();
-      list.get_last().arc = nullptr;
+      if (not list.is_empty()) // the arc that went to the removed node
+        list.get_last().arc = nullptr;
       return d.node;
     }
 
@@ -3527,6 +3595,10 @@ namespace Aleph
   Path<GT> find_path_depth_first(const GT & g, typename GT::Node *start_node,
                                  typename GT::Node *end_node);
 
+  // Searches from curr_node, reached through curr_arc, a path to end_node,
+  // which it puts in path. A path can have as many nodes as the graph, too
+  // many for recursion, so that the search keeps its own stack; the order
+  // of the visits is that of a recursion.
   template <class GT>
   static inline
   bool __find_path_depth_first(const GT & g, typename GT::Node *curr_node,
@@ -3545,29 +3617,54 @@ namespace Aleph
     path.append(curr_arc);
     NODE_BITS(curr_node).set_bit(Find_Path, true);
 
-    for (auto it = g.get_arc_it(curr_node); it.has_curr(); it.next_ne())
+    // The node being visited keeps its iterator in here until it visits a
+    // node; then it waits in frames, where it goes on when it comes back
+    using Frame = Dfs_Arc_Frame<typename GT::Node_Arc_Iterator>;
+    Dfs_Stack<Frame> frames;
+    Frame here(g.get_arc_it(curr_node));
+    while (true)
       {
-        auto next_arc = it.get_curr();
-        if (IS_ARC_VISITED(next_arc, Find_Path))
-          continue;
+        if (auto tgt = here.template next_target<Find_Path>(end_node))
+          { // the iterator stays on the arc to tgt, as in a recursion
+            path.append(here.it.get_current_arc_ne());
+            if (tgt == end_node)
+              return true;
 
-        ARC_BITS(next_arc).set_bit(Find_Path, true);
-        if (auto next_node = it.get_tgt_node(); __find_path_depth_first<GT>(g, next_node, next_arc, end_node, path))
+            NODE_BITS(tgt).set_bit(Find_Path, true);
+            frames.push(std::move(here));
+            here = Frame(g.get_arc_it(tgt));
+            continue;
+          }
+
+        path.remove_last_node(); // there is no path through it
+        while (true) // back to the nodes that wait
           {
-            assert(path.get_last_node () == end_node);
-            return true;
+            if (frames.is_empty())
+              return false;
+
+            Frame & f = frames.top();
+            f.next_arc(); // past the arc to the node that was visited
+            if (auto tgt = f.template next_target<Find_Path>(end_node))
+              {
+                path.append(f.it.get_current_arc_ne());
+                if (tgt == end_node)
+                  return true;
+
+                NODE_BITS(tgt).set_bit(Find_Path, true);
+                here = Frame(g.get_arc_it(tgt));
+                break;
+              }
+            path.remove_last_node();
+            frames.pop();
           }
       }
-
-    path.remove_last_node();
-
-    return false;
   }
 
   /** Depth-first search of a path between two nodes.
 
-        `find_path_depth_first()` recursively searches a path between
-        `start_node`  y `end_node`
+        `find_path_depth_first()` searches depth-first a path between
+        `start_node` and `end_node`, without recursion: the path can be as
+        long as the graph.
 
         @param[in] g the graph
         @param[in] start_node pointer to the starting node of search
@@ -3661,7 +3758,7 @@ namespace Aleph
   }
 
   template <AlephGraph GT>
-  void clear_graph(GT & g) noexcept
+  void clear_graph(GT & g)
   {
     for (typename GT::Arc_Iterator it(g); it.has_curr();) // remove arcs
       {

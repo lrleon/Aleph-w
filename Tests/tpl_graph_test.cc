@@ -47,9 +47,14 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <algorithm>
+#include <memory>
+#include <stdexcept>
+#include <type_traits>
 #include <random>
 #include <string>
 #include <tpl_graph.H>
+#include <tpl_agraph.H>
+#include <tpl_sgraph.H>
 
 using namespace std;
 using namespace testing;
@@ -739,6 +744,16 @@ TEST_F(PathTest, RemoveLastNode)
   EXPECT_EQ(path.size(), 2);
 }
 
+// Removing the only node threw underflow_error, after it was removed
+TEST_F(PathTest, RemoveTheOnlyNode)
+{
+  Path<Graph> path(g, nodes[0]);
+
+  EXPECT_EQ(path.remove_last_node(), nodes[0]);
+  EXPECT_TRUE(path.is_empty());
+  EXPECT_THROW(path.remove_last_node(), std::underflow_error);
+}
+
 TEST_F(PathTest, RemoveFirstNode)
 {
   Path<Graph> path(g, nodes[0]);
@@ -1116,6 +1131,243 @@ TEST_F(GraphFunctionalTest, SortArcs)
     prev = it.get_curr()->get_info();
     it.next();
   }
+}
+
+namespace
+{
+  // A comparison of arcs that throws at its call number fail_at
+  struct Failing_Arc_Cmp
+  {
+    int * calls;
+    int fail_at;
+
+    bool operator()(Graph::Arc *a, Graph::Arc *b) const
+    {
+      if (++*calls == fail_at)
+        throw std::runtime_error("comparison failed");
+      return a->get_info() < b->get_info();
+    }
+  };
+
+  struct Nothrow_Arc_Cmp
+  {
+    bool operator()(Graph::Arc *a, Graph::Arc *b) const noexcept
+    {
+      return a->get_info() < b->get_info();
+    }
+  };
+}
+
+// sort_nodes() and sort_arcs() were noexcept, so a comparison that threw
+// ended the program; mergesort() of a list leaves its elements spread over
+// lists of its own when the comparison throws, so the graph lost its arcs
+TEST_F(GraphFunctionalTest, SortArcsKeepsEveryArcIfTheComparisonThrows)
+{
+  std::vector<Graph::Arc *> arcs;
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+    arcs.push_back(it.get_curr());
+  ASSERT_GE(arcs.size(), 4u);
+  std::sort(arcs.begin(), arcs.end());
+
+  int calls = 0;
+  g.sort_arcs(Failing_Arc_Cmp{&calls, 0});
+  const int total = calls;
+  for (int k = 1; k <= total; ++k)
+    {
+      calls = 0;
+      EXPECT_THROW(g.sort_arcs(Failing_Arc_Cmp{&calls, k}), std::runtime_error);
+      std::vector<Graph::Arc *> now;
+      for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+        now.push_back(it.get_curr());
+      std::sort(now.begin(), now.end());
+      EXPECT_EQ(now, arcs) << "call " << k;
+      EXPECT_EQ(g.get_num_arcs(), arcs.size());
+    }
+
+  g.sort_arcs(Nothrow_Arc_Cmp());
+  double prev = -1;
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+    {
+      EXPECT_LE(prev, it.get_curr()->get_info());
+      prev = it.get_curr()->get_info();
+    }
+
+  Failing_Arc_Cmp failing{&calls, 0};
+  Nothrow_Arc_Cmp nothrow;
+  static_assert(not noexcept(g.sort_arcs(failing)));
+  static_assert(noexcept(g.sort_arcs(nothrow)));
+}
+
+// get_control_bits() of a node returned what reset() returns, void, so it
+// did not compile, and it would have cleared the bits
+TEST(GraphCommonTest, GetControlBitsOfANode)
+{
+  Graph g;
+  auto p = g.insert_node(1);
+  NODE_BITS(p).set_bit(Aleph::Depth_First, true);
+  Bit_Fields & bits = g.get_control_bits(p);
+  EXPECT_TRUE(bits.get_bit(Aleph::Depth_First));
+  bits.set_bit(Aleph::Breadth_First, true);
+  EXPECT_TRUE(IS_NODE_VISITED(p, Aleph::Breadth_First));
+  EXPECT_TRUE(IS_NODE_VISITED(p, Aleph::Depth_First));
+}
+
+namespace
+{
+  // A payload that its constructor takes by moving a unique_ptr
+  struct Owned
+  {
+    std::unique_ptr<int> value;
+    Owned() = default;
+    explicit Owned(std::unique_ptr<int> v) noexcept : value(std::move(v)) {}
+    Owned(Owned &&) noexcept = default;
+    Owned & operator=(Owned &&) noexcept = default;
+    Owned(const Owned & o) : value(o.value ? std::make_unique<int>(*o.value) : nullptr) {}
+    Owned & operator=(const Owned & o)
+    {
+      value = o.value ? std::make_unique<int>(*o.value) : nullptr;
+      return *this;
+    }
+  };
+
+  // A payload whose copy throws on demand
+  struct Fragile
+  {
+    static inline bool fail = false;
+    int value = 0;
+    Fragile() = default;
+    explicit Fragile(int v) noexcept : value(v) {}
+    Fragile(const Fragile & f) : value(f.value)
+    {
+      if (fail)
+        throw std::runtime_error("copy failed");
+    }
+    Fragile & operator=(const Fragile &) = default;
+  };
+}
+
+// emplace_node() and emplace_arc() gave their arguments as lvalues, so an
+// argument that can only be moved, as a unique_ptr, did not compile
+TEST(GraphCommonTest, EmplaceForwardsItsArguments)
+{
+  List_Graph<Graph_Node<Owned>, Graph_Arc<Owned>> g;
+  auto a = g.emplace_node(std::make_unique<int>(1));
+  auto b = g.emplace_node(std::make_unique<int>(2));
+  auto arc = g.emplace_arc(a, b, std::make_unique<int>(3));
+  EXPECT_EQ(*a->get_info().value, 1);
+  EXPECT_EQ(*b->get_info().value, 2);
+  EXPECT_EQ(*arc->get_info().value, 3);
+}
+
+// The constructors of nodes and arcs that copy their data were noexcept, so
+// a copy that threw ended the program
+TEST(GraphNodeTest, ACopyOfTheDataThatThrowsReachesTheCaller)
+{
+  static_assert(std::is_nothrow_constructible_v<Graph_Node<int>, const int &>);
+  static_assert(std::is_nothrow_constructible_v<Graph_Arc<int>, const int &>);
+  static_assert(not std::is_nothrow_constructible_v<Graph_Node<Fragile>,
+                                                     const Fragile &>);
+  static_assert(not std::is_nothrow_constructible_v<Graph_Arc<Fragile>,
+                                                     const Fragile &>);
+
+  List_Graph<Graph_Node<Fragile>, Graph_Arc<Fragile>> g;
+  const Fragile one(1), two(2);
+  auto a = g.insert_node(one);
+  auto b = g.insert_node(two);
+  Fragile::fail = true;
+  EXPECT_THROW(g.insert_node(one), std::runtime_error);
+  EXPECT_THROW(g.insert_arc(a, b, two), std::runtime_error);
+  Fragile::fail = false;
+  EXPECT_EQ(g.get_num_nodes(), 2u);
+  EXPECT_EQ(g.get_num_arcs(), 0u);
+}
+
+namespace
+{
+  template <class A, class B>
+  constexpr bool can_swap = requires (A & a, B & b) { a.swap(b); };
+}
+
+// A digraph took the swap of its base graph, which also takes an undirected
+// graph: the digraph was left with the arcs and the flag of the other one
+TEST(DigraphSwap, SwapsOnlyWithADigraph)
+{
+  static_assert(can_swap<TestDigraph, TestDigraph>);
+  static_assert(not can_swap<TestDigraph, Graph>);
+  static_assert(can_swap<Graph, Graph>);
+
+  TestDigraph a, b;
+  auto p = a.insert_node(1);
+  auto q = a.insert_node(2);
+  a.insert_arc(p, q, 1.0);
+  b.insert_node(3);
+
+  a.swap(b);
+  EXPECT_TRUE(a.is_digraph());
+  EXPECT_TRUE(b.is_digraph());
+  EXPECT_EQ(a.get_num_nodes(), 1u);
+  EXPECT_EQ(b.get_num_nodes(), 2u);
+  EXPECT_EQ(b.get_num_arcs(), 1u);
+  EXPECT_EQ(b.get_num_arcs(p), 1u);
+  EXPECT_EQ(b.get_num_arcs(q), 0u); // a directed arc is only in its source
+
+  TestDigraph moved(std::move(b));
+  EXPECT_TRUE(moved.is_digraph());
+  EXPECT_EQ(moved.get_num_arcs(), 1u);
+}
+
+// A graph of an undirected type that set_digraph() marks as directed, as
+// Random_Digraph does with its graph, links its arcs as a digraph, so its
+// flag goes with them: a move from such a graph aborted, on an assertion
+// that both graphs of a swap had the same flag
+template <class G>
+struct DirectedFlag : public ::testing::Test {};
+
+using Undirected_Graph_Kinds =
+  ::testing::Types<List_Graph<Graph_Node<int>, Graph_Arc<int>>,
+                   List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>,
+                   Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>>;
+TYPED_TEST_SUITE(DirectedFlag, Undirected_Graph_Kinds);
+
+TYPED_TEST(DirectedFlag, GoesWithTheArcs)
+{
+  using G = TypeParam;
+  G g;
+  g.set_digraph(true);
+  auto p = g.insert_node(1);
+  auto q = g.insert_node(2);
+  auto pq = g.insert_arc(p, q, 0);
+  ASSERT_EQ(g.get_num_arcs(q), 0u); // a directed arc is only in its source
+
+  G moved(std::move(g));
+  EXPECT_TRUE(moved.is_digraph());
+  EXPECT_EQ(moved.get_num_arcs(), 1u);
+  EXPECT_EQ(g.get_num_nodes(), 0u);
+
+  G other;
+  other.insert_node(3);
+  other = std::move(moved);
+  EXPECT_TRUE(other.is_digraph());
+  EXPECT_FALSE(moved.is_digraph()); // it has what other had
+  EXPECT_EQ(moved.get_num_nodes(), 1u);
+
+  G undirected;
+  auto r = undirected.insert_node(4);
+  auto s = undirected.insert_node(5);
+  auto rs = undirected.insert_arc(r, s, 0);
+  undirected.swap(other);
+  ASSERT_TRUE(undirected.is_digraph());
+  ASSERT_FALSE(other.is_digraph());
+  EXPECT_EQ(other.get_num_arcs(s), 1u); // an undirected arc is in both nodes
+
+  // each one removes its arc as its flag says
+  undirected.remove_arc(pq);
+  other.remove_arc(rs);
+  EXPECT_EQ(undirected.get_num_arcs(), 0u);
+  EXPECT_EQ(undirected.get_num_arcs(p), 0u);
+  EXPECT_EQ(other.get_num_arcs(), 0u);
+  EXPECT_EQ(other.get_num_arcs(r), 0u);
+  EXPECT_EQ(other.get_num_arcs(s), 0u);
 }
 
 // =============================================================================

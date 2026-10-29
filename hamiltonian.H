@@ -131,8 +131,8 @@ template <AlephGraph GT,
 	  ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Test_Hamiltonian_Sufficiency
 {
-  SN & sn;
-  SA & sa;
+  Kept_Filter<SN> sn;
+  Kept_Filter<SA> sa;
 
   /**
    * @brief Check if two nodes are adjacent in an undirected graph.
@@ -279,7 +279,7 @@ public:
    * @param __sa Arc filter (default: show all arcs)
    */
   Test_Hamiltonian_Sufficiency(SN && __sn = SN(), SA && __sa = SA()) 
-    : sn(__sn), sa(__sa)
+    : sn(std::move(__sn)), sa(std::move(__sa))
   {
     // empty 
   }
@@ -349,8 +349,8 @@ template <AlephGraph GT,
           ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Test_Dirac_Condition
 {
-  SN & sn;
-  SA & sa;
+  Kept_Filter<SN> sn;
+  Kept_Filter<SA> sa;
 
   /**
    * @brief Test Dirac's condition for undirected graphs.
@@ -431,7 +431,7 @@ public:
    * @param __sa Arc filter (default: show all arcs)
    */
   Test_Dirac_Condition(SN && __sn = SN(), SA && __sa = SA()) 
-    : sn(__sn), sa(__sa)
+    : sn(std::move(__sn)), sa(std::move(__sa))
   {
     // empty 
   }

@@ -883,10 +883,131 @@ TEST_F(JohnsonTest, ManualJohnsonImplementation)
   }
 }
 
+// ==================== Integer distances ====================
+
+namespace
+{
+  using IntDigraph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+}
+
+// A node that cannot be reached was at infinity(), which is 0 for an integer
+// type, so it was at the distance of the source itself
+TEST(JohnsonIntegers, AnUnreachableNodeIsAtMax)
+{
+  IntDigraph g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, 5);
+  g.insert_arc(b, a, -2);
+
+  Johnson<IntDigraph> johnson(g);
+  constexpr int unreachable = std::numeric_limits<int>::max();
+  EXPECT_EQ(johnson.get_distance(a, b), 5);
+  EXPECT_EQ(johnson.get_distance(b, a), -2);
+  EXPECT_EQ(johnson.get_distance(a, c), unreachable);
+  EXPECT_EQ(johnson.get_distance(c, a), unreachable);
+
+  auto all = johnson.compute_all_pairs_distances();
+  EXPECT_EQ(all.find(std::make_pair(a, b)), 5);
+  EXPECT_EQ(all.find(std::make_pair(b, a)), -2);
+  EXPECT_EQ(all.find(std::make_pair(a, c)), unreachable);
+  EXPECT_EQ(all.find(std::make_pair(c, b)), unreachable);
+}
+
+// With a floating type, it is still at infinity
+TEST(JohnsonIntegers, AnUnreachableNodeIsAtInfinityWithDoubles)
+{
+  TestDigraph g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, 1.5);
+
+  Johnson<TestDigraph, DoubleDistance> johnson(g);
+  EXPECT_EQ(johnson.get_distance(a, b), 1.5);
+  EXPECT_EQ(johnson.get_distance(b, a),
+            std::numeric_limits<double>::infinity());
+}
+
+// The distance went back to the weights of the arcs as d' - h(s) + h(t),
+// and d' - h(s) could overflow, which is undefined (UBSan reports it),
+// although the distance did not
+TEST(JohnsonIntegers, ADistanceNearMaxDoesNotOverflowOnTheWayBack)
+{
+  constexpr int max = std::numeric_limits<int>::max();
+  IntDigraph g;
+  auto s = g.insert_node(0);
+  auto t = g.insert_node(1);
+  auto u = g.insert_node(2);
+  auto v = g.insert_node(3);
+  g.insert_arc(u, s, -10);     // h(s) = -10
+  g.insert_arc(v, t, -8);      // h(t) = -8
+  g.insert_arc(s, t, max - 5); // d(s, t) = max - 5, and d'(s, t) = max - 7
+
+  Johnson<IntDigraph> johnson(g);
+  ASSERT_EQ(johnson.get_potential(s), -10);
+  ASSERT_EQ(johnson.get_potential(t), -8);
+  EXPECT_EQ(johnson.get_distance(s, t), max - 5);
+  EXPECT_EQ(johnson.compute_all_pairs_distances().find(std::make_pair(s, t)),
+            max - 5);
+
+  IntDigraph h;
+  auto x = h.insert_node(0);
+  auto y = h.insert_node(1);
+  auto z = h.insert_node(2);
+  h.insert_arc(x, y, max - 10);
+  h.insert_arc(y, z, 20); // d(x, z) is above max()
+  Johnson<IntDigraph> above(h);
+  EXPECT_THROW(above.get_distance(x, z), std::overflow_error);
+}
+
 // ==================== Main ====================
 
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
+}
+
+// get_distance() keeps the tree of the last source that it painted: the
+// queries from it reuse the tree, and those from another source, or after
+// find_path() or a move of the solver, give still the right distances
+TEST(JohnsonIntegers, TheTreeOfTheLastSourceIsReused)
+{
+  IntDigraph g;
+  std::vector<IntDigraph::Node *> v;
+  std::mt19937 gen(11);
+  for (int i = 0; i < 12; ++i)
+    v.push_back(g.insert_node(i));
+  for (int k = 0; k < 40; ++k) // arcs from lower to higher: no cycle
+    {
+      const auto i = gen() % 12, j = gen() % 12;
+      if (i != j)
+        g.insert_arc(v[std::min(i, j)], v[std::max(i, j)], int(gen() % 21) - 8);
+    }
+
+  Johnson<IntDigraph> johnson(g);
+  const auto all = johnson.compute_all_pairs_distances();
+  auto expected = [&all](auto s, auto t)
+    {
+      return s == t ? 0 : all.find(std::make_pair(s, t));
+    };
+
+  for (int round = 0; round < 3; ++round)
+    for (size_t i = 0; i < v.size(); ++i)
+      for (size_t j = 0; j < v.size(); ++j)
+        {
+          // interleaved sources, and repeated queries from one
+          const auto s = v[(i + round * j) % v.size()];
+          EXPECT_EQ(johnson.get_distance(s, v[j]), expected(s, v[j]));
+          EXPECT_EQ(johnson.get_distance(s, v[j]), expected(s, v[j]));
+        }
+
+  (void) johnson.find_path(v[0], v[11]); // it paints the tree of v[0]
+  EXPECT_EQ(johnson.get_distance(v[3], v[11]), expected(v[3], v[11]));
+  EXPECT_EQ(johnson.get_distance(v[0], v[11]), expected(v[0], v[11]));
+
+  Johnson<IntDigraph> moved(std::move(johnson));
+  EXPECT_EQ(moved.get_distance(v[0], v[11]), expected(v[0], v[11]));
+  EXPECT_EQ(moved.get_distance(v[5], v[7]), expected(v[5], v[7]));
 }
