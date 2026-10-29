@@ -32,6 +32,25 @@ static_assert(AlephSequence<Array<int>> and AlephSequence<DynArray<int>>);
 static_assert(AlephIterableContainer<DynMapTree<int, int>> and not AlephSequence<DynMapTree<int, int>>);
 static_assert(AlephTraversable<FlatSet<int>> and not AlephIterableContainer<FlatSet<int>>);
 static_assert(AlephIterator<DynList<int>::Iterator>);
+
+// get_curr_ne() gives what get_curr() gives, but for a derived iterator that
+// redefines get_curr() alone, as this one, whose get_curr_ne() is still that
+// of the nodes
+namespace
+{
+  struct Items_Of_Dnodes : Dnode<int>::Iterator
+  {
+    using Dnode<int>::Iterator::Iterator;
+
+    int & get_curr() const { return Dnode<int>::Iterator::get_curr()->get_data(); }
+  };
+}
+static_assert(AlephUncheckedIterator<DynList<int>::Iterator>
+              and AlephUncheckedIterator<DynDlist<int>::Iterator>
+              and AlephUncheckedIterator<Array<int>::Iterator>
+              and AlephUncheckedIterator<Dnode<int>::Iterator>);
+static_assert(AlephIterator<Items_Of_Dnodes>
+              and not AlephUncheckedIterator<Items_Of_Dnodes>);
 // These iterators offered next() but not next_ne() and so were rejected by
 // generic code written against AlephIterator.
 static_assert(AlephIterator<Slist<int>::Iterator> and AlephIterator<DynSlist<int>::Iterator>);

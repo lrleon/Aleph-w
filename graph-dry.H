@@ -92,17 +92,19 @@ namespace Aleph::graph_dry_detail
 
   /** @brief The current item of `it`, which must have one.
    *
-   *  `get_curr_ne()`, if `It` has it: the loops that ask `has_curr()` first
-   *  do not need the check of `get_curr()`, whose code for the exception
-   *  can make the compiler leave it out of line.
+   *  `get_curr_ne()`, if it gives what `get_curr()` gives
+   *  (`AlephUncheckedIterator`): the loops that ask `has_curr()` first do
+   *  not need the check of `get_curr()`, whose code for the exception can
+   *  make the compiler leave it out of line. Otherwise `get_curr()`, which
+   *  need not be `const`.
    *
    *  @param[in] it an iterator on an item.
    *  @return the current item of `it`.
    */
   template <class It>
-  [[gnu::always_inline]] inline decltype(auto) curr_ne(const It & it)
+  [[gnu::always_inline]] inline decltype(auto) curr_ne(It & it)
   {
-    if constexpr (requires { it.get_curr_ne(); })
+    if constexpr (AlephUncheckedIterator<It>)
       return it.get_curr_ne();
     else
       return it.get_curr();

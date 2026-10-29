@@ -848,8 +848,9 @@ TEST_F(GraphFunctionalTest, ForEachArcFromNodeMethod)
 }
 
 // traverse_arcs<Itor>() and for_each_arc<Itor>() go through the arcs that
-// the iterator gives, with an iterator that has get_curr_ne() and with one
-// that has only get_curr()
+// the iterator gives: with an iterator that has get_curr_ne(); with one that
+// has only get_curr(), which is not const; and with one whose get_curr_ne()
+// gives another type, which they must not take
 TEST(GraphFunctionalItor, TheArcsOfANodeThroughAGivenIterator)
 {
   ListDigraph g;
@@ -860,7 +861,8 @@ TEST(GraphFunctionalItor, TheArcsOfANodeThroughAGivenIterator)
   g.insert_arc(a, c, 2);
   g.insert_arc(b, a, 4);
 
-  // the iterator over the arcs of a node, without get_curr_ne()
+  // the iterator over the arcs of a node, without get_curr_ne(), and with a
+  // get_curr() that is not const
   struct Checked_Only
   {
     ListDigraph::Node_Arc_Iterator it;
@@ -871,8 +873,20 @@ TEST(GraphFunctionalItor, TheArcsOfANodeThroughAGivenIterator)
 
     void next_ne() noexcept { it.next_ne(); }
 
-    ListDigraph::Arc * get_curr() const { return it.get_curr(); }
+    ListDigraph::Arc * get_curr() { return it.get_curr(); }
   };
+
+  // the iterator over the arcs of a node, whose get_curr_ne() gives the
+  // node of the list of arcs instead of the arc
+  struct Other_Ne : ListDigraph::Node_Arc_Iterator
+  {
+    using ListDigraph::Node_Arc_Iterator::Node_Arc_Iterator;
+
+    void * get_curr_ne() const noexcept { return nullptr; }
+  };
+  static_assert(not AlephUncheckedIterator<Checked_Only>);
+  static_assert(not AlephUncheckedIterator<Other_Ne>);
+  static_assert(AlephUncheckedIterator<ListDigraph::Node_Arc_Iterator>);
 
   double sum = 0;
   auto add = [&sum](ListDigraph::Arc * arc) { sum += arc->get_info(); };
@@ -906,6 +920,14 @@ TEST(GraphFunctionalItor, TheArcsOfANodeThroughAGivenIterator)
   EXPECT_FALSE(g.traverse_arcs<Checked_Only>(a, add_first));
   EXPECT_GT(sum, 0.0);
   EXPECT_LT(sum, 3.0);
+
+  sum = 0;
+  g.for_each_arc<Other_Ne>(a, add);
+  EXPECT_DOUBLE_EQ(sum, 3.0);
+
+  sum = 0;
+  EXPECT_TRUE(g.traverse_arcs<Other_Ne>(a, add_all));
+  EXPECT_DOUBLE_EQ(sum, 3.0);
 }
 
 // ==================== foldl method tests ====================

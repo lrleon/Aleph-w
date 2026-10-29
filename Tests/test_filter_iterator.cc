@@ -47,8 +47,10 @@
 
 #include <random>
 #include <stdexcept>
+#include <vector>
 
 #include <filter_iterator.H>
+#include <tpl_array.H>
 #include <tpl_dynDlist.H>
 
 using namespace Aleph;
@@ -439,6 +441,57 @@ TEST(FilterIteratorBidirectional, NextNeMovesAsNext)
             }
         }
     }
+}
+
+// After prev(), a filter iterator over an array is before the first item,
+// without a current item; next_ne() goes then to the first item shown, as
+// next() does
+TEST(FilterIteratorBidirectional, NextNeFromBeforeTheFirstItem)
+{
+  Array<int> a;
+  for (int i = 1; i <= 6; ++i)
+    a.append(i);
+
+  Filter_Iterator<Array<int>, Array<int>::Iterator, ShowEven> ne(a), checked(a);
+  ne.prev();
+  checked.prev();
+  ASSERT_FALSE(ne.has_curr());
+  ASSERT_FALSE(checked.has_curr());
+
+  checked.next();
+  ne.next_ne();
+  ASSERT_TRUE(checked.has_curr());
+  ASSERT_TRUE(ne.has_curr());
+  EXPECT_EQ(checked.get_curr(), 2);
+  EXPECT_EQ(ne.get_curr(), 2);
+}
+
+// An iterator that redefines get_curr() alone keeps the get_curr_ne() of its
+// base, here that of the nodes: next_ne() takes then the items through
+// get_curr(), as next() does
+TEST(FilterIteratorBidirectional, NextNeTakesTheItemsThatGetCurrGives)
+{
+  struct Items_Of_Nodes : Dnode<int>::Iterator
+  {
+    using Item_Type = int;
+
+    Items_Of_Nodes(DL & l) noexcept : Dnode<int>::Iterator(l) {}
+
+    int & get_curr() const { return Dnode<int>::Iterator::get_curr()->get_data(); }
+  };
+
+  DL list;
+  for (int i = 1; i <= 7; ++i)
+    list.append(i);
+
+  std::vector<int> by_next, by_next_ne;
+  for (Filter_Iterator<DL, Items_Of_Nodes, ShowEven> it(list); it.has_curr(); it.next())
+    by_next.push_back(it.get_curr());
+  for (Filter_Iterator<DL, Items_Of_Nodes, ShowEven> it(list); it.has_curr(); it.next_ne())
+    by_next_ne.push_back(it.get_curr());
+
+  EXPECT_EQ(by_next, (std::vector<int>{2, 4, 6}));
+  EXPECT_EQ(by_next_ne, by_next);
 }
 
 TEST(FilterIteratorBidirectional, PrevNeNoException) {

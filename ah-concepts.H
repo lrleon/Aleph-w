@@ -65,8 +65,10 @@
  *    `get_key`, `NullPtr`).
  *  - **RankedBinNodeLike<Node>** — `BinNodeLike` plus subtree sizes.
  *  - Container/iterator hierarchy: **AlephIterator<It>** (`has_curr`,
- *    `get_curr`, `next_ne`), **AlephIterable<C>** (yields one built from
- *    the container, `Iterator(c)`), **AlephTraversable<C>** (`traverse`),
+ *    `get_curr`, `next_ne`), **AlephUncheckedIterator<It>** (also
+ *    `get_curr_ne`, which gives what `get_curr` gives),
+ *    **AlephIterable<C>** (yields one built from the container,
+ *    `Iterator(c)`), **AlephTraversable<C>** (`traverse`),
  *    **AlephIterableContainer<C>** (both, plus `size`/`is_empty`),
  *    **AlephSequence<C>** (plus `append`), and **StlIterableContainer<C>**
  *    (`begin`/`end`/`value_type`).
@@ -294,6 +296,25 @@ namespace Aleph
           it.get_curr();
           it.next_ne();
         };
+
+  /** @brief An `AlephIterator` whose `get_curr_ne()` gives what
+   *  `get_curr()` gives, without its check.
+   *
+   *  A loop that asks `has_curr()` before it takes the current item, as
+   *  `Filter_Iterator::next_ne()` and the traversals of the graphs do, takes
+   *  it with `get_curr_ne()` when the iterator satisfies this. A derived
+   *  iterator that redefines `get_curr()` alone keeps the `get_curr_ne()`
+   *  of its base, which may give another type, such as the node instead of
+   *  its item; then the loop keeps `get_curr()`.
+   *
+   *  @tparam It candidate iterator type.
+   */
+  template <typename It>
+  concept AlephUncheckedIterator =
+      AlephIterator<It> and
+      requires(It & it) { it.get_curr_ne(); } and
+      std::same_as<decltype(std::declval<It &>().get_curr_ne()),
+                   decltype(std::declval<It &>().get_curr())>;
 
   /** @brief A type that yields an `AlephIterator` over its `Item_Type`s.
    *

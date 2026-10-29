@@ -46,6 +46,7 @@
 # define FILTER_ITERATOR_H
 
 # include <stdexcept>
+# include <ah-concepts.H>
 # include <ah-errors.H>
 # include <ah-errors.H>
 
@@ -171,6 +172,18 @@ class Filter_Iterator : public It
               return;
       }
     catch (const std::overflow_error &) { /* continue in overflow; do not propagate */ }
+  }
+
+  // forward() for next_ne(), which swallows what it throws: out of line,
+  // for an iterator without a current item, which the loops that ask
+  // has_curr() first never have, so that next_ne() stays small
+  [[gnu::noinline, gnu::cold]] void forward_ne() noexcept
+  {
+    try
+      {
+        forward();
+      }
+    catch (...) {}
   }
 
   /** @brief Move to the last element that passes the filter.
@@ -386,11 +399,13 @@ public:
     try
       {
         // forward(), but for the checks of the moves of It, which cannot
-        // fail once there is a current item
-        if constexpr (requires (It & i) { i.next_ne(); i.get_curr_ne(); })
+        // fail once there is a current item. Without one, forward() moves
+        // as It does: past the end it throws, but before the first item,
+        // as an array iterator can be, it goes to that item.
+        if constexpr (AlephUncheckedIterator<It>)
           {
-            if (not this->It::has_curr())
-              return;
+            if (not this->It::has_curr()) [[unlikely]]
+              return forward_ne();
 
             this->It::next_ne();
             while (this->It::has_curr() and not show_item(this->It::get_curr_ne()))
