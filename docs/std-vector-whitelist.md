@@ -1,8 +1,9 @@
 # `std::vector` whitelist — CA module
 
 The CA module follows the project convention *"ALWAYS prefer Aleph
-containers over STL"* (see `CLAUDE.md`). After the phase 27.5 migration
-(`std::vector` → `Aleph::Array`), the linter check is:
+containers over STL"* (see
+[`CONTRIBUTING.md`](../CONTRIBUTING.md#coding-conventions)). After the phase
+27.5 migration (`std::vector` → `Aleph::Array`), the linter check is:
 
 ```sh
 grep -rn "std::vector" ca-*.H tpl_ca_*.H
