@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.3.3](https://github.com/lrleon/Aleph-w/compare/v7.3.2...v7.3.3) (2026-10-30)
+
+
+### Bug Fixes
+
+* **graph:** Make latex_floyd.H take the lightest of the parallel arcs ([#153](https://github.com/lrleon/Aleph-w/issues/153)) ([5b4d233](https://github.com/lrleon/Aleph-w/commit/5b4d233c5c283e6d6f074a8b7920bf6dfd4937aa))
+
 ## [7.3.2](https://github.com/lrleon/Aleph-w/compare/v7.3.1...v7.3.2) (2026-10-29)
 
 
