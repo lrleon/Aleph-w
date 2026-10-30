@@ -43,7 +43,7 @@ any installed `7.x` satisfies it; `8.0` will not.
 Releases proceed `Genius` (2022) → `3.0.0` → `3.1.0` → `3.1.1` →
 `4.0.0` → `5.0.0` … `5.11.0` → `6.0.0` → `6.1.0` → `7.0.0` → `7.0.1` →
 `7.1.0` → `7.1.1` → `7.1.2` → `7.2.0` → `7.2.1` → `7.2.2` → `7.3.0` →
-`7.3.1`.
+`7.3.1` → `7.3.2`.
 There are no published `1.x` or `2.x` releases: those numbers appear in
 older internal documents (e.g. the cellular-automata roadmap milestone
 "v2.0") and in the historical `version 2.0.0b` banner of header
@@ -134,6 +134,7 @@ in the consumer's translation units, plus a small static library
 | 7.2.2 | Yes (fixes, with a new requirement on the access functor of the arc heaps; see `docs/release-notes/7.2.2.md`) | No (recompile) |
 | 7.3.0 | Yes (additive, with behavior changes in the error macros; see `docs/release-notes/7.3.0.md`) | No (recompile) |
 | 7.3.1 | Yes (fix, with a behavior change in Floyd-Warshall; see `docs/release-notes/7.3.1.md`) | No (recompile) |
+| 7.3.2 | Yes (fixes, with behavior changes in the graphs, the trees, the heaps and the error macros; see `docs/release-notes/7.3.2.md`) | No (recompile) |
 
 ## Release automation
 
