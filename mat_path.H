@@ -83,6 +83,7 @@
 #define MAT_PATH_H
 
 #include <concepts>
+#include <functional>
 #include <utility>
 #include <tpl_matgraph.H>
 
@@ -92,21 +93,21 @@ namespace Aleph
 namespace mat_path_detail
 {
   /// Whether the arcs of `GT` give their weights by
-  /// `get_info().get_distance()`.
-  template <class GT>
-  concept Arc_With_Distance = requires (typename GT::Arc * a)
+  /// `get_info().get_distance()`, and `Compare` compares them.
+  template <class GT, class Compare>
+  concept Arc_With_Distance = requires (typename GT::Arc * a, Compare cmp)
   {
-    { a->get_info().get_distance() < a->get_info().get_distance() }
+    { cmp(a->get_info().get_distance(), a->get_info().get_distance()) }
       -> std::convertible_to<bool>;
   };
 
-  // Appends node to path through the lightest of the arcs from the last
-  // node of path to node, if the arcs give their weights; otherwise
-  // through the first one, as Path::append(Node *) does
-  template <class GT>
+  // Appends node to path through the lightest, by Compare, of the arcs
+  // from the last node of path to node, if the arcs give their weights;
+  // otherwise through the first one, as Path::append(Node *) does
+  template <class GT, class Compare>
   void append_node(GT & g, Path<GT> & path, typename GT::Node * node)
   {
-    if constexpr (Arc_With_Distance<GT>)
+    if constexpr (Arc_With_Distance<GT, Compare>)
       {
         typename GT::Node * src = path.get_last_node();
         typename GT::Node * tgt = node;
@@ -120,8 +121,8 @@ namespace mat_path_detail
         for (typename GT::Node_Arc_Iterator it(src); it.has_curr(); it.next_ne())
           if (it.get_tgt_node_ne() == tgt and
               (lightest == nullptr or
-               it.get_current_arc_ne()->get_info().get_distance() <
-               lightest->get_info().get_distance()))
+               Compare () (it.get_current_arc_ne()->get_info().get_distance(),
+                           lightest->get_info().get_distance())))
             lightest = it.get_current_arc_ne();
 
         ah_invalid_argument_if(lightest == nullptr)
@@ -144,6 +145,10 @@ namespace mat_path_detail
  *  stored in the path matrix until reaching the target.
  *
  *  @tparam Mat Matrix type from Map_Matrix_Graph (e.g., Ady_Mat<GT, long, ...>)
+ *  @tparam Compare Comparison of the weights of the arcs, that of the
+ *          floyd_all_shortest_paths() that computed `p` (default:
+ *          `std::less<>`, which gives the order of `operator <`, as the
+ *          default comparison of floyd_all_shortest_paths() does)
  *
  *  @param[in] p Path index matrix from Floyd-Warshall. Entry p(i,j) contains
  *               the index of the next node after i on the shortest path to j.
@@ -154,9 +159,9 @@ namespace mat_path_detail
  *
  *  Between two consecutive nodes, if the arcs give their weights by
  *  `get_info().get_distance()`, the path takes the lightest of the
- *  parallel arcs, by `operator <`, the one that floyd_all_shortest_paths()
- *  counts with its default comparison; otherwise, the first one that it
- *  finds.
+ *  parallel arcs, by `Compare`: with the comparison that
+ *  floyd_all_shortest_paths() used, the arc that the distance counts.
+ *  Otherwise, it takes the first arc that it finds.
  *
  *  @pre The path matrix `p` must have been computed by floyd_all_shortest_paths().
  *  @pre `src_idx` and `tgt_idx` must be valid indices (0 <= idx < n).
@@ -182,7 +187,7 @@ namespace mat_path_detail
  *  @see latex_floyd.H For floyd_all_shortest_paths(), which computes the matrix
  *  @ingroup Graphs
  */
-template <class Mat>
+template <class Mat, class Compare = std::less<>>
 void find_min_path(Mat & p, long src_idx, long tgt_idx,
                    Path<typename Mat::Graph_Type> & path)
 {
@@ -203,7 +208,7 @@ void find_min_path(Mat & p, long src_idx, long tgt_idx,
   // Follow path matrix to reconstruct the path
   for (long i = src_idx, j = p(i, tgt_idx); ; i = j, j = p(i, tgt_idx))
     {
-      mat_path_detail::append_node(g, path, p(j));
+      mat_path_detail::append_node<GT, Compare>(g, path, p(j));
       if (j == tgt_idx)
         break;
     }
@@ -219,13 +224,13 @@ void find_min_path(Mat & p, long src_idx, long tgt_idx,
  *  @see find_min_path(Mat&, long, long, Path<typename Mat::Graph_Type>&)
  *  @ingroup Graphs
  */
-template <class Mat>
+template <class Mat, class Compare = std::less<>>
 void find_min_path(Mat & p, 
                    typename Mat::Node * src_node, 
                    typename Mat::Node * tgt_node,
                    Path<typename Mat::Graph_Type> & path)
 {
-  find_min_path(p, p(src_node), p(tgt_node), path);
+  find_min_path<Mat, Compare>(p, p(src_node), p(tgt_node), path);
 }
 
 /** @brief Functor wrapper for find_min_path.
@@ -234,6 +239,8 @@ void find_min_path(Mat & p,
  *  useful for generic algorithms and functional programming patterns.
  *
  *  @tparam Mat Matrix type from Map_Matrix_Graph
+ *  @tparam Compare Comparison of the weights of the arcs, as in
+ *          find_min_path() (default: `std::less<>`)
  *
  *  @par Example
  *  @code{.cpp}
@@ -244,7 +251,7 @@ void find_min_path(Mat & p,
  *
  *  @ingroup Graphs
  */
-template <class Mat>
+template <class Mat, class Compare = std::less<>>
 class Find_Min_Path
 {
 public:
@@ -256,7 +263,7 @@ public:
                   typename Mat::Node * tgt_node,
                   Path<typename Mat::Graph_Type> & path) const
   {
-    find_min_path<Mat>(p, src_node, tgt_node, path);
+    find_min_path<Mat, Compare>(p, src_node, tgt_node, path);
   }
 
   /** @brief Reconstruct path using matrix indices.
@@ -266,7 +273,7 @@ public:
                   long src_index, long tgt_index,
                   Path<typename Mat::Graph_Type> & path) const
   {
-    find_min_path<Mat>(p, src_index, tgt_index, path);
+    find_min_path<Mat, Compare>(p, src_index, tgt_index, path);
   }
 };
 

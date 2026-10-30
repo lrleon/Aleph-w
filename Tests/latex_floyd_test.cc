@@ -1146,3 +1146,30 @@ TEST(MatPathTest, FindMinPathWithArcsWithoutDistances)
   EXPECT_EQ(q.size(), 3u);
   EXPECT_EQ(r.size(), 3u);
 }
+
+TEST(MatPathTest, FindMinPathTakesTheLightestByItsCompare)
+{
+  // With std::greater<>, the lightest arc is the heaviest one
+  using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<IntDistanceArc>>;
+  using Mat = Ady_Mat<Graph, long>;
+  Graph g;
+  auto *n0 = g.insert_node(0);
+  auto *n1 = g.insert_node(1);
+  g.insert_arc(n0, n1, IntDistanceArc(1));
+  g.insert_arc(n0, n1, IntDistanceArc(5));
+  g.insert_arc(n0, n1, IntDistanceArc(3));
+  Mat path(g);
+  const long i0 = index_of(path, 0), i1 = index_of(path, 1);
+  path(i0, i1) = i1;
+
+  Path<Graph> by_less(g), by_greater(g), by_nodes(g), by_finder(g);
+  find_min_path(path, i0, i1, by_less);
+  find_min_path<Mat, std::greater<>>(path, i0, i1, by_greater);
+  find_min_path<Mat, std::greater<>>(path, n0, n1, by_nodes);
+  Find_Min_Path<Mat, std::greater<>>()(path, i0, i1, by_finder);
+
+  EXPECT_EQ(path_cost(by_less), 1);
+  EXPECT_EQ(path_cost(by_greater), 5);
+  EXPECT_EQ(path_cost(by_nodes), 5);
+  EXPECT_EQ(path_cost(by_finder), 5);
+}
