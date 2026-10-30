@@ -229,7 +229,7 @@ Esto es una recomendación de diseño, no un bug: el cambio tiene riesgo (afecta
 
 ### 2.3 Inconsistencia entre `assert()` y `ah_*_error_if` para precondiciones similares
 
-CLAUDE.md establece usar las macros `ah_*_error_if` (siempre activas) en vez de `throw` crudo, pero el fichero mezcla ese estilo con `assert()` puro (compilado fuera en Release/`NDEBUG`) para precondiciones de igual criticidad:
+[`CONTRIBUTING.md`](../CONTRIBUTING.md#coding-conventions) establece usar las macros `ah_*_error_if` (siempre activas) en vez de `throw` crudo, pero el fichero mezcla ese estilo con `assert()` puro (compilado fuera en Release/`NDEBUG`) para precondiciones de igual criticidad:
 
 - `insert_leftmost_child`/`insert_rightmost_child`/`insert_right_sibling` validan "`p` debe ser un nodo nuevo y aislado" (`CHILD_LIST(p)->is_empty()`, `SIBLING_LIST(p)->is_empty()`, `p->is_root() and p->is_leaf() and ...`) **solo** con `assert()` — en Release, pasar un nodo ya usado en otro árbol corrompe silenciosamente ambos árboles.
 - `insert_left_sibling` sí usa `ah_domain_error_if` para su precondición "`this` no puede ser root", pero el resto de sus asserts (líneas 301-304) son también asserts puros.

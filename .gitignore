@@ -240,7 +240,6 @@ timeAllTree
 timeList-aleph
 
 # Local tooling metadata
-.claude/
 .cursor/
 
 # Generated documentation output
@@ -366,7 +365,6 @@ EDGE_AS_NODE_STATUS.md
 
 # AI agent config files
 AGENTS.md
-CLAUDE.md
 GPT.md
 DEEPSEEK.md
 QWEN.md

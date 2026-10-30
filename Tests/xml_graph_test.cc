@@ -251,9 +251,9 @@ TEST_F(XmlGraphTest, CopyOfSharedNonCopyableFunctorWorks)
 }
 
 // Copying an Xml_Graph that *owns* a non-copy-constructible functor cannot
-// duplicate that functor, so it must fail loudly (a runtime error, per
-// CLAUDE.md), not silently share it or refuse to compile for callers who
-// never attempt this copy.
+// duplicate that functor, so it must fail loudly, with a runtime error, not
+// silently share it or refuse to compile for callers who never attempt this
+// copy.
 TEST_F(XmlGraphTest, CopyOfOwnedNonCopyableFunctorThrows)
 {
   // `XGNonCopyable owner(A(), B(), C(), D());` would parse as a function
