@@ -39,6 +39,7 @@
  * - find_min_path() path reconstruction
  * - floyd_all_shortest_paths_latex() LaTeX output format
  * - Edge cases (single node, disconnected graphs, etc.)
+ * - Parallel arcs and loops, on the three kinds of graph, and mat_path.H
  */
 
 #include <gtest/gtest.h>
@@ -54,8 +55,13 @@
 #endif
 
 #include <tpl_graph.H>
+#include <tpl_sgraph.H>
+#include <tpl_agraph.H>
 #include <tpl_matgraph.H>
 #include <latex_floyd.H>
+// Both headers, on purpose: they defined the same find_min_path()
+// templates, and could not be included together
+#include <mat_path.H>
 
 using namespace std;
 using namespace testing;
@@ -888,4 +894,255 @@ TEST(DenseGraphTest, FloydOnDenseGraph)
     for (long j = 0; j < N; ++j)
       EXPECT_LT(dist(i, j), IntDistanceArc::Max_Distance)
         << "Should be reachable from " << i << " to " << j;
+}
+
+// ============================================================================
+// Parallel arcs, loops and mat_path.H
+// ============================================================================
+
+namespace
+{
+  /// Sum of the weights of the arcs of `p`
+  template <class GT>
+  int path_cost(Path<GT> & p)
+  {
+    int cost = 0;
+    for (typename Path<GT>::Iterator it(p); it.has_current_arc(); it.next_ne())
+      cost += it.get_current_arc_ne()->get_info().get_distance();
+    return cost;
+  }
+
+  /// Index in `m` of the node whose info is `info`
+  template <class Mat>
+  long index_of(Mat & m, int info)
+  {
+    for (long i = 0; i < static_cast<long>(m.get_num_nodes()); ++i)
+      if (m(i)->get_info() == info)
+        return i;
+    return -1;
+  }
+
+  /// Name of a file for the LaTeX output of the running test
+  string parallel_arcs_tex_name()
+  {
+    const auto *info = UnitTest::GetInstance()->current_test_info();
+#if defined(_WIN32)
+    const long long pid = _getpid();
+#else
+    const long long pid = getpid();
+#endif
+    string base = string("floyd_parallel_") + info->test_suite_name() + "_" +
+                  info->name() + "_" + to_string(pid) + ".tex";
+    for (auto &ch : base)
+      if (ch == '/' or ch == '\\' or ch == ' ')
+        ch = '_';
+    return (std::filesystem::temp_directory_path() / base).string();
+  }
+
+  /** Nodes 0, 1 and 2, two arcs from 0 to 1, of weights 5 and 1, the
+      heavier one first or last, an arc from 1 to 2 of weight 1 and one
+      from 0 to 2 of weight 3: the shortest path from 0 to 2, of cost 2,
+      takes the light arc to 1. In a graph that is not directed, the light
+      arc is inserted from 1 to 0. */
+  template <class GT>
+  void build_parallel_arcs(GT & g, bool heavier_first)
+  {
+    auto *n0 = g.insert_node(0);
+    auto *n1 = g.insert_node(1);
+    auto *n2 = g.insert_node(2);
+    auto insert_light = [&] ()
+      {
+        if (g.is_digraph())
+          g.insert_arc(n0, n1, IntDistanceArc(1));
+        else
+          g.insert_arc(n1, n0, IntDistanceArc(1));
+      };
+    if (not heavier_first)
+      insert_light();
+    g.insert_arc(n0, n1, IntDistanceArc(5));
+    if (heavier_first)
+      insert_light();
+    g.insert_arc(n1, n2, IntDistanceArc(1));
+    g.insert_arc(n0, n2, IntDistanceArc(3));
+  }
+} // namespace
+
+template <class GT>
+class ParallelArcsTest : public Test {};
+
+using ParallelArcsGraphs =
+  Types<List_Digraph<Graph_Node<int>, Graph_Arc<IntDistanceArc>>,
+        List_Graph<Graph_Node<int>, Graph_Arc<IntDistanceArc>>,
+        List_SDigraph<Graph_Snode<int>, Graph_Sarc<IntDistanceArc>>,
+        List_SGraph<Graph_Snode<int>, Graph_Sarc<IntDistanceArc>>,
+        Array_Digraph<Graph_Anode<int>, Graph_Aarc<IntDistanceArc>>,
+        Array_Graph<Graph_Anode<int>, Graph_Aarc<IntDistanceArc>>>;
+
+TYPED_TEST_SUITE(ParallelArcsTest, ParallelArcsGraphs);
+
+TYPED_TEST(ParallelArcsTest, TheLightestArcCounts)
+{
+  using GT = TypeParam;
+  for (const bool heavier_first : {true, false})
+    {
+      GT g;
+      build_parallel_arcs(g, heavier_first);
+      Ady_Mat<GT, int> dist(g);
+      Ady_Mat<GT, long> path(g);
+
+      floyd_all_shortest_paths(g, dist, path);
+
+      const long i0 = index_of(dist, 0), i1 = index_of(dist, 1);
+      const long i2 = index_of(dist, 2);
+      EXPECT_EQ(dist(i0, i1), 1) << "heavier first: " << heavier_first;
+      EXPECT_EQ(dist(i0, i2), 2) << "heavier first: " << heavier_first;
+      EXPECT_EQ(path(i0, i2), i1);
+      EXPECT_EQ(dist(i1, i0),
+                g.is_digraph() ? IntDistanceArc::Max_Distance : 1);
+
+      // The paths take the light arc, and cost their distances
+      Path<GT> p(g);
+      find_min_path(path, i0, i1, p);
+      EXPECT_EQ(p.size(), 2u);
+      EXPECT_EQ(path_cost(p), 1);
+
+      Path<GT> q(g);
+      find_min_path(path, dist(i0), dist(i2), q);
+      EXPECT_EQ(q.size(), 3u);
+      EXPECT_EQ(path_cost(q), 2);
+    }
+}
+
+TYPED_TEST(ParallelArcsTest, TheLatexVariantCountsTheSameArcs)
+{
+  using GT = TypeParam;
+  for (const bool heavier_first : {true, false})
+    {
+      GT g;
+      build_parallel_arcs(g, heavier_first);
+      Ady_Mat<GT, int> dist(g);
+      Ady_Mat<GT, long> path(g);
+      floyd_all_shortest_paths(g, dist, path);
+
+      Ady_Mat<GT, int> latex_dist(g);
+      Ady_Mat<GT, long> latex_path(g);
+      const string filename = parallel_arcs_tex_name();
+      {
+        ofstream output(filename);
+        floyd_all_shortest_paths_latex<GT, TestIndexFormatter,
+                                       TestPathFormatter, TestDistFormatter>
+          (g, latex_dist, latex_path, output);
+      }
+      std::filesystem::remove(filename);
+
+      for (long i = 0; i < 3; ++i)
+        for (long j = 0; j < 3; ++j)
+          {
+            EXPECT_EQ(latex_dist(i, j), dist(i, j)) << i << ", " << j;
+            EXPECT_EQ(latex_path(i, j), path(i, j)) << i << ", " << j;
+          }
+      EXPECT_EQ(latex_dist(index_of(dist, 0), index_of(dist, 1)), 1);
+    }
+}
+
+TYPED_TEST(ParallelArcsTest, InitializeDistTakesTheLightestArc)
+{
+  using GT = TypeParam;
+  using Dist_Mat = Ady_Mat<GT, int>;
+  for (const bool heavier_first : {true, false})
+    {
+      GT g;
+      build_parallel_arcs(g, heavier_first);
+      Dist_Mat dist(g);
+      Ady_Mat<GT, long> path(g);
+
+      dist.template operate_all_arcs_matrix<Initialize_Dist<Dist_Mat>>(&path);
+
+      const long i0 = index_of(dist, 0), i1 = index_of(dist, 1);
+      const long i2 = index_of(dist, 2);
+      for (long i = 0; i < 3; ++i)
+        {
+          EXPECT_EQ(dist(i, i), 0);
+          EXPECT_EQ(path(i, i), i);
+        }
+      EXPECT_EQ(dist(i0, i1), 1);
+      EXPECT_EQ(path(i0, i1), i1);
+      EXPECT_EQ(dist(i0, i2), 3); // the arc, before any relaxation
+      EXPECT_EQ(dist(i1, i0),
+                g.is_digraph() ? IntDistanceArc::Max_Distance : 1);
+    }
+}
+
+TYPED_TEST(ParallelArcsTest, LoopsDoNotCount)
+{
+  using GT = TypeParam;
+  GT g;
+  auto *n0 = g.insert_node(0);
+  auto *n1 = g.insert_node(1);
+  g.insert_arc(n0, n0, IntDistanceArc(3));
+  g.insert_arc(n0, n1, IntDistanceArc(2));
+  g.insert_arc(n1, n1, IntDistanceArc(7));
+  Ady_Mat<GT, int> dist(g);
+  Ady_Mat<GT, long> path(g);
+
+  floyd_all_shortest_paths(g, dist, path);
+
+  const long i0 = index_of(dist, 0), i1 = index_of(dist, 1);
+  EXPECT_EQ(dist(i0, i0), 0);
+  EXPECT_EQ(dist(i1, i1), 0);
+  EXPECT_EQ(path(i0, i0), i0);
+  EXPECT_EQ(path(i1, i1), i1);
+  EXPECT_EQ(dist(i0, i1), 2);
+
+  Path<GT> p(g);
+  find_min_path(path, i0, i1, p);
+  EXPECT_EQ(p.size(), 2u);
+  EXPECT_EQ(path_cost(p), 2);
+}
+
+TEST(MatPathTest, FindMinPathThrowsWithoutAnArc)
+{
+  using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<IntDistanceArc>>;
+  Graph g;
+  auto *n0 = g.insert_node(0);
+  auto *n1 = g.insert_node(1);
+  g.insert_arc(n1, n0, IntDistanceArc(1));
+  Ady_Mat<Graph, long> path(g);
+  const long i0 = index_of(path, 0), i1 = index_of(path, 1);
+  path(i0, i1) = i1; // no arc goes from 0 to 1
+
+  Path<Graph> p(g);
+  EXPECT_THROW(find_min_path(path, i0, i1, p), std::invalid_argument);
+}
+
+TEST(MatPathTest, FindMinPathWithArcsWithoutDistances)
+{
+  // The arcs hold an int, without get_distance(): the path takes the
+  // first arc between two nodes
+  using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  Graph g;
+  auto *n0 = g.insert_node(0);
+  auto *n1 = g.insert_node(1);
+  auto *n2 = g.insert_node(2);
+  g.insert_arc(n0, n1, 10);
+  g.insert_arc(n1, n2, 20);
+  Ady_Mat<Graph, long> path(g);
+  const long i0 = index_of(path, 0), i1 = index_of(path, 1);
+  const long i2 = index_of(path, 2);
+  path(i0, i2) = i1;
+  path(i1, i2) = i2;
+
+  Path<Graph> p(g);
+  find_min_path(path, i0, i2, p);
+  ASSERT_EQ(p.size(), 3u);
+  EXPECT_EQ(p.get_first_node(), n0);
+  EXPECT_EQ(p.get_last_node(), n2);
+
+  // The functor gives the same paths, by indices and by nodes
+  Find_Min_Path<Ady_Mat<Graph, long>> finder;
+  Path<Graph> q(g), r(g);
+  finder(path, i0, i2, q);
+  finder(path, n0, n2, r);
+  EXPECT_EQ(q.size(), 3u);
+  EXPECT_EQ(r.size(), 3u);
 }

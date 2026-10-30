@@ -56,16 +56,15 @@
  *  ## Usage Example
  *
  *  @code{.cpp}
- *  #include <mat_path.H>
- *  #include <latex_floyd.H>
+ *  #include <latex_floyd.H> // it includes mat_path.H
  *
- *  // Create adjacency matrix and run Floyd-Warshall
- *  Ady_Mat<Graph, long, Max_Dist_Val> dist(graph);
- *  Ady_Mat<Graph, long, Max_Dist_Val> path(graph);
- *  floyd_all_shortest_paths(dist, path);
+ *  // Create the matrices and run Floyd-Warshall
+ *  Ady_Mat<Graph, double> dist(graph);
+ *  Ady_Mat<Graph, long> path(graph);
+ *  floyd_all_shortest_paths(graph, dist, path);
  *
  *  // Reconstruct path from node 0 to node 5
- *  Path<Graph> min_path;
+ *  Path<Graph> min_path(graph);
  *  find_min_path(path, 0L, 5L, min_path);
  *
  *  // Or using node pointers
@@ -83,10 +82,57 @@
 #ifndef MAT_PATH_H
 #define MAT_PATH_H
 
+#include <concepts>
+#include <utility>
 #include <tpl_matgraph.H>
 
 namespace Aleph
 {
+
+namespace mat_path_detail
+{
+  /// Whether the arcs of `GT` give their weights by
+  /// `get_info().get_distance()`.
+  template <class GT>
+  concept Arc_With_Distance = requires (typename GT::Arc * a)
+  {
+    { a->get_info().get_distance() < a->get_info().get_distance() }
+      -> std::convertible_to<bool>;
+  };
+
+  // Appends node to path through the lightest of the arcs from the last
+  // node of path to node, if the arcs give their weights; otherwise
+  // through the first one, as Path::append(Node *) does
+  template <class GT>
+  void append_node(GT & g, Path<GT> & path, typename GT::Node * node)
+  {
+    if constexpr (Arc_With_Distance<GT>)
+      {
+        typename GT::Node * src = path.get_last_node();
+        typename GT::Node * tgt = node;
+
+        // In a graph that is not directed, the arcs of the node with fewer
+        // arcs are searched, as search_arc() does
+        if (not g.is_digraph() and tgt->num_arcs < src->num_arcs)
+          std::swap(src, tgt);
+
+        typename GT::Arc * lightest = nullptr;
+        for (typename GT::Node_Arc_Iterator it(src); it.has_curr(); it.next_ne())
+          if (it.get_tgt_node_ne() == tgt and
+              (lightest == nullptr or
+               it.get_current_arc_ne()->get_info().get_distance() <
+               lightest->get_info().get_distance()))
+            lightest = it.get_current_arc_ne();
+
+        ah_invalid_argument_if(lightest == nullptr)
+          << "find_min_path(): there is no arc between two nodes of the path";
+
+        path.append(lightest);
+      }
+    else
+      path.append(node);
+  }
+} // namespace mat_path_detail
 
 /** @brief Build a minimum path from Floyd-Warshall path matrix using indices.
  *
@@ -101,10 +147,16 @@ namespace Aleph
  *
  *  @param[in] p Path index matrix from Floyd-Warshall. Entry p(i,j) contains
  *               the index of the next node after i on the shortest path to j.
- *  @param[in] src_index Source node index in the path matrix (0-based).
- *  @param[in] tgt_index Target node index in the path matrix (0-based).
+ *  @param[in] src_idx Source node index in the path matrix (0-based).
+ *  @param[in] tgt_idx Target node index in the path matrix (0-based).
  *  @param[out] path The reconstructed minimum path in the adjacency list graph.
  *                   The path is cleared and rebuilt from scratch.
+ *
+ *  Between two consecutive nodes, if the arcs give their weights by
+ *  `get_info().get_distance()`, the path takes the lightest of the
+ *  parallel arcs, by `operator <`, the one that floyd_all_shortest_paths()
+ *  counts with its default comparison; otherwise, the first one that it
+ *  finds.
  *
  *  @pre The path matrix `p` must have been computed by floyd_all_shortest_paths().
  *  @pre `src_idx` and `tgt_idx` must be valid indices (0 <= idx < n).
@@ -116,14 +168,18 @@ namespace Aleph
  *           - The indices are out of range
  *
  *  @throw std::bad_alloc If insufficient memory to build the path.
+ *  @throw std::invalid_argument If two consecutive nodes of the path
+ *         have no arc between them, which the matrix of
+ *         floyd_all_shortest_paths() does not give.
  *
  *  @par Complexity
- *  - Time: O(k) where k is the number of nodes in the path
+ *  - Time: O(k + a), where k is the number of nodes in the path and a
+ *    the number of arcs of the nodes whose arcs it searches
  *  - Space: O(k) for storing the path
  *
  *  @see floyd_all_shortest_paths()
  *  @see find_min_path(Mat&, typename Mat::Node*, typename Mat::Node*, Path<typename Mat::Graph_Type>&)
- *  @see latex_floyd.H For variant with const indices
+ *  @see latex_floyd.H For floyd_all_shortest_paths(), which computes the matrix
  *  @ingroup Graphs
  */
 template <class Mat>
@@ -147,7 +203,7 @@ void find_min_path(Mat & p, long src_idx, long tgt_idx,
   // Follow path matrix to reconstruct the path
   for (long i = src_idx, j = p(i, tgt_idx); ; i = j, j = p(i, tgt_idx))
     {
-      path.append(p(j));
+      mat_path_detail::append_node(g, path, p(j));
       if (j == tgt_idx)
         break;
     }
@@ -181,8 +237,8 @@ void find_min_path(Mat & p,
  *
  *  @par Example
  *  @code{.cpp}
- *  Find_Min_Path<Ady_Mat<Graph, long, Max_Val>> finder;
- *  Path<Graph> path;
+ *  Find_Min_Path<Ady_Mat<Graph, long>> finder;
+ *  Path<Graph> path(graph);
  *  finder(path_matrix, 0L, 5L, path);
  *  @endcode
  *

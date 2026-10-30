@@ -44,11 +44,17 @@
  *  - Directed and undirected graphs
  *  - Positive and negative edge weights (no negative cycles)
  *
+ *  Of the parallel arcs between two nodes, the lightest counts. A loop
+ *  does not count: the diagonal starts at `Zero_Distance`. The functions
+ *  do not detect negative cycles, a negative loop among them: with one,
+ *  the matrices do not hold distances.
+ *
  *  ## Key Components
  *
  *  - `floyd_all_shortest_paths()`: Core algorithm
  *  - `floyd_all_shortest_paths_latex()`: Algorithm with LaTeX step-by-step output
- *  - `find_min_path()`: Path reconstruction from the path matrix
+ *  - `find_min_path()`, from `mat_path.H`, which this header includes:
+ *    Path reconstruction from the path matrix
  *
  *  ## Arc Type Requirements
  *
@@ -85,9 +91,12 @@
 
 # include <ah-graph-concepts.H>
 
+#include <utility>
 #include <ahFunction.H>
+#include <tpl_array.H>
 #include <tpl_matgraph.H>
 #include <mat_latex.H>
+#include <mat_path.H>
 
 namespace Aleph
 {
@@ -95,15 +104,26 @@ namespace Aleph
 /** @brief Matrix initialization functor for Floyd-Warshall.
  *
  *  Initializes the distance matrix with:
- *  - Zero on the diagonal
- *  - Arc weight for existing edges
+ *  - Zero on the diagonal, whatever loops the node has
+ *  - The weight of the lightest of the arcs from the node of the row to
+ *    that of the column (in a graph that is not directed, of the arcs
+ *    that link them), by `Compare`; of two as light, the first one found
  *  - Max_Distance (infinity) for non-existing edges
  *
- *  Also initializes the path matrix for path reconstruction.
+ *  Also initializes the path matrix for path reconstruction: `path(i, j)`
+ *  is `j` on the diagonal and where there is an arc, and is left as it
+ *  was elsewhere.
+ *
+ *  floyd_all_shortest_paths() and floyd_all_shortest_paths_latex() set
+ *  the matrices in the same way, from one pass over the arcs instead of
+ *  a search for each pair of nodes.
  *
  *  @tparam AM Adjacency matrix type
+ *  @tparam Compare Comparison of distances; the lighter of two arcs is
+ *          the one that it puts first (default: less)
  */
-template <class AM>
+template <class AM,
+          class Compare = Aleph::less<typename AM::Arc_Type::Distance_Type>>
 struct Initialize_Dist
 {
   typedef typename AM::Graph_Type::Arc_Type Arc_Type;
@@ -124,7 +144,7 @@ struct Initialize_Dist
 		    Distance_Type & entry,
 		    void *          p)
   {
-    Ady_Mat<typename AM::Graph_Type, long> & path = 
+    Ady_Mat<typename AM::Graph_Type, long> & path =
       * reinterpret_cast<Ady_Mat<typename AM::Graph_Type, long> *>(p);
 
     if (i == j)
@@ -137,19 +157,76 @@ struct Initialize_Dist
 
     GT & g = mat.get_list_graph();
 
-    Arc * arc = search_arc(g, src, tgt);
+    // In a graph that is not directed, the arcs of the node with fewer
+    // arcs are searched, as search_arc() does
+    if (not g.is_digraph() and tgt->num_arcs < src->num_arcs)
+      std::swap(src, tgt);
 
-    if (arc == nullptr)
+    Arc * lightest = nullptr;
+    for (typename GT::Node_Arc_Iterator it(src); it.has_curr(); it.next_ne())
+      if (it.get_tgt_node_ne() == tgt and
+          (lightest == nullptr or
+           Compare () (it.get_current_arc_ne()->get_info().get_distance(),
+                       lightest->get_info().get_distance())))
+        lightest = it.get_current_arc_ne();
+
+    if (lightest == nullptr)
       {
 	entry = AM::Graph_Type::Arc_Type::Max_Distance;
 	return;
       }
 
-    entry = arc->get_info().get_distance();
+    entry = lightest->get_info().get_distance();
 
     path(i, j) = j;
   }
 };
+
+namespace latex_floyd_detail
+{
+  /* Sets the matrices as Initialize_Dist does, but from one pass over the
+     arcs of each node instead of a search for each pair of nodes: O(n^2 +
+     m log n) instead of O(n m). The first arc from i to j takes the entry,
+     and a lighter one, by Compare, replaces it; seen[j] == i says that an
+     arc from i to j was already found. */
+  template <AlephGraph GT, class Compare>
+  void initialize_matrices(
+      Ady_Mat<GT, typename GT::Arc_Type::Distance_Type> & dist,
+      Ady_Mat<GT, long> &                                 path)
+  {
+    using Dist_Type = typename GT::Arc_Type::Distance_Type;
+    using Node = typename GT::Node;
+
+    const long n = dist.get_num_nodes();
+    Array<long> seen(n, -1L);
+    for (long i = 0; i < n; ++i)
+      {
+        for (long j = 0; j < n; ++j)
+          dist(i, j) = i == j ? GT::Arc_Type::Zero_Distance
+                              : GT::Arc_Type::Max_Distance;
+        path(i, i) = i;
+
+        Node * src = dist(i);
+        for (typename GT::Node_Arc_Iterator it(src); it.has_curr(); it.next_ne())
+          {
+            Node * tgt = it.get_tgt_node_ne();
+            if (tgt == src)
+              continue; // a loop does not count
+
+            const long j = dist(tgt);
+            const Dist_Type w = it.get_current_arc_ne()->get_info().get_distance();
+            if (seen[j] != i)
+              {
+                seen[j] = i;
+                dist(i, j) = w;
+                path(i, j) = j;
+              }
+            else if (Compare () (w, dist(i, j)))
+              dist(i, j) = w;
+          }
+      }
+  }
+} // end namespace latex_floyd_detail
 
 /** @brief Compute all-pairs shortest paths using Floyd-Warshall algorithm.
  *
@@ -164,8 +241,14 @@ struct Initialize_Dist
  *  @param[out] dist Distance matrix - dist(i,j) = shortest distance from i to j
  *  @param[out] path Path matrix - path(i,j) = next node on shortest path from i to j
  *
+ *  Of the parallel arcs between two nodes, the lightest counts, by
+ *  `Compare`; a loop does not count. The matrices start as
+ *  Initialize_Dist sets them.
+ *
  *  @note The path matrix can be used with find_min_path() to reconstruct paths.
- *  @warning Does not detect negative cycles.
+ *  @warning Does not detect negative cycles, a negative loop among them:
+ *           with one, the matrices do not hold distances.
+ *  @throw std::bad_alloc if there is not enough memory.
  *
  *  @ingroup Graphs
  */
@@ -175,12 +258,9 @@ void floyd_all_shortest_paths(
     Ady_Mat<GT, typename GT::Arc_Type::Distance_Type> & dist,
     Ady_Mat<GT, long> &                                 path)
 {
-  typedef Ady_Mat<GT, typename GT::Arc_Type::Distance_Type> Dist_Mat;
-
   typedef typename GT::Arc_Type::Distance_Type Dist_Type;
 
-  dist.
-    template operate_all_arcs_matrix<Initialize_Dist<Dist_Mat> > (&path);
+  latex_floyd_detail::initialize_matrices<GT, Compare>(dist, path);
 
   const Dist_Type & max = GT::Arc_Type::Max_Distance;
 
@@ -216,66 +296,6 @@ void floyd_all_shortest_paths(
   floyd_all_shortest_paths<GT, Aleph::less<Dist_T>, Aleph::plus<Dist_T>>(g, dist, path);
 }
 
-/** \overload
- *
- *  Variant that accepts const indices.
- *
- *  See mat_path.H for the primary definition and full documentation.
- *  This overload is provided for compatibility with const index values.
- *
- *  @see mat_path.H For the primary definition with non-const indices
- *  @ingroup Graphs
- *  @internal This is an overload; parameters are documented in mat_path.H
- */
-template <class Mat>
-void find_min_path(Mat &                           p, 
-                   const long                      src_index,
-                   const long                      tgt_index,
-                   Path<typename Mat::Graph_Type>& path)
-{
-  using GT = typename Mat::Graph_Type;
-  using Node = typename GT::Node;
-
-  GT & g = p.get_list_graph();
-  Node * src = p(src_index);
-  path.set_graph(g, src);
-  
-  // NOTE: Initialize j properly to avoid undefined behavior
-  for (long i = src_index, j = p(i, tgt_index); i != tgt_index; i = j, j = p(i, tgt_index))
-  {
-    Node * next = p(j);
-    path.append(next);
-  }
-}
-
-/** \overload
- *
- *  Reconstruct shortest path from path matrix using node pointers.
- *
- *  Convenience overload that accepts node pointers instead of indices.
- *
- *  @tparam Mat Path matrix type
- *
- *  @param[in] p The path matrix from Floyd-Warshall
- *  @param[in] src_node Source node pointer
- *  @param[in] tgt_node Target node pointer
- *  @param[out] path The reconstructed path
- *
- *  @see find_min_path(Mat&, const long, const long, Path<GT>&)
- *  @ingroup Graphs
- */
-template <class Mat>
-void find_min_path(Mat &                           p, 
-                   typename Mat::Node *            src_node,
-                   typename Mat::Node *            tgt_node,
-                   Path<typename Mat::Graph_Type>& path)
-{
-  const long src_index = p(src_node);
-  const long tgt_index = p(tgt_node);
-  find_min_path(p, src_index, tgt_index, path);
-}
-
-
 /** @brief Floyd-Warshall algorithm with LaTeX step-by-step output.
  *
  *  Computes all-pairs shortest paths while generating LaTeX output
@@ -299,6 +319,13 @@ void find_min_path(Mat &                           p,
  *  @param[out] path Path matrix
  *  @param[out] output Output stream for LaTeX code
  *
+ *  It counts the arcs as floyd_all_shortest_paths() does: of the parallel
+ *  arcs between two nodes, the lightest, by `Compare`, and no loop.
+ *
+ *  @warning Does not detect negative cycles, a negative loop among them:
+ *           with one, the matrices do not hold distances.
+ *  @throw std::bad_alloc if there is not enough memory.
+ *
  *  @see floyd_all_shortest_paths() For algorithm without LaTeX output
  *
  *  @ingroup Graphs
@@ -318,8 +345,7 @@ void floyd_all_shortest_paths_latex(
 
   typedef typename GT::Arc_Type::Distance_Type Dist_Type;
 
-  dist.
-    template operate_all_arcs_matrix<Initialize_Dist<Dist_Mat> > (&path);
+  latex_floyd_detail::initialize_matrices<GT, Compare>(dist, path);
 
   const Dist_Type & max = GT::Arc_Type::Max_Distance;
 
