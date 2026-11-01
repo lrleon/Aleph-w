@@ -16,8 +16,10 @@ on:
 permissions:
   contents: read
 
+# A run for each label that a pull request gets: another label starts one in
+# a group of its own, which does not cancel the heavy run
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.label.name || github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -53,7 +55,9 @@ jobs:
       - name: Build the harness
         run: |
           targets=$(ls Tests/graph_exhaustive_*_test.cc | xargs -n1 basename | sed 's/\.cc$//')
-          cmake --build build --parallel --target $targets
+          # A test takes some GB to compile, and the runner has 16: as the
+          # graph-harness jobs of ci.yml, three at a time
+          cmake --build build --parallel 3 --target $targets
 
       - name: Run the harness in heavy mode
         env:

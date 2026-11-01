@@ -139,7 +139,8 @@ public:
     Map_Frame(typename GT::Node * g_src, typename GT::Node * image, SA & sa)
       : sg_src(image), it(g_src, sa) {}
 
-    [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
   };
 
   // Marks p and counts it, and gives its image, which it inserts in sg.
@@ -254,14 +255,16 @@ public:
     [[gnu::always_inline]] ALEPH_FLATTEN
     Arc_Frame(typename GT::Node * p, SA & sa) : it(p, sa) {}
 
-    [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
     // Moves the iterator, while count < n, to the next arc not visited
     // whose target was not visited either, and gives that target; it marks
     // the arcs not visited that it passes. nullptr when the arcs are done
     // or count == n.
     [[gnu::always_inline]] ALEPH_FLATTEN
-    typename GT::Node * next_target(const size_t & count, const size_t n) noexcept
+    typename GT::Node * next_target(const size_t & count, const size_t n)
+      noexcept(noexcept(it.next_ne()))
     {
       for (; count < n and it.has_curr(); it.next_ne())
         {

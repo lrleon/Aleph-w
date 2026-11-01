@@ -2182,10 +2182,30 @@ TYPED_TEST(ExhaustivePaths, DijkstraAndAStarTakeIntAndDouble)
 
 namespace
 {
+  /** A heuristic of A* that gives the distance from a node to the end that
+      the matrix *d says, and max() for one beyond max() or for a node that
+      does not reach the end: it does not overestimate, it is consistent,
+      and it is as near the limits as the distances. */
+  template <class GT, typename T>
+  struct Exact_Heuristic
+  {
+    using Distance_Type = T;
+
+    const Matrix * d = nullptr;
+
+    T operator () (typename GT::Node * from, typename GT::Node * to) const
+    {
+      const long long x = (*d)[size_t(from->get_info())][size_t(to->get_info())];
+      return x > (long long) std::numeric_limits<T>::max()
+        ? std::numeric_limits<T>::max() : T(x);
+    }
+  };
+
   /** Runs, with weights near the limits of int, the painting and
       find_min_path() of Dijkstra_Min_Paths, or find_path() of
-      AStar_Min_Path if astar. A distance beyond max() gives overflow_error,
-      as documented; one that fits is found. */
+      AStar_Min_Path if astar, and then also its find_path() and
+      compute_partial_path() with Exact_Heuristic. A distance beyond max()
+      gives overflow_error, as documented; one that fits is found. */
   template <class GT>
   void check_near_int_limits(bool astar)
   {
@@ -2203,10 +2223,20 @@ namespace
     Check paint_sum("Dijkstra_Min_Paths::paint_min_paths_tree(), near the limits of int, "
                     "a sum beyond max()");
     Check find_sum(who + ", near the limits of int, a sum beyond max()");
+    // With a heuristic, a sum g + h beyond max() gave the arc the priority
+    // max(), which tied with a path of exactly max(): the heap could keep
+    // the other arc to the node, and then no path fitted
+    Check exact("AStar_Min_Path::find_path() and compute_partial_path(), with the distance "
+                "to the end as heuristic, near the limits of int");
+    Check exact_beyond("AStar_Min_Path::find_path() and compute_partial_path(), with the "
+                       "distance to the end as heuristic, a distance beyond max()");
 
     std::vector<T> w;
     Dijkstra_Of<GT, T> dij(Weights<GT, T>{&w});
     AStar_Of<GT, T> ast(Weights<GT, T>{&w});
+    Matrix exact_d;
+    AStar_Min_Path<GT, Weights<GT, T>, Exact_Heuristic<GT, T>>
+      exact_ast(Weights<GT, T>{&w}, Exact_Heuristic<GT, T>{&exact_d});
     const bool directed = GT().is_digraph();
 
     for_each_spec(domain(3, 3), directed, [&] (const Spec & shape)
@@ -2216,6 +2246,7 @@ namespace
             Built<GT> b(s);
             w = weights_as<T>(s);
             const Matrix d = distances(s, directed);
+            exact_d = d;
             for (int u = 0; u < s.n; ++u)
               {
                 const auto & row = d[size_t(u)];
@@ -2283,12 +2314,59 @@ namespace
                       }
                     else if (auto pe = path_error(b.g, s, path, u, v, 0, want, got); not pe.empty())
                       c.fail(s, route(u, v) + pe);
+
+                    if (not astar)
+                      continue;
+                    Check & ec = beyond ? exact_beyond : exact;
+                    ec.run();
+                    auto * x = b.nodes[size_t(u)];
+                    auto * y = b.nodes[size_t(v)];
+                    Path<GT> found(b.g);
+                    T cost{};
+                    const auto ee = what_throws([&] { cost = exact_ast.find_path(b.g, x, y, found); });
+                    GT tree;
+                    typename GT::Node * reached = nullptr;
+                    const auto te = what_throws([&]
+                      { reached = exact_ast.compute_partial_path(b.g, x, y, tree); });
+                    if (beyond)
+                      {
+                        if (not is(ee, "overflow_error") or not is(te, "overflow_error"))
+                          ec.fail(s, route(u, v) + "gives no overflow_error");
+                        continue;
+                      }
+                    if (not ee.empty() or not te.empty())
+                      {
+                        ec.fail(s, route(u, v) + ee + te);
+                        continue;
+                      }
+                    if (want == Inf)
+                      {
+                        if (cost != std::numeric_limits<T>::max() or not found.is_empty()
+                            or reached != nullptr)
+                          ec.fail(s, route(u, v) + "gives a path to a node not reached");
+                        continue;
+                      }
+                    if (auto pe = path_error(b.g, s, found, u, v, 0, want, cost); not pe.empty())
+                      {
+                        ec.fail(s, route(u, v) + "find_path(): " + pe);
+                        continue;
+                      }
+                    Path<GT> in_tree(b.g);
+                    T tree_cost{};
+                    const auto ge = what_throws([&]
+                      { tree_cost = exact_ast.get_min_path(tree, y, in_tree); });
+                    if (reached == nullptr or not ge.empty())
+                      ec.fail(s, route(u, v) + "compute_partial_path() gives no path " + ge);
+                    else if (auto tpe = path_error(b.g, s, in_tree, u, v, 0, want, tree_cost);
+                             not tpe.empty())
+                      ec.fail(s, route(u, v) + "compute_partial_path(): " + tpe);
                   }
               }
           });
       });
 
-    for (const Check * c : {&paint, &paint_beyond, &find, &find_beyond, &paint_sum, &find_sum})
+    for (const Check * c : {&paint, &paint_beyond, &find, &find_beyond, &paint_sum, &find_sum,
+                            &exact, &exact_beyond})
       c->expect();
   }
 }

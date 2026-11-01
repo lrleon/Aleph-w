@@ -142,7 +142,8 @@ namespace Aleph
 
       Paint_Filt(GT_SA & __sa) : sa(__sa) { /* empty */ }
 
-      bool operator ()(typename G::Arc *a) const noexcept
+      bool operator ()(typename G::Arc *a) const
+        noexcept(std::is_nothrow_invocable_r_v<bool, GT_SA &, typename G::Arc *>)
       {
         if (not sa(a))
           return false;

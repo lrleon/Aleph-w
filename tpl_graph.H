@@ -1022,6 +1022,18 @@ namespace Aleph
     }
   };
 
+  /** Whether a filter of type SA of the arcs of GT is copied, moved and
+      called without exceptions: then an iterator that it filters, and a
+      search through one, throw nothing. Else what the filter throws goes
+      out of them.
+
+        @ingroup Graphs
+    */
+  template <class GT, class SA>
+  inline constexpr bool nothrow_arc_filter_v =
+    std::is_nothrow_copy_constructible_v<SA> and std::is_nothrow_move_constructible_v<SA>
+    and std::is_nothrow_invocable_r_v<bool, SA &, typename GT::Arc *>;
+
   /** \addtogroup Graphs
         @{
         Filtered iterators
@@ -1935,7 +1947,9 @@ namespace Aleph
       goto_first_valid();
     }
 
-    void next_ne() noexcept
+    /// next() without the check of the current arc; noexcept when the
+    /// filter is, else what the filter throws goes out
+    void next_ne() noexcept(std::is_nothrow_invocable_r_v<bool, Show_Arc &, typename GT::Arc *>)
     {
       Base::next_ne();
       goto_first_valid();
@@ -2081,7 +2095,9 @@ namespace Aleph
       goto_first_valid();
     }
 
-    void next_ne() noexcept
+    /// next() without the check of the current arc; noexcept when the
+    /// filter is, else what the filter throws goes out
+    void next_ne() noexcept(std::is_nothrow_invocable_r_v<bool, SA &, typename GT::Arc *>)
     {
       Base::next_ne();
       goto_first_valid();
@@ -3443,13 +3459,14 @@ namespace Aleph
         @param[in] tgt another node
         @param[in] sa filtering condition
         @return pointer to found node; \c nullptr otherwise
+        @throw anything that sa throws
         @ingroup Graphs
     */
   template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   typename GT::Arc *
   search_arc(const GT & g,
              typename GT::Node *src, typename GT::Node *tgt,
-             SA sa = SA()) noexcept
+             SA sa = SA()) noexcept(nothrow_arc_filter_v<GT, SA>)
   {
     assert(src != nullptr and tgt != nullptr);
 
@@ -3471,13 +3488,14 @@ namespace Aleph
         @param[in] sa arc filter (default: Dft_Show_Arc)
         @return a pointer to a directed linking arc if this is found; \c
         nullptr otherwise.
+        @throw anything that sa throws
         @ingroup Graphs
     */
   template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   typename GT::Arc *
   search_directed_arc(const GT & g,
                       typename GT::Node *src, typename GT::Node *tgt,
-                      SA sa = SA()) noexcept
+                      SA sa = SA()) noexcept(nothrow_arc_filter_v<GT, SA>)
   {
     (void) g;
     assert(src != nullptr and tgt != nullptr);

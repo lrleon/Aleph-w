@@ -509,6 +509,9 @@ namespace Aleph
      *
      * @param other The heap to move from
      * @return Reference to this heap
+     * @throws anything that the destructor of T, in clear(), or the move
+     *         assignment of the comparison throws. If the comparison
+     *         throws, this heap is empty and other keeps its elements.
      */
     Fibonacci_Heap &operator=(Fibonacci_Heap && other)
       noexcept(std::is_nothrow_move_assignable_v<Compare> and
@@ -517,10 +520,12 @@ namespace Aleph
       if (this != &other)
         {
           clear();
-          min_node = other.min_node;
-          num_nodes = other.num_nodes;
+          // The comparison before the nodes: if its move throws, other
+          // still owns them, and this heap none
           cmp = std::move(other.cmp);
           consolidate_array_ = std::move(other.consolidate_array_);
+          min_node = other.min_node;
+          num_nodes = other.num_nodes;
           other.min_node = nullptr;
           other.num_nodes = 0;
         }
@@ -533,13 +538,17 @@ namespace Aleph
      * Exchanges all nodes between this heap and other in O(1) time.
      *
      * @param other The heap to swap with
+     * @throws anything that the swap of the comparisons throws: the swap
+     *         that is_nothrow_swappable looks at, the one of Compare if it
+     *         has one, else std::swap. Then the nodes stay where they were.
      */
     void swap(Fibonacci_Heap & other)
       noexcept(std::is_nothrow_swappable_v<Compare>)
     {
+      using std::swap;
+      swap(cmp, other.cmp); // before the nodes, which then cannot fail
       std::swap(min_node, other.min_node);
       std::swap(num_nodes, other.num_nodes);
-      std::swap(cmp, other.cmp);
       std::swap(consolidate_array_, other.consolidate_array_);
     }
 

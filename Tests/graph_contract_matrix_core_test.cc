@@ -65,6 +65,12 @@
 #include <utility>
 #include <vector>
 
+#if defined(_WIN32)
+#  include <process.h>
+#else
+#  include <unistd.h>
+#endif
+
 #include <gtest/gtest.h>
 
 #include <tpl_graph.H>
@@ -92,6 +98,17 @@ namespace
   /// The number of the arc that the filters hide
   constexpr int Hidden = 2;
 
+  /// The number of this process: ctest runs each test in a process of its
+  /// own, and several at a time, so that a file of a test has it in its name
+  long long process_id() noexcept
+  {
+#if defined(_WIN32)
+    return static_cast<long long>(_getpid());
+#else
+    return static_cast<long long>(getpid());
+#endif
+  }
+
   /// The mask of the filters: only the arc Hidden
   const unsigned long Hidden_Mask = 1UL << Hidden;
 
@@ -102,7 +119,9 @@ namespace
   /** Calls f(sa, name) with a filter of each kind of the catalog of
       graph_filter_catalog.H, and with Dft_Show_Arc. All but Dft_Show_Arc
       hide the arc Hidden. f takes the filter by value, so that it can pass
-      it on as an lvalue and as an rvalue. */
+      it on as an lvalue and as an rvalue. The filters whose call is not
+      noexcept go through with_each_throw(), which calls f again throwing
+      at each of their calls. */
   template <class GT, class F>
   void for_each_filter(F && f)
   {
@@ -110,11 +129,11 @@ namespace
     f(Dft_Show_Arc<GT>(), "Dft_Show_Arc");
     f(graph_filters::Hide_Mask<GT>{Hidden_Mask}, "Hide_Mask");
     f(graph_filters::Counting<GT>{Hidden_Mask, &calls}, "Counting");
-    f(graph_filters::make_capturing_lambda<GT>(Hidden_Mask), "Capturing_Lambda");
+    with_each_throw(f, graph_filters::make_capturing_lambda<GT>(Hidden_Mask), "Capturing_Lambda");
     f(graph_filters::Reference_Member<GT>(Hidden_Mask), "Reference_Member");
     f(graph_filters::Const_Member<GT>(Hidden_Mask), "Const_Member");
-    f(graph_filters::Throwing_Copy<GT>(Hidden_Mask), "Throwing_Copy");
-    f(graph_filters::Deque_Member<GT>(Hidden_Mask), "Deque_Member");
+    with_each_throw(f, graph_filters::Throwing_Copy<GT>(Hidden_Mask), "Throwing_Copy");
+    with_each_throw(f, graph_filters::Deque_Member<GT>(Hidden_Mask), "Deque_Member");
   }
 
   /// Calls f(g) with g as it is and as a const graph
@@ -1053,7 +1072,8 @@ TYPED_TEST(ContractCoreTraversals, IOGraph)
   using GT = TypeParam;
   const Spec s = star_path();
   Built<GT> b(s);
-  const std::string file = ::testing::TempDir() + "graph_contract_matrix_core.bin";
+  const std::string file = ::testing::TempDir() + "graph_contract_matrix_core_"
+    + std::to_string(process_id()) + ".bin";
   for_each_filter<GT>([&] (auto sa, const char * name)
     {
       using SA = decltype(sa);
@@ -1394,8 +1414,9 @@ TYPED_TEST(ContractCoreTrees, GraphToTreeNode)
           destroy_tree(built);
         }
       else
-        EXPECT_THROW((void) (graph_to_tree_node<GT, int, To_Key, SA>(cycle.g, cycle.nodes[0], sa)),
-                     std::domain_error);
+        EXPECT_THROW_OR_FILTER((void) (graph_to_tree_node<GT, int, To_Key, SA>(cycle.g,
+                                                                               cycle.nodes[0], sa)),
+                               std::domain_error);
 
       // Without the object, SA(), which hides nothing
       if constexpr (default_built<SA>)
@@ -1422,6 +1443,6 @@ TYPED_TEST(ContractCoreTrees, GraphToTreeNode)
           destroy_tree(root);
         }
       else
-        EXPECT_THROW((void) convert(cycle.g, cycle.nodes[0]), std::domain_error);
+        EXPECT_THROW_OR_FILTER((void) convert(cycle.g, cycle.nodes[0]), std::domain_error);
     });
 }

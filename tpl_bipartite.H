@@ -260,7 +260,6 @@ void compute_maximum_cardinality_bipartite_matching(const GT &g,
         continue;
       has_arcs = true;
       NODE_COOKIE(p) = net.insert_node();
-      NODE_COOKIE((typename GT::Node *) NODE_COOKIE(p)) = p;
     }
 
   if (not has_arcs)
@@ -430,7 +429,8 @@ struct Hopcroft_Karp_Frame
   [[gnu::always_inline]] ALEPH_FLATTEN
   Hopcroft_Karp_Frame(typename GT::Node *n, const SA &sa) : u(n), it(n, sa) {}
 
-  [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+  [[gnu::always_inline]] ALEPH_FLATTEN
+  void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 };
 
 // Moves the iterator of f to the next arc that goes to a free right node,
@@ -438,7 +438,8 @@ struct Hopcroft_Karp_Frame
 // next layer, which it gives; nullptr when the arcs of f.u are done
 template <AlephGraph GT, ArcFilter<GT> SA>
 [[gnu::always_inline]] ALEPH_FLATTEN inline typename GT::Node *
-hopcroft_karp_next(const GT &g, Hopcroft_Karp_Frame<GT, SA> &f, bool &free) noexcept
+hopcroft_karp_next(const GT &g, Hopcroft_Karp_Frame<GT, SA> &f, bool &free)
+  noexcept(noexcept(f.it.next_ne()))
 {
   using Arc = typename GT::Arc;
 

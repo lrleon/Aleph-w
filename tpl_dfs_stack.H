@@ -521,7 +521,8 @@ namespace Aleph
     explicit Dfs_Arc_Frame(Args &&... args) : it(std::forward<Args>(args)...) {}
 
     /// Moves to the next arc; inlined, with all it calls
-    [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
     /** @brief Moves the iterator to the next arc to follow, and gives its
         target.
@@ -537,7 +538,7 @@ namespace Aleph
     */
     template <int Bit, bool Marked_Too = false>
     [[gnu::always_inline]] ALEPH_FLATTEN
-    Node * next_target(Node * goal = nullptr) noexcept
+    Node * next_target(Node * goal = nullptr) noexcept(noexcept(it.next_ne()))
     {
       // the control bits, as the macros of aleph-graph.H give them: this
       // header does not include it, so that the trees can take the stack

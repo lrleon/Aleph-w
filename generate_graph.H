@@ -111,11 +111,16 @@ using namespace Aleph;
 namespace Aleph {
 
 
+  /** Whether the digraph g has, among the arcs that sa shows, an arc from
+      src to tgt and another from tgt to src; false if g is not a digraph.
+
+      @throw anything that sa throws
+  */
   template <AlephGraph GT, ArcFilter<GT> SA> inline static
   bool is_there_a_double_arc(const GT *          g,
                              typename GT::Node * src,
                              typename GT::Node * tgt,
-                             const SA &          sa) noexcept
+                             const SA &          sa) noexcept(nothrow_arc_filter_v<GT, SA>)
   {
     if (not g->is_digraph())
       return false;

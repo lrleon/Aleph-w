@@ -140,6 +140,9 @@ namespace Aleph::graph_dry_detail
     Node *tgt = nullptr;
     SA show_arc;
 
+    // Whether show_arc throws nothing, and so the moves without checks
+    static constexpr bool shows_ne = std::is_nothrow_invocable_r_v<bool, SA &, Arc *>;
+
     // Moves forward, from the current arc, to the first one into tgt that
     // show_arc shows, or to the end
     void forward()
@@ -228,8 +231,9 @@ namespace Aleph::graph_dry_detail
       forward();
     }
 
-    /// Move to the next arc, which must exist.
-    void next_ne() noexcept
+    /// Move to the next arc, which must exist; noexcept when the filter
+    /// is, else what the filter throws goes out.
+    void next_ne() noexcept(shows_ne)
     {
       arcs->next_ne();
       forward();
@@ -243,8 +247,9 @@ namespace Aleph::graph_dry_detail
       backward();
     }
 
-    /// prev() without exceptions: nothing if there is no current arc.
-    void prev_ne() noexcept requires goes_back
+    /// prev() without its exception: nothing if there is no current arc;
+    /// noexcept when the filter is, else what the filter throws goes out.
+    void prev_ne() noexcept(shows_ne) requires goes_back
     {
       if (not arcs->has_curr())
         return;

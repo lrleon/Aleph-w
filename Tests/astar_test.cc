@@ -1035,6 +1035,53 @@ TEST(AStarPolicyTest, UsesTheDistanceItWasGiven)
   EXPECT_EQ(astar.get_min_path(tree, c, path), 21);
 }
 
+using IntDigraph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+
+// A heuristic that reads h(v) from an array, by the info of v.
+struct Array_Heuristic
+{
+  using Distance_Type = int;
+
+  const int * h = nullptr;
+
+  int operator()(IntDigraph::Node * from, IntDigraph::Node *) const
+  {
+    return h[from->get_info()];
+  }
+};
+
+// A sum g + h beyond max() gave the arc the priority max(), the priority of
+// s->a, whose g + h is max(): the heap could keep b->a, after which a->t did
+// not fit, and the methods threw overflow_error, though s->a->t costs max().
+// The heuristic is the distance to t, which does not overestimate.
+TEST(AStarPolicyTest, FindsAPathOfMaxThroughAPriorityThatDoesNotFit)
+{
+  constexpr int M = std::numeric_limits<int>::max();
+  IntDigraph g;
+  auto s = g.insert_node(0);
+  auto a = g.insert_node(1);
+  auto b = g.insert_node(2);
+  auto t = g.insert_node(3);
+  g.insert_arc(s, b, 2);
+  g.insert_arc(s, a, 1);
+  g.insert_arc(b, a, 0);
+  g.insert_arc(a, t, M - 1);
+  const int h[] = {M, M - 1, M - 1, 0};
+
+  AStar_Min_Path<IntDigraph, Dft_Dist<IntDigraph>, Array_Heuristic>
+    astar(Dft_Dist<IntDigraph>(), Array_Heuristic{h});
+  Path<IntDigraph> path(g);
+  EXPECT_EQ(astar.find_path(g, s, t, path), M);
+  EXPECT_EQ(path.size(), 3u);
+
+  ASSERT_TRUE(astar.paint_partial_path(g, s, t));
+  EXPECT_EQ(astar.get_min_path(t, path), M);
+
+  IntDigraph tree;
+  ASSERT_NE(astar.compute_partial_path(g, s, t, tree), nullptr);
+  EXPECT_EQ(astar.get_min_path(tree, t, path), M);
+}
+
 // The weight of an arc times a factor, with no default constructor.
 struct Factor_Only_Distance
 {

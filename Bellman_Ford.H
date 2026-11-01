@@ -379,8 +379,9 @@ class Bellman_Ford
       For disconnected graphs, only the component reachable from s is verified.
 
       @return true if the painted structure is valid, false otherwise.
+      @throw anything that the arc filter throws.
    */
-  bool check_painted_arcs() noexcept
+  bool check_painted_arcs() noexcept(nothrow_arc_filter_v<GT, SA>)
   {
     if (s_ == nullptr)
       return false;
@@ -458,8 +459,11 @@ public:
 
       @note This is automatically called at the start of each paint/compute
             operation, so explicit calls are usually not needed.
+
+      @throw anything that the arc filter throws, while it clears the bits
+             of a painting.
    */
-  void clear() noexcept
+  void clear() noexcept(nothrow_arc_filter_v<GT, SA>)
   {
     if (painted_)
       {
@@ -611,8 +615,6 @@ private:
         NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
       }
     NODE_BITS(s_).set_bit(Aleph::Spanning_Tree, true);
-
-    assert(check_painted_arcs());
 
     painted_ = true;
   }
@@ -810,6 +812,10 @@ public:
 
     link_cookies_and_free(s_);
 
+    // After the cookies are freed: the check calls the filter, which can
+    // throw
+    assert(negative_cycle or check_painted_arcs());
+
     return negative_cycle;
   }
 
@@ -867,6 +873,10 @@ public:
       paint_tree();
 
     link_cookies_and_free(s_);
+
+    // After the cookies are freed: the check calls the filter, which can
+    // throw
+    assert(negative_cycle or check_painted_arcs());
 
     return negative_cycle;
   }

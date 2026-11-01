@@ -80,6 +80,8 @@
 #include <tpl_sgraph.H>
 #include <tpl_agraph.H>
 
+#include "graph_filter_catalog.H"
+
 #if defined(__unix__) || defined(__APPLE__)
 #  include <pthread.h>
 #  define ALEPH_GRAPH_HARNESS_HAS_SMALL_STACK 1
@@ -495,6 +497,60 @@ namespace graph_harness
           << skipped << " left out" << s.str();
     }
   };
+  /** Calls f(filt, name), as the loop over the filters of a test does,
+      and again for each call k of the filter in that first call, with the
+      filter throwing graph_filters::Thrown_By_Filter at its call k: what
+      it throws has to come out of f, through the algorithm that f calls,
+      if f calls the filter that many times again. For a filter of
+      graph_filter_catalog.H whose call is not noexcept. */
+  template <class F, class Filt>
+  void with_each_throw(F & f, const Filt & filt, const char * name)
+  {
+    using graph_filters::Filter_Throws;
+    Filter_Throws::throw_at = 0;
+    Filter_Throws::calls = 0;
+    f(filt, name);
+    const long n = Filter_Throws::calls;
+    for (long k = 1; k <= n; ++k)
+      {
+        Filter_Throws::calls = 0;
+        Filter_Throws::throw_at = k;
+        bool out = false;
+        try
+          {
+            f(filt, name);
+          }
+        catch (const graph_filters::Thrown_By_Filter &)
+          {
+            out = true;
+          }
+        Filter_Throws::throw_at = 0;
+        // Another call of f can call the filter fewer times, when the order
+        // of a search depends on the addresses of a graph that f builds:
+        // then the call k did not come, and nothing threw
+        EXPECT_TRUE(out or Filter_Throws::calls < k)
+          << name << ": what the filter threw at its call " << k << " of " << n
+          << " did not come out";
+      }
+  }
 } // namespace graph_harness
+
+/** EXPECT_THROW(statement, type), for a statement that calls a filter:
+    in a call of graph_harness::with_each_throw(), in which the filter
+    throws at one of its calls, what the filter throws goes on, and type is
+    taken if it comes first. */
+#define EXPECT_THROW_OR_FILTER(statement, type)                     \
+  do                                                                \
+    if (::graph_filters::Filter_Throws::throw_at == 0)              \
+      EXPECT_THROW(statement, type);                                \
+    else                                                            \
+      try                                                           \
+        {                                                           \
+          statement;                                                \
+        }                                                           \
+      catch (const type &)                                          \
+        {                                                           \
+        }                                                           \
+  while (false)
 
 #endif // ALEPH_TESTS_GRAPH_HARNESS_H

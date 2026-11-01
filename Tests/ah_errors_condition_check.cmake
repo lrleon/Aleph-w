@@ -12,6 +12,24 @@ foreach(var CXX_COMPILER SOURCE_DIR WORK_DIR)
 endforeach()
 
 set(FLAGS "-std=c++20" "-fsyntax-only" "-I${SOURCE_DIR}")
+
+# On macOS, Homebrew installs GSL outside the default search path of the
+# compiler, and parse_utils.H includes <gsl/gsl_rng.h> (through
+# ah-string-utils.H, ah-zip.H and tpl_dynSkipList.H). As
+# ah_errors_else_check.cmake, add the include directory of Homebrew.
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+  execute_process(
+    COMMAND brew --prefix
+    OUTPUT_VARIABLE BREW_PREFIX
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE BREW_RC
+    ERROR_QUIET
+  )
+  if(BREW_RC EQUAL 0 AND EXISTS "${BREW_PREFIX}/include")
+    list(APPEND FLAGS "-I${BREW_PREFIX}/include")
+  endif()
+endif()
+
 file(MAKE_DIRECTORY "${WORK_DIR}")
 
 set(PRELUDE

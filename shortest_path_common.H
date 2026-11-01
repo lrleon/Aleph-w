@@ -405,15 +405,20 @@ protected:
 
   /** @brief Initialize algorithm state.
    *
-   *  Gives every node and every arc shown by the filter a new cookie. A
-   *  previous painting is lost, since its bits and cookies are reset.
+   *  Gives every node and every arc shown by the filter a new cookie. With
+   *  a filter that can throw (see nothrow_arc_filter_v), the bit `Min` of
+   *  each arc says whether it has one, so that uninit() frees them without
+   *  calling the filter again. A previous painting is lost, since its bits
+   *  and cookies are reset.
    *
    *  @tparam IN Node initializer functor type.
    *  @tparam IA Arc initializer functor type.
    *  @param g The graph.
    *  @param start The starting node.
-   *  @throw std::bad_alloc If there is not enough memory. The cookies
-   *         already allocated are freed and left null.
+   *  @throw std::bad_alloc If there is not enough memory.
+   *  @throw anything that the filter throws.
+   *
+   *  If it throws, the cookies already allocated are freed and left null.
    */
   template <class IN, class IA>
   void init(const GT& g, typename GT::Node* start)
@@ -425,7 +430,9 @@ protected:
     ptr_g = &const_cast<GT&>(g);
     s = start;
 
-    // the first num_nodes nodes and num_arcs arcs have a new cookie
+    // the first num_nodes nodes have a new cookie, and the first num_arcs
+    // arcs that the filter shows; with a filter that can throw, those of
+    // the first num_arcs arcs that have the bit Min
     size_t num_nodes = 0, num_arcs = 0;
     try
       {
@@ -434,23 +441,46 @@ protected:
         // A hidden arc may have the bit of an earlier painting, which the
         // tree, unfiltered, would take; one pass, with the filter called
         // as an Arc_Iterator<GT, SA> calls it
-        for (Arc_Iterator<GT> it(g); it.has_curr(); it.next_ne())
-          if (auto a = it.get_curr_ne(); sa(a))
-            {
-              IA()(g, a);
-              ++num_arcs;
-            }
-          else
-            g.reset_bit(a, Aleph::Spanning_Tree);
+        if constexpr (nothrow_arc_filter_v<GT, SA>)
+          for (Arc_Iterator<GT> it(g); it.has_curr(); it.next_ne())
+            if (auto a = it.get_curr_ne(); sa(a))
+              {
+                IA()(g, a);
+                ++num_arcs;
+              }
+            else
+              g.reset_bit(a, Aleph::Spanning_Tree);
+        else
+          for (Arc_Iterator<GT> it(g); it.has_curr(); it.next_ne(), ++num_arcs)
+            if (auto a = it.get_curr_ne(); sa(a))
+              {
+                IA()(g, a);
+                g.set_bit(a, Aleph::Min, true);
+              }
+            else
+              {
+                g.reset_bit(a, Aleph::Min);
+                g.reset_bit(a, Aleph::Spanning_Tree);
+              }
       }
     catch (...)
       {
         Node_Iterator<GT> nit(g);
         for (size_t i = 0; i < num_nodes; ++i, nit.next_ne())
           IN::release(nit.get_curr());
-        Arc_Iterator<GT, SA> ait(g, sa);
-        for (size_t i = 0; i < num_arcs; ++i, ait.next_ne())
-          IA::release(ait.get_curr());
+        if constexpr (nothrow_arc_filter_v<GT, SA>)
+          {
+            Arc_Iterator<GT, SA> ait(g, sa);
+            for (size_t i = 0; i < num_arcs; ++i, ait.next_ne())
+              IA::release(ait.get_curr());
+          }
+        else
+          {
+            Arc_Iterator<GT> ait(g);
+            for (size_t i = 0; i < num_arcs; ++i, ait.next_ne())
+              if (auto a = ait.get_curr_ne(); IS_ARC_VISITED(a, Aleph::Min))
+                IA::release(a);
+          }
         throw;
       }
   }
@@ -472,6 +502,10 @@ protected:
 
   /** @brief Cleanup algorithm state.
    *
+   *  Frees the cookies that init() gave. With a filter that can throw, it
+   *  finds those of the arcs by their bit `Min`, without calling the
+   *  filter: it runs in the destructor of the guard of uninit_on_exit().
+   *
    *  @tparam DN Node destroyer functor type.
    *  @tparam DA Arc destroyer functor type.
    */
@@ -483,7 +517,12 @@ protected:
     heap.empty();
 
     Operate_On_Nodes<GT, DN>()(*ptr_g);
-    (Operate_On_Arcs<GT, DA, SA>(sa))(*ptr_g);
+    if constexpr (nothrow_arc_filter_v<GT, SA>)
+      (Operate_On_Arcs<GT, DA, SA>(sa))(*ptr_g);
+    else
+      for (Arc_Iterator<GT> it(*ptr_g); it.has_curr(); it.next_ne())
+        if (auto a = it.get_curr_ne(); IS_ARC_VISITED(a, Aleph::Min))
+          DA()(*ptr_g, a);
   }
 
   /** @brief Adds a tentative distance that may go beyond max().
@@ -517,26 +556,6 @@ protected:
       }
     out = a + b; // the checks of checked_add(), each once
     return true;
-  }
-
-  /** @brief Adds a priority, which only orders the heap: for an integral
-   *  type, a sum beyond max() gives max().
-   *
-   *  @throw std::overflow_error If the sum goes below lowest().
-   */
-  [[gnu::always_inline]] typename Distance::Distance_Type
-  saturated_add(const typename Distance::Distance_Type& a,
-                const typename Distance::Distance_Type& b) const
-  {
-    using T = typename Distance::Distance_Type;
-    if constexpr (std::is_integral_v<T>)
-      {
-        if (b > 0 and a > std::numeric_limits<T>::max() - b) [[unlikely]]
-          return std::numeric_limits<T>::max();
-        ah_overflow_error_if(b < 0 and a < std::numeric_limits<T>::min() - b)
-          << "Integer underflow in distance addition: " << a << " + " << b;
-      }
-    return a + b; // the checks of checked_add(), each once
   }
 
   /** @brief After a painting in which a sum went beyond max(), throws if

@@ -130,13 +130,14 @@ class Find_Depth_First_Spanning_Tree
     Frame(typename GT::Node * gnode, typename GT::Node * image, SA & sa)
       : tnode(image), it(gnode, sa) {}
 
-    [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
     // Moves the iterator, while the tree is not complete, to the next arc
     // not in the tree whose target is not in the tree either, and gives
     // that target; nullptr when the arcs are done or the tree is complete
     [[gnu::always_inline]] ALEPH_FLATTEN typename GT::Node *
-    next_target(const GT & tree, const GT & g) noexcept
+    next_target(const GT & tree, const GT & g) noexcept(noexcept(it.next_ne()))
     {
       for (; it.has_curr() and tree.get_num_nodes() < g.get_num_nodes(); it.next_ne())
         {

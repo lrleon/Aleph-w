@@ -110,7 +110,8 @@ private:
     [[gnu::always_inline]] ALEPH_FLATTEN
     Frame(typename GT::Node * p, SA & sa) : curr(p), it(p, sa) {}
 
-    [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
     // Moves the iterator to the next arc whose target was not visited, and
     // gives that target; nullptr when the arcs are done

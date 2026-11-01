@@ -85,9 +85,12 @@ namespace Aleph
     @note To use a Fibonacci heap, pass ArcFibonacciHeap as HeapT.
 
     @note If a method throws (for lack of memory, an overflow of the
-          distances or an exception of `Distance`), the cookies it set are
-          freed and the graph can be used again; a tree being built keeps
-          the part already built.
+          distances or an exception of `Distance` or of the filter), the
+          cookies it set are freed and the graph can be used again; a tree
+          being built keeps the part already built. With a filter that can
+          throw (see `nothrow_arc_filter_v`), a method marks with the bit
+          `Min` the arcs to which it gives a cookie, and frees them by that
+          mark, without calling the filter again; the mark stays.
 
     @note With an integral `Distance_Type`, a tentative sum beyond `max()`
           does not throw by itself, since no distance that fits goes

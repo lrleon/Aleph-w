@@ -86,7 +86,9 @@ namespace
   /** Calls f(sa, name) with a filter of each kind of the catalog of
       graph_filter_catalog.H, and with Dft_Show_Arc. All but Dft_Show_Arc
       hide the arc Hidden. f takes the filter by value, so that it can pass
-      it on as an lvalue and as an rvalue. */
+      it on as an lvalue and as an rvalue. The filters whose call is not
+      noexcept go through with_each_throw(), which calls f again throwing
+      at each of their calls. */
   template <class GT, class F>
   void for_each_filter(F && f)
   {
@@ -94,11 +96,11 @@ namespace
     f(Dft_Show_Arc<GT>(), "Dft_Show_Arc");
     f(graph_filters::Hide_Mask<GT>{Hidden_Mask}, "Hide_Mask");
     f(graph_filters::Counting<GT>{Hidden_Mask, &calls}, "Counting");
-    f(graph_filters::make_capturing_lambda<GT>(Hidden_Mask), "Capturing_Lambda");
+    with_each_throw(f, graph_filters::make_capturing_lambda<GT>(Hidden_Mask), "Capturing_Lambda");
     f(graph_filters::Reference_Member<GT>(Hidden_Mask), "Reference_Member");
     f(graph_filters::Const_Member<GT>(Hidden_Mask), "Const_Member");
-    f(graph_filters::Throwing_Copy<GT>(Hidden_Mask), "Throwing_Copy");
-    f(graph_filters::Deque_Member<GT>(Hidden_Mask), "Deque_Member");
+    with_each_throw(f, graph_filters::Throwing_Copy<GT>(Hidden_Mask), "Throwing_Copy");
+    with_each_throw(f, graph_filters::Deque_Member<GT>(Hidden_Mask), "Deque_Member");
   }
 
   /// Calls f(g) with g as it is and as a const graph
@@ -291,15 +293,15 @@ TYPED_TEST(ContractMatchingBipartite, ComputeBipartite)
             }
           else
             {
-              EXPECT_THROW((compute_bipartite<GT, SA>(g, l, r, sa)), std::domain_error);
-              EXPECT_THROW(bipartite(g, l2, r2), std::domain_error);
+              EXPECT_THROW_OR_FILTER((compute_bipartite<GT, SA>(g, l, r, sa)), std::domain_error);
+              EXPECT_THROW_OR_FILTER(bipartite(g, l2, r2), std::domain_error);
             }
 
           if constexpr (default_built<SA>) // a filter built by default hides nothing
             {
               DynDlist<typename GT::Node *> l3, r3;
-              EXPECT_THROW((compute_bipartite<GT, SA>(g, l3, r3)), std::domain_error);
-              EXPECT_THROW((Compute_Bipartite<GT, SA>()(g, l3, r3)), std::domain_error);
+              EXPECT_THROW_OR_FILTER((compute_bipartite<GT, SA>(g, l3, r3)), std::domain_error);
+              EXPECT_THROW_OR_FILTER((Compute_Bipartite<GT, SA>()(g, l3, r3)), std::domain_error);
             }
         });
     });

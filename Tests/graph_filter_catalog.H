@@ -42,6 +42,9 @@
  *
  * All of them hide the arcs whose numbers, the infos of graph_harness.H,
  * are set in a mask, so that a test gives the same mask to the oracle.
+ * Those whose call is not noexcept (Capturing_Lambda, Throwing_Copy and
+ * Deque_Member) throw Thrown_By_Filter at the call that Filter_Throws
+ * says, which with_each_throw() of graph_harness.H sets.
  *
  * The distances read the weight of an arc by its number from a vector,
  * with state, without a default constructor, or throwing at a given call.
@@ -62,6 +65,31 @@ namespace graph_filters
   constexpr bool shown(unsigned long hidden, int i) noexcept
   {
     return i < 0 or i >= int(sizeof(unsigned long) * 8) or ((hidden >> i) & 1UL) == 0;
+  }
+
+  /// The calls, counted from 1, of the filters whose call is not
+  /// noexcept, and the one that throws Thrown_By_Filter; none if throw_at
+  /// is 0
+  struct Filter_Throws
+  {
+    static inline long calls = 0;
+    static inline long throw_at = 0;
+  };
+
+  /// What a filter whose call is not noexcept throws at the call
+  /// Filter_Throws::throw_at
+  struct Thrown_By_Filter : std::runtime_error
+  {
+    Thrown_By_Filter() : std::runtime_error("graph_filters::Thrown_By_Filter") {}
+  };
+
+  /// shown(), for a filter whose call is not noexcept: it counts the call,
+  /// and throws at the call Filter_Throws::throw_at
+  inline bool shown_or_throws(unsigned long hidden, int i)
+  {
+    if (++Filter_Throws::calls == Filter_Throws::throw_at)
+      throw Thrown_By_Filter();
+    return shown(hidden, i);
   }
 
   /// Hides the arcs of a mask; copyable, assignable, noexcept
@@ -96,7 +124,7 @@ namespace graph_filters
   template <class GT>
   auto make_capturing_lambda(unsigned long hidden)
   {
-    return [hidden] (typename GT::Arc * a) { return shown(hidden, a->get_info()); };
+    return [hidden] (typename GT::Arc * a) { return shown_or_throws(hidden, a->get_info()); };
   }
 
   template <class GT>
@@ -150,7 +178,7 @@ namespace graph_filters
 
     bool operator () (typename GT::Arc * a) const
     {
-      return shown(hidden, a->get_info());
+      return shown_or_throws(hidden, a->get_info());
     }
   };
 
@@ -166,7 +194,7 @@ namespace graph_filters
 
     bool operator () (typename GT::Arc * a) const
     {
-      return shown(hidden, a->get_info());
+      return shown_or_throws(hidden, a->get_info());
     }
   };
 

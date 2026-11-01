@@ -1172,7 +1172,8 @@ namespace Aleph {
       Frame(const GT & gr, typename GT::Node * p, typename GT::Node * image)
         : sg_src(image), it(gr.get_arc_it(p)) {}
 
-      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
       // Marks p, counts it and gives its frame, with its image in sg,
       // which it inserts if p has none
@@ -1339,12 +1340,14 @@ namespace Aleph {
       Frame(const GT & gr, typename GT::Node * p, typename GT::Node * image)
         : tnode(image), it(gr.get_arc_it(p)) {}
 
-      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
       // Moves the iterator to the next arc not in the tree whose target is
       // not in the tree either, and gives that target, or nullptr when the
       // arcs are done
-      [[gnu::always_inline]] ALEPH_FLATTEN typename GT::Node * next_target() noexcept
+      [[gnu::always_inline]] ALEPH_FLATTEN typename GT::Node * next_target()
+        noexcept(noexcept(it.next_ne()))
       {
         for (; it.has_curr(); it.next_ne())
           {
@@ -1612,7 +1615,8 @@ namespace Aleph {
                 const long n_low)
         : p(n), a(arc), it(g.get_arc_it(n)), low(n_low) {}
 
-      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
     };
 
     // Visits n, reached through arc, and pushes its frame
@@ -1631,7 +1635,7 @@ namespace Aleph {
     // the arcs of f.p are done. The arcs to nodes visited lower f.low.
     template <class GT>
     [[gnu::always_inline]] ALEPH_FLATTEN inline typename GT::Node *
-    next_cut_child(Cut_Frame<GT> & f) noexcept
+    next_cut_child(Cut_Frame<GT> & f) noexcept(noexcept(f.it.next_ne()))
     {
       for (; f.it.has_curr(); f.it.next_ne())
         {
@@ -1881,13 +1885,14 @@ namespace Aleph {
       [[gnu::always_inline]] ALEPH_FLATTEN
       Paint_Frame(const GT & g, typename GT::Node * n) : it(g.get_arc_it(n)) {}
 
-      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
       // Moves the iterator to the next arc that goes to a node that is not
       // a cut node and was not painted, and paints both; gives that node,
       // or nullptr when the arcs are done
       [[gnu::always_inline]] ALEPH_FLATTEN
-      typename GT::Node * next_to_paint(const long color) noexcept
+      typename GT::Node * next_to_paint(const long color) noexcept(noexcept(it.next_ne()))
       {
         for (; it.has_curr(); it.next_ne())
           {
@@ -2071,12 +2076,13 @@ namespace Aleph {
       Frame(const GT & gr, typename GT::Node * n)
         : tsrc(mapped_node<GT>(n)), it(gr.get_arc_it(n)) {}
 
-      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
       // Moves the iterator to the next arc of the color that was not
       // copied, and gives it, or nullptr when the arcs are done
       [[gnu::always_inline]] ALEPH_FLATTEN
-      typename GT::Arc * next_to_map(const long c) noexcept
+      typename GT::Arc * next_to_map(const long c) noexcept(noexcept(it.next_ne()))
       {
         for (; it.has_curr(); it.next_ne())
           {
@@ -2452,12 +2458,13 @@ namespace Aleph {
    * @param[in] tgt Target node
    * @param[in] sa Arc filter (default: Dft_Show_Arc<GT>)
    * @return Pointer to the spanning tree arc, or nullptr if not found
+   * @throw anything that sa throws
    */
   template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   typename GT::Arc *
   search_spanning_tree_arc(const GT & g,
                            typename GT::Node *src, typename GT::Node *tgt,
-                           SA sa = SA()) noexcept
+                           SA sa = SA()) noexcept(nothrow_arc_filter_v<GT, SA>)
   {
     assert(src != nullptr and tgt != nullptr);
 

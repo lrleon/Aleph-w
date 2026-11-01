@@ -1950,6 +1950,10 @@ struct PP_Res_Node : public Net_Node<Empty_Class>
   PP_Res_Node(Empty_Class &&info) : Base(std::move(info)) {}
 };
 
+/** Arc of the residual network of the preflow-push algorithms. Each arc of
+    the network has two: its image, whose `img` points to it, and the
+    reverse one, the residual, whose `img` is null; `dup` points from each
+    to the other. */
 template <class Net>
 struct __Res_Arc : public Net_Arc<Empty_Class, typename Net::Flow_Type>
 {

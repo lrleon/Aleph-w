@@ -991,9 +991,13 @@ jobs:
   # (Tests/graph_exhaustive_*, Tests/graph_contract_matrix_*) take long to
   # compile, and the other jobs leave them out: here, the oldest compiler
   # and a recent one, in their normal mode, and GCC with ASan and UBSan, in
-  # the light mode, whose domains take one arc less.
+  # the light mode, whose domains take one arc less. A test of the harness
+  # takes up to 3.7 GB to compile in Release, and 5.4 GB under ASan and
+  # UBSan, and the runner has 16: three compile at a time in Release and
+  # two under the sanitizers, whose exhaustive tests and contract matrix go
+  # to two runners.
   graph-harness:
-    name: graph harness (${{ matrix.os }}, ${{ matrix.compiler }}, ${{ matrix.build_type }}${{ matrix.sanitizers == 'ON' && ', ASan and UBSan' || '' }})
+    name: graph harness (${{ matrix.os }}, ${{ matrix.compiler }}, ${{ matrix.build_type }}${{ matrix.sanitizers == 'ON' && ', ASan and UBSan' || '' }}${{ matrix.part != 'all' && format(', {0}', matrix.part) || '' }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 
@@ -1006,19 +1010,34 @@ jobs:
             build_type: Release
             sanitizers: 'OFF'
             mode: normal
+            part: all
+            jobs: 3
           - os: ubuntu-22.04
             compiler: clang
             build_type: Release
             sanitizers: 'OFF'
             mode: normal
+            part: all
+            jobs: 3
           - os: ubuntu-24.04
             compiler: gcc
             build_type: Debug
             sanitizers: 'ON'
             mode: light
+            part: exhaustive
+            jobs: 2
+          - os: ubuntu-24.04
+            compiler: gcc
+            build_type: Debug
+            sanitizers: 'ON'
+            mode: light
+            part: contract_matrix
+            jobs: 2
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
+      # The prefixes graph_<suite>_ of the tests that the job builds and runs
+      SUITES: ${{ matrix.part == 'all' && 'exhaustive contract_matrix' || matrix.part }}
 
     steps:
       - name: Checkout
@@ -1055,9 +1074,9 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-graph-harness-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ matrix.sanitizers }}-ccache-${{ github.sha }}
+          key: ${{ runner.os }}-graph-harness-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ matrix.sanitizers }}-${{ matrix.part }}-ccache-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-graph-harness-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ matrix.sanitizers }}-ccache-
+            ${{ runner.os }}-graph-harness-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ matrix.sanitizers }}-${{ matrix.part }}-ccache-
 
       - name: Build and install GoogleTest with libc++
         if: matrix.compiler == 'clang'
@@ -1094,8 +1113,8 @@ jobs:
 
       - name: Build the harness
         run: |
-          targets=$(ls Tests/graph_exhaustive_*_test.cc Tests/graph_contract_matrix_*_test.cc | xargs -n1 basename | sed 's/\.cc$//')
-          cmake --build build --parallel --target $targets
+          targets=$(for suite in $SUITES; do ls Tests/graph_${suite}_*_test.cc; done | xargs -n1 basename | sed 's/\.cc$//')
+          cmake --build build --parallel ${{ matrix.jobs }} --target $targets
 
       - name: Run the harness
         env:
@@ -1103,10 +1122,12 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1
         run: |
           status=0
-          for test in build/Tests/graph_exhaustive_*_test build/Tests/graph_contract_matrix_*_test; do
-            echo "::group::$(basename "$test")"
-            "$test" --gtest_brief=1 || status=1
-            echo "::endgroup::"
+          for suite in $SUITES; do
+            for test in build/Tests/graph_${suite}_*_test; do
+              echo "::group::$(basename "$test")"
+              "$test" --gtest_brief=1 || status=1
+              echo "::endgroup::"
+            done
           done
           exit $status
 

@@ -126,13 +126,15 @@ namespace Aleph {
       Frame(Tree_Node<Key> * t, typename GT::Arc * a, Args &&... args)
         : troot(t), from(a), it(std::forward<Args>(args)...) {}
 
-      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
       // Moves the iterator to the next arc that is not that through which
       // the node was reached, and gives its target, or nullptr when the
       // arcs are done. In a tree, which the graph is, the other arcs go
       // to nodes not reached yet, so that the arcs need no marks.
-      [[gnu::always_inline]] ALEPH_FLATTEN typename GT::Node * next_target() noexcept
+      [[gnu::always_inline]] ALEPH_FLATTEN typename GT::Node * next_target()
+        noexcept(noexcept(it.next_ne()))
       {
         for (; it.has_curr(); it.next_ne())
           if (it.get_current_arc_ne() != from)

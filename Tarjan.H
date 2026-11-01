@@ -198,7 +198,8 @@ class Tarjan_Connected_Components
     [[gnu::always_inline]] ALEPH_FLATTEN
     Frame(typename GT::Node *p, const SA &sa) : v(p), it(p, sa) {}
 
-    [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
   };
 
 public:
@@ -285,7 +286,7 @@ private:
   // have to be read again.
   template <bool Loops>
   [[gnu::always_inline]] ALEPH_FLATTEN
-  typename GT::Node *next_target(Frame &f) noexcept
+  typename GT::Node *next_target(Frame &f) noexcept(noexcept(f.it.next_ne()))
   {
     auto v = f.v;
     auto g = g_ptr_;
