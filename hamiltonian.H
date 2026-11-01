@@ -80,12 +80,64 @@
 # ifndef HAMILTONIAN_H
 # define HAMILTONIAN_H
 
+# include <algorithm>
+# include <limits>
+# include <utility>
+
 # include <ah-graph-concepts.H>
 
+# include <tpl_dynMapTree.H>
+# include <tpl_dynSetTree.H>
 # include <tpl_graph.H>
 
 namespace Aleph 
 {
+
+namespace hamiltonian_detail
+{
+  /** @brief The simple graph that the arcs that a filter shows give.
+
+      For each node, the nodes that its arcs go to, without itself and
+      each once (either way in a graph, out in a digraph), and in a
+      digraph how many nodes come to each one: the degrees of the
+      theorems of Ore and Dirac, which are on simple graphs. Loops and
+      parallel arcs leave no trace.
+   */
+  template <class GT, class SA>
+  struct Simple_Graph
+  {
+    using Node = typename GT::Node;
+
+    DynMapTree<Node *, DynSetTree<Node *>> out;
+    DynMapTree<Node *, size_t> in;
+
+    Simple_Graph(const GT & g, SA & sa)
+    {
+      for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
+        {
+          out.insert(it.get_curr(), DynSetTree<Node *>());
+          in.insert(it.get_curr(), 0);
+        }
+      for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
+        {
+          Node * p = it.get_curr();
+          auto & to = out.find(p);
+          for (Node_Arc_Iterator<GT, SA> a(p, sa); a.has_curr(); a.next_ne())
+            if (Node * q = a.get_tgt_node_ne(); q != p and to.insert(q) != nullptr)
+              ++in.find(q);
+        }
+    }
+
+    /// The neighbors of p, or the nodes that it goes to in a digraph
+    size_t degree(Node * p) const { return out.find(p).size(); }
+
+    /// The nodes that come to p, in a digraph
+    size_t in_degree(Node * p) const { return in.find(p); }
+
+    /// Whether p and q are joined, or p goes to q in a digraph
+    bool joined(Node * p, Node * q) const { return out.find(p).contains(q); }
+  };
+} // namespace hamiltonian_detail
 
 /**
  * @brief Tests Ore's sufficient condition for Hamiltonian graphs.
@@ -135,28 +187,11 @@ class Test_Hamiltonian_Sufficiency
   Kept_Filter<SA> sa;
 
   /**
-   * @brief Check if two nodes are adjacent in an undirected graph.
-   *
-   * @param[in] g The graph
-   * @param[in] src First node
-   * @param[in] tgt Second node
-   * @return true if there is an edge between src and tgt
-   */
-	  bool are_adjacent(GT & g, typename GT::Node * src, typename GT::Node * tgt)
-	  {
-	    (void) g;
-
-	    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
-	      if (it.get_tgt_node_ne() == tgt)
-	        return true;
-	    return false;
-	  }
-
-  /**
    * @brief Test Ore's condition for undirected graphs.
    *
    * Checks that for all pairs of NON-ADJACENT vertices u, v:
-   * deg(u) + deg(v) ≥ n
+   * deg(u) + deg(v) ≥ n, in the simple graph of the arcs that the
+   * filter shows
    *
    * @param g Undirected graph to test
    * @return true if Ore's condition is satisfied
@@ -171,11 +206,12 @@ class Test_Hamiltonian_Sufficiency
     if (n < 3)
       return false;
 
+    const hamiltonian_detail::Simple_Graph<GT, SA> simple(g, sa.get());
+
     // Check all pairs of distinct vertices
     for (Node_Iterator<GT, SN> i(g, sn); i.has_curr(); i.next_ne())
       {
         typename GT::Node * src = i.get_curr();
-        const size_t nsrc = g.get_num_arcs(src);
 
         // Start j from the node after i to avoid duplicate pairs
         Node_Iterator<GT, SN> j(i);
@@ -186,11 +222,11 @@ class Test_Hamiltonian_Sufficiency
             typename GT::Node * tgt = j.get_curr();
 
             // Only check NON-ADJACENT pairs (Ore's theorem condition)
-            if (are_adjacent(g, src, tgt))
+            if (simple.joined(src, tgt))
               continue;
 
             // For non-adjacent pairs, check if deg(u) + deg(v) >= n
-            if (nsrc + g.get_num_arcs(tgt) < n)
+            if (simple.degree(src) + simple.degree(tgt) < n)
               return false;
           }
       }
@@ -199,27 +235,13 @@ class Test_Hamiltonian_Sufficiency
   }
 
   /**
-   * @brief Check if arc src→tgt exists in a digraph.
-   *
-   * @param src Source node
-   * @param tgt Target node
-   * @return true if arc src→tgt exists
-   */
-  bool has_arc(typename GT::Node * src, typename GT::Node * tgt)
-  {
-    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
-      if (it.get_tgt_node_ne() == tgt)
-        return true;
-    return false;
-  }
-
-  /**
    * @brief Test Ore-like condition for directed graphs.
    *
    * For digraphs, checks that for each pair (u,v) without arc u→v:
-   * out-deg(u) + in-deg(v) ≥ n
+   * out-deg(u) + in-deg(v) ≥ n, in the simple digraph of the arcs that
+   * the filter shows
    *
-   * This is based on Ghouila-Houri's theorem extension for digraphs.
+   * This is Woodall's theorem, the extension of Ore's to digraphs.
    *
    * @param g Directed graph to test
    * @return true if the digraph version of Ore's condition is satisfied
@@ -234,36 +256,21 @@ class Test_Hamiltonian_Sufficiency
     if (n < 3)
       return false;
 
-    g.reset_counter_nodes();
-
-    // First pass: count in-degrees using node counters
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      NODE_COUNTER(it.get_tgt_node_ne())++;
+    const hamiltonian_detail::Simple_Graph<GT, SA> simple(g, sa.get());
 
     // Check all ordered pairs (src, tgt) where src != tgt
     for (Node_Iterator<GT, SN> i(g, sn); i.has_curr(); i.next_ne())
       {
         typename GT::Node * src = i.get_curr();
-        const size_t out_deg_src = g.get_num_arcs(src);
-
         for (Node_Iterator<GT, SN> j(g, sn); j.has_curr(); j.next_ne())
           {
             typename GT::Node * tgt = j.get_curr();
-
-            if (src == tgt)
+            if (src == tgt or simple.joined(src, tgt))
               continue;
 
-            // If condition is satisfied, skip
-            if (out_deg_src + NODE_COUNTER(tgt) >= n)
-              continue;
-
-            // Condition not satisfied; check if arc src→tgt exists
-            // If arc exists, this pair doesn't need to satisfy the condition
-            if (has_arc(src, tgt))
-              continue;
-
-            // Non-adjacent pair that doesn't satisfy the condition
-            return false;
+            // A pair without an arc that does not satisfy the condition
+            if (simple.degree(src) + simple.in_degree(tgt) < n)
+              return false;
           }
       }
 
@@ -355,7 +362,8 @@ class Test_Dirac_Condition
   /**
    * @brief Test Dirac's condition for undirected graphs.
    *
-   * Checks that deg(v) ≥ n/2 for all vertices v.
+   * Checks that deg(v) ≥ n/2 for all vertices v, in the simple graph of
+   * the arcs that the filter shows.
    *
    * @param g Undirected graph to test
    * @return true if Dirac's condition is satisfied
@@ -371,12 +379,11 @@ class Test_Dirac_Condition
       return false;
 
     const size_t min_degree = (n + 1) / 2;  // Ceiling of n/2
+    const hamiltonian_detail::Simple_Graph<GT, SA> simple(g, sa.get());
 
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      {
-        if (g.get_num_arcs(it.get_curr()) < min_degree)
-          return false;
-      }
+      if (simple.degree(it.get_curr()) < min_degree)
+        return false;
 
     return true;
   }
@@ -384,38 +391,28 @@ class Test_Dirac_Condition
   /**
    * @brief Test Dirac-like condition for directed graphs.
    *
-   * For digraphs, checks that min(out-deg, in-deg) ≥ n/2 for all vertices.
-   * This is a generalization of Dirac's theorem for directed graphs.
+   * Checks that in-deg(v) ≥ n/2 and out-deg(v) ≥ n/2 for all v, in the
+   * simple digraph of the arcs that the filter shows (Ghouila-Houri).
    *
    * @param g Directed graph to test
-   * @return true if the digraph version of Dirac's condition is satisfied
+   * @return true if the condition is satisfied
    */
   bool test_digraph(GT & g)
   {
     assert(g.is_digraph());
 
     const size_t n = g.get_num_nodes();
-
     if (n < 3)
       return false;
 
     const size_t min_degree = (n + 1) / 2;
+    const hamiltonian_detail::Simple_Graph<GT, SA> simple(g, sa.get());
 
-    g.reset_counter_nodes();
-
-    // First pass: count in-degrees
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      NODE_COUNTER(it.get_tgt_node_ne())++;
-
-    // Second pass: check both in-degree and out-degree
+    // Both must be at least n/2
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
       {
         typename GT::Node * p = it.get_curr();
-        const size_t out_deg = g.get_num_arcs(p);
-        const size_t in_deg = NODE_COUNTER(p);
-
-        // Both must be at least n/2
-        if (out_deg < min_degree || in_deg < min_degree)
+        if (simple.degree(p) < min_degree or simple.in_degree(p) < min_degree)
           return false;
       }
 
@@ -466,7 +463,10 @@ public:
   /**
    * @brief Find the vertex with minimum degree.
    *
-   * Useful for understanding why a graph fails Dirac's condition.
+   * Useful for understanding why a graph fails Dirac's condition: the
+   * degree is the one that the condition takes, in the simple graph of
+   * the arcs that the filter shows; in a digraph, the least of the
+   * degrees in and out.
    *
    * @param g The graph
    * @return Pair of (minimum degree found, the vertex with that degree)
@@ -475,11 +475,14 @@ public:
   {
     size_t min_deg = std::numeric_limits<size_t>::max();
     typename GT::Node * min_node = nullptr;
+    const hamiltonian_detail::Simple_Graph<GT, SA> simple(g, sa.get());
 
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
       {
         typename GT::Node * p = it.get_curr();
-        size_t deg = g.get_num_arcs(p);
+        size_t deg = simple.degree(p);
+        if (g.is_digraph())
+          deg = std::min(deg, simple.in_degree(p));
         if (deg < min_deg)
           {
             min_deg = deg;

@@ -44,7 +44,7 @@ option(BUILD_TESTS "Build tests" ON)
 option(BUILD_REPRODUCTIONS "Build weekly cellular-automata reproductions" OFF)
 option(BUILD_BENCHMARKS "Build cellular-automata performance-gate benchmarks" OFF)
 option(ALEPH_USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
-option(ALEPH_ANNOTATE_CONTAINERS "Annotate MemArray logical bounds when using ASan" ON)
+option(ALEPH_ANNOTATE_CONTAINERS "Annotate MemArray logical bounds and Dfs_Stack free room when using ASan" ON)
 option(ALEPH_USE_MEMORY_SANITIZER "Enable Clang MemorySanitizer" OFF)
 option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 option(ALEPH_DISABLE_RANGES "Force C++20 std::ranges support off (portability escape hatch)" OFF)
@@ -124,6 +124,10 @@ if(ALEPH_USE_SANITIZERS)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
         add_link_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
+        # ALEPH_FLATTEN (tpl_dfs_stack.H) is empty under AddressSanitizer,
+        # and with this macro under UndefinedBehaviorSanitizer, which
+        # defines none: flatten only makes the build slower there
+        add_compile_definitions(ALEPH_NO_FLATTEN)
     else()
         message(WARNING "ALEPH_USE_SANITIZERS is only supported with GCC or Clang")
     endif()
@@ -649,6 +653,7 @@ if(ALEPH_USE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     endif()
     target_compile_options(Aleph INTERFACE
         -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_compile_definitions(Aleph INTERFACE ALEPH_NO_FLATTEN)
     target_link_options(Aleph INTERFACE -fsanitize=address,undefined)
 endif()
 

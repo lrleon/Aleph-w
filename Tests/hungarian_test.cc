@@ -46,7 +46,9 @@
  */
 
 # include <gtest/gtest.h>
+# include <limits>
 # include <random>
+# include <stdexcept>
 # include <set>
 # include <Hungarian.H>
 # include <tpl_dynMat.H>
@@ -716,5 +718,64 @@ TEST(HungarianStress, CrossValidateRandom20x20)
 
   ASSERT_TRUE(flow_result.feasible);
   EXPECT_EQ(ha.get_total_cost(), static_cast<int>(flow_result.total_cost));
+}
+
+// ============================================================================
+// Costs near the limits of an integer type
+// ============================================================================
+
+// int keeps its potentials in long long: rows of costs from max() / 2 on,
+// which the infinity of int took for no column, have their optimum
+TEST(HungarianLimits, IntRowsFromHalfOfMaxGiveTheOptimum)
+{
+  constexpr int M = numeric_limits<int>::max();
+  EXPECT_EQ((Hungarian_Assignment<int>({{M / 2 + 1}}).get_total_cost()), M / 2 + 1);
+  EXPECT_EQ((Hungarian_Assignment<int>({{M, M}, {0, 0}}).get_total_cost()), M);
+  EXPECT_EQ((Hungarian_Assignment<int>({{M, 0}, {0, M}}).get_total_cost()), 0);
+  EXPECT_EQ((Hungarian_Assignment<int>({{M - 1, M}, {M, M - 1}, {0, 0}}).get_total_cost()),
+            M - 1);
+}
+
+// An optimum beyond max(), which overflowed the potentials, throws
+TEST(HungarianLimits, AnOptimumBeyondMaxThrows)
+{
+  DynMatrix<int> mat(3, 3, 0);
+  mat.allocate();
+  for (size_t i = 0; i < 3; ++i)
+    for (size_t j = 0; j < 3; ++j)
+      mat(i, j) = 1000000000;
+  EXPECT_THROW((void) hungarian_assignment(mat), std::overflow_error);
+
+  // and a maximum beyond max(), which was cut to the type
+  EXPECT_THROW((void) hungarian_max_assignment(mat), std::overflow_error);
+
+  // the minimum below lowest()
+  for (size_t i = 0; i < 3; ++i)
+    for (size_t j = 0; j < 3; ++j)
+      mat(i, j) = -1000000000;
+  EXPECT_THROW((void) hungarian_assignment(mat), std::overflow_error);
+
+  // two of them fit
+  DynMatrix<int> two(2, 2, 0);
+  two.allocate();
+  for (size_t i = 0; i < 2; ++i)
+    for (size_t j = 0; j < 2; ++j)
+      two(i, j) = 1000000000;
+  EXPECT_EQ(hungarian_assignment(two).total_cost, 2000000000);
+  EXPECT_EQ(hungarian_max_assignment(two).total_cost, 2000000000);
+}
+
+// long long has no wider type: costs near its limits throw, and costs far
+// from them are exact
+TEST(HungarianLimits, LongLongNearItsLimitsThrows)
+{
+  constexpr long long M = numeric_limits<long long>::max();
+  EXPECT_THROW((void) (Hungarian_Assignment<long long>({{M / 2, 1}, {1, M / 2}})),
+               std::overflow_error);
+  EXPECT_THROW((void) (Hungarian_Assignment<long long>({{numeric_limits<long long>::lowest()}})),
+               std::overflow_error);
+  EXPECT_EQ((Hungarian_Assignment<long long>({{M / 64, 1}, {1, M / 64}}).get_total_cost()), 2);
+  EXPECT_EQ((Hungarian_Assignment<long long>({{4000000000LL, 1}, {2, 4000000000LL}})
+               .get_total_cost()), 3);
 }
 // satisfy CI policy

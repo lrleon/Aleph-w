@@ -55,6 +55,8 @@
 #include <ah-errors.H>
 #include <tpl_graph.H>
 #include <tpl_find_path.H>
+#include <tpl_dynListQueue.H>
+#include <tpl_dynSetTree.H>
 #include <cookie_guard.H>
 
 namespace Aleph
@@ -395,6 +397,7 @@ protected:
   bool painted = false;            ///< Whether graph has been painted
   GT* ptr_g = nullptr;             ///< Pointer to the graph
   typename GT::Node* s = nullptr;  ///< Start node
+  bool beyond_max = false;         ///< A sum of the painting went beyond max()
 
   // =========================================================================
   // Protected Methods
@@ -417,6 +420,7 @@ protected:
   {
     heap.empty();
     painted = false;
+    beyond_max = false;
 
     ptr_g = &const_cast<GT&>(g);
     s = start;
@@ -427,9 +431,17 @@ protected:
       {
         for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne(), ++num_nodes)
           IN()(g, it.get_curr());
-        for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr();
-             it.next_ne(), ++num_arcs)
-          IA()(g, it.get_curr());
+        // A hidden arc may have the bit of an earlier painting, which the
+        // tree, unfiltered, would take; one pass, with the filter called
+        // as an Arc_Iterator<GT, SA> calls it
+        for (Arc_Iterator<GT> it(g); it.has_curr(); it.next_ne())
+          if (auto a = it.get_curr_ne(); sa(a))
+            {
+              IA()(g, a);
+              ++num_arcs;
+            }
+          else
+            g.reset_bit(a, Aleph::Spanning_Tree);
       }
     catch (...)
       {
@@ -472,6 +484,90 @@ protected:
 
     Operate_On_Nodes<GT, DN>()(*ptr_g);
     (Operate_On_Arcs<GT, DA, SA>(sa))(*ptr_g);
+  }
+
+  /** @brief Adds a tentative distance that may go beyond max().
+   *
+   *  Sets `out` to `a + b` and returns true, but for an integral type
+   *  whose sum goes beyond max(): then no distance that fits goes through
+   *  it, and it returns false and remembers it in beyond_max, which
+   *  check_beyond_max() looks at when the painting ends.
+   *
+   *  @param a First operand.
+   *  @param b Second operand.
+   *  @param[out] out The sum, if it fits.
+   *  @return true if the sum fits; false if it goes beyond max().
+   *  @throw std::overflow_error If the sum goes below lowest().
+   */
+  [[gnu::always_inline]] bool
+  add_if_fits(const typename Distance::Distance_Type& a,
+              const typename Distance::Distance_Type& b,
+              typename Distance::Distance_Type& out)
+  {
+    using T = typename Distance::Distance_Type;
+    if constexpr (std::is_integral_v<T>)
+      {
+        if (b > 0 and a > std::numeric_limits<T>::max() - b) [[unlikely]]
+          {
+            beyond_max = true;
+            return false;
+          }
+        ah_overflow_error_if(b < 0 and a < std::numeric_limits<T>::min() - b)
+          << "Integer underflow in distance addition: " << a << " + " << b;
+      }
+    out = a + b; // the checks of checked_add(), each once
+    return true;
+  }
+
+  /** @brief Adds a priority, which only orders the heap: for an integral
+   *  type, a sum beyond max() gives max().
+   *
+   *  @throw std::overflow_error If the sum goes below lowest().
+   */
+  [[gnu::always_inline]] typename Distance::Distance_Type
+  saturated_add(const typename Distance::Distance_Type& a,
+                const typename Distance::Distance_Type& b) const
+  {
+    using T = typename Distance::Distance_Type;
+    if constexpr (std::is_integral_v<T>)
+      {
+        if (b > 0 and a > std::numeric_limits<T>::max() - b) [[unlikely]]
+          return std::numeric_limits<T>::max();
+        ah_overflow_error_if(b < 0 and a < std::numeric_limits<T>::min() - b)
+          << "Integer underflow in distance addition: " << a << " + " << b;
+      }
+    return a + b; // the checks of checked_add(), each once
+  }
+
+  /** @brief After a painting in which a sum went beyond max(), throws if
+   *  a node that `start` reaches was left out, or `end` if it is given.
+   *
+   *  Every path to such a node has a sum beyond max(), so that its
+   *  distance does not fit. The walk goes through the arcs that the
+   *  filter shows, without touching the painting.
+   *
+   *  @throw std::overflow_error If such a node exists.
+   *  @throw std::bad_alloc If there is not enough memory.
+   */
+  void check_beyond_max(const GT& g, typename GT::Node* start,
+                        typename GT::Node* end = nullptr) const
+  {
+    using Node = typename GT::Node;
+    DynSetTree<Node*> seen;
+    DynListQueue<Node*> queue;
+    seen.insert(start);
+    queue.put(start);
+    while (not queue.is_empty())
+      {
+        Node* p = queue.get();
+        ah_overflow_error_if(end == nullptr ? not IS_NODE_VISITED(p, Aleph::Spanning_Tree)
+                                            : p == end)
+          << "the distance from the start to a node does not fit in its type";
+        for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+          if (Node* t = it.get_tgt_node(); seen.insert(t) != nullptr)
+            queue.put(t);
+      }
+    (void) g;
   }
 
   /** @brief Checked addition to prevent integer overflow.
@@ -660,11 +756,23 @@ public:
     }
   };
 
+  /** @brief Node filter that shows the nodes of the painted tree. */
+  struct Painted_Node
+  {
+    bool operator()(typename GT::Node* p) const noexcept
+    {
+      return IS_NODE_VISITED(p, Aleph::Spanning_Tree);
+    }
+  };
+
   /** @brief Extracts the painted shortest paths tree and puts it in tree.
    *
-   *  The nodes and arcs of `g` and of `tree` are mapped through their
-   *  cookies. Since the cookies held the painting, the painting cannot be
-   *  used afterwards and is_painted() becomes false.
+   *  Only the nodes that the painting reaches are copied, as
+   *  compute_min_paths_tree() does. The nodes and arcs of `g` and of
+   *  `tree` are mapped through their cookies; the cookies of the nodes
+   *  that are not reached are null. Since the cookies held the painting,
+   *  the painting cannot be used afterwards and is_painted() becomes
+   *  false.
    *
    *  @param[in] g The previously painted graph.
    *  @param[out] tree The graph where the spanning tree will be copied.
@@ -693,7 +801,7 @@ public:
     for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
       NODE_COOKIE(it.get_curr()) = nullptr;
 
-    Copy_Graph<GT, Dft_Show_Node<GT>, Painted_Arc> copy_painted_arcs;
+    Copy_Graph<GT, Painted_Node, Painted_Arc> copy_painted_arcs;
     copy_painted_arcs(tree, g);
 
     return total;
@@ -702,38 +810,47 @@ public:
   /** @brief Extracts path from tree to end node.
    *
    *  @param[in] tree The spanning tree built by compute_min_paths_tree.
-   *  @param[in] end Destination node in the original graph.
-   *  @param[out] path Path where result will be stored (in original graph).
-   *  @return The total cost of the path.
+   *  @param[in] end Destination node (in original graph).
+   *  @param[out] path Path where result will be stored (in original graph),
+   *              made of the arcs of `g` that those of the tree map to.
+   *  @return The total cost of the path, by the distance of the arcs of `g`.
+   *  @throw domain_error If the minimum paths tree has not been computed,
+   *         or `end` is not in the tree, nor reached in it from the start.
+   *  @throw bad_alloc If there is not enough memory.
    */
   typename Distance::Distance_Type
   get_min_path(const GT& tree, typename GT::Node* end, Path<GT>& path)
   {
     ah_domain_error_if(ptr_g == nullptr) << "Min path has not been computed";
 
-    auto ts = mapped_node<GT>(s);
-    auto te = mapped_node<GT>(end);
-
-    Path<GT> tree_path(tree);
-    (Find_Path_Depth_First<GT, Itor>(sa))(tree, ts, te, tree_path);
-
-    // Build path in original graph
+    typename Distance::Distance_Type total_dist = 0;
     path.empty();
-    path.init(s);
-
-    for (auto it = tree_path.get_it(); it.has_curr(); it.next())
+    if (end == s)
       {
-        auto tree_node = it.get_curr();
-        if (tree_node != ts)  // Skip start node (already added via init)
-          path.append(mapped_node<GT>(tree_node));
+        path.init(s);
+        return total_dist;
       }
 
-    // Sum arc weights from the tree path
-    typename Distance::Distance_Type total_dist = 0;
-    tree_path.for_each_arc([this, &total_dist](typename GT::Arc* a)
+    auto ts = mapped_node<GT>(s);
+    auto te = mapped_node<GT>(end);
+    ah_domain_error_if(ts == nullptr or te == nullptr)
+      << "get_min_path(): the end is not in the tree";
+
+    // Every arc of the tree is one of the paths: the filter of the
+    // painting has nothing to hide in it
+    Path<GT> tree_path(tree);
+    ah_domain_error_if(not (Find_Path_Depth_First<GT, Itor>()(tree, ts, te, tree_path)))
+      << "get_min_path(): the end is not reached in the tree";
+
+    // The arcs of g that those of the tree map to, which one of their
+    // parallel arcs, searched by their ends, may not be
+    path.init(s);
+    for (typename Path<GT>::Iterator it(tree_path); it.has_current_arc(); it.next_ne())
       {
-        total_dist += distance(a);
-      });
+        auto ga = mapped_arc<GT>(it.get_current_arc_ne());
+        path.append(ga);
+        total_dist += distance(ga);
+      }
 
     return total_dist;
   }

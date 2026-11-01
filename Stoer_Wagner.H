@@ -402,6 +402,14 @@ namespace Aleph
       : distance(_distance)
     {}
 
+    /** @brief Constructor with custom distance and arc filter functors.
+     *  @param _distance Functor to extract edge weights
+     *  @param _sa the filter of the arcs, which each iterator copies
+     */
+    Stoer_Wagner_Min_Cut(Distance _distance, SA _sa)
+      : distance(_distance), sa(std::move(_sa))
+    {}
+
     /** @brief Find minimum cut in graph.
      *
      *  Executes the Stoer-Wagner algorithm to find the exact minimum cut.

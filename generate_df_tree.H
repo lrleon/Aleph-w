@@ -313,16 +313,72 @@ namespace Aleph
       }
     };
 
-    /// Give to @p p, and to each node below it, its Dewey number, as
-    /// generate_tree() writes them.
-    inline void number_tree(Df_Low_Tree_Node * p, const std::string & number,
+    /// A level of the path that number_tree() follows: the length of the
+    /// Dewey number of the parent, and the position of the node among its
+    /// siblings.
+    struct Dewey_Level
+    {
+      size_t parent_length;
+      size_t index;
+    };
+
+    /// Give to each node that an arc of @p arcs names its Dewey number,
+    /// as generate_tree() writes them. The nodes go in preorder, as
+    /// generate_tree() takes them, without recursion: a path can be as
+    /// long as the tree is deep. Only the numbers that the arcs need are
+    /// kept, each as long as its node is deep.
+    inline void number_tree(Df_Low_Tree_Node * root,
+                            const DynList<Df_Low_Non_Tree_Arc> & arcs,
                             DynMapTree<Df_Low_Tree_Node *, std::string> & numbers)
     {
-      numbers.insert(p, number);
-      size_t i = 0;
-      for (auto c = p->get_left_child(); c != nullptr;
-           c = c->get_right_sibling(), ++i)
-        number_tree(c, number + "." + std::to_string(i), numbers);
+      for (auto it = arcs.get_it(); it.has_curr(); it.next_ne())
+        {
+          (void) numbers.insert(it.get_curr().first, std::string());
+          (void) numbers.insert(it.get_curr().second, std::string());
+        }
+
+      size_t missing = numbers.size(); // the nodes that wait for a number
+      if (missing == 0)
+        return;
+
+      std::string number = "0"; // that of p
+      Dfs_Stack<Dewey_Level> path;
+      Df_Low_Tree_Node * p = root;
+      while (true)
+        {
+          if (auto pair = numbers.search(p); pair != nullptr)
+            {
+              pair->second = number;
+              if (--missing == 0)
+                return;
+            }
+
+          if (auto child = p->get_left_child(); child != nullptr)
+            {
+              path.push(Dewey_Level{number.size(), 0});
+              number += ".0";
+              p = child;
+              continue;
+            }
+
+          // the right sibling of p, or of its lowest ancestor below root
+          // that has one; the parent of a last child is at once
+          while (p != root and p->is_rightmost())
+            {
+              p = p->get_parent();
+              number.resize(path.top().parent_length);
+              path.pop();
+            }
+
+          if (p == root)
+            return;
+
+          p = p->get_right_sibling();
+          Dewey_Level & level = path.top();
+          number.resize(level.parent_length);
+          number += '.';
+          number += std::to_string(++level.index);
+        }
     }
 
     /// Deleter that frees a whole tree.
@@ -446,7 +502,7 @@ namespace Aleph
     generate_tree<Df_Low_Tree_Node, Write>(root.get(), out);
 
     DynMapTree<Df_Low_Tree_Node *, std::string> numbers;
-    df_tree_detail::number_tree(root.get(), "0", numbers);
+    df_tree_detail::number_tree(root.get(), non_tree_arcs, numbers);
 
     size_t i = 0;
     for (auto it = non_tree_arcs.get_it(); it.has_curr(); it.next_ne(), ++i)

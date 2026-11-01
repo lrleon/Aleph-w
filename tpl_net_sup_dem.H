@@ -96,6 +96,9 @@
 #ifndef TPL_NET_SUP_DEM_H
 #define TPL_NET_SUP_DEM_H
 
+#include <limits>
+#include <type_traits>
+#include <utility>
 #include <tpl_net.H>
 #include <ah-errors.H>
 
@@ -128,16 +131,16 @@ public:
   /// Supply flow value: positive = supply, negative = demand, zero = transit
   Flow_Type supply_flow = Flow_Type{0};
 
-  /// Outgoing capacity constraint
-  Flow_Type out_cap = Flow_Type{0};
+  /// The most that the node may supply; unlimited unless set
+  Flow_Type out_cap = std::numeric_limits<Flow_Type>::max();
 
-  /// Incoming capacity constraint
-  Flow_Type in_cap = Flow_Type{0};
+  /// The most that the node may demand; unlimited unless set
+  Flow_Type in_cap = std::numeric_limits<Flow_Type>::max();
 
-  /// Tracked outgoing flow
+  /// Outgoing flow, for the user: the network does not write it
   Flow_Type out_flow = Flow_Type{0};
 
-  /// Tracked incoming flow
+  /// Incoming flow, for the user: the network does not write it
   Flow_Type in_flow = Flow_Type{0};
 
   /**
@@ -155,14 +158,14 @@ public:
     return supply_flow; 
   }
 
-  /// Default constructor. Initializes all values to zero.
+  /// Default constructor: no supply, unlimited capacities and no flows.
   Net_Sup_Dem_Node() : Base() {}
 
   /**
    * @brief Construct node with info.
-   * 
-   * Creates a node with the given information. Capacity and flow
-   * attributes are initialized to zero.
+   *
+   * Creates a node with the given information, no supply, unlimited
+   * capacities and no flows.
    *
    * @param node_info Information to store in the node
    */
@@ -249,16 +252,85 @@ public:
   /// Default constructor
   Net_Sup_Dem_Graph() = default;
 
-  /// Destructor. Frees auxiliary network if it exists.
-  ~Net_Sup_Dem_Graph()
+  /**
+   * @brief Copy constructor.
+   *
+   * The copy has the supplies, capacities and flows of the nodes, and
+   * the auxiliary network, if other has it.
+   *
+   * @throw std::bad_alloc if memory allocation fails
+   */
+  Net_Sup_Dem_Graph(const Net_Sup_Dem_Graph & other)
+    : Net_Class(other)
   {
-    if (exist_aux_net())
-      free_aux_net();
+    // The copy of the network builds the nodes from their infos, in the
+    // order of other
+    Node_Iterator<Net_Sup_Dem_Graph> it(*this);
+    for (Node_Iterator<Net_Sup_Dem_Graph> jt(other); jt.has_curr();
+         it.next_ne(), jt.next_ne())
+      {
+        Node * p = it.get_curr();
+        const Node * q = jt.get_curr();
+        p->supply_flow = q->supply_flow;
+        p->out_cap = q->out_cap;
+        p->in_cap = q->in_cap;
+        p->out_flow = q->out_flow;
+        p->in_flow = q->in_flow;
+        if (q == other.super_source)
+          super_source = p;
+        if (q == other.super_sink)
+          super_sink = p;
+      }
+  }
+
+  /// Move constructor. O(1).
+  Net_Sup_Dem_Graph(Net_Sup_Dem_Graph && other) noexcept
+    : Net_Class(std::move(other)),
+      super_source(std::exchange(other.super_source, nullptr)),
+      super_sink(std::exchange(other.super_sink, nullptr))
+  {
+    // empty
+  }
+
+  /**
+   * @brief Copy assignment, as the copy constructor; the network keeps
+   * its cookie.
+   *
+   * @throw std::bad_alloc if memory allocation fails. Then the network
+   *        is as it was.
+   */
+  Net_Sup_Dem_Graph & operator = (const Net_Sup_Dem_Graph & other)
+  {
+    if (this != &other)
+      {
+        Net_Sup_Dem_Graph tmp(other);
+        tmp.get_cookie() = this->get_cookie();
+        swap(tmp);
+      }
+    return *this;
+  }
+
+  /// Move assignment. O(1).
+  Net_Sup_Dem_Graph & operator = (Net_Sup_Dem_Graph && other) noexcept
+  {
+    if (this != &other)
+      swap(other);
+    return *this;
+  }
+
+  /// Swaps the networks, with their super nodes. O(1).
+  void swap(Net_Sup_Dem_Graph & other) noexcept
+  {
+    Net_Class::swap(other);
+    std::swap(super_source, other.super_source);
+    std::swap(super_sink, other.super_sink);
   }
 
   /// @}
 
-  // Bring base class insert_node overloads into scope
+  // Bring base class insert_node overloads into scope; those below with
+  // an info hide that of Net_Graph, which a call with an info would find
+  // as good
   using Net_Class::insert_node;
 
   /// @name Node Insertion
@@ -275,11 +347,23 @@ public:
    * @return Pointer to the newly created node
    * @throw std::bad_alloc if memory allocation fails
    */
-  Node* insert_node(const Node_Type& node_info, const Flow_Type& supply = 0)
+  Node* insert_node(const Node_Type& node_info, const Flow_Type& supply)
   {
     Node* p = Net_Class::insert_node(node_info);
     p->supply_flow = supply;
     return p;
+  }
+
+  /**
+   * @brief Insert a node with info and no supply nor demand.
+   *
+   * @param node_info Information to store in the node
+   * @return Pointer to the newly created node
+   * @throw std::bad_alloc if memory allocation fails
+   */
+  Node* insert_node(const Node_Type& node_info)
+  {
+    return insert_node(node_info, Flow_Type{0});
   }
 
   /**
@@ -293,6 +377,7 @@ public:
    * @throw std::bad_alloc if memory allocation fails
    */
   Node* insert_node(const Flow_Type& supply)
+    requires (not std::is_same_v<Node_Type, Flow_Type>)
   {
     return insert_node(Node_Type(), supply);
   }
@@ -319,7 +404,11 @@ public:
    * - A super-source connected to all supply nodes (supply_flow > 0)
    * - A super-sink connected from all demand nodes (supply_flow < 0)
    *
-   * The auxiliary network is built in-place on this graph.
+   * If there are both, the other sources and sinks of the network, as a
+   * node without arcs in that supplies nothing, are joined to them with
+   * arcs of capacity 0, so that the network has one source and one sink
+   * for a maximum flow. The auxiliary network is built in-place on this
+   * graph.
    *
    * @return Pointer to this network (with auxiliary structures added)
    * @throw std::domain_error if auxiliary network already exists
@@ -331,8 +420,8 @@ public:
     ah_domain_error_if(exist_aux_net())
       << "Auxiliary net is already computed";
 
-    super_source = insert_node(0);  // auxiliary source
-    super_sink = insert_node(0);    // auxiliary sink
+    super_source = Net_Class::insert_node();  // auxiliary source
+    super_sink = Net_Class::insert_node();    // auxiliary sink
 
     // Connect super-source/sink based on supply/demand values
     for (Node_Iterator<Net_Sup_Dem_Graph> it(*this); it.has_curr(); it.next_ne())
@@ -367,6 +456,22 @@ public:
         this->remove_node(super_sink);
         super_sink = nullptr;
       }
+
+    if (super_source == nullptr or super_sink == nullptr)
+      return this;
+
+    // The other sources and sinks, through arcs of capacity 0
+    DynList<Node*> sources, sinks;
+    for (auto it = this->get_src_nodes().get_it(); it.has_curr(); it.next_ne())
+      if (it.get_curr() != super_source)
+        sources.append(it.get_curr());
+    for (auto it = this->get_sink_nodes().get_it(); it.has_curr(); it.next_ne())
+      if (it.get_curr() != super_sink)
+        sinks.append(it.get_curr());
+    for (auto it = sources.get_it(); it.has_curr(); it.next_ne())
+      this->insert_arc(super_source, it.get_curr(), Flow_Type{0});
+    for (auto it = sinks.get_it(); it.has_curr(); it.next_ne())
+      this->insert_arc(it.get_curr(), super_sink, Flow_Type{0});
 
     return this;
   }
@@ -426,9 +531,10 @@ public:
   /**
    * @brief Check if the current flow is feasible.
    *
-   * A flow is feasible if:
-   * - All supply nodes have out_flow >= supply_flow
-   * - All demand nodes have in_flow >= |supply_flow|
+   * A flow is feasible if every supply node ships its supply and every
+   * demand node receives its demand: if the flow fills the arcs from the
+   * super-source and those to the super-sink. Without a super-source or
+   * without a super-sink, nothing is shipped, and it is not.
    *
    * @return true if flow is feasible, false otherwise
    * @throw std::domain_error if auxiliary network hasn't been computed
@@ -440,20 +546,16 @@ public:
     ah_domain_error_if(not exist_aux_net())
       << "Auxiliary net has not been computed";
 
-    for (Node_Iterator<Net_Sup_Dem_Graph> it(*this); it.has_curr(); it.next_ne())
-      {
-        Node* p = it.get_curr();
-        const Flow_Type& supply_flow = p->supply_flow;
+    if (super_source == nullptr or super_sink == nullptr)
+      return false;
 
-        if (supply_flow == 0)
-          continue;
+    for (typename Net_Class::Node_Arc_Iterator it(super_source); it.has_curr(); it.next_ne())
+      if (Arc* a = it.get_curr(); a->flow != a->cap)
+        return false;  // a supply node does not ship all its supply
 
-        if (supply_flow > 0 and p->out_flow < supply_flow)
-          return false;  // Supply node not providing enough flow
-
-        if (supply_flow < 0 and p->in_flow < -supply_flow)
-          return false;  // Demand node not receiving enough flow
-      }
+    for (typename Net_Class::Node_Arc_Iterator it(super_sink); it.has_curr(); it.next_ne())
+      if (Arc* a = it.get_curr(); a->flow != a->cap)
+        return false;  // a demand node does not receive all its demand
 
     return true;
   }
@@ -461,29 +563,35 @@ public:
   /**
    * @brief Get lists of nodes with unsatisfied supply/demand.
    *
-   * Traverses all nodes and identifies those where the flow doesn't
-   * satisfy the supply or demand requirements.
+   * As is_feasible(), it judges the flow of the auxiliary network: a
+   * supply node that does not ship all its supply is one whose arc from
+   * the super-source the flow does not fill, and a demand node that does
+   * not receive all its demand, one whose arc to the super-sink it does
+   * not fill. The fields `out_flow` and `in_flow` of the nodes, which the
+   * network does not write, do not count.
    *
-   * @param[out] supply_list Nodes with out_flow < supply_flow
-   * @param[out] demand_list Nodes with in_flow < |supply_flow|
+   * @param[out] supply_list Nodes that do not ship all their supply
+   * @param[out] demand_list Nodes that do not receive all their demand
+   * @throw std::domain_error if the auxiliary net has not been computed
    * @throw std::bad_alloc if memory allocation fails for the lists
+   *
+   * @note You must run a max-flow algorithm before calling this method
    */
   void non_feasible_nodes(DynDlist<Node*>& supply_list,
                           DynDlist<Node*>& demand_list)
   {
-    for (Node_Iterator<Net_Sup_Dem_Graph> it(*this); it.has_curr(); it.next_ne())
-      {
-        Node* p = it.get_curr();
-        const Flow_Type& supply_flow = p->supply_flow;
+    ah_domain_error_if(not exist_aux_net())
+      << "Auxiliary net has not been computed";
 
-        if (supply_flow == 0)
-          continue;
+    if (super_source != nullptr)
+      for (typename Net_Class::Node_Arc_Iterator it(super_source); it.has_curr(); it.next_ne())
+        if (Arc* a = it.get_curr(); a->flow != a->cap)
+          supply_list.append(this->get_tgt_node(a));
 
-        if (supply_flow > 0 and p->out_flow < supply_flow)
-          supply_list.append(p);
-        else if (supply_flow < 0 and p->in_flow < -supply_flow)
-          demand_list.append(p);
-      }
+    if (super_sink != nullptr)
+      for (typename Net_Class::Node_Arc_Iterator it(super_sink); it.has_curr(); it.next_ne())
+        if (Arc* a = it.get_curr(); a->flow != a->cap)
+          demand_list.append(this->get_src_node(a));
   }
 
   /// @}

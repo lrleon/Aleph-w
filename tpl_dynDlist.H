@@ -51,6 +51,8 @@
 #include <ah-iterator.H>
 #include <tpl_dnode.H>
 #include <stdexcept>
+#include <type_traits>
+#include <utility>
 #include <ah-errors.H>
 
 namespace Aleph {
@@ -351,29 +353,33 @@ public:
     return get_last_ne();
   }
 
-  /** Remove the first item of the list; return a copy of removed item.
+  /** Remove the first item of the list, which must not be empty.
 
-        @return a copy of removed item
+        The item moves out before its node leaves, so that if its move
+        throws the list keeps it.
+
+        @return the removed item
     */
-  T remove_first_ne() noexcept
+  T remove_first_ne() noexcept(std::is_nothrow_move_constructible_v<T>)
   {
-    Dnode<T> *ptr = this->remove_next();
-    T retVal = ptr->get_data();
-    delete ptr;
+    T retVal = std::move(get_first_ne());
+    delete this->remove_next();
     --num_elem;
 
     return retVal;
   }
 
-  /** Remove the last item of the list; return a copy of removed item.
+  /** Remove the last item of the list, which must not be empty.
 
-      @return a copy of removed item
+      The item moves out before its node leaves, so that if its move throws
+      the list keeps it.
+
+      @return the removed item
   */
-  T remove_last_ne() noexcept
+  T remove_last_ne() noexcept(std::is_nothrow_move_constructible_v<T>)
   {
-    Dnode<T> *ptr = this->remove_prev();
-    T retVal = ptr->get_data();
-    delete ptr;
+    T retVal = std::move(get_last_ne());
+    delete this->remove_prev();
     --num_elem;
 
     return retVal;

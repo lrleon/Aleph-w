@@ -775,9 +775,10 @@ TEST(ZeroOneBFS, ParallelEdgesKeepSingleParentArcMarked)
 }
 
 // ============================================================================
-// TEST 32: Destructor must restore graph state and release NODE_COOKIE storage
+// TEST 32: The painting stays in the graph, as that of Dijkstra_Min_Paths,
+// and points to no data of the object, which may go before the graph
 // ============================================================================
-TEST(ZeroOneBFS, DestructorRestoresGraphState)
+TEST(ZeroOneBFS, PaintingStaysAfterTheObjectGoes)
 {
   GT g;
   auto n0 = g.insert_node(0);
@@ -787,17 +788,38 @@ TEST(ZeroOneBFS, DestructorRestoresGraphState)
   {
     Zero_One_BFS<GT> bfs;
     bfs.paint_min_paths_tree(g, n0);
-
-    EXPECT_NE(NODE_COOKIE(n0), nullptr);
-    EXPECT_NE(NODE_COOKIE(n1), nullptr);
-    EXPECT_TRUE(IS_NODE_VISITED(n0, Aleph::Spanning_Tree));
-    EXPECT_TRUE(IS_NODE_VISITED(n1, Aleph::Spanning_Tree));
-    EXPECT_TRUE(IS_ARC_VISITED(a01, Aleph::Spanning_Tree));
+    EXPECT_EQ(bfs.get_distance(n1), 1);
   }
 
+  // The parents in the cookies, the distances in the counters
   EXPECT_EQ(NODE_COOKIE(n0), nullptr);
-  EXPECT_EQ(NODE_COOKIE(n1), nullptr);
-  EXPECT_FALSE(IS_NODE_VISITED(n0, Aleph::Spanning_Tree));
-  EXPECT_FALSE(IS_NODE_VISITED(n1, Aleph::Spanning_Tree));
-  EXPECT_FALSE(IS_ARC_VISITED(a01, Aleph::Spanning_Tree));
+  EXPECT_EQ(NODE_COOKIE(n1), n0);
+  EXPECT_EQ(NODE_COUNTER(n1), 1);
+  EXPECT_TRUE(IS_NODE_VISITED(n0, Aleph::Spanning_Tree));
+  EXPECT_TRUE(IS_NODE_VISITED(n1, Aleph::Spanning_Tree));
+  EXPECT_TRUE(IS_ARC_VISITED(a01, Aleph::Spanning_Tree));
+}
+
+// ============================================================================
+// TEST 32b: The graph may go before the object: neither its destructor nor
+// a computation on another graph reads it
+// ============================================================================
+TEST(ZeroOneBFS, TheGraphMayGoFirst)
+{
+  Zero_One_BFS<GT> bfs;
+  {
+    GT g;
+    auto n0 = g.insert_node(0);
+    auto n1 = g.insert_node(1);
+    g.insert_arc(n0, n1, 0);
+    bfs.paint_min_paths_tree(g, n0);
+  }
+
+  GT h;
+  auto m0 = h.insert_node(0);
+  auto m1 = h.insert_node(1);
+  h.insert_arc(m0, m1, 1);
+  Path<GT> path(h);
+  EXPECT_EQ(bfs.find_min_path(h, m0, m1, path), 1);
+  EXPECT_EQ(path.size(), 2U);
 }

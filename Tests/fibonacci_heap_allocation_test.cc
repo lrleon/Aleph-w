@@ -34,10 +34,10 @@
  * @brief Extractions from a Fibonacci heap when memory runs out.
  *
  * This program replaces the global operator new, so that a test can make
- * every allocation fail for a while. extract_min() and delete_node() must
- * allocate nothing, but the room that a heap which was moved from lacks;
- * they allocate it before they change the heap, so that without memory the
- * heap is as it was.
+ * every allocation fail for a while. A heap is built without allocating.
+ * extract_min() and delete_node() must allocate nothing, but the room that
+ * a new heap, or one that was moved from, lacks; they allocate it before
+ * they change the heap, so that without memory the heap is as it was.
  */
 
 #include <gtest/gtest.h>
@@ -51,6 +51,8 @@
 #include <vector>
 
 #include <tpl_fibonacci_heap.H>
+#include <tpl_graph.H>
+#include <archeap.H>
 
 using namespace Aleph;
 
@@ -63,6 +65,96 @@ struct FibonacciHeapWithoutMemory : public ::testing::Test
       GTEST_SKIP() << "ThreadSanitizer replaces the global operator new";
   }
 };
+
+// The constructors reserved the room of consolidate(), and they were
+// noexcept: without memory, they ended the program
+TEST_F(FibonacciHeapWithoutMemory, AHeapIsBuiltWithoutMemory)
+{
+  using Heap = Fibonacci_Heap<int>;
+  size_t refused = 0;
+  {
+    No_Memory no_memory;
+    Heap heap;
+    Heap other(std::in_place);
+    refused = refused_allocations;
+  }
+  EXPECT_EQ(refused, 0u);
+
+  Heap heap;
+  for (int key : {4, 1, 3})
+    (void) heap.insert(key);
+  EXPECT_EQ(heap.extract_min(), 1);
+  EXPECT_EQ(heap.extract_min(), 3);
+  EXPECT_EQ(heap.extract_min(), 4);
+}
+
+namespace
+{
+  using Graph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+  using GNode = Graph::Node;
+  using GArc = Graph::Arc;
+
+  struct Arc_Weight
+  {
+    int operator()(GArc * a) const noexcept { return a->get_info(); }
+  };
+
+  // The handle of a node is in its cookie, so that reaching it allocates
+  // nothing
+  struct Cookie_Access
+  {
+    void *& operator()(GNode * p) const noexcept { return NODE_COOKIE(p); }
+  };
+
+  using Arc_Heap = ArcFibonacciHeap<Graph, Arc_Weight, Cookie_Access>;
+} // namespace
+
+// get_min_arc() cleared the handle of the node of the arc before
+// extract_min(), which without memory throws and leaves the heap as it
+// was: the node stayed in the heap without its handle, and putting an arc
+// to it again put a second node in the heap
+TEST_F(FibonacciHeapWithoutMemory, AnArcHeapKeepsItsHandlesWithoutMemory)
+{
+  Graph g;
+  GNode * a = g.insert_node(0);
+  GNode * b = g.insert_node(1);
+  GNode * c = g.insert_node(2);
+  GNode * d = g.insert_node(3);
+  for (GNode * p : {a, b, c, d})
+    NODE_COOKIE(p) = nullptr;
+
+  Arc_Heap heap; // new, so that it lacks the room of consolidate()
+  heap.put_arc(g.insert_arc(a, b, 5), b);
+  heap.put_arc(g.insert_arc(a, c, 3), c);
+  heap.put_arc(g.insert_arc(a, d, 4), d);
+
+  bool threw = false;
+  size_t refused = 0;
+  {
+    No_Memory no_memory;
+    try
+      {
+        (void) heap.get_min_arc(); // that of c
+      }
+    catch (const std::bad_alloc &)
+      {
+        threw = true;
+      }
+    refused = refused_allocations;
+  }
+  ASSERT_TRUE(threw);
+  EXPECT_GT(refused, 0u);
+  EXPECT_NE(NODE_COOKIE(c), nullptr); // c keeps its handle
+
+  // a heavier arc to c changes nothing
+  heap.put_arc(g.insert_arc(b, c, 6), c);
+  std::vector<int> weights;
+  while (not heap.is_empty())
+    weights.push_back(heap.get_min_arc()->get_info());
+  EXPECT_EQ(weights, (std::vector<int>{3, 4, 5}));
+  for (GNode * p : {a, b, c, d})
+    EXPECT_EQ(NODE_COOKIE(p), nullptr);
+}
 
 // consolidate() kept the roots in a vector that it allocated on each call,
 // once extract_min() or delete_node() had taken their node out of the heap

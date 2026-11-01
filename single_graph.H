@@ -84,10 +84,8 @@ public:
     for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
       {
 	GT_Node * q = it.get_tgt_node_ne();
-	if (nodes.exist(q))
+	if (q == p or nodes.insert(q) == nullptr) // a loop, or q twice
 	  return false;
-	else
-	  nodes.insert(p);
       }
     
     return true;

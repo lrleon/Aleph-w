@@ -89,6 +89,12 @@ namespace Aleph
           freed and the graph can be used again; a tree being built keeps
           the part already built.
 
+    @note With an integral `Distance_Type`, a tentative sum beyond `max()`
+          does not throw by itself, since no distance that fits goes
+          through it: `std::overflow_error` comes only when the distance
+          to a node that the start reaches, or to the end of a partial
+          painting, does not fit.
+
     @warning This class is **not thread-safe**. Concurrent calls from
              multiple threads on the same instance require external
              synchronization.
@@ -127,7 +133,6 @@ class Dijkstra_Min_Paths
 #define TREENODE(p) (static_cast<Tree_Node_Info*>(NODE_COOKIE(p))->tree_node)
 #define ACC(p) (DNassert(p)->dist)
 #define HEAPNODE(p) (DNassert(p)->heap_node)
-#define PARENT(p) (DNassert(p)->ret_node)
 #define DAassert(p) (static_cast<Arc_Info*>(ARC_COOKIE(p)))
 #define ARC_DIST(p) (this->distance(p))
 #define TREEARC(p) (static_cast<Tree_Arc_Info*>(ARC_COOKIE(p))->tree_arc)
@@ -239,10 +244,13 @@ public:
             if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
               continue;
 
-            POT(arc) = this->checked_add(acc, ARC_DIST(arc));
-            heap.put_arc(arc, tgt);
+            if (this->add_if_fits(acc, ARC_DIST(arc), POT(arc)))
+              heap.put_arc(arc, tgt);
           }
       }
+
+    if (this->beyond_max)
+      this->check_beyond_max(g, start);
 
     return ret;
   }
@@ -327,10 +335,13 @@ public:
             if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
               continue;
 
-            POT(arc) = this->checked_add(acc, ARC_DIST(arc));
-            heap.put_arc(arc, tgt);
+            if (this->add_if_fits(acc, ARC_DIST(arc), POT(arc)))
+              heap.put_arc(arc, tgt);
           }
       }
+
+    if (this->beyond_max and not IS_NODE_VISITED(end, Aleph::Spanning_Tree))
+      this->check_beyond_max(g, start, end);
   }
 
   /** Paints on graph g the partial shortest paths tree starting from
@@ -340,6 +351,7 @@ public:
       @param[in] start The starting node for shortest paths.
       @param[in] end The destination node.
       @return true if end was found in the spanning tree, false otherwise.
+      From a node to itself it is found at once: the path of no arc.
       @throw bad_alloc If there is not enough memory.
       @throw domain_error If start or end is nullptr, or if g is empty.
    */
@@ -357,6 +369,12 @@ public:
 
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
     ACC(start) = 0;
+
+    if (start == end) // the path of no arc
+      {
+        painted = true;
+        return true;
+      }
 
     for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
       {
@@ -387,7 +405,7 @@ public:
           std::swap(src, tgt);
 
         NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
-        PARENT(tgt) = src;
+        DNassert(tgt)->ret_node = src;
 
         ++tn;
 
@@ -410,10 +428,13 @@ public:
             if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
               continue;
 
-            POT(a) = this->checked_add(acc, ARC_DIST(a));
-            heap.put_arc(a, t);
+            if (this->add_if_fits(acc, ARC_DIST(a), POT(a)))
+              heap.put_arc(a, t);
           }
       }
+
+    if (this->beyond_max and not ret_val)
+      this->check_beyond_max(g, start, end);
 
     painted = true;
 
@@ -468,7 +489,7 @@ public:
           std::swap(src, tgt);
 
         NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
-        PARENT(tgt) = src;
+        DNassert(tgt)->ret_node = src;
 
         ++tn;
 
@@ -485,10 +506,13 @@ public:
             if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
               continue;
 
-            POT(a) = this->checked_add(acc, ARC_DIST(a));
-            heap.put_arc(a, t);
+            if (this->add_if_fits(acc, ARC_DIST(a), POT(a)))
+              heap.put_arc(a, t);
           }
       }
+
+    if (this->beyond_max)
+      this->check_beyond_max(g, start);
 
     painted = true;
   }
@@ -540,7 +564,6 @@ public:
   }
 
 #undef DNassert
-#undef PARENT
 #undef TREENODE
 #undef ACC
 #undef HEAPNODE

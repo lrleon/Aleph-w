@@ -76,7 +76,9 @@
  *  ## Complexity
  *
  *  - Normalization: O(E log E)
- *  - LR planarity test on simplified graph: O(V + E)
+ *  - LR planarity test on simplified graph: O(V + E log D), for the largest
+ *    degree D: the edges that leave each node are sorted by their nesting
+ *    depth
  *  - Optional embedding:
  *    - LR embedding: O(V + E), plus the sort of the edges that leave each
  *      node and an O(E log E) check of its faces
@@ -1145,22 +1147,40 @@ class LR_Planarity_Checker
       }
   }
 
+  // Sorts E stably by key: by insertion when it is short or sorted, and
+  // else with std::stable_sort, which gives the same order; insertion alone
+  // costs the square of the size of E when the keys come in decreasing order
+  template <class Key>
+  static void sort_by(Array<size_t> &E, const Key &key)
+  {
+    const size_t n = E.size();
+    if (n < 2)
+      return;
+    size_t *const a = &E.base();
+    auto less = [&key](const size_t x, const size_t y) { return key[x] < key[y]; };
+    if (n > 32 and not std::is_sorted(a, a + n, less))
+      {
+        std::stable_sort(a, a + n, less);
+        return;
+      }
+    for (size_t i = 1; i < n; ++i)
+      {
+        const size_t k = a[i];
+        size_t j = i;
+        while (j > 0 and key[k] < key[a[j - 1]])
+          {
+            a[j] = a[j - 1];
+            --j;
+          }
+        a[j] = k;
+      }
+  }
+
   // Sorts the child edges of v by their nesting depth, as the test of v
   // takes them
   void sort_child_edges(const size_t v)
   {
-    auto &E = child_edges_[v];
-    for (size_t i = 1; i < E.size(); ++i)
-      {
-        const size_t key = E[i];
-        size_t j = i;
-        while (j > 0 and nesting_depth_[key] < nesting_depth_[E[j - 1]])
-          {
-            E[j] = E[j - 1];
-            --j;
-          }
-        E[j] = key;
-      }
+    sort_by(child_edges_[v], nesting_depth_);
   }
 
   // The work on the child edge ei of v, whose first child edge is first,
@@ -2216,17 +2236,7 @@ class LR_Planarity_Checker
     for (size_t v = 0; v < num_nodes; ++v)
       {
         auto &E = child_edges_[v];
-        for (size_t i = 1; i < E.size(); ++i)
-          {
-            const size_t key = E[i];
-            size_t j = i;
-            while (j > 0 and signed_depth[key] < signed_depth[E[j - 1]])
-              {
-                E[j] = E[j - 1];
-                --j;
-              }
-            E[j] = key;
-          }
+        sort_by(E, signed_depth);
 
         size_t prev = Null_Edge;
         for (size_t i = 0; i < E.size(); ++i)
@@ -2879,7 +2889,8 @@ public:
  *        - Parallel arcs are collapsed into a single edge.
  *
  *  \par Complexity:
- *  Time \f$O(V + E)\f$ for the core test.
+ *  Time \f$O(V + E \log D)\f$ for the core test, for the largest degree
+ *  \f$D\f$: the edges that leave each node are sorted.
  *  Advanced outputs may increase this (see \ref Planarity_Test_Options).
  *
  *  @ingroup Graphs

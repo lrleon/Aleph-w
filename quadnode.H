@@ -55,7 +55,8 @@ using namespace Aleph;
 # define NE_CHILD(p) ((p)->get_ne_child())
 # define SW_CHILD(p) ((p)->get_sw_child())
 # define SE_CHILD(p) ((p)->get_se_child())
-# define COLOR(p) ((p)->get_color())
+// As that of rbNode.H, so that the two can be included together
+# define COLOR(p) ((p)->getColor())
 # define LEVEL(p) ((p)->get_level())
 
 /** @brief Node for QuadTree spatial data structure.
@@ -371,8 +372,11 @@ public:
   /// @brief Get reference to SE child (for reading/writing via SE_CHILD macro).
   [[nodiscard]] QuadNode *& get_se_child() noexcept { return se_child; }
 
-  /// @brief Get reference to color (for reading/writing via COLOR macro).
+  /// @brief Get reference to color.
   [[nodiscard]] Color & get_color() noexcept { return color; }
+
+  /// @brief Get reference to color (for reading/writing via COLOR macro).
+  [[nodiscard]] Color & getColor() noexcept { return color; }
 
   /// @brief Get reference to level (for reading/writing via LEVEL macro).
   [[nodiscard]] unsigned long & get_level() noexcept { return level; }

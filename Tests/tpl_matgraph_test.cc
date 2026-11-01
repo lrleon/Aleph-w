@@ -575,6 +575,52 @@ TEST_F(BitMatGraphTest, SetListGraph)
   EXPECT_EQ(mat.get_num_nodes(), 4u);
 }
 
+// The bits are those of the arcs of the graph alone: none is kept from the
+// graph that the matrix had, of the same order
+TEST_F(BitMatGraphTest, AnotherGraphKeepsNoBitOfTheFormer)
+{
+  IntGraph h;
+  for (int i = 0; i < 4; ++i)
+    h.insert_node(i);
+
+  auto bits_set = [] (Bit_Mat_Graph<IntGraph> & mat)
+    {
+      int count = 0;
+      for (long i = 0; i < 4; ++i)
+        for (long j = 0; j < 4; ++j)
+          count += static_cast<int>(mat(i, j));
+      return count;
+    };
+
+  Bit_Mat_Graph<IntGraph> mat(g);
+  ASSERT_EQ(bits_set(mat), 6); // three arcs, both ways
+  mat.set_list_graph(h);
+  EXPECT_EQ(bits_set(mat), 0);
+
+  Bit_Mat_Graph<IntGraph> assigned(g);
+  assigned = h;
+  EXPECT_EQ(bits_set(assigned), 0);
+}
+
+// Only the arcs that the filter object shows set a bit
+TEST_F(BitMatGraphTest, TheFilterObjectChoosesTheArcs)
+{
+  struct Hide_Info
+  {
+    int hidden = 0;
+    bool operator () (IntGraph::Arc * a) const { return a->get_info() != hidden; }
+  };
+
+  Bit_Mat_Graph<IntGraph, Hide_Info> mat(g, Hide_Info{20});
+  EXPECT_EQ(static_cast<int>(mat(n0, n1)), 1);
+  EXPECT_EQ(static_cast<int>(mat(n1, n2)), 0);
+  EXPECT_EQ(static_cast<int>(mat(n1, n3)), 1);
+
+  mat.set_list_graph(g, Hide_Info{10});
+  EXPECT_EQ(static_cast<int>(mat(n0, n1)), 0);
+  EXPECT_EQ(static_cast<int>(mat(n1, n2)), 1);
+}
+
 TEST_F(BitMatGraphTest, CopyConstructor)
 {
   Bit_Mat_Graph<IntGraph> mat1(g);

@@ -679,28 +679,6 @@ namespace Aleph
     /// @see ALEPH_GRAPH_COPY_MOVE_CTORS
     ALEPH_GRAPH_COPY_MOVE_CTORS(Array_Graph)
 
-  private:
-    template <class Cmp>
-    struct Cmp_Arc
-    {
-      Cmp & cmp;
-
-      Cmp_Arc(Cmp && __cmp = Cmp())
-        : cmp(__cmp)
-      { /* empty */
-      }
-
-      Cmp_Arc(Cmp & __cmp)
-        : cmp(__cmp)
-      { /* empty */
-      }
-
-      bool operator ()(Arc *a1, Arc *a2) const noexcept
-      {
-        return cmp(a1, a2);
-      }
-    };
-
     // sort_nodes() and sort_arcs() are inherited from GraphCommon via CRTP
     // They use the get_node_dlink() and get_arc_dlink() accessors defined above
   };

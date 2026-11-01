@@ -442,6 +442,9 @@ public:
  
   Slinknc * get_first() const noexcept { return get_head(); }
 
+  /// Return the first item of the list; the list must not be empty
+  Slinknc * get_first_ne() const noexcept { return head; }
+
       /// Return the last item of the list (`nullptr` if the list is empty)
   Slinknc * get_last() const noexcept { return get_tail(); }
 
@@ -723,9 +726,9 @@ public:
       `r`. After operation `this` becomes empty. The order of items is
       preserved through `l` and `r`.
 
-      \param[out] l list containg the first n/2 first items
-      \param[out] r list containg the last n/2 first items
-      \return the total of items that has `this`
+      \param[out] l list containg the first n - n/2 items
+      \param[out] r list containg the last n/2 items
+      \return the number of items that `this` had
 
     */
   size_t split_list(HTList & l, HTList & r) noexcept
@@ -741,7 +744,7 @@ public:
         return 1;
       }
 
-    size_t count = 0;
+    size_t count = 1; // q, which goes from the first item to the last
     Slinknc * p = head;
     Slinknc * q = head;
     while (q != tail and q != nullptr)

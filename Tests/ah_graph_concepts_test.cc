@@ -42,6 +42,23 @@ namespace
     int operator()(LG::Arc * a) const { return a->get_info(); }
   };
 
+  // A filter that can be moved and not copied, which no algorithm can
+  // take: each iterator, and each frame of a search, keeps a copy of it
+  struct Move_Only_Filter
+  {
+    Move_Only_Filter() = default;
+    Move_Only_Filter(Move_Only_Filter &&) = default;
+    Move_Only_Filter(const Move_Only_Filter &) = delete;
+    bool operator()(LG::Arc *) const { return true; }
+  };
+
+  // A filter that can be copied, and neither assigned nor built by default
+  struct Reference_Filter
+  {
+    const int & limit;
+    bool operator()(LG::Arc * a) const { return a->get_info() < limit; }
+  };
+
   struct NonArithmeticCost
   {
     struct Cost
@@ -64,6 +81,9 @@ static_assert(ArcFilter<Dft_Show_Arc<LG>, LG>);
 static_assert(NodeFilter<Dft_Show_Node<LG>, LG>);
 static_assert(not ArcFilter<Dft_Show_Node<LG>, LG>);
 static_assert(not NodeFilter<Dft_Show_Arc<LG>, LG>);
+// An arc filter must be copied, and need not be assigned or built by default
+static_assert(not ArcFilter<Move_Only_Filter, LG>);
+static_assert(ArcFilter<Reference_Filter, LG>);
 
 static_assert(ArcDistance<Dft_Dist<LG>, LG>);
 static_assert(not ArcDistance<PlainWeight, LG>);

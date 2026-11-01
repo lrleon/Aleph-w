@@ -577,7 +577,8 @@ public:
     return topology_.root_id();
   }
 
-  /** @brief Returns the number of levels in the jump table (@f$\lceil \log_2 n \rceil@f$). */
+  /** @brief Returns the number of levels in the jump table:
+   *  @f$\lfloor \log_2 n \rfloor + 1@f$, or 0 if the tree is empty. */
   [[nodiscard]] size_t num_levels() const noexcept
   {
     return levels_;

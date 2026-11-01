@@ -180,6 +180,7 @@ class Tarjan_Connected_Components
 
   long df_count_ = 0;
   mutable size_t n_ = 0;  // number of nodes in the graph
+  size_t num_blocks_ = 0; // that scc_by_blocks() built; blk_list.size() would count them
 
   Path<GT> *path_ptr_ = nullptr;
 
@@ -194,13 +195,11 @@ class Tarjan_Connected_Components
     typename GT::Node *v;
     Itor<GT, SA> it;
 
-    [[gnu::always_inline, gnu::flatten]]
+    [[gnu::always_inline]] ALEPH_FLATTEN
     Frame(typename GT::Node *p, const SA &sa) : v(p), it(p, sa) {}
 
-    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
   };
-
-  Dfs_Stack<Frame> frames_; // of search(), which so reuses their room
 
 public:
   /// Tarjan instances should not be copied (they hold internal traversal state)
@@ -218,7 +217,8 @@ public:
       @param[in] __sa Arc filter functor used by the internal iterator.
                       Defaults to Dft_Show_Arc<GT> which shows all arcs.
    */
-  Tarjan_Connected_Components(SA __sa = SA()) noexcept : sa_(std::move(__sa))
+  Tarjan_Connected_Components(SA __sa = SA())
+    noexcept(std::is_nothrow_move_constructible_v<SA>) : sa_(std::move(__sa))
   { /* empty */
   }
 
@@ -254,7 +254,7 @@ private:
    *
    *  @param p The node to initialize and push.
    */
-  [[gnu::always_inline, gnu::flatten]]
+  [[gnu::always_inline]] ALEPH_FLATTEN
   void init_node_and_push_in_stack(typename GT::Node *p)
   {
     assert(not is_node_in_stack(p));
@@ -268,7 +268,7 @@ private:
   /** @brief Pop a node from the traversal stack.
    *  @return The popped node.
    */
-  [[gnu::always_inline, gnu::flatten]]
+  [[gnu::always_inline]] ALEPH_FLATTEN
   typename GT::Node *pop_from_stack()
   {
     auto ret = stack_.pop();
@@ -284,7 +284,7 @@ private:
   // stored once: a store in the loop could be to the iterator, which would
   // have to be read again.
   template <bool Loops>
-  [[gnu::always_inline, gnu::flatten]]
+  [[gnu::always_inline]] ALEPH_FLATTEN
   typename GT::Node *next_target(Frame &f) noexcept
   {
     auto v = f.v;
@@ -337,43 +337,46 @@ private:
     // a loop that does not stop the search lowers nothing: df(v) >= low(v)
     constexpr bool loops = not std::is_null_pointer_v<On_Loop>;
 
-    frames_.clear(); // a search that stopped may have left some
-
     // The node being visited keeps its iterator in here until it visits a
-    // node; then it waits in frames_, where it goes on when it comes back
+    // node; then it waits in frames, where it goes on when it comes back.
+    // here is optional, so that the frame of each node is built in its
+    // place: a frame keeps the filter, which may not be assignable. The
+    // stack is of this search, so that a search that stops early leaves no
+    // frame, and the object keeps no room, as a member would.
+    Dfs_Stack<Frame> frames;
     init_node_and_push_in_stack(root);
-    Frame here(root, sa_);
+    std::optional<Frame> here(std::in_place, root, sa_);
     while (true)
       {
-        auto w = next_target<loops>(here);
+        auto w = next_target<loops>(*here);
         if constexpr (loops)
-          if (w == here.v)
+          if (w == here->v)
             {
               if (on_loop(w))
                 return true;
-              here.next_arc();
+              here->next_arc();
               continue;
             }
 
         if (w != nullptr) // the iterator stays on the arc to w, as in a recursion
           {
-            frames_.push(std::move(here));
+            frames.push(std::move(*here));
             init_node_and_push_in_stack(w);
-            here = Frame(w, sa_);
+            here.emplace(w, sa_);
             continue;
           }
 
-        // here.v is done; finish() may reuse the cookie that holds its low
-        long v_low = low<GT>(here.v);
-        if (finish(here.v))
+        // here->v is done; finish() may reuse the cookie that holds its low
+        long v_low = low<GT>(here->v);
+        if (finish(here->v))
           return true;
 
         while (true) // back to the nodes that wait
           {
-            if (frames_.is_empty())
+            if (frames.is_empty())
               return false;
 
-            Frame &f = frames_.top(); // the node from which the last one was visited
+            Frame &f = frames.top(); // the node from which the last one was visited
             low<GT>(f.v) = std::min(low<GT>(f.v), v_low);
             do
               {
@@ -388,13 +391,13 @@ private:
             if (w != nullptr)
               {
                 init_node_and_push_in_stack(w);
-                here = Frame(w, sa_);
+                here.emplace(w, sa_);
                 break;
               }
 
             v_low = low<GT>(f.v);
             auto v = f.v;
-            frames_.pop();
+            frames.pop();
             if (finish(v))
               return true;
           }
@@ -427,7 +430,7 @@ private:
   // other work done once per block, so that search() stays small.
   [[gnu::noinline]] void pop_block(typename GT::Node *v, DynList<GT> &blk_list)
   {
-    const size_t blk_idx = blk_list.size();  // capture by value, not reference
+    const size_t blk_idx = num_blocks_++;
     GT &blk = blk_list.append(GT());
 
     while (true)  // remove block from stack until v is removed
@@ -693,6 +696,9 @@ public:
       The algorithm performs a single depth-first search and marks progress
       with the Aleph::Depth_First and Aleph::Min node bits.
 
+      The blocks and the arcs of g go after those that the lists may
+      already hold, which do not change.
+
       @param[in] g the digraph whose SCCs are computed.
       @param[out] blk_list list of mapped subdigraphs, one per SCC of g.
       @param[out] arc_list arcs connecting distinct SCCs (inter-block arcs).
@@ -703,14 +709,19 @@ public:
   {
     init_tarjan(g);
 
+    const size_t held = blk_list.size(); // the blocks that it holds, which stay
+    num_blocks_ = 0;
     for (typename GT::Node_Iterator it(g); df_count_ < n_; it.next_ne())
       if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
         scc_by_blocks(v, blk_list);
 
     assert(stack_.is_empty());
 
-    // traverse each partial subgraph and add its arcs
-    for (typename DynList<GT>::Iterator i(blk_list); i.has_curr(); i.next_ne())
+    // traverse each partial subgraph of g and add its arcs
+    typename DynList<GT>::Iterator i(blk_list);
+    for (size_t k = 0; k < held; ++k)
+      i.next_ne();
+    for (; i.has_curr(); i.next_ne())
       {  // traverse all nodes of the block
         GT &blk = i.get_curr();
         for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next_ne())

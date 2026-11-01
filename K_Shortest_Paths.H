@@ -540,6 +540,14 @@ namespace Aleph
       Node * rev_target = orig_to_rev.find(target);
       reverse_dijkstra.paint_min_paths_tree(reverse_graph, rev_target);
 
+      // Every distance first: the arc toward the next node is chosen with
+      // the distance of that node, which may come later
+      for (Node_Iterator<GT> rit(reverse_graph); rit.has_curr(); rit.next_ne())
+        if (Node * rev_node = rit.get_curr_ne();
+            IS_NODE_VISITED(rev_node, Aleph::Spanning_Tree))
+          index.dist_to_target.find(rev_to_orig.find(rev_node)) =
+            reverse_dijkstra.get_distance(rev_node);
+
       for (Node_Iterator<GT> rit(reverse_graph); rit.has_curr(); rit.next_ne())
         {
           Node * rev_node = rit.get_curr_ne();
@@ -547,8 +555,6 @@ namespace Aleph
 
           if (not IS_NODE_VISITED(rev_node, Aleph::Spanning_Tree))
             continue;
-
-          index.dist_to_target.find(orig_node) = reverse_dijkstra.get_distance(rev_node);
 
           Node * rev_parent = static_cast<Node *>(NODE_COOKIE(rev_node));
           if (rev_parent == nullptr)
@@ -795,10 +801,12 @@ namespace Aleph
       Cost_Type prefix_cost = Cost_Type{0};
       const size_t arc_count = base_snapshot.arcs.size();
 
-      for (size_t spur_index = 0; spur_index < arc_count; ++spur_index)
+      // At every node of the path, its last one too: a walk may go on from
+      // the target and come back to it
+      for (size_t spur_index = 0; spur_index <= arc_count; ++spur_index)
         {
           Node * spur_node = base_snapshot.nodes[spur_index];
-          Arc * base_arc = base_snapshot.arcs[spur_index];
+          Arc * base_arc = spur_index < arc_count ? base_snapshot.arcs[spur_index] : nullptr;
 
           for (Node_Arc_Iterator<GT, SA> it(spur_node, sa); it.has_curr(); it.next_ne())
             {
@@ -839,9 +847,10 @@ namespace Aleph
                 candidates.append(candidate);
             }
 
-          prefix_cost = shortest_path_detail::checked_add(
-              prefix_cost,
-              distance(base_arc));
+          if (base_arc != nullptr)
+            prefix_cost = shortest_path_detail::checked_add(
+                prefix_cost,
+                distance(base_arc));
         }
     }
   } // namespace k_shortest_paths_detail
@@ -1019,7 +1028,8 @@ namespace Aleph
   /** @brief Compute k shortest general (loopy) paths.
    *
    *  Returns up to `k` paths (allowing cycles) ordered by non-decreasing total cost.
-   *  If fewer than `k` paths exist, all available paths are returned.
+   *  If fewer than `k` paths exist, all available paths are returned. A path
+   *  may go through `target` before it ends there.
    *
    *  This algorithm uses an Eppstein-style approach: it builds a shortest path tree
    *  towards the target in the reversed graph, then explores path deviations

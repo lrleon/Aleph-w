@@ -79,21 +79,22 @@
  *
  *  @section no_else The conditional macros take no else
  *  Every `_if` and `_unless` macro, their `_constexpr` forms included,
- *  expands to a loop whose statement runs at most once: a `for` of one
- *  iteration, a `while` whose statement throws for the `_constexpr` forms,
- *  and `do { ... } while (false)` for the forms of `ah_bad_alloc`. A loop
- *  takes no `else`, so an `else` written after an invocation belongs to the
- *  `if` around it, and one with no `if` around it does not compile:
+ *  expands to a loop whose statement runs at most once: a `while` whose
+ *  statement throws, a `for` of one iteration for the warnings, and
+ *  `do { ... } while (false)` for the forms of `ah_bad_alloc`. A loop takes
+ *  no `else`, so an `else` written after an invocation belongs to the `if`
+ *  around it, and one with no `if` around it does not compile:
  *  @code
  *  if (checked)
  *    ah_domain_error_if(x < 0) << "x is negative";
  *  else       // runs when not checked
  *    use(x);
  *  @endcode
- *  The condition is evaluated once; it must be an expression, not a
- *  declaration as in `if (auto e = f())`. The `_constexpr` forms require a
- *  constant condition, and their message is compiled even where the
- *  condition is false, so it must compile for every instantiation. A
+ *  The condition is evaluated once, and it converts to bool as that of an
+ *  `if` does, so a scoped enumeration does not; it must be an expression,
+ *  not a declaration as in `if (auto e = f())`. The `_constexpr` forms
+ *  require a constant condition, and their message is compiled even where
+ *  the condition is false, so it must compile for every instantiation. A
  *  message whose last `<<` does not give back a stream does not compile.
  *
  *  @author Leandro Rabindranath Leon
@@ -156,12 +157,20 @@ namespace Aleph
 // WARNING MACROS
 // ============================================================================
 
-// The variable of the loop of a conditional macro has the line of the call
-// in its name, so that it does not hide a name of the caller in C or in out
+// The variable of the loop of a warning has the line of the call in its
+// name, so that it does not hide a name of the caller in C or in out
 #define AH_ERRORS_JOIN_(a, b) a ## b
 #define AH_ERRORS_JOIN(a, b) AH_ERRORS_JOIN_(a, b)
 #define AH_WARNING_ONCE AH_ERRORS_JOIN(ah_warning_once_, __LINE__)
-#define AH_ERROR_ONCE AH_ERRORS_JOIN(ah_error_once_, __LINE__)
+
+// The statement of the while of a macro that throws is unlikely. Clang warns
+// that [[unlikely]] has no effect on a loop whose condition is constant, as
+// ah_domain_error_if(true), and it gives the same code without it
+# if defined(__clang__)
+#   define AH_ERROR_UNLIKELY
+# else
+#   define AH_ERROR_UNLIKELY [[unlikely]]
+# endif
 
 /** @def ah_warning_unless(out, C)
  *  @brief Emits a warning to a stream if the condition does NOT hold
@@ -193,7 +202,7 @@ namespace Aleph
 
  */
 #define ah_warning_if(out, C)                                           \
-  for (bool AH_WARNING_ONCE = static_cast<bool>(C); AH_WARNING_ONCE;    \
+  for (bool AH_WARNING_ONCE = (C) ? true : false; AH_WARNING_ONCE;      \
        AH_WARNING_ONCE = false)                                         \
     [[unlikely]](out) << "WARNING (" << __FILE__ << ":" << __LINE__ << ") | "
 
@@ -228,9 +237,8 @@ namespace Aleph
 
  */
 #define ah_range_error_unless(C)                                        \
-  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE;                     \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::range_error>() <<=         \
+  while (not (C)) AH_ERROR_UNLIKELY                                     \
+    Aleph::ExceptionBuilder<std::range_error>() <<=                     \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_range_error_if(C)
@@ -245,9 +253,8 @@ namespace Aleph
 
  */
 #define ah_range_error_if(C)                                            \
-  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE;        \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::range_error>() <<=         \
+  while ((C) ? true : false) AH_ERROR_UNLIKELY                          \
+    Aleph::ExceptionBuilder<std::range_error>() <<=                     \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_range_error()
@@ -266,7 +273,7 @@ namespace Aleph
     std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_range_error_if_constexpr(C)                                  \
-  while (std::bool_constant<static_cast<bool>(C)>::value)               \
+  while (std::bool_constant<(C) ? true : false>::value)                 \
     ah_range_error()
 
 #define ah_range_error_unless_constexpr(C)                              \
@@ -289,9 +296,8 @@ namespace Aleph
 
  */
 #define ah_runtime_error_unless(C)                                      \
-  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE;                     \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::runtime_error>() <<=       \
+  while (not (C)) AH_ERROR_UNLIKELY                                     \
+    Aleph::ExceptionBuilder<std::runtime_error>() <<=                   \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_runtime_error_if(C)
@@ -306,9 +312,8 @@ namespace Aleph
 
  */
 #define ah_runtime_error_if(C)                                          \
-  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE;        \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::runtime_error>() <<=       \
+  while ((C) ? true : false) AH_ERROR_UNLIKELY                          \
+    Aleph::ExceptionBuilder<std::runtime_error>() <<=                   \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_runtime_error()
@@ -327,7 +332,7 @@ namespace Aleph
     std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_runtime_error_if_constexpr(C)                                \
-  while (std::bool_constant<static_cast<bool>(C)>::value)               \
+  while (std::bool_constant<(C) ? true : false>::value)                 \
     ah_runtime_error()
 
 #define ah_runtime_error_unless_constexpr(C)                            \
@@ -350,9 +355,8 @@ namespace Aleph
 
  */
 #define ah_logic_error_unless(C)                                        \
-  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE;                     \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::logic_error>() <<=         \
+  while (not (C)) AH_ERROR_UNLIKELY                                     \
+    Aleph::ExceptionBuilder<std::logic_error>() <<=                     \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_logic_error_if(C)
@@ -367,9 +371,8 @@ namespace Aleph
 
  */
 #define ah_logic_error_if(C)                                            \
-  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE;        \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::logic_error>() <<=         \
+  while ((C) ? true : false) AH_ERROR_UNLIKELY                          \
+    Aleph::ExceptionBuilder<std::logic_error>() <<=                     \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_logic_error()
@@ -388,7 +391,7 @@ namespace Aleph
     std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_logic_error_if_constexpr(C)                                  \
-  while (std::bool_constant<static_cast<bool>(C)>::value)               \
+  while (std::bool_constant<(C) ? true : false>::value)                 \
     ah_logic_error()
 
 #define ah_logic_error_unless_constexpr(C)                              \
@@ -411,9 +414,8 @@ namespace Aleph
 
  */
 #define ah_underflow_error_if(C)                                        \
-  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE;        \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::underflow_error>() <<=     \
+  while ((C) ? true : false) AH_ERROR_UNLIKELY                          \
+    Aleph::ExceptionBuilder<std::underflow_error>() <<=                 \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_underflow_error_unless(C)
@@ -428,9 +430,8 @@ namespace Aleph
 
  */
 #define ah_underflow_error_unless(C)                                    \
-  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE;                     \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::underflow_error>() <<=     \
+  while (not (C)) AH_ERROR_UNLIKELY                                     \
+    Aleph::ExceptionBuilder<std::underflow_error>() <<=                 \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_underflow_error()
@@ -449,7 +450,7 @@ namespace Aleph
     std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_underflow_error_if_constexpr(C)                              \
-  while (std::bool_constant<static_cast<bool>(C)>::value)               \
+  while (std::bool_constant<(C) ? true : false>::value)                 \
     ah_underflow_error()
 
 #define ah_underflow_error_unless_constexpr(C)                          \
@@ -473,8 +474,9 @@ namespace Aleph
  *
  *  @ingroup Utilities
  */
-#define ah_bad_alloc_if(C)                                               \
-  do { if (C) [[unlikely]] throw std::bad_alloc(); } while (false)
+#define ah_bad_alloc_if(C)                                              \
+  do { if ((C) ? true : false) [[unlikely]] throw std::bad_alloc(); }   \
+  while (false)
 
 /** @def ah_bad_alloc_unless(C)
  *  @brief Throws std::bad_alloc if condition does NOT hold
@@ -506,9 +508,8 @@ namespace Aleph
 
  */
 #define ah_overflow_error_if(C)                                         \
-  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE;        \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::overflow_error>() <<=      \
+  while ((C) ? true : false) AH_ERROR_UNLIKELY                          \
+    Aleph::ExceptionBuilder<std::overflow_error>() <<=                  \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_overflow_error_unless(C)
@@ -523,9 +524,8 @@ namespace Aleph
 
  */
 #define ah_overflow_error_unless(C)                                     \
-  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE;                     \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::overflow_error>() <<=      \
+  while (not (C)) AH_ERROR_UNLIKELY                                     \
+    Aleph::ExceptionBuilder<std::overflow_error>() <<=                  \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_overflow_error()
@@ -544,7 +544,7 @@ namespace Aleph
     std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_overflow_error_if_constexpr(C)                               \
-  while (std::bool_constant<static_cast<bool>(C)>::value)               \
+  while (std::bool_constant<(C) ? true : false>::value)                 \
     ah_overflow_error()
 
 #define ah_overflow_error_unless_constexpr(C)                           \
@@ -567,9 +567,8 @@ namespace Aleph
 
  */
 #define ah_domain_error_if(C)                                           \
-  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE;        \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::domain_error>() <<=        \
+  while ((C) ? true : false) AH_ERROR_UNLIKELY                          \
+    Aleph::ExceptionBuilder<std::domain_error>() <<=                    \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_domain_error_unless(C)
@@ -584,9 +583,8 @@ namespace Aleph
 
  */
 #define ah_domain_error_unless(C)                                       \
-  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE;                     \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::domain_error>() <<=        \
+  while (not (C)) AH_ERROR_UNLIKELY                                     \
+    Aleph::ExceptionBuilder<std::domain_error>() <<=                    \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_domain_error()
@@ -604,7 +602,7 @@ namespace Aleph
   Aleph::ExceptionBuilder<std::domain_error>() <<=                      \
     std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 #define ah_domain_error_if_constexpr(C)                                 \
-  while (std::bool_constant<static_cast<bool>(C)>::value)               \
+  while (std::bool_constant<(C) ? true : false>::value)                 \
     ah_domain_error()
 #define ah_domain_error_unless_constexpr(C)                             \
   while (std::bool_constant<not (C)>::value)                            \
@@ -626,9 +624,8 @@ namespace Aleph
 
  */
 #define ah_out_of_range_error_if(C)                                     \
-  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE;        \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::out_of_range>() <<=        \
+  while ((C) ? true : false) AH_ERROR_UNLIKELY                          \
+    Aleph::ExceptionBuilder<std::out_of_range>() <<=                    \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_out_of_range_error_unless(C)
@@ -643,9 +640,8 @@ namespace Aleph
 
  */
 #define ah_out_of_range_error_unless(C)                                 \
-  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE;                     \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::out_of_range>() <<=        \
+  while (not (C)) AH_ERROR_UNLIKELY                                     \
+    Aleph::ExceptionBuilder<std::out_of_range>() <<=                    \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_out_of_range_error()
@@ -664,7 +660,7 @@ namespace Aleph
     std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_out_of_range_error_if_constexpr(C)                           \
-  while (std::bool_constant<static_cast<bool>(C)>::value)               \
+  while (std::bool_constant<(C) ? true : false>::value)                 \
     ah_out_of_range_error()
 
 #define ah_out_of_range_error_unless_constexpr(C)                       \
@@ -688,9 +684,8 @@ namespace Aleph
 
  */
 #define ah_invalid_argument_if(C)                                       \
-  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE;        \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::invalid_argument>() <<=    \
+  while ((C) ? true : false) AH_ERROR_UNLIKELY                          \
+    Aleph::ExceptionBuilder<std::invalid_argument>() <<=                \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_invalid_argument_unless(C)
@@ -705,9 +700,8 @@ namespace Aleph
 
  */
 #define ah_invalid_argument_unless(C)                                   \
-  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE;                     \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::invalid_argument>() <<=    \
+  while (not (C)) AH_ERROR_UNLIKELY                                     \
+    Aleph::ExceptionBuilder<std::invalid_argument>() <<=                \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_invalid_argument()
@@ -726,7 +720,7 @@ namespace Aleph
     std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_invalid_argument_if_constexpr(C)                             \
-  while (std::bool_constant<static_cast<bool>(C)>::value)               \
+  while (std::bool_constant<(C) ? true : false>::value)                 \
     ah_invalid_argument()
 
 #define ah_invalid_argument_unless_constexpr(C)                         \
@@ -749,9 +743,8 @@ namespace Aleph
 
  */
 #define ah_length_error_if(C)                                           \
-  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE;        \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::length_error>() <<=        \
+  while ((C) ? true : false) AH_ERROR_UNLIKELY                          \
+    Aleph::ExceptionBuilder<std::length_error>() <<=                    \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_length_error_unless(C)
@@ -766,9 +759,8 @@ namespace Aleph
 
  */
 #define ah_length_error_unless(C)                                       \
-  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE;                     \
-       AH_ERROR_ONCE = false)                                           \
-    [[unlikely]]Aleph::ExceptionBuilder<std::length_error>() <<=        \
+  while (not (C)) AH_ERROR_UNLIKELY                                     \
+    Aleph::ExceptionBuilder<std::length_error>() <<=                    \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_length_error()
@@ -787,7 +779,7 @@ namespace Aleph
     std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_length_error_if_constexpr(C)                                 \
-  while (std::bool_constant<static_cast<bool>(C)>::value)               \
+  while (std::bool_constant<(C) ? true : false>::value)                 \
     ah_length_error()
 
 #define ah_length_error_unless_constexpr(C)                             \

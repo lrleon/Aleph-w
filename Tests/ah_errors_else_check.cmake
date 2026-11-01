@@ -216,6 +216,31 @@ foreach(entry IN LISTS THROWING)
     # GCC gives the line of the macro, and that of the call in a note
     list(APPEND failures
       "${call}: the error is not on the line of the message: ${first_error}")
+  elseif(NOT first_error MATCHES "<<=")
+    # GCC: no match for 'operator<<='; Clang: no viable overloaded '<<='
+    list(APPEND failures
+      "${call}: the first error is not that of the operator that throws: ${first_error}")
+  endif()
+
+  # The same message, without the part that gives back void, compiles
+  set(source "${WORK_DIR}/void_tail_control_${void_index}.cc")
+  file(WRITE "${source}"
+    "#include <${header}>\n"
+    "#include <iostream>\n"
+    "struct Void_Tail {};\n"
+    "void operator<<(std::ostream &, const Void_Tail &) {}\n"
+    "int f(int x)\n"
+    "{\n"
+    "  ${call} << \"m\" << std::endl;\n"
+    "  return x;\n"
+    "}\n")
+  execute_process(
+    COMMAND "${CXX_COMPILER}" ${FLAGS} "${source}"
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE output
+    ERROR_VARIABLE output)
+  if(NOT result EQUAL 0)
+    list(APPEND failures "${call}: the message without the void does not compile:\n${output}")
   endif()
   math(EXPR void_index "${void_index} + 1")
 endforeach()

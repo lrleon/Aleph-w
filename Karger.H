@@ -43,6 +43,7 @@
 # ifndef KARGER_H
 # define KARGER_H
 
+# include <type_traits>
 # include <ah-graph-concepts.H>
 
 # include <cmath>
@@ -488,22 +489,27 @@ namespace Aleph
     Karger_Min_Cut &operator=(const Karger_Min_Cut &) = delete;
 
     /// Move constructor. Transfers ownership of the random number generator.
-    Karger_Min_Cut(Karger_Min_Cut && other) noexcept
+    Karger_Min_Cut(Karger_Min_Cut && other)
+      noexcept(std::is_nothrow_move_constructible_v<SA>)
       : seed(other.seed), r(other.r), sa(std::move(other.sa))
     {
       other.r = nullptr;
     }
 
-    /// Move assignment operator. Transfers ownership of the random number generator.
-    Karger_Min_Cut &operator=(Karger_Min_Cut && other) noexcept
+    /** Move assignment operator. Transfers ownership of the random number
+        generator. Only for a filter that can be assigned; if its move
+        throws, nothing changes. */
+    Karger_Min_Cut &operator=(Karger_Min_Cut && other)
+      noexcept(std::is_nothrow_move_assignable_v<SA>)
+      requires std::is_move_assignable_v<SA>
     {
       if (this != &other)
         {
+          sa = std::move(other.sa); // first, which may throw
           if (r)
             gsl_rng_free(r);
           seed = other.seed;
           r = other.r;
-          sa = std::move(other.sa);
           other.r = nullptr;
         }
       return *this;

@@ -968,33 +968,26 @@ inline void insertion_sort(T *a, const long l, const long r, const Compare &cmp 
 template <class Compare>
 inline void insert_sorted(Dlink &list, Dlink *p, const Compare &cmp)
 {
-  Dlink::Iterator it(list);
-  while (it.has_curr() and cmp(it.get_curr(), p))
-    it.next_ne();
-
-  if (it.has_curr())
-    it.get_curr()->append(p);  // insert before current
-  else
-    list.append(p);
+  // p goes after the last item that is not greater than it, so that equal
+  // items keep the order in which they came
+  Dlink *q = list.get_last();
+  while (q != &list and cmp(p, q))
+    q = q->get_prev();
+  q->insert(p); // after q, or first if q is the header
 }
 
 template <class Compare>
 inline void insert_sorted(HTList &list, Slinknc *p, const Compare &cmp)
 {
-  // Handle empty list case
-  if (list.is_empty())
+  // p goes after the items that are not greater, so that equal items keep
+  // the order in which they came
+  if (list.is_empty() or cmp(p, list.get_first()))  // p < first
     {
       list.insert(p);
       return;
     }
 
-  if (Slinknc *first = list.get_first(); cmp(p, first) or not cmp(first, p))  // p <= first?
-    {
-      list.insert(p);
-      return;
-    }
-
-  if (Slinknc *last = list.get_last(); cmp(last, p) or not cmp(p, last))  // p >= last?
+  if (not cmp(p, list.get_last()))  // p >= last
     {
       list.append(p);
       return;
@@ -1030,8 +1023,31 @@ inline void list_insertion_sort(ListType &list, const Compare &cmp)
 
   ListType aux;
   aux.append(list.remove_first());
-  while (not list.is_empty())
-    insert_sorted<Compare>(aux, list.remove_first(), cmp);
+
+  // Only the comparison can throw, before the node is linked; then the
+  // node, the sorted ones and the rest go back to list
+  if constexpr (noexcept(cmp(aux.get_first(), aux.get_first())))
+    while (not list.is_empty())
+      insert_sorted<Compare>(aux, list.remove_first(), cmp);
+  else
+    {
+      decltype(list.remove_first()) p = nullptr;
+      try
+        {
+          while (not list.is_empty())
+            {
+              p = list.remove_first();
+              insert_sorted<Compare>(aux, p, cmp);
+            }
+        }
+      catch (...)
+        {
+          aux.append(p);
+          aux.concat_list(list);
+          list.swap(aux);
+          throw;
+        }
+    }
 
   list.swap(aux);
 }
@@ -1086,6 +1102,21 @@ inline void insertion_sort(Dnode<T> &list, const Compare &cmp = Compare())
   list_insertion_sort<Dlink, Cmp>(list, c);
 }
 
+/** @brief Insertion sort for DynDlist.
+ *
+ *  Without it, a DynDlist would take the template of the arrays.
+ *
+ *  @tparam T Element type.
+ *  @tparam Compare Comparison functor.
+ *  @param[in,out] list The list to sort.
+ *  @param[in] cmp Comparison functor.
+ */
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
+inline void insertion_sort(DynDlist<T> &list, const Compare &cmp = Compare())
+{
+  insertion_sort<T, Compare>(static_cast<Dnode<T> &>(list), cmp);
+}
+
 /** @brief Merge two sorted partitions of an array using a buffer.
  *
  *  Merges the sorted subarrays [l..m] and [m+1..r] into a single sorted
@@ -1132,9 +1163,11 @@ inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
   if (buf.size() < static_cast<size_t>(s))
     buf.putn(static_cast<size_t>(s) - buf.size());
 
-  // Move left partition [l..m] to buffer start
+  // Move left partition [l..m] to buffer start; b reaches it without the
+  // range checks of buf[], which could throw
+  T * const b = &buf.base();
   for (long i = 0; i < s; ++i)
-    buf[i] = std::move(a[l + i]);
+    b[i] = std::move(a[l + i]);
 
   // Merge it with the right partition, which is in place: the next place
   // to write, k, is never past the next element of the right one, j. An
@@ -1142,14 +1175,31 @@ inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
   long i = 0;
   long j = m + 1;
   long k = l;
-  while (i < s and j <= r)
-    if (cmp(a[j], buf[i]))
-      a[k++] = std::move(a[j++]);
-    else
-      a[k++] = std::move(buf[i++]);
+  if constexpr (noexcept(cmp(a[l], a[l])))
+    while (i < s and j <= r)
+      if (cmp(a[j], b[i]))
+        a[k++] = std::move(a[j++]);
+      else
+        a[k++] = std::move(b[i++]);
+  else
+    try
+      {
+        while (i < s and j <= r)
+          if (cmp(a[j], b[i]))
+            a[k++] = std::move(a[j++]);
+          else
+            a[k++] = std::move(b[i++]);
+      }
+    catch (...)
+      {
+        // the s - i elements left in b fill the j - k places left in a
+        while (i < s)
+          a[k++] = std::move(b[i++]);
+        throw;
+      }
 
   while (i < s) // what is left of the right partition is in place
-    a[k++] = std::move(buf[i++]);
+    a[k++] = std::move(b[i++]);
 }
 
 /** Merges two ordered partitions stored in an array.
@@ -1370,6 +1420,48 @@ inline void mergesort(Tlist &list, const Compare &cmp = Compare())
       }
 }
 
+// Sorts the n nodes of list by mergesort down to lists of at most lsz
+// nodes, which are sorted by insertion. The nodes are linked again, so that
+// nothing is allocated. Only the comparison can throw; then list keeps all
+// its nodes, in an unspecified order.
+template <class Tlist, class Tlink, class Compare>
+inline void __link_mergeinsertsort(Tlist &list, const size_t n, const Compare &cmp,
+                                   const size_t lsz)
+{
+  if (n <= 1)
+    return;
+
+  if (n <= lsz)
+    {
+      list_insertion_sort<Tlink, Compare>(list, cmp);
+      return;
+    }
+
+  Tlist l, r;
+  list.split_list_ne(l, r);  // l takes the first n - n / 2 nodes
+  const size_t nl = n - n / 2;
+
+  if constexpr (noexcept(cmp(l.get_first_ne(), r.get_first_ne())))
+    {
+      __link_mergeinsertsort<Tlist, Tlink, Compare>(l, nl, cmp, lsz);
+      __link_mergeinsertsort<Tlist, Tlink, Compare>(r, n - nl, cmp, lsz);
+      merge_lists<Tlist, Compare>(l, r, list, cmp);
+    }
+  else
+    try
+      {
+        __link_mergeinsertsort<Tlist, Tlink, Compare>(l, nl, cmp, lsz);
+        __link_mergeinsertsort<Tlist, Tlink, Compare>(r, n - nl, cmp, lsz);
+        merge_lists<Tlist, Compare>(l, r, list, cmp);
+      }
+    catch (...)
+      {
+        list.concat_list(l);
+        list.concat_list(r);
+        throw;
+      }
+}
+
 /** Sort a list by mergesort
     combined with the insert method.
 
@@ -1395,19 +1487,41 @@ inline void mergeinsertsort(Tlist<T> &list, const Compare &cmp = Compare(),
   if (list.is_unitarian_or_empty())
     return;
 
-  if (list.size() <= lsz)
+  if constexpr (std::is_same_v<Tlist<T>, DynList<T>>)
     {
-      insertion_sort<T, Compare>(list, cmp);
-      return;
+      using Cmp = Compare_Snodenc<T, const Compare &>;
+      __link_mergeinsertsort<HTList, HTList, Cmp>(list, list.size(), Cmp(cmp), lsz);
     }
+  else if constexpr (std::is_same_v<Tlist<T>, DynDlist<T>>)
+    {
+      using Cmp = Compare_Dnode<T, const Compare &>;
+      __link_mergeinsertsort<Dnode<T>, Dlink, Cmp>(list, list.size(), Cmp(cmp), lsz);
+    }
+  else
+    {
+      if (list.size() <= lsz)
+        {
+          insertion_sort<T, Compare>(list, cmp);
+          return;
+        }
 
-  Tlist<T> l, r;
-  list.split_list(l, r);  // split into two lists
+      Tlist<T> l, r;
+      list.split_list(l, r);  // split into two lists
 
-  mergeinsertsort<Tlist, T, Compare>(l, cmp, lsz);
-  mergeinsertsort<Tlist, T, Compare>(r, cmp, lsz);
+      try
+        {
+          mergeinsertsort<Tlist, T, Compare>(l, cmp, lsz);
+          mergeinsertsort<Tlist, T, Compare>(r, cmp, lsz);
 
-  merge_lists<Tlist<T>, Compare>(l, r, list, cmp);  // merge them
+          merge_lists<Tlist<T>, Compare>(l, r, list, cmp);  // merge them
+        }
+      catch (...)
+        {
+          list.concat_list(l);
+          list.concat_list(r);
+          throw;
+        }
+    }
 }
 
 /** @brief Merge sort for generic list templates.
@@ -1421,16 +1535,10 @@ inline void mergeinsertsort(Tlist<T> &list, const Compare &cmp = Compare(),
 template <template <typename> class Tlist, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void mergesort(Tlist<T> &list, const Compare &cmp = Compare())
 {
-  if (list.is_unitarian_or_empty())
-    return;
-
-  Tlist<T> l, r;
-  list.split_list(l, r);  // split into two lists
-
-  mergesort<Tlist, T, Compare>(l, cmp);
-  mergesort<Tlist, T, Compare>(r, cmp);
-
-  merge_lists<Tlist<T>, Compare>(l, r, list, cmp);  // merge them
+  if constexpr (std::is_same_v<Tlist<T>, DynList<T>> or std::is_same_v<Tlist<T>, DynDlist<T>>)
+    mergesort<T, Compare>(list, cmp); // they link their nodes again
+  else
+    mergesort<Tlist<T>, Compare>(list, cmp);
 }
 
 /** @brief Merge sort for Dnode-based lists.
@@ -1461,15 +1569,23 @@ inline void mergesort(DynDlist<T> &list, const Compare &cmp = Compare())
 
 /** @brief Merge sort for DynList.
  *
+ *  The nodes are linked again, so that nothing is allocated and the
+ *  references to the items stay valid.
+ *
  *  @tparam T Element type.
  *  @tparam Compare Comparison functor.
  *  @param[in,out] list The list to sort.
  *  @param[in] cmp Comparison functor.
+ *  @throw anything that cmp throws. Then list keeps all its items, in an
+ *  unspecified order.
  */
 template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void mergesort(DynList<T> &list, const Compare &cmp = Compare())
 {
-  mergesort<DynList<T>, Compare>(list, cmp);
+  // the nodes are linked again, so that nothing is allocated; the
+  // comparison is not copied
+  using Cmp = Compare_Snodenc<T, const Compare &>;
+  mergesort<HTList, Cmp>(list, Cmp(cmp));
 }
 
 /** @brief Merge sort for DynList (rvalue overload).
@@ -1485,7 +1601,7 @@ inline void mergesort(DynList<T> &list, const Compare &cmp = Compare())
 template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline DynList<T> mergesort(DynList<T> &&list, const Compare &cmp = Compare())
 {
-  mergesort<DynList<T>, Compare>(list, cmp);
+  mergesort<T, Compare>(list, cmp);
   return std::move(list);
 }
 

@@ -1082,7 +1082,9 @@ private:
   DynArray<typename GT::Node*> nodes;
   mutable size_t               n = 0;
 
-  void copy_list_graph(GT& g)
+  // Sets the bits of the arcs of g that sa shows, on a matrix whose bits
+  // are clear
+  void copy_list_graph(GT& g, const SA & sa)
   {
     n = g.get_num_nodes();
     nodes.cut();
@@ -1098,7 +1100,7 @@ private:
         typename GT::Node* src = it.get_current_node_ne();
         const size_t src_idx = matgraph_detail::node_index<Graph_Type>(nodes, n, src);
 
-        for (Node_Arc_Iterator<GT, SA> jt(src); jt.has_curr(); jt.next_ne())
+        for (Node_Arc_Iterator<GT, SA> jt(src, sa); jt.has_curr(); jt.next_ne())
           {
             typename GT::Node* tgt = jt.get_tgt_node_ne();
             const size_t tgt_idx = matgraph_detail::node_index<Graph_Type>(nodes, n, tgt);
@@ -1143,11 +1145,12 @@ public:
   /**
    * @brief Construct from graph.
    * @param g Source graph
+   * @param sa the filter of the arcs: only those that it shows set a bit
    */
-  explicit Bit_Mat_Graph(GT& g)
+  explicit Bit_Mat_Graph(GT& g, SA sa = SA())
     : bit_array(g.get_num_nodes() * g.get_num_nodes()), lgraph(&g)
   {
-    copy_list_graph(g);
+    copy_list_graph(g, sa);
   }
 
   /// Copy constructor
@@ -1166,14 +1169,19 @@ public:
 
   /**
    * @brief Associate with a graph.
+   *
+   * The bits are those of the arcs of g alone: none is kept from the
+   * graph that the matrix had.
+   *
    * @param g Graph to associate
+   * @param sa the filter of the arcs: only those that it shows set a bit
    */
-  void set_list_graph(GT& g)
+  void set_list_graph(GT& g, SA sa = SA())
   {
     const size_t new_n = g.get_num_nodes();
-    bit_array.set_size(new_n * new_n);
+    bit_array = BitArray(new_n * new_n); // set_size() would keep the old bits
     lgraph = &g;
-    copy_list_graph(g);
+    copy_list_graph(g, sa);
   }
 
   /// Get pointer to associated graph (nullptr if none)
@@ -1195,7 +1203,7 @@ public:
     return *this;
   }
 
-  /// Assign from graph
+  /// Assign from graph, with the filter SA()
   Bit_Mat_Graph& operator=(GT& g)
   {
     if (&g != lgraph)

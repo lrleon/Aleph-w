@@ -73,6 +73,8 @@ namespace Aleph {
 
         @param[in] g The graph represented by a List_Graph variant.
         @param[out] mat Bit matrix where the result is stored.
+        @param[in] sa the filter of the arcs: the closure is that of the
+        arcs that it shows.
         @throw std::bad_alloc if there is not enough memory.
         @see List_Graph Bit_Mat_Graph
 
@@ -80,11 +82,12 @@ namespace Aleph {
      */
     template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 void warshall_compute_transitive_clausure(GT &                    g, 
-                                          Bit_Mat_Graph<GT, SA> & mat)
+                                          Bit_Mat_Graph<GT, SA> & mat,
+                                          SA                      sa = SA())
 {
-  Bit_Mat_Graph<GT, SA> mat_prev(g);
+  Bit_Mat_Graph<GT, SA> mat_prev(g, sa);
   if (mat.get_list_graph() != &g)
-    mat.set_list_graph(g);
+    mat.set_list_graph(g, sa);
   const size_t & n = mat.get_num_nodes();
   for (int k = 0; k < n; k++) 
     {
@@ -114,7 +117,13 @@ void warshall_compute_transitive_clausure(GT &                    g,
     template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Warshall_Compute_Transitive_Clausure
 { 
+  SA sa;
+
 public:
+
+  /// Keeps sa, the filter of the arcs, whose closure it computes
+  explicit Warshall_Compute_Transitive_Clausure(SA __sa = SA())
+    : sa(std::move(__sa)) {}
 
   /**
       @brief Invokes the computation of the transitive closure of a graph.
@@ -126,9 +135,9 @@ public:
       @param[out] mat Bit matrix where the result is stored.
       @throw std::bad_alloc if there is not enough memory.
    */
-  void operator () (GT & g, Bit_Mat_Graph<GT> & mat) const
+  void operator () (GT & g, Bit_Mat_Graph<GT, SA> & mat) const
   {
-    warshall_compute_transitive_clausure <GT, SA> (g, mat);
+    warshall_compute_transitive_clausure <GT, SA> (g, mat, sa);
   }
 };
 

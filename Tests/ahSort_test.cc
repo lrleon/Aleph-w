@@ -436,6 +436,183 @@ TEST_F(ArraySortTest, InPlaceSortModifiesOriginal)
 // stdsort() tests
 // ============================================================================
 
+namespace
+{
+  // An item whose order is that of its key alone; seq tells where it was
+  struct Keyed
+  {
+    int key;
+    int seq;
+  };
+
+  struct By_Key
+  {
+    bool operator()(const Keyed & a, const Keyed & b) const noexcept
+    {
+      return a.key < b.key;
+    }
+  };
+
+  // The keys do not decrease, and equal keys keep the order of their seq
+  template <class List>
+  bool sorted_and_stable(const List & l)
+  {
+    const Keyed * prev = nullptr;
+    for (auto it = l.get_it(); it.has_curr(); it.next_ne())
+      {
+        const Keyed & x = it.get_curr();
+        if (prev != nullptr and (x.key < prev->key or
+                                 (x.key == prev->key and x.seq < prev->seq)))
+          return false;
+        prev = &x;
+      }
+    return true;
+  }
+
+  // The items of n, as the pattern says: random keys of 3 or of 7 values,
+  // all equal, or decreasing by pairs
+  std::vector<Keyed> keyed_items(const int n, const int pattern, std::mt19937 & gen)
+  {
+    std::vector<Keyed> items;
+    for (int i = 0; i < n; ++i)
+      switch (pattern)
+        {
+        case 0: items.push_back({int(gen() % 3), i}); break;
+        case 1: items.push_back({int(gen() % 7), i}); break;
+        case 2: items.push_back({1, i}); break;
+        default: items.push_back({(n - i) / 2, i}); break;
+        }
+    return items;
+  }
+
+  // Compares ints, and throws at the comparison number at
+  struct Throws_At
+  {
+    int * count;
+    int at;
+
+    bool operator()(const int a, const int b) const
+    {
+      if (++*count == at)
+        throw std::runtime_error("comparison failed");
+      return a < b;
+    }
+  };
+
+  template <class List>
+  std::vector<int> sorted_items(const List & l)
+  {
+    std::vector<int> v;
+    l.for_each([&v] (const int x) { v.push_back(x); });
+    std::sort(v.begin(), v.end());
+    return v;
+  }
+
+  // sort(list, cmp) sorts list with cmp. If cmp throws, at each of its
+  // calls, list must keep its items.
+  template <class List, class Sort>
+  void keeps_its_items_if_the_comparison_throws(const std::vector<int> & items,
+                                                Sort sort)
+  {
+    std::vector<int> all = items;
+    std::sort(all.begin(), all.end());
+    int total = 0; // the comparisons of a sort that does not throw
+    {
+      List list;
+      for (const int x : items)
+        list.append(x);
+      sort(list, Throws_At{&total, -1});
+      ASSERT_EQ(sorted_items(list), all);
+    }
+    ASSERT_GT(total, 0);
+
+    for (int at = 1; at <= total; ++at)
+      {
+        SCOPED_TRACE(at);
+        List list;
+        for (const int x : items)
+          list.append(x);
+        int count = 0;
+        EXPECT_THROW(sort(list, Throws_At{&count, at}), std::runtime_error);
+        EXPECT_EQ(sorted_items(list), all);
+      }
+  }
+} // namespace
+
+// in_place_sort() of lists is documented stable, but the insertion sort of
+// its short lists put an item before the equal ones
+TEST(ListSortStability, EverySortKeepsTheOrderOfEqualItems)
+{
+  std::mt19937 gen(7);
+  for (int n = 0; n <= 160; ++n)
+    for (int pattern = 0; pattern < 4; ++pattern)
+      {
+        SCOPED_TRACE(std::to_string(n) + " items, pattern " + std::to_string(pattern));
+        const std::vector<Keyed> items = keyed_items(n, pattern, gen);
+        DynList<Keyed> list;
+        DynDlist<Keyed> dlist;
+        for (const Keyed & x : items)
+          {
+            list.append(x);
+            dlist.append(x);
+          }
+
+        EXPECT_TRUE(sorted_and_stable(sort(list, By_Key())));
+        EXPECT_TRUE(sorted_and_stable(sort(dlist, By_Key())));
+
+        DynList<Keyed> moved = list;
+        DynDlist<Keyed> dmoved = dlist;
+        moved = sort(std::move(moved), By_Key());
+        dmoved = sort(std::move(dmoved), By_Key());
+        EXPECT_TRUE(sorted_and_stable(moved));
+        EXPECT_TRUE(sorted_and_stable(dmoved));
+
+        EXPECT_TRUE(sorted_and_stable(in_place_sort(list, By_Key())));
+        EXPECT_TRUE(sorted_and_stable(in_place_sort(dlist, By_Key())));
+        EXPECT_EQ(list.size(), size_t(n));
+        EXPECT_EQ(dlist.size(), size_t(n));
+      }
+}
+
+// in_place_sort() and sort() of a list that is an rvalue had no handler: if
+// the comparison threw, the list lost items
+TEST(ListSortWithAComparisonThatThrows, TheListKeepsItsItems)
+{
+  std::mt19937 gen(17);
+  std::vector<int> items; // more than Insertion_Threshold
+  for (int i = 0; i < 100; ++i)
+    items.push_back(int(gen() % 20));
+
+  {
+    SCOPED_TRACE("in_place_sort(DynList &)");
+    keeps_its_items_if_the_comparison_throws<DynList<int>>(items, [] (auto & l, const Throws_At & c)
+      {
+        (void) in_place_sort(l, c);
+      });
+  }
+  {
+    SCOPED_TRACE("in_place_sort(DynDlist &)");
+    keeps_its_items_if_the_comparison_throws<DynDlist<int>>(items, [] (auto & l, const Throws_At & c)
+      {
+        (void) in_place_sort(l, c);
+      });
+  }
+  {
+    SCOPED_TRACE("sort(DynList &&)");
+    keeps_its_items_if_the_comparison_throws<DynList<int>>(items, [] (auto & l, const Throws_At & c)
+      {
+        l = sort(std::move(l), c);
+      });
+  }
+  {
+    SCOPED_TRACE("sort(DynDlist &&)");
+    keeps_its_items_if_the_comparison_throws<DynDlist<int>>(items, [] (auto & l, const Throws_At & c)
+      {
+        l = sort(std::move(l), c);
+      });
+  }
+}
+
 TEST(StdSortTest, SortsVector)
 {
   std::vector<int> v = {5, 2, 8, 1, 9};

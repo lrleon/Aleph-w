@@ -52,6 +52,7 @@
 #include <gtest/gtest.h>
 #include <cmath>
 #include <unordered_set>
+#include <utility>
 #include <point.H>
 
 using namespace Aleph;
@@ -693,6 +694,16 @@ class RectangleTest : public ::testing::Test
 protected:
   Rectangle r{0, 0, 4, 3};
 };
+
+// They allocate the numbers that they give, so they may throw
+static_assert(not noexcept(std::declval<const Rectangle &>().width()));
+static_assert(not noexcept(std::declval<const Rectangle &>().height()));
+static_assert(not noexcept(std::declval<const Rectangle &>().area()));
+static_assert(not noexcept(std::declval<const Rectangle &>().perimeter()));
+static_assert(not noexcept(std::declval<const Rectangle &>().center()));
+static_assert(not noexcept(std::declval<const Rectangle &>().corners()));
+static_assert(not noexcept(std::declval<const Rectangle &>()
+                           .distance_squared_to(std::declval<const Point &>())));
 
 TEST_F(RectangleTest, DefaultConstruction)
 {

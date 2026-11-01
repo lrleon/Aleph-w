@@ -32,7 +32,8 @@
 /**
  * @file dfs_stack_test.cc
  * @brief Tests of Dfs_Stack, the stack of frames of the searches that do
- * not recurse.
+ * not recurse, and of Dfs_Here, the variable that holds the frame of the
+ * node that a search visits.
  *
  * This program replaces the global operator new, so that a test can see
  * that a stack reuses the room that another stack of its thread kept.
@@ -43,12 +44,18 @@
 #include "allocation_failure.H"
 
 #include <new>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <utility>
 
 #include <tpl_dfs_stack.H>
+
+#ifdef ALEPH_DFS_STACK_POISON
+#  include <sanitizer/asan_interface.h>
+#endif
 
 using namespace Aleph;
 
@@ -246,6 +253,38 @@ TEST(DfsStack, AMoveThatThrowsWhileGrowingFreesTheNewRoom)
   EXPECT_EQ(Move_Only::alive, 0);
 }
 
+TEST(DfsStack, TheCapacityIsThatOfTheRoom)
+{
+  Dfs_Stack<long> stack;
+  EXPECT_EQ(stack.capacity(), 0u); // no room until a frame is pushed
+  for (long i = 0; i < 5000; ++i)
+    {
+      stack.push(i);
+      ASSERT_GE(stack.capacity(), stack.size());
+    }
+  const size_t capacity = stack.capacity();
+  stack.clear();
+  EXPECT_EQ(stack.capacity(), capacity); // clear() keeps the room
+}
+
+TEST_F(CountedFrames, ReleaseDestroysTheFramesAndGivesTheRoomBack)
+{
+  Dfs_Stack<Counted> stack;
+  for (long i = 0; i < 300; ++i)
+    stack.push(i);
+  stack.release();
+  EXPECT_EQ(Counted::alive, 0);
+  EXPECT_TRUE(stack.is_empty());
+  EXPECT_EQ(stack.capacity(), 0u);
+
+  stack.release(); // without room, it does nothing
+  EXPECT_EQ(stack.capacity(), 0u);
+  for (long i = 0; i < 10; ++i) // and the stack takes room again
+    stack.push(i);
+  EXPECT_EQ(stack.size(), 10u);
+  EXPECT_EQ(stack.top().value, 9);
+}
+
 TEST(DfsStack, MovesTakeTheFrames)
 {
   Dfs_Stack<long> a;
@@ -326,11 +365,209 @@ TEST_F(DfsStackRoom, AStackOfAnotherThreadHasNoRoom)
   EXPECT_TRUE(thrown);
 }
 
-// A room larger than 1 MiB is freed, so that it does not stay taken
+// A room larger than 1 MiB is freed, so that it does not stay taken; the
+// room that the stack took from the thread goes back to the thread when
+// the stack outgrows it, so that the next search allocates nothing
 TEST_F(DfsStackRoom, ALargeRoomIsNotKept)
 {
-  keep_room_for(1024 * 1024); // 8 MiB of frames
+  keep_room_for(20000);
+  size_t kept = 0; // the frames of the room that the thread keeps
+  {
+    Dfs_Stack<long> stack;
+    stack.push(0);
+    kept = stack.capacity();
+  }
+  ASSERT_GE(kept, 20000u);
+
+  keep_room_for(1024 * 1024); // 8 MiB of frames, from the room kept
   Dfs_Stack<long> stack;
   No_Memory no_memory;
-  EXPECT_THROW(stack.push(1), std::bad_alloc);
+  for (size_t i = 0; i < kept; ++i) // in the room kept, which came back
+    ASSERT_NO_THROW(stack.push(long(i)));
+  EXPECT_EQ(stack.capacity(), kept);
+  EXPECT_THROW(stack.push(-1), std::bad_alloc); // the large one was freed
+  EXPECT_EQ(refused_allocations, 1u);
+}
+
+// The room that a stack took from its thread goes back to the thread when
+// the stack outgrows it, here while the stack lives
+TEST_F(DfsStackRoom, TheRoomTakenFromTheThreadGoesBackWhenTheStackGrows)
+{
+  size_t kept = 0, next_capacity = 0;
+  bool thrown = false;
+  std::thread other([&] // a thread that keeps no room yet
+    {
+      keep_room_for(10); // the first room of the thread, which it keeps
+      Dfs_Stack<long> stack;
+      stack.push(0);
+      kept = stack.capacity(); // that room
+      while (stack.capacity() == kept) // until the stack outgrows it
+        stack.push(1);
+
+      Dfs_Stack<long> next;
+      No_Memory no_memory;
+      try
+        {
+          next.push(2);
+          next_capacity = next.capacity();
+        }
+      catch (const std::bad_alloc &)
+        {
+          thrown = true;
+        }
+    });
+  other.join();
+  EXPECT_FALSE(thrown);
+  EXPECT_EQ(next_capacity, kept);
+}
+
+// release() gives the room to the thread, as the destructor does
+TEST_F(DfsStackRoom, ARoomReleasedIsReused)
+{
+  Dfs_Stack<long> stack;
+  for (long i = 0; i < 20000; ++i)
+    stack.push(i);
+  const size_t capacity = stack.capacity();
+  stack.release();
+  No_Memory no_memory;
+  for (long i = 0; i < long(capacity); ++i)
+    ASSERT_NO_THROW(stack.push(i));
+  EXPECT_EQ(stack.capacity(), capacity);
+  EXPECT_EQ(refused_allocations, 0u);
+}
+
+// The thread that runs main() is told by its id, and not by a mark taken
+// when the program starts, which a library loaded with dlopen() from
+// another thread took in that one: that thread then did not free its room
+// when it ended (#27 of the 7.3.2 review)
+TEST(DfsStack, TheThreadOfMainIsToldByItsId)
+{
+  bool main_is_told = false; // with glibc 2.30 or later; else none is
+#if defined(__GLIBC__)
+#  if __GLIBC_PREREQ(2, 30)
+  main_is_told = true;
+#  endif
+#endif
+  EXPECT_EQ(dfs_stack_detail::in_main_thread(), main_is_told);
+  bool other_is_main = true;
+  std::thread other([&other_is_main] { other_is_main = dfs_stack_detail::in_main_thread(); });
+  other.join();
+  EXPECT_FALSE(other_is_main);
+}
+
+// Under AddressSanitizer, with ALEPH_ANNOTATE_CONTAINERS, the room where no
+// frame is cannot be reached: that of the frames popped or cleared, and that
+// which the thread keeps
+TEST(DfsStack, TheRoomWithoutFramesIsPoisoned)
+{
+#ifdef ALEPH_DFS_STACK_POISON
+  long * first = nullptr;
+  {
+    Dfs_Stack<long> stack;
+    for (long i = 0; i < 1000; ++i)
+      stack.push(i);
+    first = &stack.top() - 999;
+    long * top = &stack.top();
+    EXPECT_FALSE(__asan_address_is_poisoned(top));
+    EXPECT_TRUE(__asan_address_is_poisoned(top + 1)); // beyond the top
+    stack.pop();
+    EXPECT_TRUE(__asan_address_is_poisoned(top));
+    EXPECT_FALSE(__asan_address_is_poisoned(top - 1));
+    stack.clear();
+    EXPECT_TRUE(__asan_address_is_poisoned(first));
+    stack.push(7);
+    EXPECT_FALSE(__asan_address_is_poisoned(first));
+  }
+  // the stack is gone, and the thread keeps its room
+  EXPECT_TRUE(__asan_address_is_poisoned(first));
+  Dfs_Stack<long> next; // which the next stack takes
+  next.push(8);
+  EXPECT_EQ(&next.top(), first);
+  EXPECT_FALSE(__asan_address_is_poisoned(first));
+  EXPECT_TRUE(__asan_address_is_poisoned(first + 1));
+#else
+  GTEST_SKIP() << "only under AddressSanitizer with ALEPH_ANNOTATE_CONTAINERS";
+#endif
+}
+
+namespace
+{
+  // A frame that cannot be assigned, as one whose iterator keeps a lambda
+  // that captures, or a filter with a const member
+  struct Unassigned
+  {
+    static inline long alive = 0;
+
+    const long value;
+
+    explicit Unassigned(long v) : value(v)
+    {
+      if (v < 0)
+        throw std::runtime_error("built from a negative value");
+      ++alive;
+    }
+
+    Unassigned(const Unassigned & other) : value(other.value) { ++alive; }
+
+    ~Unassigned() { --alive; }
+  };
+
+  static_assert(not std::is_move_assignable_v<Unassigned>);
+}
+
+// With frames that cannot be assigned, Dfs_Here is an optional frame, which
+// dfs_replace() builds again in its place
+TEST(DfsHere, ReplacesAFrameThatCannotBeAssigned)
+{
+  static_assert(std::is_same_v<Dfs_Here<Unassigned>, std::optional<Unassigned>>);
+  Unassigned::alive = 0;
+  {
+    auto here = dfs_here<Unassigned>(1);
+    EXPECT_EQ(dfs_frame(here).value, 1);
+    EXPECT_EQ(Unassigned::alive, 1);
+    dfs_replace(here, 2);
+    EXPECT_EQ(dfs_frame(here).value, 2);
+    EXPECT_EQ(Unassigned::alive, 1);
+
+    // a stack of them, which copies them when it grows
+    Dfs_Stack<Unassigned> stack;
+    for (long i = 0; i < 1000; ++i)
+      {
+        stack.push(dfs_frame(here));
+        dfs_replace(here, i + 3);
+      }
+    EXPECT_EQ(Unassigned::alive, 1001);
+    EXPECT_EQ(stack.top().value, 1001);
+    EXPECT_EQ(dfs_frame(here).value, 1002);
+
+    EXPECT_THROW(dfs_replace(here, -1), std::runtime_error);
+    EXPECT_FALSE(here.has_value()); // the frame that was there is gone
+    EXPECT_EQ(Unassigned::alive, 1000);
+    dfs_replace(here, 5);
+    EXPECT_EQ(dfs_frame(here).value, 5);
+  }
+  EXPECT_EQ(Unassigned::alive, 0);
+}
+
+// With frames that can be assigned, Dfs_Here is the frame, which
+// dfs_replace() assigns, as the searches did: the frame that was there
+// stays if building the next one throws
+TEST(DfsHere, AssignsTheFramesThatCanBe)
+{
+  struct Assigned
+  {
+    long value;
+    explicit Assigned(long v) : value(v)
+    {
+      if (v < 0)
+        throw std::runtime_error("built from a negative value");
+    }
+  };
+  static_assert(std::is_same_v<Dfs_Here<Assigned>, Assigned>);
+
+  auto here = dfs_here<Assigned>(1);
+  dfs_replace(here, 2);
+  EXPECT_EQ(dfs_frame(here).value, 2);
+  EXPECT_THROW(dfs_replace(here, -1), std::runtime_error);
+  EXPECT_EQ(dfs_frame(here).value, 2);
 }

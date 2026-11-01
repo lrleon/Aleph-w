@@ -217,6 +217,51 @@ TEST_F(BuildSubgraphTest, BuildNodeList)
   EXPECT_EQ(node_list.size(), 3);
 }
 
+TEST_F(BuildSubgraphTest, IgnoresTheCookiesThatTheGraphHad)
+{
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  auto n3 = g.insert_node(3);
+  auto a12 = g.insert_arc(n1, n2);
+  auto a23 = g.insert_arc(n2, n3);
+  auto a31 = g.insert_arc(n3, n1);
+
+  // cookies toward a node and an arc of a graph that went, as those that
+  // Tarjan leaves toward its blocks; the bits are clear
+  {
+    Graph other;
+    auto o = other.insert_node(0);
+    auto oa = other.insert_arc(o, o);
+    for (auto p : {n1, n2, n3})
+      NODE_COOKIE(p) = o;
+    for (auto a : {a12, a23, a31})
+      ARC_COOKIE(a) = oa;
+  }
+
+  Build_Subgraph<Graph>()(g, sg, n1);
+  ASSERT_EQ(sg.get_num_nodes(), 3);
+  ASSERT_EQ(sg.get_num_arcs(), 3);
+
+  // each node and arc maps to its copy, and the copy to it
+  for (auto p : {n1, n2, n3})
+    {
+      auto q = mapped_node<Graph>(p);
+      ASSERT_NE(q, nullptr);
+      EXPECT_EQ(q->get_info(), p->get_info());
+      EXPECT_EQ(mapped_node<Graph>(q), p);
+    }
+  for (auto a : {a12, a23, a31})
+    {
+      auto b = mapped_arc<Graph>(a);
+      ASSERT_NE(b, nullptr);
+      EXPECT_EQ(mapped_arc<Graph>(b), a);
+      auto s = mapped_node<Graph>(sg.get_src_node(b));
+      auto t = mapped_node<Graph>(sg.get_tgt_node(b));
+      EXPECT_TRUE((s == g.get_src_node(a) and t == g.get_tgt_node(a))
+                  or (s == g.get_tgt_node(a) and t == g.get_src_node(a)));
+    }
+}
+
 TEST_F(BuildSubgraphTest, NullptrThrows)
 {
   [[maybe_unused]] auto n1 = g.insert_node(1);

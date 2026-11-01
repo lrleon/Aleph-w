@@ -35,6 +35,10 @@
  * @file tarjan_test.cc
  * @brief Tests for Tarjan
  */
+#include <algorithm>
+#include <utility>
+#include <vector>
+
 #include <gtest/gtest.h>
 #include <tpl_graph.H>
 #include <Tarjan.H>
@@ -947,6 +951,69 @@ TEST(TarjanTest, ReuseInstance)
 }
 
 // ============================================================================
+// Test: the blocks go after those that the lists hold, which do not change
+// ============================================================================
+TEST(TarjanTest, ListsThatHoldBlocksKeepThem)
+{
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+  DynList<TestDigraph> blocks;
+  DynList<TestDigraph::Arc *> arcs;
+  {
+    TestDigraph gone; // its block stays in the list after it goes
+    auto a = add_node(gone, 1);
+    auto b = add_node(gone, 2);
+    add_arc(gone, a, b);
+    add_arc(gone, b, a);
+    tarjan.connected_components(gone, blocks, arcs);
+  }
+  ASSERT_EQ(blocks.size(), 1u);
+  ASSERT_TRUE(arcs.is_empty());
+
+  TestDigraph g;
+  auto c = add_node(g, 3);
+  auto d = add_node(g, 4);
+  auto e = add_node(g, 5);
+  add_arc(g, c, d);
+  add_arc(g, d, c);
+  auto between = add_arc(g, d, e);
+  tarjan.connected_components(g, blocks, arcs); // g twice, into the same lists
+  tarjan.connected_components(g, blocks, arcs);
+
+  // the block of the graph that went, and twice the two of g: each with
+  // its own arcs alone, toward its own nodes
+  ASSERT_EQ(blocks.size(), 5u);
+  std::vector<std::pair<size_t, size_t>> sizes;
+  for (auto & blk : blocks)
+    {
+      sizes.emplace_back(blk.get_num_nodes(), blk.get_num_arcs());
+      std::vector<TestDigraph::Node *> nodes;
+      for (auto it = blk.get_node_it(); it.has_curr(); it.next_ne())
+        nodes.push_back(it.get_curr());
+      auto mine = [&nodes] (TestDigraph::Node * p)
+        {
+          return std::find(nodes.begin(), nodes.end(), p) != nodes.end();
+        };
+      for (auto it = blk.get_arc_it(); it.has_curr(); it.next_ne())
+        {
+          EXPECT_TRUE(mine(blk.get_src_node(it.get_curr())));
+          EXPECT_TRUE(mine(blk.get_tgt_node(it.get_curr())));
+        }
+    }
+  const std::vector<std::pair<size_t, size_t>> expected =
+    { {2, 2}, {1, 0}, {2, 2}, {1, 0}, {2, 2} };
+  std::sort(sizes.begin(), sizes.end());
+  auto sorted = expected;
+  std::sort(sorted.begin(), sorted.end());
+  EXPECT_EQ(sizes, sorted);
+  ASSERT_EQ(blocks.get_first().get_num_nodes(), 2u); // that of the graph that went
+  EXPECT_EQ(blocks.get_first().get_num_arcs(), 2u);
+
+  // the arc between the blocks of g, once for each time
+  ASSERT_EQ(arcs.size(), 2u);
+  EXPECT_TRUE(arcs.all([between] (TestDigraph::Arc * a) { return a == between; }));
+}
+
+// ============================================================================
 // EXTENDED EXHAUSTIVE TESTS
 // ============================================================================
 
@@ -1646,4 +1713,63 @@ TEST(TarjanExtended, ComputeCycleNoCycle)
 
   auto path3 = finder(g, a);
   EXPECT_TRUE(path3.is_empty());
+}
+
+// ============================================================================
+// Test: the frames of a search do not outlive it
+// ============================================================================
+namespace
+{
+  // Shows every arc, and counts its copies that live: one in the object,
+  // and one in each frame of a search that waits
+  struct Counted_Copies
+  {
+    static inline long alive = 0;
+
+    Counted_Copies() noexcept { ++alive; }
+    Counted_Copies(const Counted_Copies &) noexcept { ++alive; }
+    Counted_Copies & operator = (const Counted_Copies &) noexcept = default;
+    ~Counted_Copies() { --alive; }
+
+    bool operator()(TestDigraph::Arc *) const noexcept { return true; }
+  };
+}
+
+// The stack of a search is of the search: an object that lives keeps no
+// frame, and no room for them, after an operation, even after one that
+// stops early with the frames of a path as long as the graph in the stack
+// (#26 of the 7.3.2 review: a member kept them until the next search)
+TEST(TarjanTest, KeepsNoFrameAfterAnOperation)
+{
+  // a chain whose last node goes back to the one before it: the cycle is
+  // found at the end of the chain, from which the search stops
+  TestDigraph g;
+  const int n = 5000;
+  std::vector<TestDigraph::Node *> nodes;
+  for (int i = 0; i < n; ++i)
+    nodes.push_back(add_node(g, i));
+  for (int i = 0; i + 1 < n; ++i)
+    add_arc(g, nodes[i], nodes[i + 1]);
+  add_arc(g, nodes[n - 1], nodes[n - 2]);
+
+  Counted_Copies::alive = 0;
+  {
+    Tarjan_Connected_Components<TestDigraph, Out_Iterator, Counted_Copies> tarjan;
+    const long kept = Counted_Copies::alive; // that of the object
+
+    EXPECT_TRUE(tarjan.has_cycle(g));
+    EXPECT_EQ(Counted_Copies::alive, kept);
+
+    Path<TestDigraph> cycle(g);
+    EXPECT_TRUE(tarjan.compute_cycle(g, cycle));
+    EXPECT_EQ(cycle.size(), 3u); // n - 2, n - 1 and n - 2 again
+    EXPECT_EQ(Counted_Copies::alive, kept);
+
+    EXPECT_FALSE(tarjan.test_connectivity(g));
+    EXPECT_EQ(Counted_Copies::alive, kept);
+
+    EXPECT_EQ(tarjan.num_connected_components(g), size_t(n - 1));
+    EXPECT_EQ(Counted_Copies::alive, kept);
+  }
+  EXPECT_EQ(Counted_Copies::alive, 0);
 }

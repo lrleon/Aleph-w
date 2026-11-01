@@ -80,15 +80,15 @@ namespace kosaraju_detail
     typename GT::Node * p;
     typename GT::Out_Iterator it;
 
-    [[gnu::always_inline, gnu::flatten]]
+    [[gnu::always_inline]] ALEPH_FLATTEN
     Frame(const GT & g, typename GT::Node * n) : p(n), it(g.get_out_it(n)) {}
 
-    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
 
     // Moves the iterator to the next arc not visited whose target was not
     // visited either, and gives that target; it marks the arcs not visited
     // that it passes. nullptr when the arcs are done.
-    [[gnu::always_inline, gnu::flatten]] typename GT::Node * next_target() noexcept
+    [[gnu::always_inline]] ALEPH_FLATTEN typename GT::Node * next_target() noexcept
     {
       for (; it.has_curr(); it.next_ne())
         {
@@ -316,7 +316,8 @@ inline void kosaraju_connected_components(const GT & g,
       ARC_COOKIE(a) = nullptr; // it was mapped to the transposed graph
       if (color == NODE_COLOR(bt))
         {
-          typename GT::Arc * ba = array.access(color)->insert_arc(bs, bt);
+          // with the info of a, as the nodes of the block have theirs
+          typename GT::Arc * ba = array.access(color)->insert_arc(bs, bt, a->get_info());
           GT::map_arcs(a, ba);
         }
       else

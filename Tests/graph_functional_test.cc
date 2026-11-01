@@ -659,11 +659,12 @@ TEST_F(GraphFunctionalTest, MapOutArcsDigraph)
 
 TEST_F(GraphFunctionalTest, MapInArcsDigraph)
 {
-  // Note: List_Digraph doesn't maintain incoming arc lists
-  // in_arcs() returns empty for this implementation
-  // This is expected behavior for adjacency-list based digraphs
-  
-  // Verify out_arcs works (outgoing)
+  // A List_Digraph keeps each arc only in the list of its source: the in_
+  // methods find the arcs into a node among the arcs of the graph
+  auto weights = dg.template in_arcs_map<double>(dn2, [](auto a) { return a->get_info(); });
+  ASSERT_EQ(weights.size(), 2u); // 1.5 from dn1 and 3.5 from dn4
+  EXPECT_DOUBLE_EQ(weights.foldl(0.0, [](double acc, double w) { return acc + w; }), 5.0);
+
   auto outs = dg.out_arcs(dn1);
   EXPECT_EQ(outs.size(), 2u); // dn1 has 2 outgoing arcs
 }
@@ -681,11 +682,15 @@ TEST_F(GraphFunctionalTest, FoldlOutArcsDigraph)
 
 TEST_F(GraphFunctionalTest, FoldlInArcsDigraph)
 {
-  // Verify outgoing arc traversal works correctly
-  double sum = 0.0;
-  dg.for_each_out_arc(dn1, [&sum](auto a) { sum += a->get_info(); });
-  
-  EXPECT_DOUBLE_EQ(sum, 2.0); // 1.5 + 0.5
+  // The arcs into dn2 come from dn1 and dn4
+  const double sum = dg.foldl_in_arcs(dn2, 0.0, [](const double & acc, auto a)
+                                      { return acc + a->get_info(); });
+  EXPECT_DOUBLE_EQ(sum, 5.0); // 1.5 + 3.5
+
+  // and those into dn3, from dn2 and from the loop of dn3
+  double into_dn3 = 0.0;
+  dg.for_each_in_arc(dn3, [&into_dn3](auto a) { into_dn3 += a->get_info(); });
+  EXPECT_DOUBLE_EQ(into_dn3, 7.0); // 2.5 + 4.5
 }
 
 // ==================== filter_in_arcs / filter_out_arcs tests ====================
@@ -706,8 +711,9 @@ TEST_F(GraphFunctionalTest, FilterInArcsDigraph)
   auto filtered = dg.filter_in_arcs(dn2, [](auto a) {
     return a->get_info() > 2.0;
   });
-  
-  EXPECT_EQ(filtered.size(), 0u);
+
+  ASSERT_EQ(filtered.size(), 1u); // 3.5, from dn4
+  EXPECT_EQ(filtered.get_first(), da4);
 }
 
 // ==================== search_node / find_node tests ====================
@@ -990,10 +996,12 @@ TEST_F(GraphFunctionalTest, OutNodesDigraph)
 
 TEST_F(GraphFunctionalTest, InNodesDigraph)
 {
-  // Note: List_Digraph doesn't track incoming arcs
-  // in_nodes returns empty for adjacency-list implementations
+  // A List_Digraph keeps each arc only in the list of its source: the in_
+  // methods find the arcs into a node among the arcs of the graph
   auto ins = dg.in_nodes(dn2);
-  EXPECT_EQ(ins.size(), 0u); // No incoming arcs tracked
+  ASSERT_EQ(ins.size(), 2u);
+  EXPECT_TRUE(ins.exists([this](auto p) { return p == dn1; }));
+  EXPECT_TRUE(ins.exists([this](auto p) { return p == dn4; }));
 }
 
 TEST_F(GraphFunctionalTest, OutArcsDigraph)
@@ -1004,20 +1012,22 @@ TEST_F(GraphFunctionalTest, OutArcsDigraph)
 
 TEST_F(GraphFunctionalTest, InArcsDigraph)
 {
-  // Note: List_Digraph doesn't track incoming arcs
   auto ins = dg.in_arcs(dn2);
-  EXPECT_EQ(ins.size(), 0u); // No incoming arcs tracked
+  ASSERT_EQ(ins.size(), 2u); // da1 and da4
+  EXPECT_TRUE(ins.exists([this](auto a) { return a == da1; }));
+  EXPECT_TRUE(ins.exists([this](auto a) { return a == da4; }));
 }
 
 // ==================== in_degree / out_degree tests ====================
 
 TEST_F(GraphFunctionalTest, InDegreeDigraph)
 {
-  // Note: List_Digraph doesn't track incoming arcs
-  // in_degree returns 0 for all nodes in adjacency-list implementations
+  // The in degree is computed among the arcs of the digraph
   EXPECT_EQ(dg.in_degree(dn1), 0u);
-  EXPECT_EQ(dg.in_degree(dn2), 0u);  // Would be 2 if tracked
-  EXPECT_EQ(dg.in_degree(dn3), 1u);  // Only self-loop counted (out=in for self)
+  EXPECT_EQ(dg.in_degree(dn2), 2u);  // From dn1 and dn4
+  EXPECT_EQ(dg.in_degree(dn3), 2u);  // From dn2, and its loop
+  EXPECT_EQ(dg.in_degree(dn4), 1u);  // From dn1
+  EXPECT_EQ(in_degree(dg, dn2), 2u);
 }
 
 TEST_F(GraphFunctionalTest, OutDegreeDigraph)

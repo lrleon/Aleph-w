@@ -47,6 +47,8 @@
 # include <functional>
 # include <memory>
 # include <stdexcept>
+# include <type_traits>
+# include <utility>
 # if defined(__unix__) || defined(__APPLE__)
 #   include <pthread.h>
 # endif
@@ -85,6 +87,43 @@ protected:
 // =============================================================================
 // Basic Construction Tests
 // =============================================================================
+
+namespace
+{
+  // A comparison whose copy, move and swap may throw
+  struct Throwing_Copy_Less
+  {
+    Throwing_Copy_Less() noexcept = default;
+    Throwing_Copy_Less(const Throwing_Copy_Less &) noexcept(false) {}
+    Throwing_Copy_Less(Throwing_Copy_Less &&) noexcept(false) {}
+    Throwing_Copy_Less & operator = (const Throwing_Copy_Less &) noexcept(false)
+    {
+      return *this;
+    }
+    Throwing_Copy_Less & operator = (Throwing_Copy_Less &&) noexcept(false)
+    {
+      return *this;
+    }
+
+    bool operator()(const int a, const int b) const noexcept { return a < b; }
+  };
+
+  using Fragile_Compare_Heap = Fibonacci_Heap<int, Throwing_Copy_Less>;
+} // namespace
+
+// The constructors, the moves and swap were noexcept whatever the
+// comparison, which they copy, move or swap
+static_assert(std::is_nothrow_default_constructible_v<Fibonacci_Heap<int>>);
+static_assert(std::is_nothrow_move_constructible_v<Fibonacci_Heap<int>>);
+static_assert(std::is_nothrow_move_assignable_v<Fibonacci_Heap<int>>);
+static_assert(std::is_nothrow_swappable_v<Fibonacci_Heap<int>>);
+static_assert(not std::is_nothrow_default_constructible_v<Fragile_Compare_Heap>);
+static_assert(not noexcept(Fragile_Compare_Heap(std::in_place,
+                                                std::declval<const Throwing_Copy_Less &>())));
+static_assert(noexcept(Fragile_Compare_Heap(std::in_place)));
+static_assert(not std::is_nothrow_move_constructible_v<Fragile_Compare_Heap>);
+static_assert(not std::is_nothrow_move_assignable_v<Fragile_Compare_Heap>);
+static_assert(not std::is_nothrow_swappable_v<Fragile_Compare_Heap>);
 
 TEST(FibonacciHeapConstruction, DefaultConstructor)
 {

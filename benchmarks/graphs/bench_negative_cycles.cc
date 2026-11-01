@@ -80,19 +80,16 @@
  * sums). Its shortest-tie rule is tested against exhaustive integer and GMP
  * rational oracles in the test suite.
  *
- * `Bellman_Ford`'s witness extraction rebuilds the cycle from nodes and can
- * pick a different parallel arc, so on multigraphs it can return a cycle whose
- * cost is not negative (for instance `n = 19` with seeds 19 and 42, which are
- * always validated, and `dense`). Such a result counts as a known
- * Bellman-Ford defect only when it is exactly that: a simple cycle whose
- * nodes, joined by the cheapest arc of each step, cost less than zero. It is
- * printed as `INVALID` and does not change the exit code, because fixing the
- * old extractor is a separate task. Any other invalid witness, a missed or a
- * false detection is still an error.
+ * `Bellman_Ford` gives its witness by the arcs of its graph of predecessors:
+ * on multigraphs, the parallel arc that it relaxed. Up to 7.3.2 it rebuilt the
+ * cycle from its nodes, and on multigraphs it could return one whose cost was
+ * not negative, as on `n = 19` with seeds 19 and 42, which are always
+ * validated, and `dense`. Any invalid witness, a missed or a false detection
+ * is an error.
  *
  * Before any instance, the validators themselves are fed known results: the
  * cheaper of two loops must pass the short-cycle check and the costlier one
- * must not, and only the parallel-arc defect may count as known. A validator
+ * must not, and an invalid Bellman-Ford witness must be an error. A validator
  * that misjudges them also makes the program exit with code 1.
  *
  * @par Timing protocol
@@ -647,10 +644,6 @@ struct Outcome
   size_t length = 0;           // arcs of that cycle
   char cert[16] = "-";         // bounded search: "exact" / "bound" / "no-cert"; Howard: "it=7" or "karp"
   char why[128] = "";          // reason when Invalid
-  // Invalid only because a costlier parallel arc was picked: the nodes, joined
-  // by the cheapest arc of each step, form a negative cycle (known defect of
-  // Bellman_Ford's extraction, see the file documentation).
-  bool costlier_parallel_arc = false;
   size_t allocs = 0;           // operator new calls of one run
   size_t bytes = 0;
 };
@@ -764,7 +757,6 @@ Outcome check_result(const Graph & g, const Path<Graph> & p, const Limits &)
       const long double cheapest = cheapest_arcs_cost(g, nodes);
       if (cheapest < 0)
         {
-          o.costlier_parallel_arc = true;
           std::snprintf(o.why, sizeof(o.why),
                         "witness cost is not negative: a costlier parallel arc was picked "
                         "(the cheapest ones cost %.6Lg)", cheapest);
@@ -1115,7 +1107,6 @@ struct Variant
 {
   std::string name;
   Group group;
-  bool bf_witness;                              // Bellman_Ford path extraction
   size_t bound;                                 // L of the bounded search, else 0
   bool small_only = false;                      // cost grows too fast to run on huge graphs
   bool long_bound = false;                      // only on instances with `long_bound`
@@ -1124,13 +1115,12 @@ struct Variant
 };
 
 template <class Call>
-Variant make_variant(std::string name, const Group group, const bool bf_witness,
-                     const size_t bound, const Limits lim, Call call)
+Variant make_variant(std::string name, const Group group, const size_t bound,
+                     const Limits lim, Call call)
 {
   Variant v;
   v.name = std::move(name);
   v.group = group;
-  v.bf_witness = bf_witness;
   v.bound = bound;
   v.small_only = group == Group::Bounded or group == Group::Mean;
   v.run = [call](Graph & g) { return weigh(call(g)); };
@@ -1157,28 +1147,28 @@ DynList<Variant> make_variants()
   DynList<Variant> vs;
 
   vs.append(make_variant("BF::has_negative_cycle() [classic]", Group::Detect,
-    false, 0, Limits{},
+    0, Limits{},
     [](Graph & g) { return Bellman_Ford<Graph>(g).has_negative_cycle(); }));
 
-  vs.append(make_variant("BF::test_negative_cycle() [classic+Tarjan]", Group::Witness,
-    true, 0, Limits{},
+  vs.append(make_variant("BF::test_negative_cycle() [classic]", Group::Witness,
+    0, Limits{},
     [](Graph & g) { return Bellman_Ford<Graph>(g).test_negative_cycle(); }));
   vs.append(make_variant("BF::search_negative_cycle() [SPFA]", Group::Witness,
-    true, 0, Limits{},
+    0, Limits{},
     [](Graph & g) { return Bellman_Ford<Graph>(g).search_negative_cycle(); }));
   vs.append(make_variant("BF::search_negative_cycle(0.1, 1) [SPFA+early]", Group::Witness,
-    true, 0, Limits{},
+    0, Limits{},
     [](Graph & g) { return Bellman_Ford<Graph>(g).search_negative_cycle(0.1, 1); }));
 
   vs.append(make_variant("find_disjoint(g, 1)", Group::Witness,
-    false, 0, Limits{SIZE_MAX, 1, false},
+    0, Limits{SIZE_MAX, 1, false},
     [](Graph & g) { return find_disjoint_negative_cycles(g, 1); }));
   vs.append(make_variant("find_disjoint(g, 5, Min_Weight_Arc)", Group::Witness,
-    false, 0, Limits{SIZE_MAX, K, false},
+    0, Limits{SIZE_MAX, K, false},
     [](Graph & g)
     { return find_disjoint_negative_cycles(g, K, Exclusion::Min_Weight_Arc); }));
   vs.append(make_variant("find_disjoint(g, 5, All_Arcs)", Group::Witness,
-    false, 0, Limits{SIZE_MAX, K, true},
+    0, Limits{SIZE_MAX, K, true},
     [](Graph & g)
     { return find_disjoint_negative_cycles(g, K, Exclusion::All_Arcs); }));
 
@@ -1186,43 +1176,43 @@ DynList<Variant> make_variants()
     {
       char label[48];
       std::snprintf(label, sizeof(label), "most_negative_cycle_bounded(g, %zu)", L);
-      vs.append(make_variant(label, Group::Bounded, false, L, Limits{L, SIZE_MAX, false},
+      vs.append(make_variant(label, Group::Bounded, L, Limits{L, SIZE_MAX, false},
         [L](Graph & g) { return most_negative_cycle_bounded(g, L); }));
     }
 
   vs.append(make_variant("most_negative_cycle_up_to_3(g, 3)", Group::Bounded,
-    false, 3, Limits{3, SIZE_MAX, false},
+    3, Limits{3, SIZE_MAX, false},
     [](Graph & g) { return most_negative_cycle_up_to_3(g, 3); }));
 
   // L = V, as long as any simple cycle: only where the components are small
   // (see "Long walks in small components" above).
-  auto whole = make_variant("most_negative_cycle_bounded(g, V)", Group::Bounded, false, 0,
+  auto whole = make_variant("most_negative_cycle_bounded(g, V)", Group::Bounded, 0,
     Limits{},
     [](Graph & g) { return most_negative_cycle_bounded(g, g.get_num_nodes()); });
   whole.long_bound = true;
   vs.append(std::move(whole));
 
   vs.append(make_variant("karp_minimum_mean_cycle_value(g)", Group::Mean,
-    false, 0, Limits{},
+    0, Limits{},
     [](Graph & g) { return karp_minimum_mean_cycle_value(g); }));
   vs.append(make_variant("karp_minimum_mean_cycle(g)", Group::Mean,
-    false, 0, Limits{},
+    0, Limits{},
     [](Graph & g) { return karp_minimum_mean_cycle(g); }));
 
   // Howard's algorithm needs O(V + E) memory, so it runs on every size.
   auto howard_value = make_variant("howard_minimum_mean_cycle_value(g)", Group::Mean,
-    false, 0, Limits{},
+    0, Limits{},
     [](Graph & g) { return howard_minimum_mean_cycle_value(g); });
   howard_value.small_only = false;
   vs.append(std::move(howard_value));
   auto howard_witness = make_variant("howard_minimum_mean_cycle(g)", Group::Mean,
-    false, 0, Limits{},
+    0, Limits{},
     [](Graph & g) { return howard_minimum_mean_cycle(g); });
   howard_witness.small_only = false;
   vs.append(std::move(howard_witness));
 
   vs.append(make_variant("snapshot only (index_graph)", Group::Reference,
-    false, 0, Limits{},
+    0, Limits{},
     [](Graph & g)
     {
       Dft_Dist<Graph> distance;
@@ -1233,7 +1223,7 @@ DynList<Variant> make_variants()
   return vs;
 }
 
-enum class Judgment { Ok, Known_Defect, Unexpected };
+enum class Judgment { Ok, Unexpected };
 
 // Compares an outcome with the ground truth of the instance.
 Judgment judge(const Instance & inst, const Variant & v, const Outcome & o,
@@ -1253,11 +1243,8 @@ Judgment judge(const Instance & inst, const Variant & v, const Outcome & o,
 
   if (o.verdict == Verdict::Invalid)
     {
-      // Only the documented defect of Bellman_Ford's extraction is known: any
-      // other invalid witness, of Bellman_Ford or not, is an error.
-      reason = o.why;
-      return v.bf_witness and o.costlier_parallel_arc ? Judgment::Known_Defect
-                                                      : Judgment::Unexpected;
+      reason = o.why;  // an invalid witness, of Bellman_Ford or not, is an error
+      return Judgment::Unexpected;
     }
 
   const bool detector = v.group == Group::Detect or v.name.find("_value(") != std::string::npos;
@@ -1274,8 +1261,8 @@ Judgment judge(const Instance & inst, const Variant & v, const Outcome & o,
  *  A short-cycle result naming the costlier of two loops must fail
  *  `check_short_optimum()`: they differ by far more than its tolerance
  *  (`8 epsilon` of long double, relative), though by little more than a
- *  double ulp. An invalid Bellman-Ford witness that is not the known
- *  parallel-arc defect must be judged unexpected. Nothing is timed.
+ *  double ulp. An invalid Bellman-Ford witness must be judged unexpected.
+ *  Nothing is timed.
  *
  *  @return The number of results misjudged (zero when the validators work).
  */
@@ -1307,16 +1294,12 @@ size_t validator_self_test()
   inst.spec.negative = true;
   Variant bf;
   bf.group = Group::Witness;
-  bf.bf_witness = true;
   bf.bound = 0;
   Outcome o;
   invalid(o, "self-test");
   const char * reason = "";
   if (judge(inst, bf, o, reason) != Judgment::Unexpected)
-    ++misjudged;   // any other invalid witness is an error
-  o.costlier_parallel_arc = true;
-  if (judge(inst, bf, o, reason) != Judgment::Known_Defect)
-    ++misjudged;
+    ++misjudged;   // an invalid witness is an error
   return misjudged;
 }
 
@@ -1384,7 +1367,6 @@ Timing time_variant(Instance & inst, const Variant & v, const size_t samples)
 struct Tally
 {
   size_t unexpected = 0;
-  size_t known_defects = 0;
 };
 
 const char * group_title(const Group g)
@@ -1432,8 +1414,7 @@ void print_row(const Variant & v, const Outcome & o, const Timing * t, const Jud
               v.group == Group::Reference ? "-" : verdict_name(o.verdict), found, cost, len,
               o.cert, o.allocs,
               static_cast<double>(o.bytes) / 1024.0,
-              j == Judgment::Known_Defect ? "  <- known BF defect"
-              : j == Judgment::Unexpected ? "  <- UNEXPECTED" : "");
+              j == Judgment::Unexpected ? "  <- UNEXPECTED" : "");
 }
 
 // ---------------------------------------------------------------------------
@@ -1583,8 +1564,6 @@ void report_instance(Instance & inst, const DynList<Variant> & variants,
 
       if (worst == Judgment::Unexpected)
         ++tally.unexpected;
-      else if (worst == Judgment::Known_Defect)
-        ++tally.known_defects;
 
       if (samples > 0)
         {
@@ -1594,9 +1573,7 @@ void report_instance(Instance & inst, const DynList<Variant> & variants,
       else
         print_row(v, shown, nullptr, worst);
       if (worst != Judgment::Ok)
-        std::printf("      %s: %s\n",
-                    worst == Judgment::Unexpected ? "UNEXPECTED" : "known defect",
-                    reason.c_str());
+        std::printf("      UNEXPECTED: %s\n", reason.c_str());
     }
   if (skipped_bounded)
     std::printf("  (%s variants skipped: more than %zu vertices)\n",
@@ -1752,11 +1729,7 @@ int main(const int argc, char * argv[])
       report_instance(*inst, variants, opt.check_only ? 0 : opt.samples, tally);
     }
 
-  std::printf("\nSummary: %zu unexpected result(s), %zu known Bellman-Ford witness defect(s)\n",
-              tally.unexpected, tally.known_defects);
-  if (tally.known_defects > 0)
-    std::printf("  Known defects are INVALID witnesses of Bellman_Ford path extraction on multigraphs:\n"
-                "  a costlier parallel arc of a negative node cycle; fixing the extractor is a separate task.\n");
+  std::printf("\nSummary: %zu unexpected result(s)\n", tally.unexpected);
   if (tally.unexpected > 0)
     {
       std::fprintf(stderr, "bench_negative_cycles: %zu unexpected result(s)\n", tally.unexpected);

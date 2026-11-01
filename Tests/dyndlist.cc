@@ -596,6 +596,91 @@ TEST(DynDlistFunctional, ToArrayHelperPreservesOrder)
     EXPECT_EQ(arr(i), it.get_curr());
 }
 
+namespace
+{
+  // Counts its copies; its move cannot throw
+  struct Copy_Counted
+  {
+    static inline int copies = 0;
+    int value = 0;
+
+    Copy_Counted(int v = 0) noexcept : value(v) {}
+    Copy_Counted(const Copy_Counted & c) : value(c.value) { ++copies; }
+    Copy_Counted(Copy_Counted && c) noexcept : value(c.value) {}
+    Copy_Counted & operator = (const Copy_Counted & c)
+    {
+      value = c.value;
+      ++copies;
+      return *this;
+    }
+    Copy_Counted & operator = (Copy_Counted && c) noexcept
+    {
+      value = c.value;
+      return *this;
+    }
+  };
+
+  // Its move throws while fail is true
+  struct Fragile_Move
+  {
+    static inline bool fail = false;
+    int value = 0;
+
+    Fragile_Move(int v = 0) noexcept : value(v) {}
+    Fragile_Move(const Fragile_Move & c) = default;
+    Fragile_Move(Fragile_Move && c) : value(c.value)
+    {
+      if (fail)
+        throw std::runtime_error("move failed");
+    }
+    Fragile_Move & operator = (const Fragile_Move & c) = default;
+    Fragile_Move & operator = (Fragile_Move && c) = default;
+  };
+} // namespace
+
+// They copied the item, in a function that was noexcept: a copy that threw
+// ended the program
+static_assert(noexcept(std::declval<DynDlist<int> &>().remove_first_ne()));
+static_assert(noexcept(std::declval<DynDlist<int> &>().remove_last_ne()));
+static_assert(not noexcept(std::declval<DynDlist<Fragile_Move> &>().remove_first_ne()));
+static_assert(not noexcept(std::declval<DynDlist<Fragile_Move> &>().remove_last_ne()));
+
+TEST(DynDlist, RemovingAnEndMovesTheItem)
+{
+  DynDlist<Copy_Counted> list;
+  for (int i = 1; i <= 4; ++i)
+    list.append(Copy_Counted(i));
+
+  Copy_Counted::copies = 0;
+  EXPECT_EQ(list.remove_first_ne().value, 1);
+  EXPECT_EQ(list.remove_last_ne().value, 4);
+  EXPECT_EQ(list.remove_first().value, 2);
+  EXPECT_EQ(list.remove_last().value, 3);
+  EXPECT_EQ(Copy_Counted::copies, 0);
+  EXPECT_TRUE(list.is_empty());
+  EXPECT_EQ(list.size(), 0u);
+}
+
+// The item moves out before its node leaves the list
+TEST(DynDlist, AMoveThatThrowsLeavesTheItemInTheList)
+{
+  DynDlist<Fragile_Move> list;
+  for (int i = 1; i <= 3; ++i)
+    list.append(Fragile_Move(i));
+
+  Fragile_Move::fail = true;
+  EXPECT_THROW((void) list.remove_first_ne(), std::runtime_error);
+  EXPECT_THROW((void) list.remove_last_ne(), std::runtime_error);
+  Fragile_Move::fail = false;
+
+  ASSERT_EQ(list.size(), 3u);
+  EXPECT_EQ(list.get_first().value, 1);
+  EXPECT_EQ(list.get_last().value, 3);
+  EXPECT_EQ(list.remove_first_ne().value, 1);
+  EXPECT_EQ(list.remove_last_ne().value, 3);
+  EXPECT_EQ(list.size(), 1u);
+}
+
 TEST(DynDlist, EqualityOperator)
 {
   DynDlist<int> l1 = {1, 2, 3};

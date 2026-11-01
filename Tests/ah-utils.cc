@@ -36,7 +36,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "../ahUtils.H"
+#include <ahUtils.H>
 #include <vector>
 #include <fstream>
 #include <cstdint>

@@ -1284,6 +1284,76 @@ TEST(GraphNodeTest, ACopyOfTheDataThatThrowsReachesTheCaller)
 
 namespace
 {
+  struct Not_Three
+  {
+    bool operator()(Graph::Node * p) const noexcept { return p->get_info() != 3; }
+  };
+
+  struct Not_One
+  {
+    bool operator()(Graph::Arc * a) const noexcept { return a->get_info() != 1; }
+  };
+
+  template <class G>
+  std::vector<double> arc_infos(const G & g)
+  {
+    std::vector<double> infos;
+    for (typename G::Arc_Iterator it(g); it.has_curr(); it.next_ne())
+      infos.push_back(it.get_curr()->get_info());
+    std::sort(infos.begin(), infos.end());
+    return infos;
+  }
+}
+
+// Copy_Graph copied every arc that the arc filter shows: an arc to a node
+// that the node filter hides took a null image, and the copy aborted. It
+// copies the arcs between the nodes that it shows.
+TEST(CopyGraphTest, CopiesTheArcsBetweenTheNodesThatItShows)
+{
+  Graph g;
+  auto a = g.insert_node(1);
+  auto b = g.insert_node(2);
+  auto c = g.insert_node(3);
+  g.insert_arc(a, b, 1);
+  g.insert_arc(b, c, 2);
+  g.insert_arc(c, a, 3);
+  g.insert_arc(a, a, 4);
+
+  Graph tgt;
+  Copy_Graph<Graph, Not_Three>(Dft_Show_Arc<Graph>(), Not_Three())(tgt, g);
+  EXPECT_EQ(tgt.get_num_nodes(), 2u);
+  EXPECT_EQ(arc_infos(tgt), (std::vector<double>{1, 4}));
+  EXPECT_EQ(mapped_node<Graph>(a)->get_info(), 1);
+  EXPECT_EQ(mapped_node<Graph>(b)->get_info(), 2);
+  EXPECT_EQ(mapped_node<Graph>(c), nullptr);
+
+  Copy_Graph<Graph, Not_Three, Not_One>(Not_One(), Not_Three())(tgt, g, false);
+  EXPECT_EQ(tgt.get_num_nodes(), 2u);
+  EXPECT_EQ(arc_infos(tgt), (std::vector<double>{4}));
+
+  // a digraph keeps the sense of the arcs
+  TestDigraph dg;
+  auto x = dg.insert_node(1);
+  auto y = dg.insert_node(2);
+  auto z = dg.insert_node(3);
+  dg.insert_arc(y, x, 1);
+  dg.insert_arc(x, z, 2);
+  dg.insert_arc(z, y, 3);
+  struct Digraph_Not_Three
+  {
+    bool operator()(TestDigraph::Node * p) const noexcept { return p->get_info() != 3; }
+  };
+  TestDigraph dtgt;
+  Copy_Graph<TestDigraph, Digraph_Not_Three>(Dft_Show_Arc<TestDigraph>(),
+                                             Digraph_Not_Three())(dtgt, dg);
+  ASSERT_EQ(dtgt.get_num_arcs(), 1u);
+  auto arc = dtgt.get_first_arc();
+  EXPECT_EQ(dtgt.get_src_node(arc)->get_info(), 2);
+  EXPECT_EQ(dtgt.get_tgt_node(arc)->get_info(), 1);
+}
+
+namespace
+{
   template <class A, class B>
   constexpr bool can_swap = requires (A & a, B & b) { a.swap(b); };
 }

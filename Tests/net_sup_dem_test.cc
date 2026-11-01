@@ -343,43 +343,51 @@ TEST_F(FeasibilityTest, EmptyNetworkIsFeasible)
   EXPECT_EQ(net.total_demand(), 0);
 }
 
-TEST_F(FeasibilityTest, SupplyOnlyNetwork)
+// is_feasible() judges the flow of the auxiliary network, which a max-flow
+// algorithm computes; it judged the fields out_flow and in_flow of the
+// nodes, which the network does not write and these tests set by hand
+
+// A supply has nowhere to go without a demand
+TEST_F(FeasibilityTest, SupplyOnlyNetworkIsNotFeasible)
 {
   auto* s = net.insert_node(100);
   s->out_cap = 200;
-  s->out_flow = 100;  // Simulate flow
-  
+
   net.compute_aux_net();
-  EXPECT_TRUE(net.is_feasible());
+  EXPECT_FALSE(net.is_feasible());
 }
 
 TEST_F(FeasibilityTest, SupplyNotMeetingFlowRequirement)
 {
   auto* s = net.insert_node(100);
+  auto* d = net.insert_node(-100);
   s->out_cap = 200;
-  s->out_flow = 50;  // Less than required
-  
+  net.insert_arc(s, d, 50); // only 50 can go
+
+  net.compute_aux_net();
+  (void) edmonds_karp_maximum_flow(net);
+  EXPECT_FALSE(net.is_feasible());
+}
+
+// A demand has nothing to receive without a supply
+TEST_F(FeasibilityTest, DemandOnlyNetworkIsNotFeasible)
+{
+  auto* d = net.insert_node(-80);
+  d->in_cap = 100;
+
   net.compute_aux_net();
   EXPECT_FALSE(net.is_feasible());
 }
 
-TEST_F(FeasibilityTest, DemandMet)
-{
-  auto* d = net.insert_node(-80);
-  d->in_cap = 100;
-  d->in_flow = 80;  // Exactly meeting demand
-  
-  net.compute_aux_net();
-  EXPECT_TRUE(net.is_feasible());
-}
-
 TEST_F(FeasibilityTest, DemandNotMet)
 {
+  auto* s = net.insert_node(80);
   auto* d = net.insert_node(-80);
   d->in_cap = 100;
-  d->in_flow = 50;  // Less than required
-  
+  net.insert_arc(s, d, 50); // only 50 can come
+
   net.compute_aux_net();
+  (void) edmonds_karp_maximum_flow(net);
   EXPECT_FALSE(net.is_feasible());
 }
 
@@ -387,15 +395,15 @@ TEST_F(FeasibilityTest, MixedSupplyDemandFeasible)
 {
   auto* s = net.insert_node(100);
   auto* d = net.insert_node(-100);
-  
+
   s->out_cap = 150;
-  s->out_flow = 100;
   d->in_cap = 150;
-  d->in_flow = 100;
-  
+
   net.insert_arc(s, d, 100);
-  
+
   net.compute_aux_net();
+  EXPECT_FALSE(net.is_feasible()); // no flow yet
+  (void) edmonds_karp_maximum_flow(net);
   EXPECT_TRUE(net.is_feasible());
 }
 
@@ -403,15 +411,14 @@ TEST_F(FeasibilityTest, MixedSupplyDemandNotFeasible)
 {
   auto* s = net.insert_node(100);
   auto* d = net.insert_node(-100);
-  
+
   s->out_cap = 150;
-  s->out_flow = 80;  // Not enough
   d->in_cap = 150;
-  d->in_flow = 80;
-  
-  net.insert_arc(s, d, 100);
-  
+
+  net.insert_arc(s, d, 80); // only 80 of the 100 can go
+
   net.compute_aux_net();
+  (void) edmonds_karp_maximum_flow(net);
   EXPECT_FALSE(net.is_feasible());
 }
 
@@ -423,16 +430,18 @@ TEST_F(FeasibilityTest, NonFeasibleSupplyNodes)
 {
   auto* s1 = net.insert_node(100);
   auto* s2 = net.insert_node(50);
-  
+  auto* d = net.insert_node(-110);
+
   s1->out_cap = 200;
-  s1->out_flow = 60;  // Not enough
   s2->out_cap = 100;
-  s2->out_flow = 50;  // OK
-  
+  net.insert_arc(s1, d, 60); // s1 ships 60 of its 100
+  net.insert_arc(s2, d, 50); // s2 ships its 50, and d receives its 110
+
   net.compute_aux_net();
-  
+  (void) edmonds_karp_maximum_flow(net);
+
   DynDlist<SimpleNet::Node*> supply_list, demand_list;
-  net.non_feasible_nodes(supply_list, demand_list);
+net.non_feasible_nodes(supply_list, demand_list);
   
   EXPECT_EQ(supply_list.size(), 1u);
   EXPECT_EQ(demand_list.size(), 0u);
@@ -443,16 +452,18 @@ TEST_F(FeasibilityTest, NonFeasibleDemandNodes)
 {
   auto* d1 = net.insert_node(-100);
   auto* d2 = net.insert_node(-50);
-  
+  auto* s = net.insert_node(130);
+
   d1->in_cap = 200;
-  d1->in_flow = 80;  // Not enough
   d2->in_cap = 100;
-  d2->in_flow = 50;  // OK
-  
+  net.insert_arc(s, d1, 80); // d1 receives 80 of its 100
+  net.insert_arc(s, d2, 50); // d2 receives its 50, and s ships its 130
+
   net.compute_aux_net();
-  
+  (void) edmonds_karp_maximum_flow(net);
+
   DynDlist<SimpleNet::Node*> supply_list, demand_list;
-  net.non_feasible_nodes(supply_list, demand_list);
+net.non_feasible_nodes(supply_list, demand_list);
   
   EXPECT_EQ(supply_list.size(), 0u);
   EXPECT_EQ(demand_list.size(), 1u);
@@ -462,17 +473,20 @@ TEST_F(FeasibilityTest, NonFeasibleDemandNodes)
 TEST_F(FeasibilityTest, MultipleMixedNonFeasibleNodes)
 {
   auto* s1 = net.insert_node(100);
-  auto* s2 = net.insert_node(80);
+  auto* s2 = net.insert_node(70);
   auto* d1 = net.insert_node(-60);
   auto* d2 = net.insert_node(-70);
-  
-  s1->out_cap = 200; s1->out_flow = 50;   // Not enough
-  s2->out_cap = 200; s2->out_flow = 80;   // OK
-  d1->in_cap = 200;  d1->in_flow = 30;    // Not enough
-  d2->in_cap = 200;  d2->in_flow = 70;    // OK
-  
+
+  s1->out_cap = 200;
+  s2->out_cap = 200;
+  d1->in_cap = 200;
+  d2->in_cap = 200;
+  net.insert_arc(s1, d1, 30); // s1 ships 30 of its 100; d1 receives 30 of 60
+  net.insert_arc(s2, d2, 80); // s2 ships its 70, and d2 receives its 70
+
   net.compute_aux_net();
-  
+  (void) edmonds_karp_maximum_flow(net);
+
   DynDlist<SimpleNet::Node*> supply_list, demand_list;
   net.non_feasible_nodes(supply_list, demand_list);
   
@@ -645,15 +659,10 @@ TEST(IntegrationTest, CompleteWorkflow)
   net.compute_aux_net();
   EXPECT_TRUE(net.exist_aux_net());
   
-  // Simulate successful max-flow
-  factory1->out_flow = 100;
-  factory2->out_flow = 50;
-  store1->in_flow = 80;
-  store2->in_flow = 70;
-  
-  // Check feasibility
+  // The flow, and its feasibility
+  EXPECT_EQ(edmonds_karp_maximum_flow(net), 150);
   EXPECT_TRUE(net.is_feasible());
-  
+
   // Get non-feasible nodes (should be empty)
   DynDlist<SimpleNet::Node*> supply_list, demand_list;
   net.non_feasible_nodes(supply_list, demand_list);

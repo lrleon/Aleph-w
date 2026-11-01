@@ -63,6 +63,9 @@
 #define NET_APPS_H
 
 #include <array>
+#include <cmath>
+#include <limits>
+#include <type_traits>
 #include <vector>
 #include <string>
 #include <functional>
@@ -101,11 +104,20 @@ struct CirculationResult
  *
  *  ## Algorithm
  *  1. Transform to max-flow problem:
+ *     - Take the lower bounds as a mandatory flow, which adjusts the
+ *       demands: d'(v) = d(v) - l_in(v) + l_out(v)
  *     - Create super-source connected to nodes with negative demand
  *     - Create super-sink connected from nodes with positive demand
  *     - Adjust capacities for lower bounds
  *  2. Solve max-flow
  *  3. Check if flow saturates all super-source/sink edges
+ *
+ *  There is no circulation if a lower bound is negative or above the
+ *  capacity of its arc, or if the demands do not add up to 0. With a
+ *  floating flow, an adjusted demand within the rounding of its sum of
+ *  the demand and the lower bounds of its node, an epsilon of the sum of
+ *  their magnitudes by each of them and two more, is 0, so that bounds
+ *  that balance but for rounding are a circulation.
  *
  *  @tparam Net Network type.
  *  @tparam GetDemand Functor returning node demand.
@@ -114,7 +126,11 @@ struct CirculationResult
  *  @param net Network (modified during computation).
  *  @param get_demand Returns demand for each node.
  *  @param get_lower Returns the lower bound for each arc.
- *  @return CirculationResult with feasibility and flow values.
+ *  @return CirculationResult with feasibility and flow values: the flow of
+ *          the circulation, if there is one, else the lower bounds.
+ *  @throw std::bad_alloc if there is not enough memory. Then the network is
+ *         as it was, but for its flows, which are 0, unless the removal of
+ *         the super nodes, which allocates, fails too.
  *
  *  @par Example
  *  ```cpp
@@ -139,244 +155,175 @@ CirculationResult<typename Net::Flow_Type> solve_circulation(Net &net, GetDemand
   using Arc = typename Net::Arc;
   using Flow_Type = typename Net::Flow_Type;
 
+  // Whether two totals are the same: exactly, or, for a floating flow,
+  // but for rounding
+  auto same = [](const Flow_Type &a, const Flow_Type &b)
+    {
+      if constexpr (std::is_floating_point_v<Flow_Type>)
+        return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * 1e-9;
+      else
+        return a == b;
+    };
+
   CirculationResult<Flow_Type> result;
 
-  // Collect original nodes (before adding super nodes)
+  // The nodes of the network, before the super nodes, and its arcs, with
+  // their capacities and lower bounds; the flows start at the bounds
   DynList<Node *> original_nodes;
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     original_nodes.append(it.get_curr());
 
-  // Store original capacities to restore later
-  DynMapTree<Arc *, Flow_Type> original_caps;
+  struct Arc_Bounds
+  {
+    Arc *arc;
+    Flow_Type cap;
+    Flow_Type lower;
+  };
+  DynList<Arc_Bounds> original_arcs;
+  bool bounded = true;  // whether 0 <= l(e) <= u(e) on every arc
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
       Arc *arc = it.get_curr();
-      original_caps[arc] = arc->cap;
+      const Flow_Type lb = get_lower(arc);
+      bounded = bounded and lb >= Flow_Type{0} and lb <= arc->cap;
+      original_arcs.append(Arc_Bounds{arc, arc->cap, lb});
+      result.flow[arc] = lb;
     }
 
-  // Create super-source and super-sink for the transformed network
-  Node *super_source = net.insert_node();
-  Node *super_sink = net.insert_node();
-
-  // Track arcs we add so we can remove them later
-  DynList<Arc *> added_arcs;
-
-  // Calculate total positive ADJUSTED demand
-  // (This must be computed from adjusted demands, not original demands)
-  Flow_Type total_demand{0};
-
-  // Add edges from super-source/to super-sink based on adjusted demands
-  for (auto *v : original_nodes)
+  // An arc u -> v carries its lower bound l at least, which v receives
+  // and u sends: what is left is a flow f' = f - l, within u(e) - l, where
+  // in'(v) - out'(v) = d'(v) = d(v) - l_in(v) + l_out(v). For a floating
+  // flow, an adjusted demand within the rounding of the numbers that
+  // make it, the demand and the lower bounds of the arcs of v, is 0:
+  // lower bounds that balance but for rounding are a circulation. The
+  // capacities do not make d'(v), and a large one beside small bounds
+  // would take a real demand for a residue.
+  DynMapTree<Node *, Flow_Type> adjusted;
+  Flow_Type need{0}, give{0};  // what the nodes need, and what they give
+  for (Node *v : original_nodes)
     {
-      // Calculate adjusted demand: d'(v) = d(v) + l_out(v) - l_in(v)
-      // This comes from the circulation reduction with lower bounds:
-      // - For each arc (u,v) with lower bound l: the mandatory l units
-      //   count as outflow from u and inflow to v.
-      // - d'(u) = d(u) + l (gains "debt" from mandatory outflow)
-      // - d'(v) = d(v) - l (satisfied by mandatory inflow)
-      Flow_Type lower_in{0}, lower_out{0};
+      Flow_Type d = get_demand(v);
+      [[maybe_unused]] Flow_Type scale = d < Flow_Type{0} ? -d : d;
+      [[maybe_unused]] size_t terms = 1;
       for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
         {
           Arc *arc = ait.get_curr();
-          Flow_Type lb = get_lower(arc);
+          const Flow_Type lb = get_lower(arc);
           if (net.get_tgt_node(arc) == v)
-            lower_in += lb;
+            d -= lb;
           if (net.get_src_node(arc) == v)
-            lower_out += lb;
+            d += lb;
+          if constexpr (std::is_floating_point_v<Flow_Type>)
+            {
+              scale += lb < Flow_Type{0} ? -lb : lb;
+              ++terms;
+            }
         }
-
-      Flow_Type adjusted_demand = get_demand(v) + lower_out - lower_in;
-
-      if (adjusted_demand > 0)
-        {
-          total_demand += adjusted_demand;
-          added_arcs.append(net.insert_arc(super_source, v, adjusted_demand));
-        }
-      else if (adjusted_demand < 0)
-        added_arcs.append(net.insert_arc(v, super_sink, -adjusted_demand));
+      if constexpr (std::is_floating_point_v<Flow_Type>)
+        if (std::abs(d) <= std::numeric_limits<Flow_Type>::epsilon() * Flow_Type(terms + 2) * scale)
+          d = Flow_Type{0};
+      adjusted[v] = d;
+      if (d > Flow_Type{0})
+        need += d;
+      else
+        give -= d;
     }
 
-  // Trivial case: no adjusted demands means circulation with lower bounds is feasible
-  if (total_demand == Flow_Type{0})
+  // No flow fits bounds out of order, nor demands whose total is not 0;
+  // without demands left, the lower bounds are the circulation
+  if (not bounded or not same(need, give))
+    return result;
+  if (need == Flow_Type{0})
     {
       result.feasible = true;
-      // Set all flows to their lower bounds
-      for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-        {
-          Arc *arc = it.get_curr();
-          if (original_caps.contains(arc))
-            result.flow[arc] = get_lower(arc);
-        }
-      // Cleanup: remove added arcs and nodes
-      for (Arc *arc : added_arcs)
-        net.remove_arc(arc);
-      net.remove_node(super_source);
-      net.remove_node(super_sink);
       return result;
     }
 
-  // Adjust arc capacities: cap' = cap - lower_bound
-  for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+  // The network as it was, but for its flows, which are 0; the super
+  // nodes go, with their arcs, outside a destructor, as a removal
+  // allocates in a network
+  Node *super_source = nullptr;
+  Node *super_sink = nullptr;
+  auto restore = [&]
     {
-      Arc *arc = it.get_curr();
-      Node *src = net.get_src_node(arc);
-      Node *tgt = net.get_tgt_node(arc);
-
-      // Skip super-source/sink arcs (they don't have lower bounds)
-      if (src == super_source or tgt == super_sink)
-        continue;
-
-      Flow_Type lb = get_lower(arc);
-      arc->cap -= lb;
-    }
-
-  // Ensure super_source is the ONLY source and super_sink is the ONLY sink.
-  // For the max-flow to correctly compute feasibility, we need paths from s* to t*.
-  //
-  // For original sinks (nodes with no outgoing arcs), flow arriving at them has
-  // nowhere to go. We add arcs to super_sink. The capacity should be the incoming
-  // capacity from ORIGINAL arcs only (not demand arcs), since we're measuring
-  // how much flow can reach this sink through the original network.
-  //
-  // For original sources (nodes with no incoming arcs), we add zero-capacity
-  // arcs just to make them non-sources in the network topology.
-  for (auto *v : original_nodes)
-    {
-      // Check if v is still a source (no incoming arcs)
-      if (net.get_in_degree(v) == 0)
-        added_arcs.append(net.insert_arc(super_source, v, Flow_Type{0}));
-
-      // Check if v is still a sink (no outgoing arcs): add arc to super_sink
-      // Compute incoming capacity from ORIGINAL arcs only
-      if (net.get_out_degree(v) == 0)
+      for (auto it = original_arcs.get_it(); it.has_curr(); it.next_ne())
         {
-          Flow_Type in_cap_orig{0};
-          for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
-            if (Arc *arc = ait.get_curr(); net.get_tgt_node(arc) == v and original_caps.contains(arc))
-              in_cap_orig += arc->cap;  // Use modified cap (original - lower)
-          added_arcs.append(net.insert_arc(v, super_sink, in_cap_orig));
+          const Arc_Bounds &b = it.get_curr();
+          b.arc->cap = b.cap;
+          b.arc->flow = Flow_Type{0};
         }
-    }
-
-  // Solve max-flow on the transformed network
-  Flow_Type max_flow = Maxflow<Net>()(net);
-
-  result.feasible = (max_flow == total_demand);
-  result.excess_flow = max_flow;
-
-  // Compute actual circulation flow on original arcs.
-  // The max-flow determines feasibility but may route through auxiliary arcs.
-  // We need to compute flows on original arcs using flow conservation equations.
-  //
-  // For each original arc, start with lower bound and adjust based on demands.
-  // First, initialize flows to lower bounds.
-  for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    {
-      Arc *arc = it.get_curr();
-      if (original_caps.contains(arc))
-        result.flow[arc] = get_lower(arc);
-    }
-
-  // If feasible, compute the actual circulation flows.
-  // For each node, we need: inflow - outflow = demand
-  // Use an iterative approach: repeatedly process nodes until all balances are satisfied.
-  if (result.feasible)
-    {
-      // Iterate until all nodes have correct flow balance
-      bool changed = true;
-      int max_iterations = original_nodes.size() * 2;  // Safety limit
-      while (changed and max_iterations-- > 0)
+      if (super_sink != nullptr)
         {
-          changed = false;
-          for (auto *v : original_nodes)
-            {
-              // Compute current balance at v
-              Flow_Type current_in{0}, current_out{0};
-              for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
-                {
-                  Arc *arc = ait.get_curr();
-                  if (not original_caps.contains(arc))
-                    continue;
-                  if (net.get_tgt_node(arc) == v)
-                    current_in += result.flow[arc];
-                  if (net.get_src_node(arc) == v)
-                    current_out += result.flow[arc];
-                }
-
-              // imbalance = (current_in - current_out) - demand
-              Flow_Type imbalance = (current_in - current_out) - get_demand(v);
-
-              if (imbalance < Flow_Type{0})
-                {
-                  // Node needs more inflow - increase flow on incoming arcs
-                  Flow_Type deficit = -imbalance;
-                  for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
-                    {
-                      Arc *arc = ait.get_curr();
-                      if (not original_caps.contains(arc))
-                        continue;
-                      if (net.get_tgt_node(arc) != v)
-                        continue;
-
-                      Flow_Type slack = original_caps[arc] - result.flow[arc];
-                      Flow_Type increase = (slack < deficit) ? slack : deficit;
-                      if (increase > Flow_Type{0})
-                        {
-                          result.flow[arc] += increase;
-                          deficit -= increase;
-                          changed = true;
-                        }
-                      if (deficit <= Flow_Type{0})
-                        break;
-                    }
-                }
-              else if (imbalance > Flow_Type{0})
-                {
-                  // Node has excess inflow - increase flow on outgoing arcs
-                  Flow_Type excess = imbalance;
-                  for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
-                    {
-                      Arc *arc = ait.get_curr();
-                      if (not original_caps.contains(arc))
-                        continue;
-                      if (net.get_src_node(arc) != v)
-                        continue;
-
-                      Flow_Type slack = original_caps[arc] - result.flow[arc];
-                      Flow_Type increase = (slack < excess) ? slack : excess;
-                      if (increase > Flow_Type{0})
-                        {
-                          result.flow[arc] += increase;
-                          excess -= increase;
-                          changed = true;
-                        }
-                      if (excess <= Flow_Type{0})
-                        break;
-                    }
-                }
-            }
+          net.remove_node(super_sink);
+          super_sink = nullptr;
         }
-    }
-
-  // Cleanup: restore original capacities and reset flows
-  for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    {
-      Arc *arc = it.get_curr();
-      if (original_caps.contains(arc))
+      if (super_source != nullptr)
         {
-          arc->cap = original_caps[arc];
-          arc->flow = Flow_Type{0};  // Reset flow
+          net.remove_node(super_source);
+          super_source = nullptr;
         }
+    };
+
+  try
+    {
+      super_source = net.insert_node();
+      super_sink = net.insert_node();
+
+      // A node that needs flow gets it from the super-sink side, and one
+      // that gives it, from the super-source
+      for (Node *v : original_nodes)
+        if (const Flow_Type d = adjusted[v]; d > Flow_Type{0})
+          net.insert_arc(v, super_sink, d);
+        else if (d < Flow_Type{0})
+          net.insert_arc(super_source, v, -d);
+
+      // The other sources and sinks, through arcs of capacity 0, so that
+      // the network has one source and one sink
+      DynList<Node *> sources, sinks;
+      for (auto it = net.get_src_nodes().get_it(); it.has_curr(); it.next_ne())
+        if (it.get_curr() != super_source)
+          sources.append(it.get_curr());
+      for (auto it = net.get_sink_nodes().get_it(); it.has_curr(); it.next_ne())
+        if (it.get_curr() != super_sink)
+          sinks.append(it.get_curr());
+      for (Node *v : sources)
+        net.insert_arc(super_source, v, Flow_Type{0});
+      for (Node *v : sinks)
+        net.insert_arc(v, super_sink, Flow_Type{0});
+
+      for (auto it = original_arcs.get_it(); it.has_curr(); it.next_ne())
+        {
+          const Arc_Bounds &b = it.get_curr();
+          b.arc->cap = b.cap - b.lower;
+          b.arc->flow = Flow_Type{0};
+        }
+
+      const Flow_Type got = Maxflow<Net>()(net);
+      result.excess_flow = got;
+      result.feasible = same(got, need);
+      if (result.feasible)
+        for (auto it = original_arcs.get_it(); it.has_curr(); it.next_ne())
+          {
+            const Arc_Bounds &b = it.get_curr();
+            result.flow[b.arc] = b.arc->flow + b.lower;
+          }
+    }
+  catch (...)
+    {
+      // If the removal fails too, the super nodes stay, and the first
+      // exception goes on
+      try
+        {
+          restore();
+        }
+      catch (...)
+        {
+          // empty
+        }
+      throw;
     }
 
-  // Cleanup: remove added arcs (must be done before removing nodes)
-  for (Arc *arc : added_arcs)
-    net.remove_arc(arc);
-
-  // Cleanup: remove super nodes we created
-  net.remove_node(super_source);
-  net.remove_node(super_sink);
-
+  restore();
   return result;
 }
 
@@ -647,9 +594,10 @@ inline BaseballEliminationResult check_baseball_elimination(const std::vector<Te
       {
         team_nodes[i] = net.insert_node();
 
-        // Team to sink: capacity = max wins x can have - current wins of i
-        if (int cap = result.max_possible_wins - teams[i].wins; cap > 0)
-          net.insert_arc(team_nodes[i], sink, cap);
+        // Team to sink: capacity = max wins x can have - current wins of
+        // i, which is 0 for a team without room: the arc stays, so that
+        // the team is not a sink
+        net.insert_arc(team_nodes[i], sink, result.max_possible_wins - teams[i].wins);
       }
 
   // Create game nodes
@@ -678,9 +626,16 @@ inline BaseballEliminationResult check_baseball_elimination(const std::vector<Te
         }
     }
 
-  // Ensure network has single source and sink
-  net.make_super_source();
-  net.make_super_sink();
+  // Without games among the others, x is not eliminated
+  if (total_games == 0)
+    return result;
+
+  // A team without games gets none from the source, by an arc of capacity
+  // 0, so that the network has one source: make_super_source() would feed
+  // it with the capacity of its arc to the sink
+  for (Node *p : team_nodes)
+    if (p != nullptr and net.get_in_degree(p) == 0)
+      net.insert_arc(source, p, 0);
 
   const int max_flow = dinic_maximum_flow(net);
 
@@ -922,6 +877,10 @@ struct SurveyDesignResult
  *  - Each respondent answers [min, max] questions
  *  - Respondents only answer eligible questions
  *
+ *  The minimums are the lower bounds of a circulation, which
+ *  solve_circulation() finds. There is none if a minimum is negative or
+ *  above its maximum.
+ *
  *  @param questions Vector of questions with constraints.
  *  @param respondents Vector of respondents with constraints and eligibility.
  *  @return SurveyDesignResult with feasibility and assignments.
@@ -933,82 +892,68 @@ inline SurveyDesignResult design_survey(const std::vector<SurveyQuestion> &quest
 {
   using Net = Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class, int>>;
   using Node = Net::Node;
+  using Arc = Net::Arc;
 
   SurveyDesignResult result;
 
   if (questions.empty() or respondents.empty())
     return result;
 
+  // The bounds must be in order
+  for (const auto &q : questions)
+    if (q.min_responses < 0 or q.min_responses > q.max_responses)
+      return result;
+  for (const auto &r : respondents)
+    if (r.min_questions < 0 or r.min_questions > r.max_questions)
+      return result;
+
+  // A circulation, with the minimums as lower bounds: from the source to
+  // each respondent, to the questions it may answer, to the sink, and
+  // back to the source
   Net net;
+  DynMapTree<Arc *, int> lower;
 
   Node *source = net.insert_node();
   Node *sink = net.insert_node();
 
-  // Create question nodes
   std::vector<Node *> question_nodes(questions.size());
   for (size_t i = 0; i < questions.size(); ++i)
     {
       question_nodes[i] = net.insert_node();
-
-      // Question to sink: [min, max] responses
-      // For feasibility check, use max capacity
-      net.insert_arc(question_nodes[i], sink, questions[i].max_responses);
+      Arc *a = net.insert_arc(question_nodes[i], sink, questions[i].max_responses);
+      lower.insert(a, questions[i].min_responses);
     }
 
-  // Create respondent nodes
-  std::vector<Node *> respondent_nodes(respondents.size());
+  int most = 0;  // the most answers there may be
+  std::vector<std::vector<std::pair<size_t, Arc *>>> answers(respondents.size());
   for (size_t i = 0; i < respondents.size(); ++i)
     {
-      respondent_nodes[i] = net.insert_node();
+      Node *r = net.insert_node();
+      Arc *a = net.insert_arc(source, r, respondents[i].max_questions);
+      lower.insert(a, respondents[i].min_questions);
+      most += respondents[i].max_questions;
 
-      // Source to respondent: [min, max] questions
-      net.insert_arc(source, respondent_nodes[i], respondents[i].max_questions);
-
-      // Respondent to eligible questions
       for (size_t q : respondents[i].eligible_questions)
         if (q < questions.size())
-          net.insert_arc(respondent_nodes[i], question_nodes[q], 1);
+          answers[i].push_back({q, net.insert_arc(r, question_nodes[q], 1)});
     }
 
-  // Ensure network has single source and sink
-  net.make_super_source();
-  net.make_super_sink();
+  net.insert_arc(sink, source, most);
 
-  // Compute max flow
-  dinic_maximum_flow(net);
+  auto circulation = solve_circulation(net,
+                                       [](Node *) { return 0; },
+                                       [&lower](Arc *a)
+                                         {
+                                           auto p = lower.search(a);
+                                           return p == nullptr ? 0 : p->second;
+                                         });
 
-  // Check if minimum constraints are satisfied
-  result.feasible = true;
-
-  for (size_t i = 0; i < questions.size(); ++i)
-    {
-      int responses = 0;
-      for (Net::Node_Arc_Iterator it(question_nodes[i]); it.has_curr(); it.next_ne())
-        if (const auto arc = it.get_curr(); net.get_tgt_node(arc) == sink)
-          responses = arc->flow;
-
-      if (responses < questions[i].min_responses)
-        {
-          result.feasible = false;
-          break;
-        }
-    }
-
-  // Extract assignments
+  result.feasible = circulation.feasible;
   if (result.feasible)
     for (size_t r = 0; r < respondents.size(); ++r)
-      for (Net::Node_Arc_Iterator it(respondent_nodes[r]); it.has_curr(); it.next_ne())
-        if (const auto arc = it.get_curr(); arc->flow > 0)
-          {
-            // Find which question this is
-            const auto tgt = net.get_tgt_node(arc);
-            for (size_t q = 0; q < questions.size(); ++q)
-              if (question_nodes[q] == tgt)
-                {
-                  result.assignments.push_back({r, q});
-                  break;
-                }
-          }
+      for (const auto &[q, a] : answers[r])
+        if (circulation.flow.find(a) > 0)
+          result.assignments.push_back({r, q});
 
   return result;
 }

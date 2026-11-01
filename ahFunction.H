@@ -94,10 +94,127 @@ namespace Aleph
   };
 
 
+  namespace function_detail
+  {
+    /// Whether x < y compiles and cannot throw. A type without < gives
+    /// false, not an error, as noexcept(x < y) would give where the
+    /// exception specification of less<T>::operator() is needed, as in
+    /// std::invocable<less<T>, T, T>: less<T> declares its operator() for
+    /// any T, as it did
+    template <class T>
+    concept nothrow_less_than = requires (const T & x, const T & y)
+    {
+      { x < y } noexcept;
+    };
+
+    // The same for the operators of the other functors below; those that
+    // give a _Tp count its construction from the result too
+
+    /// Whether T(x + y) compiles and cannot throw, for plus
+    template <class T>
+    concept nothrow_plus = requires (const T & x, const T & y)
+    {
+      { T(x + y) } noexcept;
+    };
+
+    /// Whether T(x - y) compiles and cannot throw, for minus
+    template <class T>
+    concept nothrow_minus = requires (const T & x, const T & y)
+    {
+      { T(x - y) } noexcept;
+    };
+
+    /// Whether T(x * y) compiles and cannot throw, for multiplies
+    template <class T>
+    concept nothrow_multiplies = requires (const T & x, const T & y)
+    {
+      { T(x * y) } noexcept;
+    };
+
+    /// Whether T(x / y) compiles and cannot throw, for divides
+    template <class T>
+    concept nothrow_divides = requires (const T & x, const T & y)
+    {
+      { T(x / y) } noexcept;
+    };
+
+    /// Whether T(x % y) compiles and cannot throw, for modulus
+    template <class T>
+    concept nothrow_modulus = requires (const T & x, const T & y)
+    {
+      { T(x % y) } noexcept;
+    };
+
+    /// Whether T(-x) compiles and cannot throw, for negate
+    template <class T>
+    concept nothrow_negate = requires (const T & x)
+    {
+      { T(-x) } noexcept;
+    };
+
+    /// Whether x == y compiles and cannot throw, for equal_to
+    template <class T>
+    concept nothrow_equal_to = requires (const T & x, const T & y)
+    {
+      { x == y } noexcept;
+    };
+
+    /// Whether x != y compiles and cannot throw, for not_equal_to
+    template <class T>
+    concept nothrow_not_equal_to = requires (const T & x, const T & y)
+    {
+      { x != y } noexcept;
+    };
+
+    /// Whether x > y compiles and cannot throw, for greater
+    template <class T>
+    concept nothrow_greater = requires (const T & x, const T & y)
+    {
+      { x > y } noexcept;
+    };
+
+    /// Whether x >= y compiles and cannot throw, for greater_equal
+    template <class T>
+    concept nothrow_greater_equal = requires (const T & x, const T & y)
+    {
+      { x >= y } noexcept;
+    };
+
+    /// Whether x <= y compiles and cannot throw, for less_equal
+    template <class T>
+    concept nothrow_less_equal = requires (const T & x, const T & y)
+    {
+      { x <= y } noexcept;
+    };
+
+    /// Whether x and y compiles and cannot throw, for logical_and
+    template <class T>
+    concept nothrow_logical_and = requires (const T & x, const T & y)
+    {
+      { x and y } noexcept;
+    };
+
+    /// Whether x or y compiles and cannot throw, for logical_or
+    template <class T>
+    concept nothrow_logical_or = requires (const T & x, const T & y)
+    {
+      { x or y } noexcept;
+    };
+
+    /// Whether not x compiles and cannot throw, for logical_not
+    template <class T>
+    concept nothrow_logical_not = requires (const T & x)
+    {
+      { not x } noexcept;
+    };
+  }
+
+
       template <class _Tp>
   struct plus : public binary_function<_Tp, _Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    _Tp operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_plus<_Tp>)
     {
       return __x + __y; 
     }
@@ -107,7 +224,8 @@ namespace Aleph
       template <class _Tp>
   struct minus : public binary_function<_Tp, _Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    _Tp operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_minus<_Tp>)
     { 
       return __x - __y; 
     }
@@ -117,7 +235,8 @@ namespace Aleph
       template <class _Tp>
   struct multiplies : public binary_function<_Tp, _Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    _Tp operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_multiplies<_Tp>)
     {
       return __x * __y; 
     }
@@ -127,7 +246,8 @@ namespace Aleph
       template <class _Tp>
   struct divides : public binary_function<_Tp, _Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    _Tp operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_divides<_Tp>)
     { 
       return __x / __y; 
     }
@@ -137,7 +257,8 @@ namespace Aleph
       template <class _Tp>
   struct modulus : public binary_function<_Tp, _Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    _Tp operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_modulus<_Tp>)
     { 
       return __x % __y; 
     }
@@ -147,7 +268,8 @@ namespace Aleph
       template <class _Tp>
   struct negate : public unary_function<_Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x) const noexcept
+    _Tp operator () (const _Tp& __x) const
+      noexcept(function_detail::nothrow_negate<_Tp>)
     { 
       return -__x; 
     }
@@ -157,7 +279,8 @@ namespace Aleph
       template <class _Tp>
   struct equal_to : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    bool operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_equal_to<_Tp>)
     { 
       return __x == __y; 
     }
@@ -167,7 +290,8 @@ namespace Aleph
       template <class _Tp>
   struct not_equal_to : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator()(const _Tp& __x, const _Tp& __y) const noexcept
+    bool operator()(const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_not_equal_to<_Tp>)
     { 
       return __x != __y; 
     }
@@ -177,7 +301,8 @@ namespace Aleph
       template <class _Tp>
   struct greater : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    bool operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_greater<_Tp>)
     { 
       return __x > __y; 
     }
@@ -187,7 +312,10 @@ namespace Aleph
       template <class _Tp>
   struct less : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    // noexcept as the < of _Tp, so that what it throws reaches the caller
+    // of the heaps, sorts and sets that compare with less
+    bool operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_less_than<_Tp>)
     { 
       return __x < __y; 
     }
@@ -197,7 +325,8 @@ namespace Aleph
       template <class _Tp>
   struct greater_equal : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    bool operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_greater_equal<_Tp>)
     { 
       return __x >= __y; 
     }
@@ -207,7 +336,8 @@ namespace Aleph
       template <class _Tp>
   struct less_equal : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    bool operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_less_equal<_Tp>)
     { 
       return __x <= __y; 
     }
@@ -217,7 +347,8 @@ namespace Aleph
       template <class _Tp>
   struct logical_and : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    bool operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_logical_and<_Tp>)
     { 
       return __x and __y; 
     }
@@ -227,7 +358,8 @@ namespace Aleph
       template <class _Tp>
   struct logical_or : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
+    bool operator () (const _Tp& __x, const _Tp& __y) const
+      noexcept(function_detail::nothrow_logical_or<_Tp>)
     { 
       return __x or __y; 
     }
@@ -237,7 +369,8 @@ namespace Aleph
       template <class _Tp>
   struct logical_not : public unary_function<_Tp, bool>
   {
-    bool operator () (const _Tp& __x) const noexcept
+    bool operator () (const _Tp& __x) const
+      noexcept(function_detail::nothrow_logical_not<_Tp>)
     { 
       return not __x; 
     }
@@ -257,7 +390,7 @@ namespace Aleph
     explicit unary_negate (const _Predicate& __x) : _M_pred(__x) {}
 
     bool operator () (const typename _Predicate::argument_type& __x)
-      const noexcept
+      const noexcept(noexcept(not _M_pred(__x)))
     { 
       return not _M_pred(__x); 
     }

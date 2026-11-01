@@ -1875,17 +1875,17 @@ public:
   }
 
   /** @brief Calculates the width of the rectangle. */
-  [[nodiscard]] Geom_Number width() const noexcept
+  [[nodiscard]] Geom_Number width() const
   {
     return xmax_ - xmin_;
   }
   /** @brief Calculates the height of the rectangle. */
-  [[nodiscard]] Geom_Number height() const noexcept
+  [[nodiscard]] Geom_Number height() const
   {
     return ymax_ - ymin_;
   }
   /** @brief Calculates the area of the rectangle. */
-  [[nodiscard]] Geom_Number area() const noexcept
+  [[nodiscard]] Geom_Number area() const
   {
     return width() * height();
   }
@@ -1894,7 +1894,7 @@ public:
    * @brief Calculates the perimeter of the rectangle.
    * @return The perimeter length.
    */
-  [[nodiscard]] Geom_Number perimeter() const noexcept
+  [[nodiscard]] Geom_Number perimeter() const
   {
     return 2 * (width() + height());
   }
@@ -1903,7 +1903,7 @@ public:
    * @brief Calculates the center point of the rectangle.
    * @return A `Point` at the center of the rectangle.
    */
-  [[nodiscard]] Point center() const noexcept
+  [[nodiscard]] Point center() const
   {
     return {(xmin_ + xmax_) / 2, (ymin_ + ymax_) / 2};
   }
@@ -1913,7 +1913,7 @@ public:
    * @return A `std::array` of 4 `Point`s in counter-clockwise order,
    *         starting at the bottom-left.
    */
-  [[nodiscard]] std::array<Point, 4> corners() const noexcept
+  [[nodiscard]] std::array<Point, 4> corners() const
   {
     return {Point(xmin_, ymin_), Point(xmax_, ymin_), Point(xmax_, ymax_), Point(xmin_, ymax_)};
   }
@@ -1935,7 +1935,7 @@ public:
    * @return The squared distance from `p` to the closest point on this rectangle.
    *         Returns 0 if the point is inside.
    */
-  [[nodiscard]] Geom_Number distance_squared_to(const Point &p) const noexcept
+  [[nodiscard]] Geom_Number distance_squared_to(const Point &p) const
   {
     Geom_Number dx = 0.0, dy = 0.0;
     if (p.get_x() < xmin_)

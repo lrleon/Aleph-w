@@ -46,8 +46,24 @@ TEST_F(TestPathTest, PathToSelf)
   
   Test_For_Path<GT> checker;
   
-  // Path to self: library may consider this false (no traversal needed)
-  EXPECT_FALSE(checker(g, n, n));
+  // the path of no arc, as test_for_path() gives it
+  EXPECT_TRUE(checker(g, n, n));
+}
+
+TEST_F(TestPathTest, PathToSelfWithoutACycle)
+{
+  using DGT = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  DGT dg;
+  auto n1 = dg.insert_node(1);
+  auto n2 = dg.insert_node(2);
+  dg.insert_arc(n1, n2);
+
+  // From a node to itself the path of no arc, which looks for no cycle
+  Test_For_Path<DGT> checker;
+  EXPECT_TRUE(checker(dg, n1, n1));
+  EXPECT_TRUE(checker(dg, n2, n2));
+  EXPECT_TRUE(checker(dg, n1, n2));
+  EXPECT_FALSE(checker(dg, n2, n1));
 }
 
 TEST_F(TestPathTest, DirectConnection)

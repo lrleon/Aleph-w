@@ -157,6 +157,20 @@ typename Net::Flow_Type reduced_cost(const Net &net, typename Net::Arc *arc, boo
  *  @return true if sink is reachable, false otherwise.
  *  @ingroup Networks
  */
+namespace mincost_detail
+{
+  // Whether two totals of flow are the same: exactly, or, for a floating
+  // type, but for rounding, as check_network() takes them
+  template <typename Flow_Type>
+  bool same_total(const Flow_Type & a, const Flow_Type & b) noexcept
+  {
+    if constexpr (std::is_floating_point_v<Flow_Type>)
+      return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * 1e-9;
+    else
+      return a == b;
+  }
+} // namespace mincost_detail
+
 template <class Net>
 bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node *sink)
 {
@@ -237,7 +251,8 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
  *  Best when flow value is small.
  *
  *  ## Algorithm Steps
- *  1. Initialize zero flow and zero potentials
+ *  1. Initialize the potentials with Bellman-Ford, from the flow that the
+ *     network has, whose residual graph must have no negative cycle
  *  2. While augmenting path exists (Dijkstra with reduced costs):
  *     a. Find minimum capacity on path
  *     b. Augment flow
@@ -245,7 +260,8 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
  *
  *  @tparam Net Network type (must be Net_Cost_Graph or compatible).
  *  @param[in,out] net Flow network with costs (flow values are modified in place).
- *  @return Pair of (max_flow, min_cost).
+ *  @return Pair of (max_flow, min_cost), of the whole flow, with what the
+ *          network had: on a second run, the same.
  *
  *  @throws std::domain_error If the network does not have a single source and
  *          single sink, or if a reachable negative-cost cycle is detected in
@@ -419,8 +435,27 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
   ah_domain_error_if(not ssp_init_potentials(net, source))
     << "successive_shortest_paths: negative-cost cycle detected in residual graph";
 
-  Flow_Type total_flow{0};
-  Flow_Type total_cost{0};
+  // The flows, which go back if something throws, for the strong
+  // guarantee: Dijkstra allocates its heap after a path has changed them
+  struct Flows_Back
+  {
+    Net &net_;
+    Array<Flow_Type> saved;
+    bool done = false;
+    ~Flows_Back()
+    {
+      if (done)
+        return;
+      size_t i = 0;
+      for (Arc_Iterator<Net> it(net_); it.has_curr(); it.next_ne(), ++i)
+        it.get_curr()->flow = saved[i];
+    }
+  } flows_back{net, Array<Flow_Type>(net.get_num_arcs(), Flow_Type{0})};
+  {
+    size_t i = 0;
+    for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++i)
+      flows_back.saved[i] = it.get_curr()->flow;
+  }
 
   // Main loop: find shortest augmenting paths
   while (ssp_shortest_path(net, source, sink))
@@ -438,26 +473,18 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
           v = static_cast<Node *>(ssp_info<Net>(v).parent_node);
         }
 
-      // Augment flow and compute cost
+      // Augment flow
       for (Node *v = sink; v != source;)
         {
           Arc *arc = static_cast<Arc *>(ssp_info<Net>(v).parent_arc);
 
-          if (bool forward = ssp_info<Net>(v).forward)
-            {
-              arc->flow += path_flow;
-              total_cost += path_flow * arc->cost;
-            }
+          if (ssp_info<Net>(v).forward)
+            arc->flow += path_flow;
           else
-            {
-              arc->flow -= path_flow;
-              total_cost -= path_flow * arc->cost;
-            }
+            arc->flow -= path_flow;
 
           v = static_cast<Node *>(ssp_info<Net>(v).parent_node);
         }
-
-      total_flow += path_flow;
 
       // Update potentials for reachable nodes; track max updated potential
       // and max finite distance for the unreachable-node shift below.
@@ -493,8 +520,14 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
             ssp_info<Net>(p).distance >= std::numeric_limits<Flow_Type>::max())
           ssp_info<Net>(p).potential = unreachable_potential;
     }
+  flows_back.done = true;
 
-  return {total_flow, total_cost};
+  // The value and the cost of the whole flow, with what the network had
+  Flow_Type total_cost{0};
+  for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+    total_cost += it.get_curr()->flow * it.get_curr()->cost;
+
+  return {net.flow_value(), total_cost};
 }
 
 /** @brief Functor wrapper for SSP algorithm.
@@ -545,7 +578,9 @@ struct TransshipmentResult
  *
  *  This is solved by:
  *  1. Creating a super-source connected to all supply nodes
- *  2. Creating a super-sink connected from all demand nodes
+ *  2. Creating a super-sink connected from all demand nodes, and joining
+ *     to them, with arcs of capacity 0, the other sources and sinks, as a
+ *     node without arcs in that supplies nothing
  *  3. Solving min-cost max-flow
  *  4. Checking if all demands are satisfied
  *
@@ -554,6 +589,9 @@ struct TransshipmentResult
  *  @param net Network with costs.
  *  @param get_demand Function returning demand for each node.
  *  @return TransshipmentResult with feasibility and cost.
+ *
+ *  @throws std::bad_alloc if there is not enough memory. Then the super
+ *  nodes are removed, unless their removal, which allocates, fails too.
  *
  *  @note The network topology (nodes and arcs) is preserved: temporary
  *  super-source/super-sink nodes are removed before returning. However,
@@ -600,7 +638,7 @@ TransshipmentResult<typename Net::Flow_Type> solve_transshipment(Net &net, GetDe
     }
 
   // Check balance
-  if (total_supply != total_demand)
+  if (not mincost_detail::same_total(total_supply, total_demand))
     {
       result.feasible = false;
       return result;
@@ -613,52 +651,80 @@ TransshipmentResult<typename Net::Flow_Type> solve_transshipment(Net &net, GetDe
       return result;
     }
 
-  // RAII guard: removes super nodes (and all incident arcs) on every exit path.
-  // src_/snk_ are set incrementally so a throw during the second insert_node()
-  // still cleans up the first node.
-  struct SuperNodeGuard
-  {
-    Net &net_;
-    Node *src_{nullptr};
-    Node *snk_{nullptr};
-    ~SuperNodeGuard()
+  // The super nodes go, with their arcs, before returning. Not in a
+  // destructor: a removal allocates in a network, and may throw.
+  Node *super_source = nullptr;
+  Node *super_sink = nullptr;
+  auto remove_super_nodes = [&]
     {
-      if (snk_)
-        net_.remove_node(snk_);
-      if (src_)
-        net_.remove_node(src_);
-    }
-  } guard{net};
+      if (super_sink != nullptr)
+        {
+          net.remove_node(super_sink);
+          super_sink = nullptr;
+        }
+      if (super_source != nullptr)
+        {
+          net.remove_node(super_source);
+          super_source = nullptr;
+        }
+    };
 
-  // Create super-source and super-sink
-  guard.src_ = net.insert_node();
-  Node *super_source = guard.src_;
-  guard.snk_ = net.insert_node();
-  Node *super_sink = guard.snk_;
-
-  // Connect super-source to supply nodes
-  for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+  try
     {
-      Node *p = it.get_curr();
-      if (p == super_source or p == super_sink)
-        continue;
+      super_source = net.insert_node();
+      super_sink = net.insert_node();
 
-      Flow_Type d = get_demand(p);
-      if (d > 0)
-        net.insert_arc(super_source, p, d, Flow_Type{0});  // zero cost
-      else if (d < 0)
-        net.insert_arc(p, super_sink, -d, Flow_Type{0});  // zero cost
+      // Connect super-source to supply nodes
+      for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        {
+          Node *p = it.get_curr();
+          if (p == super_source or p == super_sink)
+            continue;
+
+          Flow_Type d = get_demand(p);
+          if (d > 0)
+            net.insert_arc(super_source, p, d, Flow_Type{0});  // zero cost
+          else if (d < 0)
+            net.insert_arc(p, super_sink, -d, Flow_Type{0});  // zero cost
+        }
+
+      // The other sources and sinks, through arcs of capacity 0, so that
+      // the network has one source and one sink
+      DynList<Node *> sources, sinks;
+      for (auto it = net.get_src_nodes().get_it(); it.has_curr(); it.next_ne())
+        if (it.get_curr() != super_source)
+          sources.append(it.get_curr());
+      for (auto it = net.get_sink_nodes().get_it(); it.has_curr(); it.next_ne())
+        if (it.get_curr() != super_sink)
+          sinks.append(it.get_curr());
+      for (auto it = sources.get_it(); it.has_curr(); it.next_ne())
+        net.insert_arc(super_source, it.get_curr(), Flow_Type{0}, Flow_Type{0});
+      for (auto it = sinks.get_it(); it.has_curr(); it.next_ne())
+        net.insert_arc(it.get_curr(), super_sink, Flow_Type{0}, Flow_Type{0});
+
+      // Solve min-cost max-flow
+      auto [flow, cost] = successive_shortest_paths(net);
+
+      result.total_flow = flow;
+      result.total_cost = cost;
+      result.feasible = mincost_detail::same_total(flow, total_supply);
+    }
+  catch (...)
+    {
+      // If the removal fails too, the super nodes stay, and the first
+      // exception goes on
+      try
+        {
+          remove_super_nodes();
+        }
+      catch (...)
+        {
+          // empty
+        }
+      throw;
     }
 
-  // Source and sink are detected automatically by network topology
-
-  // Solve min-cost max-flow
-  auto [flow, cost] = successive_shortest_paths(net);
-
-  result.total_flow = flow;
-  result.total_cost = cost;
-  result.feasible = (flow == total_supply);
-
+  remove_super_nodes();
   return result;
 }
 
@@ -882,12 +948,12 @@ TransportationResult<Cost_Type> solve_transportation(const std::vector<Cost_Type
   // on whether the totals are balanced (feasible iff both are zero).
   if (m == 0 or n == 0)
     {
-      result.feasible = (total_supply == total_demand);
+      result.feasible = mincost_detail::same_total(total_supply, total_demand);
       return result;
     }
 
-  // Check supply-demand balance for the non-trivial case.
-  if (total_supply != total_demand)
+  // Check supply-demand balance for the non-trivial case, but for rounding
+  if (not mincost_detail::same_total(total_supply, total_demand))
     {
       result.feasible = false;
       return result;
@@ -930,7 +996,7 @@ TransportationResult<Cost_Type> solve_transportation(const std::vector<Cost_Type
   // Solve
   auto [flow, cost] = successive_shortest_paths(net);
 
-  result.feasible = (flow == total_supply);
+  result.feasible = mincost_detail::same_total(flow, total_supply);
   result.total_cost = cost;
 
   // Extract shipments

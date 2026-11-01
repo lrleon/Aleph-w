@@ -10,6 +10,8 @@
 # include <Bidirectional_BFS.H>
 # include <tpl_find_path.H>
 # include <tpl_graph.H>
+# include <tpl_sgraph.H>
+# include <tpl_agraph.H>
 
 using namespace Aleph;
 
@@ -320,7 +322,9 @@ TEST(BidirectionalBFS, CrossValidationWithBFS)
 
   EXPECT_EQ(bi_found, std_found);
   if (bi_found and std_found)
-    EXPECT_EQ(path_edge_count(bi_path), path_edge_count(std_path));
+    {
+      EXPECT_EQ(path_edge_count(bi_path), path_edge_count(std_path));
+    }
 }
 
 // ============================================================================
@@ -525,6 +529,62 @@ TEST(BidirectionalBFS, DigraphInIteratorBackward)
 }
 
 // ============================================================================
+// TEST 21b: Digraph whose search goes backward before it meets: the arcs
+// into each node come from an In_Arcs_Index, since a digraph keeps each
+// arc only in the list of its source
+// ============================================================================
+template <class G>
+void diamond_backward(bool says_directed = false)
+{
+  // 0 -> 1, 0 -> 2, 1 -> 3, 2 -> 3, and 4 -> 3, which the forward search
+  // does not reach: the forward frontier {1, 2} is larger than {3}, so
+  // the search goes back from 3. A graph of an undirected type that says
+  // that it is directed keeps each arc in the list of its source too
+  G g;
+  if (says_directed)
+    g.set_digraph(true);
+  typename G::Node * n[5];
+  for (int i = 0; i < 5; ++i)
+    n[i] = g.insert_node(i);
+  g.insert_arc(n[0], n[1], 0);
+  g.insert_arc(n[0], n[2], 0);
+  g.insert_arc(n[1], n[3], 0);
+  g.insert_arc(n[2], n[3], 0);
+  g.insert_arc(n[4], n[3], 0);
+
+  Bidirectional_BFS<G, Out_Iterator, In_Iterator> bibfs;
+  Path<G> path(g);
+  ASSERT_TRUE(bibfs(g, n[0], n[3], path));
+  EXPECT_EQ(path.size(), 3u);
+  EXPECT_EQ(path.get_first_node(), n[0]);
+  EXPECT_EQ(path.get_last_node(), n[3]);
+  EXPECT_TRUE(path.check_directed());
+
+  // No path against the arcs, and none from a node that nothing reaches
+  Path<G> none(g);
+  EXPECT_FALSE(bibfs(g, n[3], n[0], none));
+  EXPECT_FALSE(bibfs(g, n[1], n[4], none));
+  EXPECT_TRUE(bibfs(g, n[4], n[3], none));
+  EXPECT_EQ(none.size(), 2u);
+}
+
+TEST(BidirectionalBFS, DigraphBackwardStepsSeeTheArcsIntoEachNode)
+{
+  diamond_backward<DGT>();
+  diamond_backward<List_SDigraph<Graph_Snode<int>, Graph_Sarc<int>>>();
+  diamond_backward<Array_Digraph<Graph_Anode<int>, Graph_Aarc<int>>>();
+}
+
+// The search decides by the graph, not only by its type: one of an
+// undirected type that says that it is directed goes back by the index too
+TEST(BidirectionalBFS, AGraphThatSaysThatItIsDirectedSeesTheArcsIntoEachNode)
+{
+  diamond_backward<GT>(true);
+  diamond_backward<List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>>(true);
+  diamond_backward<Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>>(true);
+}
+
+// ============================================================================
 // === EXAMPLE: Social network ===
 // Find the shortest connection between two people in a social network.
 //
@@ -626,8 +686,10 @@ TEST(BidirectionalBFS, CrossValidationMultipleEndpoints)
         EXPECT_EQ(bi_found, std_found)
           << "Mismatch for start=" << start << " end=" << end;
         if (bi_found and std_found)
-          EXPECT_EQ(path_edge_count(bi_path), path_edge_count(std_path))
-            << "Length mismatch for start=" << start << " end=" << end;
+          {
+            EXPECT_EQ(path_edge_count(bi_path), path_edge_count(std_path))
+              << "Length mismatch for start=" << start << " end=" << end;
+          }
       }
 }
 

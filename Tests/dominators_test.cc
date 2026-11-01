@@ -81,6 +81,50 @@ namespace
 // Basic Structure Tests
 // ============================================================================
 
+// The cache knows the graph and the root by their addresses, and finds the
+// nodes by their counters: after a change of the graph, or another
+// computation on it, invalidate() drops it
+TEST(Dominators, InvalidateDropsTheCache)
+{
+  DG g;
+  auto n = make_nodes(g, 4);
+  g.insert_arc(n(0), n(1));
+  g.insert_arc(n(1), n(3));
+  g.insert_arc(n(0), n(2));
+  g.insert_arc(n(2), n(1));
+
+  Lengauer_Tarjan_Dominators<DG> dom;
+  ASSERT_EQ(dom.get_idom(g, n(0), n(3)), n(1));
+  ASSERT_TRUE(dom.has_computation());
+
+  g.insert_arc(n(2), n(3)); // 0 -> 2 -> 3 avoids 1
+  dom.invalidate();
+  EXPECT_FALSE(dom.has_computation());
+  EXPECT_EQ(dom.get_idom(g, n(0), n(3)), n(0));
+
+  Lengauer_Tarjan_Dominators<DG> other; // it writes the counters
+  EXPECT_EQ(other.get_idom(g, n(2), n(3)), n(2));
+  dom.invalidate();
+  EXPECT_EQ(dom.get_idom(g, n(0), n(3)), n(0));
+  EXPECT_TRUE(dom.dominates(g, n(0), n(0), n(2)));
+}
+
+// Each method of the post-dominators computes them again
+TEST(Dominators, PostDominatorsSeeAChangeOfTheGraph)
+{
+  DG g;
+  auto n = make_nodes(g, 4);
+  g.insert_arc(n(0), n(1));
+  g.insert_arc(n(1), n(3));
+  g.insert_arc(n(0), n(2));
+  g.insert_arc(n(2), n(1));
+
+  Lengauer_Tarjan_Post_Dominators<DG> pd;
+  ASSERT_EQ(pd.get_ipdom(g, n(3), n(0)), n(1));
+  g.insert_arc(n(2), n(3)); // 0 -> 2 -> 3 avoids 1
+  EXPECT_EQ(pd.get_ipdom(g, n(3), n(0)), n(3));
+}
+
 TEST(Dominators, SingleNode)
 {
   DG g;

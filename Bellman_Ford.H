@@ -74,6 +74,7 @@
 
 # include <ah-graph-concepts.H>
 
+#include <cmath>
 #include <type_traits>
 #include <limits>
 #include <vector>
@@ -81,6 +82,7 @@
 #include <tpl_dynListQueue.H>
 #include <tpl_dynSetTree.H>
 #include <tpl_graph_utils.H>
+#include <tpl_dfs_stack.H>
 #include <Tarjan.H>
 #include <ah-errors.H>
 #include <ah_init_guard.H>
@@ -145,9 +147,24 @@ namespace Aleph {
     state that would be corrupted by concurrent access.
 
     @warning The constructor takes a non-const graph reference because the
-    algorithm temporarily modifies node/arc bits and cookies. For methods that
-    detect global negative cycles (no start node), a dummy node is temporarily
-    added to the graph and removed when the operation completes.
+    algorithm temporarily modifies node/arc bits and cookies. The methods that
+    detect global negative cycles (no start node) take every node as a source,
+    at distance 0, as if a virtual source reached each one by an arc of
+    weight 0: the graph gets no node.
+
+    A negative cycle is a cycle of the graph of the predecessors, the arcs of
+    the last relaxations, whose cycles are all negative. It is given by its
+    arcs: with parallel arcs, the one that was relaxed, and only arcs that the
+    filter shows. A floating distance that the last pass finds -inf or NaN,
+    from a weight or from an overflow, throws domain_error.
+
+    With an integer distance, a sum beyond max() is no path, and one below
+    lowest() throws overflow_error at once. If a node that the start
+    reaches is left without a distance, as its distances do not fit, the
+    paintings and the searches from a start throw overflow_error, unless
+    they find a negative cycle: the one that such a node could reach would
+    be missed. Without a start every node begins at 0, and no sum goes
+    beyond max().
 
     @note For graphs without negative weights, Dijkstra's algorithm is more
     efficient (O((V+E) log V) vs O(V*E)).
@@ -174,7 +191,8 @@ class Bellman_Ford
 
   struct Ni : public Sni
   {
-    int idx;  // index in the predecessor arrays
+    int idx;      // index in the predecessor arrays
+    size_t mark;  // the walk that reached it, when a cycle is searched
   };
 
   static Distance_Type &accum(Node *p) noexcept
@@ -185,6 +203,11 @@ class Bellman_Ford
   static int &idx(Node *p) noexcept
   {
     return static_cast<Ni *>(NODE_COOKIE(p))->idx;
+  }
+
+  static size_t &mark(Node *p) noexcept
+  {
+    return static_cast<Ni *>(NODE_COOKIE(p))->mark;
   }
 
   // Checked addition to prevent integer overflow
@@ -204,41 +227,81 @@ class Bellman_Ford
     return a + b;
   }
 
+  // Sets out to a + b and returns true; for an integral type whose sum goes
+  // beyond max(), no distance that fits goes through it: it returns false,
+  // and the painting remembers it in beyond_max_
+  [[gnu::always_inline]] bool add_if_fits(const Distance_Type &a,
+                                          const Distance_Type &b,
+                                          Distance_Type &out)
+  {
+    if constexpr (std::is_integral_v<Distance_Type>)
+      {
+        if (b > 0 and a > std::numeric_limits<Distance_Type>::max() - b) [[unlikely]]
+          {
+            beyond_max_ = true;
+            return false;
+          }
+        ah_overflow_error_if(b < 0 and a < std::numeric_limits<Distance_Type>::min() - b)
+          << "Integer underflow in distance addition: " << a << " + " << b;
+      }
+    out = a + b; // the checks of checked_add(), each once
+    return true;
+  }
+
+  // After a painting from start in which a sum went beyond max(): a node
+  // that start reaches through the arcs that the filter shows, and that has
+  // no distance, has one that does not fit
+  void check_beyond_max(Node *start)
+  {
+    DynSetTree<Node *> seen;
+    DynListQueue<Node *> queue;
+    seen.insert(start);
+    queue.put(start);
+    while (not queue.is_empty())
+      {
+        Node *p = queue.get();
+        ah_overflow_error_if(accum(p) == Inf)
+          << "Bellman_Ford: the distance from the start to a node does not fit "
+          << "in its type";
+        // each arc from its source, as the relaxations read it
+        for (NAit<GT, SA> it(p, sa_); it.has_curr(); it.next_ne())
+          if (auto arc = it.get_curr(); g_.get_src_node(arc) == p)
+            if (Node *t = g_.get_tgt_node(arc); seen.insert(t) != nullptr)
+              queue.put(t);
+      }
+  }
+
   DynArray<typename GT::Arc *> arcs_;
   GT &g_;  // Non-const: algorithm modifies node/arc bits and cookies
   const Distance_Type Inf;
   bool painted_ = false;
+  bool parents_ = false;  // the node cookies hold the parents in the tree
+  bool beyond_max_ = false;  // a sum of the painting went beyond max()
   Node *s_ = nullptr;
+  Node *relaxed_ = nullptr;  // the last node that the last pass relaxed
   SA sa_;
   Distance dist_;
 
-  /// Initialize node cookies for simple mode (without predecessor tracking).
-  void init_simple(Node *start)
+  [[noreturn, gnu::noinline, gnu::cold]] static void throw_not_finite()
   {
-    Init_Guard guard([this]()
-    {
-      uninit<Sni>();
-    });
-
-    typename GT::Node_Iterator it(g_);
-    for (int i = 0; it.has_curr(); ++i, it.next_ne())
-      {
-        auto p = it.get_curr();
-        g_.reset_bit(p, Aleph::Spanning_Tree);  // set bit to zero
-        NODE_COOKIE(p) = nullptr;  // clear stale pointer before allocating
-        auto ptr = new Sni;
-        ptr->accum = Inf;
-        NODE_BITS(p).set_bit(Spanning_Tree, false);
-        NODE_COOKIE(p) = ptr;
-      }
-    s_ = start;
-    accum(s_) = 0;
-    g_.reset_arcs();
-
-    guard.release();  // Successful initialization, prevent cleanup
+    ah_domain_error() << "Bellman_Ford: a distance is -inf or NaN, "
+                      << "from a weight or from an overflow";
   }
 
-  /// Initialize node cookies with predecessor tracking for path reconstruction.
+  /// Throw domain_error if a floating sum of the last pass is -inf or NaN,
+  /// from a weight or from an overflow: -inf plus a weight is not below
+  /// -inf, so that a negative cycle that it reaches could be missed. One
+  /// comparison for each arc of the last pass, inlined.
+  [[gnu::always_inline]] static void check_finite(const Distance_Type &sum)
+  {
+    if constexpr (std::is_floating_point_v<Distance_Type>)
+      if (not (sum > -std::numeric_limits<Distance_Type>::infinity()))
+        throw_not_finite();
+  }
+
+  /// Initialize node cookies with predecessor tracking for path
+  /// reconstruction. Without a start, every node starts at 0, as if a
+  /// virtual source reached each one by an arc of weight 0.
   void init_with_indexes(Node *start)
   {
     Init_Guard guard([this]()
@@ -260,31 +323,49 @@ class Bellman_Ford
         g_.reset_bit(p, Aleph::Spanning_Tree);  // set bit to zero
         NODE_COOKIE(p) = nullptr;  // clear stale pointer before allocating
         auto ptr = new Ni;
-        ptr->accum = Inf;
+        ptr->accum = start == nullptr ? Distance_Type(0) : Inf;
         ptr->idx = static_cast<int>(i);
+        ptr->mark = 0;
         NODE_BITS(p).set_bit(Spanning_Tree, false);
         NODE_BITS(p).set_bit(Depth_First, false);  // indicates if it is in queue
         NODE_COOKIE(p) = ptr;
       }
 
     painted_ = false;
+    parents_ = false;
+    beyond_max_ = false;
+    relaxed_ = nullptr;
     s_ = start;
-    accum(s_) = 0;
+    if (s_ != nullptr)
+      accum(s_) = 0;
 
     g_.reset_arcs();
 
     guard.release();  // Successful initialization, prevent cleanup
   }
 
-  /// Release the memory associated with the node cookies.
+  /// Leave the object without a computation, and the graph without the data
+  /// of the nodes, after an operation that throws.
+  void abandon() noexcept
+  {
+    uninit<Ni>();
+    arcs_.cut();
+    painted_ = false;
+    parents_ = false;
+    s_ = nullptr;
+  }
+
+  /// Release the memory associated with the node cookies, and the bits
+  /// Depth_First that SPFA leaves on the nodes still in its queue.
   template <class Info_Type>
-  void uninit()
+  void uninit() noexcept
   {
     for (typename GT::Node_Iterator it(g_); it.has_curr(); it.next())
       {
         auto p = it.get_curr();
         delete static_cast<Info_Type *>(NODE_COOKIE(p));
         NODE_COOKIE(p) = nullptr;
+        NODE_BITS(p).set_bit(Depth_First, false);
       }
   }
 
@@ -392,6 +473,7 @@ public:
 
     arcs_.cut();
     painted_ = false;
+    parents_ = false;
     s_ = nullptr;
   }
 
@@ -428,7 +510,8 @@ private:
   /// as a pass relaxes no arc: the distances have reached their fixed point
   /// and no later pass (including the extra negative-cycle check) can relax
   /// anything.
-  void relax_arcs() noexcept
+  /// @throw overflow_error if a sum leaves the range of an integer type.
+  void relax_arcs()
   {
     const size_t &n = g_.vsize();
     if (n <= 1)
@@ -447,7 +530,9 @@ private:
 
             auto tgt = it.get_tgt_node_ne();
             auto w = dist_(arc);
-            auto sum = checked_add(accum_src, w);
+            Distance_Type sum{};
+            if (not add_if_fits(accum_src, w, sum))
+              continue; // no distance that fits goes through arc
             auto &accum_tgt = accum(tgt);
             if (sum < accum_tgt)  // Relax Arc
               {
@@ -480,8 +565,10 @@ private:
     return ret;
   }
 
-  /// Relax outgoing arcs from a source node (SPFA variant).
-  void relax_arcs(typename GT::Node *src, DynListQueue<typename GT::Node *> &q)
+  /// Relax outgoing arcs from a source node (SPFA variant). Inlined: it is
+  /// the step of the loops of SPFA.
+  [[gnu::always_inline]] void relax_arcs(typename GT::Node *src,
+                                         DynListQueue<typename GT::Node *> &q)
   {
     for (NAit<GT, SA> it(src, sa_); it.has_curr(); it.next_ne())
       {
@@ -493,7 +580,9 @@ private:
 
         auto tgt = g_.get_tgt_node(arc);
         auto w = dist_(arc);
-        auto sum = checked_add(accum_src, w);
+        Distance_Type sum{};
+        if (not add_if_fits(accum_src, w, sum))
+          continue; // no distance that fits goes through arc
         auto &accum_tgt = accum(tgt);
         if (sum < accum_tgt)  // Relax Arc
           {
@@ -529,8 +618,9 @@ private:
   }
 
   /// Perform one more relaxation pass and check for negative cycle.
-  /// Also updates predecessor array for cycle detection.
-  bool last_relax_and_prepare_check_negative_cycle() noexcept
+  /// Also updates predecessor array for cycle detection, and keeps the last
+  /// node that it relaxes, on a negative cycle or reached from one.
+  bool last_relax_and_prepare_check_negative_cycle()
   {
     bool negative_cycle = false;
     for (Ait<GT, SA> it(g_, sa_); it.has_curr(); it.next_ne())
@@ -544,20 +634,24 @@ private:
         auto tgt = g_.get_tgt_node(arc);
         auto d = dist_(arc);
         auto &accum_tgt = accum(tgt);
-        auto sum = checked_add(accum_src, d);
+        Distance_Type sum{};
+        if (not add_if_fits(accum_src, d, sum))
+          continue; // no distance that fits goes through arc
+        check_finite(sum);
         if (sum < accum_tgt)
           {
             negative_cycle = true;
             const auto &index = idx(tgt);
             arcs_(index) = arc;
             accum_tgt = sum;
+            relaxed_ = tgt;
           }
       }
     return negative_cycle;
   }
 
   /// Perform one more relaxation pass to detect (but not prepare) negative cycle.
-  bool last_relax_and_test_negative_cycle() noexcept
+  bool last_relax_and_test_negative_cycle()
   {
     for (Ait<GT, SA> it(g_, sa_); it.has_curr(); it.next_ne())
       {
@@ -570,7 +664,10 @@ private:
         auto tgt = g_.get_tgt_node(arc);
         auto d = dist_(arc);
         auto &accum_tgt = accum(tgt);
-        auto sum = checked_add(accum_src, d);
+        Distance_Type sum{};
+        if (not add_if_fits(accum_src, d, sum))
+          continue; // no distance that fits goes through arc
+        check_finite(sum);
         if (sum < accum_tgt)
           return true;
       }
@@ -594,7 +691,93 @@ private:
         NODE_COOKIE(tgt) = g_.get_src_node(arc);
       }
 
-    NODE_COOKIE(start) = nullptr;  // just in case there is a negative cycle
+    if (start != nullptr)
+      NODE_COOKIE(start) = nullptr;  // just in case there is a negative cycle
+    parents_ = true;
+  }
+
+  /// Put in q the start, or, without one, every node, as the virtual source
+  /// reaches them.
+  void put_sources_in_queue(DynListQueue<typename GT::Node *> &q)
+  {
+    if (s_ != nullptr)
+      put_in_queue(q, s_);
+    else
+      for (typename GT::Node_Iterator it(g_); it.has_curr(); it.next_ne())
+        put_in_queue(q, it.get_curr());
+  }
+
+  /// The source of the arc by which the last relaxation of p reached it,
+  /// or nullptr.
+  Node *pred_node(Node *p) noexcept
+  {
+    auto arc = arcs_(idx(p));
+    return arc == nullptr ? nullptr : g_.get_src_node(arc);
+  }
+
+  /** A cycle of the graph of the predecessors, the arcs of the last
+      relaxations, as a path of its arcs; empty if there is none. Every cycle
+      of that graph is negative: the relaxation of its last arc made its end
+      lower than the sum of the weights from it. The search goes back from
+      relaxed_ first, and then from each node, each walk marking the nodes
+      that it reaches.
+  */
+  Path<GT> cycle_of_predecessors()
+  {
+    for (typename GT::Node_Iterator it(g_); it.has_curr(); it.next_ne())
+      mark(it.get_curr()) = 0;
+
+    size_t walk = 0;
+    auto cycle_reached_from = [&](Node *v) -> Node *
+      {
+        if (mark(v) != 0)
+          return nullptr;  // an earlier walk went on from it
+        ++walk;
+        Node *p = v;
+        while (p != nullptr and mark(p) == 0)
+          {
+            mark(p) = walk;
+            p = pred_node(p);
+          }
+        return p != nullptr and mark(p) == walk ? p : nullptr;
+      };
+
+    Node *c = relaxed_ == nullptr ? nullptr : cycle_reached_from(relaxed_);
+    for (typename GT::Node_Iterator it(g_); c == nullptr and it.has_curr(); it.next_ne())
+      c = cycle_reached_from(it.get_curr());
+
+    if (c == nullptr)
+      return Path<GT>(g_);
+
+    DynList<Arc *> cycle;  // its arcs from c, as they go
+    Node *p = c;
+    do
+      {
+        Arc *arc = arcs_(idx(p));
+        cycle.insert(arc);
+        p = g_.get_src_node(arc);
+      }
+    while (p != c);
+
+    Path<GT> ret(g_, c);
+    for (auto it = cycle.get_it(); it.has_curr(); it.next_ne())
+      ret.append_directed(it.get_curr());
+    return ret;
+  }
+
+  /// The witness of a negative cycle that the last pass found
+  Path<GT> negative_cycle_witness()
+  {
+    Path<GT> ret = cycle_of_predecessors();
+    if (ret.is_empty())
+      {
+        WARNING(
+          "Serious inconsistency. Bellman-Ford algorithm has detected\n"
+          "a negative cycle, but the graph of the predecessors has no\n"
+          "cycle\n\n"
+          "Be very careful, this is provably a bug");
+      }
+    return ret;
   }
 
 public:
@@ -612,9 +795,13 @@ public:
     ah_domain_error_if(start == nullptr) << "start node cannot be null";
 
     init_with_indexes(start);
+    Init_Guard guard([this]() { abandon(); });
 
     relax_arcs();
     const bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
+    if (beyond_max_ and not negative_cycle)
+      check_beyond_max(s_);
+    guard.release();
 
     // Only paint the tree if there's no negative cycle
     // A negative cycle makes the shortest path tree meaningless
@@ -643,6 +830,7 @@ public:
     ah_domain_error_if(start == nullptr) << "start node cannot be null";
 
     init_with_indexes(start);
+    Init_Guard guard([this]() { abandon(); });
 
     const auto &n = g_.get_num_nodes();
 
@@ -660,11 +848,7 @@ public:
         if (src == sentinel)  // Is the sentinel removed?
           {
             if (i++ > n)
-              {
-                while (not q.is_empty())
-                  get_from_queue(q);  // clear Depth_First bits on remaining nodes
-                break;
-              }
+              break;
 
             put_in_queue(q, sentinel);
           }
@@ -673,6 +857,9 @@ public:
       }
 
     const bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
+    if (beyond_max_ and not negative_cycle)
+      check_beyond_max(s_);
+    guard.release();
 
     // Only paint the tree if there's no negative cycle
     // A negative cycle makes the shortest path tree meaningless
@@ -682,80 +869,6 @@ public:
     link_cookies_and_free(s_);
 
     return negative_cycle;
-  }
-
-private:
-  /// Create a dummy node connected to all nodes with zero-weight edges.
-  /// Used for detecting negative cycles in the entire graph.
-  Node *create_dummy_node()
-  {
-    // RAII guard to ensure cleanup on exception
-    struct Dummy_Guard
-    {
-      GT &graph;
-      Node *dummy;
-      std::vector<Arc *> inserted_arcs;
-      bool released = false;
-
-      explicit Dummy_Guard(GT &g, Node *d) : graph(g), dummy(d)
-      {
-        inserted_arcs.reserve(g.get_num_nodes());
-      }
-
-      ~Dummy_Guard()
-      {
-        if (not released)
-          {
-            // Remove all inserted arcs
-            for (auto arc : inserted_arcs)
-              graph.remove_arc(arc);
-
-            // Remove dummy node
-            if (dummy != nullptr)
-              graph.remove_node(dummy);
-          }
-      }
-
-      void add_arc(Arc *a)
-      {
-        inserted_arcs.push_back(a);
-      }
-      void release()
-      {
-        released = true;
-      }
-
-      Dummy_Guard(const Dummy_Guard &) = delete;
-
-      Dummy_Guard &operator=(const Dummy_Guard &) = delete;
-    };
-
-    s_ = g_.insert_node(typename GT::Node_Type());
-    Dummy_Guard guard(g_, s_);
-
-    for (typename GT::Node_Iterator it(g_); it.has_curr(); it.next_ne())
-      {
-        auto p = it.get_curr();
-        if (p == s_)
-          continue;
-        auto a = g_.insert_arc(s_, p);
-        guard.add_arc(a);
-        Distance::set_zero(a);
-      }
-
-    guard.release();  // Successful creation, prevent cleanup
-    return s_;
-  }
-
-  /// Remove a dummy node and clean up its cookie.
-  template <class Info_Type>
-  void remove_dummy_node(Node *p)
-  {
-    delete static_cast<Info_Type *>(NODE_COOKIE(p));
-    NODE_COOKIE(p) = nullptr;
-    if (p == s_)
-      s_ = nullptr;
-    g_.remove_node(p);
   }
 
 public:
@@ -769,102 +882,156 @@ public:
   {
     ah_domain_error_if(start == nullptr) << "start node cannot be null";
 
+    return detect_negative_cycle(start);
+  }
+
+  /** Test if a negative cycle exists anywhere in the graph.
+
+      Every node is a source, at distance 0, as if a virtual source reached
+      each one by an arc of weight 0; the graph gets no node.
+
+      @return true if any negative cycle exists in the graph, false otherwise.
+   */
+  bool has_negative_cycle()
+  {
+    return detect_negative_cycle(nullptr);
+  }
+
+private:
+  bool detect_negative_cycle(Node *start)
+  {
     init_with_indexes(start);
-    // Note: s and accum(s) already set by init_with_indexes
+    Init_Guard guard([this]() { abandon(); });
 
     relax_arcs();
     const bool negative_cycle = last_relax_and_test_negative_cycle();
+    if (beyond_max_ and not negative_cycle)
+      check_beyond_max(s_);
+    guard.release();
     uninit<Ni>();
 
     return negative_cycle;
   }
 
-  /** Test if a negative cycle exists anywhere in the graph.
-
-      Creates a temporary dummy node connected to all other nodes with
-      zero-weight edges, then runs negative cycle detection from it.
-
-      @return true if any negative cycle exists in the graph, false otherwise.
-
-      @note This method temporarily modifies the graph by adding a dummy node.
-            The modification is rolled back even if an exception is thrown.
-   */
-  bool has_negative_cycle()
+  /// Without a start, every node is a source
+  Path<GT> find_negative_cycle(Node *start)
   {
-    Node *dummy = create_dummy_node();
+    init_with_indexes(start);
+    Init_Guard guard([this]() { abandon(); });
 
-    // RAII guard ensures dummy node removal even on exception
-    struct Global_Cycle_Guard
-    {
-      Bellman_Ford &bf;
-      Node *dummy_node;
-      bool released = false;
-
-      Global_Cycle_Guard(Bellman_Ford &b, Node *d) : bf(b), dummy_node(d) {}
-
-      ~Global_Cycle_Guard()
-      {
-        if (not released and dummy_node != nullptr)
-          {
-            // Clean up: remove dummy node and its arcs
-            bf.remove_dummy_node<Ni>(dummy_node);
-          }
-      }
-
-      void release()
-      {
-        released = true;
-      }
-    };
-
-    Global_Cycle_Guard guard(*this, dummy);
-
-    auto ret = has_negative_cycle(dummy);
+    relax_arcs();
+    Path<GT> ret(g_);
+    if (last_relax_and_prepare_check_negative_cycle())
+      ret = negative_cycle_witness();
+    else if (beyond_max_)
+      check_beyond_max(s_);
     guard.release();
-    remove_dummy_node<Ni>(dummy);
 
+    link_cookies_and_free(s_);
     return ret;
   }
 
-private:
-  /// Build spanning tree from arcs and search for cycle using Tarjan's algorithm.
-  Path<GT> search_negative_cycle_on_partial_graph()
+  /// SPFA, which, from it_factor * n rounds, and then every step rounds,
+  /// looks for a cycle among the predecessors; without a start, every
+  /// node is a source
+  std::tuple<Path<GT>, size_t> faster_find_negative_cycle(Node *start,
+                                                          double it_factor,
+                                                          size_t step)
   {
-    GT aux = build_spanning_tree<GT>(arcs_);
+    init_with_indexes(start);
+    Init_Guard guard([this]() { abandon(); });
 
-    // we map because Tarjan algorithm modifies cookies
-    DynMapTree<Node *, Node *> table;
-    for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next_ne())
+    const auto &n = g_.get_num_nodes();
+    DynListQueue<typename GT::Node *> q;
+    Node __sentinel;
+    Node *sentinel = &__sentinel;
+    put_sources_in_queue(q);
+    put_in_queue(q, sentinel);
+
+    double threshold = it_factor * n;
+    Path<GT> ret(g_);
+
+    size_t i = 0;
+    while (not q.is_empty())
       {
-        auto p = it.get_curr();
-        table.insert(p, static_cast<Node *>(NODE_COOKIE(p)));
+        auto src = get_from_queue(q);
+        if (src == sentinel)
+          {
+            if (i++ > n)
+              break;
+
+            put_in_queue(q, sentinel);
+            if (i >= threshold)  // must I search negative cycles?
+              {
+                ret = cycle_of_predecessors();
+                if (not ret.is_empty())  // negative cycle found?
+                  {
+                    guard.release();
+                    link_cookies_and_free(s_);
+                    return std::make_tuple(std::move(ret), i);
+                  }
+                threshold += step;
+              }
+          }
+        else
+          relax_arcs(src, q);
       }
 
-    // Save and restore cookies around Tarjan call (Tarjan modifies cookies)
-    Cookie_Saver<GT> cookie_saver(aux, true, false);  // only save node cookies
+    if (last_relax_and_prepare_check_negative_cycle())
+      ret = negative_cycle_witness();
+    else if (beyond_max_)
+      check_beyond_max(s_);
+    guard.release();
 
-    // Clear cookies for Tarjan's use
-    for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next_ne())
-      NODE_COOKIE(it.get_curr()) = nullptr;
+    link_cookies_and_free(s_);
+    return std::make_tuple(std::move(ret), i);
+  }
 
-    if (Path<GT> path(aux); Tarjan_Connected_Components<GT, NAit, SA>(sa_).compute_cycle(aux, path))
+  /// SPFA; without a start, every node is a source
+  Path<GT> faster_find_negative_cycle(Node *start)
+  {
+    init_with_indexes(start);
+    Init_Guard guard([this]() { abandon(); });
+
+    const auto &n = g_.get_num_nodes();
+    DynListQueue<typename GT::Node *> q;
+    Node __sentinel;
+    Node *sentinel = &__sentinel;
+    put_sources_in_queue(q);
+    put_in_queue(q, sentinel);
+
+    for (size_t i = 0; not q.is_empty(); /* nothing */)
       {
-        Path<GT> ret(g_);
-        for (typename Path<GT>::Iterator it(path); it.has_current_node(); it.next_ne())
-          ret.append_directed(static_cast<Node *>(table.find(it.get_current_node_ne())));
-        return ret;
+        auto src = get_from_queue(q);
+        if (src == sentinel)
+          {
+            if (i++ > n)
+              break;
+
+            put_in_queue(q, sentinel);
+          }
+        else
+          relax_arcs(src, q);
       }
 
-    return Path<GT>(g_);
+    Path<GT> ret(g_);
+    if (last_relax_and_prepare_check_negative_cycle())
+      ret = negative_cycle_witness();
+    else if (beyond_max_)
+      check_beyond_max(s_);
+    guard.release();
+
+    link_cookies_and_free(s_);
+    return ret;
   }
 
 public:
   /** Search a negative cycle on all possible paths starting from
       `start` node.
 
-      If a negative cycle is found, then the Tarjan algorithm is executed
-      for retrieving it. In this case the cycle is returned. Otherwise
-      (there is no negative cycle), the returned path is empty.
+      If a negative cycle is found, it is a cycle of the graph of the
+      predecessors, given by its arcs. Otherwise (there is no negative
+      cycle), the returned path is empty.
 
       @param[in] start starting node
       @return a valid path corresponding to a negative cycle if this is
@@ -874,47 +1041,20 @@ public:
   {
     ah_domain_error_if(start == nullptr) << "start node cannot be null";
 
-    init_with_indexes(start);
-
-    relax_arcs();
-    const bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
-    if (not negative_cycle)
-      {
-        link_cookies_and_free(s_);
-        return Path<GT>(g_);
-      }
-
-    Path<GT> ret = search_negative_cycle_on_partial_graph();
-    if (ret.is_empty())
-      WARNING(
-        "Serious inconsistency. Bellman-Ford algorithm has detected\n"
-        "a negative cycle, but Tarjan algorithm executed on partial\n"
-        "graph has not found such cycle\n\n"
-        "Be very careful, this is provably a bug");
-
-    link_cookies_and_free(s_);
-    return ret;
+    return find_negative_cycle(start);
   }
 
   /** Searches and returns a negative cycle (if it exists).
+
+      Every node is a source, at distance 0, as if a virtual source reached
+      each one by an arc of weight 0; the graph gets no node.
 
       @return a path containing a negative cycle (if it
       exists). Otherwise, it returns an empty path.
    */
   Path<GT> test_negative_cycle()
   {
-    auto start = create_dummy_node();
-
-    // RAII guard ensures dummy node removal even on exception
-    Init_Guard guard([this, start]()
-    {
-      remove_dummy_node<Ni>(start);
-    });
-
-    auto ret_val = test_negative_cycle(start);
-    guard.release();
-    remove_dummy_node<Ni>(start);
-    return ret_val;
+    return find_negative_cycle(nullptr);
   }
 
   /** Searches a negative cycle using the faster version of Bellman-Ford
@@ -964,56 +1104,7 @@ public:
   {
     ah_domain_error_if(start == nullptr) << "start node cannot be null";
 
-    init_with_indexes(start);
-
-    const auto &n = g_.get_num_nodes();
-    DynListQueue<typename GT::Node *> q;
-    Node __sentinel;
-    Node *sentinel = &__sentinel;
-    put_in_queue(q, s_);
-    put_in_queue(q, sentinel);
-
-    double threshold = it_factor * n;
-    Path<GT> ret(g_);
-
-    size_t i = 0;
-    while (not q.is_empty())
-      {
-        auto src = get_from_queue(q);
-        if (src == sentinel)
-          {
-            if (i++ > n)
-              break;
-
-            put_in_queue(q, sentinel);
-            if (i >= threshold)  // must I search negative cycles?
-              {
-                ret = search_negative_cycle_on_partial_graph();
-                if (not ret.is_empty())  // negative cycle found?
-                  {
-                    link_cookies_and_free(s_);
-                    return std::make_tuple(std::forward<Path<GT>>(ret), i);
-                  }
-                threshold += step;
-              }
-          }
-        else
-          relax_arcs(src, q);
-      }
-
-    if (const bool negative_cycle = last_relax_and_prepare_check_negative_cycle())
-      {
-        ret = search_negative_cycle_on_partial_graph();
-        if (ret.is_empty())
-          WARNING(
-            "Serious inconsistency. Bellman-Ford algorithm has detected\n"
-            "a negative cycle, but Tarjan algorithm executed on partial\n"
-            "graph has not found such cycle\n\n"
-            "Be very careful, this provably is a bug");
-      }
-
-    link_cookies_and_free(s_);
-    return std::make_tuple(std::forward<Path<GT>>(ret), i);
+    return faster_find_negative_cycle(start, it_factor, step);
   }
 
   /** Searches a negative cycle using the faster version of Bellman-Ford
@@ -1027,44 +1118,7 @@ public:
   {
     ah_domain_error_if(start == nullptr) << "start node cannot be null";
 
-    init_with_indexes(start);
-
-    const auto &n = g_.get_num_nodes();
-    DynListQueue<typename GT::Node *> q;
-    Node __sentinel;
-    Node *sentinel = &__sentinel;
-    put_in_queue(q, s_);
-    put_in_queue(q, sentinel);
-
-    Path<GT> ret(g_);
-    for (size_t i = 0; not q.is_empty(); /* nothing */)
-      {
-        auto src = get_from_queue(q);
-        if (src == sentinel)
-          {
-            if (i++ > n)
-              break;
-
-            put_in_queue(q, sentinel);
-          }
-        else
-          relax_arcs(src, q);
-      }
-
-    if (const bool negative_cycle = last_relax_and_prepare_check_negative_cycle())
-      {
-        ret = search_negative_cycle_on_partial_graph();
-        if (ret.is_empty())
-          WARNING(
-            "Serious inconsistency. Bellman-Ford algorithm has detected\n"
-            "a negative cycle, but Tarjan algorithm executed on partial\n"
-            "graph has not found such cycle\n\n"
-            "Be very careful, this provably is a bug");
-      }
-
-    link_cookies_and_free(s_);
-
-    return ret;
+    return faster_find_negative_cycle(start);
   }
 
   /** Searches a negative cycle using the faster version of Bellman-Ford
@@ -1073,24 +1127,12 @@ public:
       \overload search_negative_cycle(Node * start, double it_factor, const size_t step)
 
       This overloaded version searches for negatives cycles in all the
-      graph. For that, a dummy and temporal node is inserted into the
-      graph and the search is performed using the dummy node as starting
-      node.
+      graph: every node is a source, at distance 0, as if a virtual source
+      reached each one by an arc of weight 0. The graph gets no node.
    */
   std::tuple<Path<GT>, size_t> search_negative_cycle(double it_factor, const size_t step)
   {
-    auto start = create_dummy_node();
-
-    // RAII guard ensures dummy node removal even on exception
-    Init_Guard guard([this, start]()
-    {
-      remove_dummy_node<Ni>(start);
-    });
-
-    auto ret_val = search_negative_cycle(start, it_factor, step);
-    guard.release();
-    remove_dummy_node<Ni>(start);
-    return ret_val;
+    return faster_find_negative_cycle(nullptr, it_factor, step);
   }
 
   /**
@@ -1098,18 +1140,7 @@ public:
   */
   Path<GT> search_negative_cycle()
   {
-    auto start = create_dummy_node();
-
-    // RAII guard ensures dummy node removal even on exception
-    Init_Guard guard([this, start]()
-    {
-      remove_dummy_node<Ni>(start);
-    });
-
-    auto ret_val = search_negative_cycle(start);
-    guard.release();
-    remove_dummy_node<Ni>(start);
-    return ret_val;
+    return faster_find_negative_cycle(nullptr);
   }
 
   /** Extract the shortest paths tree in a compressed form.
@@ -1141,35 +1172,33 @@ public:
   Distance_Type get_distance(typename GT::Node *node)
   {
     ah_domain_error_if(not painted_) << "Graph has not been previously painted";
+    ah_domain_error_if(not parents_) << "build_tree() mapped the tree; paint it again";
 
     ah_domain_error_if(node == nullptr) << "node cannot be null";
 
-    // Follow predecessor chain to verify reachability
-    auto curr = node;
-    while (curr != s_)
+    // The arcs of the path, from node up to the start
+    Dfs_Stack<Arc *> path;
+    for (auto curr = node; curr != s_; )
       {
         auto parent = static_cast<Node *>(NODE_COOKIE(curr));
         ah_domain_error_if(parent == nullptr) << "Node is not reachable from start node";
-        curr = parent;
-      }
-
-    // Compute distance by following the path
-    Distance_Type total = 0;
-    curr = node;
-    while (curr != s_)
-      {
-        auto parent = static_cast<Node *>(NODE_COOKIE(curr));
 
         // Find the arc from parent to curr
         for (NAit<GT, SA> it(parent, sa_); it.has_curr(); it.next_ne())
           if (auto arc = it.get_curr();
               g_.get_tgt_node(arc) == curr && IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
             {
-              total = checked_add(total, dist_(arc));
+              path.push(arc);
               break;
             }
         curr = parent;
       }
+
+    // From the start, so that each partial sum is the distance of a node of
+    // the path, which fits; from node, a sum could leave Distance_Type
+    Distance_Type total = 0;
+    for (; not path.is_empty(); path.pop())
+      total = checked_add(total, dist_(path.top()));
     return total;
   }
 
@@ -1180,11 +1209,16 @@ public:
 
       @param[in] tree a graph where the shortest paths tree will be stored.
       @param[in] with_map if true the extracted tree is mapped
-      through the cookies with the graph.
+      through the cookies with the graph; then the cookies no longer hold
+      the parents, and the tree must be painted again for the methods that
+      read them.
+      @throw domain_error if the tree has not been painted, or if a former
+      build_tree() mapped it.
    */
   void build_tree(GT &tree, bool with_map = true)
   {
-    ah_domain_error_if(not painted_ and with_map) << "Spanning tree has not been painted";
+    ah_domain_error_if(not painted_) << "Spanning tree has not been painted";
+    ah_domain_error_if(not parents_) << "build_tree() mapped the tree; paint it again";
 
     clear_graph(tree);
 
@@ -1235,6 +1269,7 @@ public:
         NODE_COOKIE(p.first) = nullptr;
         GT::map_nodes(p.first, p.second);
       });
+    parents_ = parents_ and not with_map;
   }
 
   /** Test for negative cycle and return it if found.
@@ -1270,32 +1305,25 @@ public:
   Distance_Type get_min_path(typename GT::Node *end, Path<GT> &path)
   {
     ah_domain_error_if(not painted_) << "Graph has not been previously painted";
+    ah_domain_error_if(not parents_) << "build_tree() mapped the tree; paint it again";
 
     return Aleph::get_min_path<GT, Distance>(s_, end, path, dist_);
   }
 
   /** Returns a mapping with the shortest distances to each node obtained
-      after executing the Bellman-Ford algorithm from a dummy node connected
-      to all nodes with zero-weight edges. This routine is specifically
-      designed for Johnson's algorithm for computing all-pairs shortest paths.
+      after executing the Bellman-Ford algorithm from a virtual source
+      connected to all nodes with zero-weight edges: every node starts at 0,
+      and the graph gets no node. This routine is specifically designed for
+      Johnson's algorithm for computing all-pairs shortest paths.
 
       @return A tree mapping where each node is mapped to its distance from
-      the dummy source (used as potential for edge reweighting).
+      the virtual source (used as potential for edge reweighting).
       @throw std::domain_error if negative cycles are detected.
    */
   DynMapTree<Node *, Distance_Type> compute_nodes_weights()
   {
-    Node *dummy = create_dummy_node();
-
-    Init_Guard guard([this, dummy]()
-    {
-      uninit<Ni>();
-      arcs_.cut();
-      if (dummy != nullptr)
-        remove_dummy_node<Ni>(dummy);
-    });
-
-    init_with_indexes(s_);
+    init_with_indexes(nullptr);
+    Init_Guard guard([this]() { abandon(); });
 
     const auto &n = g_.get_num_nodes();
 
@@ -1304,7 +1332,7 @@ public:
     Node __sentinel;
     Node *sentinel = &__sentinel;
 
-    put_in_queue(q, s_);
+    put_sources_in_queue(q);
     put_in_queue(q, sentinel);
 
     for (size_t i = 0; not q.is_empty(); /* nothing */)
@@ -1329,16 +1357,11 @@ public:
       for (auto it = g_.get_node_it(); it.has_curr(); it.next_ne())
         {
           auto p = it.get_curr();
-          if (p == dummy)  // Skip the dummy node
-            continue;
           ret.insert(p, accum(p));
         }
 
-    // Manual cleanup before throwing (guard will handle cleanup on exception)
-    uninit<Ni>();
-    arcs_.cut();
-    remove_dummy_node<Ni>(dummy);
-    guard.release();  // Prevent double cleanup
+    guard.release();
+    abandon();  // the data of the nodes go, and the object has no computation
 
     ah_domain_error_if(negative_cycle) << "negative cycles detected";
 

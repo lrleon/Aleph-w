@@ -735,6 +735,9 @@ public:
     return preorder(this, op);
   }
 
+  /// \overload
+  /// From a const tree too, op receives `Tree_Node *`, as the operations of
+  /// FunctionalMixin do; it must not change the tree.
   template <class Operation>
   bool traverse(Operation op) const
   {
@@ -759,6 +762,9 @@ public:
     return true;
   }
 
+  /// \overload
+  /// From a const tree too, op receives `Tree_Node *`; it must not change
+  /// the tree.
   template <class Op>
   bool level_traverse(Op op) const
   {
@@ -1118,6 +1124,9 @@ static inline void __tree_preorder_traversal(Node *root, const int &level, const
     @see forest_preorder_traversal() tree_postorder_traversal()
     @see forest_postorder_traversal()
     @throw domain_error if root is not a root node of a tree.
+    @throw bad_alloc if there is no memory for the ancestors of a node,
+    which wait in a Dfs_Stack; the thread keeps up to 1 MiB of its room
+    for its next stack.
     @ingroup Trees
 */
 template <class Node>
@@ -1146,6 +1155,9 @@ inline void tree_preorder_traversal(Node *root, void (*visitFct)(Node *, int, in
     @param[in] root root of the first tree in the forest.
     @param[in] visitFct pointer to the visit function.
     @throw domain_error if root is not a root node of a tree.
+    @throw bad_alloc if there is no memory for the ancestors of a node,
+    which wait in a Dfs_Stack; the thread keeps up to 1 MiB of its room
+    for its next stack.
     @see tree_preorder_traversal() tree_postorder_traversal()
     @see forest_postorder_traversal()
     @ingroup Trees
@@ -1224,6 +1236,9 @@ static inline void __tree_postorder_traversal(Node *node, const int &level, cons
     @param[in] visitFct pointer to the visit function.
     @see forest_preorder_traversal() tree_preorder_traversal()
     @see forest_postorder_traversal()
+    @throw bad_alloc if there is no memory for the ancestors of a node,
+    which wait in a Dfs_Stack; the thread keeps up to 1 MiB of its room
+    for its next stack.
     @ingroup Trees
 */
 template <class Node>
@@ -1253,6 +1268,9 @@ inline void tree_postorder_traversal(Node *root, void (*visitFct)(Node *, int, i
     @see tree_postorder_traversal()
     @throw domain_error if root is not the root node of the leftmost tree
     of the forest.
+    @throw bad_alloc if there is no memory for the ancestors of a node,
+    which wait in a Dfs_Stack; the thread keeps up to 1 MiB of its room
+    for its next stack.
     @ingroup Trees
 */
 template <class Node>

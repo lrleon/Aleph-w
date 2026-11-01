@@ -124,13 +124,14 @@ private:
   typedef typename GT::Arc_Type GT_Arc_Type;
   typedef typename GT::Node_Type GT_Node_Type;
 
+  GT &                         g;
   IndexNode<GT, Compare, Tree> idx_node;
   IndexArc<GT, Tree>           idx_arc;
 
 public:
 
       /// Creates an index of the graph: nodes and arcs are indexed.
-  Index_Graph(GT & g) : idx_node(g), idx_arc(g)
+  Index_Graph(GT & __g) : g(__g), idx_node(__g), idx_arc(__g)
   {
     // empty
   }
@@ -211,10 +212,15 @@ public:
   */
   void remove_node(GT_Node * p)
   {
-    // remove from the index the arcs emanating from the node (they
-    // will be removed by the node's removal from the graph)
+    // remove from the index the arcs that the removal of the node from
+    // the graph frees: those of its list and, in a digraph, whose lists
+    // hold the arcs out, those that come in from other nodes
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
       idx_arc.remove(it.get_curr());
+    if (g.is_digraph())
+      for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next_ne())
+        if (auto a = it.get_curr(); g.get_tgt_node(a) == p and g.get_src_node(a) != p)
+          idx_arc.remove(a);
 
     return idx_node.remove_from_graph(p);
   }

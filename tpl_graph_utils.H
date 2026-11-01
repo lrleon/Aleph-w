@@ -207,18 +207,19 @@ namespace Aleph {
 
       // The node being visited keeps its iterator in here until it visits
       // a node; then it waits in frames, where it goes on when it comes
-      // back
+      // back. here is optional, so that the frame of each node is built in
+      // its place: a frame keeps the filter, which may not be assignable
       Dfs_Stack<Frame> frames;
-      Frame here(node, sa);
+      std::optional<Frame> here(std::in_place, node, sa);
       while (true)
         {
-          if (auto tgt = here.template next_target<Depth_First>())
+          if (auto tgt = here->template next_target<Depth_First>())
             { // the iterator stays on the arc to tgt, as in a recursion
-              if (enter(tgt, here.it.get_current_arc_ne()))
+              if (enter(tgt, here->it.get_current_arc_ne()))
                 return true;
 
-              frames.push(std::move(here));
-              here = Frame(tgt, sa);
+              frames.push(std::move(*here));
+              here.emplace(tgt, sa);
               continue;
             }
 
@@ -234,7 +235,7 @@ namespace Aleph {
                   if (enter(tgt, f.it.get_current_arc_ne()))
                     return true;
 
-                  here = Frame(tgt, sa);
+                  here.emplace(tgt, sa);
                   break;
                 }
               frames.pop();
@@ -1167,11 +1168,11 @@ namespace Aleph {
       typename GT::Node * sg_src;
       typename GT::Node_Arc_Iterator it;
 
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Frame(const GT & gr, typename GT::Node * p, typename GT::Node * image)
         : sg_src(image), it(gr.get_arc_it(p)) {}
 
-      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
 
       // Marks p, counts it and gives its frame, with its image in sg,
       // which it inserts if p has none
@@ -1190,14 +1191,13 @@ namespace Aleph {
         return Frame(gr, p, sg_p);
       }
 
-      // Copies into sg, while not all the nodes were visited, the arcs
-      // that were not, with their targets, up to one whose target was not
-      // visited, which it gives, with the iterator on that arc; nullptr
-      // when the arcs are done
-      [[gnu::always_inline]] typename GT::Node *
-      next_to_visit(const GT & gr, GT & sgr, const size_t & count)
+      // Copies into sg the arcs that were not visited, with their targets,
+      // up to one whose target was not visited, which it gives, with the
+      // iterator on that arc; nullptr when the arcs are done. Once every
+      // node is visited, the arcs that are left still go into sg.
+      [[gnu::always_inline]] typename GT::Node * next_to_visit(GT & sgr)
       {
-        for (; count < gr.get_num_nodes() and it.has_curr(); next_arc())
+        for (; it.has_curr(); next_arc())
           {
             auto arc = it.get_current_arc_ne();
             if (IS_ARC_VISITED(arc, Build_Subtree))
@@ -1233,7 +1233,7 @@ namespace Aleph {
     Frame here = Frame::visit(g, sg, g_src, node_count);
     while (true)
       {
-        if (auto g_tgt = here.next_to_visit(g, sg, node_count))
+        if (auto g_tgt = here.next_to_visit(sg))
           { // the iterator stays on the arc to g_tgt, as in a recursion
             frames.push(std::move(here));
             here = Frame::visit(g, sg, g_tgt, node_count);
@@ -1247,7 +1247,7 @@ namespace Aleph {
 
             Frame & f = frames.top();
             f.next_arc(); // past the arc to the node that was visited
-            if (auto g_tgt = f.next_to_visit(g, sg, node_count))
+            if (auto g_tgt = f.next_to_visit(sg))
               {
                 here = Frame::visit(g, sg, g_tgt, node_count);
                 break;
@@ -1335,16 +1335,16 @@ namespace Aleph {
       typename GT::Node * tnode;
       typename GT::Node_Arc_Iterator it;
 
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Frame(const GT & gr, typename GT::Node * p, typename GT::Node * image)
         : tnode(image), it(gr.get_arc_it(p)) {}
 
-      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
 
       // Moves the iterator to the next arc not in the tree whose target is
       // not in the tree either, and gives that target, or nullptr when the
       // arcs are done
-      [[gnu::always_inline, gnu::flatten]] typename GT::Node * next_target() noexcept
+      [[gnu::always_inline]] ALEPH_FLATTEN typename GT::Node * next_target() noexcept
       {
         for (; it.has_curr(); it.next_ne())
           {
@@ -1607,12 +1607,12 @@ namespace Aleph {
       long low;
       bool p_is_cut_node = false;
 
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Cut_Frame(const GT & g, typename GT::Node * n, typename GT::Arc * arc,
                 const long n_low)
         : p(n), a(arc), it(g.get_arc_it(n)), low(n_low) {}
 
-      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
     };
 
     // Visits n, reached through arc, and pushes its frame
@@ -1630,7 +1630,7 @@ namespace Aleph {
     // not visited, which it marks, and gives that node, or nullptr when
     // the arcs of f.p are done. The arcs to nodes visited lower f.low.
     template <class GT>
-    [[gnu::always_inline, gnu::flatten]] inline typename GT::Node *
+    [[gnu::always_inline]] ALEPH_FLATTEN inline typename GT::Node *
     next_cut_child(Cut_Frame<GT> & f) noexcept
     {
       for (; f.it.has_curr(); f.it.next_ne())
@@ -1878,15 +1878,15 @@ namespace Aleph {
     {
       typename GT::Node_Arc_Iterator it;
 
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Paint_Frame(const GT & g, typename GT::Node * n) : it(g.get_arc_it(n)) {}
 
-      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
 
       // Moves the iterator to the next arc that goes to a node that is not
       // a cut node and was not painted, and paints both; gives that node,
       // or nullptr when the arcs are done
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       typename GT::Node * next_to_paint(const long color) noexcept
       {
         for (; it.has_curr(); it.next_ne())
@@ -2067,15 +2067,15 @@ namespace Aleph {
       typename GT::Node * tsrc;
       typename GT::Node_Arc_Iterator it;
 
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Frame(const GT & gr, typename GT::Node * n)
         : tsrc(mapped_node<GT>(n)), it(gr.get_arc_it(n)) {}
 
-      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
 
       // Moves the iterator to the next arc of the color that was not
       // copied, and gives it, or nullptr when the arcs are done
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       typename GT::Arc * next_to_map(const long c) noexcept
       {
         for (; it.has_curr(); it.next_ne())
@@ -2535,17 +2535,20 @@ namespace Aleph {
           << "get_min_path(): no arc connecting nodes in path";
 
         node_arc_list.insert(std::make_pair(curr, arc));
-        dist += distance(arc);
         curr = prev;
       }
 
-    // Now build path from start to end
+    // Now build path from start to end. The cost is added from the start
+    // too, so that each partial sum is the distance of a node of the path:
+    // with negative weights, a sum from the end could overflow although
+    // every distance fits.
     path.init(s);
     for (auto it = node_arc_list.get_it(); it.has_curr(); it.next())
       {
         auto & [node, arc] = it.get_curr();
         (void)node; // suppress warning
         path.append(arc);
+        dist += distance(arc);
       }
 
     return dist;

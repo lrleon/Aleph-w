@@ -98,6 +98,7 @@ namespace Aleph
    *   auxiliary network is built.
    *
    * @param[in,out] g Graph to analyze.
+   * @param[in] sa the filter of the arcs, which each iterator copies.
    * @return Edge connectivity of `g` (0 for empty or disconnected graphs).
    * @note For connected graphs with minimum filtered degree <= 1, returns
    *       that degree without running max flow.
@@ -109,9 +110,8 @@ namespace Aleph
   template <AlephGraph GT,
             template <class> class Max_Flow = Random_Preflow_Maximum_Flow,
             ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-  long edge_connectivity(GT & g)
+  long edge_connectivity(GT & g, SA sa = SA())
   {
-    const SA sa;
     ah_domain_error_if(g.is_digraph())
       << "edge_connectivity() does not work on digraphs";
 
@@ -253,6 +253,7 @@ namespace Aleph
    * @param[out] l Set of nodes on the source side of the cut.
    * @param[out] r Set of nodes on the sink side of the cut.
    * @param[out] cut List of cut arcs (arcs crossing between `l` and `r`).
+   * @param[in] sa the filter of the arcs, which each iterator copies.
    * @return Edge connectivity of `g` (minimum cut size).
    * @throw std::domain_error If `g` is a digraph.
    * @throw std::bad_alloc If there is not enough memory.
@@ -265,9 +266,9 @@ namespace Aleph
   long compute_min_cut(GT & g,
                        DynSetTree<typename GT::Node *> & l,
                        DynSetTree<typename GT::Node *> & r,
-                       DynDlist<typename GT::Arc *> & cut)
+                       DynDlist<typename GT::Arc *> & cut,
+                       SA sa = SA())
   {
-    const SA sa;
     l.empty();
     r.empty();
     cut.empty();
@@ -455,14 +456,19 @@ namespace Aleph
             ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Compute_Min_Cut
   {
+    SA sa;
+
   public:
+    /// Keeps sa, the filter of the arcs
+    explicit Compute_Min_Cut(SA __sa = SA()) : sa(std::move(__sa)) {}
+
     /** @brief Compute a minimum edge cut for `g`. */
     long operator ()(GT & g,
                      DynSetTree<typename GT::Node *> & l,
                      DynSetTree<typename GT::Node *> & r,
                      DynDlist<typename GT::Arc *> & cut)
     {
-      return compute_min_cut<GT, Max_Flow, SA>(g, l, r, cut);
+      return compute_min_cut<GT, Max_Flow, SA>(g, l, r, cut, sa);
     }
   };
 
@@ -485,6 +491,7 @@ namespace Aleph
    * @tparam SA Arc filter functor.
    *
    * @param[in,out] g Graph to analyze.
+   * @param[in] sa the filter of the arcs, which each iterator copies.
    * @return Vertex connectivity of `g` (0 for empty or disconnected graphs).
    * @note For connected graphs with minimum filtered degree <= 1, returns
    *       that degree without running max flow.
@@ -496,9 +503,8 @@ namespace Aleph
   template <AlephGraph GT,
             template <class> class Max_Flow = Random_Preflow_Maximum_Flow,
             ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-  long vertex_connectivity(GT & g)
+  long vertex_connectivity(GT & g, SA sa = SA())
   {
-    const SA sa;
     ah_domain_error_if(g.is_digraph())
       << "vertex_connectivity() does not work on digraphs";
 

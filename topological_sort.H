@@ -107,22 +107,16 @@ private:
     typename GT::Node * curr;
     Itor<GT, SA> it;
 
-    [[gnu::always_inline, gnu::flatten]]
+    [[gnu::always_inline]] ALEPH_FLATTEN
     Frame(typename GT::Node * p, SA & sa) : curr(p), it(p, sa) {}
 
-    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() noexcept { it.next_ne(); }
 
-    // Moves the iterator, if list has less than n nodes, to the next arc
-    // whose target was not visited, and gives that target; nullptr when
-    // the arcs are done or list has n nodes. The list does not change
-    // while the iterator moves.
-    template <class L>
-    [[gnu::always_inline, gnu::flatten]]
-    typename GT::Node * next_target(const L & list, const size_t n)
+    // Moves the iterator to the next arc whose target was not visited, and
+    // gives that target; nullptr when the arcs are done
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    typename GT::Node * next_target()
     {
-      if (list.size() >= n)
-        return nullptr;
-
       for (; it.has_curr(); it.next_ne())
         if (auto tgt = it.get_tgt_node_ne(); not IS_NODE_VISITED(tgt, Depth_First))
           return tgt;
@@ -133,28 +127,30 @@ private:
   /// @brief Helper for DFS-based topological sort.
   /// @param curr Node from which to visit.
   /// @param list Output list accumulating sorted nodes.
+  /// @return the number of nodes that it inserted in list, which a DynList
+  /// would count again: a node goes in when its frame leaves the stack, so
+  /// that no frame waits once every node is in.
   /// @note A path can have as many nodes as the graph, too many for
   /// recursion, so that the search keeps its own stack; the order of the
   /// visits is that of a recursion.
   template <template <class> class List>
-  void topological_sort(typename GT::Node * curr,
-                        List<typename GT::Node*> & list)
+  size_t topological_sort(typename GT::Node * curr,
+                          List<typename GT::Node*> & list)
   {
     assert(gptr != nullptr);
 
     if (IS_NODE_VISITED(curr, Depth_First))
-      return;
+      return 0;
 
     NODE_BITS(curr).set_bit(Depth_First, 1); // mark as visited
 
-    const auto & n = gptr->get_num_nodes();
-
     // visit adjacent nodes in postfix order
+    size_t inserted = 0;
     Dfs_Stack<Frame> frames;
     Frame * f = &frames.push(curr, sa); // the top one
     while (true)
       {
-        if (auto tgt = f->next_target(list, n))
+        if (auto tgt = f->next_target())
           { // the iterator stays on the arc to tgt, as in a recursion
             NODE_BITS(tgt).set_bit(Depth_First, 1);
             f = &frames.push(tgt, sa);
@@ -162,9 +158,10 @@ private:
           }
 
         list.insert(f->curr); // postfix insertion of node that became a sink
+        ++inserted;
         frames.pop();
         if (frames.is_empty())
-          return;
+          return inserted;
 
         f = &frames.top();
         f->next_arc(); // past the arc to the node that was visited
@@ -195,14 +192,15 @@ public:
     gptr = &g;
     List<typename GT::Node*> list;
 
-    // traverse all nodes
+    // traverse all nodes, until every one is in the list
     const auto & n = gptr->get_num_nodes();
-    for (auto it = g.get_node_it(); it.has_curr() and list.size() < n;
+    size_t listed = 0;
+    for (auto it = g.get_node_it(); it.has_curr() and listed < n;
          it.next_ne())
       {
         auto curr = it.get_current_node_ne();
         if (not IS_NODE_VISITED(curr, Depth_First))
-          topological_sort(curr, list);
+          listed += topological_sort(curr, list);
       }
 
     return list;

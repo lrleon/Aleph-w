@@ -43,7 +43,7 @@
 #include <iostream>
 #include <cassert>
 #include <type_traits>
-#include "../tpl_hash.H"
+#include <tpl_hash.H>
 
 using namespace std;
 using namespace Aleph;

@@ -40,8 +40,9 @@
  *  Each conditional macro is a `for` of one iteration, which takes no
  *  `else`: an `else` written after an invocation belongs to the `if` around
  *  it, and one with no `if` around it does not compile. Its condition is
- *  evaluated once, and it must be an expression, not a declaration as in
- *  `if (auto e = f())`.
+ *  evaluated once, and it converts to bool as that of an `if` does, so a
+ *  scoped enumeration does not; it must be an expression, not a
+ *  declaration as in `if (auto e = f())`.
  *
  *  @ingroup Utilities
  *  @author Leandro Rabindranath León
@@ -65,7 +66,7 @@
     out << __FILE__ << ":" << __LINE__ << " | "
 
 #define ah_trace_if(out, C)                                             \
-  for (bool AH_TRACE_ONCE = static_cast<bool>(C);                       \
+  for (bool AH_TRACE_ONCE = (C) ? true : false;                         \
        __builtin_expect(AH_TRACE_ONCE, 0); AH_TRACE_ONCE = false)       \
     out << __FILE__ << ":" << __LINE__ << " | "
 
@@ -73,7 +74,7 @@
   out << ""
 
 #define ah_msg_if(out, C)                                               \
-  for (bool AH_TRACE_ONCE = static_cast<bool>(C); AH_TRACE_ONCE;        \
+  for (bool AH_TRACE_ONCE = (C) ? true : false; AH_TRACE_ONCE;          \
        AH_TRACE_ONCE = false)                                           \
     [[unlikely]](out) << ""
 

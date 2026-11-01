@@ -36,9 +36,9 @@
  */
 
 #include <gtest/gtest.h>
-#include "../tpl_indexNode.H"
+#include <tpl_indexNode.H>
 
-#include "../tpl_graph.H"
+#include <tpl_graph.H>
 
 // A simple node data structure for our tests
 struct TestNodeData {

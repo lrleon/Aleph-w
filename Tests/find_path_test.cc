@@ -4,6 +4,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <stdexcept>
 #include <tpl_find_path.H>
 #include <tpl_graph.H>
 
@@ -167,13 +168,79 @@ TEST_F(FindPathTest, BFS_PathToSelf)
 {
   auto n = g.insert_node(0);
   
+  auto m = g.insert_node(1);
+  g.insert_arc(n, m);
+  g.insert_arc(n, n);
+
   Find_Path_Breadth_First<GT> finder;
   
+  // the path of no arc, as that of Find_Path_Depth_First, and not the loop
   auto path = finder(g, n, n);
-  
-  // BFS path to self - may be empty or have single node depending on implementation
-  // Just verify it was created without error
-  SUCCEED();
+  ASSERT_EQ(path.size(), 1u);
+  EXPECT_EQ(path.get_first_node(), n);
+
+  Path<GT> other(g);
+  EXPECT_TRUE(finder(g, n, n, other));
+  ASSERT_EQ(other.size(), 1u);
+  EXPECT_EQ(other.get_first_node(), n);
+}
+
+TEST_F(FindPathTest, StartThatMeetsTheCriterion)
+{
+  auto nodes = create_linear_graph(3);
+  auto is_first = [] (Node * p) { return p->get_info() == 0; };
+
+  // the start alone, the path of no arc, in both searches
+  const auto dfs = Find_Path_Depth_First<GT>()(g, nodes[0], is_first);
+  const auto bfs = Find_Path_Breadth_First<GT>()(g, nodes[0], is_first);
+  for (const Path<GT> * path : {&dfs, &bfs})
+    {
+      ASSERT_EQ(path->size(), 1u);
+      EXPECT_EQ(path->get_first_node(), nodes[0]);
+    }
+}
+
+namespace
+{
+  // a filter that throws E on the arcs of info 2
+  template <class E>
+  struct Throws_On_Two
+  {
+    bool operator()(Arc * arc) const
+    {
+      if (arc->get_info() == 2)
+        throw E("the filter fails");
+      return true;
+    }
+  };
+
+  template <class E>
+  void expect_the_searches_throw(GT & g, Node * from, Node * to)
+  {
+    using F = Throws_On_Two<E>;
+    Path<GT> path(g);
+    EXPECT_THROW((Find_Path_Depth_First<GT, Node_Arc_Iterator, F>()(g, from, to, path)), E);
+    EXPECT_THROW((Find_Path_Breadth_First<GT, Node_Arc_Iterator, F>()(g, from, to, path)), E);
+  }
+}
+
+// What the arc filter throws reaches the caller of the searches. The
+// iterators of the arcs caught it, stayed on the arc on which it threw, and
+// the searches took that arc.
+TEST_F(FindPathTest, WhatTheFilterThrowsReachesTheCaller)
+{
+  // b - c between the two other arcs of b, so that the filter throws while
+  // the iterator of b advances
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  auto d = g.insert_node(3);
+  g.insert_arc(a, b, 1);
+  g.insert_arc(b, c, 2);
+  g.insert_arc(b, d, 3);
+
+  expect_the_searches_throw<std::domain_error>(g, a, c);
+  expect_the_searches_throw<std::overflow_error>(g, a, c);
 }
 
 TEST_F(FindPathTest, BFS_NoPath)
@@ -298,6 +365,33 @@ TEST_F(FindPathTest, DirectedNoPath)
   auto path = finder.dfs(n1, n3);
   
   EXPECT_TRUE(path.is_empty());
+}
+
+TEST_F(FindPathTest, DirectedPathToSelf)
+{
+  using DGT = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  DGT dg;
+
+  auto n1 = dg.insert_node(1);
+  auto n2 = dg.insert_node(2);
+
+  dg.insert_arc(n1, n2);
+  dg.insert_arc(n2, n1);
+  dg.insert_arc(n1, n1);
+
+  // the path of no arc, as that of Find_Path_Depth_First, and neither the
+  // loop nor the cycle; the same from a start that meets the criterion
+  Directed_Find_Path<DGT> finder(dg);
+  auto is_first = [] (DGT::Node * p) { return p->get_info() == 1; };
+  const auto dfs = finder.dfs(n1, n1);
+  const auto bfs = finder.bfs(n1, n1);
+  const auto dfs_op = finder.dfs(n1, is_first);
+  const auto bfs_op = finder.bfs(n1, is_first);
+  for (const Path<DGT> * path : {&dfs, &bfs, &dfs_op, &bfs_op})
+    {
+      ASSERT_EQ(path->size(), 1u);
+      EXPECT_EQ(path->get_first_node(), n1);
+    }
 }
 
 TEST_F(FindPathTest, DirectedWithPredicate)

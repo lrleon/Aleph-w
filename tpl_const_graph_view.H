@@ -390,6 +390,13 @@ namespace Aleph
     friend class Const_Node_Iterator<GT>;
     friend class Const_Arc_Iterator<GT>;
 
+    template <class, class, class> friend class Filter_Iterator;
+
+    // the empty view that a Filter_Iterator holds before it is given one
+    constexpr Const_Graph_View() noexcept : graph_ptr(nullptr) {}
+
+    [[nodiscard]] bool is_null_view() const noexcept { return graph_ptr == nullptr; }
+
     template <class T>
     static constexpr T * as_graph_item(const T *p) noexcept
     {
@@ -398,6 +405,10 @@ namespace Aleph
 
   public:
     using Graph_Type = GT; ///< The type of the graph that is viewed.
+
+    /// A Filter_Iterator on a view keeps a copy of it: the view is small,
+    /// and it is often a temporary.
+    static constexpr bool filter_iterator_keeps_a_copy = true;
 
     using Node = const typename GT::Node; ///< The constant node type.
 
