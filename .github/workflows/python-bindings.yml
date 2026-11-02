@@ -7,7 +7,10 @@ name: python-bindings
 # manually triggered workflow (`python-bindings-publish.yml`).
 
 on:
+  # A push runs it only on master, as ci.yml: a pull request runs it on its
+  # own event
   push:
+    branches: [master]
     paths:
       - "python/**"
       - "tpl_ca_*.H"

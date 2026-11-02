@@ -1,9 +1,15 @@
 name: CI
 
 on:
+  # A push runs the jobs only on master: a pull request runs them on its own
+  # event, and a push to its branch ran them a second time, in another group
+  # of concurrency, which took the runners and kept the jobs of the pull
+  # request waiting. A branch without a pull request runs them by hand.
   push:
+    branches: [master]
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -1443,7 +1449,7 @@ jobs:
       - tsan
       - ubsan
       - check-examples
-    if: always() && github.event_name == 'push'
+    if: always() && github.event_name != 'pull_request'
     steps:
       - name: Check results
         run: |
