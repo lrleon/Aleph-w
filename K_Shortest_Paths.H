@@ -115,8 +115,7 @@ namespace Aleph
       using Node = typename GT::Node;
       using Arc = typename GT::Arc;
 
-      Cost_Type inf = std::numeric_limits<Cost_Type>::max();
-      DynMapTree<Node *, Cost_Type> dist_to_target;
+      DynMapTree<Node *, Cost_Type> dist_to_target; // of the nodes that reach it
       DynMapTree<Node *, Node *> tree_next;
       DynMapTree<Node *, Arc *> tree_arc;
     };
@@ -354,18 +353,6 @@ namespace Aleph
 
 
     template <AlephGraph GT, typename Cost_Type>
-    Cost_Type
-    get_dist_to_target(const Suffix_Index<GT, Cost_Type> & index,
-                       typename GT::Node * node)
-    {
-      auto * p = index.dist_to_target.search(node);
-      if (p == nullptr)
-        return index.inf;
-      return p->second;
-    }
-
-
-    template <AlephGraph GT, typename Cost_Type>
     typename GT::Node *
     get_tree_next(const Suffix_Index<GT, Cost_Type> & index,
                   typename GT::Node * node)
@@ -402,7 +389,6 @@ namespace Aleph
       for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
         {
           Node * node = it.get_curr_ne();
-          index.dist_to_target.insert(node, index.inf);
           index.tree_next.insert(node, nullptr);
           index.tree_arc.insert(node, nullptr);
         }
@@ -421,7 +407,7 @@ namespace Aleph
           if (not IS_NODE_VISITED(node, Aleph::Spanning_Tree))
             continue;
 
-          index.dist_to_target.find(node) = reverse_dijkstra.get_distance(node);
+          index.dist_to_target.insert(node, reverse_dijkstra.get_distance(node));
 
           Node * parent = static_cast<Node *>(NODE_COOKIE(node));
           index.tree_next.find(node) = parent;
@@ -452,8 +438,9 @@ namespace Aleph
                   if (ait.get_tgt_node() != parent)
                     continue;
 
-                  const Cost_Type cand =
-                      shortest_path_detail::checked_add(distance(arc), dist_parent);
+                  Cost_Type cand{};
+                  if (not shortest_path_detail::add_if_fits(distance(arc), dist_parent, cand))
+                    continue; // not the arc of the tree, whose sum is dist_node
                   const Cost_Type diff =
                       cand >= dist_node ? cand - dist_node : dist_node - cand;
                   if (not has_best or diff < best_diff)
@@ -493,7 +480,6 @@ namespace Aleph
       for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
         {
           Node * node = it.get_curr_ne();
-          index.dist_to_target.insert(node, index.inf);
           index.tree_next.insert(node, nullptr);
           index.tree_arc.insert(node, nullptr);
 
@@ -545,8 +531,8 @@ namespace Aleph
       for (Node_Iterator<GT> rit(reverse_graph); rit.has_curr(); rit.next_ne())
         if (Node * rev_node = rit.get_curr_ne();
             IS_NODE_VISITED(rev_node, Aleph::Spanning_Tree))
-          index.dist_to_target.find(rev_to_orig.find(rev_node)) =
-            reverse_dijkstra.get_distance(rev_node);
+          index.dist_to_target.insert(rev_to_orig.find(rev_node),
+                                      reverse_dijkstra.get_distance(rev_node));
 
       for (Node_Iterator<GT> rit(reverse_graph); rit.has_curr(); rit.next_ne())
         {
@@ -577,10 +563,9 @@ namespace Aleph
               if (selected == nullptr)
                 selected = arc;  // fallback: first arc to parent
 
-              if (dist_v != index.inf)
+              if (Cost_Type cand{};
+                  shortest_path_detail::add_if_fits(distance(arc), dist_v, cand))
                 {
-                  const Cost_Type cand =
-                      shortest_path_detail::checked_add(distance(arc), dist_v);
                   const Cost_Type diff =
                       cand >= dist_u ? cand - dist_u : dist_u - cand;
                   if (not has_best or diff < best_diff)
@@ -624,9 +609,10 @@ namespace Aleph
     {
       out_suffix = Path_State<GT, Cost_Type>();
       out_suffix.nodes.append(start);
-      out_suffix.total_cost = get_dist_to_target(index, start);
-      if (out_suffix.total_cost == index.inf)
+      auto * dist = index.dist_to_target.search(start);
+      if (dist == nullptr) // start does not reach target
         return false;
+      out_suffix.total_cost = dist->second;
 
       typename GT::Node * curr = start;
       size_t guard = 0;
@@ -651,6 +637,9 @@ namespace Aleph
     }
 
 
+    // The shortest path from source to target, without the forbidden
+    // nodes and arcs, in out. False if there is none, or if its cost does
+    // not fit, which sets beyond.
     template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA>
     bool shortest_path_filtered(const GT & g,
                                 typename GT::Node *source,
@@ -659,7 +648,8 @@ namespace Aleph
                                 SA sa,
                                 const DynSetTree<typename GT::Node *> *forbidden_nodes,
                                 const DynSetTree<typename GT::Arc *> *forbidden_arcs,
-                                Path_State<GT, typename Distance::Distance_Type> & out)
+                                Path_State<GT, typename Distance::Distance_Type> & out,
+                                bool & beyond)
     {
       using Cost_Type = typename Distance::Distance_Type;
       using Filter = Filtered_Show_Arc<GT, SA>;
@@ -684,8 +674,19 @@ namespace Aleph
       Dijkstra_Min_Paths<GT, Distance, Node_Arc_Iterator, Filter> dijkstra(distance, filter);
 
       Path<GT> shortest(g);
-      const Cost_Type dist = dijkstra(g, source, target, shortest);
-      if (dist == std::numeric_limits<Cost_Type>::max() or shortest.is_empty())
+      Cost_Type dist{};
+      try
+        {
+          dist = dijkstra(g, source, target, shortest);
+        }
+      // target is reached only beyond max(); an overflow_error of distance
+      // or of sa passes on
+      catch (const shortest_path_detail::Beyond_Max_Error &)
+        {
+          beyond = true;
+          return false;
+        }
+      if (shortest.is_empty()) // max() is a cost too
         return false;
 
       out = path_to_state<GT, Cost_Type>(shortest, dist);
@@ -693,17 +694,17 @@ namespace Aleph
     }
 
 
+    // The cost of arcs in total, if it fits
     template <AlephGraph GT, ArcDistance<GT> Distance>
-    typename Distance::Distance_Type
-    compute_cost_from_arcs(const DynList<typename GT::Arc *> & arcs,
-                           Distance distance)
+    bool cost_of_arcs_if_fits(const DynList<typename GT::Arc *> & arcs,
+                              Distance distance,
+                              typename Distance::Distance_Type & total)
     {
-      using Cost_Type = typename Distance::Distance_Type;
-
-      Cost_Type total = Cost_Type{0};
+      total = typename Distance::Distance_Type{0};
       for (auto it = arcs.get_it(); it.has_curr(); it.next_ne())
-        total = shortest_path_detail::checked_add(total, distance(it.get_curr_ne()));
-      return total;
+        if (not shortest_path_detail::add_if_fits(total, distance(it.get_curr_ne()), total))
+          return false;
+      return true;
     }
 
 
@@ -778,6 +779,9 @@ namespace Aleph
     }
 
 
+    // Adds to candidates the deviations of base_path that are not
+    // there or in accepted. One whose cost does not fit is left out, and
+    // sets beyond.
     template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA, typename Cost_Type>
     void generate_general_deviation_candidates(
         const GT & g,
@@ -787,7 +791,8 @@ namespace Aleph
         Distance distance,
         SA sa,
         const Array<Path_State<GT, Cost_Type>> & accepted,
-        Array<Path_State<GT, Cost_Type>> & candidates)
+        Array<Path_State<GT, Cost_Type>> & candidates,
+        bool & beyond)
     {
       using Node = typename GT::Node;
       using Arc = typename GT::Arc;
@@ -815,10 +820,10 @@ namespace Aleph
                 continue;
 
               Node * deviation_next_node = it.get_tgt_node();
-              const Cost_Type suffix_dist =
-                  get_dist_to_target(suffix_index, deviation_next_node);
-              if (suffix_dist == suffix_index.inf)
+              auto * dist_of_next = suffix_index.dist_to_target.search(deviation_next_node);
+              if (dist_of_next == nullptr) // it does not reach target
                 continue;
+              const Cost_Type suffix_dist = dist_of_next->second;
 
               Path_State<GT, Cost_Type> suffix_state;
               if (not build_suffix_state(g,
@@ -828,6 +833,15 @@ namespace Aleph
                                          suffix_state))
                 continue;
 
+              Cost_Type through{}, total{};
+              if (not shortest_path_detail::add_if_fits(
+                      prefix_cost, distance(deviation_arc), through)
+                  or not shortest_path_detail::add_if_fits(through, suffix_dist, total))
+                {
+                  beyond = true;
+                  continue;
+                }
+
               Path_State<GT, Cost_Type> candidate =
                   compose_general_candidate<GT, Cost_Type>(
                       base_snapshot,
@@ -836,11 +850,7 @@ namespace Aleph
                       deviation_next_node,
                       suffix_state);
 
-              candidate.total_cost = shortest_path_detail::checked_add(
-                  shortest_path_detail::checked_add(
-                      prefix_cost,
-                      distance(deviation_arc)),
-                  suffix_dist);
+              candidate.total_cost = total;
 
               if (not contains_path(accepted, candidate)
                   and not contains_path(candidates, candidate))
@@ -876,6 +886,10 @@ namespace Aleph
    *
    *  @exception domain_error If `source` or `target` is null, or if negative
    *                          weights are detected.
+   *  @exception overflow_error If the cost of one of the first k paths
+   *                            does not fit in `Distance_Type`. A path
+   *                            beyond the first k whose cost does not fit
+   *                            throws nothing.
    *
    *  @par Complexity
    *  O(k * V * (E + V log V)) in the worst case: at each of the k
@@ -930,11 +944,17 @@ namespace Aleph
     accepted.reserve(k);
     candidates.reserve(k * 2 + 1);
 
+    // A path whose cost does not fit was left out; the spur paths are
+    // searched only while more paths are asked
+    bool beyond = false;
     State first;
     if (not k_shortest_paths_detail::shortest_path_filtered<GT, Distance, SA>(
-                                                                              g, source, target, distance, sa, nullptr,
-                                                                              nullptr, first))
-      return result;
+          g, source, target, distance, sa, nullptr, nullptr, first, beyond))
+      {
+        ah_overflow_error_if(beyond)
+          << "yen_k_shortest_paths(): the cost of the path 1 does not fit in its type";
+        return result;
+      }
 
     accepted.append(first);
 
@@ -981,15 +1001,19 @@ namespace Aleph
                sa,
                &forbidden_nodes,
                &forbidden_arcs,
-               spur_state))
+               spur_state,
+               beyond))
               continue;
 
             State candidate =
                 k_shortest_paths_detail::compose_candidate(
                     previous_snapshot, spur_index, spur_state);
-            candidate.total_cost =
-                k_shortest_paths_detail::compute_cost_from_arcs<GT, Distance>(
-                                                                              candidate.arcs, distance);
+            if (not k_shortest_paths_detail::cost_of_arcs_if_fits<GT, Distance>(
+                  candidate.arcs, distance, candidate.total_cost))
+              {
+                beyond = true;
+                continue;
+              }
 
             if (not k_shortest_paths_detail::contains_path(accepted, candidate)
                 and not k_shortest_paths_detail::contains_path(candidates, candidate))
@@ -1012,6 +1036,11 @@ namespace Aleph
 
         accepted.append(best);
       }
+
+    // The next path that was asked exists, and its cost does not fit
+    ah_overflow_error_if(accepted.size() < k and beyond)
+      << "yen_k_shortest_paths(): the cost of the path " << accepted.size() + 1
+      << " does not fit in its type";
 
     for (const State & state: accepted)
       {
@@ -1050,6 +1079,10 @@ namespace Aleph
    *
    *  @throws std::domain_error If `source` or `target` is null.
    *  @throws std::domain_error If negative arc weights are detected.
+   *  @throws std::overflow_error If the cost of one of the first k walks
+   *          does not fit in `Distance_Type`, or the distance to `target`
+   *          of a node that reaches it does not fit. A walk beyond the
+   *          first k whose cost does not fit throws nothing.
    *
    *  @par Complexity
    *  O(E + V log V + k * log k) typically, depending on the number of
@@ -1116,9 +1149,14 @@ namespace Aleph
             g, suffix_index, source, target, first))
       return result;
 
+    // A walk whose cost does not fit was left out; the deviations are
+    // made only while more walks are asked, so that a walk that was not
+    // asked does not throw
+    bool beyond = false;
     accepted.append(first);
-    k_shortest_paths_detail::generate_general_deviation_candidates<GT, Distance, SA, Cost_Type>(
-        g, first, target, suffix_index, distance, sa, accepted, candidates);
+    if (accepted.size() < k)
+      k_shortest_paths_detail::generate_general_deviation_candidates<GT, Distance, SA, Cost_Type>(
+          g, first, target, suffix_index, distance, sa, accepted, candidates, beyond);
 
     while (accepted.size() < k and not candidates.is_empty())
       {
@@ -1137,9 +1175,15 @@ namespace Aleph
           continue;
 
         accepted.append(best);
-        k_shortest_paths_detail::generate_general_deviation_candidates<GT, Distance, SA, Cost_Type>(
-            g, best, target, suffix_index, distance, sa, accepted, candidates);
+        if (accepted.size() < k)
+          k_shortest_paths_detail::generate_general_deviation_candidates<GT, Distance, SA, Cost_Type>(
+              g, best, target, suffix_index, distance, sa, accepted, candidates, beyond);
       }
+
+    // The next walk that was asked exists, and its cost does not fit
+    ah_overflow_error_if(accepted.size() < k and beyond)
+      << "eppstein_k_shortest_paths(): the cost of the walk " << accepted.size() + 1
+      << " does not fit in its type";
 
     for (const State & state: accepted)
       {
@@ -1199,6 +1243,7 @@ namespace Aleph
      *
      *  @throws std::domain_error If `source` or `target` is null.
      *  @throws std::domain_error If negative arc weights are detected.
+     *  @throws std::overflow_error As `yen_k_shortest_paths`.
      *
      *  @par Complexity
      *  O(k * V * (E + V log V)) in the worst case.
@@ -1256,6 +1301,7 @@ namespace Aleph
      *
      *  @throws std::domain_error If `source` or `target` is null.
      *  @throws std::domain_error If negative arc weights are detected.
+     *  @throws std::overflow_error As `eppstein_k_shortest_paths`.
      *
      *  @par Complexity
      *  Same as `eppstein_k_shortest_paths`: O(E + V log V + k * log k).

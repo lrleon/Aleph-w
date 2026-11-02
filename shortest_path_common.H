@@ -51,6 +51,8 @@
 # include <ah-graph-concepts.H>
 
 #include <limits>
+#include <sstream>
+#include <stdexcept>
 #include <type_traits>
 #include <ah-errors.H>
 #include <tpl_graph.H>
@@ -132,6 +134,41 @@ template <typename T>
 
   return a + b;
 }
+
+/** @brief Adds two distance values when the sum fits.
+ *
+ *  As checked_add(), for a second operand that is not negative, but a
+ *  sum beyond max() of an integral type gives false instead of throwing.
+ *  A floating sum always fits.
+ *
+ *  @tparam T Distance type (integral or floating-point).
+ *  @param a First operand.
+ *  @param b Second operand, not negative.
+ *  @param[out] out The sum, when it fits; else untouched.
+ *  @return Whether the sum fits.
+ */
+template <typename T>
+[[nodiscard]] inline bool add_if_fits(const T& a, const T& b, T& out)
+{
+  if constexpr (std::is_integral_v<T>)
+    if (b > 0 and a > std::numeric_limits<T>::max() - b)
+      return false;
+
+  out = a + b;
+  return true;
+}
+
+/** @brief The `std::overflow_error` of a painting that leaves out a node
+ *  whose distance does not fit.
+ *
+ *  `Shortest_Path_Base::check_beyond_max()` throws it, so that an
+ *  algorithm that runs a painting can tell it from an `overflow_error`
+ *  of the distance or of the filter, which it passes on.
+ */
+struct Beyond_Max_Error : std::overflow_error
+{
+  using std::overflow_error::overflow_error;
+};
 
 } // namespace shortest_path_detail
 
@@ -565,7 +602,8 @@ protected:
    *  distance does not fit. The walk goes through the arcs that the
    *  filter shows, without touching the painting.
    *
-   *  @throw std::overflow_error If such a node exists.
+   *  @throw shortest_path_detail::Beyond_Max_Error If such a node exists;
+   *         it is a `std::overflow_error`.
    *  @throw std::bad_alloc If there is not enough memory.
    */
   void check_beyond_max(const GT& g, typename GT::Node* start,
@@ -579,9 +617,11 @@ protected:
     while (not queue.is_empty())
       {
         Node* p = queue.get();
-        ah_overflow_error_if(end == nullptr ? not IS_NODE_VISITED(p, Aleph::Spanning_Tree)
-                                            : p == end)
-          << "the distance from the start to a node does not fit in its type";
+        if (end == nullptr ? not IS_NODE_VISITED(p, Aleph::Spanning_Tree) : p == end)
+          [[unlikely]]
+          Aleph::ExceptionBuilder<shortest_path_detail::Beyond_Max_Error>() <<=
+            std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+            << "the distance from the start to a node does not fit in its type";
         for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
           if (Node* t = it.get_tgt_node(); seen.insert(t) != nullptr)
             queue.put(t);
