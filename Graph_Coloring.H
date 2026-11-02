@@ -111,7 +111,8 @@ inline size_t smallest_available(const DynSetTree<size_t> &used)
  */
 template <AlephGraph GT, ArcFilter<GT> SA>
 void build_undirected_adj(const GT                                                      &g,
-                          DynMapTree<typename GT::Node *, DynList<typename GT::Node *>> &adj)
+                          DynMapTree<typename GT::Node *, DynList<typename GT::Node *>> &adj,
+                          SA                                                            &sa)
 {
   using Node = typename GT::Node;
 
@@ -128,7 +129,7 @@ void build_undirected_adj(const GT                                              
   for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
     {
       auto *arc = it.get_curr();
-      if (not SA()(arc))
+      if (not sa(arc))
         continue;
       Node *u = g.get_src_node(arc);
       Node *v = g.get_tgt_node(arc);
@@ -150,12 +151,12 @@ void build_undirected_adj(const GT                                              
 }
 
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-void validate_no_self_loops(const GT &g)
+void validate_no_self_loops(const GT &g, SA &sa)
 {
   for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
     {
       auto *arc = it.get_curr();
-      ah_domain_error_if(SA()(arc) and g.get_src_node(arc) == g.get_tgt_node(arc))
+      ah_domain_error_if(sa(arc) and g.get_src_node(arc) == g.get_tgt_node(arc))
         << "graph coloring does not support self-loops";
     }
 }
@@ -170,11 +171,12 @@ void validate_no_self_loops(const GT &g)
  *  is the maximum degree.
  *
  *  @tparam GT Graph type (List_Graph, List_Digraph, Array_Graph, …).
- *  @tparam SA Arc-filter functor (defaults to @ref Dft_Show_Arc<GT>).
+ *  @tparam SA Arc-filter functor (defaults to `Dft_Show_Arc<GT>`).
  *
  *  @param[in]  g      Input graph.  Must not contain self-loops.
  *  @param[out] colors Output map from @c GT::Node* to 0-based color index.
  *                     Cleared and overwritten on entry.
+ *  @param[in]  sa     The filter of the arcs, which each pass copies.
  *
  *  @return Number of distinct colors used (@f$\geq 1@f$for non-empty graphs,
  *          0 for an empty graph).
@@ -194,7 +196,8 @@ void validate_no_self_loops(const GT &g)
  *  @ingroup Graphs
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-size_t greedy_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors)
+size_t greedy_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors,
+                       SA sa = SA())
 {
   using Node = typename GT::Node;
   using namespace graph_coloring_detail;
@@ -203,10 +206,10 @@ size_t greedy_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
   if (g.get_num_nodes() == 0)
     return 0;
 
-  validate_no_self_loops<GT, SA>(g);
+  validate_no_self_loops<GT, SA>(g, sa);
 
   DynMapTree<Node *, DynList<Node *>> adj;
-  build_undirected_adj<GT, SA>(g, adj);
+  build_undirected_adj<GT, SA>(g, adj, sa);
 
   Cookie_Saver<GT> saver(g, true, false);
   for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
@@ -240,11 +243,12 @@ size_t greedy_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  *  is still a heuristic.
  *
  *  @tparam GT Graph type (List_Graph, List_Digraph, Array_Graph, …).
- *  @tparam SA Arc-filter functor (defaults to @ref Dft_Show_Arc<GT>).
+ *  @tparam SA Arc-filter functor (defaults to `Dft_Show_Arc<GT>`).
  *
  *  @param[in]  g      Input graph.  Must not contain self-loops.
  *  @param[out] colors Output map from @c GT::Node* to 0-based color index.
  *                     Cleared and overwritten on entry.
+ *  @param[in]  sa     The filter of the arcs, which each pass copies.
  *
  *  @return Number of distinct colors used (0 for an empty graph).
  *
@@ -262,7 +266,8 @@ size_t greedy_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  *  @ingroup Graphs
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors)
+size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors,
+                             SA sa = SA())
 {
   using Node = typename GT::Node;
   using namespace graph_coloring_detail;
@@ -271,10 +276,10 @@ size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t
   if (g.get_num_nodes() == 0)
     return 0;
 
-  validate_no_self_loops<GT, SA>(g);
+  validate_no_self_loops<GT, SA>(g, sa);
 
   DynMapTree<Node *, DynList<Node *>> adj;
-  build_undirected_adj<GT, SA>(g, adj);
+  build_undirected_adj<GT, SA>(g, adj, sa);
 
   Cookie_Saver<GT> saver(g, true, false);
   DynList<Node *>  nodes;
@@ -323,11 +328,12 @@ size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t
  *  produces near-optimal or optimal colorings.
  *
  *  @tparam GT Graph type (List_Graph, List_Digraph, Array_Graph, …).
- *  @tparam SA Arc-filter functor (defaults to @ref Dft_Show_Arc<GT>).
+ *  @tparam SA Arc-filter functor (defaults to `Dft_Show_Arc<GT>`).
  *
  *  @param[in]  g      Input graph.  Must not contain self-loops.
  *  @param[out] colors Output map from @c GT::Node* to 0-based color index.
  *                     Cleared and overwritten on entry.
+ *  @param[in]  sa     The filter of the arcs, which each pass copies.
  *
  *  @return Number of distinct colors used (0 for an empty graph).
  *
@@ -345,7 +351,8 @@ size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t
  *  @ingroup Graphs
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors)
+size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors,
+                       SA sa = SA())
 {
   using Node = typename GT::Node;
   using namespace graph_coloring_detail;
@@ -354,10 +361,10 @@ size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
   if (const size_t n = g.get_num_nodes(); n == 0)
     return 0;
 
-  validate_no_self_loops<GT, SA>(g);
+  validate_no_self_loops<GT, SA>(g, sa);
 
   DynMapTree<Node *, DynList<Node *>> adj;
-  build_undirected_adj<GT, SA>(g, adj);
+  build_undirected_adj<GT, SA>(g, adj, sa);
 
   Cookie_Saver<GT>                       saver(g, true, false);
   DynMapTree<Node *, DynSetTree<size_t>> saturation_sets;
@@ -422,10 +429,11 @@ size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  *  @p g has an entry before checking arc conflicts.
  *
  *  @tparam GT Graph type (List_Graph, List_Digraph, Array_Graph, …).
- *  @tparam SA Arc-filter functor (defaults to @ref Dft_Show_Arc<GT>).
+ *  @tparam SA Arc-filter functor (defaults to `Dft_Show_Arc<GT>`).
  *
  *  @param[in] g      Graph to validate against.
  *  @param[in] colors Map from @c GT::Node* to 0-based color index.
+ *  @param[in] sa     The filter of the arcs.
  *
  *  @return @c true iff every node is present in @p colors and no arc
  *          connects same-colored endpoints; @c false otherwise (including
@@ -440,7 +448,8 @@ size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 [[nodiscard]] bool is_valid_coloring(const GT                                      &g,
-                                     const DynMapTree<typename GT::Node *, size_t> &colors)
+                                     const DynMapTree<typename GT::Node *, size_t> &colors,
+                                     SA                                             sa = SA())
 {
   using Node = typename GT::Node;
 
@@ -454,7 +463,7 @@ template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
     {
       auto *arc = it.get_curr();
-      if (not SA()(arc))
+      if (not sa(arc))
         continue;
       Node *u = g.get_src_node(arc);
       Node *v = g.get_tgt_node(arc);
@@ -478,13 +487,14 @@ template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
  *  exists.  Applicable only to graphs with at most 64 nodes.
  *
  *  @tparam GT Graph type (List_Graph, List_Digraph, Array_Graph, …).
- *  @tparam SA Arc-filter functor (defaults to @ref Dft_Show_Arc<GT>).
+ *  @tparam SA Arc-filter functor (defaults to `Dft_Show_Arc<GT>`).
  *
  *  @param[in]  g      Input graph.  Must have at most 64 nodes and no
  *                     self-loops.
  *  @param[out] colors Output map from @c GT::Node* to 0-based color index
  *                     for an optimal coloring.  Cleared and overwritten on
  *                     entry.
+ *  @param[in]  sa     The filter of the arcs, which each pass copies.
  *
  *  @return The chromatic number@f$\chi(G)@f$(0 for an empty graph,
  *          1 if the graph has no edges).
@@ -505,7 +515,8 @@ template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
  *  @ingroup Graphs
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors)
+size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors,
+                        SA sa = SA())
 {
   using Node = typename GT::Node;
   using namespace graph_coloring_detail;
@@ -517,10 +528,10 @@ size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &co
   if (g.get_num_nodes() == 0)
     return 0;
 
-  validate_no_self_loops<GT, SA>(g);
+  validate_no_self_loops<GT, SA>(g, sa);
 
   DynMapTree<Node *, size_t> best_colors;
-  size_t                     upper = dsatur_coloring<GT, SA>(g, best_colors);
+  size_t                     upper = dsatur_coloring<GT, SA>(g, best_colors, sa);
 
   if (upper <= 2)
     {
@@ -547,7 +558,7 @@ size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &co
     for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
       {
         auto *arc = it.get_curr();
-        if (not SA()(arc))
+        if (not sa(arc))
           continue;
         size_t i = reinterpret_cast<uintptr_t>(NODE_COOKIE(g.get_src_node(arc)));
         size_t j = reinterpret_cast<uintptr_t>(NODE_COOKIE(g.get_tgt_node(arc)));
@@ -626,14 +637,19 @@ size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &co
  *  complexity, and thread-safety notes.
  *
  *  @tparam GT Graph type.
- *  @tparam SA Arc-filter functor (defaults to @ref Dft_Show_Arc<GT>).
+ *  @tparam SA Arc-filter functor (defaults to `Dft_Show_Arc<GT>`).
  *
  *  @ingroup Graphs
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Greedy_Coloring
 {
+  SA sa;
+
 public:
+  /// Keeps sa, the filter of the arcs
+  explicit Greedy_Coloring(SA __sa = SA()) : sa(std::move(__sa)) {}
+
   /** @brief Execute greedy coloring.
    *  @param[in]  g      Input graph (no self-loops).
    *  @param[out] colors Output node→color map (overwritten).
@@ -642,21 +658,26 @@ public:
    */
   size_t operator()(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors) const
   {
-    return greedy_coloring<GT, SA>(g, colors);
+    return greedy_coloring<GT, SA>(g, colors, sa);
   }
 };
 
 /** @brief Functor wrapper for @ref welsh_powell_coloring.
  *
  *  @tparam GT Graph type.
- *  @tparam SA Arc-filter functor (defaults to @ref Dft_Show_Arc<GT>).
+ *  @tparam SA Arc-filter functor (defaults to `Dft_Show_Arc<GT>`).
  *
  *  @ingroup Graphs
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Welsh_Powell_Coloring
 {
+  SA sa;
+
 public:
+  /// Keeps sa, the filter of the arcs
+  explicit Welsh_Powell_Coloring(SA __sa = SA()) : sa(std::move(__sa)) {}
+
   /** @brief Execute Welsh-Powell coloring.
    *  @param[in]  g      Input graph (no self-loops).
    *  @param[out] colors Output node→color map (overwritten).
@@ -665,21 +686,26 @@ public:
    */
   size_t operator()(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors) const
   {
-    return welsh_powell_coloring<GT, SA>(g, colors);
+    return welsh_powell_coloring<GT, SA>(g, colors, sa);
   }
 };
 
 /** @brief Functor wrapper for @ref dsatur_coloring.
  *
  *  @tparam GT Graph type.
- *  @tparam SA Arc-filter functor (defaults to @ref Dft_Show_Arc<GT>).
+ *  @tparam SA Arc-filter functor (defaults to `Dft_Show_Arc<GT>`).
  *
  *  @ingroup Graphs
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class DSatur_Coloring
 {
+  SA sa;
+
 public:
+  /// Keeps sa, the filter of the arcs
+  explicit DSatur_Coloring(SA __sa = SA()) : sa(std::move(__sa)) {}
+
   /** @brief Execute DSatur coloring.
    *  @param[in]  g      Input graph (no self-loops).
    *  @param[out] colors Output node→color map (overwritten).
@@ -688,7 +714,7 @@ public:
    */
   size_t operator()(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors) const
   {
-    return dsatur_coloring<GT, SA>(g, colors);
+    return dsatur_coloring<GT, SA>(g, colors, sa);
   }
 };
 

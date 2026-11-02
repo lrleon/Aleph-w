@@ -154,18 +154,10 @@ private:
     Node_Info() noexcept : dist(Inf), parent(nullptr), parent_arc(nullptr) {}
   };
 
-  /** @brief Stores parent and distance after painting for O(1) access. */
-  struct Painted_Info
-  {
-    Node * parent;
-    Distance_Type dist;
-  };
-
+  // The data of the nodes during a computation; none is kept after it
   DynList<std::pair<Node *, Node_Info *>> owned_node_infos;
-  DynList<std::pair<Node *, Painted_Info *>> owned_painted_infos;
 
 #define ZOB_INFO(p)   (static_cast<Node_Info *>(NODE_COOKIE(p)))
-#define ZOB_PNTD(p)   (static_cast<Painted_Info *>(NODE_COOKIE(p)))
 #define ZOB_DIST(p)   (ZOB_INFO(p)->dist)
 #define ZOB_PARENT(p) (ZOB_INFO(p)->parent)
 #define ZOB_PARENT_ARC(p) (ZOB_INFO(p)->parent_arc)
@@ -183,21 +175,6 @@ private:
           NODE_COOKIE(p) = nullptr;
       }
     owned_node_infos.empty();
-  }
-
-  void release_owned_painted_infos() noexcept
-  {
-    for (auto it = owned_painted_infos.get_it(); it.has_curr(); it.next())
-      {
-        auto item = it.get_curr();
-        auto p = item.first;
-        auto info = item.second;
-        if (info != nullptr)
-          delete info;
-        if (NODE_COOKIE(p) == info)
-          NODE_COOKIE(p) = nullptr;
-      }
-    owned_painted_infos.empty();
   }
 
   void reset_state_after_failure() noexcept
@@ -252,7 +229,6 @@ private:
   {
     ptr_g = &const_cast<GT &>(g);
     release_owned_node_infos();
-    release_owned_painted_infos();
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
       {
         auto p = it.get_curr();
@@ -284,43 +260,24 @@ private:
     catch (...)
       {
         release_owned_node_infos();
-        release_owned_painted_infos();
         throw;
       }
   }
 
-  void uninit_paint()
+  // Leaves the painting in the graph, as Dijkstra_Min_Paths does: the
+  // cookie of each node is its parent in the tree, and its counter, its
+  // distance from the start, a count of arcs of weight 1. The data of the
+  // computation goes.
+  void uninit_paint() noexcept
   {
-    // Two-phase conversion to be exception-safe:
-    // 1. Allocate all Painted_Info objects
-    // 2. Atomically swap and delete old Node_Info
-    DynList<std::pair<Node *, Painted_Info *>> pending;
-    try
+    for (auto it = owned_node_infos.get_it(); it.has_curr(); it.next_ne())
       {
-        for (typename GT::Node_Iterator it(*ptr_g); it.has_curr(); it.next())
-          {
-            auto p = it.get_curr();
-            auto info = ZOB_INFO(p);
-            pending.append({p, new Painted_Info{info->parent, info->dist}});
-          }
+        auto [p, info] = it.get_curr();
+        NODE_COOKIE(p) = info->parent;
+        NODE_COUNTER(p) = info->dist == Inf ? 0 : static_cast<long>(info->dist);
+        delete info;
       }
-    catch (...)
-      {
-        for (auto it = pending.get_it(); it.has_curr(); it.next())
-          delete it.get_curr().second;
-        throw;
-      }
-
-    // Phase 2: Apply changes
-    release_owned_node_infos();
-    for (auto it = pending.get_it(); it.has_curr(); it.next())
-      {
-        auto item = it.get_curr();
-        auto p = item.first;
-        auto pinfo = item.second;
-        NODE_COOKIE(p) = pinfo;
-      }
-    owned_painted_infos.swap(pending);
+    owned_node_infos.empty();
   }
 
   void uninit_discard()
@@ -329,7 +286,6 @@ private:
       return;
 
     release_owned_node_infos();
-    release_owned_painted_infos();
 
     for (typename GT::Node_Iterator it(*ptr_g); it.has_curr(); it.next())
       {
@@ -405,13 +361,14 @@ public:
 
   /** @brief Destructor.
    *
-   *  Releases any per-node data left in NODE_COOKIE by the last
-   *  computation so sanitizers do not report leaks.
+   *  It does not read the graph, which may be gone, or painted since by
+   *  another algorithm: a painting stays in the graph, as that of
+   *  Dijkstra_Min_Paths does, and points to no data of the object.
    */
   ~Zero_One_BFS() noexcept
   {
-    uninit_discard();
-    reset_state_after_failure();
+    for (auto it = owned_node_infos.get_it(); it.has_curr(); it.next_ne())
+      delete it.get_curr().second;
   }
 
   /** @brief Check if a computation has been performed.
@@ -432,8 +389,9 @@ public:
   /** @brief Paints the shortest paths tree on the graph from start.
    *
    *  After calling this method, NODE_COOKIE(p) stores the parent node
-   *  in the shortest path tree, and the `Spanning_Tree` bit is set on
-   *  nodes and arcs that belong to the tree.
+   *  in the shortest path tree, NODE_COUNTER(p) the distance from start,
+   *  and the `Spanning_Tree` bit is set on nodes and arcs that belong to
+   *  the tree. The painting stays in the graph after the object goes.
    *
    *  @param[in] g The graph.
    *  @param[in] start The starting node.
@@ -448,9 +406,8 @@ public:
     ah_domain_error_if(start == nullptr) << "start node cannot be null";
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
-    if (ptr_g != nullptr)
-      uninit_discard();
-
+    // init() resets the painting of g; another graph, painted before,
+    // keeps its own
     painted = false;
     s = nullptr;
 
@@ -470,7 +427,7 @@ public:
    *  @throw domain_error If the graph has not been painted, node is null,
    *         or node is not reachable from the start.
    *
-   *  @note Time complexity: O(path_length)
+   *  @note Time complexity: O(1)
    */
   [[nodiscard]] Distance_Type get_distance(Node * node)
   {
@@ -483,34 +440,8 @@ public:
     ah_domain_error_if(not IS_NODE_VISITED(node, Aleph::Spanning_Tree))
       << "node is not reachable from start";
 
-    // O(1) access thanks to Painted_Info
-    auto dist_val = ZOB_PNTD(node)->dist;
-    if (dist_val != Inf)
-      return dist_val;
-
-    // Fallback: Compute distance by walking the path
-    Distance_Type total = 0;
-    for (auto curr = node; curr != s;)
-      {
-        auto pinfo = ZOB_PNTD(curr);
-        auto parent = pinfo->parent;
-        if (parent == nullptr)
-          break;
-
-        for (Itor<GT, SA> it(parent, sa); it.has_curr(); it.next())
-          {
-            auto arc = it.get_current_arc();
-            auto tgt = ptr_g->get_connected_node(arc, parent);
-            if (tgt == curr and IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
-              {
-                total += distance(arc);
-                break;
-              }
-          }
-        curr = parent;
-      }
-
-    return total;
+    // The painting keeps it in the counter, a count of arcs of weight 1
+    return static_cast<Distance_Type>(NODE_COUNTER(node));
   }
 
   /** @brief Extracts a shortest path from a previously painted graph.
@@ -543,7 +474,7 @@ public:
     DynList<Arc *> arcs;
     for (auto curr = end; curr != s;)
       {
-        auto parent = ZOB_PNTD(curr)->parent;
+        auto parent = static_cast<Node *>(NODE_COOKIE(curr));
         if (parent == nullptr)
           return Inf;
 
@@ -595,11 +526,10 @@ public:
     ah_domain_error_if(end == nullptr) << "end node cannot be null";
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
-    if (ptr_g != nullptr)
-      uninit_discard();
-
     path.empty();
 
+    // init() resets the painting of g; another graph, painted before,
+    // keeps its own
     painted = false;
     s = nullptr;
 
@@ -632,7 +562,6 @@ public:
   }
 
 #undef ZOB_INFO
-#undef ZOB_PNTD
 #undef ZOB_DIST
 #undef ZOB_PARENT
 #undef ZOB_PARENT_ARC

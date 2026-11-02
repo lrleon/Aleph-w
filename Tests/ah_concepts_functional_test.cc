@@ -218,8 +218,9 @@ TEST(AhConceptsFunctionalTest, MemberMapsAndFoldsAcceptLambdasWithoutExplicitTyp
   EXPECT_DOUBLE_EQ(halves.get_first() + halves.get_last(), 1.5);
 }
 
-// Uses an undirected List_Graph: a List_Digraph keeps each arc only in its
-// source's list, so in-arcs are not visible from the target (in_degree 0).
+// Uses an undirected List_Graph, whose list of a node holds the arcs into
+// it; on a List_Digraph the in_ methods find them among the arcs of the
+// graph.
 TEST(AhConceptsFunctionalTest, MemberInOutArcMapsAndFoldsAcceptLambdas)
 {
   Graph g;

@@ -1,0 +1,72 @@
+name: Graph Harness
+
+# The exhaustive tests of the graph algorithms (Tests/graph_exhaustive_*),
+# in their heavy mode: every multigraph of one node and one arc more than
+# the normal mode that the graph-harness jobs of ci.yml run. Weekly, by
+# hand, or on a pull request when it gets the label graph-harness.
+
+on:
+  schedule:
+    # Saturdays at 02:00 UTC, away from the jobs of Sunday and Monday.
+    - cron: '0 2 * * 6'
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+# A run for each label that a pull request gets: another label starts one in
+# a group of its own, which does not cancel the heavy run
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.label.name || github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  heavy:
+    name: graph harness, heavy (ubuntu-24.04, gcc, Release)
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.label.name == 'graph-harness'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build g++ \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libgtest-dev
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=ON \
+            -DALEPH_GRAPH_HARNESS_TESTS=ON
+
+      - name: Build the harness
+        run: |
+          targets=$(ls Tests/graph_exhaustive_*_test.cc | xargs -n1 basename | sed 's/\.cc$//')
+          # A test takes some GB to compile, and the runner has 16: as the
+          # graph-harness jobs of ci.yml, three at a time
+          cmake --build build --parallel 3 --target $targets
+
+      - name: Run the harness in heavy mode
+        env:
+          ALEPH_GRAPH_HARNESS: heavy
+        run: |
+          status=0
+          for test in build/Tests/graph_exhaustive_*_test; do
+            echo "::group::$(basename "$test")"
+            "$test" --gtest_brief=1 || status=1
+            echo "::endgroup::"
+          done
+          exit $status

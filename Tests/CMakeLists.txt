@@ -54,7 +54,8 @@ if(ALEPH_USE_SANITIZERS)
         message(FATAL_ERROR
             "ALEPH_USE_SANITIZERS and ALEPH_USE_MEMORY_SANITIZER are mutually exclusive")
     endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g")
+    # -DALEPH_NO_FLATTEN, as the root CMakeLists.txt passes it
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g -DALEPH_NO_FLATTEN")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g")
 endif()
 
@@ -680,6 +681,13 @@ foreach(test_program ${TEST_PROGRAMS})
             target_compile_options(${test_exe} PRIVATE /bigobj)
         endif()
 
+        # Without the elisions that the language does not require, so that
+        # the tests of the moves of DynDlist see a move that a compiler may
+        # not elide, as that of a named result
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND test_program STREQUAL "dyndlist")
+            target_compile_options(${test_exe} PRIVATE -fno-elide-constructors)
+        endif()
+
         # Add test to CTest (gtest_discover_tests for IDE integration)
         gtest_discover_tests(${test_exe} DISCOVERY_MODE PRE_TEST)
 
@@ -778,9 +786,27 @@ else()
     message(STATUS "libxml++-2.6 not found: xml_graph_test is not built")
 endif()
 
+# The exhaustive tests of the graph algorithms and their contract matrix,
+# graph_exhaustive_*_test.cc and graph_contract_matrix_*_test.cc, take long
+# to compile: in a CI (the environment variable CI), only the jobs that ask
+# for them with ALEPH_GRAPH_HARNESS_TESTS=ON build them
+if(DEFINED ENV{CI})
+    set(ALEPH_GRAPH_HARNESS_TESTS_DEFAULT OFF)
+else()
+    set(ALEPH_GRAPH_HARNESS_TESTS_DEFAULT ON)
+endif()
+option(ALEPH_GRAPH_HARNESS_TESTS
+       "Build the exhaustive tests of the graph algorithms and their contract matrix"
+       ${ALEPH_GRAPH_HARNESS_TESTS_DEFAULT})
+
 file(GLOB _ALEPH_ALL_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cc")
 foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
     get_filename_component(_name "${_src}" NAME_WE)
+
+    if(NOT ALEPH_GRAPH_HARNESS_TESTS AND
+       _name MATCHES "^graph_(exhaustive|contract_matrix)_")
+        continue()
+    endif()
 
     # Skip k2tree_test with clang (GMP/libc++ incompatibility)
     if(_name STREQUAL "k2tree_test" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -967,11 +993,24 @@ add_test(
             -P ${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cmake
 )
 
+# The tests that follow compile code to check what the compiler says of it,
+# which takes minutes and does not depend on the options of the build: in
+# a CI (the environment variable CI), they run only in the jobs that ask for
+# them with ALEPH_COMPILE_CHECKS=ON
+if(DEFINED ENV{CI})
+    set(ALEPH_COMPILE_CHECKS_DEFAULT OFF)
+else()
+    set(ALEPH_COMPILE_CHECKS_DEFAULT ON)
+endif()
+option(ALEPH_COMPILE_CHECKS
+       "Run the tests that compile code to check its diagnostics"
+       ${ALEPH_COMPILE_CHECKS_DEFAULT})
+
 # An else right after a conditional macro of ah-errors.H, parse_utils.H or
 # ah-trace.H, with no if around it, must not compile (ah_errors_else_test.cc
 # checks the else after one with an if around it). The script calls the
 # compiler with the options of GCC, which clang-cl does not take.
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND
+if(ALEPH_COMPILE_CHECKS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND
    NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     add_test(
         NAME AhErrors.ElseRightAfterAMacroDoesNotCompile
@@ -980,6 +1019,40 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND
                 -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/..
                 -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/ah_errors_else_check
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/ah_errors_else_check.cmake
+    )
+
+    # What follows a macro that throws for a constant condition is
+    # unreachable, and the compiler sees it: compiled with -Werror
+    add_test(
+        NAME AhErrors.WhatFollowsAThrowIsUnreachable
+        COMMAND ${CMAKE_COMMAND}
+                -DCXX_COMPILER=${CMAKE_CXX_COMPILER}
+                -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/..
+                -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/ah_errors_reachability_check
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/ah_errors_reachability_check.cmake
+    )
+
+    # The conditional macros take, as their condition, what an if takes but
+    # a declaration
+    add_test(
+        NAME AhErrors.TheConditionIsThatOfAnIf
+        COMMAND ${CMAKE_COMMAND}
+                -DCXX_COMPILER=${CMAKE_CXX_COMPILER}
+                -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/..
+                -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/ah_errors_condition_check
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/ah_errors_condition_check.cmake
+    )
+
+    # What the contract matrix of the graph templates cannot hold: the
+    # combinations that do not compile yet, which must still fail, those
+    # that must never compile, and their controls
+    add_test(
+        NAME GraphContracts.CombinationsThatDoNotCompile
+        COMMAND ${CMAKE_COMMAND}
+                -DCXX_COMPILER=${CMAKE_CXX_COMPILER}
+                -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/..
+                -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/graph_contract_compile_check
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/graph_contract_compile_check.cmake
     )
 endif()
 

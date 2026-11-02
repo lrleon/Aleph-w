@@ -3,6 +3,9 @@
 
 #include <gtest/gtest.h>
 
+#include <stdexcept>
+#include <utility>
+
 #include <Dijkstra.H>
 #include <Johnson.H>
 #include <K_Shortest_Paths.H>
@@ -42,6 +45,23 @@ namespace
     int operator()(LG::Arc * a) const { return a->get_info(); }
   };
 
+  // A filter that can be moved and not copied, which no algorithm can
+  // take: each iterator, and each frame of a search, keeps a copy of it
+  struct Move_Only_Filter
+  {
+    Move_Only_Filter() = default;
+    Move_Only_Filter(Move_Only_Filter &&) = default;
+    Move_Only_Filter(const Move_Only_Filter &) = delete;
+    bool operator()(LG::Arc *) const { return true; }
+  };
+
+  // A filter that can be copied, and neither assigned nor built by default
+  struct Reference_Filter
+  {
+    const int & limit;
+    bool operator()(LG::Arc * a) const { return a->get_info() < limit; }
+  };
+
   struct NonArithmeticCost
   {
     struct Cost
@@ -64,6 +84,9 @@ static_assert(ArcFilter<Dft_Show_Arc<LG>, LG>);
 static_assert(NodeFilter<Dft_Show_Node<LG>, LG>);
 static_assert(not ArcFilter<Dft_Show_Node<LG>, LG>);
 static_assert(not NodeFilter<Dft_Show_Arc<LG>, LG>);
+// An arc filter must be copied, and need not be assigned or built by default
+static_assert(not ArcFilter<Move_Only_Filter, LG>);
+static_assert(ArcFilter<Reference_Filter, LG>);
 
 static_assert(ArcDistance<Dft_Dist<LG>, LG>);
 static_assert(not ArcDistance<PlainWeight, LG>);
@@ -176,4 +199,87 @@ TEST(AhGraphConceptsTest, ConstrainedAlgorithmsStillRun)
 
   const auto paths = yen_k_shortest_paths<LG>(g, a, c, 2);
   EXPECT_EQ(paths.size(), 2u);
+}
+
+namespace
+{
+  // A filter whose call may throw
+  template <class GT>
+  struct May_Throw_Filter
+  {
+    bool operator()(typename GT::Arc *) const { return true; }
+  };
+
+  // A filter whose call throws while *armed
+  template <class GT>
+  struct Armed_Filter
+  {
+    const bool * armed = nullptr;
+
+    bool operator()(typename GT::Arc *) const
+    {
+      if (*armed)
+        throw std::runtime_error("Armed_Filter");
+      return true;
+    }
+  };
+} // namespace
+
+// The searches of an arc, the moves of the iterators of digraphs and the
+// steps of the depth-first searches were noexcept whatever their filter,
+// and a filter that threw ended the program: they are noexcept as the
+// filter, and what it throws comes out
+TEST(AhGraphConceptsTest, WhatCallsTheFilterIsNoexceptAsTheFilter)
+{
+  static_assert(nothrow_arc_filter_v<LG, Dft_Show_Arc<LG>>);
+  static_assert(not nothrow_arc_filter_v<LG, May_Throw_Filter<LG>>);
+  static_assert(not nothrow_arc_filter_v<LG, Reference_Filter>);
+
+  static_assert(noexcept(search_arc<LG>(std::declval<const LG &>(), nullptr, nullptr)));
+  static_assert(not noexcept(search_arc<LG, May_Throw_Filter<LG>>(std::declval<const LG &>(),
+                                                                  nullptr, nullptr)));
+  static_assert(noexcept(search_directed_arc<LD>(std::declval<const LD &>(), nullptr, nullptr)));
+  static_assert(not noexcept(search_directed_arc<LD, May_Throw_Filter<LD>>(
+                  std::declval<const LD &>(), nullptr, nullptr)));
+  static_assert(noexcept(search_spanning_tree_arc<LG>(std::declval<const LG &>(), nullptr,
+                                                      nullptr)));
+  static_assert(not noexcept(search_spanning_tree_arc<LG, May_Throw_Filter<LG>>(
+                  std::declval<const LG &>(), nullptr, nullptr)));
+
+  static_assert(noexcept(std::declval<Out_Iterator<LD> &>().next_ne()));
+  static_assert(not noexcept(std::declval<Out_Iterator<LD, May_Throw_Filter<LD>> &>().next_ne()));
+  static_assert(noexcept(std::declval<In_Iterator<LG> &>().next_ne()));
+  static_assert(not noexcept(std::declval<In_Iterator<LG, May_Throw_Filter<LG>> &>().next_ne()));
+  static_assert(noexcept(std::declval<In_Iterator<AD> &>().next_ne()));
+  static_assert(not noexcept(std::declval<In_Iterator<AD, May_Throw_Filter<AD>> &>().next_ne()));
+
+  using Frame = Dfs_Arc_Frame<Node_Arc_Iterator<LG>>;
+  using May_Throw_Frame = Dfs_Arc_Frame<Node_Arc_Iterator<LG, May_Throw_Filter<LG>>>;
+  static_assert(noexcept(std::declval<Frame &>().next_arc()));
+  static_assert(noexcept(std::declval<Frame &>().template next_target<Aleph::Depth_First>()));
+  static_assert(not noexcept(std::declval<May_Throw_Frame &>().next_arc()));
+  static_assert(not noexcept(std::declval<May_Throw_Frame &>()
+                             .template next_target<Aleph::Depth_First>()));
+
+  LG g;
+  auto * a = g.insert_node(1);
+  auto * b = g.insert_node(2);
+  auto * c = g.insert_node(3);
+  auto * ab = g.insert_arc(a, b, 1);
+  g.insert_arc(a, c, 2);
+
+  bool armed = false;
+  const Armed_Filter<LG> filter{&armed};
+  EXPECT_EQ((search_arc<LG, Armed_Filter<LG>>(g, a, b, filter)), ab);
+  armed = true;
+  EXPECT_THROW((search_arc<LG, Armed_Filter<LG>>(g, a, b, filter)), std::runtime_error);
+  EXPECT_THROW((search_spanning_tree_arc<LG, Armed_Filter<LG>>(g, a, b, filter)),
+               std::runtime_error);
+
+  // On the second arc of the node, after next_ne()
+  armed = false;
+  Node_Arc_Iterator<LG, Armed_Filter<LG>> it(a, filter);
+  ASSERT_TRUE(it.has_curr());
+  armed = true;
+  EXPECT_THROW(it.next_ne(), std::runtime_error);
 }

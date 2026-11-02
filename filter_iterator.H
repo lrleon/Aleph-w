@@ -45,6 +45,8 @@
 # ifndef FILTER_ITERATOR_H
 # define FILTER_ITERATOR_H
 
+# include <type_traits>
+# include <utility>
 # include <stdexcept>
 # include <ah-concepts.H>
 # include <ah-errors.H>
@@ -52,6 +54,22 @@
 
 namespace Aleph
 {
+
+/** @brief Whether a Filter_Iterator keeps a copy of its container, and not
+ *  its address.
+ *
+ *  A container that is a pointer (the node over whose arcs a
+ *  Node_Arc_Iterator goes) or a small view of another container is
+ *  usually a parameter or a temporary, whose address dies before the
+ *  iterator: the iterator keeps its value instead. A view says so with a
+ *  member `filter_iterator_keeps_a_copy` and a constructor of an empty
+ *  view, usable by Filter_Iterator.
+ */
+template <class Container>
+inline constexpr bool filter_iterator_keeps_copy =
+  std::is_pointer_v<Container> or
+  requires { requires Container::filter_iterator_keeps_a_copy; };
+
 
 /** @brief Generic filter iterator wrapper.
  *
@@ -113,9 +131,13 @@ namespace Aleph
  *  @warning This class is **not thread-safe**. Concurrent access from
  *           multiple threads requires external synchronization.
  *
- *  @note The iterator catches `std::overflow_error` and `std::underflow_error`
- *        internally to handle boundary conditions gracefully. Other exceptions
- *        from the filter functor will propagate to the caller.
+ *  @note next() past the last item and prev() before the first leave the
+ *        iterator where it is: the iterator catches the
+ *        `std::overflow_error` and `std::underflow_error` of the base
+ *        iterator there. What the filter throws goes out of every member
+ *        that calls it, next_ne() and prev_ne() included, which are
+ *        `noexcept` only when the filter is; the iterator stays then on
+ *        the item on which the filter threw.
  *
  *  @ingroup Sequences
  *  @author Leandro Rabindranath León
@@ -125,10 +147,47 @@ class Filter_Iterator : public It
 {
   Show_Item show_item;
 
-  const Container *container_ptr = nullptr;
+  static constexpr bool keeps_copy = filter_iterator_keeps_copy<Container>;
+
+  // the container itself, or its address
+  std::conditional_t<keeps_copy, Container, const Container *> container_ptr{};
+
+  static auto kept(const Container & c) noexcept
+  {
+    if constexpr (keeps_copy)
+      return c;
+    else
+      return &c;
+  }
+
+  bool container_set() const noexcept
+  {
+    if constexpr (keeps_copy and not std::is_pointer_v<Container>)
+      return not container_ptr.is_null_view();
+    else
+      return container_ptr != nullptr;
+  }
 
   /// User-defined pointer for extensibility (e.g., passing context data to filter)
   void *cookie = nullptr;
+
+  // what the filter says of an item cannot throw
+  static constexpr bool shows_ne =
+    std::is_nothrow_invocable_r_v<bool, Show_Item &,
+                                  decltype(std::declval<It &>().get_curr())>;
+
+  // the base iterator has get_curr_ne() and next_ne(), which do from an
+  // item what get_curr() and next() do, without their checks
+  static constexpr bool unchecked = AlephUncheckedIterator<It>;
+
+  // the item of the base iterator, which has one
+  decltype(auto) base_curr()
+  {
+    if constexpr (unchecked)
+      return this->It::get_curr_ne();
+    else
+      return this->It::get_curr();
+  }
 
   /** @brief Advance to the first element that passes the filter.
    *
@@ -136,21 +195,33 @@ class Filter_Iterator : public It
    *  finding an element that satisfies the filter predicate, or until
    *  reaching the end of the sequence.
    *
-   *  Catches `std::overflow_error` internally to handle end-of-sequence
-   *  gracefully without propagating the exception.
+   *  The base iterator moves only from an item, which does not throw;
+   *  what the filter throws goes out.
    */
   void goto_first_valid_item()
   {
+    while (this->It::has_curr() and not show_item(base_curr()))
+      if constexpr (unchecked)
+        this->It::next_ne();
+      else
+        this->It::next();
+  }
+
+  // forward() without a current item: past the end, the base iterator
+  // throws std::overflow_error, and the iterator stays there; before the
+  // first item, as an array iterator can be, it goes to that item. Out of
+  // line, as the loops that ask has_curr() first never come here.
+  [[gnu::noinline, gnu::cold]] void forward_without_curr()
+  {
     try
-      { // position at the first element that passes show_item filter
-        while (true)
-          {
-            if (not this->It::has_curr() or show_item(this->It::get_curr()))
-              return;
-            this->It::next();
-          }
+      {
+        this->It::next();
       }
-    catch (const std::overflow_error &) { /* continue in overflow; do not propagate */ }
+    catch (const std::overflow_error &)
+      {
+        return; // past the end, as it was
+      }
+    goto_first_valid_item();
   }
 
   /** @brief Move forward to the next element that passes the filter.
@@ -159,31 +230,31 @@ class Filter_Iterator : public It
    *  until finding an element that satisfies the filter predicate, or
    *  until reaching the end of the sequence.
    *
-   *  Catches `std::overflow_error` internally to handle end-of-sequence
-   *  gracefully without propagating the exception.
+   *  Past the end, the base iterator throws `std::overflow_error`, and
+   *  the iterator stays there; what the filter throws goes out.
    */
   void forward()
   {
-    try
-      { // advance to the next item that passes show_item filter
-        this->It::next();
-        for (; true; this->It::next())
-            if (not this->It::has_curr() or show_item(this->It::get_curr()))
-              return;
-      }
-    catch (const std::overflow_error &) { /* continue in overflow; do not propagate */ }
-  }
-
-  // forward() for next_ne(), which swallows what it throws: out of line,
-  // for an iterator without a current item, which the loops that ask
-  // has_curr() first never have, so that next_ne() stays small
-  [[gnu::noinline, gnu::cold]] void forward_ne() noexcept
-  {
-    try
+    if constexpr (unchecked)
       {
-        forward();
+        if (not this->It::has_curr()) [[unlikely]]
+          return forward_without_curr();
+        do
+          this->It::next_ne();
+        while (this->It::has_curr() and not show_item(this->It::get_curr_ne()));
       }
-    catch (...) {}
+    else
+      {
+        try
+          {
+            this->It::next();
+          }
+        catch (const std::overflow_error &)
+          {
+            return; // past the end, as it was
+          }
+        goto_first_valid_item();
+      }
   }
 
   /** @brief Move to the last element that passes the filter.
@@ -192,18 +263,14 @@ class Filter_Iterator : public It
    *  finding an element that satisfies the filter predicate, or until
    *  reaching the beginning of the sequence.
    *
-   *  Catches `std::underflow_error` internally to handle beginning-of-sequence
-   *  gracefully without propagating the exception.
+   *  The base iterator moves only from an item, which does not throw;
+   *  what the filter throws goes out.
    */
   void goto_last_valid_item()
   {
-    try
-      {
-        for (this->It::reset_last(); true; this->It::prev())
-          if (not this->It::has_curr() or show_item(this->It::get_curr()))
-            return;
-      }
-    catch (const std::underflow_error &) { /* continue in underflow; do not propagate */ }
+    this->It::reset_last();
+    while (this->It::has_curr() and not show_item(this->It::get_curr()))
+      this->It::prev();
   }
 
   /** @brief Move backward to the previous element that passes the filter.
@@ -212,22 +279,38 @@ class Filter_Iterator : public It
    *  backward until finding an element that satisfies the filter predicate,
    *  or until reaching the beginning of the sequence.
    *
-   *  Catches `std::underflow_error` internally to handle beginning-of-sequence
-   *  gracefully without propagating the exception.
+   *  Before the first item, the base iterator throws
+   *  `std::underflow_error`, and the iterator stays there; what the filter
+   *  throws goes out.
    */
   void backward()
   {
     try
       {
         this->It::prev();
-        for (; true; this->It::prev())
-          if (not this->It::has_curr() or show_item(this->It::get_curr()))
-            return;
       }
-    catch (const std::underflow_error &) { /* continue in underflow; do not propagate */ }
+    catch (const std::underflow_error &)
+      {
+        return; // before the first item, as it was
+      }
+    while (this->It::has_curr() and not show_item(this->It::get_curr()))
+      this->It::prev();
   }
 
 public:
+  /** @brief Whether the base iterator moves back, as prev() and prev_ne()
+   *  need.
+   *
+   *  The iterators of a singly linked list, as those of the lists of arcs
+   *  of `List_SGraph`, and of the sets of `List_SGraph`, go only forward.
+   */
+  static constexpr bool goes_back = requires (It & i) { i.prev(); };
+
+  /** @brief Whether the base iterator goes to its last item and moves
+   *  back, as reset_last() needs.
+   */
+  static constexpr bool goes_to_last = requires (It & i) { i.reset_last(); i.prev(); };
+
   /// The type of element returned by get_curr()
   using Item_Type = typename It::Item_Type;
 
@@ -248,15 +331,18 @@ public:
    */
   const Container & get_container() const
   {
-    ah_domain_error_if(container_ptr == nullptr) << "Filter_Iterator: no container set";
-    return *container_ptr;
+    ah_domain_error_if(not container_set()) << "Filter_Iterator: no container set";
+    if constexpr (keeps_copy)
+      return container_ptr;
+    else
+      return *container_ptr;
   }
 
   /** @brief Check if a container has been set.
    *
    *  @return true if the iterator has a container, false otherwise.
    */
-  bool has_container() const noexcept { return container_ptr != nullptr; }
+  bool has_container() const noexcept { return container_set(); }
 
   /** @brief Returns a reference to the underlying base iterator.
    *
@@ -295,8 +381,14 @@ public:
    *  reset_last() to reposition the iterator according to the new filter.
    *
    *  @param si The new filter functor to use.
+   *
+   *  @note Only for a filter that can be assigned: a lambda with captures,
+   *        or a filter with a reference or a const member, cannot take
+   *        another value.
    */
-  void set_filter(Show_Item si) { show_item = si; }
+  void set_filter(Show_Item si)
+    requires std::is_move_assignable_v<Show_Item>
+  { show_item = std::move(si); }
 
   /** @brief Sets the cookie pointer.
    *
@@ -338,9 +430,10 @@ public:
    *  @param c The container to iterate over.
    *  @param si The filter functor to use (default constructed if not provided).
    *  @throw std::bad_alloc if there is not enough memory.
+   *  @throw anything that the filter throws.
    */
   Filter_Iterator(const Container & c, Show_Item si = Show_Item())
-    : It(c), show_item(si), container_ptr(&c)
+    : It(c), show_item(si), container_ptr(kept(c))
   {
     goto_first_valid_item();
   }
@@ -348,9 +441,10 @@ public:
   /** @brief Filter over the modifiable container `c`.
       @param[in] c the container.
       @param[in] si the filter.
+      @throw anything that the filter throws.
   */
   Filter_Iterator(Container & c, Show_Item si = Show_Item())
-    : It(c), show_item(si), container_ptr(&c)
+    : It(c), show_item(si), container_ptr(kept(c))
   {
     goto_first_valid_item();
   }
@@ -384,61 +478,40 @@ public:
    *
    *  Moves forward in the sequence, skipping elements that don't pass
    *  the filter, until reaching the next visible element or the end.
+   *
+   *  @throw anything that the filter throws; the iterator stays then on
+   *         the item on which it threw.
    */
   void next() { forward(); }
 
-  /** @brief Advances the iterator to the next filtered element (noexcept version).
+  /** @brief Advances the iterator to the next filtered element, as next()
+   *  does.
    *
-   *  This is the exception-safe version of next(). All exceptions are
-   *  silently caught and the iterator remains in a valid state.
-   *
-   *  @note This method is noexcept and will never throw.
+   *  @throw anything that the filter throws, as next(); next_ne() is
+   *         `noexcept` when the filter is.
    */
-  void next_ne() noexcept
-  {
-    try
-      {
-        // forward(), but for the checks of the moves of It, which cannot
-        // fail once there is a current item. Without one, forward() moves
-        // as It does: past the end it throws, but before the first item,
-        // as an array iterator can be, it goes to that item.
-        if constexpr (AlephUncheckedIterator<It>)
-          {
-            if (not this->It::has_curr()) [[unlikely]]
-              return forward_ne();
-
-            this->It::next_ne();
-            while (this->It::has_curr() and not show_item(this->It::get_curr_ne()))
-              this->It::next_ne();
-          }
-        else
-          forward();
-      }
-    catch (...) {}
-  }
+  void next_ne() noexcept(shows_ne) { forward(); }
 
   /** @brief Moves the iterator backward to the previous filtered element.
    *
    *  Moves backward in the sequence, skipping elements that don't pass
    *  the filter, until reaching the previous visible element or the beginning.
+   *
+   *  @throw anything that the filter throws; the iterator stays then on
+   *         the item on which it threw.
+   *  @note Only where the base iterator moves back (goes_back): an
+   *        iterator that goes only forward, as those of `List_SGraph`, has
+   *        no prev(), so that the error is at the call.
    */
-  void prev() { backward(); }
+  void prev() requires goes_back { backward(); }
 
-  /** @brief Moves the iterator backward (noexcept version).
+  /** @brief Moves the iterator backward, as prev() does.
    *
-   *  This is the exception-safe version of prev(). All exceptions are
-   *  silently caught and the iterator remains in a valid state.
-   *
-   *  @note This method is noexcept and will never throw.
+   *  @throw anything that the filter throws, as prev(); prev_ne() is
+   *         `noexcept` when the filter is.
+   *  @note As prev(), only where the base iterator moves back.
    */
-  void prev_ne() noexcept
-  {
-    try
-      {
-        backward();
-      }
-    catch (...) {}
-  }
+  void prev_ne() noexcept(shows_ne) requires goes_back { backward(); }
 
   /** @brief Resets the iterator to the first filtered element.
    *
@@ -455,8 +528,11 @@ public:
    *
    *  Positions the iterator at the last element in the sequence that
    *  passes the filter predicate.
+   *
+   *  @note Only where the base iterator goes to its last item and moves
+   *        back (goes_to_last), which it needs to skip the hidden items.
    */
-  void reset_last() { goto_last_valid_item(); }
+  void reset_last() requires goes_to_last { goto_last_valid_item(); }
 
   /** @brief Count the number of elements that pass the filter.
    *

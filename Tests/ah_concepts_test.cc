@@ -38,6 +38,8 @@
 # include <gtest/gtest.h>
 
 # include <ah-concepts.H>
+# include <string>
+# include <utility>
 # include <ahFunction.H>
 # include <ahFunctional.H>
 # include <tpl_avl.H>
@@ -98,6 +100,80 @@ static_assert(!Aleph::BinaryPredicate<NotCallable, int>);
 // ====================================================================
 // BSTPolicy: positive and negative
 // ====================================================================
+
+// Its operators are not noexcept, and only unevaluated operands use them:
+// a named namespace, as GCC 11 and Clang 14 warn of an internal function
+// declared and not defined
+namespace ah_concepts_test_ops
+{
+  struct Throwing_Ops
+  {
+    int v = 0;
+  };
+  Throwing_Ops operator+(const Throwing_Ops &, const Throwing_Ops &);
+  Throwing_Ops operator-(const Throwing_Ops &, const Throwing_Ops &);
+  Throwing_Ops operator*(const Throwing_Ops &, const Throwing_Ops &);
+  Throwing_Ops operator/(const Throwing_Ops &, const Throwing_Ops &);
+  Throwing_Ops operator%(const Throwing_Ops &, const Throwing_Ops &);
+  Throwing_Ops operator-(const Throwing_Ops &);
+  bool operator==(const Throwing_Ops &, const Throwing_Ops &);
+  bool operator!=(const Throwing_Ops &, const Throwing_Ops &);
+  bool operator<(const Throwing_Ops &, const Throwing_Ops &);
+  bool operator>(const Throwing_Ops &, const Throwing_Ops &);
+  bool operator<=(const Throwing_Ops &, const Throwing_Ops &);
+  bool operator>=(const Throwing_Ops &, const Throwing_Ops &);
+  bool operator&&(const Throwing_Ops &, const Throwing_Ops &);
+  bool operator||(const Throwing_Ops &, const Throwing_Ops &);
+  bool operator!(const Throwing_Ops &);
+}
+
+using ah_concepts_test_ops::Throwing_Ops;
+
+namespace
+{
+  // Bare has no operators
+  struct Bare
+  {
+  };
+
+  // Whether the binary functor F, on T, is noexcept
+  template <template <class> class F, class T>
+  constexpr bool nothrow2 = noexcept(F<T>()(std::declval<const T &>(),
+                                            std::declval<const T &>()));
+
+  template <template <class> class F, class T>
+  constexpr bool nothrow1 = noexcept(F<T>()(std::declval<const T &>()));
+}
+
+// The functors were noexcept whatever the operators of their type: what
+// such an operator threw, as the + of std::string, ended the program
+static_assert(nothrow2<Aleph::plus, int> and nothrow2<Aleph::minus, int>
+              and nothrow2<Aleph::multiplies, int> and nothrow2<Aleph::divides, int>
+              and nothrow2<Aleph::modulus, int> and nothrow1<Aleph::negate, int>
+              and nothrow2<Aleph::equal_to, int> and nothrow2<Aleph::not_equal_to, int>
+              and nothrow2<Aleph::greater, int> and nothrow2<Aleph::less, int>
+              and nothrow2<Aleph::greater_equal, int> and nothrow2<Aleph::less_equal, int>
+              and nothrow2<Aleph::logical_and, int> and nothrow2<Aleph::logical_or, int>
+              and nothrow1<Aleph::logical_not, int>);
+static_assert(not nothrow2<Aleph::plus, std::string>);
+static_assert(not nothrow2<Aleph::plus, Throwing_Ops> and not nothrow2<Aleph::minus, Throwing_Ops>
+              and not nothrow2<Aleph::multiplies, Throwing_Ops>
+              and not nothrow2<Aleph::divides, Throwing_Ops>
+              and not nothrow2<Aleph::modulus, Throwing_Ops>
+              and not nothrow1<Aleph::negate, Throwing_Ops>
+              and not nothrow2<Aleph::equal_to, Throwing_Ops>
+              and not nothrow2<Aleph::not_equal_to, Throwing_Ops>
+              and not nothrow2<Aleph::greater, Throwing_Ops>
+              and not nothrow2<Aleph::less, Throwing_Ops>
+              and not nothrow2<Aleph::greater_equal, Throwing_Ops>
+              and not nothrow2<Aleph::less_equal, Throwing_Ops>
+              and not nothrow2<Aleph::logical_and, Throwing_Ops>
+              and not nothrow2<Aleph::logical_or, Throwing_Ops>
+              and not nothrow1<Aleph::logical_not, Throwing_Ops>);
+// A type without the operator gives false, not an error, and the functor
+// keeps its operator(), as before
+static_assert(not nothrow2<Aleph::greater, Bare> and not nothrow2<Aleph::plus, Bare>);
+static_assert(Aleph::BinaryPredicate<Aleph::greater<Bare>, Bare>);
 
 static_assert(Aleph::BSTPolicy<Avl_Tree<int>, int>);
 static_assert(Aleph::BSTPolicy<Splay_Tree<int>, int>);

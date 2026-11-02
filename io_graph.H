@@ -133,6 +133,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <type_traits>
 #include <tpl_graph.H>
 #include <ah-graph-concepts.H>
 #include <ah-errors.H>
@@ -372,19 +373,75 @@ public:
   void set_node_filter(const NF & nf) { node_filter = nf; }
 
   /** @brief Set the arc filter for save operations.
+   *
+   *  It assigns the filter: one that cannot be assigned goes to the
+   *  constructor.
+   *
    *  @param af Arc filter functor (arcs passing filter are saved)
    */
-  void set_arc_filter(const AF & af) { arc_filter = af; }
+  void set_arc_filter(const AF & af) requires std::is_copy_assignable_v<AF>
+  {
+    arc_filter = af;
+  }
 
   /** @brief Construct from graph reference.
+   *
+   *  The arc filter is AF(): one without a default constructor goes to
+   *  the constructor that takes it.
+   *
    *  @param __g Reference to the graph to save/load
    */
-  explicit IO_Graph(GT & __g) noexcept : g(__g) {}
+  explicit IO_Graph(GT & __g) noexcept requires std::is_default_constructible_v<AF>
+    : g(__g) {}
 
   /** @brief Construct from graph pointer.
+   *
+   *  The arc filter is AF(), as in the constructor from a reference.
+   *
    *  @param gptr Pointer to the graph to save/load
    */
-  explicit IO_Graph(GT * gptr) noexcept : g(*gptr) {}
+  explicit IO_Graph(GT * gptr) noexcept requires std::is_default_constructible_v<AF>
+    : g(*gptr) {}
+
+  /** @brief Construct from graph reference, with the arc filter.
+   *  @param __g Reference to the graph to save/load
+   *  @param af the filter of the arcs that the save operations write
+   */
+  IO_Graph(GT & __g, AF af) : g(__g), arc_filter(std::move(af)) {}
+
+  /** @brief Construct from graph pointer, with the arc filter.
+   *  @param gptr Pointer to the graph to save/load
+   *  @param af the filter of the arcs that the save operations write
+   */
+  IO_Graph(GT * gptr, AF af) : g(*gptr), arc_filter(std::move(af)) {}
+
+private:
+
+  /// Gives each node that the node filter shows its number in the file,
+  /// in the order of the saves, and returns how many there are
+  size_t number_shown_nodes(DynMapTreap<typename GT::Node*, int> & nodes_table)
+  {
+    int i = 0;
+    for (Node_Iterator<GT, NF> it(g, node_filter); it.has_curr(); it.next_ne(), ++i)
+      nodes_table.insert(it.get_curr(), i);
+    return size_t(i);
+  }
+
+  /// The arcs that the arc filter shows whose two ends are numbered
+  size_t count_shown_arcs(const DynMapTreap<typename GT::Node*, int> & nodes_table)
+  {
+    size_t n = 0;
+    for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
+      {
+        auto a = it.get_curr();
+        if (nodes_table.search(g.get_src_node(a)) != nullptr and
+            nodes_table.search(g.get_tgt_node(a)) != nullptr)
+          ++n;
+      }
+    return n;
+  }
+
+public:
 
   /** @brief Save graph to binary stream.
    *
@@ -401,7 +458,11 @@ public:
    */
   void save(std::ofstream & output)
   {
-    const size_t num_nodes = g.get_num_nodes();
+    // The counts go before what they count: the nodes and arcs that the
+    // filters show, counted first, an arc only with both of its ends
+    DynMapTreap<typename GT::Node*, int> nodes_table;
+    const size_t num_nodes = number_shown_nodes(nodes_table);
+    const size_t num_arcs = count_shown_arcs(nodes_table);
 
     if (verbose_mode)
       std::cout << "Storing " << num_nodes << " nodes ... ";
@@ -409,21 +470,14 @@ public:
     output.write(reinterpret_cast<const char*>(&num_nodes), sizeof(num_nodes));
 
     int i = 0;
-    DynMapTreap<typename GT::Node*, int> nodes_table;
-
     for (Node_Iterator<GT, NF> it(g, node_filter); it.has_curr();
          it.next_ne(), ++i)
       {
-        auto p = it.get_curr();
-
         if (verbose_mode)
           std::cout << i << " ";
 
-        store_node(output, g, p);
-        nodes_table.insert(p, i);
+        store_node(output, g, it.get_curr());
       }
-
-    const size_t num_arcs = g.get_num_arcs();
 
     if (verbose_mode)
       std::cout << " done " << std::endl 
@@ -437,6 +491,8 @@ public:
 
         auto src = g.get_src_node(a);
         auto tgt = g.get_tgt_node(a);
+        if (nodes_table.search(src) == nullptr or nodes_table.search(tgt) == nullptr)
+          continue; // an end that the node filter hides
 
         const int src_idx = nodes_table.find(src);
         const int tgt_idx = nodes_table.find(tgt);
@@ -558,8 +614,11 @@ public:
    */
   void save_in_text_mode(std::ostream & output)
   {
-    const size_t num_nodes = g.get_num_nodes();
-    const size_t num_arcs  = g.get_num_arcs();
+    // The counts go first: the nodes and arcs that the filters show, an
+    // arc only with both of its ends
+    DynMapTreap<typename GT::Node*, int> nodes_table;
+    const size_t num_nodes = number_shown_nodes(nodes_table);
+    const size_t num_arcs  = count_shown_arcs(nodes_table);
     
     output << num_nodes << std::endl
            << num_arcs << std::endl;
@@ -568,18 +627,13 @@ public:
       std::cout << "Storing " << num_nodes << " nodes ... ";
 
     int i = 0;
-    DynMapTreap<typename GT::Node*, int> nodes_table;
-
     for (Node_Iterator<GT, NF> it(g, node_filter); it.has_curr();
          it.next_ne(), ++i)
       {
-        typename GT::Node * p = it.get_curr();
-
         if (verbose_mode)
           std::cout << i << " ";
 
-        store_node(output, g, p);
-        nodes_table.insert(p, i);
+        store_node(output, g, it.get_curr());
       }
 
     if (verbose_mode)
@@ -592,6 +646,8 @@ public:
 
         auto src = g.get_src_node(a);
         auto tgt = g.get_tgt_node(a);
+        if (nodes_table.search(src) == nullptr or nodes_table.search(tgt) == nullptr)
+          continue; // an end that the node filter hides
 
         const int src_idx = nodes_table.find(src);
         const int tgt_idx = nodes_table.find(tgt);

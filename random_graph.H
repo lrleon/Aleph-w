@@ -47,8 +47,12 @@
 # include <ah-graph-concepts.H>
 
 # include <gsl/gsl_rng.h>
+# include <concepts>
 # include <memory>
+# include <optional>
 # include <tpl_indexArc.H>
+# include <tpl_dynSetHash.H>
+# include <tpl_sort_utils.H>
 # include <tpl_graph_utils.H>
 # include <tpl_components.H>
 # include <single_graph.H>
@@ -97,12 +101,47 @@ namespace Aleph
 
   // TODO: consider replacing Init_Node and Init_Arc classes with lambdas
 
+  /** An initializer that a random generator keeps: one given as a
+      modifiable lvalue is used where it is, so that the caller sees what
+      the generator does to it; a temporary, or a const lvalue, is moved or
+      copied into the generator, so that it lives as long as the generator.
+
+      @tparam F Type of the initializer.
+      @ingroup Graphs
+   */
+  template <class F>
+  class Kept_Initializer
+  {
+    std::optional<F> own; // the initializer, if it was not a modifiable lvalue
+    F * f;                // the initializer that is used
+
+  public:
+    /// Use @p x where it is.
+    Kept_Initializer(F & x) noexcept : f(&x) {}
+
+    /// Keep a copy of @p x.
+    Kept_Initializer(const F & x) : own(x), f(&*own) {}
+
+    /// Keep @p x, moved.
+    Kept_Initializer(F && x) : own(std::move(x)), f(&*own) {}
+
+    Kept_Initializer(const Kept_Initializer &) = delete;
+    Kept_Initializer & operator = (const Kept_Initializer &) = delete;
+
+    /// The initializer.
+    F & get() const noexcept { return *f; }
+  };
+
   template <AlephGraph GT, class Init_Node, class Init_Arc>
   class Random_Graph_Base
   {
   protected:
     typedef typename GT::Node GT_Node;
     typedef typename GT::Arc GT_Arc;
+
+    // before r, which leaks if a copy of an initializer throws after it
+    Kept_Initializer<Init_Node> kept_node;
+    Kept_Initializer<Init_Arc> kept_arc;
 
     gsl_rng *r;
 
@@ -123,6 +162,42 @@ namespace Aleph
     bool save_parity; // indicates whether to track parity relations
                        // among nodes (only while eulerian() builds
                        // its graph)
+
+    // The order in which the nodes were created. The sets of nodes and the
+    // components follow it instead of the addresses of the nodes, which are
+    // another order in each run, so that the same seed gives the same graph
+    DynMapHash<GT_Node *, size_t> creation;
+
+    size_t order_of(GT_Node *p) const { return creation.find(p); }
+
+    /// Comparison of nodes by the order in which they were created
+    struct By_Creation
+    {
+      const Random_Graph_Base *base = nullptr;
+
+      bool operator()(GT_Node *a, GT_Node *b) const
+      {
+        return base->order_of(a) < base->order_of(b);
+      }
+    };
+
+    using Node_Set = DynSetRandTree<GT_Node *, By_Creation>;
+
+    // Puts the nodes of each component, and the components by their first
+    // node, in the order of creation
+    void sort_components(DynList<DynList<GT_Node *>> & comps) const
+    {
+      auto before = [this] (GT_Node *a, GT_Node *b)
+        {
+          return order_of(a) < order_of(b);
+        };
+      for (auto it = comps.get_it(); it.has_curr(); it.next_ne())
+        mergesort(it.get_curr(), before);
+      mergesort(comps, [this] (const DynList<GT_Node *> & a, const DynList<GT_Node *> & b)
+        {
+          return order_of(a.get_first()) < order_of(b.get_first());
+        });
+    }
 
     virtual void
     update_parity_after_arc_insertion(GT_Node *src, GT_Node *tgt) = 0;
@@ -182,6 +257,7 @@ namespace Aleph
           << "Number of nodes must be greater than 0";
 
       clear_graph(g); // what a former call left, if it threw
+      creation.empty();
       prepare_new_graph();
 
       num_nodes = __num_nodes;
@@ -195,12 +271,13 @@ namespace Aleph
       create_nodes_and_initialize_arc_index();
     }
 
-    Random_Graph_Base(const unsigned long seed,
-                      const Init_Node & __init_node,
-                      const Init_Arc & __init_arc)
-      : r(gsl_rng_alloc(gsl_rng_mt19937)),
-        init_node(const_cast<Init_Node &>(__init_node)),
-        init_arc(const_cast<Init_Arc &>(__init_arc)),
+    template <class N, class A>
+    Random_Graph_Base(const unsigned long seed, N && __init_node, A && __init_arc)
+      : kept_node(std::forward<N>(__init_node)),
+        kept_arc(std::forward<A>(__init_arc)),
+        r(gsl_rng_alloc(gsl_rng_mt19937)),
+        init_node(kept_node.get()),
+        init_arc(kept_arc.get()),
         num_nodes(0), num_arcs(0),
         rand_max(gsl_rng_max(r)), save_parity(false)
     {
@@ -389,8 +466,20 @@ namespace Aleph
     typedef typename GT::Node GT_Node;
     typedef typename GT::Arc GT_Arc;
 
-    DynSetRandTree<GT_Node *> odd_nodes;  // nodes with odd degree
-    DynSetRandTree<GT_Node *> even_nodes; // nodes with even degree
+    using Base = Random_Graph_Base<GT, Init_Node, Init_Arc>;
+
+    typename Base::Node_Set odd_nodes{typename Base::By_Creation{this}};  // odd degree
+    typename Base::Node_Set even_nodes{typename Base::By_Creation{this}}; // even degree
+
+    // The arcs that the random joins of make_eulerian() inserted
+    DynList<GT_Arc *> joined;
+
+    GT_Arc * join_arc(GT_Node *src, GT_Node *tgt)
+    {
+      auto a = this->insert_arc(src, tgt);
+      joined.append(a);
+      return a;
+    }
 
     void update_parity_after_arc_insertion(GT_Node *src, GT_Node *tgt) override
     {
@@ -438,6 +527,7 @@ namespace Aleph
         {
           auto p = this->g.insert_node(new GT_Node);
           this->nodes->access(i) = p;
+          this->creation.insert(p, i);
           this->init_node(this->g, p);
           if (this->save_parity)
             {
@@ -454,6 +544,7 @@ namespace Aleph
       DynList<DynList<GT_Node *>> subgraphs; // list of subgraphs
 
       Unconnected_Components<GT>()(this->g, subgraphs);
+      this->sort_components(subgraphs);
 
       const size_t & num_subs = subgraphs.size();
 
@@ -508,19 +599,14 @@ namespace Aleph
         @param[in] __init_node Node initialization functor.
         @param[in] __init_arc Arc initialization functor.
      */
-    Random_Graph(unsigned long seed,
-                 const Init_Node & __init_node,
-                 const Init_Arc & __init_arc)
-      : Random_Graph_Base<GT, Init_Node, Init_Arc>(seed, __init_node, __init_arc)
-    {
-      ah_domain_error_if(this->g.is_digraph())
-      << "Building of random digraph through a graph";
-    }
-
+    template <class N = Init_Node, class A = Init_Arc>
+      requires (std::constructible_from<Kept_Initializer<Init_Node>, N> and
+                std::constructible_from<Kept_Initializer<Init_Arc>, A>)
     Random_Graph(unsigned long seed = time(nullptr),
-                 const Init_Node && __init_node = Init_Node(),
-                 const Init_Arc && __init_arc = Init_Arc())
-      : Random_Graph_Base<GT, Init_Node, Init_Arc>(seed, __init_node, __init_arc)
+                 N && __init_node = Init_Node(),
+                 A && __init_arc = Init_Arc())
+      : Random_Graph_Base<GT, Init_Node, Init_Arc>
+          (seed, std::forward<N>(__init_node), std::forward<A>(__init_arc))
     {
       ah_domain_error_if(this->g.is_digraph())
       << "Building of random digraph through a graph";
@@ -609,8 +695,8 @@ namespace Aleph
       if (p == nullptr)
         return false;
 
-      this->insert_arc(src, p);
-      this->insert_arc(p, tgt);
+      join_arc(src, p);
+      join_arc(p, tgt);
 
       return true;
     }
@@ -633,7 +719,7 @@ namespace Aleph
 
           if (this->idx_arc->search(src, tgt) == nullptr)
             {
-              this->insert_arc(src, tgt);
+              join_arc(src, tgt);
               return true;
             }
 
@@ -649,7 +735,7 @@ namespace Aleph
     bool join_any_odd_nodes()
     {
       DynArray<GT_Node *> odd; // the set changes when the arcs go in
-      for (typename DynSetRandTree<GT_Node *>::Iterator it(this->odd_nodes);
+      for (typename Base::Node_Set::Iterator it(this->odd_nodes);
            it.has_curr(); it.next_ne())
         odd.append(it.get_curr_ne());
 
@@ -657,7 +743,7 @@ namespace Aleph
         for (size_t j = i + 1; j < odd.size(); ++j)
           if (this->idx_arc->search(odd.access(i), odd.access(j)) == nullptr)
             {
-              this->insert_arc(odd.access(i), odd.access(j));
+              join_arc(odd.access(i), odd.access(j));
               return true;
             }
 
@@ -669,16 +755,113 @@ namespace Aleph
       return false;
     }
 
-    void make_eulerian() override
+    // The exact construction, from the graph that create() gave: the random
+    // joins could leave a graph that no arcs make Eulerian, so their arcs
+    // go. Then, in each component of the complement (the arcs the graph
+    // lacks), a breadth-first spanning tree; from its leaves up, a node of
+    // odd degree takes the arc to its parent, which changes the parity of
+    // the parent. A root left odd means that its component has an odd
+    // number of odd nodes, and then no arcs make the graph Eulerian.
+    void join_through_the_complement()
     {
-      while (this->odd_nodes.size() > 1)
+      for (typename DynList<GT_Arc *>::Iterator it(joined); it.has_curr();
+           it.next_ne())
+        this->idx_arc->remove_from_graph(it.get_curr_ne());
+      joined.empty();
+
+      const size_t n = this->nodes->size();
+      this->odd_nodes.empty();
+      this->even_nodes.empty();
+      for (size_t i = 0; i < n; ++i)
         {
-          const bool joined = join_random_odd_nodes() or join_any_odd_nodes();
-          ah_domain_error_if(not joined)
-            << "The graph cannot be made Eulerian by adding arcs to it";
+          auto p = this->nodes->access(i);
+          if (this->g.get_num_arcs(p) % 2 == 0)
+            this->even_nodes.insert(p);
+          else
+            this->odd_nodes.insert(p);
         }
 
-      assert(this->odd_nodes.size() == 0);
+      DynArray<long> parent;
+      parent.reserve(n);
+      DynArray<size_t> order; // breadth-first order, filled by append()
+      DynArray<size_t> unvisited, rest;
+      unvisited.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        unvisited.access(i) = i;
+
+      while (unvisited.size() > 0)
+        { // a node not yet visited is the root of a new tree
+          size_t head = order.size();
+          const size_t root = unvisited.access(unvisited.size() - 1);
+          unvisited.cut(unvisited.size() - 1);
+          parent.access(root) = -1;
+          order.append(root);
+          while (head < order.size())
+            { // each check either visits a node or meets an arc of the graph
+              const size_t x = order.access(head++);
+              auto px = this->nodes->access(x);
+              rest.cut();
+              for (size_t k = 0; k < unvisited.size(); ++k)
+                {
+                  const size_t y = unvisited.access(k);
+                  if (this->idx_arc->search(px, this->nodes->access(y)) == nullptr)
+                    {
+                      parent.access(y) = static_cast<long>(x);
+                      order.append(y);
+                    }
+                  else
+                    rest.append(y);
+                }
+              std::swap(unvisited, rest);
+            }
+        }
+
+      DynArray<char> odd;
+      odd.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        odd.access(i) = this->g.get_num_arcs(this->nodes->access(i)) % 2;
+
+      DynList<size_t> tree_arcs; // the nodes whose arc to the parent goes in
+      for (size_t k = order.size(); k-- > 0; )
+        {
+          const size_t x = order.access(k);
+          if (not odd.access(x))
+            continue;
+          ah_domain_error_if(parent.access(x) < 0)
+            << "The graph cannot be made Eulerian by adding arcs to it";
+          tree_arcs.append(x);
+          odd.access(parent.access(x)) ^= 1;
+        }
+
+      for (typename DynList<size_t>::Iterator it(tree_arcs); it.has_curr();
+           it.next_ne())
+        {
+          const size_t x = it.get_curr_ne();
+          this->insert_arc(this->nodes->access(x),
+                           this->nodes->access(parent.access(x)));
+        }
+    }
+
+    void make_eulerian() override
+    {
+      joined.empty();
+      while (this->odd_nodes.size() > 1)
+        if (not (join_random_odd_nodes() or join_any_odd_nodes()))
+          {
+            join_through_the_complement();
+            break;
+          }
+      joined.empty();
+
+      assert(all_even());
+    }
+
+    bool all_even() const
+    {
+      for (typename GT::Node_Iterator it(this->g); it.has_curr(); it.next_ne())
+        if (this->g.get_num_arcs(it.get_curr_ne()) % 2 != 0)
+          return false;
+      return true;
     }
 
     void balance_graph_nodes_degree(GT_Node *src, GT_Node *tgt)
@@ -840,9 +1023,12 @@ namespace Aleph
     typedef typename GT::Node GT_Node;
     typedef typename GT::Arc GT_Arc;
 
-    DynSetRandTree<GT_Node *> greater; // nodes with out-degree > in-degree
-    DynSetRandTree<GT_Node *> smaller; // nodes with out-degree < in-degree
-    DynSetRandTree<GT_Node *> equal;   // nodes with out-degree == in-degree
+    using Base = Random_Graph_Base<GT, Init_Node, Init_Arc>;
+
+    // nodes with out-degree > in-degree, < in-degree, and == in-degree
+    typename Base::Node_Set greater{typename Base::By_Creation{this}};
+    typename Base::Node_Set smaller{typename Base::By_Creation{this}};
+    typename Base::Node_Set equal{typename Base::By_Creation{this}};
 
     bool verify_tables()
     {
@@ -1001,6 +1187,7 @@ namespace Aleph
         {
           typename GT::Node *p = this->g.insert_node(new GT_Node);
           this->nodes->access(i) = p;
+          this->creation.insert(p, i);
           this->init_node(this->g, p);
 
           if (this->save_parity)
@@ -1031,6 +1218,7 @@ namespace Aleph
         for (size_t i = 0; it.has_curr(); it.next_ne(), ++i)
           NODE_COUNTER(it.get_curr_ne()) = in_degree.access(i);
       }
+      this->sort_components(blk_list);
 
       const size_t & num_blocks = blk_list.size();
 
@@ -1101,25 +1289,24 @@ namespace Aleph
         @param[in] __init_node Node initialization functor.
         @param[in] __init_arc Arc initialization functor.
      */
-    Random_Digraph(unsigned long seed,
-                   const Init_Node & __init_node,
-                   const Init_Arc & __init_arc)
-      : Random_Graph_Base<GT, Init_Node, Init_Arc>(seed, __init_node, __init_arc)
-    {
-      // empty
-    }
-
+    template <class N = Init_Node, class A = Init_Arc>
+      requires (std::constructible_from<Kept_Initializer<Init_Node>, N> and
+                std::constructible_from<Kept_Initializer<Init_Arc>, A>)
     Random_Digraph(unsigned long seed = time(nullptr),
-                   const Init_Node && __init_node = Init_Node(),
-                   const Init_Arc && __init_arc = Init_Arc())
-      : Random_Digraph(seed, __init_node, __init_arc)
+                   N && __init_node = Init_Node(),
+                   A && __init_arc = Init_Arc())
+      : Random_Graph_Base<GT, Init_Node, Init_Arc>
+          (seed, std::forward<N>(__init_node), std::forward<A>(__init_arc))
     {
       // empty
     }
 
-    Random_Digraph(const Init_Node & __init_node,
-                   const Init_Arc & __init_arc)
-      : Random_Digraph(time(nullptr), __init_node, __init_arc)
+    template <class N, class A>
+      requires (std::constructible_from<Kept_Initializer<Init_Node>, N> and
+                std::constructible_from<Kept_Initializer<Init_Arc>, A>)
+    Random_Digraph(N && __init_node, A && __init_arc)
+      : Random_Digraph(time(nullptr), std::forward<N>(__init_node),
+                       std::forward<A>(__init_arc))
     {
       // empty
     }
@@ -1225,10 +1412,10 @@ namespace Aleph
     bool join_any_unbalanced_nodes()
     {
       DynArray<GT_Node *> srcs, tgts; // the sets change when the arcs go in
-      for (typename DynSetRandTree<GT_Node *>::Iterator it(this->smaller);
+      for (typename Base::Node_Set::Iterator it(this->smaller);
            it.has_curr(); it.next_ne())
         srcs.append(it.get_curr_ne());
-      for (typename DynSetRandTree<GT_Node *>::Iterator it(this->greater);
+      for (typename Base::Node_Set::Iterator it(this->greater);
            it.has_curr(); it.next_ne())
         tgts.append(it.get_curr_ne());
 
@@ -1249,6 +1436,56 @@ namespace Aleph
       return false;
     }
 
+    // A path of arcs that the digraph lacks, from src, which has more arcs
+    // in than out, to the nearest node with more out than in; its inner
+    // nodes keep their balance. There always is one: if the nodes that such
+    // paths reach from src had no arcs in excess, all the arcs from them to
+    // the rest would be in the digraph, and they would have more arcs out
+    // than in, while src has more in than out.
+    void join_through_a_path(GT_Node *src)
+    {
+      const size_t n = this->nodes->size();
+      DynMapTree<GT_Node *, long> parent; // also the visited nodes
+      DynListQueue<GT_Node *> q;
+      parent.insert(src, -1);
+      q.put(src);
+      DynMapTree<GT_Node *, GT_Node *> from;
+      GT_Node *tgt = nullptr;
+      while (not q.is_empty() and tgt == nullptr)
+        {
+          auto x = q.get();
+          for (size_t i = 0; i < n; ++i)
+            {
+              auto y = this->nodes->access(i);
+              if (y == x or parent.search(y) != nullptr or
+                  this->idx_arc->search_directed(x, y) != nullptr)
+                continue;
+              parent.insert(y, 0);
+              from.insert(y, x);
+              if (this->greater.search(y) != nullptr)
+                {
+                  tgt = y;
+                  break;
+                }
+              q.put(y);
+            }
+        }
+      ah_domain_error_if(tgt == nullptr) // it cannot happen
+        << "The digraph cannot be made Eulerian by adding arcs to it";
+
+      DynList<GT_Node *> path; // from tgt back to src
+      for (auto y = tgt; y != src; y = from.find(y))
+        path.insert(y);
+      GT_Node *x = src;
+      for (typename DynList<GT_Node *>::Iterator it(path); it.has_curr();
+           it.next_ne())
+        {
+          auto y = it.get_curr_ne();
+          this->insert_arc(x, y);
+          x = y;
+        }
+    }
+
     void make_eulerian() override
     {
       GT_Node *src = nullptr;
@@ -1265,9 +1502,8 @@ namespace Aleph
             }
           while (src == tgt);
 
-          const bool joined = join(src, tgt) or join_any_unbalanced_nodes();
-          ah_domain_error_if(not joined)
-            << "The digraph cannot be made Eulerian by adding arcs to it";
+          if (not (join(src, tgt) or join_any_unbalanced_nodes()))
+            join_through_a_path(src);
         }
     }
 

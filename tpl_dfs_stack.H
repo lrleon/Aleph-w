@@ -45,11 +45,65 @@
 # define TPL_DFS_STACK_H
 
 # include <algorithm>
+# include <concepts>
 # include <cstddef>
 # include <memory>
 # include <new>
+# include <optional>
 # include <type_traits>
 # include <utility>
+
+# if defined(__GLIBC__)
+#   include <unistd.h>
+# endif
+
+/** @def ALEPH_FLATTEN
+    @brief `[[gnu::flatten]]`, or nothing where it would only make the
+    compilation slower.
+
+    The depth-first searches put it, with `[[gnu::always_inline]]`, on the
+    functions that they call for each node or arc, so that the compiler
+    inlines into them all that they call: GCC would leave out of line the
+    iterators and the stack, which then cost more than a recursion. It
+    makes the compilation take more time and memory, for nothing in a
+    build that does not inline or that has sanitizers, so that it is empty:
+
+    - with `ALEPH_NO_FLATTEN` defined, as the build defines it with
+      `ALEPH_USE_SANITIZERS`, for UndefinedBehaviorSanitizer, which defines
+      no macro;
+    - under AddressSanitizer or ThreadSanitizer;
+    - with `__NO_INLINE__`, as with `-O0`.
+
+    @ingroup Graphs
+*/
+# if defined(ALEPH_NO_FLATTEN) || defined(__SANITIZE_ADDRESS__) \
+     || defined(__SANITIZE_THREAD__) || defined(__NO_INLINE__)
+#   define ALEPH_FLATTEN
+# elif defined(__has_feature)
+#   if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer)
+#     define ALEPH_FLATTEN
+#   else
+#     define ALEPH_FLATTEN [[gnu::flatten]]
+#   endif
+# else
+#   define ALEPH_FLATTEN [[gnu::flatten]]
+# endif
+
+// Under AddressSanitizer with ALEPH_ANNOTATE_CONTAINERS, which every
+// translation unit of the program must agree on, as for MemArray, the part
+// of the room of a stack that holds no frame cannot be reached
+# if defined(ALEPH_ANNOTATE_CONTAINERS)
+#   if defined(__SANITIZE_ADDRESS__)
+#     define ALEPH_DFS_STACK_POISON 1
+#   elif defined(__has_feature)
+#     if __has_feature(address_sanitizer)
+#       define ALEPH_DFS_STACK_POISON 1
+#     endif
+#   endif
+# endif
+# ifdef ALEPH_DFS_STACK_POISON
+#   include <sanitizer/asan_interface.h>
+# endif
 
 namespace Aleph
 {
@@ -57,6 +111,42 @@ namespace Aleph
   {
     // The largest room that a thread keeps
     inline constexpr size_t Kept_Bytes = 1024 * 1024;
+
+    // Whether the part of a room that holds no frame is poisoned
+# ifdef ALEPH_DFS_STACK_POISON
+    inline constexpr bool Poisoned = true;
+# else
+    inline constexpr bool Poisoned = false;
+# endif
+
+    // Under ALEPH_DFS_STACK_POISON, makes the bytes from p unreachable, so
+    // that AddressSanitizer reports the use of a frame that was popped, or
+    // of the room of a stack that is gone, which its thread keeps
+    inline void poison([[maybe_unused]] const void *p,
+                       [[maybe_unused]] size_t bytes) noexcept
+    {
+# ifdef ALEPH_DFS_STACK_POISON
+      ASAN_POISON_MEMORY_REGION(p, bytes);
+# endif
+    }
+
+    // Makes the bytes from p reachable again
+    inline void unpoison([[maybe_unused]] const void *p,
+                         [[maybe_unused]] size_t bytes) noexcept
+    {
+# ifdef ALEPH_DFS_STACK_POISON
+      ASAN_UNPOISON_MEMORY_REGION(p, bytes);
+# endif
+    }
+
+    // Frees a room, which may be poisoned, of the given bytes, or nothing
+    inline void free_room(void *r, [[maybe_unused]] size_t bytes) noexcept
+    {
+      if constexpr (Poisoned)
+        if (r != nullptr)
+          unpoison(r, bytes);
+      ::operator delete(r);
+    }
 
     /// Room of a destroyed stack, kept for the next stack of the thread
     struct Room
@@ -74,15 +164,29 @@ namespace Aleph
       return room;
     }
 
-    // A variable of each thread; its address in the thread that runs
-    // main(), taken before main() starts, tells which thread that is
-    inline thread_local constinit char thread_mark = 0;
-    inline char * const main_thread_mark = &thread_mark;
+    // Whether this thread is the one that runs main(): with glibc, the one
+    // whose id is that of the process. It is asked, and not taken from a
+    // mark before main() starts, which a library that another thread loads
+    // with dlopen() would take in that thread, and which costs an
+    // initializer in each unit. Elsewhere, no thread is taken for it.
+    inline bool in_main_thread() noexcept
+    {
+# if defined(__GLIBC__)
+#   if __GLIBC_PREREQ(2, 30)
+      return ::gettid() == ::getpid();
+#   else
+      return false;
+#   endif
+# else
+      return false;
+# endif
+    }
 
     /// Opens the room of the thread, and frees it when the thread ends, but
-    /// for main(): then the process ends, which frees it. Freeing a room of
-    /// 64 KiB or more makes glibc merge the small free blocks, which at the
-    /// end of the process are often many.
+    /// for the thread of main() with glibc: then the process ends, which
+    /// frees it, and freeing a room of 64 KiB or more would make glibc merge
+    /// the small free blocks, which at the end of the process are often
+    /// many.
     struct Room_Keeper
     {
       Room_Keeper() noexcept { kept_room().open = true; }
@@ -91,10 +195,10 @@ namespace Aleph
       {
         Room &room = kept_room();
         room.open = false;
-        if (&thread_mark == main_thread_mark)
+        if (in_main_thread())
           return; // the room stays reachable, so that it is not a leak
 
-        ::operator delete(room.base);
+        free_room(room.base, room.bytes);
         room = Room();
       }
     };
@@ -115,13 +219,20 @@ namespace Aleph
       frame is moved only when the stack grows. A reference to a frame
       stays valid until the stack grows.
 
-      When the stack is destroyed, its room, up to 1 MiB, is kept for the
-      next stack of the thread, so that a search that follows allocates
-      nothing; a stack that never needs room costs nothing. An allocation of
-      1 KiB or more also makes glibc merge its small free blocks, which then
-      slows down those of the graph algorithms: the first room is smaller,
-      so that a search that does not go deep does not cause it; the second
-      has 256 frames.
+      When the stack is destroyed or released, its room, up to 1 MiB, is
+      kept for the next stack of the thread, so that a search that follows
+      allocates nothing; the room that it took from the thread goes back to
+      the thread when the stack outgrows it, so that a search that goes
+      beyond 1 MiB does not leave the thread without room. A stack that
+      never needs room costs nothing. An allocation of 1 KiB or more also
+      makes glibc merge its small free blocks, which then slows down those
+      of the graph algorithms: the first room is smaller, so that a search
+      that does not go deep does not cause it; the second has 256 frames.
+
+      Under AddressSanitizer, with ALEPH_ANNOTATE_CONTAINERS defined for the
+      whole program, as MemArray asks, the part of the room that holds no
+      frame cannot be reached: the use of a frame that was popped, or of the
+      room of a stack that is gone, is reported.
 
       @tparam T Type of the frames.
       @ingroup Graphs
@@ -155,14 +266,32 @@ namespace Aleph
       limit = base + bytes / sizeof(T);
     }
 
+    // Gives the room, whose frames are gone, to the thread, which keeps it,
+    // poisoned, in the place of the one that it kept, if it fits in
+    // Kept_Bytes and is larger; else frees it. The room is read after the
+    // room of the thread, which code built for a shared library gets
+    // through a call: else it would be held across that call, in registers
+    // that the loop of the search would then lack.
+    void give_room_back() noexcept
+    {
+      dfs_stack_detail::Room &kept = dfs_stack_detail::kept_room();
+      if (kept.open and room_bytes <= dfs_stack_detail::Kept_Bytes
+          and room_bytes > kept.bytes)
+        {
+          dfs_stack_detail::free_room(kept.base, kept.bytes);
+          dfs_stack_detail::poison(room, room_bytes);
+          kept.base = room;
+          kept.bytes = room_bytes;
+        }
+      else
+        dfs_stack_detail::free_room(room, room_bytes);
+    }
+
     // Gives the stack room for more frames: that which the thread kept, if
-    // the stack has none, or else a room four times as large, and of
-    // Second_Capacity frames at least, so that a search that goes deep
-    // moves a third of the frames that doubling would, to which it moves
-    // the frames. If it throws, the new room goes back and the stack is as
-    // it was, unless a frame that cannot be copied threw while it was
-    // moved: those moved before it are left moved from. Out of line, so
-    // that push() stays small.
+    // the stack has none, or else, through enlarge(), a larger one. Out of
+    // line, so that push() stays small, and apart from enlarge(), so that
+    // the search that takes the room of the thread, as most do, does not
+    // pay the registers that enlarge() saves.
     [[gnu::noinline]] void grow()
     {
       if (room == nullptr)
@@ -170,40 +299,88 @@ namespace Aleph
           dfs_stack_detail::Room &kept = dfs_stack_detail::open_room();
           if (kept.bytes >= sizeof(T))
             {
-              set_room(kept.base, kept.bytes);
+              set_room(kept.base, kept.bytes); // poisoned, as kept
               kept.base = nullptr;
               kept.bytes = 0;
               return;
             }
         }
+      enlarge();
+    }
 
+    // Moves the frames to a room four times as large, and of
+    // Second_Capacity frames at least, so that a search that goes deep
+    // moves a third of the frames that doubling would. The room that it
+    // leaves goes to the thread if the thread keeps none, as when the stack
+    // took it from the thread, so that a search that outgrows it does not
+    // leave the thread without room; else it is freed at once, which leaves
+    // no free block in the middle of the heap for the small allocations
+    // that follow to be carved from. A member that told which room was the
+    // thread's would cost up to 12 % with GCC, which would no longer hold
+    // the stack in registers in the loop of a search. If it throws, the new
+    // room goes back and the stack is as it was, unless a frame that cannot
+    // be copied threw while it was moved: those moved before it are left
+    // moved from.
+    [[gnu::noinline]] void enlarge()
+    {
       const size_t n = size();
       const size_t frames =
         n == 0 ? Initial_Capacity : std::max(4 * n, Second_Capacity);
       const size_t new_bytes = frames * sizeof(T);
       void *new_room = ::operator new(new_bytes);
       T *new_base = static_cast<T *>(new_room);
+      dfs_stack_detail::poison(new_base + n, new_bytes - n * sizeof(T));
       if constexpr (std::is_nothrow_move_constructible_v<T>)
         std::uninitialized_move(base, top_ptr, new_base);
       else
         {
           try
             {
+              // from const frames, which a constructor that forwards
+              // what it takes cannot take for itself
               if constexpr (std::is_copy_constructible_v<T>)
-                std::uninitialized_copy(base, top_ptr, new_base);
+                std::uninitialized_copy(static_cast<const T *>(base),
+                                        static_cast<const T *>(top_ptr), new_base);
               else // the frames that were moved are left moved from
                 std::uninitialized_move(base, top_ptr, new_base);
             }
           catch (...)
             {
-              ::operator delete(new_room);
+              dfs_stack_detail::free_room(new_room, new_bytes);
               throw;
             }
         }
       std::destroy(base, top_ptr);
-      ::operator delete(room);
+      if (dfs_stack_detail::kept_room().bytes == 0)
+        give_room_back();
+      else
+        dfs_stack_detail::free_room(room, room_bytes);
       set_room(new_room, new_bytes);
       top_ptr = new_base + n;
+    }
+
+    // push() under ALEPH_DFS_STACK_POISON, once the stack has room: the
+    // frame becomes reachable, and unreachable again if building it throws
+    template <class... Args>
+    [[gnu::always_inline]] T &push_in_poisoned_room(Args &&... args)
+    {
+      void *place = top_ptr;
+      dfs_stack_detail::unpoison(place, sizeof(T));
+      T *frame;
+      if constexpr (std::is_nothrow_constructible_v<T, Args &&...>)
+        frame = ::new (place) T(std::forward<Args>(args)...);
+      else
+        try
+          {
+            frame = ::new (place) T(std::forward<Args>(args)...);
+          }
+        catch (...)
+          {
+            dfs_stack_detail::poison(place, sizeof(T));
+            throw;
+          }
+      ++top_ptr;
+      return *frame;
     }
 
   public:
@@ -240,16 +417,7 @@ namespace Aleph
         return;
 
       clear();
-      dfs_stack_detail::Room &kept = dfs_stack_detail::kept_room();
-      if (kept.open and room_bytes <= dfs_stack_detail::Kept_Bytes
-          and room_bytes > kept.bytes)
-        {
-          ::operator delete(kept.base);
-          kept.base = room;
-          kept.bytes = room_bytes;
-        }
-      else
-        ::operator delete(room);
+      give_room_back();
     }
 
     /** @brief Builds a frame on top of the stack.
@@ -267,9 +435,14 @@ namespace Aleph
     {
       if (top_ptr == limit) [[unlikely]]
         grow();
-      T *frame = ::new (static_cast<void *>(top_ptr)) T(std::forward<Args>(args)...);
-      ++top_ptr;
-      return *frame;
+      if constexpr (dfs_stack_detail::Poisoned)
+        return push_in_poisoned_room(std::forward<Args>(args)...);
+      else
+        {
+          T *frame = ::new (static_cast<void *>(top_ptr)) T(std::forward<Args>(args)...);
+          ++top_ptr;
+          return *frame;
+        }
     }
 
     /// Destroys the top frame; the stack must not be empty
@@ -277,6 +450,8 @@ namespace Aleph
     {
       --top_ptr;
       std::destroy_at(top_ptr);
+      if constexpr (dfs_stack_detail::Poisoned)
+        dfs_stack_detail::poison(top_ptr, sizeof(T));
     }
 
     /// The top frame; the stack must not be empty
@@ -288,11 +463,34 @@ namespace Aleph
     /// The number of frames
     [[nodiscard]] size_t size() const noexcept { return size_t(top_ptr - base); }
 
+    /// The number of frames that fit in the room of the stack, 0 while it
+    /// has none
+    [[nodiscard]] size_t capacity() const noexcept { return size_t(limit - base); }
+
     /// Destroys all the frames, and keeps the room
     void clear() noexcept
     {
       std::destroy(base, top_ptr);
+      if constexpr (dfs_stack_detail::Poisoned)
+        dfs_stack_detail::poison(base, size() * sizeof(T));
       top_ptr = base;
+    }
+
+    /** @brief Destroys all the frames, and gives the room back.
+
+        The thread keeps the room, as when the stack is destroyed, if it
+        fits in 1 MiB and is larger than the one kept; else it is freed.
+        The stack is left without room, which it takes again, from the
+        thread if it can, when a frame is pushed.
+    */
+    void release() noexcept
+    {
+      if (room == nullptr)
+        return;
+
+      clear();
+      give_room_back();
+      set_room(nullptr, 0);
     }
   };
 
@@ -315,13 +513,16 @@ namespace Aleph
 
     It it; ///< The arcs of the node, on the next one to look at
 
-    /// Builds the iterator with args; inlined, with all it calls
+    /// Builds the iterator with args, if they build one, so that a frame
+    /// is copied by the copy constructor; inlined, with all it calls
     template <class... Args>
-    [[gnu::always_inline, gnu::flatten]]
+      requires std::constructible_from<It, Args &&...>
+    [[gnu::always_inline]] ALEPH_FLATTEN
     explicit Dfs_Arc_Frame(Args &&... args) : it(std::forward<Args>(args)...) {}
 
     /// Moves to the next arc; inlined, with all it calls
-    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
     /** @brief Moves the iterator to the next arc to follow, and gives its
         target.
@@ -336,8 +537,8 @@ namespace Aleph
         when the arcs are done.
     */
     template <int Bit, bool Marked_Too = false>
-    [[gnu::always_inline, gnu::flatten]]
-    Node * next_target(Node * goal = nullptr) noexcept
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    Node * next_target(Node * goal = nullptr) noexcept(noexcept(it.next_ne()))
     {
       // the control bits, as the macros of aleph-graph.H give them: this
       // header does not include it, so that the trees can take the stack
@@ -357,6 +558,95 @@ namespace Aleph
       return nullptr;
     }
   };
+
+  /** @brief The variable that holds the frame of the node that a
+      depth-first search visits.
+
+      A search that does not recurse keeps the frame of the node that it
+      visits in a local variable until that node visits another; then the
+      frame waits in a Dfs_Stack, and the variable takes the frame of the
+      next node. A frame that keeps an arc filter, in its iterator, can be
+      assigned only if the filter can, which ArcFilter does not ask: a
+      lambda that captures, or a filter with a reference or a const member,
+      cannot. So the variable is the frame itself, which dfs_replace()
+      assigns, as the searches did, if the frames can be assigned, and else
+      an optional frame, which dfs_replace() builds again in its place.
+      dfs_here() builds it, and dfs_frame() gives the frame that it holds.
+
+      @tparam T Type of the frames.
+      @ingroup Graphs
+  */
+  template <class T>
+  using Dfs_Here = std::conditional_t<std::is_move_assignable_v<T>, T, std::optional<T>>;
+
+  /** @brief Builds the variable of the frame of a search, with the frame
+      built with args.
+
+      @tparam T Type of the frames.
+      @param args Arguments for the constructor of the frame.
+      @return A Dfs_Here<T> with the frame.
+      @ingroup Graphs
+  */
+  template <class T, class... Args>
+  [[gnu::always_inline]] inline Dfs_Here<T> dfs_here(Args &&... args)
+  {
+    if constexpr (std::is_move_assignable_v<T>)
+      return T(std::forward<Args>(args)...);
+    else
+      return Dfs_Here<T>(std::in_place, std::forward<Args>(args)...);
+  }
+
+  /** @brief The frame that a Dfs_Here holds.
+
+      @param here The frame, if frames can be assigned.
+      @return here.
+      @ingroup Graphs
+  */
+  template <class T>
+  [[gnu::always_inline]] inline T & dfs_frame(T & here) noexcept { return here; }
+
+  /** @brief The frame that a Dfs_Here holds.
+
+      @param here The optional frame, if frames cannot be assigned; it
+      must hold one.
+      @return The frame that here holds.
+      @ingroup Graphs
+  */
+  template <class T>
+  [[gnu::always_inline]] inline T & dfs_frame(std::optional<T> & here) noexcept
+  {
+    return *here;
+  }
+
+  /** @brief Replaces the frame that a Dfs_Here holds with one built with
+      args, by assignment.
+
+      @param here The frame, if frames can be assigned.
+      @param args Arguments for the constructor of the frame.
+      @throw anything that the constructor or the assignment of the frame
+      throws; then here keeps its frame.
+      @ingroup Graphs
+  */
+  template <class T, class... Args>
+  [[gnu::always_inline]] inline void dfs_replace(T & here, Args &&... args)
+  {
+    here = T(std::forward<Args>(args)...);
+  }
+
+  /** @brief Replaces the frame that a Dfs_Here holds with one built in its
+      place with args.
+
+      @param here The optional frame, if frames cannot be assigned.
+      @param args Arguments for the constructor of the frame.
+      @throw anything that the constructor of the frame throws; then here
+      holds no frame.
+      @ingroup Graphs
+  */
+  template <class T, class... Args>
+  [[gnu::always_inline]] inline void dfs_replace(std::optional<T> & here, Args &&... args)
+  {
+    here.emplace(std::forward<Args>(args)...);
+  }
 
   /** @brief The current item of an iterator that has one.
 

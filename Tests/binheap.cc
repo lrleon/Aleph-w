@@ -361,21 +361,22 @@ namespace
 
   using Failing_Dyn_Heap = DynBinHeap<Counted, Failing_Counted_Less>;
 
-  // Inserts the values in a heap with a comparison that fails at its call
-  // fail_at, copies the heap, updates, removes and erases elements, and
-  // extracts the rest. If the comparison throws, the heap must still hold
+  // Inserts the values in heap, whose comparison fails at some call, copies
+  // the heap, updates, removes and erases elements, and extracts the rest.
+  // If the comparison throws, then after disarm() the heap must still hold
   // as many elements as it says.
-  void use_dyn_heap(const std::vector<int> & values, long & calls,
-                    long fail_at)
+  template <class Heap, class Disarm>
+  void use_dyn_heap(Heap & heap, const std::vector<int> & values,
+                    Disarm disarm)
   {
-    Failing_Dyn_Heap heap(Failing_Counted_Less{{&calls, fail_at}});
+    using Item = typename Heap::Item_Type;
     try
       {
-        std::vector<Counted *> items;
+        std::vector<Item *> items;
         for (const int v : values)
-          items.push_back(&heap.insert(Counted(v)));
+          items.push_back(&heap.insert(Item(v)));
 
-        Failing_Dyn_Heap copy(heap);
+        Heap copy(heap);
         copy = heap;
 
         heap.update(*items[2]); // its key is unchanged
@@ -386,7 +387,7 @@ namespace
       }
     catch (...)
       {
-        heap.key_comp().less.fail_at = 0;
+        disarm();
         const size_t size = heap.size();
         size_t extracted = 0;
         for (; not heap.is_empty(); ++extracted)
@@ -394,6 +395,14 @@ namespace
         EXPECT_EQ(extracted, size);
         throw;
       }
+  }
+
+  // With a comparison that fails at its call fail_at
+  void use_dyn_heap(const std::vector<int> & values, long & calls,
+                    long fail_at)
+  {
+    Failing_Dyn_Heap heap(Failing_Counted_Less{{&calls, fail_at}});
+    use_dyn_heap(heap, values, [&heap] { heap.key_comp().less.fail_at = 0; });
   }
 } // namespace
 
@@ -431,6 +440,82 @@ static_assert(not noexcept(std::declval<Failing_Dyn_Heap &>()
                            .remove(std::declval<Counted &>())));
 static_assert(not noexcept(std::declval<Failing_Dyn_Heap &>()
                            .erase(std::declval<Counted &>())));
+
+// The insertions allocate the node, so they never were noexcept
+static_assert(not noexcept(std::declval<DynBinHeap<int> &>()
+                           .insert(std::declval<const int &>())));
+static_assert(not noexcept(std::declval<DynBinHeap<int> &>()
+                           .put(std::declval<const int &>())));
+static_assert(not noexcept(std::declval<DynBinHeap<int> &>()
+                           .append(std::declval<const int &>())));
+
+namespace
+{
+  // A Counted whose < fails as Failing_Less does, and does not say
+  // noexcept; a heap compares it with its default comparison, Aleph::less
+  struct Failing_Key : Counted
+  {
+    using Counted::Counted;
+
+    static inline Failing_Less less;
+
+    bool operator<(const Failing_Key & other) const
+    {
+      return less(value, other.value);
+    }
+  };
+
+  using Failing_Key_Heap = DynBinHeap<Failing_Key>;
+
+  // With keys whose < fails at its call fail_at
+  void use_key_heap(const std::vector<int> & values, long & calls,
+                    long fail_at)
+  {
+    struct Reset
+    {
+      ~Reset() { Failing_Key::less = Failing_Less{}; }
+    } reset;
+    Failing_Key::less = Failing_Less{&calls, fail_at};
+    Failing_Key_Heap heap;
+    use_dyn_heap(heap, values, [] { Failing_Key::less.fail_at = 0; });
+  }
+} // namespace
+
+// Aleph::less is noexcept as the < of its type, and so are the operations
+// of a heap that compares with it. Counted has no <, and its heap, which
+// compares with another functor, can still be copied: overload resolution
+// names DynBinHeap<Counted>, whose Aleph::less must give no error then
+static_assert(std::is_copy_constructible_v<Failing_Dyn_Heap>);
+static_assert(noexcept(Aleph::less<int>()(0, 0)));
+static_assert(not noexcept(Aleph::less<Failing_Key>()(
+                std::declval<const Failing_Key &>(),
+                std::declval<const Failing_Key &>())));
+static_assert(not noexcept(std::declval<Failing_Key_Heap &>()
+                           .update(std::declval<Failing_Key &>())));
+static_assert(not noexcept(std::declval<Failing_Key_Heap &>()
+                           .remove(std::declval<Failing_Key &>())));
+static_assert(not noexcept(std::declval<Failing_Key_Heap &>()
+                           .erase(std::declval<Failing_Key &>())));
+
+// Aleph::less was noexcept whatever the < of its type, so a heap that
+// compared with it ended the program when that < threw
+TEST(DynBinHeapComparison, WhatTheLessThanOfTheKeysThrowsReachesTheCaller)
+{
+  const std::vector<int> values = {7, 3, 11, 0, 5, 9, 1, 8};
+  const long alive = Counted::alive;
+  long calls = 0;
+  use_key_heap(values, calls, 0);
+  ASSERT_EQ(Counted::alive, alive);
+  ASSERT_GT(calls, 0);
+
+  for (long k = 1; k <= calls; ++k)
+    {
+      long count = 0;
+      EXPECT_THROW(use_key_heap(values, count, k), std::runtime_error)
+        << "call " << k;
+      EXPECT_EQ(Counted::alive, alive) << "call " << k;
+    }
+}
 
 namespace
 {

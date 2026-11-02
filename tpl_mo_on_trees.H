@@ -208,6 +208,9 @@ namespace Aleph
     void build()
     {
       n_ = g_.vsize();
+      // An empty graph has no node, and so only the null root
+      ah_domain_error_if(n_ == 0 and root_ != nullptr)
+        << "Gen_Mo_On_Trees: root node not found in graph";
       if (n_ == 0)
         return;
 
@@ -439,7 +442,8 @@ namespace Aleph
      *  @param root Root node used to orient parent/child relations.
      *  @param p Policy object copied/moved into the query engine.
      *
-     *  @throws std::domain_error If `root` is not found in `g`.
+     *  @throws std::domain_error If `root` is not found in `g`; an empty
+     *          `g` takes only the null root, and gives an empty engine.
      *  @throws std::domain_error If `g` is disconnected (not a valid tree
      *          under the chosen root).
      *  @throws std::bad_alloc If auxiliary arrays/tables cannot be allocated.

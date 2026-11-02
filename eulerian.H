@@ -117,6 +117,74 @@ enum class Eulerian_Type
   None    ///< Graph is not Eulerian
 };
 
+namespace eulerian_detail
+{
+  /** @brief Degree of a node as an Eulerian walk counts it.
+
+      The degree of p by the arcs that sa shows: in a graph, a loop,
+      which is once in the list of its node, adds 2; in a digraph, whose
+      lists hold the arcs out, it is the degree out, where a loop adds 1.
+   */
+  template <class GT, class SA>
+  size_t degree(const GT & g, typename GT::Node * p, SA & sa)
+  {
+    size_t d = 0;
+    for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+      d += (not g.is_digraph() and it.get_tgt_node_ne() == p) ? 2 : 1;
+    return d;
+  }
+
+  /** @brief Whether the arcs that sa shows are all in one component.
+
+      Their ends join the components, in either direction, which is what
+      an Eulerian walk needs besides the degrees; the nodes without arcs
+      do not count, and a graph without arcs has them all together. The
+      cookies of the nodes hold a union-find, and are left null.
+   */
+  template <class GT, class SA>
+  bool arcs_are_together(const GT & g, SA & sa)
+  {
+    using Node = typename GT::Node;
+    for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
+      NODE_COOKIE(it.get_curr()) = it.get_curr();
+
+    auto root = [] (Node * x) noexcept
+      {
+        Node * r = x;
+        while (NODE_COOKIE(r) != r)
+          r = static_cast<Node *>(NODE_COOKIE(r));
+        while (x != r) // path compression
+          {
+            Node * next = static_cast<Node *>(NODE_COOKIE(x));
+            NODE_COOKIE(x) = r;
+            x = next;
+          }
+        return r;
+      };
+
+    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+      {
+        Node * a = root(g.get_src_node(it.get_curr_ne()));
+        Node * b = root(g.get_tgt_node(it.get_curr_ne()));
+        if (a != b)
+          NODE_COOKIE(a) = b;
+      }
+
+    bool together = true;
+    Node * component = nullptr;
+    for (Arc_Iterator<GT, SA> it(g, sa); together and it.has_curr(); it.next_ne())
+      {
+        Node * r = root(g.get_src_node(it.get_curr_ne()));
+        if (component == nullptr)
+          component = r;
+        together = r == component;
+      }
+
+    g.reset_cookie_nodes();
+    return together;
+  }
+} // namespace eulerian_detail
+
 /**
  * @brief Tests whether a graph or digraph is Eulerian.
  *
@@ -175,133 +243,9 @@ class Test_Eulerian
   Kept_Filter<SA> sa;
 
   /**
-   * @brief Check connectivity of undirected graph using DFS.
-   *
-   * Only considers vertices with degree > 0 (isolated vertices don't
-   * affect Eulerian properties).
-   *
-   * @param g The undirected graph
-   * @return true if all non-isolated vertices are connected
-   */
-  bool is_connected(GT & g)
-  {
-    if (g.get_num_nodes() == 0)
-      return true;
-
-    // Find first vertex with edges
-    typename GT::Node * start = nullptr;
-    size_t non_isolated = 0;
-
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      {
-        typename GT::Node * p = it.get_curr();
-        if (g.get_num_arcs(p) > 0)
-          {
-            if (start == nullptr)
-              start = p;
-            ++non_isolated;
-          }
-      }
-
-    // No edges means trivially connected (or empty)
-    if (start == nullptr)
-      return true;
-
-    // DFS from start vertex
-    g.reset_nodes();
-    size_t visited = 0;
-
-    DynList<typename GT::Node*> stack;
-    stack.insert(start);
-    NODE_BITS(start).set_bit(Depth_First, true);
-
-    while (not stack.is_empty())
-      {
-        typename GT::Node * curr = stack.remove_first();
-        ++visited;
-
-        for (Node_Arc_Iterator<GT, SA> it(curr, sa); it.has_curr(); it.next_ne())
-          {
-            typename GT::Node * adj = it.get_tgt_node_ne();
-            if (not NODE_BITS(adj).get_bit(Depth_First))
-              {
-                NODE_BITS(adj).set_bit(Depth_First, true);
-                stack.insert(adj);
-              }
-          }
-      }
-
-    return visited == non_isolated;
-  }
-
-  /**
-   * @brief Check strong connectivity of digraph using Kosaraju-like approach.
-   *
-   * For Eulerian cycle in digraph, we need strong connectivity among
-   * vertices with edges.
-   *
-   * @param g The directed graph
-   * @return true if all non-isolated vertices are strongly connected
-   */
-  bool is_strongly_connected(GT & g)
-  {
-    if (g.get_num_nodes() == 0)
-      return true;
-
-    // Find first vertex with edges
-    typename GT::Node * start = nullptr;
-    size_t non_isolated = 0;
-
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      {
-        typename GT::Node * p = it.get_curr();
-        if (g.get_num_arcs(p) > 0 or NODE_COUNTER(p) > 0)  // has out or in edges
-          {
-            if (start == nullptr)
-              start = p;
-            ++non_isolated;
-          }
-      }
-
-    if (start == nullptr || non_isolated <= 1)
-      return true;
-
-    // DFS from start in original direction
-    g.reset_nodes();
-    size_t visited_forward = 0;
-
-    DynList<typename GT::Node*> stack;
-    stack.insert(start);
-    NODE_BITS(start).set_bit(Depth_First, true);
-
-    while (not stack.is_empty())
-      {
-        typename GT::Node * curr = stack.remove_first();
-        if (g.get_num_arcs(curr) > 0 or NODE_COUNTER(curr) > 0)
-          ++visited_forward;
-
-        for (Node_Arc_Iterator<GT, SA> it(curr, sa); it.has_curr(); it.next_ne())
-          {
-            typename GT::Node * adj = it.get_tgt_node_ne();
-            if (not NODE_BITS(adj).get_bit(Depth_First))
-              {
-                NODE_BITS(adj).set_bit(Depth_First, true);
-                stack.insert(adj);
-              }
-          }
-      }
-
-    if (visited_forward != non_isolated)
-      return false;
-
-    // For full strong connectivity check, we'd need reverse graph traversal
-    // For Eulerian purposes, if in-degree == out-degree and forward DFS
-    // reaches all vertices, that's sufficient for practical purposes
-    return true;
-  }
-
-  /**
    * @brief Analyze Eulerian properties of an undirected graph.
+   *
+   * The degrees count a loop twice; the arcs must be together.
    *
    * @param g The undirected graph to test
    * @return Eulerian_Type classification
@@ -311,39 +255,23 @@ class Test_Eulerian
     assert(not g.is_digraph());
 
     size_t odd_degree_count = 0;
-
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      {
-        if ((g.get_num_arcs(it.get_curr()) % 2) == 1)
-          ++odd_degree_count;
-      }
+      odd_degree_count += eulerian_detail::degree(g, it.get_curr(), sa.get()) % 2;
 
-    // Check degree conditions first
-    if (odd_degree_count == 0)
-      {
-        // All even degrees - could be Eulerian cycle if connected
-        if (is_connected(g))
-          return Eulerian_Type::Cycle;
-        else
-          return Eulerian_Type::None;
-      }
-    else if (odd_degree_count == 2)
-      {
-        // Exactly 2 odd degrees - could be Eulerian path if connected
-        if (is_connected(g))
-          return Eulerian_Type::Path;
-        else
-          return Eulerian_Type::None;
-      }
-    else
-      {
-        // More than 2 odd degrees - not Eulerian
-        return Eulerian_Type::None;
-      }
+    if (odd_degree_count != 0 and odd_degree_count != 2)
+      return Eulerian_Type::None; // more than 2 odd degrees: not Eulerian
+
+    if (not eulerian_detail::arcs_are_together(g, sa.get()))
+      return Eulerian_Type::None;
+
+    return odd_degree_count == 0 ? Eulerian_Type::Cycle : Eulerian_Type::Path;
   }
 
   /**
    * @brief Analyze Eulerian properties of a directed graph.
+   *
+   * With every node balanced, or all but a start and an end, the arcs
+   * must be together; balanced, they are then strongly connected.
    *
    * @param g The directed graph to test
    * @return Eulerian_Type classification
@@ -366,7 +294,7 @@ class Test_Eulerian
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
       {
         typename GT::Node * p = it.get_curr();
-        const long out_deg = g.get_num_arcs(p);
+        const long out_deg = long(eulerian_detail::degree(g, p, sa.get()));
         const long in_deg = NODE_COUNTER(p);
         const long diff = out_deg - in_deg;
 
@@ -380,28 +308,14 @@ class Test_Eulerian
           ++imbalanced;
       }
 
-    // Check degree conditions
-    if (imbalanced > 0)
+    const bool cycle = start_vertices == 0 and end_vertices == 0;
+    if (imbalanced > 0 or not (cycle or (start_vertices == 1 and end_vertices == 1)))
       return Eulerian_Type::None;
 
-    if (start_vertices == 0 && end_vertices == 0)
-      {
-        // All balanced - could be Eulerian cycle if strongly connected
-        if (is_strongly_connected(g))
-          return Eulerian_Type::Cycle;
-        else
-          return Eulerian_Type::None;
-      }
-    else if (start_vertices == 1 && end_vertices == 1)
-      {
-        // One start, one end - could be Eulerian path
-        // Connectivity check is simpler for path
-        return Eulerian_Type::Path;
-      }
-    else
-      {
-        return Eulerian_Type::None;
-      }
+    if (not eulerian_detail::arcs_are_together(g, sa.get()))
+      return Eulerian_Type::None;
+
+    return cycle ? Eulerian_Type::Cycle : Eulerian_Type::Path;
   }
 
 public:
@@ -500,7 +414,7 @@ public:
         for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
           {
             typename GT::Node * p = it.get_curr();
-            if (g.get_num_arcs(p) != NODE_COUNTER(p))
+            if (long(eulerian_detail::degree(g, p, sa.get())) != NODE_COUNTER(p))
               return false;
           }
         return true;
@@ -508,7 +422,7 @@ public:
     else
       {
         for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-          if ((g.get_num_arcs(it.get_curr()) % 2) == 1)
+          if (eulerian_detail::degree(g, it.get_curr(), sa.get()) % 2 == 1)
             return false;
         return true;
       }
@@ -589,11 +503,12 @@ class Find_Eulerian_Path
         for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
           {
             typename GT::Node * p = it.get_curr();
-            if (g.get_num_arcs(p) > 0)
+            const long out_deg = long(eulerian_detail::degree(g, p, sa.get()));
+            if (out_deg > 0)
               {
                 if (start == nullptr)
                   start = p;
-                if (g.get_num_arcs(p) > NODE_COUNTER(p))
+                if (out_deg > NODE_COUNTER(p))
                   odd_vertex = p;  // out > in: this is start of path
               }
           }
@@ -604,11 +519,12 @@ class Find_Eulerian_Path
         for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
           {
             typename GT::Node * p = it.get_curr();
-            if (g.get_num_arcs(p) > 0)
+            const size_t deg = eulerian_detail::degree(g, p, sa.get());
+            if (deg > 0)
               {
                 if (start == nullptr)
                   start = p;
-                if ((g.get_num_arcs(p) % 2) == 1)
+                if (deg % 2 == 1)
                   odd_vertex = p;
               }
           }
@@ -675,12 +591,9 @@ class Find_Eulerian_Path
           }
       }
 
-    // Reverse to get correct order
-    DynList<typename GT::Arc*> reversed;
-    while (not result.is_empty())
-      reversed.insert(result.remove_first());
-
-    return reversed;
+    // Each arc went to the front of result when its walk backtracked past
+    // it, the last of the walk first, so that result is in order
+    return result;
   }
 
   /**
@@ -737,12 +650,9 @@ class Find_Eulerian_Path
           }
       }
 
-    // Reverse to get correct order
-    DynList<typename GT::Arc*> reversed;
-    while (not result.is_empty())
-      reversed.insert(result.remove_first());
-
-    return reversed;
+    // Each arc went to the front of result when its walk backtracked past
+    // it, the last of the walk first, so that result is in order
+    return result;
   }
 
 public:
@@ -772,7 +682,8 @@ public:
    * @brief Find an Eulerian path or cycle in the graph.
    *
    * @param g The graph to search
-   * @return Result containing the path (if exists) and its type
+   * @return Result containing the path (if exists) and its type. Without
+   *         arcs, the type is Cycle and the path is empty.
    *
    * @par Example
    * @code
@@ -797,14 +708,12 @@ public:
     if (result.type == Eulerian_Type::None)
       return result;
 
-    // Find starting vertex
+    // Find starting vertex. There is none only if no arc is shown: then
+    // the empty walk is the Eulerian cycle, as Test_Eulerian says
     typename GT::Node * start = find_start_vertex(g, result.type);
 
     if (start == nullptr)
-      {
-        result.type = Eulerian_Type::None;
-        return result;
-      }
+      return result;
 
     // Run Hierholzer's algorithm
     if (g.is_digraph())

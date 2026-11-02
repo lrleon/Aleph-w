@@ -12,6 +12,9 @@
  */
 #include <gtest/gtest.h>
 
+#include <limits>
+#include <stdexcept>
+
 #include <Bellman_Ford.H>
 #include <tpl_graph.H>
 
@@ -1497,6 +1500,36 @@ TEST(BellmanFordTest, GetMinPathUsesTheDistanceItWasGiven) {
   EXPECT_EQ(bf.get_min_path(n2, path), 21);
   EXPECT_EQ(path.get_first_node(), n0);
   EXPECT_EQ(path.get_last_node(), n2);
+}
+
+// A negative loop that the start reaches only through a sum beyond max():
+// the searches from the start cannot see it, so that they throw, as the
+// paintings do
+TEST(BellmanFordTest, ANegativeCycleBeyondMaxThrowsFromTheStart) {
+  constexpr int M = std::numeric_limits<int>::max();
+  GT g;
+  Node* a = g.insert_node(0);
+  Node* b = g.insert_node(1);
+  Node* c = g.insert_node(2);
+  g.insert_arc(a, a, -1);
+  g.insert_arc(b, a, M - 5);
+  g.insert_arc(c, b, M / 2); // from c, a is at M / 2 + M - 5
+
+  EXPECT_THROW(Bellman_Ford<GT>(g).has_negative_cycle(c), std::overflow_error);
+  EXPECT_THROW(Bellman_Ford<GT>(g).test_negative_cycle(c), std::overflow_error);
+  Path<GT> cycle(g);
+  EXPECT_THROW(Bellman_Ford<GT>(g).test_negative_cycle(c, cycle), std::overflow_error);
+  EXPECT_THROW(Bellman_Ford<GT>(g).search_negative_cycle(c), std::overflow_error);
+  EXPECT_THROW(Bellman_Ford<GT>(g).search_negative_cycle(c, 0.5, 1), std::overflow_error);
+  EXPECT_THROW(Bellman_Ford<GT>(g).paint_spanning_tree(c), std::overflow_error);
+  EXPECT_THROW(Bellman_Ford<GT>(g).faster_paint_spanning_tree(c), std::overflow_error);
+
+  // From a start within the range, and without a start, the loop is found
+  EXPECT_TRUE(Bellman_Ford<GT>(g).has_negative_cycle(b));
+  EXPECT_FALSE(Bellman_Ford<GT>(g).test_negative_cycle(b).is_empty());
+  EXPECT_FALSE(Bellman_Ford<GT>(g).search_negative_cycle(b).is_empty());
+  EXPECT_TRUE(Bellman_Ford<GT>(g).has_negative_cycle());
+  EXPECT_FALSE(Bellman_Ford<GT>(g).search_negative_cycle().is_empty());
 }
 
 // ========== GoogleTest main ==========

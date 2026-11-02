@@ -392,7 +392,8 @@ TEST(FilterIteratorBidirectional, NextNeNoException) {
 
 // next_ne() goes where next() goes, without the checks of the moves of the
 // iterator over the list, which cannot fail once there is a current item;
-// what the filter throws, next() lets go and next_ne() does not
+// what the filter throws, both let go, and both stay on the item on which
+// it threw. next_ne() swallowed it, and a loop took that item as shown.
 TEST(FilterIteratorBidirectional, NextNeMovesAsNext)
 {
   struct Throws_On
@@ -424,20 +425,34 @@ TEST(FilterIteratorBidirectional, NextNeMovesAsNext)
       for (int step = 0; step <= n + 1; ++step)
         {
           SCOPED_TRACE(step);
+          bool checked_threw = false, ne_threw = false;
           try
             {
               checked.next();
             }
           catch (const std::runtime_error &)
             {
-              // the filter threw on the item where checked is
+              checked_threw = true;
             }
-          EXPECT_NO_THROW(ne.next_ne());
+          try
+            {
+              ne.next_ne();
+            }
+          catch (const std::runtime_error &)
+            {
+              ne_threw = true;
+            }
 
+          ASSERT_EQ(ne_threw, checked_threw);
           ASSERT_EQ(ne.has_curr(), checked.has_curr());
           if (checked.has_curr())
             {
               ASSERT_EQ(&ne.get_curr(), &checked.get_curr());
+            }
+          if (checked_threw)
+            { // on the item on which the filter threw
+              ASSERT_TRUE(checked.has_curr());
+              EXPECT_EQ(checked.get_curr(), filter.bad);
             }
         }
     }
@@ -924,6 +939,153 @@ TEST(FilterIteratorExceptionSafety, BackwardAtBeginning) {
 
   // Should not throw (underflow caught)
   EXPECT_NO_THROW(it.prev());
+}
+
+namespace
+{
+  // a filter that throws on the item bad what the base iterator throws at
+  // its ends, once armed
+  struct Throws_As_The_Ends
+  {
+    const bool * armed;
+    int bad;
+    bool under; // std::underflow_error, not std::overflow_error
+
+    bool operator()(const int x) const
+    {
+      if (*armed and x == bad)
+        {
+          if (under)
+            throw std::underflow_error("the filter underflows");
+          throw std::overflow_error("the filter overflows");
+        }
+      return true;
+    }
+  };
+
+  DL one_to(const int n)
+  {
+    DL list;
+    for (int i = 1; i <= n; ++i)
+      list.append(i);
+    return list;
+  }
+}
+
+// The iterator caught the std::overflow_error and std::underflow_error of
+// the filter, as it catches those of the base iterator at its ends, and
+// stayed on the item on which the filter threw, as if it showed it. They go
+// out of every member that calls the filter, and the iterator stays there.
+TEST(FilterIteratorExceptionSafety, WhatTheFilterThrowsGoesOut)
+{
+  using It = Filter_Iterator<DL, DL_It, Throws_As_The_Ends>;
+  for (const bool under : {false, true})
+    {
+      SCOPED_TRACE(under);
+      auto expect_throw = [under] (auto && step)
+        {
+          if (under)
+            EXPECT_THROW(step(), std::underflow_error);
+          else
+            EXPECT_THROW(step(), std::overflow_error);
+        };
+
+      bool armed = false;
+      const Throws_As_The_Ends on_three{&armed, 3, under};
+      DL list = one_to(5);
+
+      // forward, from 2 onto 3
+      It checked(list, on_three), ne(list, on_three);
+      checked.next();
+      ne.next_ne();
+      armed = true;
+      expect_throw([&] { checked.next(); });
+      expect_throw([&] { ne.next_ne(); });
+      for (It * it : {&checked, &ne})
+        {
+          ASSERT_TRUE(it->has_curr());
+          EXPECT_EQ(it->get_curr(), 3);
+        }
+
+      // backward, from 4 onto 3
+      armed = false;
+      It back(list, on_three), back_ne(list, on_three);
+      back.reset_last();
+      back.prev();
+      back_ne.reset_last();
+      back_ne.prev_ne();
+      armed = true;
+      expect_throw([&] { back.prev(); });
+      expect_throw([&] { back_ne.prev_ne(); });
+      for (It * it : {&back, &back_ne})
+        {
+          ASSERT_TRUE(it->has_curr());
+          EXPECT_EQ(it->get_curr(), 3);
+        }
+
+      // the constructors and the resets, onto 3 first or last
+      DL three_first = one_to(5), three_last = one_to(3);
+      three_first.remove_first();
+      three_first.remove_first();
+      expect_throw([&] { It it(three_first, on_three); });
+      armed = false;
+      It first(three_first, on_three), last(three_last, on_three);
+      armed = true;
+      expect_throw([&] { first.reset_first(); });
+      expect_throw([&] { last.reset_last(); });
+      ASSERT_TRUE(last.has_curr());
+      EXPECT_EQ(last.get_curr(), 3);
+    }
+}
+
+// What the base iterator throws at its ends stays caught: the moves past
+// them leave the iterator where it is
+TEST(FilterIteratorExceptionSafety, TheEndsOfTheBaseIteratorStayCaught)
+{
+  DL list = one_to(3);
+  Filter_Iterator<DL, DL_It, ShowAll> it(list);
+  it.reset_last();
+  it.next();
+  ASSERT_FALSE(it.has_curr());
+  EXPECT_NO_THROW(it.next());
+  EXPECT_NO_THROW(it.next_ne());
+  EXPECT_FALSE(it.has_curr());
+
+  it.reset_first();
+  it.prev();
+  ASSERT_FALSE(it.has_curr());
+  EXPECT_NO_THROW(it.prev());
+  EXPECT_NO_THROW(it.prev_ne());
+  EXPECT_FALSE(it.has_curr());
+}
+
+namespace
+{
+  struct Shows_All_Ne
+  {
+    bool operator()(int) const noexcept { return true; }
+  };
+}
+
+// next_ne() and prev_ne() are noexcept when the filter is
+TEST(FilterIteratorExceptionSafety, TheMovesNeAreNoexceptWhenTheFilterIs)
+{
+  using Ne = Filter_Iterator<DL, DL_It, Shows_All_Ne>;
+  using May_Throw = Filter_Iterator<DL, DL_It, ShowAll>;
+  using Array_Ne = Filter_Iterator<Array<int>, Array<int>::Iterator, Shows_All_Ne>;
+  using Array_May_Throw = Filter_Iterator<Array<int>, Array<int>::Iterator, ShowAll>;
+  static_assert(noexcept(std::declval<Ne &>().next_ne()));
+  static_assert(noexcept(std::declval<Ne &>().prev_ne()));
+  static_assert(noexcept(std::declval<Array_Ne &>().next_ne()));
+  static_assert(not noexcept(std::declval<May_Throw &>().next_ne()));
+  static_assert(not noexcept(std::declval<May_Throw &>().prev_ne()));
+  static_assert(not noexcept(std::declval<Array_May_Throw &>().next_ne()));
+
+  DL list = one_to(4);
+  size_t n = 0;
+  for (Ne it(list); it.has_curr(); it.next_ne())
+    ++n;
+  EXPECT_EQ(n, 4u);
 }
 
 // ========== GoogleTest main ==========

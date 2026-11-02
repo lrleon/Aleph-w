@@ -16,6 +16,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(__unix__) || defined(__APPLE__)
+#include <pthread.h>
+#endif
+
 #include <generate_df_tree.H>
 #include <tpl_cut_nodes.H>
 #include <tpl_graph_utils.H>
@@ -349,6 +353,81 @@ TEST(Df_Low_Tree, a_tree_of_any_depth_is_written)
       EXPECT_EQ(s.rfind("Root ", 0), 0u);
       EXPECT_EQ(nodes, n - 1);
     }
+}
+
+namespace
+{
+  // Runs f, which must not throw, in a thread with a stack of 256 KiB, which
+  // a recursion as deep as the trees of these tests are high overflows.
+  // Without POSIX threads, it runs f in this thread.
+  template <class F>
+  void run_with_small_stack(F f)
+  {
+#if defined(__unix__) || defined(__APPLE__)
+    pthread_attr_t attr;
+    ASSERT_EQ(pthread_attr_init(&attr), 0);
+    ASSERT_EQ(pthread_attr_setstacksize(&attr, 256 * 1024), 0);
+    auto start = [](void *arg) -> void *
+      {
+        (*static_cast<F *>(arg))();
+        return nullptr;
+      };
+    pthread_t thread;
+    const int created = pthread_create(&thread, &attr, start, &f);
+    pthread_attr_destroy(&attr);
+    ASSERT_EQ(created, 0);
+    ASSERT_EQ(pthread_join(thread, nullptr), 0);
+#else
+    f();
+#endif
+  }
+} // namespace
+
+// write_df_low_tree() gave the Dewey numbers with a recursion, one call
+// for each level, which did not fit in a small stack; it also kept the
+// number of every node, although only those of the ends of the other arcs
+// are written
+TEST(Df_Low_Tree, a_deep_tree_is_written_on_a_small_stack)
+{
+  constexpr size_t n = 3000;
+  Graph g; // a cycle of n nodes: a tree of n levels and an arc to the root
+  Node * first = g.insert_node(0);
+  Node * last = first;
+  for (size_t i = 1; i < n; ++i)
+    {
+      Node * p = g.insert_node(int(i));
+      g.insert_arc(last, p, 0);
+      last = p;
+    }
+  g.insert_arc(last, first, 0);
+
+  std::string s;
+  bool threw = false;
+  run_with_small_stack([&]
+    {
+      try
+        {
+          std::ostringstream out;
+          write_df_low_tree(g, first, out);
+          s = out.str();
+        }
+      catch (...)
+        {
+          threw = true;
+        }
+    });
+  ASSERT_FALSE(threw);
+
+  size_t nodes = 0;
+  for (size_t pos = s.find("Node "); pos != std::string::npos; pos = s.find("Node ", pos + 1))
+    ++nodes;
+  EXPECT_EQ(s.rfind("Root ", 0), 0u);
+  EXPECT_EQ(nodes, n - 1);
+
+  std::string deepest = "0"; // the Dewey number of the last node
+  for (size_t i = 1; i < n; ++i)
+    deepest += ".0";
+  EXPECT_NE(s.find("Dashed-Connexion " + deepest + " 0 "), std::string::npos);
 }
 
 // The df and low numbers give the same cut nodes and bridges as

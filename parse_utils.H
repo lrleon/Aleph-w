@@ -697,8 +697,8 @@ public:
  *  @throw ParseError if C is true
  */
 #define ah_parse_error_if(C)                                                                       \
-  for (bool AH_ERROR_ONCE = static_cast<bool>(C); AH_ERROR_ONCE; AH_ERROR_ONCE = false)            \
-    [[unlikely]] Aleph::ExceptionBuilder<Aleph::ParseError>() <<=                                  \
+  while ((C) ? true : false) AH_ERROR_UNLIKELY                                                     \
+    Aleph::ExceptionBuilder<Aleph::ParseError>() <<=                                               \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_parse_error_unless(C)
@@ -707,8 +707,8 @@ public:
  *  @throw ParseError if C is false
  */
 #define ah_parse_error_unless(C)                                                                   \
-  for (bool AH_ERROR_ONCE = not (C); AH_ERROR_ONCE; AH_ERROR_ONCE = false)                         \
-    [[unlikely]] Aleph::ExceptionBuilder<Aleph::ParseError>() <<=                                  \
+  while (not (C)) AH_ERROR_UNLIKELY                                                                \
+    Aleph::ExceptionBuilder<Aleph::ParseError>() <<=                                               \
       std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 // ============================================================================

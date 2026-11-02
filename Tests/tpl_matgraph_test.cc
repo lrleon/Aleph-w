@@ -38,7 +38,10 @@
 #include <gtest/gtest.h>
 #include <tpl_matgraph.H>
 #include <tpl_graph.H>
+#include <algorithm>
 #include <limits>
+#include <utility>
+#include <vector>
 
 using namespace Aleph;
 
@@ -473,6 +476,159 @@ TEST_F(AdyMatTest, OperateAllArcsMatrix)
 }
 
 // =============================================================================
+// Ady_Mat: the arcs that operate_all_arcs_list_graph() visits
+// =============================================================================
+
+namespace
+{
+  using Node_Pair = std::pair<IntGraph::Node *, IntGraph::Node *>;
+
+  // The ends of the entries that an operation touched, in order: the
+  // functor is built anew for each arc, so that it cannot keep them
+  std::vector<Node_Pair> touched_entries;
+
+  template <class Mat>
+  struct Note_Entry
+  {
+    void operator()(Mat & mat, typename Mat::Arc * a, long i, long j, int & e)
+    {
+      e = a->get_info();
+      touched_entries.emplace_back(mat(i), mat(j));
+    }
+
+    void operator()(Mat & mat, typename Mat::Arc * a, long i, long j, int & e,
+                    void *)
+    {
+      (*this)(mat, a, i, j, e);
+    }
+  };
+
+  // Hides the arcs whose info is hidden
+  struct Hide_Info_Of
+  {
+    int hidden = 0;
+    bool operator()(IntGraph::Arc * a) const { return a->get_info() != hidden; }
+  };
+
+  // The entries that each overload of operate_all_arcs_list_graph() touches,
+  // sorted: first without ptr, then with it
+  template <class Mat>
+  std::pair<std::vector<Node_Pair>, std::vector<Node_Pair>> entries_of(Mat & mat)
+  {
+    touched_entries.clear();
+    mat.template operate_all_arcs_list_graph<Note_Entry<Mat>>();
+    std::vector<Node_Pair> without_ptr = touched_entries;
+    touched_entries.clear();
+    mat.template operate_all_arcs_list_graph<Note_Entry<Mat>>(nullptr);
+    std::vector<Node_Pair> with_ptr = touched_entries;
+    std::sort(without_ptr.begin(), without_ptr.end());
+    std::sort(with_ptr.begin(), with_ptr.end());
+    return {without_ptr, with_ptr};
+  }
+
+  // The ends of the arcs of the triangle a, b, c, both ways, but those of
+  // the arc whose info is hidden
+  template <class GT>
+  std::vector<Node_Pair> both_ways(GT & g, int hidden = 0)
+  {
+    std::vector<Node_Pair> want;
+    for (Arc_Iterator<GT> it(g); it.has_curr(); it.next_ne())
+      if (auto * arc = it.get_curr_ne(); arc->get_info() != hidden)
+        {
+          want.emplace_back(g.get_src_node(arc), g.get_tgt_node(arc));
+          if (not g.is_digraph())
+            want.emplace_back(g.get_tgt_node(arc), g.get_src_node(arc));
+        }
+    std::sort(want.begin(), want.end());
+    return want;
+  }
+
+  // A triangle, whose arcs have the infos 10, 20 and 30
+  template <class GT>
+  void triangle(GT & g)
+  {
+    auto * a = g.insert_node(0);
+    auto * b = g.insert_node(1);
+    auto * c = g.insert_node(2);
+    g.insert_arc(a, b, 10);
+    g.insert_arc(b, c, 20);
+    g.insert_arc(c, a, 30);
+  }
+} // namespace
+
+// On a graph that is not directed, the overload with ptr took the target of
+// the arc for its other end: from the target it touched the diagonal
+TEST(AdyMatArcs, BothOverloadsTouchTheEntriesOfTheArcs)
+{
+  IntGraph g;
+  triangle(g);
+  Ady_Mat<IntGraph, int> mat(g, -1);
+  const auto [without_ptr, with_ptr] = entries_of(mat);
+  EXPECT_EQ(without_ptr, both_ways(g));
+  EXPECT_EQ(with_ptr, both_ways(g));
+
+  IntDigraph dg;
+  triangle(dg);
+  Ady_Mat<IntDigraph, int> dmat(dg, -1);
+  const auto [d_without_ptr, d_with_ptr] = entries_of(dmat);
+  EXPECT_EQ(d_without_ptr, both_ways(dg));
+  EXPECT_EQ(d_with_ptr, both_ways(dg));
+}
+
+// The matrix took the filter only as a type: the constructors take the
+// object, which hides here the arc of info 20, as in a Bit_Mat_Graph
+TEST(AdyMatArcs, TheFilterObjectChoosesTheArcs)
+{
+  IntGraph g;
+  triangle(g);
+  Ady_Mat<IntGraph, int, Hide_Info_Of> mat(g, -1, Hide_Info_Of{20});
+  const auto [without_ptr, with_ptr] = entries_of(mat);
+  EXPECT_EQ(without_ptr, both_ways(g, 20));
+  EXPECT_EQ(with_ptr, both_ways(g, 20));
+
+  Bit_Mat_Graph<IntGraph, Hide_Info_Of> bits(g, Hide_Info_Of{20});
+  std::vector<Node_Pair> set;
+  for (long i = 0; i < 3; ++i)
+    for (long j = 0; j < 3; ++j)
+      if (static_cast<int>(bits(i, j)) != 0)
+        set.emplace_back(bits(i), bits(j));
+  std::sort(set.begin(), set.end());
+  EXPECT_EQ(without_ptr, set);
+
+  Ady_Mat<IntGraph, int, Hide_Info_Of> without_null(g, Hide_Info_Of{30});
+  EXPECT_EQ(entries_of(without_null).first, both_ways(g, 30));
+}
+
+// The copy constructor threw, since the new matrix had no graph, and the
+// copies took none of the entries; a copy keeps the entries, the null value
+// and the filter
+TEST(AdyMatArcs, ACopyKeepsTheEntriesTheNullValueAndTheFilter)
+{
+  IntGraph g;
+  triangle(g);
+  Ady_Mat<IntGraph, int, Hide_Info_Of> mat(g, -1, Hide_Info_Of{20});
+  mat(0L, 1L) = 7;
+
+  Ady_Mat<IntGraph, int, Hide_Info_Of> copy(mat);
+  EXPECT_EQ(std::as_const(copy)(0L, 1L), 7);
+  EXPECT_EQ(copy.null_value(), -1);
+  EXPECT_EQ(entries_of(copy).first, both_ways(g, 20));
+
+  Ady_Mat<IntGraph, int, Hide_Info_Of> assigned(g, 0, Hide_Info_Of{10});
+  assigned(0L, 1L) = 3;
+  assigned = mat;
+  EXPECT_EQ(std::as_const(assigned)(0L, 1L), std::as_const(mat)(0L, 1L));
+  EXPECT_EQ(assigned.null_value(), -1);
+  EXPECT_EQ(entries_of(assigned).first, both_ways(g, 20));
+
+  // As before, the assignment takes a matrix of the same graph
+  IntGraph h;
+  h.insert_node(0);
+  Ady_Mat<IntGraph, int, Hide_Info_Of> of_h(h, -1);
+  EXPECT_THROW(of_h = mat, std::domain_error);
+}
+
+// =============================================================================
 // Bit_Mat_Graph Tests
 // =============================================================================
 
@@ -573,6 +729,75 @@ TEST_F(BitMatGraphTest, SetListGraph)
 
   mat.set_list_graph(g);
   EXPECT_EQ(mat.get_num_nodes(), 4u);
+}
+
+// The bits are those of the arcs of the graph alone: none is kept from the
+// graph that the matrix had, of the same order
+TEST_F(BitMatGraphTest, AnotherGraphKeepsNoBitOfTheFormer)
+{
+  IntGraph h;
+  for (int i = 0; i < 4; ++i)
+    h.insert_node(i);
+
+  auto bits_set = [] (Bit_Mat_Graph<IntGraph> & mat)
+    {
+      int count = 0;
+      for (long i = 0; i < 4; ++i)
+        for (long j = 0; j < 4; ++j)
+          count += static_cast<int>(mat(i, j));
+      return count;
+    };
+
+  Bit_Mat_Graph<IntGraph> mat(g);
+  ASSERT_EQ(bits_set(mat), 6); // three arcs, both ways
+  mat.set_list_graph(h);
+  EXPECT_EQ(bits_set(mat), 0);
+
+  Bit_Mat_Graph<IntGraph> assigned(g);
+  assigned = h;
+  EXPECT_EQ(bits_set(assigned), 0);
+}
+
+// Only the arcs that the filter object shows set a bit
+TEST_F(BitMatGraphTest, TheFilterObjectChoosesTheArcs)
+{
+  struct Hide_Info
+  {
+    int hidden = 0;
+    bool operator () (IntGraph::Arc * a) const { return a->get_info() != hidden; }
+  };
+
+  Bit_Mat_Graph<IntGraph, Hide_Info> mat(g, Hide_Info{20});
+  EXPECT_EQ(static_cast<int>(mat(n0, n1)), 1);
+  EXPECT_EQ(static_cast<int>(mat(n1, n2)), 0);
+  EXPECT_EQ(static_cast<int>(mat(n1, n3)), 1);
+
+  mat.set_list_graph(g, Hide_Info{10});
+  EXPECT_EQ(static_cast<int>(mat(n0, n1)), 0);
+  EXPECT_EQ(static_cast<int>(mat(n1, n2)), 1);
+}
+
+// The assignment from a graph takes the filter SA(), and the arcs that the
+// graph has now, also when the matrix is already of that graph: it kept the
+// bits of the filter given before
+TEST_F(BitMatGraphTest, AssigningItsOwnGraphTakesTheDefaultFilter)
+{
+  struct Hide_Info
+  {
+    int hidden = 0;
+    bool operator () (IntGraph::Arc * a) const { return a->get_info() != hidden; }
+  };
+
+  Bit_Mat_Graph<IntGraph, Hide_Info> mat(g, Hide_Info{20});
+  ASSERT_EQ(static_cast<int>(mat(n1, n2)), 0);
+  mat = g;
+  EXPECT_EQ(static_cast<int>(mat(n1, n2)), 1);
+
+  g.insert_arc(n2, n3, 40);
+  ASSERT_EQ(static_cast<int>(mat(n2, n3)), 0);
+  mat = g;
+  EXPECT_EQ(static_cast<int>(mat(n2, n3)), 1);
+  EXPECT_EQ(static_cast<int>(mat(n0, n1)), 1);
 }
 
 TEST_F(BitMatGraphTest, CopyConstructor)

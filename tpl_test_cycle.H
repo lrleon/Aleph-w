@@ -133,20 +133,22 @@ class Test_For_Cycle
 
     // Explore the arcs not visited, which it marks. The node being visited
     // keeps its iterator in here until it visits a node; then it waits in
-    // frames, where it goes on when it comes back.
+    // frames, where it goes on when it comes back. here is optional, so
+    // that the frame of each node is built in its place: a frame keeps the
+    // filter, which may not be assignable.
     using Frame = Dfs_Arc_Frame<Node_Arc_Iterator<GT, SA>>;
     Dfs_Stack<Frame> frames;
-    Frame here(curr, sa);
+    std::optional<Frame> here(std::in_place, curr, sa);
     while (true)
       {
-        if (auto tgt = here.template next_target<Test_Cycle>(src))
+        if (auto tgt = here->template next_target<Test_Cycle>(src))
           { // the iterator stays on the arc to tgt, as in a recursion
             if (tgt == src)
               return true;
 
             NODE_BITS(tgt).set_bit(Test_Cycle, true);
-            frames.push(std::move(here));
-            here = Frame(tgt, sa);
+            frames.push(std::move(*here));
+            here.emplace(tgt, sa);
             continue;
           }
 
@@ -163,7 +165,7 @@ class Test_For_Cycle
                   return true;
 
                 NODE_BITS(tgt).set_bit(Test_Cycle, true);
-                here = Frame(tgt, sa);
+                here.emplace(tgt, sa);
                 break;
               }
             frames.pop();

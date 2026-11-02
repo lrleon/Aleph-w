@@ -49,9 +49,11 @@
 # define GRAPH_DRY_H
 
 #include <concepts>
+#include <optional>
 #include <type_traits>
 #include <utility>
 #include <ah-concepts.H>
+#include <ah-graph-concepts.H>
 
 namespace Aleph::graph_dry_detail
 {
@@ -109,6 +111,178 @@ namespace Aleph::graph_dry_detail
     else
       return it.get_curr();
   }
+
+  /** @brief The iterator on the arcs into a node of a digraph type, which
+   *  `In_Iterator` is on a type built with the `Digraph` template.
+   *
+   *  A digraph keeps each arc only in the list of its source, so that the
+   *  arcs into a node are found among the arcs of the graph: the walk
+   *  goes through them, in the order of the arc iterator of the graph,
+   *  and keeps those whose target is the node and that the filter shows.
+   *  To build it and go through all of them takes \f$O(E)\f$.
+   *
+   *  Its interface is that of the iterators on the arcs of a node: the
+   *  node of an arc is its source. prev(), prev_ne() and reset_last()
+   *  exist only where the arc iterator of the graph moves back.
+   *
+   *  @tparam GT the graph type, complete where the walk is used.
+   *  @tparam SA the arc filter.
+   */
+  template <class GT, class SA>
+  class In_Arcs_Walk
+  {
+    using Node = typename GT::Node;
+    using Arc = typename GT::Arc;
+    using Arc_Itor = typename GT::Arc_Iterator;
+
+    // Empty only in the form that takes the node, which does not compile
+    std::optional<Arc_Itor> arcs;
+    Node *tgt = nullptr;
+    SA show_arc;
+
+    // Whether show_arc throws nothing, and so the moves without checks
+    static constexpr bool shows_ne = std::is_nothrow_invocable_r_v<bool, SA &, Arc *>;
+
+    // Moves forward, from the current arc, to the first one into tgt that
+    // show_arc shows, or to the end
+    void forward()
+    {
+      for (; arcs->has_curr(); arcs->next_ne())
+        if (Arc *a = arcs->get_curr_ne(); a->tgt_node == tgt and show_arc(a))
+          return;
+    }
+
+    // Moves back, from the current arc, to the first one into tgt that
+    // show_arc shows, or before the first arc
+    void backward()
+    {
+      for (; arcs->has_curr(); arcs->prev())
+        if (Arc *a = arcs->get_curr_ne(); a->tgt_node == tgt and show_arc(a))
+          return;
+    }
+
+  public:
+    /// The type of the items: arcs.
+    using Item_Type = Arc *;
+
+    /// Whether the walk moves back: the arc iterators of `List_SGraph`
+    /// and `List_SDigraph` go only forward.
+    static constexpr bool goes_back = requires (Arc_Itor & a) { a.prev(); };
+
+    /// Whether the walk goes to its last arc, which reset_last() needs.
+    static constexpr bool goes_to_last = requires (Arc_Itor & a) { a.reset_last(); a.prev(); };
+
+    /** @brief The arcs of `g` into `p` that `sa` shows, from the first one.
+     *  @throw anything that `sa` throws.
+     */
+    In_Arcs_Walk(const GT & g, Node *p, SA sa = SA())
+      : arcs(std::in_place, g), tgt(p), show_arc(sa)
+    {
+      forward();
+    }
+
+    /** @brief The form that takes only the node, which does not compile:
+     *  the list of a node of a digraph holds only the arcs that leave it.
+     */
+    In_Arcs_Walk(Node *, SA sa = SA()) : show_arc(sa)
+    {
+      static_assert(not Aleph::DigraphType<GT>,
+                    "In_Iterator(p) does not see the arcs into p on a digraph, whose list of p "
+                    "holds only the arcs that leave p: use In_Iterator(g, p), or In_Arcs_Index "
+                    "for many nodes");
+    }
+
+    /// Return true if there is a current arc.
+    [[nodiscard]] bool has_curr() const noexcept { return arcs->has_curr(); }
+
+    /// Return the current arc. Throws `overflow_error` if there is none.
+    Arc * get_curr() const { return arcs->get_curr(); }
+
+    /// Return the current arc, which must exist.
+    Arc * get_curr_ne() const noexcept { return arcs->get_curr_ne(); }
+
+    /// \overload get_curr()
+    Arc * get_current_arc() const { return get_curr(); }
+
+    /// \overload get_curr_ne()
+    Arc * get_current_arc_ne() const noexcept { return get_curr_ne(); }
+
+    /// Return the source of `a`.
+    Node * get_node(Arc *a) const noexcept { return static_cast<Node *>(a->src_node); }
+
+    /// Return the source of the current arc. Throws `overflow_error` if
+    /// there is no current arc.
+    Node * get_node() const { return get_node(get_curr()); }
+
+    /// Return the source of the current arc, which must exist.
+    Node * get_node_ne() const noexcept { return get_node(get_curr_ne()); }
+
+    /// Alias of get_node().
+    Node * get_tgt_node() const { return get_node(); }
+
+    /// Alias of get_node_ne().
+    Node * get_tgt_node_ne() const noexcept { return get_node_ne(); }
+
+    /// Move to the next arc. Throws `overflow_error` if there is no
+    /// current arc.
+    void next()
+    {
+      arcs->next();
+      forward();
+    }
+
+    /// Move to the next arc, which must exist; noexcept when the filter
+    /// is, else what the filter throws goes out.
+    void next_ne() noexcept(shows_ne)
+    {
+      arcs->next_ne();
+      forward();
+    }
+
+    /// Move to the previous arc. Throws `underflow_error` if there is no
+    /// current arc. Only where the walk moves back.
+    void prev() requires goes_back
+    {
+      arcs->prev();
+      backward();
+    }
+
+    /// prev() without its exception: nothing if there is no current arc;
+    /// noexcept when the filter is, else what the filter throws goes out.
+    void prev_ne() noexcept(shows_ne) requires goes_back
+    {
+      if (not arcs->has_curr())
+        return;
+      arcs->prev();
+      backward();
+    }
+
+    /// Put the walk on the first arc.
+    void reset_first()
+    {
+      arcs->reset_first();
+      forward();
+    }
+
+    /// Put the walk on the last arc. Only where the walk goes to its last
+    /// arc.
+    void reset_last() requires goes_to_last
+    {
+      arcs->reset_last();
+      backward();
+    }
+
+    /// Put the walk past the last arc.
+    void end() noexcept { arcs->end(); }
+  };
+
+  /// The filter of a walk that shows every arc.
+  struct Show_Every_Arc
+  {
+    /// Every arc is shown.
+    template <class Arc>
+    bool operator () (Arc *) const noexcept { return true; }
+  };
 
 } // namespace Aleph::graph_dry_detail
 
@@ -2814,7 +2988,7 @@ public:
   /** Search an arc linking two nodes.
 
       `search_arc(src, tgt)` searches an arc linking `src` with
-      `tgt`. The method inspect the ars adjacent to `src` verifying
+      `tgt`. The method inspect the arcs adjacent to `src` verifying
       whether a target is or not `tgt`.
 
       This method is conceived for both directed and non directed
@@ -3079,7 +3253,7 @@ public:
 
   /** Special iterator for distinguishing input arcs of output ones.
 
-      The intended use of this iterator is to traverse the ars linked to
+      The intended use of this iterator is to traverse the arcs linked to
       a node `p` inserted in a non-directed graph and to filter those
       arcs that are incoming or outcoming respect to `p`.
 
@@ -3115,6 +3289,13 @@ public:
 
     using Iterator_Type = Itor;
 
+    /// Whether the iterator moves back: the iterators of the lists of
+    /// `List_SGraph` go only forward, and have no prev()
+    static constexpr bool goes_back = Itor::goes_back;
+
+    /// Whether the iterator goes to its last arc, which reset_last() needs
+    static constexpr bool goes_to_last = Itor::goes_to_last;
+
     /// Instantiate an filtered iterator for arcs on the node `p`
     Digraph_Iterator(Node *p) : filt(p), it(p, filt)
     {
@@ -3128,10 +3309,11 @@ public:
     void next() { it.next(); }
 
     /// back to previous item. Throw `underflow_error` if there is no
-    /// current arc
-    void prev() { it.prev(); }
+    /// current arc. Only where the iterator moves back (goes_back)
+    void prev() requires goes_back { it.prev(); }
 
-    void prev_ne() { it.prev_ne(); }
+    /// prev() without exceptions. Only where the iterator moves back
+    void prev_ne() requires goes_back { it.prev_ne(); }
 
     /// Return true is the iterator has a current arc
     bool has_curr() const noexcept { return it.has_curr(); }
@@ -3175,17 +3357,82 @@ public:
     /// Reset the iterator to first arc
     void reset_first() noexcept { it.reset_first(); }
 
-    /// Reset the iterator to last arc
-    void reset_last() noexcept { it.reset_last(); }
+    /// Reset the iterator to last arc. Only where the iterator goes to
+    /// its last arc (goes_to_last)
+    void reset_last() noexcept requires goes_to_last { it.reset_last(); }
   };
 
   /** Alias for `Digraph_Iterator` */
   // template <class Filt> using Filter_Iterator = Digraph_Iterator<Filt>;
 
-  // /** Iterator on incoming arcs of node */
+  /** Iterator on the arcs that go into a node.
+
+      It walks the list of the node, which holds the arcs into it only in
+      a graph that is not directed: a digraph keeps each arc only in the
+      list of its source. So the iterator has two forms:
+
+      - `In_Iterator(p)` walks the list of `p`. On a digraph it sees only
+        the loops of `p`; the digraph types (see `DigraphType`) have their
+        own `In_Iterator`, whose form that takes only the node does not
+        compile.
+      - `In_Iterator(g, p)` takes the graph: it walks the list of `p`, and
+        throws `domain_error` if `g` says that it is directed, as a graph
+        of an undirected type does after `set_digraph(true)`. The
+        `In_Iterator` of a digraph type walks the arcs of the graph.
+
+      The methods on the arcs into a node, as `in_arcs()` and
+      `in_degree()`, tell a digraph at run time; to go through the arcs
+      into many nodes of a digraph, `In_Arcs_Index` takes \f$O(V + E)\f$
+      once.
+
+      @ingroup Graphs
+   */
   struct In_Iterator : Digraph_Iterator<In_Filt>
   {
-    using Digraph_Iterator<In_Filt>::Digraph_Iterator;
+  private:
+    using Base = Digraph_Iterator<In_Filt>;
+
+    // Throws the domain_error of In_Iterator(g, p) on a graph that says
+    // that it is directed; out of line, so that the iterator on a graph
+    // that is not directed costs only the test
+    [[gnu::noinline, gnu::cold]] static void refuse_a_digraph()
+    {
+      ah_domain_error()
+        << "In_Iterator(g, p): the graph says that it is directed, so that its arcs into p "
+        << "are not in the list of p: use the in_ methods of the graph, or In_Arcs_Index";
+    }
+
+    // The node of a graph that is not directed, whose list holds the arcs
+    // into it
+    static Node * of_lists(const GT & g, Node *p)
+    {
+      if (g.is_digraph()) [[unlikely]]
+        refuse_a_digraph();
+      return p;
+    }
+
+  public:
+    /** Iterator on the list of `p`, which holds the arcs into `p` only in a
+        graph that is not directed.
+
+        @param[in] p the node.
+    */
+    In_Iterator(Node *p) : Base(p)
+    {
+      // empty
+    }
+
+    /** Iterator on the arcs into `p` of `g`, a graph that is not directed:
+        those of the list of `p`.
+
+        @param[in] g the graph of `p`.
+        @param[in] p the node.
+        @throw domain_error if `g` says that it is directed.
+    */
+    In_Iterator(const GT & g, Node *p) : Base(of_lists(g, p))
+    {
+      // empty
+    }
   };
 
   // /** Iterator on incoming arcs of node */
@@ -3200,7 +3447,7 @@ public:
       initialization. A traditional way for writing an input iterator on
       the arcs of a node is as follows:
 
-          for (typename GT::In_Iterator it(g); it.has_curr(); it.next())
+          for (typename GT::In_Iterator it(g, p); it.has_curr(); it.next())
 	    operation on current arc
 
       With get_in_it(p) The previous snippet could be more shortly written
@@ -3209,10 +3456,16 @@ public:
           for (auto it = g.get_in_it(p); it.has_curr(); it.next())
 	    operation on current arc
 
+      The iterator is `In_Iterator(g, p)`, which walks the list of `p`; a
+      digraph type has its own get_in_it(), whose iterator walks the arcs
+      of the graph.
+
       @return an instantiated input iterator on the arcs positioned at the
       first arc.
+      @throw domain_error if the graph says that it is directed (see
+      In_Iterator).
   */
-  In_Iterator get_in_it(Node *p) const noexcept { return In_Iterator(p); }
+  In_Iterator get_in_it(Node *p) const { return In_Iterator(*const_me(), p); }
 
   /** Return an output iterator on the incoming nodes to `p`
 
@@ -3220,7 +3473,7 @@ public:
       initialization. A traditional way for writing an output iterator on
       the arcs of a node is as follows:
 
-          for (typename GT::Out_Iterator it(g); it.has_curr(); it.next())
+          for (typename GT::Out_Iterator it(p); it.has_curr(); it.next())
 	    operation on current arc
 
       With get_out_it(p) The previous snippet could be more shortly written
@@ -3252,10 +3505,40 @@ public:
     return nullptr;
   }
 
+private:
+  // Calls op(a) on each arc of a digraph whose target is p, in the order
+  // of the arc iterator, while op returns true; tells whether it went
+  // through them all. A digraph keeps each arc only in the list of its
+  // source, so that its arcs into p are found among those of the graph.
+  // Out of line, and with op by value (a lambda that refers to what it
+  // changes), so that the methods on the arcs into a node keep, on a
+  // graph that is not directed, the code that they had.
+  template <class Op>
+  [[gnu::noinline]] bool traverse_digraph_arcs_into(Node *p, Op op) const
+  {
+    for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
+      if (Arc *a = it.get_curr_ne(); a->tgt_node == p and not op(a))
+        return false;
+    return true;
+  }
+
+  // The number of arcs of a digraph whose target is p; out of line, as
+  // traverse_digraph_arcs_into()
+  [[gnu::noinline]] size_t digraph_in_degree(Node *p) const noexcept
+  {
+    size_t count = 0;
+    for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
+      if (it.get_curr_ne()->tgt_node == p)
+        ++count;
+    return count;
+  }
+
+public:
   /** Return a list with the incoming nodes to `p`
 
       The method filters all the incoming arcs `s --> p` and return their
-      nodes.
+      nodes. On a digraph, which keeps each arc only in the list of its
+      source, it looks for them among the arcs of the graph, in \f$O(E)\f$.
 
       \param[in] p pointer to node
       \return a list containing the incoming nodes. It could be empty if
@@ -3265,6 +3548,15 @@ public:
   DynList<Node *> in_nodes(Node *p) const
   {
     DynList<Node *> ret;
+    if (digraph)
+      {
+        traverse_digraph_arcs_into(p, [&ret] (Arc *a)
+                                     {
+                                       ret.append(static_cast<Node *>(a->src_node));
+                                       return true;
+                                     });
+        return ret;
+      }
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
       ret.append(it.get_node());
     return ret;
@@ -3305,17 +3597,27 @@ public:
     return ret;
   }
 
-  /** Return a list with the incoming arcs to p`
+  /** Return a list with the incoming arcs to `p`
 
-      The method returns all the incoming arcs `s --> p`.
+      The method returns all the incoming arcs `s --> p`. On a digraph it
+      looks for them among the arcs of the graph, in \f$O(E)\f$.
 
       \return a list containing the incoming arcs. It could be empty if
-      p is a sink node (not have ouytut arcs).
+      p is a source node (not have input arcs).
       \throw bad_alloc if there is no enough memory
   */
   DynList<Arc *> in_arcs(Node *p) const
   {
     DynList<Arc *> ret;
+    if (digraph)
+      {
+        traverse_digraph_arcs_into(p, [&ret] (Arc *a)
+                                     {
+                                       ret.append(a);
+                                       return true;
+                                     });
+        return ret;
+      }
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
       ret.append(it.get_curr());
     return ret;
@@ -3330,7 +3632,8 @@ public:
       nodes. This method perform that task in only a pass.
 
       The pair are implemented with tuples. First item has the arc and
-      the second the node.
+      the second the node. On a digraph the arcs are looked for among
+      those of the graph, in \f$O(E)\f$.
 
       \param[in] p pointer to node
       \return a list of incoming pairs arc, node
@@ -3339,6 +3642,16 @@ public:
   auto in_pairs(Node *p) const
   {
     DynList<ArcPair> ret;
+    if (digraph)
+      {
+        traverse_digraph_arcs_into(p, [&ret, p] (Arc *a)
+                                     {
+                                       auto q = (Node *) a->get_connected_node(p);
+                                       ret.append(std::make_tuple(a, q));
+                                       return true;
+                                     });
+        return ret;
+      }
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
       {
         auto a = it.get_curr();
@@ -3378,13 +3691,17 @@ public:
 
       Note that this method does not only serve too for explicit
       digraphs, but that would be necessary, since the in degree is
-      neves stored.
+      neves stored. On a digraph, which keeps each arc only in the list
+      of its source, it counts the arcs of the graph whose target is `p`,
+      in \f$O(E)\f$; to ask for many nodes, build an `In_Arcs_Index`.
 
       \param[in] p poinger to the node
       @return number of incoming arcs to `p`
   */
   size_t in_degree(Node *p) const noexcept
   {
+    if (digraph)
+      return digraph_in_degree(p);
     size_t count = 0;
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
       ++count;
@@ -3452,10 +3769,14 @@ public:
   }
 
   /// Traverse the incoming arcs of node `p` executing the conditioned
-  /// `operation`
+  /// `operation`. On a digraph, which keeps each arc only in the list of
+  /// its source, the arcs into `p` are looked for among those of the
+  /// graph, in \f$O(E)\f$.
   template <class Op>
   bool traverse_in_arcs(Node *p, Op & op) const
   {
+    if (digraph)
+      return traverse_digraph_arcs_into(p, [&op] (Arc *a) -> bool { return op(a); });
     return traverse_arcs<In_Iterator, Op>(p, op);
   }
 
@@ -3466,10 +3787,20 @@ public:
     return traverse_in_arcs(p, op);
   }
 
-  /// Perform `op` on each incoming arc of node `p`
+  /// Perform `op` on each incoming arc of node `p`; on a digraph, among
+  /// the arcs of the graph, in \f$O(E)\f$
   template <class Op>
   void for_each_in_arc(Node *p, Op & op) const
   {
+    if (digraph)
+      {
+        traverse_digraph_arcs_into(p, [&op] (Arc *a)
+                                     {
+                                       op(a);
+                                       return true;
+                                     });
+        return;
+      }
     for_each_arc<In_Iterator>(p, op);
   }
 
@@ -4057,6 +4388,34 @@ public:
       its flag, which says that it is not directed.
   */
   void swap(BaseGraph & g) = delete;
+
+  /** Iterator on the arcs that go into a node of the digraph.
+
+      A digraph keeps each arc only in the list of its source, so that
+      `In_Iterator(g, p)` walks the arcs of the graph, in the order of its
+      arc iterator, and keeps those whose target is `p`: to build it and
+      go through all of them takes \f$O(E)\f$. `In_Iterator(p)`, which
+      would walk the list of `p`, does not compile. To go through the arcs
+      into many nodes, build an `In_Arcs_Index` once, in \f$O(V + E)\f$.
+  */
+  struct In_Iterator
+    : Aleph::graph_dry_detail::In_Arcs_Walk<Digraph, Aleph::graph_dry_detail::Show_Every_Arc>
+  {
+    /// The walk of the arcs of the digraph into a node
+    using Walk =
+      Aleph::graph_dry_detail::In_Arcs_Walk<Digraph, Aleph::graph_dry_detail::Show_Every_Arc>;
+
+    /// The forms of the walk: `In_Iterator(g, p)`, and `In_Iterator(p)`,
+    /// which does not compile
+    using Walk::Walk;
+  };
+
+  /** Return an iterator on the arcs that go into `p`: those of the arcs
+      of the digraph whose target is `p`, in \f$O(E)\f$.
+
+      @param[in] p a node of the digraph.
+  */
+  In_Iterator get_in_it(Node *p) const { return In_Iterator(*this, p); }
 
   /** Copy assignment operator.
 

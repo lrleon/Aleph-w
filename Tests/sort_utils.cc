@@ -1124,6 +1124,251 @@ TEST(SortUtilsStability, mergesort_of_a_list_keeps_its_items_if_the_comparison_t
     }
 }
 
+namespace
+{
+  // sort(list, cmp) sorts list with cmp. If cmp throws, at each of its
+  // calls, list must keep its items.
+  template <class List, class Sort>
+  void keeps_its_items_if_the_comparison_throws(const std::vector<int> & items,
+                                                Sort sort)
+  {
+    const std::vector<int> all = sorted_items(items);
+    int total = 0; // the comparisons of a sort that does not throw
+    {
+      List list;
+      for (const int x : items)
+        list.append(x);
+      sort(list, Throws_At{&total, -1});
+      std::vector<int> got;
+      for (const int x : list)
+        got.push_back(x);
+      ASSERT_EQ(got, all); // sorted
+    }
+    ASSERT_GT(total, 0);
+
+    for (int at = 1; at <= total; ++at)
+      {
+        SCOPED_TRACE(at);
+        List list;
+        for (const int x : items)
+          list.append(x);
+        int count = 0;
+        EXPECT_THROW(sort(list, Throws_At{&count, at}), std::runtime_error);
+        EXPECT_EQ(sorted_items(list), all);
+      }
+  }
+}
+
+// The template of templates of mergesort() and mergeinsertsort() had no
+// handler, nor had the insertion sort of the short lists of
+// mergeinsertsort(), whose nodes were then in a list that did not own them
+TEST(SortUtilsStability, every_sort_of_a_list_keeps_its_items_if_the_comparison_throws)
+{
+  std::mt19937 gen(13);
+  std::vector<int> items; // more than Insertion_Threshold
+  for (int i = 0; i < 100; ++i)
+    items.push_back(int(gen() % 20));
+
+  {
+    SCOPED_TRACE("mergesort<DynList, int>()");
+    keeps_its_items_if_the_comparison_throws<DynList<int>>(items, [] (auto & l, const Throws_At & c)
+      {
+        mergesort<DynList, int, Throws_At>(l, c);
+      });
+  }
+  {
+    SCOPED_TRACE("mergesort<DynDlist, int>()");
+    keeps_its_items_if_the_comparison_throws<DynDlist<int>>(items, [] (auto & l, const Throws_At & c)
+      {
+        mergesort<DynDlist, int, Throws_At>(l, c);
+      });
+  }
+  {
+    SCOPED_TRACE("mergeinsertsort(DynList &)");
+    keeps_its_items_if_the_comparison_throws<DynList<int>>(items, [] (auto & l, const Throws_At & c)
+      {
+        mergeinsertsort(l, c);
+      });
+  }
+  {
+    SCOPED_TRACE("mergeinsertsort(DynDlist &)");
+    keeps_its_items_if_the_comparison_throws<DynDlist<int>>(items, [] (auto & l, const Throws_At & c)
+      {
+        mergeinsertsort(l, c);
+      });
+  }
+  {
+    SCOPED_TRACE("insertion_sort(DynList &)");
+    keeps_its_items_if_the_comparison_throws<DynList<int>>(items, [] (auto & l, const Throws_At & c)
+      {
+        insertion_sort(l, c);
+      });
+  }
+  {
+    SCOPED_TRACE("insertion_sort(DynDlist &)");
+    keeps_its_items_if_the_comparison_throws<DynDlist<int>>(items, [] (auto & l, const Throws_At & c)
+      {
+        insertion_sort(l, c);
+      });
+  }
+}
+
+// insertion_sort() of a DynDlist took the template of the arrays, and did
+// not compile; the insertion is stable
+TEST(SortUtilsStability, insertion_sort_of_a_dyndlist_keeps_the_order_of_equal_items)
+{
+  std::mt19937 gen(5);
+  for (int n = 0; n <= 60; ++n)
+    {
+      SCOPED_TRACE(n);
+      DynDlist<Keyed> dlist;
+      DynList<Keyed> list;
+      for (int i = 0; i < n; ++i)
+        {
+          const Keyed x{int(gen() % 5), i};
+          dlist.append(x);
+          list.append(x);
+        }
+      insertion_sort(dlist, By_Key());
+      insertion_sort(list, By_Key());
+      EXPECT_TRUE(sorted_by_key(dlist));
+      EXPECT_TRUE(keeps_order_of_equals(dlist));
+      EXPECT_TRUE(sorted_by_key(list));
+      EXPECT_TRUE(keeps_order_of_equals(list));
+      EXPECT_EQ(dlist.size(), size_t(n));
+    }
+}
+
+namespace
+{
+  // Compares strings, and throws at the comparison number at
+  struct Strings_Throw_At
+  {
+    int * count;
+    int at;
+
+    bool operator()(const std::string & a, const std::string & b) const
+    {
+      if (++*count == at)
+        throw std::runtime_error("comparison failed");
+      return a < b;
+    }
+  };
+}
+
+// merge() of an array moved its left part to a buffer: if the comparison
+// threw, what was left there did not go back, and the array kept the
+// strings that had been moved from, which are empty
+TEST(SortUtilsStability, mergesort_of_an_array_keeps_its_items_if_the_comparison_throws)
+{
+  std::vector<std::string> items;
+  for (int i = 0; i < 64; ++i)
+    items.push_back("item " + std::to_string(i * 37 % 64));
+  std::vector<std::string> all = items;
+  std::sort(all.begin(), all.end());
+
+  int total = 0; // the comparisons of a sort that does not throw
+  {
+    std::vector<std::string> a = items;
+    mergesort(a.data(), 0, long(a.size()) - 1, Strings_Throw_At{&total, -1});
+    ASSERT_EQ(a, all);
+  }
+  ASSERT_GT(total, 0);
+
+  for (int at = 1; at <= total; ++at)
+    {
+      SCOPED_TRACE(at);
+      std::vector<std::string> a = items;
+      int count = 0;
+      EXPECT_THROW(mergesort(a.data(), 0, long(a.size()) - 1, Strings_Throw_At{&count, at}),
+                   std::runtime_error);
+      std::sort(a.begin(), a.end());
+      EXPECT_EQ(a, all);
+    }
+}
+
+namespace
+{
+  // An int whose <, which does not say noexcept, throws at the comparison
+  // number at; a sort compares it with its default comparison, Aleph::less
+  struct Throwing_Less
+  {
+    static inline int count = 0;
+    static inline int at = 0;
+    int value;
+
+    bool operator < (const Throwing_Less & other) const
+    {
+      if (++count == at)
+        throw std::runtime_error("comparison failed");
+      return value < other.value;
+    }
+  };
+
+  template <class Container>
+  std::vector<int> sorted_values(const Container & c)
+  {
+    std::vector<int> v;
+    for (const Throwing_Less & x : c)
+      v.push_back(x.value);
+    std::sort(v.begin(), v.end());
+    return v;
+  }
+}
+
+static_assert(not noexcept(Aleph::less<Throwing_Less>()(std::declval<const Throwing_Less &>(),
+                                                        std::declval<const Throwing_Less &>())));
+
+// Aleph::less was noexcept whatever the < of its type, so that a sort that
+// compared with it took its merges for ones that cannot throw: they had no
+// handler, and a < that threw ended the program
+TEST(SortUtilsStability, what_the_less_than_of_the_items_throws_reaches_the_caller)
+{
+  std::vector<int> values;
+  for (int i = 0; i < 50; ++i)
+    values.push_back(i * 17 % 50);
+  const std::vector<int> all = sorted_items(values);
+
+  Throwing_Less::count = 0;
+  Throwing_Less::at = 0;
+  {
+    DynList<Throwing_Less> list;
+    for (const int v : values)
+      list.append(Throwing_Less{v});
+    mergesort(list);
+    ASSERT_EQ(sorted_values(list), all);
+  }
+  const int total = Throwing_Less::count;
+  ASSERT_GT(total, 0);
+
+  for (int at = 1; at <= total; ++at)
+    {
+      SCOPED_TRACE(at);
+      DynList<Throwing_Less> list;
+      DynDlist<Throwing_Less> dlist;
+      std::vector<Throwing_Less> array;
+      for (const int v : values)
+        {
+          list.append(Throwing_Less{v});
+          dlist.append(Throwing_Less{v});
+          array.push_back(Throwing_Less{v});
+        }
+
+      Throwing_Less::count = 0;
+      Throwing_Less::at = at;
+      EXPECT_THROW(mergesort(list), std::runtime_error);
+      Throwing_Less::count = 0;
+      EXPECT_THROW(mergesort(dlist), std::runtime_error);
+      Throwing_Less::count = 0;
+      EXPECT_THROW(mergesort(array.data(), 0, long(array.size()) - 1), std::runtime_error);
+      Throwing_Less::at = 0;
+
+      EXPECT_EQ(sorted_values(list), all);
+      EXPECT_EQ(sorted_values(dlist), all);
+      EXPECT_EQ(sorted_values(array), all);
+    }
+}
+
 TEST(SortUtilsDyndlistSorts, search_extreme_min)
 {
   DynDlist<int> l = make_dyndlist({4, 1, 3, 2, 0, 2});
@@ -1512,8 +1757,10 @@ TEST(SortUtilsIndexBuild, stable_build_index_ptr_preserves_large_duplicate_group
     {
       ASSERT_LE(*ptrs(i - 1), *ptrs(i));
       if (*ptrs(i - 1) == *ptrs(i))
-        EXPECT_LT(ptrs(i - 1), ptrs(i))
-          << "equal-valued elements must keep their original relative order";
+        {
+          EXPECT_LT(ptrs(i - 1), ptrs(i))
+            << "equal-valued elements must keep their original relative order";
+        }
     }
 }
 
@@ -1531,7 +1778,9 @@ TEST(SortUtilsIndexBuild, stable_build_index_preserves_large_duplicate_groups)
     {
       ASSERT_LE(a[idx(i - 1)], a[idx(i)]);
       if (a[idx(i - 1)] == a[idx(i)])
-        EXPECT_LT(idx(i - 1), idx(i));
+        {
+          EXPECT_LT(idx(i - 1), idx(i));
+        }
     }
 }
 
@@ -2809,8 +3058,10 @@ TEST(Timsort, stability)
   // Verify stability: equal keys preserve original seq order
   for (size_t i = 1; i < n; ++i)
     if (data[i - 1].key == data[i].key)
-      EXPECT_LT(data[i - 1].seq, data[i].seq)
-        << "Stability violated at index " << i;
+      {
+        EXPECT_LT(data[i - 1].seq, data[i].seq)
+          << "Stability violated at index " << i;
+      }
 }
 
 TEST(Timsort, string_sort)

@@ -263,10 +263,12 @@ namespace Aleph
         ptr_g->reset_bit(it.get_curr(), Aleph::Spanning_Tree);
     }
 
+    // The largest weight of an arc that the filter shows: a hidden arc
+    // does not count, whatever its weight
     Distance_Type find_max_weight(const GT & g)
     {
       Distance_Type max_w = 0;
-      for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next())
+      for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
         {
           auto w = distance(it.get_curr());
           ah_domain_error_if(w < 0) << "Dial: negative weight " << w << " not allowed";

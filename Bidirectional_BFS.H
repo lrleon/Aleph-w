@@ -64,6 +64,15 @@
  *  Bidirectional_BFS<DGT, Out_Iterator, In_Iterator> bibfs;
  *  ```
  *
+ *  A digraph keeps each arc only in the list of its source, where
+ *  `In_Iterator(p)` sees only the loops of `p`. So, with `In_Iterator`, on
+ *  a digraph type (see `DigraphType`), and on a graph of an undirected
+ *  type that says that it is directed (see `set_digraph()`), the search
+ *  takes the arcs into each node from an `In_Arcs_Index` that it builds at
+ *  its first backward step, in \f$O(V + E)\f$: a search that goes backward
+ *  costs then \f$O(V + E)\f$. On a graph that is not directed nothing
+ *  changes: the search walks the lists.
+ *
  *  @see tpl_find_path.H For standard BFS/DFS path finding
  *  @see Dijkstra.H For weighted shortest paths
  *
@@ -77,12 +86,27 @@
 # include <ah-graph-concepts.H>
 
 # include <limits>
+# include <optional>
+# include <type_traits>
+# include <utility>
 # include <tpl_dynListQueue.H>
 # include <tpl_graph_utils.H>
 # include <ah-errors.H>
 
 namespace Aleph
 {
+
+namespace bidirectional_bfs_detail
+{
+  /// Whether the iterator template is not In_Iterator
+  template <template <typename, class> class Itor>
+  struct is_in_iterator : std::false_type {};
+
+  /// Whether the iterator template is In_Iterator, which on a digraph
+  /// sees, in the list of a node, only its loops
+  template <>
+  struct is_in_iterator<In_Iterator> : std::true_type {};
+} // namespace bidirectional_bfs_detail
 
 /** @brief Bidirectional BFS for finding shortest unweighted paths.
  *
@@ -93,7 +117,9 @@ namespace Aleph
  *
  *  For undirected graphs, both iterators default to `Node_Arc_Iterator`.
  *  For directed graphs, use `Out_Iterator` for forward and `In_Iterator`
- *  for backward traversal.
+ *  for backward traversal. With `In_Iterator`, on a digraph type, the
+ *  backward search takes the arcs into each node from an `In_Arcs_Index`
+ *  built at its first step, in \f$O(V + E)\f$.
  *
  *  The class receives the following template parameters:
  *  -# `GT`: graph type.
@@ -123,6 +149,19 @@ public:
 
 private:
   SA sa;
+
+  // Whether the backward search goes with In_Iterator: on a digraph type,
+  // and on a graph of an undirected type that says that it is directed,
+  // whose list of a node holds only the arcs that leave it, it takes then
+  // the arcs into each node from an In_Arcs_Index
+  static constexpr bool backward_by_index =
+    bidirectional_bfs_detail::is_in_iterator<Bck_Itor>::value;
+
+  // The arcs into each node, for a backward search by an index; nothing
+  // for another one
+  struct No_Index {};
+  using Backward_Index =
+    std::conditional_t<backward_by_index, std::optional<In_Arcs_Index<GT, SA>>, No_Index>;
 
   // Direction constants
   static constexpr int UNSEEN = 0;
@@ -250,6 +289,43 @@ private:
     return BIBFS_BCK_PARC(p);
   }
 
+  // The arc of curr to tgt, seen backward: tgt joins the next frontier
+  // if the backward search had not seen it, and is a meeting point if
+  // the forward one had; as the body of the loop of expand_frontier()
+  void visit_backward(Node * curr, const size_t curr_dist, Arc * arc, Node * tgt,
+                      DynListQueue<Node *> & next_frontier,
+                      size_t & best_len, Node *& best_meeting)
+  {
+    constexpr int my_dir = BACKWARD;
+    constexpr int other_dir = FORWARD;
+
+    const bool seen_my = is_seen(tgt, my_dir);
+    if (not seen_my)
+      {
+        mark_seen(tgt, my_dir);
+        parent_ref(tgt, my_dir) = curr;
+        parent_arc_ref(tgt, my_dir) = arc;
+        set_dist(tgt, my_dir, curr_dist + 1);
+        next_frontier.put(tgt);
+      }
+
+    if (is_seen(tgt, other_dir))
+      {
+        const auto my_dist = get_dist(tgt, my_dir);
+        const auto other_dist = get_dist(tgt, other_dir);
+
+        if (my_dist != INF_DIST and other_dist != INF_DIST)
+          {
+            const auto candidate_len = my_dist + other_dist;
+            if (candidate_len < best_len)
+              {
+                best_len = candidate_len;
+                best_meeting = tgt;
+              }
+          }
+      }
+  }
+
   template <template <typename, class> class Itor>
   void expand_frontier(const GT & g, DynListQueue<Node *> & frontier,
                        const int my_dir, const int other_dir,
@@ -298,6 +374,33 @@ private:
     frontier.swap(next_frontier);
   }
 
+  // The backward step with In_Iterator on a digraph type, which keeps
+  // each arc only in the list of its source: it takes the arcs into each
+  // node from index, which the first step builds
+  void expand_backward(const GT & g, DynListQueue<Node *> & frontier,
+                       size_t & best_len, Node *& best_meeting, Backward_Index & index)
+  {
+    if (not index)
+      index.emplace(g, sa);
+
+    DynListQueue<Node *> next_frontier;
+
+    while (not frontier.is_empty())
+      {
+        auto curr = frontier.get();
+        const auto curr_dist = get_dist(curr, BACKWARD);
+
+        for (auto it = index->get_it(curr); it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_curr_ne();
+            visit_backward(curr, curr_dist, arc, g.get_connected_node(arc, curr),
+                           next_frontier, best_len, best_meeting);
+          }
+      }
+
+    frontier.swap(next_frontier);
+  }
+
   void build_path(const GT & g, Node * start, Node * meeting, Node * end,
                   Path<GT> & path)
   {
@@ -339,15 +442,15 @@ private:
 public:
   /** @brief Constructor.
    *
-   *  @param[in] __sa Arc filter for iterators.
+   *  @param[in] __sa Arc filter for iterators, which it moves.
    */
-  Bidirectional_BFS(SA __sa = SA()) : sa(__sa) {}
+  Bidirectional_BFS(SA && __sa = SA()) : sa(std::move(__sa)) {}
 
-  /** @brief Constructor with lvalue arc filter.
+  /** @brief Constructor with lvalue arc filter, const or not.
    *
-   *  @param[in] __sa Arc filter for iterators.
+   *  @param[in] __sa Arc filter for iterators, which it copies.
    */
-  Bidirectional_BFS(SA & __sa) : sa(__sa) {}
+  Bidirectional_BFS(const SA & __sa) : sa(__sa) {}
 
   /** @brief Finds the shortest unweighted path between start and end.
    *
@@ -366,7 +469,9 @@ public:
    *  @throw bad_alloc If there is not enough memory.
    *
    *  @note Time complexity: O(b^(d/2)) where b is branching factor,
-   *        d is the shortest path length.
+   *        d is the shortest path length; with `In_Iterator` on a digraph
+   *        type, O(V + E) for the index of the arcs into each node, once
+   *        the search goes backward.
    */
   bool find_path(const GT & g, Node * start, Node * end, Path<GT> & path)
   {
@@ -403,6 +508,9 @@ public:
     size_t bck_depth = 0;
     size_t best_len = INF_DIST;
 
+    // On a digraph type, the arcs into each node for the backward steps
+    [[maybe_unused]] Backward_Index index;
+
     while (not fwd_frontier.is_empty() and not bck_frontier.is_empty())
       {
         const bool expand_forward = fwd_frontier.size() <= bck_frontier.size();
@@ -415,8 +523,19 @@ public:
           }
         else
           {
-            expand_frontier<Bck_Itor>(g, bck_frontier, BACKWARD, FORWARD,
-                                      best_len, meeting);
+            if constexpr (backward_by_index and DigraphType<GT>)
+              expand_backward(g, bck_frontier, best_len, meeting, index);
+            else if constexpr (backward_by_index)
+              {
+                if (g.is_digraph())
+                  expand_backward(g, bck_frontier, best_len, meeting, index);
+                else
+                  expand_frontier<Bck_Itor>(g, bck_frontier, BACKWARD, FORWARD,
+                                            best_len, meeting);
+              }
+            else
+              expand_frontier<Bck_Itor>(g, bck_frontier, BACKWARD, FORWARD,
+                                        best_len, meeting);
             ++bck_depth;
           }
 

@@ -51,6 +51,7 @@
 # include <vector>
 # include <algorithm>
 # include <memory>
+# include <type_traits>
 # include <utility>
 
 namespace Aleph
@@ -441,10 +442,12 @@ namespace Aleph
      *
      * @param compare Comparison functor (defaults to \c Compare()).
      */
-    explicit Fibonacci_Heap(Compare compare = Compare()) noexcept
+    explicit Fibonacci_Heap(Compare compare = Compare())
+      noexcept(std::is_nothrow_copy_constructible_v<Compare>)
       : cmp(compare)
     {
-      consolidate_array_.reserve(MAX_DEGREE);
+      // empty: extract_min() and delete_node() reserve the room of
+      // consolidate() before they change the heap
     }
 
     /**
@@ -457,10 +460,11 @@ namespace Aleph
  * @param args Arguments forwarded to Compare's constructor
  */
     template <typename... Args>
-    explicit Fibonacci_Heap(std::in_place_t, Args&&... args) noexcept
+    explicit Fibonacci_Heap(std::in_place_t, Args&&... args)
+      noexcept(std::is_nothrow_constructible_v<Compare, Args&&...>)
       : cmp(std::forward<Args>(args)...)
     {
-      consolidate_array_.reserve(MAX_DEGREE);
+      // empty, as the other constructor
     }
 
     /**
@@ -487,7 +491,8 @@ namespace Aleph
      *
      * @param other The heap to move from
      */
-    Fibonacci_Heap(Fibonacci_Heap && other) noexcept
+    Fibonacci_Heap(Fibonacci_Heap && other)
+      noexcept(std::is_nothrow_move_constructible_v<Compare>)
       : min_node(other.min_node),
         num_nodes(other.num_nodes),
         cmp(std::move(other.cmp)),
@@ -504,16 +509,23 @@ namespace Aleph
      *
      * @param other The heap to move from
      * @return Reference to this heap
+     * @throws anything that the destructor of T, in clear(), or the move
+     *         assignment of the comparison throws. If the comparison
+     *         throws, this heap is empty and other keeps its elements.
      */
-    Fibonacci_Heap &operator=(Fibonacci_Heap && other) noexcept
+    Fibonacci_Heap &operator=(Fibonacci_Heap && other)
+      noexcept(std::is_nothrow_move_assignable_v<Compare> and
+               std::is_nothrow_destructible_v<T>)
     {
       if (this != &other)
         {
           clear();
-          min_node = other.min_node;
-          num_nodes = other.num_nodes;
+          // The comparison before the nodes: if its move throws, other
+          // still owns them, and this heap none
           cmp = std::move(other.cmp);
           consolidate_array_ = std::move(other.consolidate_array_);
+          min_node = other.min_node;
+          num_nodes = other.num_nodes;
           other.min_node = nullptr;
           other.num_nodes = 0;
         }
@@ -526,12 +538,17 @@ namespace Aleph
      * Exchanges all nodes between this heap and other in O(1) time.
      *
      * @param other The heap to swap with
+     * @throws anything that the swap of the comparisons throws: the swap
+     *         that is_nothrow_swappable looks at, the one of Compare if it
+     *         has one, else std::swap. Then the nodes stay where they were.
      */
-    void swap(Fibonacci_Heap & other) noexcept
+    void swap(Fibonacci_Heap & other)
+      noexcept(std::is_nothrow_swappable_v<Compare>)
     {
+      using std::swap;
+      swap(cmp, other.cmp); // before the nodes, which then cannot fail
       std::swap(min_node, other.min_node);
       std::swap(num_nodes, other.num_nodes);
-      std::swap(cmp, other.cmp);
       std::swap(consolidate_array_, other.consolidate_array_);
     }
 
@@ -1038,7 +1055,8 @@ namespace Aleph
    * @relates Fibonacci_Heap
    */
   template <typename T, class Compare>
-  void swap(Fibonacci_Heap<T, Compare> & a, Fibonacci_Heap<T, Compare> & b) noexcept
+  void swap(Fibonacci_Heap<T, Compare> & a, Fibonacci_Heap<T, Compare> & b)
+    noexcept(noexcept(a.swap(b)))
   {
     a.swap(b);
   }

@@ -126,17 +126,18 @@ class Find_Depth_First_Spanning_Tree
     typename GT::Node * tnode;
     Node_Arc_Iterator<GT, SA> it;
 
-    [[gnu::always_inline, gnu::flatten]]
+    [[gnu::always_inline]] ALEPH_FLATTEN
     Frame(typename GT::Node * gnode, typename GT::Node * image, SA & sa)
       : tnode(image), it(gnode, sa) {}
 
-    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
     // Moves the iterator, while the tree is not complete, to the next arc
     // not in the tree whose target is not in the tree either, and gives
     // that target; nullptr when the arcs are done or the tree is complete
-    [[gnu::always_inline, gnu::flatten]] typename GT::Node *
-    next_target(const GT & tree, const GT & g) noexcept
+    [[gnu::always_inline]] ALEPH_FLATTEN typename GT::Node *
+    next_target(const GT & tree, const GT & g) noexcept(noexcept(it.next_ne()))
     {
       for (; it.has_curr() and tree.get_num_nodes() < g.get_num_nodes(); it.next_ne())
         {
@@ -192,19 +193,21 @@ class Find_Depth_First_Spanning_Tree
 
     // Explore adjacent nodes via DFS. The node being visited keeps its
     // iterator in here until it visits a node; then it waits in frames,
-    // where it goes on when it comes back.
+    // where it goes on when it comes back. here is optional, so that the
+    // frame of each node is built in its place: a frame keeps the filter,
+    // which may not be assignable.
     Dfs_Stack<Frame> frames;
-    Frame here(gnode, image, sa);
+    std::optional<Frame> here(std::in_place, gnode, image, sa);
     while (true)
       {
-        if (auto tgt = here.next_target(*tptr, *gptr))
+        if (auto tgt = here->next_target(*tptr, *gptr))
           { // the iterator stays on the arc to tgt, as in a recursion
-            image = put_in_tree(tgt, here.it.get_current_arc_ne(), here.tnode);
+            image = put_in_tree(tgt, here->it.get_current_arc_ne(), here->tnode);
             if (image == nullptr)
               return true;
 
-            frames.push(std::move(here));
-            here = Frame(tgt, image, sa);
+            frames.push(std::move(*here));
+            here.emplace(tgt, image, sa);
             continue;
           }
 
@@ -221,7 +224,7 @@ class Find_Depth_First_Spanning_Tree
                 if (image == nullptr)
                   return true;
 
-                here = Frame(tgt, image, sa);
+                here.emplace(tgt, image, sa);
                 break;
               }
             frames.pop();
@@ -263,10 +266,11 @@ class Find_Depth_First_Spanning_Tree
           continue;  // Target already visited via another arc
 
         if (build_tree(arc_tgt_node, arc, tnode))
-          return true;
+          return true; // every node is in the tree
       }
 
-    return true;
+    // whether the tree spans g, which it does not if g is not connected
+    return tptr->get_num_nodes() == gptr->get_num_nodes();
   }
 
 public:

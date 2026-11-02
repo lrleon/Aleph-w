@@ -9,7 +9,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <string>
-#include "../ah-errors.H"
+#include <ah-errors.H>
 
 using namespace std;
 

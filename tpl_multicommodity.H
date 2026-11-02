@@ -346,9 +346,24 @@ namespace Aleph
       return sum;
     }
 
-    /// Check if all demands are satisfied
+    /** @brief Check if all demands are satisfied.
+     *
+     *  For each commodity, the flow of the commodity that leaves its
+     *  source, less the flow that enters it, must be its demand, within
+     *  1e-6. The network is a digraph, which keeps each arc only in the
+     *  list of its source: the arcs into the sources come from an
+     *  `In_Arcs_Index`, built once, so that the check takes
+     *  \f$O(V + E)\f$ besides the arcs at the sources.
+     *
+     *  @return true if every commodity meets its demand.
+     *  @throw bad_alloc if there is no memory for the index.
+     */
     bool demands_satisfied() const
     {
+      if (commodities.empty())
+        return true;
+
+      const In_Arcs_Index<MCF_Graph> in_arcs(*this);
       for (const auto& comm : commodities)
         {
           Flow_Type out_flow = 0;
@@ -356,8 +371,8 @@ namespace Aleph
             out_flow += it.get_curr()->flow(comm.id);
 
           Flow_Type in_flow = 0;
-          for (In_Iterator<MCF_Graph> it(comm.source); it.has_curr(); it.next_ne())
-            in_flow += it.get_curr()->flow(comm.id);
+          for (auto it = in_arcs.get_it(comm.source); it.has_curr(); it.next_ne())
+            in_flow += it.get_curr_ne()->flow(comm.id);
 
           if (std::abs((out_flow - in_flow) - comm.demand) > 1e-6)
             return false;

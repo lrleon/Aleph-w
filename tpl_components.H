@@ -93,7 +93,13 @@ namespace Aleph {
  * builder(g, subgraph, g.get_first_node());
  * @endcode
  *
- * @note Uses the `Build_Subtree` control bit on nodes and arcs.
+ * @note Uses the `Build_Subtree` control bit on nodes and arcs, which
+ *       takes a node or an arc for visited: the bits must be clear, as
+ *       `g.reset_nodes()` and `g.reset_arcs()` leave them, except those
+ *       of the components built before, as in Unconnected_Components.
+ * @note The cookies that the nodes and arcs of `g` had are not read:
+ *       after the build each node and arc reached maps to its copy, and
+ *       the copy to it.
  *
  * @tparam GT Graph type (must satisfy Aleph graph concept).
  * @tparam SA Arc filter type (default: `Dft_Show_Arc<GT>`).
@@ -129,33 +135,43 @@ public:
     typename GT::Node * sg_src;
     Node_Arc_Iterator<GT, SA> it;
 
-    [[gnu::always_inline, gnu::flatten]]
+    [[gnu::always_inline]] ALEPH_FLATTEN
     Map_Frame(typename GT::Node * g_src, typename GT::Node * image, SA & sa)
       : sg_src(image), it(g_src, sa) {}
 
-    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
   };
 
-  // Marks p and counts it, and gives its frame, with its image in sg,
-  // which it inserts if p has none
-  [[gnu::always_inline]] Map_Frame visit(GT & sg, typename GT::Node * p)
+  // Marks p and counts it, and gives its image, which it inserts in sg.
+  // A node gets its image when it is visited, so that a cookie that it
+  // had before, as those that Tarjan leaves, is not taken for its image;
+  // and it maps to its image alone, not through such a cookie.
+  [[gnu::always_inline]] typename GT::Node * visit(GT & sg, typename GT::Node * p)
   {
     NODE_BITS(p).set_bit(Build_Subtree, true);
     ++count;
 
-    // Get or create mapped node in subgraph
-    auto sg_p = mapped_node<GT>(p);
-    if (sg_p == nullptr)
-      {
-        sg_p = sg.insert_node(p->get_info());
-        GT::map_nodes(p, sg_p);
-      }
-    return Map_Frame(p, sg_p, sa);
+    auto sg_p = sg.insert_node(p->get_info());
+    NODE_COOKIE(p) = nullptr; // else map_nodes() would compose with it
+    GT::map_nodes(p, sg_p);
+    return sg_p;
   }
 
-  // Copies into sg the arcs of f that were not, with their targets, up to
-  // one whose target was not visited, which it gives, with the iterator
-  // on that arc; nullptr when the arcs are done
+  // Inserts in sg the copy of arc, from sg_src to sg_tgt, and maps them
+  [[gnu::always_inline]]
+  static void copy_arc(GT & sg, typename GT::Arc * arc,
+                       typename GT::Node * sg_src, typename GT::Node * sg_tgt)
+  {
+    auto sg_arc = sg.insert_arc(sg_src, sg_tgt, arc->get_info());
+    ARC_COOKIE(arc) = nullptr; // else map_arcs() would compose with it
+    GT::map_arcs(arc, sg_arc);
+  }
+
+  // Copies into sg the arcs of f that were not, toward the nodes visited,
+  // up to one whose target was not visited, which it gives, with the
+  // iterator on that arc, whose copy waits for the image of that target;
+  // nullptr when the arcs are done
   [[gnu::always_inline]]
   typename GT::Node * next_to_visit(GT & sg, Map_Frame & f)
   {
@@ -172,22 +188,22 @@ public:
         // Mark arc as visited
         ARC_BITS(arc).set_bit(Build_Subtree, true);
 
-        // Get or create mapped target node
-        auto sg_tgt = mapped_node<GT>(g_tgt);
-        if (sg_tgt == nullptr)
-          {
-            sg_tgt = sg.insert_node(g_tgt->get_info());
-            GT::map_nodes(g_tgt, sg_tgt);
-          }
-
-        // Insert arc in subgraph and establish mapping
-        auto sg_arc = sg.insert_arc(f.sg_src, sg_tgt, arc->get_info());
-        GT::map_arcs(arc, sg_arc);
-
         if (not IS_NODE_VISITED(g_tgt, Build_Subtree))
           return g_tgt;
+
+        copy_arc(sg, arc, f.sg_src, mapped_node<GT>(g_tgt));
       }
     return nullptr;
+  }
+
+  // Visits g_tgt, the target of the arc on which f stays, and copies that
+  // arc; gives the image of g_tgt
+  [[gnu::always_inline]]
+  typename GT::Node * visit_through(GT & sg, Map_Frame & f, typename GT::Node * g_tgt)
+  {
+    auto sg_tgt = visit(sg, g_tgt);
+    copy_arc(sg, f.it.get_current_arc_ne(), f.sg_src, sg_tgt);
+    return sg_tgt;
   }
 
   // DFS that builds a mapped subgraph. A path can have as many nodes as
@@ -199,15 +215,18 @@ public:
       return;
 
     // The node being visited keeps its iterator in here until it visits a
-    // node; then it waits in frames, where it goes on when it comes back
+    // node; then it waits in frames, where it goes on when it comes back.
+    // here is optional, so that the frame of each node is built in its
+    // place: a frame keeps the filter, which may not be assignable
     Dfs_Stack<Map_Frame> frames;
-    Map_Frame here = visit(sg, g_src);
+    std::optional<Map_Frame> here(std::in_place, g_src, visit(sg, g_src), sa);
     while (true)
       {
-        if (auto g_tgt = next_to_visit(sg, here))
+        if (auto g_tgt = next_to_visit(sg, *here))
           { // the iterator stays on the arc to g_tgt, as in a recursion
-            frames.push(std::move(here));
-            here = visit(sg, g_tgt);
+            auto sg_tgt = visit_through(sg, *here, g_tgt);
+            frames.push(std::move(*here));
+            here.emplace(g_tgt, sg_tgt, sa);
             continue;
           }
 
@@ -220,7 +239,7 @@ public:
             f.next_arc(); // past the arc to the node that was visited
             if (auto g_tgt = next_to_visit(sg, f))
               {
-                here = visit(sg, g_tgt);
+                here.emplace(g_tgt, visit_through(sg, f, g_tgt), sa);
                 break;
               }
             frames.pop();
@@ -233,17 +252,19 @@ public:
   {
     Node_Arc_Iterator<GT, SA> it;
 
-    [[gnu::always_inline, gnu::flatten]]
+    [[gnu::always_inline]] ALEPH_FLATTEN
     Arc_Frame(typename GT::Node * p, SA & sa) : it(p, sa) {}
 
-    [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
     // Moves the iterator, while count < n, to the next arc not visited
     // whose target was not visited either, and gives that target; it marks
     // the arcs not visited that it passes. nullptr when the arcs are done
     // or count == n.
-    [[gnu::always_inline, gnu::flatten]]
-    typename GT::Node * next_target(const size_t & count, const size_t n) noexcept
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    typename GT::Node * next_target(const size_t & count, const size_t n)
+      noexcept(noexcept(it.next_ne()))
     {
       for (; count < n and it.has_curr(); it.next_ne())
         {
@@ -274,25 +295,26 @@ public:
 
     const size_t n = gptr->get_num_nodes();
 
-    // Marks q, appends it to l and gives its frame
+    // Marks q and appends it to l, and gives it
     auto visit = [this, &l](typename GT::Node * q)
       {
         NODE_BITS(q).set_bit(Build_Subtree, true);
         ++count;
         l.append(q);
-        return Arc_Frame(q, sa);
+        return q;
       };
 
     // The node being visited keeps its iterator in here until it visits a
-    // node; then it waits in frames, where it goes on when it comes back
+    // node; then it waits in frames, where it goes on when it comes back.
+    // here is optional, as in the search above
     Dfs_Stack<Arc_Frame> frames;
-    Arc_Frame here = visit(p);
+    std::optional<Arc_Frame> here(std::in_place, visit(p), sa);
     while (true)
       {
-        if (auto tgt = here.next_target(count, n))
+        if (auto tgt = here->next_target(count, n))
           { // the iterator stays on the arc to tgt, as in a recursion
-            frames.push(std::move(here));
-            here = visit(tgt);
+            frames.push(std::move(*here));
+            here.emplace(visit(tgt), sa);
             continue;
           }
 
@@ -305,7 +327,7 @@ public:
             f.next_arc(); // past the arc to the node that was visited
             if (auto tgt = f.next_target(count, n))
               {
-                here = visit(tgt);
+                here.emplace(visit(tgt), sa);
                 break;
               }
             frames.pop();

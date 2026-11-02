@@ -146,10 +146,11 @@ TYPED_TEST(DijkstraHeapTest, PathToSelf) {
   Path<GT> path(g);
   double d = dij(g, n0, n0, path);
 
-  // When start == end and no self-loop exists, Dijkstra returns max distance
-  // and empty path (there's no actual "path" from a node to itself)
-  EXPECT_EQ(d, std::numeric_limits<double>::max());
-  EXPECT_TRUE(path.is_empty());
+  // The path of no arc, of cost 0, as in the other searches; it gave
+  // max() and no path
+  EXPECT_EQ(d, 0);
+  ASSERT_EQ(path.size(), 1u); // one node, no arc
+  EXPECT_EQ(path.get_first_node(), n0);
 }
 
 // ========== TEST 3: No Path Exists ==========
@@ -1294,7 +1295,7 @@ TYPED_TEST(DijkstraHeapTest, DistanceWithStateMatchesAnOracle) {
       for (auto t : w.nodes)
         {
           if (t == s)
-            continue; // no path from a node to itself; see PathToSelf
+            continue; // the path of no arc; see PathToSelf
 
           Path<IGT> path(w.g);
           const long cost = dij.find_min_path(w.g, s, t, path);

@@ -134,9 +134,21 @@ struct Zero_Heuristic
  *        Each call to find_path(), compute_*(), or paint_*() clears state.
  *
  *  @note If a method throws (for lack of memory, an overflow of the
- *        distances or an exception of `Distance` or `Heuristic`), the
- *        cookies it set are freed and the graph can be used again; a tree
- *        being built keeps the part already built.
+ *        distances or an exception of `Distance`, `Heuristic` or the
+ *        filter), the cookies it set are freed and the graph can be used
+ *        again; a tree being built keeps the part already built. With a
+ *        filter that can throw (see `nothrow_arc_filter_v`), a method
+ *        marks with the bit `Min` the arcs to which it gives a cookie, and
+ *        frees them by that mark, without calling the filter again; the
+ *        mark stays.
+ *
+ *  @note With an integral `Distance_Type`, a tentative sum beyond `max()`
+ *        does not throw by itself: `std::overflow_error` comes only when
+ *        the distance to a node that the start reaches, or to the end,
+ *        does not fit. The methods with a heuristic leave out an arc
+ *        whose g + h does not fit: if the heuristic does not overestimate,
+ *        no path through it fits, and with one that overestimates, they
+ *        can throw for an end whose distance fits.
  *
  *  @warning This class is **not thread-safe**. Concurrent calls require
  *           external synchronization.
@@ -301,8 +313,10 @@ public:
         auto tgt = it.get_tgt_node();
         auto g_cost = AARC_DIST(arc);
         auto h_cost = heuristic(tgt, end);
-        APOT(arc) = this->checked_add(g_cost, h_cost);
-        heap.put_arc(arc, tgt);
+        // a path through arc costs g + h or more: if that does not fit,
+        // neither does the path
+        if (this->add_if_fits(g_cost, h_cost, APOT(arc)))
+          heap.put_arc(arc, tgt);
       }
 
     typename GT::Node* result = nullptr;
@@ -354,12 +368,17 @@ public:
             if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
               continue;
 
-            auto new_g = this->checked_add(g_cost, AARC_DIST(arc));
+            typename Distance::Distance_Type new_g{};
+            if (not this->add_if_fits(g_cost, AARC_DIST(arc), new_g))
+              continue; // no distance that fits goes through arc
             auto h = heuristic(tgt, end);
-            APOT(arc) = this->checked_add(new_g, h);
-            heap.put_arc(arc, tgt);
+            if (this->add_if_fits(new_g, h, APOT(arc))) // as for start
+              heap.put_arc(arc, tgt);
           }
       }
+
+    if (this->beyond_max and result == nullptr)
+      this->check_beyond_max(g, start, end);
 
     return result;
   }
@@ -405,8 +424,10 @@ public:
         auto tgt = it.get_tgt_node();
         auto g_cost = AARC_DIST(arc);
         auto h_cost = heuristic(tgt, end);
-        APOT(arc) = this->checked_add(g_cost, h_cost);
-        heap.put_arc(arc, tgt);
+        // a path through arc costs g + h or more: if that does not fit,
+        // neither does the path
+        if (this->add_if_fits(g_cost, h_cost, APOT(arc)))
+          heap.put_arc(arc, tgt);
       }
 
     bool found = false;
@@ -451,12 +472,17 @@ public:
             if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
               continue;
 
-            auto new_g = this->checked_add(g_cost, AARC_DIST(arc));
+            typename Distance::Distance_Type new_g{};
+            if (not this->add_if_fits(g_cost, AARC_DIST(arc), new_g))
+              continue; // no distance that fits goes through arc
             auto h = heuristic(t, end);
-            APOT(arc) = this->checked_add(new_g, h);
-            heap.put_arc(arc, t);
+            if (this->add_if_fits(new_g, h, APOT(arc))) // as for start
+              heap.put_arc(arc, t);
           }
       }
+
+    if (this->beyond_max and not found)
+      this->check_beyond_max(g, start, end);
 
     painted = true;
 
@@ -592,10 +618,13 @@ public:
             if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
               continue;
 
-            APOT(arc) = this->checked_add(acc, AARC_DIST(arc));
-            heap.put_arc(arc, tgt);
+            if (this->add_if_fits(acc, AARC_DIST(arc), APOT(arc)))
+              heap.put_arc(arc, tgt);
           }
       }
+
+    if (this->beyond_max)
+      this->check_beyond_max(g, start);
 
     return ret;
   }
@@ -692,10 +721,13 @@ public:
             if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
               continue;
 
-            APOT(arc) = this->checked_add(acc, AARC_DIST(arc));
-            heap.put_arc(arc, tgt);
+            if (this->add_if_fits(acc, AARC_DIST(arc), APOT(arc)))
+              heap.put_arc(arc, tgt);
           }
       }
+
+    if (this->beyond_max and not IS_NODE_VISITED(end, Aleph::Spanning_Tree))
+      this->check_beyond_max(g, start, end);
   }
 
   /** Paints on graph g the partial shortest paths tree (without heuristic).
@@ -786,10 +818,13 @@ public:
             if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
               continue;
 
-            APOT(a) = this->checked_add(acc, AARC_DIST(a));
-            heap.put_arc(a, t);
+            if (this->add_if_fits(acc, AARC_DIST(a), APOT(a)))
+              heap.put_arc(a, t);
           }
       }
+
+    if (this->beyond_max and not ret_val)
+      this->check_beyond_max(g, start, end);
 
     painted = true;
 
@@ -863,10 +898,13 @@ public:
             if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
               continue;
 
-            APOT(a) = this->checked_add(acc, AARC_DIST(a));
-            heap.put_arc(a, t);
+            if (this->add_if_fits(acc, AARC_DIST(a), APOT(a)))
+              heap.put_arc(a, t);
           }
       }
+
+    if (this->beyond_max)
+      this->check_beyond_max(g, start);
 
     painted = true;
   }

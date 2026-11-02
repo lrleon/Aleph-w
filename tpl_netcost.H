@@ -199,6 +199,7 @@ namespace Aleph
       if (this == &net)
         return *this;
       Net_Cost_Graph tmp(net);  // copy construct (copies capacity, flow, and cost)
+      tmp.get_cookie() = this->get_cookie(); // the network keeps its cookie
       this->swap(tmp);          // swap with copy
       return *this;
     }
@@ -1155,7 +1156,9 @@ namespace Aleph
     /** Build initial spanning tree from source.
 
         Creates a spanning tree rooted at the source node and computes
-        initial potentials. Prioritizes arcs with partial flow.
+        initial potentials. Prioritizes arcs with partial flow. The nodes
+        that it does not reach, as those of a flow apart from the source,
+        get trees of their own, with the potentials of each from 0.
 
         Non-tree arcs are classified as Lower or Upper based on their
         current flow relative to capacity.
@@ -1217,48 +1220,67 @@ namespace Aleph
         return true;
       };
 
-      // Build tree with multiple priority passes
-      while (not queue.is_empty() and nodes_in_tree < total_nodes)
+      // Build tree with multiple priority passes, from the nodes in queue
+      auto grow = [&]
         {
-          auto p = queue.get();
-
-          // Collect all candidate arcs with priorities
-          struct ArcPriority {
-            Arc* arc;
-            Node* other;
-            int priority;  // 0 = partial flow, 1 = with flow, 2 = no flow
-          };
-          DynList<ArcPriority> candidates;
-
-          for (Node_Arc_Iterator<Net> it(p); it.has_curr(); it.next_ne())
+          while (not queue.is_empty() and nodes_in_tree < total_nodes)
             {
-              auto a = it.get_curr();
-              auto other = net.get_connected_node(a, p);
-              if (ninfo(other).depth >= 0)
-                continue;  // Already in tree
+              auto p = queue.get();
 
-              int prio;
-              if (is_partial_flow(a))
-                prio = 0;  // Highest priority
-              else if (a->flow > eps())
-                prio = 1;  // Medium priority
-              else
-                prio = 2;  // Lowest priority
+              // Collect all candidate arcs with priorities
+              struct ArcPriority {
+                Arc* arc;
+                Node* other;
+                int priority;  // 0 = partial flow, 1 = with flow, 2 = no flow
+              };
+              DynList<ArcPriority> candidates;
 
-              candidates.append(ArcPriority{a, other, prio});
-            }
-
-          // Sort by priority (partial flow first)
-          // Since DynList doesn't have sort, process in order
-          for (int target_prio = 0; target_prio <= 2; ++target_prio)
-            {
-              for (auto& ap : candidates)
+              for (Node_Arc_Iterator<Net> it(p); it.has_curr(); it.next_ne())
                 {
-                  if (ap.priority == target_prio)
-                    add_to_tree(p, ap.arc, ap.other);
+                  auto a = it.get_curr();
+                  auto other = net.get_connected_node(a, p);
+                  if (ninfo(other).depth >= 0)
+                    continue;  // Already in tree
+
+                  int prio;
+                  if (is_partial_flow(a))
+                    prio = 0;  // Highest priority
+                  else if (a->flow > eps())
+                    prio = 1;  // Medium priority
+                  else
+                    prio = 2;  // Lowest priority
+
+                  candidates.append(ArcPriority{a, other, prio});
+                }
+
+              // Sort by priority (partial flow first)
+              // Since DynList doesn't have sort, process in order
+              for (int target_prio = 0; target_prio <= 2; ++target_prio)
+                {
+                  for (auto& ap : candidates)
+                    {
+                      if (ap.priority == target_prio)
+                        add_to_tree(p, ap.arc, ap.other);
+                    }
                 }
             }
-        }
+
+        };
+      grow();
+
+      // The nodes that the tree from the source does not reach, as those
+      // of a flow apart from it, get trees of their own: else a cycle
+      // through them would have no common ancestor
+      for (typename Net::Node_Iterator it(net);
+           it.has_curr() and nodes_in_tree < total_nodes; it.next_ne())
+        if (auto r = it.get_curr(); ninfo(r).depth < 0)
+          {
+            ninfo(r).depth = 0;
+            ninfo(r).potential = 0;
+            ++nodes_in_tree;
+            queue.put(r);
+            grow();
+          }
 
       // Classify remaining non-tree arcs
       for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
@@ -1381,11 +1403,9 @@ namespace Aleph
         2. Updates flows around the cycle
         3. Identifies the leaving arc
 
-        For a valid cycle that allows flow redistribution, we need arcs
-        going in both directions (considering the entering arc). If all
-        arcs in the cycle go in the same "global" direction (e.g., all
-        from source towards sink), then we cannot redistribute flow
-        without changing the total flow value.
+        Flow pushed around a cycle, directed or not, or around a loop,
+        keeps the value of the flow, and the entering arc makes the cost
+        lower.
 
         @param[in] entering The entering arc.
         @param[out] delta Flow change amount.
@@ -1405,62 +1425,6 @@ namespace Aleph
       // Determine if we're increasing or decreasing flow on entering arc
       const bool increase_on_entering = (ainfo(entering).state == Simplex_Arc_State::Lower);
 
-      // Count arcs in the cycle and check if it's a valid cycle
-      // A valid cycle must have at least one arc where flow increases
-      // and at least one where flow decreases (in the cycle direction)
-      size_t arcs_with_increase = 0;
-      size_t arcs_with_decrease = 0;
-      size_t total_cycle_arcs = 1;  // Start with entering arc
-
-      if (increase_on_entering)
-        ++arcs_with_increase;
-      else
-        ++arcs_with_decrease;
-
-
-      // Walk from u to lca and count
-      Node *p = u;
-      while (p != lca)
-        {
-          bool from_parent = ninfo(p).arc_from_parent;
-          bool flow_increases = (increase_on_entering == from_parent);
-
-          if (flow_increases)
-            ++arcs_with_increase;
-          else
-            ++arcs_with_decrease;
-
-          ++total_cycle_arcs;
-          p = parent(p);
-        }
-
-      // Walk from v to lca and count
-      p = v;
-      while (p != lca)
-        {
-          bool from_parent = ninfo(p).arc_from_parent;
-          bool flow_increases = (increase_on_entering != from_parent);
-
-          if (flow_increases)
-            ++arcs_with_increase;
-          else
-            ++arcs_with_decrease;
-
-          ++total_cycle_arcs;
-          p = parent(p);
-        }
-
-      // If the cycle only has one arc (the entering arc itself) or
-      // all arcs go in the same direction, it's not a valid cycle
-      // for flow redistribution
-      if (total_cycle_arcs <= 1 or arcs_with_increase == 0 or arcs_with_decrease == 0)
-        {
-          delta = 0;
-          leaving = entering;
-          leaving_goes_lower = not increase_on_entering;
-          return false;  // No valid pivot possible
-        }
-
       // Initialize with entering arc's slack
       if (increase_on_entering)
         delta = entering->cap - entering->flow;
@@ -1473,7 +1437,7 @@ namespace Aleph
       // Walk from u to lca
       // Direction: lca → ... → u (following tree direction)
       // If increase_on_entering, flow increases in arcs pointing towards u
-      p = u;
+      Node *p = u;
       while (p != lca)
         {
           Arc *pa = parent_arc(p);
@@ -2100,8 +2064,8 @@ namespace Aleph
       for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
         {
           auto p = it.get_curr();
-          if (p == root)
-            continue;
+          if (p == root or ninfo(p).depth == 0)
+            continue;  // a root of the trees
 
           auto pa = parent_arc(p);
           if (pa == nullptr)

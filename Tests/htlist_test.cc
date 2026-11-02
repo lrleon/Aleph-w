@@ -459,11 +459,13 @@ TEST_F(HTListSplitTest, SplitEvenList)
     list.append(new Snodenc<int>(i));
 
   HTList l, r;
-  list.split(l, r);
+  const size_t count = list.split(l, r);
 
-  // The split algorithm uses tortoise-hare, count may not equal total elements
+  // split() gave one less than the number of items
+  EXPECT_EQ(count, 10u);
   EXPECT_TRUE(list.is_empty());
-  EXPECT_EQ(l.size() + r.size(), 10);
+  EXPECT_EQ(l.size(), 5u);
+  EXPECT_EQ(r.size(), 5u);
 
   // Verify that concatenating restores the list
   l.concat(r);
@@ -479,14 +481,38 @@ TEST_F(HTListSplitTest, SplitOddList)
     list.append(new Snodenc<int>(i));
 
   HTList l, r;
-  list.split(l, r);
+  const size_t count = list.split(l, r);
 
-  // The split algorithm uses tortoise-hare, count may not equal total elements
+  EXPECT_EQ(count, 7u);
   EXPECT_TRUE(list.is_empty());
-  EXPECT_EQ(l.size() + r.size(), 7);
+  EXPECT_EQ(l.size(), 4u); // the first takes the middle item
+  EXPECT_EQ(r.size(), 3u);
 
   l.concat(r);
   l.remove_all_and_delete();
+}
+
+TEST_F(HTListSplitTest, SplitGivesTheNumberOfItemsAndKeepsTheirOrder)
+{
+  for (int n = 0; n <= 9; ++n)
+    {
+      SCOPED_TRACE(n);
+      for (int i = 1; i <= n; ++i)
+        list.append(new Snodenc<int>(i));
+
+      HTList l, r;
+      EXPECT_EQ(list.split(l, r), size_t(n));
+      EXPECT_TRUE(list.is_empty());
+      EXPECT_EQ(l.size(), size_t(n - n / 2));
+      EXPECT_EQ(r.size(), size_t(n / 2));
+
+      l.concat(r);
+      int expected = 1;
+      for (HTList::Iterator it(l); it.has_curr(); it.next_ne(), ++expected)
+        EXPECT_EQ(static_cast<Snodenc<int> *>(it.get_curr())->get_data(), expected);
+      EXPECT_EQ(expected, n + 1);
+      l.remove_all_and_delete();
+    }
 }
 
 // =============================================================================

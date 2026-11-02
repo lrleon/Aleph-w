@@ -93,13 +93,15 @@ order of the nodes of g, goes to l.
 @param[in] g the bipartite graph.
 @param[out] l one partition set.
 @param[out] r the other partition set.
+@param[in] sa the filter of the arcs, which each iterator copies.
 @exception domain_error if during computation it is determined that
 the graph is not bipartite.
 @exception bad_alloc if there is not enough memory.
 @ingroup Graphs
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-void compute_bipartite(const GT &g, DynDlist<typename GT::Node *> &l, DynDlist<typename GT::Node *> &r)
+void compute_bipartite(const GT &g, DynDlist<typename GT::Node *> &l, DynDlist<typename GT::Node *> &r,
+                       SA sa = SA())
 {
   g.reset_nodes();  // initialize counters to White
   g.reset_arcs();
@@ -122,7 +124,7 @@ void compute_bipartite(const GT &g, DynDlist<typename GT::Node *> &l, DynDlist<t
         if (not red.is_empty())  // any red node with unvisited arcs?
           {
             typename GT::Node *p = red.get();
-            for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
+            for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
               {
                 typename GT::Arc *a = it.get_curr();
                 ah_domain_error_if(color<GT>(a) == Bp_Red) << "Graph is not bipartite";
@@ -143,7 +145,7 @@ void compute_bipartite(const GT &g, DynDlist<typename GT::Node *> &l, DynDlist<t
         else if (not blue.is_empty())  // any blue node with unvisited arcs?
           {
             typename GT::Node *p = blue.get();
-            for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
+            for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
               {
                 typename GT::Arc *a = it.get_curr();
                 ah_domain_error_if(color<GT>(a) == Bp_Blue) << "Graph is not bipartite";
@@ -178,7 +180,15 @@ vice versa.
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Compute_Bipartite
 {
+  SA sa;
+
 public:
+  /** Builds the computation with the filter of the arcs.
+
+      @param[in] __sa the filter of the arcs, which each iterator copies.
+   */
+  explicit Compute_Bipartite(SA __sa = SA()) : sa(std::move(__sa)) {}
+
   /** Computes the partition sets of a bipartite graph.
 
 @param[in] g the bipartite graph.
@@ -190,7 +200,7 @@ the graph is not bipartite.
   */
   void operator()(const GT &g, DynDlist<typename GT::Node *> &l, DynDlist<typename GT::Node *> &r)
   {
-    compute_bipartite<GT, SA>(g, l, r);
+    compute_bipartite<GT, SA>(g, l, r, sa);
   }
 };
 
@@ -211,20 +221,22 @@ The routine handles two type parameters:
 
 @param[in] g the bipartite graph.
 @param[out] matching list of arcs that form the matching.
+@param[in] sa the filter of the arcs, which each iterator copies.
 @exception bad_alloc if there is not enough memory.
 
 @ingroup Graphs
  */
 template <AlephGraph GT, template <class> class Max_Flow = Ford_Fulkerson_Maximum_Flow, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 void compute_maximum_cardinality_bipartite_matching(const GT &g,
-                                                    DynDlist<typename GT::Arc *> &matching)
+                                                    DynDlist<typename GT::Arc *> &matching,
+                                                    SA sa = SA())
 {
   if (g.get_num_nodes() == 0)
     return;
 
   DynDlist<typename GT::Node *> l, r;
 
-  compute_bipartite<GT, SA>(g, l, r); // with the arcs of the net
+  compute_bipartite<GT, SA>(g, l, r, sa); // with the arcs of the net
 
   typedef Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class>> AN;
   AN net;
@@ -244,11 +256,10 @@ void compute_maximum_cardinality_bipartite_matching(const GT &g,
   for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
     {
       typename GT::Node *p = it.get_curr();
-      if (not Node_Arc_Iterator<GT, SA>(p).has_curr())
+      if (not Node_Arc_Iterator<GT, SA>(p, sa).has_curr())
         continue;
       has_arcs = true;
       NODE_COOKIE(p) = net.insert_node();
-      NODE_COOKIE((typename GT::Node *) NODE_COOKIE(p)) = p;
     }
 
   if (not has_arcs)
@@ -265,10 +276,11 @@ void compute_maximum_cardinality_bipartite_matching(const GT &g,
       typename AN::Node *src = mapped_node<GT, AN>(p);
       net.insert_arc(source, src, 1);
 
-      for (Node_Arc_Iterator<GT, SA> j(p); j.has_curr(); j.next_ne())
+      for (Node_Arc_Iterator<GT, SA> j(p, sa); j.has_curr(); j.next_ne())
         {
           typename GT::Arc *arc = j.get_current_arc_ne();
-          typename AN::Node *tgt = mapped_node<GT, AN>(g.get_tgt_node(arc));
+          // the other end from p, which may be the source of the arc
+          typename AN::Node *tgt = mapped_node<GT, AN>(g.get_connected_node(arc, p));
           typename AN::Arc *a = net.insert_arc(src, tgt, 1);
           // Store mapping in map (not cookies, which are cleared by Max_Flow)
           arc_map.insert(a, arc);
@@ -315,7 +327,16 @@ By default, the Ford-Fulkerson algorithm is used.
 template <AlephGraph GT, template <class> class Max_Flow = Ford_Fulkerson_Maximum_Flow, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Compute_Maximum_Cardinality_Bipartite_Matching
 {
+  SA sa;
+
 public:
+  /** Builds the computation with the filter of the arcs.
+
+      @param[in] __sa the filter of the arcs, which each iterator copies.
+   */
+  explicit Compute_Maximum_Cardinality_Bipartite_Matching(SA __sa = SA())
+    : sa(std::move(__sa)) {}
+
   /** Computes the maximum bipartite matching of a graph.
 
       compute_maximum_cardinality_bipartite_matching(g,matching)
@@ -332,7 +353,7 @@ public:
    */
   void operator()(const GT &g, DynDlist<typename GT::Arc *> &matching)
   {
-    compute_maximum_cardinality_bipartite_matching<GT, Max_Flow, SA>(g, matching);
+    compute_maximum_cardinality_bipartite_matching<GT, Max_Flow, SA>(g, matching, sa);
   }
 };
 
@@ -346,13 +367,15 @@ instead of throwing.
 @param[in] g the graph to test.
 @param[out] l one partition set (red nodes).
 @param[out] r the other partition set (blue nodes).
+@param[in] sa the filter of the arcs, which each iterator copies.
 @return true if the graph is bipartite, false otherwise.
 @ingroup Graphs
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 bool compute_bipartite_all_components(const GT &g,
                                       DynDlist<typename GT::Node *> &l,
-                                      DynDlist<typename GT::Node *> &r)
+                                      DynDlist<typename GT::Node *> &r,
+                                      SA sa = SA())
 {
   using Node = typename GT::Node;
 
@@ -377,7 +400,7 @@ bool compute_bipartite_all_components(const GT &g,
           const long p_color = color<GT>(p);
           const long neighbor_color = (p_color == Bp_Red) ? Bp_Blue : Bp_Red;
 
-          for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
+          for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
             if (Node *q = it.get_tgt_node(); color<GT>(q) == Bp_White)
               {
                 color<GT>(q) = neighbor_color;
@@ -396,25 +419,27 @@ bool compute_bipartite_all_components(const GT &g,
 }
 
 /// A left node that the search for an augmenting path goes through, and
-/// the next of its arcs to look at
+/// the next of its arcs to look at, with a copy of the filter of the search
 template <AlephGraph GT, ArcFilter<GT> SA>
 struct Hopcroft_Karp_Frame
 {
   typename GT::Node *u;
   Node_Arc_Iterator<GT, SA> it;
 
-  [[gnu::always_inline, gnu::flatten]]
-  Hopcroft_Karp_Frame(typename GT::Node *n) : u(n), it(n) {}
+  [[gnu::always_inline]] ALEPH_FLATTEN
+  Hopcroft_Karp_Frame(typename GT::Node *n, const SA &sa) : u(n), it(n, sa) {}
 
-  [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+  [[gnu::always_inline]] ALEPH_FLATTEN
+  void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 };
 
 // Moves the iterator of f to the next arc that goes to a free right node,
 // which it gives with free set, or to a right node whose partner is in the
 // next layer, which it gives; nullptr when the arcs of f.u are done
 template <AlephGraph GT, ArcFilter<GT> SA>
-[[gnu::always_inline, gnu::flatten]] inline typename GT::Node *
-hopcroft_karp_next(const GT &g, Hopcroft_Karp_Frame<GT, SA> &f, bool &free) noexcept
+[[gnu::always_inline]] ALEPH_FLATTEN inline typename GT::Node *
+hopcroft_karp_next(const GT &g, Hopcroft_Karp_Frame<GT, SA> &f, bool &free)
+  noexcept(noexcept(f.it.next_ne()))
 {
   using Arc = typename GT::Arc;
 
@@ -458,10 +483,13 @@ hopcroft_karp_match(const GT &g, Hopcroft_Karp_Frame<GT, SA> &f) noexcept
 // keeps its own stack, frames, empty when it starts and when it ends; the
 // order of the visits is that of a recursion. The node being visited keeps
 // its frame in here until it visits another; then the frame waits in
-// frames, where it goes on when the search comes back.
+// frames, where it goes on when the search comes back. Each frame copies
+// sa, the filter of the arcs, and here is a Dfs_Here, which assigns the
+// frames if the filter can be assigned.
 template <AlephGraph GT, ArcFilter<GT> SA>
 static bool hopcroft_karp_dfs(const GT &g, typename GT::Node *u,
-                              Dfs_Stack<Hopcroft_Karp_Frame<GT, SA>> &frames)
+                              Dfs_Stack<Hopcroft_Karp_Frame<GT, SA>> &frames,
+                              const SA &sa)
 {
   using Node = typename GT::Node;
   using Frame = Hopcroft_Karp_Frame<GT, SA>;
@@ -478,25 +506,25 @@ static bool hopcroft_karp_dfs(const GT &g, typename GT::Node *u,
         }
     };
 
-  Frame here(u);
+  auto here = dfs_here<Frame>(u, sa);
   while (true)
     {
       bool free = false;
-      if (Node *next = hopcroft_karp_next(g, here, free))
+      if (Node *next = hopcroft_karp_next(g, dfs_frame(here), free))
         {
           if (free)
             {
-              hopcroft_karp_match(g, here);
+              hopcroft_karp_match(g, dfs_frame(here));
               match_frames();
               return true;
             }
 
-          frames.push(std::move(here)); // the iterator stays on the arc
-          here = Frame(next);
+          frames.push(std::move(dfs_frame(here))); // the iterator stays on the arc
+          dfs_replace(here, next, sa);
           continue;
         }
 
-      NODE_COUNTER(here.u) = INF;  // mark u as "dead" for this phase
+      NODE_COUNTER(dfs_frame(here).u) = INF;  // mark u as "dead" for this phase
       while (true) // back to the nodes that wait
         {
           if (frames.is_empty())
@@ -512,7 +540,7 @@ static bool hopcroft_karp_dfs(const GT &g, typename GT::Node *u,
                   return true;
                 }
 
-              here = Frame(next);
+              dfs_replace(here, next, sa);
               break;
             }
 
@@ -533,11 +561,14 @@ This implementation handles disconnected graphs correctly.
 
 @param[in] g the bipartite graph.
 @param[out] matching list of arcs forming the maximum matching.
+@param[in] sa the filter of the arcs, which the bipartition, each iterator
+and each frame of the search copy.
 @exception domain_error if the graph is not bipartite.
 @ingroup Graphs
  */
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-void hopcroft_karp_matching(const GT &g, DynDlist<typename GT::Arc *> &matching)
+void hopcroft_karp_matching(const GT &g, DynDlist<typename GT::Arc *> &matching,
+                            SA sa = SA())
 {
   using Node = typename GT::Node;
   using Arc = typename GT::Arc;
@@ -550,7 +581,7 @@ void hopcroft_karp_matching(const GT &g, DynDlist<typename GT::Arc *> &matching)
   DynDlist<Node *> left_nodes, right_nodes;
 
   // 2-coloring (uses NODE_COUNTER for color)
-  const bool is_bipartite = compute_bipartite_all_components<GT, SA>(g, left_nodes, right_nodes);
+  const bool is_bipartite = compute_bipartite_all_components<GT, SA>(g, left_nodes, right_nodes, sa);
   ah_domain_error_if(not is_bipartite) << "Graph is not bipartite";
 
   // Now repurpose NODE_COOKIE for matching arcs and
@@ -590,7 +621,7 @@ void hopcroft_karp_matching(const GT &g, DynDlist<typename GT::Arc *> &matching)
         if (u_dist >= dist_to_free)
           continue;
 
-        for (Node_Arc_Iterator<GT, SA> it(u); it.has_curr(); it.next_ne())
+        for (Node_Arc_Iterator<GT, SA> it(u, sa); it.has_curr(); it.next_ne())
           {
             Arc *arc = it.get_current_arc_ne();
             Node *v = g.get_connected_node(arc, u);  // right-side
@@ -617,7 +648,7 @@ void hopcroft_karp_matching(const GT &g, DynDlist<typename GT::Arc *> &matching)
     {
       for (auto it = left_nodes.get_it(); it.has_curr(); it.next_ne())
         if (Node *u = it.get_curr(); NODE_COOKIE(u) == nullptr)  // u is free
-          hopcroft_karp_dfs<GT, SA>(g, u, frames);
+          hopcroft_karp_dfs<GT, SA>(g, u, frames, sa);
     }
 
   // Collect matching arcs from left-side nodes
@@ -642,7 +673,15 @@ void hopcroft_karp_matching(const GT &g, DynDlist<typename GT::Arc *> &matching)
 template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Hopcroft_Karp_Matching
 {
+  SA sa;
+
 public:
+  /** Builds the computation with the filter of the arcs.
+
+      @param[in] __sa the filter of the arcs, which the search copies.
+   */
+  explicit Hopcroft_Karp_Matching(SA __sa = SA()) : sa(std::move(__sa)) {}
+
   /** Computes the maximum matching using Hopcroft-Karp.
 
   @param[in] g the bipartite graph.
@@ -651,7 +690,7 @@ public:
    */
   void operator()(const GT &g, DynDlist<typename GT::Arc *> &matching)
   {
-    hopcroft_karp_matching<GT, SA>(g, matching);
+    hopcroft_karp_matching<GT, SA>(g, matching, sa);
   }
 };
 }  // end namespace Aleph

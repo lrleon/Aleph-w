@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /** @file tpl_net.H
  *  @brief Network flow graph structures.
  *
@@ -47,1948 +46,2488 @@
  *  @author Leandro Rabindranath León
  */
 
-# ifndef TPL_NET_H
-# define TPL_NET_H
+#ifndef TPL_NET_H
+#define TPL_NET_H
 
-# include <algorithm>
-# include <limits>
-# include <set>
-# include <tuple>
-# include <type_traits>
-# include <utility>
+#include <algorithm>
+#include <limits>
+#include <set>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-# include <tpl_dynDlist.H>
-# include <tpl_dynListStack.H>
-# include <tpl_dynBinHeap.H>
-# include <tpl_dynSetTree.H>
-# include <tpl_dynSetHash.H>
-# include <tpl_random_queue.H>
-# include <tpl_graph_utils.H>
-# include <tpl_find_path.H>
-# include <graph-traverse.H>
-# include <ah-errors.H>
+#include <tpl_dynDlist.H>
+#include <tpl_dynListStack.H>
+#include <tpl_dynBinHeap.H>
+#include <tpl_dynSetTree.H>
+#include <tpl_dynSetHash.H>
+#include <tpl_random_queue.H>
+#include <tpl_graph_utils.H>
+#include <tpl_find_path.H>
+#include <graph-traverse.H>
+#include <ah-errors.H>
+#include <cookie_guard.H>
 
+namespace Aleph {
+using std::get;
 
-namespace Aleph
+/** @brief Arc info extension that stores capacity and flow values.
+ *
+ * @tparam Arc_Info Base arc info type.
+ * @tparam Flow_Type Numeric type for capacity/flow.
+ *
+ * @ingroup Networks
+ */
+template <typename Arc_Info, typename Flow_Type>
+struct Net_Arc_Info : public Arc_Info
 {
-  using std::get;
+  /// Capacity value.
+  Flow_Type cap = Flow_Type{};
 
-  /** @brief Arc info extension that stores capacity and flow values.
-   *
-   * @tparam Arc_Info Base arc info type.
-   * @tparam Flow_Type Numeric type for capacity/flow.
-   *
-   * @ingroup Networks
-   */
-  template <typename Arc_Info, typename Flow_Type>
-  struct Net_Arc_Info : public Arc_Info
+  /// Flow value.
+  Flow_Type flow = Flow_Type{};
+
+  /// Default constructor.
+  Net_Arc_Info() = default;
+
+  /// Construct from base info, capacity and flow.
+  Net_Arc_Info(const Arc_Info &info, Flow_Type __cap, Flow_Type __flow)
+    : Arc_Info(info), cap(__cap), flow(__flow)
   {
-    /// Capacity value.
-    Flow_Type cap = Flow_Type{};
+    // empty
+  }
+};
 
-    /// Flow value.
-    Flow_Type flow = Flow_Type{};
+/** @brief Arc of a flow network implemented with adjacency lists.
+ *
+ * Net_Arc models a capacitated network arc with Arc_Info and a numeric
+ * Flow_Type for capacity and flow.
+ *
+ * This class is only intended as the arc type for Net_Graph; do not
+ * instantiate it directly. Use Net_Graph::insert_arc() instead.
+ *
+ * @see Array_Graph Net_Graph Net_Node
+ * @ingroup Networks
+ */
+template <typename Arc_Info, typename F_Type = double>
+struct Net_Arc : public Graph_Aarc<Arc_Info>  // Arc type for flow networks.
+{
+  using Base = Graph_Aarc<Arc_Info>;
 
-    /// Default constructor.
-    Net_Arc_Info() = default;
+  using Flow_Type = F_Type;
 
-    /// Construct from base info, capacity and flow.
-    Net_Arc_Info(const Arc_Info & info, Flow_Type __cap, Flow_Type __flow)
-      : Arc_Info(info), cap(__cap), flow(__flow)
-    {
-      // empty
-    }
-  };
+  /// Capacity value.
+  Flow_Type cap = 0;
 
-  /** @brief Arc of a flow network implemented with adjacency lists.
-   *
-   * Net_Arc models a capacitated network arc with Arc_Info and a numeric
-   * Flow_Type for capacity and flow.
-   *
-   * This class is only intended as the arc type for Net_Graph; do not
-   * instantiate it directly. Use Net_Graph::insert_arc() instead.
-   *
-   * @see Array_Graph Net_Graph Net_Node
-   * @ingroup Networks
-   */
-  template <typename Arc_Info, typename F_Type = double>
-  struct Net_Arc : public Graph_Aarc<Arc_Info> // Arc type for flow networks.
+  /// Flow value.
+  Flow_Type flow = 0;
+
+  /// Return true if flow satisfies 0 <= flow <= cap.
+  bool check_arc() const noexcept
   {
-    using Base = Graph_Aarc<Arc_Info>;
+    return flow >= 0 and flow <= cap;
+  }
 
-    using Flow_Type = F_Type;
+  /// Construct from arc info.
+  Net_Arc(const Arc_Info &info) : Base(info)
+  { /* empty */
+  }
 
-    /// Capacity value.
-    Flow_Type cap = 0;
+  /// Copy constructor.
+  Net_Arc(const Net_Arc &arc) : Base(arc.arc_info), cap(arc.cap), flow(arc.flow)
+  {
+    // empty
+  }
 
-    /// Flow value.
-    Flow_Type flow = 0;
+  /// Default constructor.
+  Net_Arc()
+  { /* empty */
+  }
 
-    /// Return true if flow satisfies 0 <= flow <= cap.
-    bool check_arc() const noexcept { return flow >= 0 and flow <= cap; }
-
-    /// Construct from arc info.
-    Net_Arc(const Arc_Info & info)
-      : Base(info)
-    { /* empty */
-    }
-
-    /// Copy constructor.
-    Net_Arc(const Net_Arc & arc)
-      : Base(arc.arc_info), cap(arc.cap), flow(arc.flow)
-    {
-      // empty
-    }
-
-    /// Default constructor.
-    Net_Arc()
-    { /* empty */
-    }
-
-    /// Copy assignment.
-    Net_Arc &operator =(const Net_Arc & arc)
-    {
-      if (this == &arc)
-        return *this;
-
-      *static_cast<Base *>(this) = arc;
-      cap = arc.cap;
-      flow = arc.flow;
-
+  /// Copy assignment.
+  Net_Arc &operator = (const Net_Arc &arc)
+  {
+    if (this == &arc)
       return *this;
-    }
-  };
 
+    *static_cast<Base *>(this) = arc;
+    cap = arc.cap;
+    flow = arc.flow;
 
-  /** @brief Return true if arc `a` is residual with respect to `src`. */
-  template <class Net>
-  bool is_residual(typename Net::Node *src, typename Net::Arc *a) noexcept
+    return *this;
+  }
+};
+
+/** @brief Return true if arc `a` is residual with respect to `src`. */
+template <class Net>
+bool is_residual(typename Net::Node *src, typename Net::Arc *a) noexcept
+{
+  assert(a->src_node == src or a->tgt_node == src);
+  return a->tgt_node == src;
+}
+
+/** @brief Arc filter for residual traversal in flow networks.
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+struct Net_Filt
+{
+  typename Net::Node *p = nullptr;
+
+  void *cookie = nullptr;
+
+  /// Store an opaque cookie for compatibility with other iterators.
+  void set_cookie(void *__cookie) noexcept
   {
-    assert(a->src_node == src or a->tgt_node == src);
-    return a->tgt_node == src;
+    cookie = __cookie;
   }
 
-  /** @brief Arc filter for residual traversal in flow networks.
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  struct Net_Filt
-  {
-    typename Net::Node *p = nullptr;
-
-    void *cookie = nullptr;
-
-    /// Store an opaque cookie for compatibility with other iterators.
-    void set_cookie(void *__cookie) noexcept { cookie = __cookie; }
-
-    /// Build a filter rooted at node `s`.
-    Net_Filt(typename Net::Node *s = nullptr) noexcept
-      : p(s)
-    { /* empty */
-    }
-
-    /// Return true if arc `a` has residual capacity with respect to `p`.
-    bool operator ()(typename Net::Arc *a) const noexcept
-    {
-      assert(p);
-      assert(a->src_node == p or a->tgt_node == p);
-      auto src = static_cast<typename Net::Node *>(a->src_node);
-      if (src == p)
-        return a->cap - a->flow > 0; // normal arc
-
-      assert(is_residual<Net>(p, a));
-      return a->flow > 0; // residual arc
-    }
-
-    /// Filter hook used by some iterator adapters.
-    bool operator ()(const Net &, typename Net::Arc *arc) noexcept
-    {
-      return (*this)(arc);
-    }
-
-    /// Return the opposite endpoint of arc `a` with respect to `p`.
-    typename Net::Node * get_node(typename Net::Arc *a) const noexcept
-    {
-      assert(p);
-      assert(a->src_node == p or a->tgt_node == p);
-      return static_cast<typename Net::Node *>(a->src_node == p ? a->tgt_node : a->src_node);
-    }
-  };
-
-
-  template <class Net>
-  using __Net_Iterator = Digraph_Iterator<Net, Net_Filt<Net>>;
-
-  /// Residual-graph iterator adapter for flow networks.
-  template <class Net, class Show_Arc = Dft_Show_Arc<Net>>
-  using Net_Iterator =
-  Filter_Iterator<typename Net::Node *, __Net_Iterator<Net>, Show_Arc>;
-
-
-  /** @brief Return the remaining flow of `a` as seen from `src`.
-   *
-   * If `a` is residual with respect to `src`, the remaining flow is the
-   * current flow. Otherwise, it is the residual capacity.
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  typename Net::Flow_Type
-  remaining_flow(typename Net::Node *src, typename Net::Arc *a) noexcept
-  {
-    return is_residual<Net>(src, a) ? a->flow : a->cap - a->flow;
+  /// Build a filter rooted at node `s`.
+  Net_Filt(typename Net::Node *s = nullptr) noexcept : p(s)
+  { /* empty */
   }
 
-  /// Node type for flow networks.
-  template <typename Node_Info = Empty_Class>
-  using Net_Node = Graph_Anode<Node_Info>;
-
-
-  /** @brief Flow network implemented with adjacency lists.
-   *
-   * Net_Graph models a capacitated network, the main data structure
-   * for maximum-flow algorithms and related graph routines.
-   *
-   * Template parameters:
-   * - NodeT: node type (must derive from Net_Node).
-   * - ArcT: arc type (must derive from Net_Arc).
-   *
-   * @ingroup Networks
-   */
-  template <class NodeT = Net_Node<Empty_Class>,
-            class ArcT = Net_Arc<Empty_Class, double>>
-  struct Net_Graph : public Array_Graph<NodeT, ArcT>
+  /// Return true if arc `a` has residual capacity with respect to `p`.
+  bool operator () (typename Net::Arc *a) const noexcept
   {
-    using Net = Net_Graph<NodeT, ArcT>;
-
-    using Base = Array_Graph<NodeT, ArcT>;
-
-    using Base::Base;
-    using Base::insert_node;
-
-    using Graph = Base;
-
-    /// Arc type.
-    using Arc = ArcT;
-
-    /// Node type.
-    using Node = NodeT;
-
-    /// Capacity/flow numeric type.
-    using Flow_Type = typename Arc::Flow_Type;
-
-    /// Node info type.
-    using Node_Type = typename Node::Node_Type;
-
-    /// Arc info type.
-    using Arc_Type = typename Arc::Arc_Type;
-
-    mutable Flow_Type Infinity;
-
-    /// Return arcs outgoing from `p` (as a DynList).
-    DynList<Arc *> out_arcs(Node *p) const noexcept
-    {
-      return Aleph::out_arcs<Net_Graph>(p);
-    }
-
-    /// Return nodes reachable from `p` through outgoing arcs.
-    DynList<Node *> out_nodes(Node *p) const noexcept
-    {
-      return out_pairs<Net_Graph>(p).template maps<Node *>
-          ([](const ArcPair<Net_Graph> & p) { return get<1>(p); });
-    }
-
-    /// Return arcs incoming to `p` (as a DynList).
-    DynList<Arc *> in_arcs(Node *p) const noexcept
-    {
-      return Aleph::in_arcs<Net_Graph>(p);
-    }
-
-    /// Return nodes that can reach `p` through incoming arcs.
-    DynList<Node *> in_nodes(Node *p) const noexcept
-    {
-      return in_pairs<Net_Graph>(p).template maps<Node *>
-          ([](const ArcPair<Net_Graph> & p) { return get<1>(p); });
-    }
-
-    /// Return total incoming capacity of `node`.
-    [[nodiscard]] Flow_Type get_in_cap(Node *node) const noexcept
-    {
-      Flow_Type sum = Flow_Type{0};
-      for (_In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
-        sum += it.get_curr()->cap;
-      return sum;
-    }
-
-    /// Return total outgoing capacity of `node`.
-    [[nodiscard]] Flow_Type get_out_cap(Node *node) const noexcept
-    {
-      Flow_Type sum = Flow_Type{0};
-      for (_Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
-        sum += it.get_curr()->cap;
-      return sum;
-    }
-
-    /// Return the in-degree of `p` (number of incoming arcs).
-    size_t get_in_degree(Node *p) const noexcept
-    {
-      return this->in_degree(p);
-    }
-
-    /// Return the out-degree of `p` (number of outgoing arcs).
-    size_t get_out_degree(Node *p) const noexcept
-    {
-      return this->out_degree(p);
-    }
-
-    /// Return total outgoing flow of `node`.
-    [[nodiscard]] Flow_Type get_out_flow(Node *node) const noexcept
-    {
-      Flow_Type sum = Flow_Type{0};
-      for (_Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
-        sum += it.get_curr()->flow;
-      return sum;
-    }
-
-    /// Return total incoming flow of `node`.
-    [[nodiscard]] Flow_Type get_in_flow(Node *node) const noexcept
-    {
-      Flow_Type sum = Flow_Type{0};
-      for (_In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
-        sum += it.get_curr()->flow;
-      return sum;
-    }
-
-    /// Return true if `node` is a source.
-    bool is_source(Node *node) const noexcept { return src_nodes.contains(node); }
-
-    /// Return true if `node` is a sink.
-    bool is_sink(Node *node) const noexcept { return sink_nodes.contains(node); }
-
-    /// Return true if the network has a single source.
-    [[nodiscard]] constexpr bool is_single_source() const noexcept { return src_nodes.size() == 1; }
-
-    /// Return true if the network has a single sink.
-    [[nodiscard]] constexpr bool is_single_sink() const noexcept { return sink_nodes.size() == 1; }
-
-    /// Return true if `p` is connected (used for validation).
-    bool is_connected(Node *p) const noexcept
-    {
-      return get_in_degree(p) != 0 or get_out_degree(p) != 0;
-    }
-
-    /// Return true if `node` satisfies flow conservation constraints.
-    bool check_node(Node *node) const noexcept
-    {
-      if (not is_connected(node))
-        return false;
-
-      auto out_flow = get_out_flow(node);
-      auto in_flow = get_in_flow(node);
-
-      // Use tolerance for floating-point comparison
-      const auto eps = std::max(std::abs(out_flow), std::abs(in_flow)) * 1e-9;
-      const auto nearly_zero = [eps](auto x) { return std::abs(x) <= eps; };
-      const auto nearly_equal = [eps](auto a, auto b) { return std::abs(a - b) <= eps; };
-
-      if (is_sink(node))
-        return nearly_zero(out_flow) and in_flow >= -eps;
-
-      if (is_source(node))
-        return nearly_zero(in_flow) and out_flow >= -eps;
-
-      return nearly_equal(out_flow, in_flow);
-    }
-
-  private:
-    DynSetTree<Node *> src_nodes;
-    DynSetTree<Node *> sink_nodes;
-
-    /// Return total outgoing flow from all sources.
-    Flow_Type total_source_out_flow() const
-    {
-      Flow_Type sum = Flow_Type{};
-      for (auto it = src_nodes.get_it(); it.has_curr(); it.next_ne())
-        sum += get_out_flow(it.get_curr());
-      return sum;
-    }
-
-    /// Return total incoming flow to all sinks.
-    Flow_Type total_sink_in_flow() const
-    {
-      Flow_Type sum = Flow_Type{};
-      for (auto it = sink_nodes.get_it(); it.has_curr(); it.next_ne())
-        sum += get_in_flow(it.get_curr());
-      return sum;
-    }
-
-    /// Insert `p` into source/sink sets with rollback on failure.
-    Node * register_node(Node *p)
-    {
-      try
-        {
-          src_nodes.insert(p);
-          sink_nodes.insert(p);
-        }
-      catch (...)
-        {
-          src_nodes.remove(p);
-          sink_nodes.remove(p);
-          Graph::remove_node(p);
-          throw;
-        }
-      return p;
-    }
-
-  public:
-    /// Return the set of source nodes.
-    const DynSetTree<Node *> &get_src_nodes() const noexcept { return src_nodes; }
-
-    /// Return the set of sink nodes.
-    const DynSetTree<Node *> &get_sink_nodes() const noexcept
-    {
-      return sink_nodes;
-    }
-
-  public:
-    /// Convert a multi-source network into a single super-source network.
-    /// Throws if there is no source node or on allocation failure.
-    void make_super_source()
-    {
-      if (src_nodes.size() == 1)
-        return;
-
-      ah_domain_error_if(src_nodes.size() == 0)
-        << "network has no source nodes (it has cycles)";
-
-      DynList<Node *> sources;
-      for (auto it = src_nodes.get_it(); it.has_curr(); it.next_ne())
-        sources.append(it.get_curr());
-
-      Node *super_source = insert_node();
-      for (auto it = sources.get_it(); it.has_curr(); it.next_ne())
-        insert_arc(super_source, it.get_curr(), get_out_cap(it.get_curr()));
-
-      with_super_source = true;
-    }
-
-    /// Restore a super-source network to its original multi-source form.
-    void unmake_super_source() noexcept
-    {
-      if (not with_super_source)
-        return;
-
-      assert(src_nodes.size() == 1);
-
-      remove_node(src_nodes.get_item());
-      with_super_source = false;
-    }
-
-    /// Convert a multi-sink network into a single super-sink network.
-    /// Throws if there is no sink node or on allocation failure.
-    void make_super_sink()
-    {
-      if (sink_nodes.size() == 1)
-        return;
-
-      ah_domain_error_if(sink_nodes.size() == 0)
-        << "network has no sink nodes (it has cycles)";
-
-      DynList<Node *> sinks;
-      for (auto it = sink_nodes.get_it(); it.has_curr(); it.next_ne())
-        sinks.append(it.get_curr());
-
-      Node *super_sink = insert_node();
-      for (auto it = sinks.get_it(); it.has_curr(); it.next_ne())
-        insert_arc(it.get_curr(), super_sink, get_in_cap(it.get_curr()));
-      with_super_sink = true;
-    }
-
-    /// Restore a super-sink network to its original multi-sink form.
-    void unmake_super_sink() noexcept
-    {
-      if (not with_super_sink)
-        return;
-
-      assert(sink_nodes.size() == 1);
-
-      remove_node(sink_nodes.get_item());
-      with_super_sink = false;
-    }
-
-    /// Convert a multi-source/multi-sink network into super-source/super-sink.
-    void make_super_nodes()
-    {
-      make_super_source();
-      try
-        {
-          make_super_sink();
-        }
-      catch (const std::bad_alloc &)
-        {
-          unmake_super_source();
-          throw;
-        }
-    }
-
-    /// Restore a super-source/super-sink network to its original form.
-    void unmake_super_nodes()
-    {
-      unmake_super_source();
-      unmake_super_sink();
-    }
-
-    /// Return an arbitrary source node.
-    Node * get_source() const { return src_nodes.get_item(); }
-
-    /// Return an arbitrary sink node.
-    Node * get_sink() const { return sink_nodes.get_item(); }
-
-    /** @brief Insert a new node by copying `node_info`.
-     *
-     * @param[in] node_info Info to copy into the node.
-     * @return Pointer to the inserted node.
-     * @throw bad_alloc If there is not enough memory.
-     */
-    Node * insert_node(const Node_Type & node_info)
-    {
-      return register_node(Graph::insert_node(node_info));
-    }
-
-    /// Insert a new node with default info.
-    Node * insert_node()
-    {
-      return register_node(Graph::insert_node(Node_Type()));
-    }
-
-    /// Insert a new node by moving `info`.
-    Node * insert_node(Node_Type && info)
-    {
-      return register_node(Graph::insert_node(std::move(info)));
-    }
-
-    /// Construct a node in-place and insert it into the network.
-    template <typename... Args>
-    Node * emplace_node(Args &&... args)
-    {
-      return insert_node(Node_Type(std::forward<Args>(args)...));
-    }
-
-
-    /** @brief Insert the node @p p, allocated by the caller.
-     *
-     * @param[in] p Node to insert.
-     * @return Pointer to the inserted node.
-     * @throw bad_alloc If there is not enough memory; then @p p is removed
-     * from the network and freed.
-     */
-    Node * insert_node(Node *p) override
-    {
-      Graph::insert_node(p);
-      return register_node(p);
-    }
-
-    /** @brief Insert a capacitated arc with an initial flow.
-     *
-     * @param[in] src_node Source node.
-     * @param[in] tgt_node Target node.
-     * @param[in] cap Capacity value.
-     * @param[in] flow Flow value.
-     * @param[in] arc_info Arc info to store.
-     * @return Pointer to the inserted arc.
-     * @throw bad_alloc If there is not enough memory.
-     * @throw overflow_error If `flow` exceeds `cap` or is negative. The
-     * network is then as it was.
-     */
-    Arc * insert_arc(Node *src_node, Node *tgt_node,
-                     const Flow_Type & cap, const Flow_Type & flow,
-                     const typename Arc::Arc_Type & arc_info = Arc_Type())
-    {
-      // As Net_Arc::check_arc(), before the arc enters the network
-      ah_overflow_error_if(not (flow >= 0 and flow <= cap))
-        << "flow is greater than capacity";
-
-      auto arc = Graph::insert_arc(src_node, tgt_node, arc_info); // base insertion
-
-      src_nodes.remove(tgt_node); // update sources/sinks
-      sink_nodes.remove(src_node);
-
-      arc->cap = cap;
-      arc->flow = flow;
-
-      return arc;
-    }
-
-    template <typename... Args>
-    /// Construct arc info in-place and insert the arc.
-    Arc * emplace_arc(Node *src_node, Node *tgt_node,
-                      const Flow_Type & cap, const Flow_Type & flow,
-                      Args &&... args)
-    {
-      return insert_arc(src_node, tgt_node, cap, flow,
-                        Arc_Type(std::forward<Args>(args)...));
-    }
-
-    /** @brief Connect a previously disconnected arc.
-     *
-     * The arc must already belong to the graph; no verification is performed.
-     * Multigraphs are supported (no check for existing arcs).
-     *
-     * @param[in] arc Arc to connect.
-     * @return Pointer to the connected arc.
-     */
-    Arc * connect_arc(Arc *arc)
-    {
-      Graph::connect_arc(arc);
-
-      auto src = this->get_src_node(arc);
-      auto tgt = this->get_tgt_node(arc);
-
-      src_nodes.remove(tgt); // target is no longer a source
-      sink_nodes.remove(src); // source is no longer a sink
-
-      return arc;
-    }
-
-    /** @brief Insert an arc with capacity `cap` and zero flow. */
-    Arc * insert_arc(Node *src_node, Node *tgt_node, const Flow_Type & cap)
-    {
-      return insert_arc(src_node, tgt_node, cap, 0, Arc_Type());
-    }
-
-    /** @brief Insert an arc with zero capacity and flow.
-     *
-     * This overload is disabled when Arc_Type equals Flow_Type to avoid
-     * a signature clash with the capacity-only overload. It is also
-     * disabled for arithmetic types to ensure that integer literals
-     * match the capacity overload instead.
-     */
-    Arc * insert_arc(Node *src_node, Node *tgt_node,
-                     const Arc_Type & arc_info = Arc_Type())
-      requires (not std::is_same_v<Arc_Type, Flow_Type> and
-                not std::is_arithmetic_v<Arc_Type>)
-    {
-      return insert_arc(src_node, tgt_node, 0, 0, arc_info);
-    }
-
-    /** @brief Insert an arc with zero capacity and flow, for an arc info
-     * that is arithmetic or of the type of the flow.
-     *
-     * The overload above is disabled for those types, and copy_graph(),
-     * which the copy constructor uses, inserts the arcs with two
-     * arguments.
-     */
-    Arc * insert_arc(Node *src_node, Node *tgt_node)
-      requires (std::is_same_v<Arc_Type, Flow_Type> or
-                std::is_arithmetic_v<Arc_Type>)
-    {
-      return insert_arc(src_node, tgt_node, 0, 0, Arc_Type());
-    }
-
-  private:
-    // Puts in the sets of sources and of sinks the nodes that arc leaves as
-    // one when it goes. It is done before the arc goes, so that if a set
-    // cannot take a node, the network is as it was.
-    void register_ends_of_leaving(Arc *arc)
-    {
-      auto src = this->get_src_node(arc);
-      auto tgt = this->get_tgt_node(arc);
-      const bool new_source = get_in_degree(tgt) == 1 and
-        src_nodes.insert(tgt) != nullptr; // target becomes a source
-      try
-        {
-          if (get_out_degree(src) == 1)
-            sink_nodes.insert(src); // source becomes a sink
-        }
-      catch (...)
-        {
-          if (new_source)
-            src_nodes.remove(tgt);
-          throw;
-        }
-    }
-
-  public:
-    /** @brief Remove arc `arc` from the network.
-     *
-     * @throw bad_alloc if the set of sources or that of sinks cannot take
-     * an end of the arc that becomes one. The network is then as it was.
-     */
-    void remove_arc(Arc *arc) override
-    {
-      register_ends_of_leaving(arc);
-      Graph::remove_arc(arc); // base removal
-    }
-
-    /** @brief Disconnect arc `arc` from the graph without deleting it.
-     *
-     * @throw bad_alloc as remove_arc().
-     */
-    void disconnect_arc(Arc *arc)
-    {
-      register_ends_of_leaving(arc);
-      Graph::disconnect_arc(arc); // base disconnection
-    }
-
-    /** @brief Remove node `p` and all its arcs from the network.
-     *
-     * @throw bad_alloc as remove_arc(), for the arcs of p. Then the arcs
-     * that went are gone, p and the others are in the network, and the
-     * sets of sources and sinks are right.
-     */
-    void remove_node(Node *p) override
-    {
-      Graph::remove_node(p); // base removal
-      src_nodes.remove(p);
-      sink_nodes.remove(p);
-    }
-
-    /// Copy-construct a network. Throws bad_alloc on allocation failure.
-    Net_Graph(const Net_Graph & net)
-      : Array_Graph<NodeT, ArcT>::Array_Graph(),
-        Infinity(std::numeric_limits<typename Arc::Flow_Type>::max()),
-        with_super_source(net.with_super_source),
-        with_super_sink(net.with_super_sink)
-    {
-      copy_graph(*this, net, false); // copy without mapping
-
-      using Pair = std::pair<typename Net_Graph::Arc *, typename Net_Graph::Arc *>;
-      zip(this->arcs(), net.arcs()).for_each([](const Pair & p)
-                                               {
-                                                 auto atgt = p.first;
-                                                 auto asrc = p.second;
-                                                 atgt->cap = asrc->cap;
-                                                 atgt->flow = asrc->flow;
-                                               });
-    }
-
-    /// Swap contents with another network. O(1) operation.
-    void swap(Net_Graph & other) noexcept
-    {
-      Graph::common_swap(other);  // swap num_nodes, num_arcs, digraph, cookie
-      Graph::get_node_dlink().swap(other.get_node_dlink());
-      Graph::get_arc_dlink().swap(other.get_arc_dlink());
-      src_nodes.swap(other.src_nodes);
-      sink_nodes.swap(other.sink_nodes);
-      std::swap(Infinity, other.Infinity);
-      std::swap(with_super_source, other.with_super_source);
-      std::swap(with_super_sink, other.with_super_sink);
-    }
-
-    /// Move-construct a network. O(1) operation.
-    Net_Graph(Net_Graph && other) noexcept
-      : Infinity(std::numeric_limits<typename Arc::Flow_Type>::max()),
-        with_super_source(false), with_super_sink(false)
-    {
-      swap(other);
-    }
-
-    /// Move-assign a network. O(1) operation.
-    Net_Graph & operator=(Net_Graph && other) noexcept
-    {
-      if (this != &other)
-        swap(other);
-      return *this;
-    }
-
-    /// Copy-assign a network. Throws bad_alloc on allocation failure.
-    Net_Graph & operator=(const Net_Graph & net)
-    {
-      if (this == &net)
-        return *this;
-      
-      Net_Graph tmp(net);  // copy construct
-      swap(tmp);           // swap with copy
-      return *this;
-    }
-
-    /// Set the capacity of an arc.
-    void set_cap(Arc *arc, const Flow_Type & cap)
-    {
-      ah_out_of_range_error_if(cap < arc->flow) << "capacity value is smaller than flow";
-
-      arc->cap = cap;
-    }
-
-    /// Set the flow of an arc. Throws if `flow` exceeds capacity.
-    void set_flow(Arc *arc, const Flow_Type & flow)
-    {
-      ah_out_of_range_error_if(flow > arc->cap) << "flow value is greater than capacity";
-
-      arc->flow = flow;
-    }
-
-    /// Return the flow value of an arc.
-    const Flow_Type &get_flow(Arc *arc) const noexcept { return arc->flow; }
-
-    /// Return the capacity value of an arc.
-    const Flow_Type &get_cap(Arc *arc) const noexcept { return arc->cap; }
-
-    /// Reset all arc flows to zero.
-    void reset()
-    {
-      for (Arc_Iterator<Net_Graph> it(*this); it.has_curr(); it.next_ne())
-        it.get_curr()->flow = 0;
-    }
-
-    /** @brief Validate flow-conservation and capacity constraints.
-     *
-     * @return true if the network is valid; false otherwise.
-     */
-    bool check_network() const
-    {
-      if (src_nodes.is_empty() or sink_nodes.is_empty())
-        return false;
-
-      const auto total_out = total_source_out_flow();
-      const auto total_in = total_sink_in_flow();
-
-      // Use tolerance for floating-point comparison
-      const auto eps = std::max(std::abs(total_out), std::abs(total_in)) * 1e-9;
-      const bool flow_balanced = std::abs(total_out - total_in) <= eps;
-
-      return this->nodes().all([this](Node *p) { return check_node(p); }) and
-             this->arcs().all([](Arc *a) { return a->check_arc(); }) and
-             flow_balanced;
-    }
-
-    /** @brief Return the total flow value of the network. */
-	    Flow_Type flow_value() const
-	    {
-	      ah_domain_error_if(src_nodes.is_empty() or sink_nodes.is_empty())
-	        << "network has no source or sink nodes";
-
-	      const auto total_out = total_source_out_flow();
-	      const auto total_in = total_sink_in_flow();
-
-	      (void)total_in; // May be unused when NDEBUG disables assert().
-	      assert(total_out == total_in);
-	      return total_out;
-	    }
-
-    /// True if the network has a super-source.
-    bool with_super_source;
-
-    /// True if the network has a super-sink.
-    bool with_super_sink;
-
-    /// Default constructor.
-    Net_Graph()
-      : Infinity(std::numeric_limits<typename Arc::Flow_Type>::max()),
-        with_super_source(false), with_super_sink(false)
-    { /* empty */
-    }
-
-    /** @brief Stream a path with arc (cap,flow) tuples. */
-    friend std::ostream &operator <<(std::ostream & s, const Path<Net_Graph> & path)
-    {
-      if (path.is_empty())
-        return s << "Path is Empty";
-
-      const Net_Graph & net = path.get_graph();
-      typename Path<Net_Graph>::Iterator it(path);
-      s << it.get_current_node()->get_info();
-      for (; it.has_current_arc(); it.next_ne())
-        {
-          typename Net_Graph::Arc *a = it.get_current_arc_ne();
-          s << "(" << a->cap << "," << a->flow << ")"
-              << net.get_connected_node(a, it.get_current_node_ne())->get_info();
-        }
-      return s;
-    }
-  };
-
-  /** @brief Arc entry for a semi-path.
-   *
-   * Second field is true for a forward arc, false for a residual arc.
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  using Parc = std::tuple<typename Net::Arc *, bool>; // second field marks forward.
-
-  /** @brief Semi-path tuple:
-   * - bool: whether a path was found
-   * - Flow_Type: slack value of the path
-   * - DynList<Parc<Net>>: arc list with direction flags
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  using SemiPath = std::tuple<bool, typename Net::Flow_Type, DynList<Parc<Net>>>;
-
-  /// Print a semi-path to stdout.
-  template <class Net>
-  inline void print(const DynList<Parc<Net>> & sp)
+    assert(p);
+    assert(a->src_node == p or a->tgt_node == p);
+    auto src = static_cast<typename Net::Node *>(a->src_node);
+    if (src == p)
+      return a->cap - a->flow > 0;  // normal arc
+
+    assert(is_residual<Net>(p, a));
+    return a->flow > 0;  // residual arc
+  }
+
+  /// Filter hook used by some iterator adapters.
+  bool operator () (const Net &, typename Net::Arc *arc) noexcept
   {
-    if (sp.is_empty())
+    return (*this)(arc);
+  }
+
+  /// Return the opposite endpoint of arc `a` with respect to `p`.
+  typename Net::Node *get_node(typename Net::Arc *a) const noexcept
+  {
+    assert(p);
+    assert(a->src_node == p or a->tgt_node == p);
+    return static_cast<typename Net::Node *>(a->src_node == p ? a->tgt_node : a->src_node);
+  }
+};
+
+template <class Net>
+using __Net_Iterator = Digraph_Iterator<Net, Net_Filt<Net>>;
+
+/// Residual-graph iterator adapter for flow networks.
+template <class Net, class Show_Arc = Dft_Show_Arc<Net>>
+using Net_Iterator = Filter_Iterator<typename Net::Node *, __Net_Iterator<Net>, Show_Arc>;
+
+/** @brief Return the remaining flow of `a` as seen from `src`.
+ *
+ * If `a` is residual with respect to `src`, the remaining flow is the
+ * current flow. Otherwise, it is the residual capacity.
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+typename Net::Flow_Type remaining_flow(typename Net::Node *src, typename Net::Arc *a) noexcept
+{
+  return is_residual<Net>(src, a) ? a->flow : a->cap - a->flow;
+}
+
+/// Node type for flow networks.
+template <typename Node_Info = Empty_Class>
+using Net_Node = Graph_Anode<Node_Info>;
+
+/** @brief Flow network implemented with adjacency lists.
+ *
+ * Net_Graph models a capacitated network, the main data structure
+ * for maximum-flow algorithms and related graph routines.
+ *
+ * Template parameters:
+ * - NodeT: node type (must derive from Net_Node).
+ * - ArcT: arc type (must derive from Net_Arc).
+ *
+ * @ingroup Networks
+ */
+template <class NodeT = Net_Node<Empty_Class>, class ArcT = Net_Arc<Empty_Class, double>>
+struct Net_Graph : public Array_Graph<NodeT, ArcT>
+{
+  using Net = Net_Graph<NodeT, ArcT>;
+
+  using Base = Array_Graph<NodeT, ArcT>;
+
+  using Base::Base;
+  using Base::insert_node;
+
+  using Graph = Base;
+
+  /// Arc type.
+  using Arc = ArcT;
+
+  /// Node type.
+  using Node = NodeT;
+
+  /// Capacity/flow numeric type.
+  using Flow_Type = typename Arc::Flow_Type;
+
+  /// Node info type.
+  using Node_Type = typename Node::Node_Type;
+
+  /// Arc info type.
+  using Arc_Type = typename Arc::Arc_Type;
+
+  mutable Flow_Type Infinity;
+
+  /// Return arcs outgoing from `p` (as a DynList).
+  DynList<Arc *> out_arcs(Node *p) const noexcept
+  {
+    return Aleph::out_arcs<Net_Graph>(p);
+  }
+
+  /// Return nodes reachable from `p` through outgoing arcs.
+  DynList<Node *> out_nodes(Node *p) const noexcept
+  {
+    return out_pairs<Net_Graph>(p).template maps<Node *>([](const ArcPair<Net_Graph> &p)
       {
-        std::cout << "Semi path is Empty";
-        return;
-      }
+        return get<1>(p);
+      });
+  }
 
-    for (auto it = sp.get_it(); it.has_curr(); it.next_ne())
+  /// Return arcs incoming to `p` (as a DynList).
+  DynList<Arc *> in_arcs(Node *p) const noexcept
+  {
+    return Aleph::in_arcs<Net_Graph>(p);
+  }
+
+  /// Return nodes that can reach `p` through incoming arcs.
+  DynList<Node *> in_nodes(Node *p) const noexcept
+  {
+    return in_pairs<Net_Graph>(p).template maps<Node *>([](const ArcPair<Net_Graph> &p)
       {
-        const Parc<Net> & pa = it.get_curr();
-        auto a = get<0>(pa);
-        auto s = static_cast<typename Net::Node *>(a->src_node);
-        auto t = static_cast<typename Net::Node *>(a->tgt_node);
-        std::cout << s->get_info() << "(" << a->flow << "," << a->cap << ")"
-            << t->get_info() << " " << (get<1>(pa) ? "Normal" : "Reduced")
-            << '\n';
-      }
+        return get<1>(p);
+      });
   }
 
-  namespace net_detail
+  /// Return total incoming capacity of `node`.
+  [[nodiscard]] Flow_Type get_in_cap(Node *node) const noexcept
   {
-    // A floating flow that an augmentation leaves at most this far from
-    // the capacity or from zero, relative to the largest of the numbers in
-    // the operation, is a residue of rounding: the slack of the path was
-    // computed on another arc, or the flow added up rounding errors
-    template <typename Flow_Type>
-    constexpr Flow_Type rounding_residue() noexcept
-    {
-      return 256 * std::numeric_limits<Flow_Type>::epsilon();
-    }
+    Flow_Type sum = Flow_Type{0};
+    for (_In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      sum += it.get_curr()->cap;
+    return sum;
+  }
 
-    // Adds slack to the flow of arc. A floating flow that is left next to
-    // the capacity, or above it, is the capacity, so that the arc is
-    // saturated, as it would be without rounding.
-    template <class Arc, typename Flow_Type>
-    inline void add_flow(Arc *arc, const Flow_Type & slack) noexcept
-    {
-      arc->flow += slack;
-      if constexpr (std::is_floating_point_v<Flow_Type>)
-        if (arc->cap - arc->flow <=
-            rounding_residue<Flow_Type>() * std::max(arc->cap, slack))
-          arc->flow = arc->cap;
-    }
-
-    // Subtracts slack from the flow of arc. A floating flow that is left
-    // next to zero, or below it, is zero.
-    template <class Arc, typename Flow_Type>
-    inline void subtract_flow(Arc *arc, const Flow_Type & slack) noexcept
-    {
-      if constexpr (std::is_floating_point_v<Flow_Type>)
-        {
-          const Flow_Type before = arc->flow;
-          arc->flow -= slack;
-          if (arc->flow <= rounding_residue<Flow_Type>() * std::max(before, slack))
-            arc->flow = 0;
-        }
-      else
-        arc->flow -= slack;
-    }
-  } // namespace net_detail
-
-  /** @brief Increase flow along an augmenting path.
-   *
-   * With a floating type of flow, a flow that rounding leaves next to the
-   * capacity of its arc, or next to zero, is set to it.
-   *
-   * @param[in,out] net Flow network to update.
-   * @param[in] path Augmenting path.
-   * @return Slack value used to increase the flow.
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  typename Net::Flow_Type increase_flow(Net & net, const Path<Net> & path)
+  /// Return total outgoing capacity of `node`.
+  [[nodiscard]] Flow_Type get_out_cap(Node *node) const noexcept
   {
-    typename Net::Flow_Type slack = net.Infinity; // bottleneck
-    using Tuple = std::tuple<typename Net::Node *, typename Net::Arc *>;
+    Flow_Type sum = Flow_Type{0};
+    for (_Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      sum += it.get_curr()->cap;
+    return sum;
+  }
 
-    // Compute the bottleneck of the augmenting path.
-    for (typename Path<Net>::Iterator it(path); it.has_current_arc();
-         it.next_ne())
+  /// Return the in-degree of `p` (number of incoming arcs).
+  size_t get_in_degree(Node *p) const noexcept
+  {
+    return this->in_degree(p);
+  }
+
+  /// Return the out-degree of `p` (number of outgoing arcs).
+  size_t get_out_degree(Node *p) const noexcept
+  {
+    return this->out_degree(p);
+  }
+
+  /// Return total outgoing flow of `node`.
+  [[nodiscard]] Flow_Type get_out_flow(Node *node) const noexcept
+  {
+    Flow_Type sum = Flow_Type{0};
+    for (_Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      sum += it.get_curr()->flow;
+    return sum;
+  }
+
+  /// Return total incoming flow of `node`.
+  [[nodiscard]] Flow_Type get_in_flow(Node *node) const noexcept
+  {
+    Flow_Type sum = Flow_Type{0};
+    for (_In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      sum += it.get_curr()->flow;
+    return sum;
+  }
+
+  /// Return true if `node` is a source.
+  bool is_source(Node *node) const noexcept
+  {
+    return src_nodes.contains(node);
+  }
+
+  /// Return true if `node` is a sink.
+  bool is_sink(Node *node) const noexcept
+  {
+    return sink_nodes.contains(node);
+  }
+
+  /// Return true if the network has a single source.
+  [[nodiscard]] constexpr bool is_single_source() const noexcept
+  {
+    return src_nodes.size() == 1;
+  }
+
+  /// Return true if the network has a single sink.
+  [[nodiscard]] constexpr bool is_single_sink() const noexcept
+  {
+    return sink_nodes.size() == 1;
+  }
+
+  /// Return true if `p` is connected (used for validation).
+  bool is_connected(Node *p) const noexcept
+  {
+    return get_in_degree(p) != 0 or get_out_degree(p) != 0;
+  }
+
+  /** @brief The tolerance of rounding of the flow of a node whose flows
+      into and out of it are `in` and `out`.
+
+      For a floating flow, 1e-9 of the larger of them: the scale of the
+      node is its own flows, so that a small flow next to a large
+      capacity elsewhere keeps its precision. Zero for an integer flow.
+  */
+  static Flow_Type node_tolerance(const Flow_Type &in, const Flow_Type &out) noexcept
+  {
+    if constexpr (std::is_floating_point_v<Flow_Type>)
+      return std::max(std::abs(in), std::abs(out)) * 1e-9;
+    else
+      return Flow_Type{0};
+  }
+
+  /** @brief Return true if `node` satisfies flow conservation constraints.
+
+      A floating flow keeps them but for rounding, within
+      node_tolerance() of the flows of the node.
+  */
+  bool check_node(Node *node) const noexcept
+  {
+    if (not is_connected(node))
+      return false;
+
+    auto out_flow = get_out_flow(node);
+    auto in_flow = get_in_flow(node);
+
+    // Use tolerance for floating-point comparison
+    const auto eps = node_tolerance(in_flow, out_flow);
+    const auto nearly_zero = [eps](auto x)
       {
-        Tuple t = it.get_tuple_ne();
-        auto p = get<0>(t);
-        auto arc = get<1>(t);
-        const auto w = remaining_flow<Net>(p, arc);
-        if (w < slack)
-          slack = w;
-      }
-
-    // Increase flow along the augmenting path.
-    for (typename Path<Net>::Iterator it(path); it.has_current_arc(); it.next_ne())
+        return std::abs(x) <= eps;
+      };
+    const auto nearly_equal = [eps](auto a, auto b)
       {
-        auto t = it.get_tuple_ne();
-        auto p = get<0>(t);
-        auto arc = get<1>(t);
+        return std::abs(a - b) <= eps;
+      };
 
-        if (is_residual<Net>(p, arc))
-          net_detail::subtract_flow(arc, slack);
-        else
-          net_detail::add_flow(arc, slack);
+    if (is_sink(node))
+      return nearly_zero(out_flow) and in_flow >= -eps;
 
-        assert(arc->check_arc());
-      }
+    if (is_source(node))
+      return nearly_zero(in_flow) and out_flow >= -eps;
 
-    return slack;
+    return nearly_equal(out_flow, in_flow);
   }
 
+private:
+  DynSetTree<Node *> src_nodes;
+  DynSetTree<Node *> sink_nodes;
 
-  /** @brief Increase flow along a semi-path by a given slack.
-   *
-   * With a floating type of flow, a flow that rounding leaves next to the
-   * capacity of its arc, or next to zero, is set to it.
-   *
-   * @param[in,out] net Flow network to update.
-   * @param[in] semi_path Semi-path arc list.
-   * @param[in] slack Slack to apply (not validated).
-   *
-   * @ingroup Networks
-   */
-	  template <class Net>
-	  void increase_flow(Net & net,
-	                     const DynList<Parc<Net>> & semi_path,
-	                     const typename Net::Flow_Type slack)
-	  {
-	    (void)net; // May be unused when NDEBUG disables assert().
+  // The super source and the super sink that make_super_source() and
+  // make_super_sink() inserted, if any, which unmake_super_source() and
+  // unmake_super_sink() remove
+  Node *super_source_node = nullptr;
+  Node *super_sink_node = nullptr;
 
-	    // Increase flow along the semi-path.
-	    for (auto it = semi_path.get_it(); it.has_curr(); it.next_ne())
-	      {
-	        auto p = it.get_curr();
-        auto arc = get<0>(p);
-        if (get<1>(p)) // forward arc
-          net_detail::add_flow(arc, slack);
-        else
-          net_detail::subtract_flow(arc, slack);
-
-        assert(arc->check_arc());
-      }
-    assert(net.check_network());
+  // The sum of the tolerances of check_node() of every node: as each
+  // keeps its flow but for its own, the flow out of the sources and that
+  // into the sinks differ, at most, by it. O(V + E)
+  Flow_Type nodes_tolerance() const
+  {
+    Flow_Type sum{0};
+    for (Node_Iterator<Net_Graph> it(*this); it.has_curr(); it.next_ne())
+      sum += node_tolerance(get_in_flow(it.get_curr()), get_out_flow(it.get_curr()));
+    return sum;
   }
 
-  /** @brief Decrease flow along a semi-path by a given slack.
-   *
-   * This reverses the effect of increase_flow by negating forward/residual
-   * arc directions. With a floating type of flow, a flow that rounding
-   * leaves next to the capacity of its arc, or next to zero, is set to it.
-   *
-   * @param[in,out] net Flow network to update.
-   * @param[in] semi_path Semi-path arc list.
-   * @param[in] slack Slack to apply (not validated).
-   *
-   * @ingroup Networks
-   */
-	  template <class Net>
-	  void decrease_flow(Net & net, const DynList<Parc<Net>> & semi_path,
-	                     const typename Net::Flow_Type slack)
-	  {
-	    (void)net;
-
-	    // Decrease flow: reverse the direction logic from increase_flow
-	    for (auto it = semi_path.get_it(); it.has_curr(); it.next_ne())
-	      {
-	        auto p = it.get_curr();
-        auto arc = get<0>(p);
-        if (get<1>(p)) // forward arc: decrease instead of increase
-          net_detail::subtract_flow(arc, slack);
-        else           // residual arc: increase instead of decrease
-          net_detail::add_flow(arc, slack);
-
-        assert(arc->check_arc());
-      }
-  }
-
-
-  /** @brief Augmenting-path search over a directed network.
-   *
-   * The network is modeled with a graph class (not a digraph class).
-   *
-   * @ingroup Networks
-   */
-  template <class Net, template <typename T> class Q>
-  class Find_Aumenting_Path
+  // Whether the flow out of the sources and that into the sinks are the
+  // same: exactly, or, for a floating type, but for rounding: within the
+  // tolerance of check_node() of the totals, or within the sum of those
+  // of the nodes, which is computed only if the first does not hold
+  bool same_totals(const Flow_Type &out, const Flow_Type &in) const
   {
-    const Net & net;
-
-    // Return end node if a path is found. The cookie of each node reached
-    // keeps the arc by which it was reached, which the paths take: with
-    // parallel arcs, another one could have less slack than min_slack.
-    typename Net::Node * search(typename Net::Node *start,
-                                typename Net::Node *end,
-                                typename Net::Flow_Type min_slack)
-    {
-      using Itor = Net_Iterator<Net>;
-      net.reset_nodes();
-      net.reset_arcs();
-
-      start->set_state(Processed);
-      Q<typename Net::Arc *> q;
-      for (Itor it(start); it.has_curr(); it.next_ne())
-        {
-          auto a = it.get_curr();
-          if (remaining_flow<Net>(start, a) < min_slack)
-            continue;
-          auto tgt = net.get_connected_node(a, start);
-          tgt->set_state(Processing);
-          a->set_state(Processing);
-          q.put(a);
-        }
-
-      typename Net::Node *curr = nullptr;
-      while (not q.is_empty())
-        {
-          auto arc = q.get();
-          assert(arc->state() == Processing);
-          arc->set_state(Processed);
-
-          auto s = net.get_src_node(arc);
-          auto t = net.get_tgt_node(arc);
-
-          if (s->state() == Processed and t->state() == Processed)
-            continue;
-
-          curr = s->state() == Processed ? t : s;
-          assert(curr->state() == Processing);
-          curr->set_state(Processed);
-          NODE_COOKIE(curr) = arc;
-
-          if (curr == end)
-            return curr;
-
-          for (Itor it(curr); it.has_curr(); it.next_ne())
-            {
-              auto a = it.get_curr();
-              
-              // Skip arcs already processed or already in queue
-              if (a->state() != Unprocessed)
-                continue;
-              
-              if (remaining_flow<Net>(curr, a) < min_slack)
-                continue;
-
-              auto tgt = net.get_connected_node(a, curr);
-              if (tgt->state() == Processed)
-                {
-                  a->set_state(Processed);
-                  continue;
-                }
-
-              a->set_state(Processing);
-              q.put(a);
-              tgt->set_state(Processing);
-            }
-        } // end while
-
-      return nullptr;
-    }
-
-    /// Build a Path from `start` to `end` with minimum slack.
-    Path<Net> find(typename Net::Node *start, typename Net::Node *end,
-                   const typename Net::Flow_Type & min_slack = typename Net::Flow_Type{0})
-    {
-      auto curr = search(start, end, min_slack);
-
-      Path<Net> ret(net);
-      if (not curr)
-        return ret;
-
-      assert(curr == end);
-
-      while (curr != start)
-        {
-          ret.insert(curr);
-          auto arc = static_cast<typename Net::Arc *>(NODE_COOKIE(curr));
-          curr = net.get_connected_node(arc, curr);
-        }
-      ret.insert(start);
-
-      return ret;
-    }
-
-    /// Build a SemiPath from `start` to `end` with minimum slack.
-    SemiPath<Net> find_path(typename Net::Node *start,
-                            typename Net::Node *end,
-                            typename Net::Flow_Type min_slack = typename Net::Flow_Type{0})
-    {
-      auto t = search(start, end, min_slack);
-      if (not t)
-        return std::make_tuple(false, typename Net::Flow_Type{0}, DynList<Parc<Net>>());
-
-      assert(t == end);
-
-      DynList<Parc<Net>> semi_path;
-      auto m = std::numeric_limits<typename Net::Flow_Type>::max();
-      while (t != start)
-        {
-          auto a = static_cast<typename Net::Arc *>(NODE_COOKIE(t));
-          auto s = net.get_connected_node(a, t);
-          bool normal = a->tgt_node == t;
-          auto slack = normal ? a->cap - a->flow : a->flow;
-          m = std::min(m, slack);
-          semi_path.insert(std::make_tuple(a, normal));
-          t = s;
-        }
-
-      return std::make_tuple(true, m, std::move(semi_path));
-    }
-
-  public:
-    /// Find an augmenting semi-path with at least `min_slack`.
-    SemiPath<Net> find_aum_path(typename Net::Flow_Type min_slack = 0.0)
-    {
-      return find_path(net.get_source(), net.get_sink(), min_slack);
-    }
-
-    /// Find a decrementing semi-path with at least `min_slack`.
-    SemiPath<Net> find_dec_path(typename Net::Flow_Type min_slack = 0.0)
-    {
-      return find_path(net.get_sink(), net.get_source(), min_slack);
-    }
-
-    /// Construct a finder for `net`.
-    Find_Aumenting_Path(const Net & __g) : net(__g)
-    {
-      // empty
-    }
-
-    /// Find a concrete Path with at least `min_slack`.
-    Path<Net> operator ()(typename Net::Node *start,
-                          typename Net::Node *end,
-                          typename Net::Flow_Type min_slack = 0)
-    {
-      return find(start, end, min_slack);
-    }
-
-    /// Find an augmenting semi-path from the network source to sink.
-    SemiPath<Net> operator ()(typename Net::Flow_Type min_slack = 0)
-    {
-      return find_aum_path(min_slack);
-    }
-
-    /** @brief Fill `semi_path` and return the slack value.
-     *
-     * Returns 0 if no path is found.
-     */
-    typename Net::Flow_Type
-    semi_path(typename Net::Node *start,
-              typename Net::Node *end,
-              DynList<Parc<Net>> & semi_path,
-              const typename Net::Flow_Type & min_slack = 0)
-    {
-      semi_path.empty();
-
-      auto result = find_path(start, end, min_slack);
-      if (not get<0>(result))
-        return typename Net::Flow_Type{};
-
-      semi_path = std::move(get<2>(result));
-      return get<1>(result);
-    }
-  };
-
-  /// Augmenting-path finder using DFS (stack).
-  template <class Net>
-  using Find_Aumenting_Path_DFS = Find_Aumenting_Path<Net, DynListStack>;
-
-
-  /// Augmenting-path finder using BFS (queue).
-  template <class Net>
-  using Find_Aumenting_Path_BFS = Find_Aumenting_Path<Net, DynListQueue>;
-
-
-  /** @brief Find an augmenting path using DFS or BFS based on `Q`.
-   *
-   * @param[in] net Flow network.
-   * @param[in] min_slack Minimum slack required.
-   *
-   * @ingroup Networks
-   */
-  template <class Net, template <typename T> class Q>
-  Path<Net> find_aumenting_path(const Net & net,
-                                const typename Net::Flow_Type & min_slack)
-  {
-    auto s = net.get_source();
-    auto t = net.get_sink();
-    return Find_Aumenting_Path<Net, Q>(net)(s, t, min_slack);
-  }
-
-
-  /** @brief Find an augmenting path using DFS. */
-  template <class Net>
-  Path<Net> find_aumenting_path_dfs(const Net & net,
-                                    const typename Net::Flow_Type & min_slack)
-  {
-    return find_aumenting_path<Net, DynListStack>(net, min_slack);
-  }
-
-
-  /** @brief Find an augmenting path using BFS. */
-  template <class Net>
-  Path<Net> find_aumenting_path_bfs(const Net & net,
-                                    const typename Net::Flow_Type & min_slack)
-  {
-    return find_aumenting_path<Net, DynListQueue>(net, min_slack);
-  }
-
-
-  /** @brief Find an augmenting semi-path using DFS or BFS based on `Q`.
-   *
-   * @param[in] net Flow network.
-   * @param[in] slack Minimum slack required.
-   * @return Semi-path tuple (found, slack, arc list).
-   *
-   * @ingroup Networks
-   */
-  template <class Net, template <typename T> class Q>
-  SemiPath<Net> find_aumenting_semi_path(const Net & net,
-                                         const typename Net::Flow_Type & slack)
-  {
-    return Find_Aumenting_Path<Net, Q>(net).find_aum_path(slack);
-  }
-
-
-  /** @brief Find an augmenting semi-path using DFS. */
-  template <class Net>
-  SemiPath<Net>
-  find_aumenting_semi_path_dfs(const Net & net,
-                               const typename Net::Flow_Type & slack)
-  {
-    return find_aumenting_semi_path<Net, DynListStack>(net, slack);
-  }
-
-
-  /** @brief Find an augmenting semi-path using BFS. */
-  template <class Net>
-  SemiPath<Net>
-  find_aumenting_semi_path_bfs(const Net & net,
-                               const typename Net::Flow_Type & slack)
-  {
-    return find_aumenting_semi_path<Net, DynListQueue>(net, slack);
-  }
-
-
-  /** @brief Find a decrementing semi-path using DFS or BFS based on `Q`.
-   *
-   * @param[in] net Flow network.
-   * @param[in] slack Minimum slack required.
-   * @return Semi-path tuple (found, slack, arc list).
-   *
-   * @ingroup Networks
-   */
-  template <class Net, template <typename T> class Q>
-  SemiPath<Net>
-  find_decrementing_path(const Net & net,
-                         const typename Net::Flow_Type & slack)
-  {
-    return Find_Aumenting_Path<Net, Q>(net).find_dec_path(slack);
-  }
-
-
-  /** @brief Find a decrementing semi-path using DFS. */
-  template <class Net>
-  SemiPath<Net>
-  find_decrementing_path_dfs(const Net & net,
-                             const typename Net::Flow_Type & slack)
-  {
-    return find_decrementing_path<Net, DynListStack>(net, slack);
-  }
-
-
-  /** @brief Find a decrementing semi-path using BFS. */
-  template <class Net>
-  SemiPath<Net>
-  find_decrementing_path_bfs(const Net & net,
-                             const typename Net::Flow_Type & slack)
-  {
-    return find_decrementing_path<Net, DynListQueue>(net, slack);
-  }
-
-
-  /// Residual node used by preflow-push algorithms.
-  template <class Net>
-  struct PP_Res_Node : public Net_Node<Empty_Class>
-  {
-    using Base = Net_Node<Empty_Class>;
-
-    typename Net::Flow_Type in_flow = 0;
-    typename Net::Flow_Type out_flow = 0;
-
-    /// Default constructor
-    PP_Res_Node() : Base() {}
-
-    /// Constructor from node info
-    PP_Res_Node(const Empty_Class & info) : Base(info) {}
-
-    /// Move constructor from node info
-    PP_Res_Node(Empty_Class && info) : Base(std::move(info)) {}
-  };
-
-  template <class Net>
-  struct __Res_Arc : public Net_Arc<Empty_Class, typename Net::Flow_Type>
-  {
-    using Base = Net_Arc<Empty_Class, typename Net::Flow_Type>;
-
-    typename Net::Arc *img = nullptr; // nullptr indicates residual arc
-    __Res_Arc *dup = nullptr;
-
-    /// Default constructor
-    __Res_Arc() : Base() {}
-
-    /// Constructor from arc info
-    __Res_Arc(const Empty_Class & info) : Base(info) {}
-
-    /// Move constructor from arc info  
-    __Res_Arc(Empty_Class && info) : Base(std::move(info)) {}
-
-    /// Return true if this is a residual arc.
-    bool is_residual() const { return img == nullptr; }
-  };
-
-
-  /// Residual network for augmenting-path algorithms.
-  template <class Net>
-  using AP_Res_Net = Array_Digraph<Net_Node<Empty_Class>, __Res_Arc<Net>>;
-
-  /// Residual network for preflow-push algorithms.
-  template <class Net>
-  using PP_Res_Net = Array_Digraph<PP_Res_Node<Net>, __Res_Arc<Net>>;
-
-  /// Create residual arcs for `a` in the residual network.
-  template <class Net>
-  inline
-  void create_residual_arc(const Net & net, PP_Res_Net<Net> & rnet,
-                           typename Net::Arc *a)
-  {
-    using Rnet = PP_Res_Net<Net>;
-    auto s = net.get_src_node(a);
-    auto t = net.get_tgt_node(a);
-
-    assert(NODE_COOKIE(s) and NODE_COOKIE(t));
-
-    auto src = static_cast<typename Rnet::Node *>(NODE_COOKIE(s));
-    auto tgt = static_cast<typename Rnet::Node *>(NODE_COOKIE(t));
-
-    auto arc = rnet.insert_arc(src, tgt);
-    auto dup = rnet.insert_arc(tgt, src);
-
-    arc->img = a; // mark it as not residual
-    arc->cap = a->cap;
-    arc->flow = a->flow;
-    arc->dup = dup;
-
-    dup->cap = arc->cap;
-    dup->flow = arc->cap - arc->flow;
-    dup->dup = arc;
-  }
-
-  /// Residual arc filter: keep arcs with residual capacity.
-  template <class Rnet>
-  struct Res_F
-  {
-    Res_F(typename Rnet::Node *) noexcept {}
-    Res_F() noexcept {}
-
-    bool operator ()(typename Rnet::Arc *a) const
-    {
-      return a->cap > a->flow;
-    }
-  };
-
-  /** @brief Build the residual network for preflow-push algorithms.
-   *
-   * Returns the residual network and the mapped source/sink nodes.
-   */
-  template <class Net>
-  inline
-  std::tuple<PP_Res_Net<Net>, typename PP_Res_Net<Net>::Node *,
-        typename PP_Res_Net<Net>::Node *>
-  preflow_create_residual_net(Net & net)
-  {
-    using Rnet = PP_Res_Net<Net>;
-    net.reset_nodes();
-    Rnet rnet;
-
-    for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
+    if constexpr (std::is_floating_point_v<Flow_Type>)
       {
-        auto p = it.get_curr();
-        auto q = rnet.insert_node();
-        q->in_flow = net.get_in_flow(p);
-        q->out_flow = net.get_out_flow(p);
-        // Directly store pointers in cookies using reinterpret_cast to
-        // preserve exact addresses without multiple inheritance adjustment
-        NODE_COOKIE(p) = reinterpret_cast<void*>(q);
-        NODE_COOKIE(q) = reinterpret_cast<void*>(p);
+        const Flow_Type diff = std::abs(out - in);
+        return diff <= node_tolerance(out, in) or diff <= nodes_tolerance();
       }
-
-    for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
-      create_residual_arc(net, rnet, it.get_curr());
-
-    return std::make_tuple(std::move(rnet),
-                      static_cast<typename Rnet::Node *>(NODE_COOKIE(net.get_source())),
-                      static_cast<typename Rnet::Node *>(NODE_COOKIE(net.get_sink())));
+    else
+      return out == in;
   }
 
-  /// Propagate residual arc flows back to their original arcs.
-  template <class Rnet>
-  inline
-  void update_flow(const Rnet & rnet)
+  /// Return total outgoing flow from all sources.
+  Flow_Type total_source_out_flow() const
   {
-    for (typename Rnet::Arc_Iterator it(rnet); it.has_curr(); it.next_ne())
+    Flow_Type sum = Flow_Type{};
+    for (auto it = src_nodes.get_it(); it.has_curr(); it.next_ne())
+      sum += get_out_flow(it.get_curr());
+    return sum;
+  }
+
+  /// Return total incoming flow to all sinks.
+  Flow_Type total_sink_in_flow() const
+  {
+    Flow_Type sum = Flow_Type{};
+    for (auto it = sink_nodes.get_it(); it.has_curr(); it.next_ne())
+      sum += get_in_flow(it.get_curr());
+    return sum;
+  }
+
+  /// Insert `p` into source/sink sets with rollback on failure.
+  Node *register_node(Node *p)
+  {
+    try
       {
-        auto arc = it.get_curr();
-        auto img = arc->img;
-        if (img == nullptr)
-          continue;
-        img->flow = arc->flow;
+        src_nodes.insert(p);
+        sink_nodes.insert(p);
       }
-  }
-
-  /** @brief Maximize flow using repeated augmenting-path searches.
-   *
-   * @param[in,out] net Flow network (must have a single source and sink).
-   * @return Maximized flow value.
-   *
-   * @ingroup Networks
-   */
-  template <class Net,
-            template <class> class Find_Path>
-  typename Net::Flow_Type aumenting_path_maximum_flow(Net & net)
-  {
-    ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
-      << "Network is not single source and single sink";
-
-    while (true) // while an augmenting path exists
+    catch (...)
       {
-        SemiPath<Net> semi_path = Find_Path<Net>(net)();
-        if (not get<0>(semi_path))
-          break;
-
-        // Skip paths with zero slack.
-        // This can happen with parallel arcs where one arc is saturated
-        // but the path finder still finds a path through it.
-        auto slack = get<1>(semi_path);
-        if (slack <= typename Net::Flow_Type{0})
-          break;
-
-        increase_flow<Net>(net, get<2>(semi_path), slack);
+        src_nodes.remove(p);
+        sink_nodes.remove(p);
+        Graph::remove_node(p);
+        throw;
       }
-
-    return net.get_out_flow(net.get_source());
-  }
-
-
-  /** @brief Maximize flow using the Ford-Fulkerson algorithm.
-   *
-   * @param[in,out] net Flow network (must have a single source and sink).
-   * @return Maximized flow value.
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  typename Net::Flow_Type ford_fulkerson_maximum_flow(Net & net)
-  {
-    return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_DFS>(net);
-  }
-
-
-  /** @brief Functor wrapper for ford_fulkerson_maximum_flow().
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  struct Ford_Fulkerson_Maximum_Flow
-  {
-    /// Invoke ford_fulkerson_maximum_flow().
-    typename Net::Flow_Type operator ()(Net & net) const
-    {
-      return ford_fulkerson_maximum_flow(net);
-    }
-  };
-
-  /** @brief Maximize flow using the Edmonds-Karp algorithm.
-   *
-   * @param[in,out] net Flow network (must have a single source and sink).
-   * @return Maximized flow value.
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  typename Net::Flow_Type edmonds_karp_maximum_flow(Net & net)
-  {
-    return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_BFS>(net);
-  }
-
-
-  /** @brief Functor wrapper for edmonds_karp_maximum_flow().
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  struct Edmonds_Karp_Maximum_Flow
-  {
-    /// Invoke edmonds_karp_maximum_flow().
-    typename Net::Flow_Type operator ()(Net & net) const
-    {
-      return edmonds_karp_maximum_flow<Net>(net);
-    }
-  };
-
-  /// Return true if `p` has excess flow in `net`.
-  template <class Net>
-  static inline
-  bool is_node_active(const Net & net, typename Net::Node *p)
-  {
-    return net.get_in_flow(p) != net.get_out_flow(p);
-  }
-
-  /// Return true if residual node `p` has excess flow.
-  template <class Rnet>
-  static inline
-  bool is_node_active(typename Rnet::Node *p)
-  {
-    return p->in_flow != p->out_flow;
-  }
-
-
-  /// Access the height label stored in NODE_COUNTER.
-  template <class Net>
-  static inline
-  long &node_height(typename Net::Node *p) { return NODE_COUNTER(p); }
-
-
-  /// Initialize node heights with BFS distance to the sink.
-  template <class Net>
-  static inline
-  void init_height_in_nodes(Net & net)
-  {
-    Graph_Traverse_BFS<Net, Node_Arc_Iterator<Net>>(net).
-        exec(net.get_sink(),
-             [&net](typename Net::Node *p, typename Net::Arc *a)
-               {
-                 if (a)
-                   node_height<Net>(p) = node_height<Net>(net.get_tgt_node(a)) + 1;
-                 return true;
-               });
-  }
-
-
-  /// Enqueue an active node if it is not already enqueued.
-  template <class Q_Type>
-  static inline
-  void put_in_active_queue(Q_Type & q, typename Q_Type::Item_Type & p)
-  {
-    if (NODE_BITS(p).get_bit(Aleph::Maximum_Flow))
-      return; // the node is already into the queue
-    NODE_BITS(p).set_bit(Aleph::Maximum_Flow, true);
-    q.put(p);
-  }
-
-
-  /// Dequeue an active node and clear its queue mark.
-  template <class Q_Type>
-  static inline
-  typename Q_Type::Item_Type get_from_active_queue(Q_Type & q)
-  {
-    auto p = q.get();
-    assert(NODE_BITS(p).get_bit(Aleph::Maximum_Flow));
-    NODE_BITS(p).set_bit(Aleph::Maximum_Flow, false);
     return p;
   }
 
-
-  /// Remove a node from the active queue and clear its queue mark.
-  template <class Q_Type>
-  static inline
-  void remove_from_active_queue(Q_Type & q, typename Q_Type::Item_Type & p)
+public:
+  /// Return the set of source nodes.
+  const DynSetTree<Node *> &get_src_nodes() const noexcept
   {
-    assert(NODE_BITS(p).get_bit(Aleph::Maximum_Flow));
-    NODE_BITS(p).set_bit(Aleph::Maximum_Flow, false);
-    q.remove(p);
+    return src_nodes;
   }
 
-
-  /** @brief Generic preflow-push maximum flow (vertex-oriented).
-   *
-   * Q_Type is the active-node container and must support:
-   * - get(): remove a node
-   * - put(p): insert a node
-   *
-   * The Maximum_Flow bit is used to track whether a node is in the queue.
-   *
-   * @param[in,out] net Flow network (must have a single source and sink).
-   * @return Maximized flow value.
-   *
-   * @see fifo_preflow_maximum_flow() heap_preflow_maximum_flow() random_preflow_maximum_flow()
-   * @ingroup Networks
-   */
-  template <class Net, class Q_Type>
-  typename Net::Flow_Type
-  generic_preflow_vertex_push_maximum_flow(Net & net)
+  /// Return the set of sink nodes.
+  const DynSetTree<Node *> &get_sink_nodes() const noexcept
   {
-    ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
-      << "Network is not single source and single sink";
+    return sink_nodes;
+  }
 
-    net.reset_nodes(); // especially assures that counters are in zero
-    init_height_in_nodes(net); // set height to minimum distance in nodes to sink
+public:
+  /// Convert a multi-source network into a single super-source network.
+  /// Throws if there is no source node or on allocation failure.
+  void make_super_source()
+  {
+    if (src_nodes.size() == 1)
+      return;
 
-    auto source = net.get_source();
-    auto sink = net.get_sink();
-    node_height<Net>(source) = net.vsize(); // except the source
-    constexpr auto Max = std::numeric_limits<long>::max();
+    ah_domain_error_if(src_nodes.size() == 0) << "network has no source nodes (it has cycles)";
 
-    using Itor = __Net_Iterator<Net>;
-    Q_Type q;
-    for (Itor it(source); it.has_curr(); it.next_ne()) // initial preflow
+    DynList<Node *> sources;
+    for (auto it = src_nodes.get_it(); it.has_curr(); it.next_ne())
+      sources.append(it.get_curr());
+
+    Node *super_source = insert_node();
+    try
       {
-        auto arc = it.get_curr();
-        arc->flow = arc->cap; // saturate arc
-        auto tgt = net.get_tgt_node(arc);
-        put_in_active_queue(q, tgt);
+        for (auto it = sources.get_it(); it.has_curr(); it.next_ne())
+          insert_arc(super_source, it.get_curr(), get_out_cap(it.get_curr()));
+      }
+    catch (...)
+      {
+        remove_node(super_source);  // with the arcs that it got
+        throw;
       }
 
-    while (not q.is_empty()) // while there are active nodes
+    super_source_node = super_source;
+    with_super_source = true;
+  }
+
+  /** @brief Restore a super-source network to its original multi-source
+      form, by removing the super source that make_super_source()
+      inserted.
+
+      @throw bad_alloc as remove_node(), if a source cannot go back to the
+      set of sources. Then the super-source stays, maybe with fewer
+      arcs, and another call goes on: the network keeps the super source,
+      which is then one of several sources, and never takes another for
+      it.
+  */
+  void unmake_super_source()
+  {
+    if (not with_super_source)
+      return;
+
+    if (super_source_node == nullptr)  // the flag was set by hand
       {
-        auto src = get_from_active_queue(q);
-        auto excess = net.get_in_flow(src) - net.get_out_flow(src);
-        long m = Max;
-        bool was_eligible_arc = false;
-        for (Itor it(src); it.has_curr() and excess > 0; it.next_ne())
+        with_super_source = false;
+        return;
+      }
+
+    remove_node(super_source_node);  // which clears it and the flag
+  }
+
+  /// Convert a multi-sink network into a single super-sink network.
+  /// Throws if there is no sink node or on allocation failure.
+  void make_super_sink()
+  {
+    if (sink_nodes.size() == 1)
+      return;
+
+    ah_domain_error_if(sink_nodes.size() == 0) << "network has no sink nodes (it has cycles)";
+
+    DynList<Node *> sinks;
+    for (auto it = sink_nodes.get_it(); it.has_curr(); it.next_ne())
+      sinks.append(it.get_curr());
+
+    Node *super_sink = insert_node();
+    try
+      {
+        for (auto it = sinks.get_it(); it.has_curr(); it.next_ne())
+          insert_arc(it.get_curr(), super_sink, get_in_cap(it.get_curr()));
+      }
+    catch (...)
+      {
+        remove_node(super_sink);  // with the arcs that it got
+        throw;
+      }
+    super_sink_node = super_sink;
+    with_super_sink = true;
+  }
+
+  /** @brief Restore a super-sink network to its original multi-sink form,
+      by removing the super sink that make_super_sink() inserted.
+
+      @throw bad_alloc as unmake_super_source(); then another call goes
+      on likewise.
+  */
+  void unmake_super_sink()
+  {
+    if (not with_super_sink)
+      return;
+
+    if (super_sink_node == nullptr)  // the flag was set by hand
+      {
+        with_super_sink = false;
+        return;
+      }
+
+    remove_node(super_sink_node);  // which clears it and the flag
+  }
+
+  /** @brief Convert a multi-source/multi-sink network into
+      super-source/super-sink.
+
+      @throw domain_error if the network has no source or no sink.
+      @throw bad_alloc if there is not enough memory. Then the network is
+      as it was.
+  */
+  void make_super_nodes()
+  {
+    const bool had_super_source = with_super_source;
+    make_super_source();
+    try
+      {
+        make_super_sink();
+      }
+    catch (...)
+      {
+        if (not had_super_source)
+          unmake_super_source();
+        throw;
+      }
+  }
+
+  /// Restore a super-source/super-sink network to its original form.
+  void unmake_super_nodes()
+  {
+    unmake_super_source();
+    unmake_super_sink();
+  }
+
+  /// Return an arbitrary source node.
+  Node *get_source() const
+  {
+    return src_nodes.get_item();
+  }
+
+  /// Return an arbitrary sink node.
+  Node *get_sink() const
+  {
+    return sink_nodes.get_item();
+  }
+
+  /** @brief Insert a new node by copying `node_info`.
+   *
+   * @param[in] node_info Info to copy into the node.
+   * @return Pointer to the inserted node.
+   * @throw bad_alloc If there is not enough memory.
+   */
+  Node *insert_node(const Node_Type &node_info)
+  {
+    return register_node(Graph::insert_node(node_info));
+  }
+
+  /// Insert a new node with default info.
+  Node *insert_node()
+  {
+    return register_node(Graph::insert_node(Node_Type()));
+  }
+
+  /// Insert a new node by moving `info`.
+  Node *insert_node(Node_Type &&info)
+  {
+    return register_node(Graph::insert_node(std::move(info)));
+  }
+
+  /// Construct a node in-place and insert it into the network.
+  template <typename... Args>
+  Node *emplace_node(Args &&...args)
+  {
+    return insert_node(Node_Type(std::forward<Args>(args)...));
+  }
+
+  /** @brief Insert the node @p p, allocated by the caller.
+   *
+   * @param[in] p Node to insert.
+   * @return Pointer to the inserted node.
+   * @throw bad_alloc If there is not enough memory; then @p p is removed
+   * from the network and freed.
+   */
+  Node *insert_node(Node *p) override
+  {
+    Graph::insert_node(p);
+    return register_node(p);
+  }
+
+  /** @brief Insert a capacitated arc with an initial flow.
+   *
+   * @param[in] src_node Source node.
+   * @param[in] tgt_node Target node.
+   * @param[in] cap Capacity value.
+   * @param[in] flow Flow value.
+   * @param[in] arc_info Arc info to store.
+   * @return Pointer to the inserted arc.
+   * @throw bad_alloc If there is not enough memory.
+   * @throw overflow_error If `flow` exceeds `cap` or is negative. The
+   * network is then as it was.
+   */
+  Arc *insert_arc(Node *src_node, Node *tgt_node, const Flow_Type &cap, const Flow_Type &flow,
+                  const typename Arc::Arc_Type &arc_info = Arc_Type())
+  {
+    // As Net_Arc::check_arc(), before the arc enters the network
+    ah_overflow_error_if(not (flow >= 0 and flow <= cap)) << "flow is greater than capacity";
+
+    auto arc = Graph::insert_arc(src_node, tgt_node, arc_info);  // base insertion
+
+    src_nodes.remove(tgt_node);  // update sources/sinks
+    sink_nodes.remove(src_node);
+
+    arc->cap = cap;
+    arc->flow = flow;
+
+    return arc;
+  }
+
+  template <typename... Args>
+  /// Construct arc info in-place and insert the arc.
+  Arc *emplace_arc(Node *src_node, Node *tgt_node, const Flow_Type &cap, const Flow_Type &flow,
+                   Args &&...args)
+  {
+    return insert_arc(src_node, tgt_node, cap, flow, Arc_Type(std::forward<Args>(args)...));
+  }
+
+  /** @brief Connect a previously disconnected arc.
+   *
+   * The arc must already belong to the graph; no verification is performed.
+   * Multigraphs are supported (no check for existing arcs).
+   *
+   * @param[in] arc Arc to connect.
+   * @return Pointer to the connected arc.
+   */
+  Arc *connect_arc(Arc *arc)
+  {
+    Graph::connect_arc(arc);
+
+    auto src = this->get_src_node(arc);
+    auto tgt = this->get_tgt_node(arc);
+
+    src_nodes.remove(tgt);   // target is no longer a source
+    sink_nodes.remove(src);  // source is no longer a sink
+
+    return arc;
+  }
+
+  /** @brief Insert an arc with capacity `cap` and zero flow. */
+  Arc *insert_arc(Node *src_node, Node *tgt_node, const Flow_Type &cap)
+  {
+    return insert_arc(src_node, tgt_node, cap, 0, Arc_Type());
+  }
+
+  /** @brief Insert an arc with zero capacity and flow.
+   *
+   * This overload is disabled when Arc_Type equals Flow_Type to avoid
+   * a signature clash with the capacity-only overload. It is also
+   * disabled for arithmetic types to ensure that integer literals
+   * match the capacity overload instead.
+   */
+  Arc *insert_arc(Node *src_node, Node *tgt_node, const Arc_Type &arc_info = Arc_Type())
+    requires(not std::is_same_v<Arc_Type, Flow_Type> and not std::is_arithmetic_v<Arc_Type>)
+  {
+    return insert_arc(src_node, tgt_node, 0, 0, arc_info);
+  }
+
+  /** @brief Insert an arc with zero capacity and flow, for an arc info
+   * that is arithmetic or of the type of the flow.
+   *
+   * The overload above is disabled for those types, and copy_graph(),
+   * which the copy constructor uses, inserts the arcs with two
+   * arguments.
+   */
+  Arc *insert_arc(Node *src_node, Node *tgt_node)
+    requires(std::is_same_v<Arc_Type, Flow_Type> or std::is_arithmetic_v<Arc_Type>)
+  {
+    return insert_arc(src_node, tgt_node, 0, 0, Arc_Type());
+  }
+
+private:
+  // Puts in the sets of sources and of sinks the nodes that arc leaves as
+  // one when it goes. It is done before the arc goes, so that if a set
+  // cannot take a node, the network is as it was.
+  void register_ends_of_leaving(Arc *arc)
+  {
+    auto src = this->get_src_node(arc);
+    auto tgt = this->get_tgt_node(arc);
+    const bool new_source =
+      get_in_degree(tgt) == 1 and src_nodes.insert(tgt) != nullptr;  // target becomes a source
+    try
+      {
+        if (get_out_degree(src) == 1)
+          sink_nodes.insert(src);  // source becomes a sink
+      }
+    catch (...)
+      {
+        if (new_source)
+          src_nodes.remove(tgt);
+        throw;
+      }
+  }
+
+public:
+  /** @brief Remove arc `arc` from the network.
+   *
+   * @throw bad_alloc if the set of sources or that of sinks cannot take
+   * an end of the arc that becomes one. The network is then as it was.
+   */
+  void remove_arc(Arc *arc) override
+  {
+    register_ends_of_leaving(arc);
+    Graph::remove_arc(arc);  // base removal
+  }
+
+  /** @brief Disconnect arc `arc` from the graph without deleting it.
+   *
+   * @throw bad_alloc as remove_arc().
+   */
+  void disconnect_arc(Arc *arc)
+  {
+    register_ends_of_leaving(arc);
+    Graph::disconnect_arc(arc);  // base disconnection
+  }
+
+  /** @brief Remove node `p` and all its arcs from the network.
+   *
+   * @throw bad_alloc as remove_arc(), for the arcs of p. Then the arcs
+   * that went are gone, p and the others are in the network, and the
+   * sets of sources and sinks are right.
+   */
+  void remove_node(Node *p) override
+  {
+    const bool super_source = p == super_source_node;
+    const bool super_sink = p == super_sink_node;
+    Graph::remove_node(p);  // base removal
+    src_nodes.remove(p);
+    sink_nodes.remove(p);
+    if (super_source)  // the network has no super source any more
+      {
+        super_source_node = nullptr;
+        with_super_source = false;
+      }
+    if (super_sink)
+      {
+        super_sink_node = nullptr;
+        with_super_sink = false;
+      }
+  }
+
+  /// Copy-construct a network. Throws bad_alloc on allocation failure.
+  Net_Graph(const Net_Graph &net)
+    : Array_Graph<NodeT, ArcT>::Array_Graph(),
+      Infinity(std::numeric_limits<typename Arc::Flow_Type>::max()),
+      with_super_source(net.with_super_source), with_super_sink(net.with_super_sink)
+  {
+    copy_graph(*this, net, false);  // copy without mapping
+
+    using Pair = std::pair<typename Net_Graph::Arc *, typename Net_Graph::Arc *>;
+    zip(this->arcs(), net.arcs())
+      .for_each([](const Pair &p)
+      {
+        auto atgt = p.first;
+        auto asrc = p.second;
+        atgt->cap = asrc->cap;
+        atgt->flow = asrc->flow;
+      });
+
+    // The copy has the nodes of net in their order: the super nodes are
+    // those at their places
+    if (net.super_source_node != nullptr or net.super_sink_node != nullptr)
+      {
+        Node_Iterator<Net_Graph> jt(*this);
+        for (Node_Iterator<Net_Graph> it(net); it.has_curr(); it.next_ne(), jt.next_ne())
           {
-            auto arc = it.get_curr();
-            auto tgt = net.get_connected_node(arc, src);
-            if (node_height<Net>(src) != node_height<Net>(tgt) + 1)
+            if (it.get_curr() == net.super_source_node)
+              super_source_node = jt.get_curr();
+            if (it.get_curr() == net.super_sink_node)
+              super_sink_node = jt.get_curr();
+          }
+      }
+  }
+
+  /// Swap contents with another network. O(1) operation.
+  void swap(Net_Graph &other) noexcept
+  {
+    Graph::common_swap(other);  // swap num_nodes, num_arcs, digraph, cookie
+    Graph::get_node_dlink().swap(other.get_node_dlink());
+    Graph::get_arc_dlink().swap(other.get_arc_dlink());
+    src_nodes.swap(other.src_nodes);
+    sink_nodes.swap(other.sink_nodes);
+    std::swap(Infinity, other.Infinity);
+    std::swap(with_super_source, other.with_super_source);
+    std::swap(with_super_sink, other.with_super_sink);
+    std::swap(super_source_node, other.super_source_node);
+    std::swap(super_sink_node, other.super_sink_node);
+  }
+
+  /// Move-construct a network. O(1) operation.
+  Net_Graph(Net_Graph &&other) noexcept
+    : Infinity(std::numeric_limits<typename Arc::Flow_Type>::max()), with_super_source(false),
+      with_super_sink(false)
+  {
+    swap(other);
+  }
+
+  /// Move-assign a network. O(1) operation.
+  Net_Graph &operator = (Net_Graph &&other) noexcept
+  {
+    if (this != &other)
+      swap(other);
+    return *this;
+  }
+
+  /// Copy-assign a network. Throws bad_alloc on allocation failure.
+  Net_Graph &operator = (const Net_Graph &net)
+  {
+    if (this == &net)
+      return *this;
+
+    Net_Graph tmp(net);                     // copy construct
+    tmp.get_cookie() = this->get_cookie();  // the network keeps its cookie
+    swap(tmp);                              // swap with copy
+    return *this;
+  }
+
+  /// Set the capacity of an arc.
+  void set_cap(Arc *arc, const Flow_Type &cap)
+  {
+    ah_out_of_range_error_if(cap < arc->flow) << "capacity value is smaller than flow";
+
+    arc->cap = cap;
+  }
+
+  /// Set the flow of an arc. Throws if `flow` exceeds capacity.
+  void set_flow(Arc *arc, const Flow_Type &flow)
+  {
+    ah_out_of_range_error_if(flow > arc->cap) << "flow value is greater than capacity";
+
+    arc->flow = flow;
+  }
+
+  /// Return the flow value of an arc.
+  const Flow_Type &get_flow(Arc *arc) const noexcept
+  {
+    return arc->flow;
+  }
+
+  /// Return the capacity value of an arc.
+  const Flow_Type &get_cap(Arc *arc) const noexcept
+  {
+    return arc->cap;
+  }
+
+  /// Reset all arc flows to zero.
+  void reset()
+  {
+    for (Arc_Iterator<Net_Graph> it(*this); it.has_curr(); it.next_ne())
+      it.get_curr()->flow = 0;
+  }
+
+  /** @brief Validate flow-conservation and capacity constraints.
+   *
+   * A floating flow is valid but for rounding: every node keeps its flow
+   * within node_tolerance() of its own flows, and the flow out of the
+   * sources and that into the sinks differ at most by the sum of those
+   * tolerances.
+   *
+   * @return true if the network is valid; false otherwise.
+   */
+  bool check_network() const
+  {
+    if (src_nodes.is_empty() or sink_nodes.is_empty())
+      return false;
+
+    const bool flow_balanced = same_totals(total_source_out_flow(), total_sink_in_flow());
+
+    return this->nodes().all(
+             [this](Node *p)
+      {
+        return check_node(p);
+      }) and
+      this->arcs().all(
+        [](Arc *a)
+      {
+        return a->check_arc();
+      }) and
+      flow_balanced;
+  }
+
+  /** @brief Return the total flow value of the network: the flow out of
+      its sources, which a valid flow also takes into its sinks, as
+      check_network() takes them. */
+  Flow_Type flow_value() const
+  {
+    ah_domain_error_if(src_nodes.is_empty() or sink_nodes.is_empty())
+      << "network has no source or sink nodes";
+
+    const auto total_out = total_source_out_flow();
+    assert(same_totals(total_out, total_sink_in_flow()));
+    return total_out;
+  }
+
+  /// True if the network has a super-source.
+  bool with_super_source;
+
+  /// True if the network has a super-sink.
+  bool with_super_sink;
+
+  /// Default constructor.
+  Net_Graph()
+    : Infinity(std::numeric_limits<typename Arc::Flow_Type>::max()), with_super_source(false),
+      with_super_sink(false)
+  { /* empty */
+  }
+
+  /** @brief Stream a path with arc (cap,flow) tuples. */
+  friend std::ostream &operator << (std::ostream &s, const Path<Net_Graph> &path)
+  {
+    if (path.is_empty())
+      return s << "Path is Empty";
+
+    const Net_Graph &net = path.get_graph();
+    typename Path<Net_Graph>::Iterator it(path);
+    s << it.get_current_node()->get_info();
+    for (; it.has_current_arc(); it.next_ne())
+      {
+        typename Net_Graph::Arc *a = it.get_current_arc_ne();
+        s << "(" << a->cap << "," << a->flow << ")"
+          << net.get_connected_node(a, it.get_current_node_ne())->get_info();
+      }
+    return s;
+  }
+};
+
+/** @brief Arc entry for a semi-path.
+ *
+ * Second field is true for a forward arc, false for a residual arc.
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+using Parc = std::tuple<typename Net::Arc *, bool>;  // second field marks forward.
+
+/** @brief Semi-path tuple:
+ * - bool: whether a path was found
+ * - Flow_Type: slack value of the path
+ * - DynList<Parc<Net>>: arc list with direction flags
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+using SemiPath = std::tuple<bool, typename Net::Flow_Type, DynList<Parc<Net>>>;
+
+/// Print a semi-path to stdout.
+template <class Net>
+inline void print(const DynList<Parc<Net>> &sp)
+{
+  if (sp.is_empty())
+    {
+      std::cout << "Semi path is Empty";
+      return;
+    }
+
+  for (auto it = sp.get_it(); it.has_curr(); it.next_ne())
+    {
+      const Parc<Net> &pa = it.get_curr();
+      auto a = get<0>(pa);
+      auto s = static_cast<typename Net::Node *>(a->src_node);
+      auto t = static_cast<typename Net::Node *>(a->tgt_node);
+      std::cout << s->get_info() << "(" << a->flow << "," << a->cap << ")" << t->get_info() << " "
+                << (get<1>(pa) ? "Normal" : "Reduced") << '\n';
+    }
+}
+
+namespace net_detail {
+// Adds slack to the flow of arc. A floating slack that covers what the
+// arc has left takes the flow to the capacity, exactly, so that the arc
+// that bounds a path is saturated, as it would be without rounding,
+// and no arc goes beyond it.
+template <class Arc, typename Flow_Type>
+inline void add_flow(Arc *arc, const Flow_Type &slack) noexcept
+{
+  if constexpr (std::is_floating_point_v<Flow_Type>)
+    if (arc->cap - arc->flow <= slack)
+      {
+        arc->flow = arc->cap;
+        return;
+      }
+  arc->flow += slack;
+}
+
+// The largest excess of a node of degree arcs, whose flows into and
+// out of it are in and out, that is a residue of rounding, and not flow
+// to push: for a floating flow, the errors that its sums of flows, and
+// the pushes of a discharge, may make, an epsilon of the larger of in
+// and out by each of its arcs and two more; zero for an integer flow. A
+// push-relabel algorithm that pushed it could move it around forever,
+// as no arc may take it. The scale is the node's own flows, not the
+// capacities of the network nor those of the node: a node may receive a
+// small flow through a small arc beside a large one, and that flow is
+// not a residue; nor is 21 beside 1e15, though 256 epsilons of 1e15
+// are 57.
+template <typename Flow_Type>
+inline Flow_Type node_residue(const Flow_Type &in, const Flow_Type &out, size_t arcs) noexcept
+{
+  if constexpr (std::is_floating_point_v<Flow_Type>)
+    return std::numeric_limits<Flow_Type>::epsilon() * Flow_Type(arcs + 2) * std::max(in, out);
+  else
+    {
+      (void) in;
+      (void) out;
+      (void) arcs;
+      return Flow_Type{0};
+    }
+}
+
+// Whether node p of net, which a preflow algorithm has just pushed
+// flow into, does not send more than it receives, beyond the
+// tolerance of check_node(); for an integer flow, whether it has an
+// excess
+template <class Net>
+bool not_short(const Net &net, typename Net::Node *p)
+{
+  const auto in = net.get_in_flow(p), out = net.get_out_flow(p);
+  if constexpr (std::is_floating_point_v<typename Net::Flow_Type>)
+    return in - out >= -Net::node_tolerance(in, out);
+  else
+    return in > out;
+}
+
+// Subtracts slack from the flow of arc, along an augmenting path. A
+// floating flow that is left next to zero, or below it, relative to
+// the numbers of the subtraction, is zero, as the slack of the path
+// was computed on another arc, or the flow added up rounding errors.
+// The preflows do not take it: they push with push_excess().
+template <class Arc, typename Flow_Type>
+inline void subtract_flow(Arc *arc, const Flow_Type &slack) noexcept
+{
+  if constexpr (std::is_floating_point_v<Flow_Type>)
+    {
+      const Flow_Type before = arc->flow;
+      arc->flow -= slack;
+      if (arc->flow <= 256 * std::numeric_limits<Flow_Type>::epsilon() * std::max(before, slack))
+        arc->flow = 0;
+    }
+  else
+    arc->flow -= slack;
+}
+
+/** A sum of floating flows that keeps the error of its rounding, as
+    hi + lo, by the error-free addition of Knuth: a small flow beside a
+    large one, as 0.53 beside 7e13, which the sum rounds away, comes
+    back when the large one goes. The preflows and HLPP sum so the
+    flows of their nodes. It needs strict floating arithmetic, which
+    -ffast-math is not. */
+template <typename Flow_Type>
+struct Flow_Sum
+{
+  Flow_Type hi{0};  ///< The sum, rounded
+  Flow_Type lo{0};  ///< What its rounding lost
+
+  /// Adds x
+  void add(const Flow_Type &x) noexcept
+  {
+    const Flow_Type s = hi + x;
+    const Flow_Type b = s - hi;
+    lo += (hi - (s - b)) + (x - b);
+    hi = s;
+  }
+
+  /// Replaces the term from, which the sum has, by to
+  void replace(const Flow_Type &from, const Flow_Type &to) noexcept
+  {
+    add(-from);
+    add(to);
+  }
+
+  /// The sum, rounded once
+  [[nodiscard]] Flow_Type value() const noexcept
+  {
+    return hi + lo;
+  }
+
+  /// This sum less other, rounded once but for the errors of lo
+  [[nodiscard]] Flow_Type minus(const Flow_Sum &other) const noexcept
+  {
+    Flow_Sum d = *this;
+    d.add(-other.hi);
+    return d.hi + (d.lo - other.lo);
+  }
+};
+
+// Sums into in and out the flows into and out of node p of net
+template <class Net>
+void node_flows(const Net &net, typename Net::Node *p, Flow_Sum<typename Net::Flow_Type> &in,
+                Flow_Sum<typename Net::Flow_Type> &out) noexcept
+{
+  for (typename Net::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
+    {
+      auto arc = it.get_curr();
+      if (net.get_src_node(arc) == p)
+        out.add(arc->flow);
+      if (net.get_tgt_node(arc) == p)
+        in.add(arc->flow);
+    }
+}
+
+// Pushes the excess of a node whose flows into and out of it are in
+// and out along arc, forward or back, as much as the arc takes, for a
+// floating flow: the flow of the arc becomes what keeps the node in
+// balance, in - (out - flow) forward and out - (in - flow) back, or the
+// capacity, or zero, if that is beyond them. The sums keep what their
+// rounding loses, so that a small flow beside a large one is not lost,
+// as 0.05 left by the return of 1e15. Updates in and out by what the
+// arc took.
+template <class Arc, typename Flow_Type>
+inline void push_excess(Arc *arc, bool forward, Flow_Sum<Flow_Type> &in,
+                        Flow_Sum<Flow_Type> &out) noexcept
+{
+  const Flow_Type before = arc->flow;
+  Flow_Sum<Flow_Type> &with = forward ? out : in;  // the sum that has arc
+  const Flow_Sum<Flow_Type> &other = forward ? in : out;
+  with.add(-before);
+  const Flow_Type balanced = other.minus(with);
+  if (forward)
+    arc->flow = balanced >= arc->cap ? arc->cap : balanced;
+  else
+    arc->flow = balanced <= Flow_Type{0} ? Flow_Type{0} : balanced;
+  with.add(arc->flow);
+}
+
+/** Returns the dust of a floating flow that a preflow algorithm left
+    in net, from source to sink: what each node but them keeps that
+    does not leave it goes back toward the source, along arcs with flow
+    from it, and what each sends that it does not receive goes forward
+    toward the sink, along arcs with flow to it; what a node still keeps
+    or lacks beyond the tolerance of check_node(), as on an island of
+    arcs with flow apart from both, goes along a shortest path of arcs
+    with flow to the first node that takes it; and when nothing reaches
+    the sink, what still leaves the source, which the rounding of the
+    sums of the nodes may hide, is taken from the arcs of the source
+    with the least flow, if it is within the tolerances of the nodes
+    (and the other way). Flows only go down. Afterwards every node keeps
+    its flow within the tolerance of check_node(), and a network whose
+    maximum flow is 0 gives 0. Nothing for an integer flow, and, but a
+    pass over the nodes, nothing if no node keeps or lacks any flow.
+    O((b + 1)(V + E) + d log d), where b, the number of searches, is
+    about that of the nodes that the first moves leave beyond their
+    tolerance, at most V + E, and d is the degree of the source or the
+    sink. */
+template <class Net>
+void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
+{
+  using Flow_Type = typename Net::Flow_Type;
+  if constexpr (std::is_floating_point_v<Flow_Type>)
+    {
+      using Node = typename Net::Node;
+      using Arc = typename Net::Arc;
+
+      // Nothing to do, and nothing to allocate, if every node but the
+      // ends keeps its flow exactly and the totals agree, or both
+      // carry flow
+      {
+        bool balanced = true;
+        Flow_Type sent{0}, received{0};
+        for (Node_Iterator<Net> it(net); balanced and it.has_curr(); it.next_ne())
+          {
+            Node *p = it.get_curr();
+            Flow_Sum<Flow_Type> in, out;
+            node_flows(net, p, in, out);
+            if (p == source)
+              sent = out.minus(in);
+            else if (p == sink)
+              received = in.minus(out);
+            else
+              balanced = in.minus(out) == Flow_Type{0};
+          }
+        if (balanced and (sent == received or (sent != Flow_Type{0} and received != Flow_Type{0})))
+          return;
+      }
+
+      struct Info
+      {
+        Flow_Sum<Flow_Type> in;  // which keep what their rounding loses
+        Flow_Sum<Flow_Type> out;
+        long from_source = -1;  // depth from the source, by arcs with flow
+        long to_sink = -1;      // depth to the sink, by arcs with flow
+        Arc *parent = nullptr;  // by which a search reached it
+        size_t stamp = 0;       // the last search that reached it
+      };
+      // The storage first, so that it outlives the saver of cookies,
+      // and all of it before any flow moves
+      std::vector<Info> info(net.vsize());
+      std::vector<Node *> order, queue;  // of the searches
+      order.reserve(net.vsize());
+      queue.reserve(net.vsize());
+      std::vector<Arc *> end_arcs;  // of the source or the sink
+      end_arcs.reserve(std::max(net.get_num_arcs(source), net.get_num_arcs(sink)));
+      Cookie_Saver<Net> saver(net, true, false);
+      {
+        size_t i = 0;
+        for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++i)
+          NODE_COOKIE(it.get_curr()) = &info[i];
+      }
+      auto at = [](Node *p) -> Info &
+        {
+          return *static_cast<Info *>(NODE_COOKIE(p));
+        };
+      for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        {
+          Arc *a = it.get_curr();
+          at(net.get_src_node(a)).out.add(a->flow);
+          at(net.get_tgt_node(a)).in.add(a->flow);
+        }
+
+      // Lowers the flow of a by d, at most its flow
+      auto lower = [&](Arc *a, const Flow_Type &d)
+        {
+          const Flow_Type before = a->flow;
+          a->flow = d >= before ? Flow_Type{0} : before - d;
+          at(net.get_src_node(a)).out.replace(before, a->flow);
+          at(net.get_tgt_node(a)).in.replace(before, a->flow);
+        };
+      auto between = [source, sink](Node *p)
+        {
+          return p != source and p != sink;
+        };
+      auto excess = [&](Node *p)
+        {
+          return at(p).in.minus(at(p).out);
+        };
+
+      // The nodes by depth from start, along arcs with flow, forward if
+      // forward, else backward; none goes on from stop
+      auto search = [&](Node *start, Node *stop, bool forward, long Info::*depth)
+        {
+          order.clear();
+          at(start).*depth = 0;
+          order.push_back(start);
+          for (size_t k = 0; k < order.size(); ++k)
+            {
+              Node *u = order[k];
+              if (u == stop)
+                continue;
+              for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
+                {
+                  Arc *a = it.get_curr();
+                  Node *from = forward ? net.get_src_node(a) : net.get_tgt_node(a);
+                  Node *v = forward ? net.get_tgt_node(a) : net.get_src_node(a);
+                  if (from == u and a->flow > Flow_Type{0} and at(v).*depth < 0)
+                    {
+                      at(v).*depth = at(u).*depth + 1;
+                      order.push_back(v);
+                    }
+                }
+            }
+        };
+
+      // What each node keeps goes back, the deepest first, along arcs
+      // from nodes nearer to the source, which come later
+      search(source, sink, true, &Info::from_source);
+      for (size_t k = order.size(); k-- > 1;)
+        if (Node *v = order[k]; between(v))
+          for (typename Net::Node_Arc_Iterator it(v); it.has_curr() and excess(v) > Flow_Type{0};
+               it.next_ne())
+            {
+              Arc *a = it.get_curr();
+              Node *u = net.get_src_node(a);
+              if (net.get_tgt_node(a) == v and u != v and a->flow > Flow_Type{0} and
+                  at(u).from_source >= 0 and at(u).from_source < at(v).from_source)
+                lower(a, excess(v));
+            }
+
+      // What each node lacks goes forward likewise, toward the sink
+      search(sink, source, false, &Info::to_sink);
+      for (size_t k = order.size(); k-- > 1;)
+        if (Node *v = order[k]; between(v))
+          for (typename Net::Node_Arc_Iterator it(v); it.has_curr() and excess(v) < Flow_Type{0};
+               it.next_ne())
+            {
+              Arc *a = it.get_curr();
+              Node *w = net.get_tgt_node(a);
+              if (net.get_src_node(a) == v and w != v and a->flow > Flow_Type{0} and
+                  at(w).to_sink >= 0 and at(w).to_sink < at(v).to_sink)
+                lower(a, -excess(v));
+            }
+
+      // What is left beyond the tolerance of check_node() of its node
+      // goes, an excess backward and a lack forward, along a shortest
+      // path of arcs with flow, to the first node that takes it: the
+      // source or the sink, a node with the opposite beyond its own
+      // tolerance, a node of flows large enough to take it within their
+      // tolerance, or else the first node with some of the opposite. So
+      // an island of arcs with flow apart from both ends, and a path of
+      // dust from the source into a circulation, in which rounding hid
+      // it, go, and no move goes around a cycle. What a node keeps or
+      // lacks within its tolerance stays: it is the rounding of the sums
+      // of its flows. Each search takes a path to zero at one of its
+      // arcs, settles its node, or settles the node that takes it; the
+      // searches are bounded all the same
+      auto tolerance_of = [&](Node *p)
+        {
+          return Net::node_tolerance(at(p).in.value(), at(p).out.value());
+        };
+      auto off = [&](Node *p)
+        {
+          return std::abs(excess(p)) > tolerance_of(p);
+        };
+      size_t stamp = 0;
+      auto settle = [&]
+        {
+          size_t budget = net.vsize() + net.esize();
+          for (Node_Iterator<Net> nt(net); nt.has_curr() and budget > 0; nt.next_ne())
+            for (Node *v = nt.get_curr(); between(v) and off(v) and budget > 0; --budget)
               {
-                m = std::min(m, node_height<Net>(tgt));
+                const bool keeps = excess(v) > Flow_Type{0};
+                const Flow_Type d = std::abs(excess(v));
+                auto opposite = [&](Node *w)
+                  {
+                    const Flow_Type e = excess(w);
+                    return between(w) and (keeps ? e < Flow_Type{0} : e > Flow_Type{0});
+                  };
+                auto takes_all = [&](Node *w)
+                  {
+                    return not between(w) or std::abs(excess(w)) + d <= tolerance_of(w);
+                  };
+                // A search from v, backward if it keeps, else forward,
+                // to the first node that takes all, or has the opposite
+                // beyond its tolerance, or else to the first that has
+                // some of the opposite, which, as the flow decomposes
+                // into paths and cycles, a search finds
+                ++stamp;
+                at(v).stamp = stamp;
+                queue.assign(1, v);
+                Node *w = nullptr, *some = nullptr;
+                for (size_t k = 0; k < queue.size() and w == nullptr; ++k)
+                  for (typename Net::Node_Arc_Iterator it(queue[k]); it.has_curr(); it.next_ne())
+                    {
+                      Arc *a = it.get_curr();
+                      Node *near = keeps ? net.get_tgt_node(a) : net.get_src_node(a);
+                      Node *x = keeps ? net.get_src_node(a) : net.get_tgt_node(a);
+                      if (near != queue[k] or x == near or not (a->flow > Flow_Type{0}) or
+                          at(x).stamp == stamp)
+                        continue;
+                      at(x).stamp = stamp;
+                      at(x).parent = a;
+                      if (takes_all(x) or (opposite(x) and off(x)))
+                        {
+                          w = x;
+                          break;
+                        }
+                      if (some == nullptr and opposite(x))
+                        some = x;
+                      queue.push_back(x);
+                    }
+                if (w == nullptr)
+                  w = some;
+                if (w == nullptr)
+                  break;  // nothing takes it
+                auto next = [&](Node *x)
+                  {
+                    Arc *a = at(x).parent;
+                    return keeps ? net.get_tgt_node(a) : net.get_src_node(a);
+                  };
+                Flow_Type m = d;  // what goes: at most the flow of the path
+                for (Node *x = w; x != v; x = next(x))
+                  m = std::min(m, at(x).parent->flow);
+                if (not takes_all(w))  // only what it has of the opposite
+                  m = std::min(m, std::abs(excess(w)));
+                for (Node *x = w; x != v;)
+                  {
+                    Arc *a = at(x).parent;
+                    x = next(x);
+                    lower(a, m);
+                  }
+              }
+        };
+      settle();
+
+      // When nothing reaches the sink, what still leaves the source, or
+      // the other way, which the rounding of the sums of the nodes
+      // between them hides, is dust too, if it is within the tolerances
+      // of those nodes: the arcs of the source, or of the sink, with the
+      // least flow lose it, so that a maximum flow of 0 gives 0. A
+      // difference of the totals when both carry flow is what rounding
+      // hides between them, and it stays, within the tolerance that
+      // check_network() takes
+      Flow_Type tolerance{0};
+      for (const Info &x : info)
+        tolerance += Net::node_tolerance(x.in.value(), x.out.value());
+      const Flow_Type sent = at(source).out.minus(at(source).in);
+      const Flow_Type received = at(sink).in.minus(at(sink).out);
+      const Flow_Type apart = sent - received;
+      if ((sent == Flow_Type{0} or received == Flow_Type{0}) and apart != Flow_Type{0} and
+          std::abs(apart) <= tolerance)
+        {
+          Node *end = apart > Flow_Type{0} ? source : sink;
+          for (typename Net::Node_Arc_Iterator it(end); it.has_curr(); it.next_ne())
+            if (Arc *a = it.get_curr(); a->flow > Flow_Type{0} and
+                (end == source ? net.get_src_node(a) : net.get_tgt_node(a)) == end and
+                net.get_src_node(a) != net.get_tgt_node(a))
+              end_arcs.push_back(a);
+          std::sort(end_arcs.begin(), end_arcs.end(), [](Arc *a, Arc *b)
+            {
+              return a->flow < b->flow;
+            });
+          Flow_Type left = std::abs(apart);
+          for (Arc *a : end_arcs)
+            {
+              if (not (left > Flow_Type{0}))
+                break;
+              const Flow_Type before = a->flow;
+              lower(a, left);
+              left -= before - a->flow;
+            }
+          settle();  // what that left, next to the source or the sink
+        }
+    }
+  else
+    {
+      (void) net;
+      (void) source;
+      (void) sink;
+    }
+}
+}  // namespace net_detail
+
+/** @brief Increase flow along an augmenting path.
+ *
+ * With a floating type of flow, a flow that rounding leaves next to the
+ * capacity of its arc, or next to zero, is set to it.
+ *
+ * @param[in,out] net Flow network to update.
+ * @param[in] path Augmenting path.
+ * @return Slack value used to increase the flow.
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+typename Net::Flow_Type increase_flow(Net &net, const Path<Net> &path)
+{
+  typename Net::Flow_Type slack = net.Infinity;  // bottleneck
+  using Tuple = std::tuple<typename Net::Node *, typename Net::Arc *>;
+
+  // Compute the bottleneck of the augmenting path.
+  for (typename Path<Net>::Iterator it(path); it.has_current_arc(); it.next_ne())
+    {
+      Tuple t = it.get_tuple_ne();
+      auto p = get<0>(t);
+      auto arc = get<1>(t);
+      const auto w = remaining_flow<Net>(p, arc);
+      if (w < slack)
+        slack = w;
+    }
+
+  // Increase flow along the augmenting path.
+  for (typename Path<Net>::Iterator it(path); it.has_current_arc(); it.next_ne())
+    {
+      auto t = it.get_tuple_ne();
+      auto p = get<0>(t);
+      auto arc = get<1>(t);
+
+      if (is_residual<Net>(p, arc))
+        net_detail::subtract_flow(arc, slack);
+      else
+        net_detail::add_flow(arc, slack);
+
+      assert(arc->check_arc());
+    }
+
+  return slack;
+}
+
+/** @brief Increase flow along a semi-path by a given slack.
+ *
+ * With a floating type of flow, a flow that rounding leaves next to the
+ * capacity of its arc, or next to zero, is set to it.
+ *
+ * @param[in,out] net Flow network to update.
+ * @param[in] semi_path Semi-path arc list.
+ * @param[in] slack Slack to apply (not validated).
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+void increase_flow(Net &net, const DynList<Parc<Net>> &semi_path, const typename Net::Flow_Type slack)
+{
+  (void) net;  // May be unused when NDEBUG disables assert().
+
+  // Increase flow along the semi-path.
+  for (auto it = semi_path.get_it(); it.has_curr(); it.next_ne())
+    {
+      auto p = it.get_curr();
+      auto arc = get<0>(p);
+      if (get<1>(p))  // forward arc
+        net_detail::add_flow(arc, slack);
+      else
+        net_detail::subtract_flow(arc, slack);
+
+      assert(arc->check_arc());
+    }
+  assert(net.check_network());
+}
+
+/** @brief Decrease flow along a semi-path by a given slack.
+ *
+ * This reverses the effect of increase_flow by negating forward/residual
+ * arc directions. With a floating type of flow, a flow that rounding
+ * leaves next to the capacity of its arc, or next to zero, is set to it.
+ *
+ * @param[in,out] net Flow network to update.
+ * @param[in] semi_path Semi-path arc list.
+ * @param[in] slack Slack to apply (not validated).
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+void decrease_flow(Net &net, const DynList<Parc<Net>> &semi_path, const typename Net::Flow_Type slack)
+{
+  (void) net;
+
+  // Decrease flow: reverse the direction logic from increase_flow
+  for (auto it = semi_path.get_it(); it.has_curr(); it.next_ne())
+    {
+      auto p = it.get_curr();
+      auto arc = get<0>(p);
+      if (get<1>(p))  // forward arc: decrease instead of increase
+        net_detail::subtract_flow(arc, slack);
+      else  // residual arc: increase instead of decrease
+        net_detail::add_flow(arc, slack);
+
+      assert(arc->check_arc());
+    }
+}
+
+/** @brief Augmenting-path search over a directed network.
+ *
+ * The network is modeled with a graph class (not a digraph class).
+ *
+ * @ingroup Networks
+ */
+template <class Net, template <typename T> class Q>
+class Find_Aumenting_Path
+{
+  const Net &net;
+
+  // Return end node if a path is found. The cookie of each node reached
+  // keeps the arc by which it was reached, which the paths take: with
+  // parallel arcs, another one could have less slack than min_slack.
+  typename Net::Node *search(typename Net::Node *start, typename Net::Node *end,
+                             typename Net::Flow_Type min_slack)
+  {
+    using Itor = Net_Iterator<Net>;
+    net.reset_nodes();
+    net.reset_bit_arcs();  // only their states: their cookies stay, as
+                           // those of an auxiliary network to the original
+
+    start->set_state(Processed);
+    Q<typename Net::Arc *> q;
+    for (Itor it(start); it.has_curr(); it.next_ne())
+      {
+        auto a = it.get_curr();
+        if (remaining_flow<Net>(start, a) < min_slack)
+          continue;
+        auto tgt = net.get_connected_node(a, start);
+        tgt->set_state(Processing);
+        a->set_state(Processing);
+        q.put(a);
+      }
+
+    typename Net::Node *curr = nullptr;
+    while (not q.is_empty())
+      {
+        auto arc = q.get();
+        assert(arc->state() == Processing);
+        arc->set_state(Processed);
+
+        auto s = net.get_src_node(arc);
+        auto t = net.get_tgt_node(arc);
+
+        if (s->state() == Processed and t->state() == Processed)
+          continue;
+
+        curr = s->state() == Processed ? t : s;
+        assert(curr->state() == Processing);
+        curr->set_state(Processed);
+        NODE_COOKIE(curr) = arc;
+
+        if (curr == end)
+          return curr;
+
+        for (Itor it(curr); it.has_curr(); it.next_ne())
+          {
+            auto a = it.get_curr();
+
+            // Skip arcs already processed or already in queue
+            if (a->state() != Unprocessed)
+              continue;
+
+            if (remaining_flow<Net>(curr, a) < min_slack)
+              continue;
+
+            auto tgt = net.get_connected_node(a, curr);
+            if (tgt->state() == Processed)
+              {
+                a->set_state(Processed);
                 continue;
               }
 
-            was_eligible_arc = true;
-            typename Net::Flow_Type flow_to_push;
-            if (is_residual<Net>(src, arc))
-              {
-                flow_to_push = std::min(arc->flow, excess);
-                arc->flow -= flow_to_push;
-              }
-            else
-              {
-                flow_to_push = std::min(arc->cap - arc->flow, excess);
-                arc->flow += flow_to_push;
-              }
-            excess -= flow_to_push;
-            if (tgt != source and tgt != sink)
-              {
-                assert(is_node_active(net, tgt));
-                put_in_active_queue(q, tgt);
-              }
+            a->set_state(Processing);
+            q.put(a);
+            tgt->set_state(Processing);
           }
+      }  // end while
 
-        if (excess > 0) // is src still active
-          {
-            if (not was_eligible_arc)
-              node_height<Net>(src) = m + 1;
-            put_in_active_queue(q, src);
-          }
+    return nullptr;
+  }
+
+  /// Build a Path from `start` to `end` with minimum slack.
+  Path<Net> find(typename Net::Node *start, typename Net::Node *end,
+                 const typename Net::Flow_Type &min_slack = typename Net::Flow_Type{0})
+  {
+    auto curr = search(start, end, min_slack);
+
+    Path<Net> ret(net);
+    if (not curr)
+      return ret;
+
+    assert(curr == end);
+
+    ret.insert(curr);
+    while (curr != start)
+      {
+        auto arc = static_cast<typename Net::Arc *>(NODE_COOKIE(curr));
+        ret.insert(arc);  // the arc that the search took, of the parallels
+        curr = net.get_connected_node(arc, curr);
       }
 
-    assert(net.check_network());
-
-    return net.flow_value();
+    return ret;
   }
 
-
-  /// Initialize node heights in a residual network from `sink`.
-  template <class Rnet>
-  inline
-  void init_height_in_nodes(Rnet & rnet, typename Rnet::Node *sink)
+  /// Build a SemiPath from `start` to `end` with minimum slack.
+  SemiPath<Net> find_path(typename Net::Node *start, typename Net::Node *end,
+                          typename Net::Flow_Type min_slack = typename Net::Flow_Type{0})
   {
-    Graph_Traverse_BFS<Rnet, Node_Arc_Iterator<Rnet>>(rnet).
-        exec(sink, [&rnet](typename Rnet::Node *p, typename Rnet::Arc *a)
-               {
-                 if (a)
-                   node_height<Rnet>(p) = node_height<Rnet>(rnet.get_src_node(a)) + 1;
-                 return true;
-               });
-  }
+    auto t = search(start, end, min_slack);
+    if (not t)
+      return std::make_tuple(false, typename Net::Flow_Type{0}, DynList<Parc<Net>>());
 
+    assert(t == end);
 
-  /** @brief Preflow-push maximum flow using a FIFO queue of active nodes.
-   *
-   * @param[in,out] net Flow network (must have a single source and sink).
-   * @return Maximized flow value.
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  typename Net::Flow_Type
-  fifo_preflow_maximum_flow(Net & net)
-  {
-    using Node = typename Net::Node;
-    return generic_preflow_vertex_push_maximum_flow
-        <Net, DynListQueue<Node *>>(net);
-  }
-
-  /** @brief Functor wrapper for fifo_preflow_maximum_flow().
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  struct Fifo_Preflow_Maximum_Flow
-  {
-    /// Invoke fifo_preflow_maximum_flow().
-    typename Net::Flow_Type
-    operator ()(Net & net) const
-    {
-      return fifo_preflow_maximum_flow(net);
-    }
-  };
-
-
-  /// Compare nodes by height (higher first).
-  template <class Net>
-  struct Compare_Height
-  {
-    bool operator ()(typename Net::Node *n1, typename Net::Node *n2) const
-    {
-      return node_height<Net>(n1) > node_height<Net>(n2);
-    }
-  };
-
-  /** @brief Preflow-push maximum flow using a height-ordered heap.
-   *
-   * @param[in,out] net Flow network (must have a single source and sink).
-   * @return Maximized flow value.
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  typename Net::Flow_Type
-  heap_preflow_maximum_flow(Net & net)
-  {
-    using Node = typename Net::Node;
-    return generic_preflow_vertex_push_maximum_flow
-        <Net, DynBinHeap<Node *, Compare_Height<Net>>>(net);
-  }
-
-  /** @brief Functor wrapper for heap_preflow_maximum_flow().
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  struct Heap_Preflow_Maximum_Flow
-  {
-    /// Invoke heap_preflow_maximum_flow().
-    typename Net::Flow_Type operator ()(Net & net) const
-    {
-      return heap_preflow_maximum_flow(net);
-    }
-  };
-
-  /** @brief Preflow-push maximum flow using a random active-node queue.
-   *
-   * @param[in,out] net Flow network (must have a single source and sink).
-   * @return Maximized flow value.
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  typename Net::Flow_Type
-  random_preflow_maximum_flow(Net & net)
-  {
-    using Node = typename Net::Node;
-    return generic_preflow_vertex_push_maximum_flow<Net, Random_Set<Node *>>(net);
-  }
-
-
-  /** @brief Functor wrapper for random_preflow_maximum_flow().
-   *
-   * @ingroup Networks
-   */
-  template <class Net>
-  struct Random_Preflow_Maximum_Flow
-  {
-    /// Invoke random_preflow_maximum_flow().
-    typename Net::Flow_Type operator ()(Net & net) const
-    {
-      return random_preflow_maximum_flow(net);
-    }
-  };
-
-
-  /** @brief Compute max flow and the corresponding minimum cut.
-   *
-   * @param[in,out] net Flow network (must have a single source and sink).
-   * @param[out] vs Set of nodes in V_s.
-   * @param[out] vt Set of nodes in V_t.
-   * @param[out] cuts Arcs from V_s to V_t (the cut).
-   * @param[out] cutt Arcs from V_t to V_s.
-   * @return Max flow value (equal to min-cut capacity).
-   *
-   * @ingroup Networks
-   */
-  template <class Net, template <class> class Maxflow>
-  typename Net::Flow_Type min_cut(Net & net,
-                                  DynSetTree<typename Net::Node *> & vs,
-                                  DynSetTree<typename Net::Node *> & vt,
-                                  DynList<typename Net::Arc *> & cuts,
-                                  DynList<typename Net::Arc *> & cutt)
-  {
-    Maxflow<Net>()(net); // compute max flow
-
-    typename Net::Node *source = net.get_source();
-
-    // Traverse the residual network from source: reachable nodes go to vs.
-    (Graph_Traverse_BFS<Net, Net_Iterator<Net>>(net))
-        (source, [&vs](typename Net::Node *p)
-           {
-             vs.insert(p);
-             return true;
-           });
-
-    // Compute vt by complement.
-    const size_t size_vt = net.get_num_nodes() - vs.size();
-    for (Node_Iterator<Net> it(net); it.has_curr() and
-                                     vt.size() < size_vt; it.next_ne())
+    DynList<Parc<Net>> semi_path;
+    auto m = std::numeric_limits<typename Net::Flow_Type>::max();
+    while (t != start)
       {
-        if (auto p = it.get_curr(); p->state() == Unprocessed)
-          vt.insert(p);
+        auto a = static_cast<typename Net::Arc *>(NODE_COOKIE(t));
+        auto s = net.get_connected_node(a, t);
+        bool normal = a->tgt_node == t;
+        auto slack = normal ? a->cap - a->flow : a->flow;
+        m = std::min(m, slack);
+        semi_path.insert(std::make_tuple(a, normal));
+        t = s;
       }
 
-    for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-      {
-        auto arc = it.get_curr();
-        if (arc->flow == 0) // residual candidate
-          if (vt.contains(net.get_src_node(arc)) and // vt -> vs
-              vs.contains(net.get_tgt_node(arc)))
+    return std::make_tuple(true, m, std::move(semi_path));
+  }
+
+public:
+  /// Find an augmenting semi-path with at least `min_slack`.
+  SemiPath<Net> find_aum_path(typename Net::Flow_Type min_slack = 0.0)
+  {
+    return find_path(net.get_source(), net.get_sink(), min_slack);
+  }
+
+  /// Find a decrementing semi-path with at least `min_slack`.
+  SemiPath<Net> find_dec_path(typename Net::Flow_Type min_slack = 0.0)
+  {
+    return find_path(net.get_sink(), net.get_source(), min_slack);
+  }
+
+  /// Construct a finder for `net`.
+  Find_Aumenting_Path(const Net &__g) : net(__g)
+  {
+    // empty
+  }
+
+  /// Find a concrete Path with at least `min_slack`.
+  Path<Net> operator () (typename Net::Node *start, typename Net::Node *end,
+                         typename Net::Flow_Type min_slack = 0)
+  {
+    return find(start, end, min_slack);
+  }
+
+  /// Find an augmenting semi-path from the network source to sink.
+  SemiPath<Net> operator () (typename Net::Flow_Type min_slack = 0)
+  {
+    return find_aum_path(min_slack);
+  }
+
+  /** @brief Fill `semi_path` and return the slack value.
+   *
+   * Returns 0 if no path is found.
+   */
+  typename Net::Flow_Type semi_path(typename Net::Node *start, typename Net::Node *end,
+                                    DynList<Parc<Net>> &semi_path,
+                                    const typename Net::Flow_Type &min_slack = 0)
+  {
+    semi_path.empty();
+
+    auto result = find_path(start, end, min_slack);
+    if (not get<0>(result))
+      return typename Net::Flow_Type{};
+
+    semi_path = std::move(get<2>(result));
+    return get<1>(result);
+  }
+};
+
+/// Augmenting-path finder using DFS (stack).
+template <class Net>
+using Find_Aumenting_Path_DFS = Find_Aumenting_Path<Net, DynListStack>;
+
+/// Augmenting-path finder using BFS (queue).
+template <class Net>
+using Find_Aumenting_Path_BFS = Find_Aumenting_Path<Net, DynListQueue>;
+
+/** @brief Find an augmenting path using DFS or BFS based on `Q`.
+ *
+ * @param[in] net Flow network.
+ * @param[in] min_slack Minimum slack required.
+ *
+ * @ingroup Networks
+ */
+template <class Net, template <typename T> class Q>
+Path<Net> find_aumenting_path(const Net &net, const typename Net::Flow_Type &min_slack)
+{
+  auto s = net.get_source();
+  auto t = net.get_sink();
+  return Find_Aumenting_Path<Net, Q>(net)(s, t, min_slack);
+}
+
+/** @brief Find an augmenting path using DFS. */
+template <class Net>
+Path<Net> find_aumenting_path_dfs(const Net &net, const typename Net::Flow_Type &min_slack)
+{
+  return find_aumenting_path<Net, DynListStack>(net, min_slack);
+}
+
+/** @brief Find an augmenting path using BFS. */
+template <class Net>
+Path<Net> find_aumenting_path_bfs(const Net &net, const typename Net::Flow_Type &min_slack)
+{
+  return find_aumenting_path<Net, DynListQueue>(net, min_slack);
+}
+
+/** @brief Find an augmenting semi-path using DFS or BFS based on `Q`.
+ *
+ * @param[in] net Flow network.
+ * @param[in] slack Minimum slack required.
+ * @return Semi-path tuple (found, slack, arc list).
+ *
+ * @ingroup Networks
+ */
+template <class Net, template <typename T> class Q>
+SemiPath<Net> find_aumenting_semi_path(const Net &net, const typename Net::Flow_Type &slack)
+{
+  return Find_Aumenting_Path<Net, Q>(net).find_aum_path(slack);
+}
+
+/** @brief Find an augmenting semi-path using DFS. */
+template <class Net>
+SemiPath<Net> find_aumenting_semi_path_dfs(const Net &net, const typename Net::Flow_Type &slack)
+{
+  return find_aumenting_semi_path<Net, DynListStack>(net, slack);
+}
+
+/** @brief Find an augmenting semi-path using BFS. */
+template <class Net>
+SemiPath<Net> find_aumenting_semi_path_bfs(const Net &net, const typename Net::Flow_Type &slack)
+{
+  return find_aumenting_semi_path<Net, DynListQueue>(net, slack);
+}
+
+/** @brief Find a decrementing semi-path using DFS or BFS based on `Q`.
+ *
+ * @param[in] net Flow network.
+ * @param[in] slack Minimum slack required.
+ * @return Semi-path tuple (found, slack, arc list).
+ *
+ * @ingroup Networks
+ */
+template <class Net, template <typename T> class Q>
+SemiPath<Net> find_decrementing_path(const Net &net, const typename Net::Flow_Type &slack)
+{
+  return Find_Aumenting_Path<Net, Q>(net).find_dec_path(slack);
+}
+
+/** @brief Find a decrementing semi-path using DFS. */
+template <class Net>
+SemiPath<Net> find_decrementing_path_dfs(const Net &net, const typename Net::Flow_Type &slack)
+{
+  return find_decrementing_path<Net, DynListStack>(net, slack);
+}
+
+/** @brief Find a decrementing semi-path using BFS. */
+template <class Net>
+SemiPath<Net> find_decrementing_path_bfs(const Net &net, const typename Net::Flow_Type &slack)
+{
+  return find_decrementing_path<Net, DynListQueue>(net, slack);
+}
+
+/// Residual node used by preflow-push algorithms.
+template <class Net>
+struct PP_Res_Node : public Net_Node<Empty_Class>
+{
+  using Base = Net_Node<Empty_Class>;
+
+  typename Net::Flow_Type in_flow = 0;
+  typename Net::Flow_Type out_flow = 0;
+
+  /// Default constructor
+  PP_Res_Node() : Base() {}
+
+  /// Constructor from node info
+  PP_Res_Node(const Empty_Class &info) : Base(info) {}
+
+  /// Move constructor from node info
+  PP_Res_Node(Empty_Class &&info) : Base(std::move(info)) {}
+};
+
+/** Arc of the residual network of the preflow-push algorithms. Each arc of
+    the network has two: its image, whose `img` points to it, and the
+    reverse one, the residual, whose `img` is null; `dup` points from each
+    to the other. */
+template <class Net>
+struct __Res_Arc : public Net_Arc<Empty_Class, typename Net::Flow_Type>
+{
+  using Base = Net_Arc<Empty_Class, typename Net::Flow_Type>;
+
+  typename Net::Arc *img = nullptr;  // nullptr indicates residual arc
+  __Res_Arc *dup = nullptr;
+
+  /// Default constructor
+  __Res_Arc() : Base() {}
+
+  /// Constructor from arc info
+  __Res_Arc(const Empty_Class &info) : Base(info) {}
+
+  /// Move constructor from arc info
+  __Res_Arc(Empty_Class &&info) : Base(std::move(info)) {}
+
+  /// Return true if this is a residual arc.
+  bool is_residual() const
+  {
+    return img == nullptr;
+  }
+};
+
+/// Residual network for augmenting-path algorithms.
+template <class Net>
+using AP_Res_Net = Array_Digraph<Net_Node<Empty_Class>, __Res_Arc<Net>>;
+
+/// Residual network for preflow-push algorithms.
+template <class Net>
+using PP_Res_Net = Array_Digraph<PP_Res_Node<Net>, __Res_Arc<Net>>;
+
+/// Create residual arcs for `a` in the residual network.
+template <class Net>
+inline void create_residual_arc(const Net &net, PP_Res_Net<Net> &rnet, typename Net::Arc *a)
+{
+  using Rnet = PP_Res_Net<Net>;
+  auto s = net.get_src_node(a);
+  auto t = net.get_tgt_node(a);
+
+  assert(NODE_COOKIE(s) and NODE_COOKIE(t));
+
+  auto src = static_cast<typename Rnet::Node *>(NODE_COOKIE(s));
+  auto tgt = static_cast<typename Rnet::Node *>(NODE_COOKIE(t));
+
+  auto arc = rnet.insert_arc(src, tgt);
+  auto dup = rnet.insert_arc(tgt, src);
+
+  arc->img = a;  // mark it as not residual
+  arc->cap = a->cap;
+  arc->flow = a->flow;
+  arc->dup = dup;
+
+  dup->cap = arc->cap;
+  dup->flow = arc->cap - arc->flow;
+  dup->dup = arc;
+}
+
+/// Residual arc filter: keep arcs with residual capacity.
+template <class Rnet>
+struct Res_F
+{
+  Res_F(typename Rnet::Node *) noexcept {}
+  Res_F() noexcept {}
+
+  bool operator () (typename Rnet::Arc *a) const
+  {
+    return a->cap > a->flow;
+  }
+};
+
+/** @brief Build the residual network for preflow-push algorithms.
+ *
+ * Returns the residual network and the mapped source/sink nodes.
+ */
+template <class Net>
+inline std::tuple<PP_Res_Net<Net>, typename PP_Res_Net<Net>::Node *, typename PP_Res_Net<Net>::Node *>
+preflow_create_residual_net(Net &net)
+{
+  using Rnet = PP_Res_Net<Net>;
+  net.reset_nodes();
+  Rnet rnet;
+
+  for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
+    {
+      auto p = it.get_curr();
+      auto q = rnet.insert_node();
+      q->in_flow = net.get_in_flow(p);
+      q->out_flow = net.get_out_flow(p);
+      // Directly store pointers in cookies using reinterpret_cast to
+      // preserve exact addresses without multiple inheritance adjustment
+      NODE_COOKIE(p) = reinterpret_cast<void *>(q);
+      NODE_COOKIE(q) = reinterpret_cast<void *>(p);
+    }
+
+  for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+    create_residual_arc(net, rnet, it.get_curr());
+
+  return std::make_tuple(std::move(rnet),
+                         static_cast<typename Rnet::Node *>(NODE_COOKIE(net.get_source())),
+                         static_cast<typename Rnet::Node *>(NODE_COOKIE(net.get_sink())));
+}
+
+/// Propagate residual arc flows back to their original arcs.
+template <class Rnet>
+inline void update_flow(const Rnet &rnet)
+{
+  for (typename Rnet::Arc_Iterator it(rnet); it.has_curr(); it.next_ne())
+    {
+      auto arc = it.get_curr();
+      auto img = arc->img;
+      if (img == nullptr)
+        continue;
+      img->flow = arc->flow;
+    }
+}
+
+/** @brief Maximize flow using repeated augmenting-path searches.
+ *
+ * @param[in,out] net Flow network (must have a single source and sink).
+ * @return Maximized flow value.
+ *
+ * @ingroup Networks
+ */
+template <class Net, template <class> class Find_Path>
+typename Net::Flow_Type aumenting_path_maximum_flow(Net &net)
+{
+  ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
+    << "Network is not single source and single sink";
+
+  while (true)  // while an augmenting path exists
+    {
+      SemiPath<Net> semi_path = Find_Path<Net>(net)();
+      if (not get<0>(semi_path))
+        break;
+
+      // Skip paths with zero slack.
+      // This can happen with parallel arcs where one arc is saturated
+      // but the path finder still finds a path through it.
+      auto slack = get<1>(semi_path);
+      if (slack <= typename Net::Flow_Type{0})
+        break;
+
+      increase_flow<Net>(net, get<2>(semi_path), slack);
+    }
+
+  return net.get_out_flow(net.get_source());
+}
+
+/** @brief Maximize flow using the Ford-Fulkerson algorithm.
+ *
+ * @param[in,out] net Flow network (must have a single source and sink).
+ * @return Maximized flow value.
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+typename Net::Flow_Type ford_fulkerson_maximum_flow(Net &net)
+{
+  return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_DFS>(net);
+}
+
+/** @brief Functor wrapper for ford_fulkerson_maximum_flow().
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+struct Ford_Fulkerson_Maximum_Flow
+{
+  /// Invoke ford_fulkerson_maximum_flow().
+  typename Net::Flow_Type operator () (Net &net) const
+  {
+    return ford_fulkerson_maximum_flow(net);
+  }
+};
+
+/** @brief Maximize flow using the Edmonds-Karp algorithm.
+ *
+ * @param[in,out] net Flow network (must have a single source and sink).
+ * @return Maximized flow value.
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+typename Net::Flow_Type edmonds_karp_maximum_flow(Net &net)
+{
+  return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_BFS>(net);
+}
+
+/** @brief Functor wrapper for edmonds_karp_maximum_flow().
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+struct Edmonds_Karp_Maximum_Flow
+{
+  /// Invoke edmonds_karp_maximum_flow().
+  typename Net::Flow_Type operator () (Net &net) const
+  {
+    return edmonds_karp_maximum_flow<Net>(net);
+  }
+};
+
+/// Return true if `p` has excess flow in `net`.
+template <class Net>
+static inline bool is_node_active(const Net &net, typename Net::Node *p)
+{
+  return net.get_in_flow(p) != net.get_out_flow(p);
+}
+
+/// Return true if residual node `p` has excess flow.
+template <class Rnet>
+static inline bool is_node_active(typename Rnet::Node *p)
+{
+  return p->in_flow != p->out_flow;
+}
+
+/// Access the height label stored in NODE_COUNTER.
+template <class Net>
+static inline long &node_height(typename Net::Node *p)
+{
+  return NODE_COUNTER(p);
+}
+
+/// Initialize node heights with BFS distance to the sink.
+template <class Net>
+static inline void init_height_in_nodes(Net &net)
+{
+  Graph_Traverse_BFS<Net, Node_Arc_Iterator<Net>>(net).exec(
+    net.get_sink(), [&net](typename Net::Node *p, typename Net::Arc *a)
+    {
+      if (a)
+        node_height<Net>(p) = node_height<Net>(net.get_tgt_node(a)) + 1;
+      return true;
+    });
+}
+
+/// Enqueue an active node if it is not already enqueued.
+template <class Q_Type>
+static inline void put_in_active_queue(Q_Type &q, typename Q_Type::Item_Type &p)
+{
+  if (NODE_BITS(p).get_bit(Aleph::Maximum_Flow))
+    return;  // the node is already into the queue
+  NODE_BITS(p).set_bit(Aleph::Maximum_Flow, true);
+  q.put(p);
+}
+
+/// Dequeue an active node and clear its queue mark.
+template <class Q_Type>
+static inline typename Q_Type::Item_Type get_from_active_queue(Q_Type &q)
+{
+  auto p = q.get();
+  assert(NODE_BITS(p).get_bit(Aleph::Maximum_Flow));
+  NODE_BITS(p).set_bit(Aleph::Maximum_Flow, false);
+  return p;
+}
+
+/// Remove a node from the active queue and clear its queue mark.
+template <class Q_Type>
+static inline void remove_from_active_queue(Q_Type &q, typename Q_Type::Item_Type &p)
+{
+  assert(NODE_BITS(p).get_bit(Aleph::Maximum_Flow));
+  NODE_BITS(p).set_bit(Aleph::Maximum_Flow, false);
+  q.remove(p);
+}
+
+/** @brief Generic preflow-push maximum flow (vertex-oriented).
+ *
+ * Q_Type is the active-node container and must support:
+ * - get(): remove a node
+ * - put(p): insert a node
+ *
+ * The Maximum_Flow bit is used to track whether a node is in the queue.
+ *
+ * With a floating flow, the flows of the node that a discharge pushes
+ * from are summed keeping what their rounding loses, so that a small
+ * flow beside a large one is not lost; an excess of a node up to a
+ * residue of rounding of its own flows, an epsilon of the larger of its
+ * flows in and out by each of its arcs and two more, is not pushed; and
+ * at the end what the nodes keep or lack of it goes back toward the
+ * source, or forward toward the sink, so that every node keeps its flow
+ * within the tolerance of check_node(), as check_network() takes it,
+ * and a network whose maximum flow is 0 gives 0.
+ *
+ * @param[in,out] net Flow network (must have a single source and sink).
+ * @return Maximized flow value.
+ *
+ * @see fifo_preflow_maximum_flow() heap_preflow_maximum_flow() random_preflow_maximum_flow()
+ * @ingroup Networks
+ */
+template <class Net, class Q_Type>
+typename Net::Flow_Type generic_preflow_vertex_push_maximum_flow(Net &net)
+{
+  ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
+    << "Network is not single source and single sink";
+
+  net.reset_nodes();          // especially assures that counters are in zero
+  init_height_in_nodes(net);  // set height to minimum distance in nodes to sink
+
+  auto source = net.get_source();
+  auto sink = net.get_sink();
+  node_height<Net>(source) = net.vsize();  // except the source
+  constexpr auto Max = std::numeric_limits<long>::max();
+
+  using Itor = __Net_Iterator<Net>;
+  using Flow_Type = typename Net::Flow_Type;
+  Q_Type q;
+  for (Itor it(source); it.has_curr(); it.next_ne())  // initial preflow
+    {
+      auto arc = it.get_curr();
+      arc->flow = arc->cap;                               // saturate arc
+      if (auto tgt = net.get_tgt_node(arc); tgt != sink)  // never active
+        put_in_active_queue(q, tgt);
+    }
+
+  while (not q.is_empty())  // while there are active nodes
+    {
+      auto src = get_from_active_queue(q);
+      // With a floating flow, the flows of src, which keep what their
+      // rounding loses; an excess up to residue is a residue of rounding
+      // of them, and is not pushed
+      [[maybe_unused]] net_detail::Flow_Sum<Flow_Type> in, out;
+      Flow_Type excess, residue;
+      if constexpr (std::is_floating_point_v<Flow_Type>)
+        {
+          net_detail::node_flows(net, src, in, out);
+          excess = in.minus(out);
+          residue = net_detail::node_residue(in.value(), out.value(), net.get_num_arcs(src));
+        }
+      else
+        {
+          excess = net.get_in_flow(src) - net.get_out_flow(src);
+          residue = Flow_Type{0};
+        }
+      long m = Max;
+      bool was_eligible_arc = false;
+      for (Itor it(src); it.has_curr() and excess > residue; it.next_ne())
+        {
+          auto arc = it.get_curr();
+          auto tgt = net.get_connected_node(arc, src);
+          if (node_height<Net>(src) != node_height<Net>(tgt) + 1)
             {
-              cutt.insert(arc);
+              m = std::min(m, node_height<Net>(tgt));
               continue;
             }
 
-        if (arc->flow == arc->cap) // saturated candidate
-          if (vs.contains(net.get_src_node(arc)) and // vs -> vt
-              vt.contains(net.get_tgt_node(arc)))
-            cuts.insert(arc);
-      }
+          was_eligible_arc = true;
+          if constexpr (std::is_floating_point_v<Flow_Type>)
+            {
+              // The excess follows the flows that src keeps, which the
+              // arc changed: a small push beside a large excess would be
+              // lost in it, and src would then push back too much
+              net_detail::push_excess(arc, not is_residual<Net>(src, arc), in, out);
+              excess = in.minus(out);
+            }
+          else
+            {
+              Flow_Type flow_to_push;
+              if (is_residual<Net>(src, arc))
+                {
+                  flow_to_push = std::min(arc->flow, excess);
+                  arc->flow -= flow_to_push;
+                }
+              else
+                {
+                  flow_to_push = std::min(arc->cap - arc->flow, excess);
+                  arc->flow += flow_to_push;
+                }
+              excess -= flow_to_push;
+            }
+          if (tgt != source and tgt != sink)
+            {
+              assert(net_detail::not_short(net, tgt));
+              put_in_active_queue(q, tgt);
+            }
+        }
 
-    return net.flow_value();
-  }
-
-
-  /** @brief Functor wrapper for min_cut().
-   *
-   * @ingroup Networks
-   */
-  template <class Net,
-            template <class> class Maxflow = Heap_Preflow_Maximum_Flow>
-  struct Min_Cut
-  {
-    /// Invoke min_cut().
-    typename Net::Flow_Type operator ()(Net & net,
-                                        DynSetTree<typename Net::Node *> & vs,
-                                        DynSetTree<typename Net::Node *> & vt,
-                                        DynList<typename Net::Arc *> & cuts,
-                                        DynList<typename Net::Arc *> & cutt)
-    {
-      return min_cut<Net, Maxflow>(net, vs, vt, cuts, cutt);
+      if (excess > residue)  // is src still active
+        {
+          if (not was_eligible_arc)
+            node_height<Net>(src) = m + 1;
+          put_in_active_queue(q, src);
+        }
     }
-  };
-} // end namespace Aleph
 
-# endif // TPL_NET_H
+  // What a floating flow keeps as residues of rounding goes back
+  net_detail::return_dust(net, source, sink);
+
+  // A network of one node, its source and sink, has no arcs, which
+  // check_network() does not take
+  assert(source == sink or net.check_network());
+
+  return net.flow_value();
+}
+
+/// Initialize node heights in a residual network from `sink`.
+template <class Rnet>
+inline void init_height_in_nodes(Rnet &rnet, typename Rnet::Node *sink)
+{
+  Graph_Traverse_BFS<Rnet, Node_Arc_Iterator<Rnet>>(rnet).exec(
+    sink, [&rnet](typename Rnet::Node *p, typename Rnet::Arc *a)
+    {
+      if (a)
+        node_height<Rnet>(p) = node_height<Rnet>(rnet.get_src_node(a)) + 1;
+      return true;
+    });
+}
+
+/** @brief Preflow-push maximum flow using a FIFO queue of active nodes.
+ *
+ * @param[in,out] net Flow network (must have a single source and sink).
+ * @return Maximized flow value.
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+typename Net::Flow_Type fifo_preflow_maximum_flow(Net &net)
+{
+  using Node = typename Net::Node;
+  return generic_preflow_vertex_push_maximum_flow<Net, DynListQueue<Node *>>(net);
+}
+
+/** @brief Functor wrapper for fifo_preflow_maximum_flow().
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+struct Fifo_Preflow_Maximum_Flow
+{
+  /// Invoke fifo_preflow_maximum_flow().
+  typename Net::Flow_Type operator () (Net &net) const
+  {
+    return fifo_preflow_maximum_flow(net);
+  }
+};
+
+/// Compare nodes by height (higher first).
+template <class Net>
+struct Compare_Height
+{
+  bool operator () (typename Net::Node *n1, typename Net::Node *n2) const
+  {
+    return node_height<Net>(n1) > node_height<Net>(n2);
+  }
+};
+
+/** @brief Preflow-push maximum flow using a height-ordered heap.
+ *
+ * @param[in,out] net Flow network (must have a single source and sink).
+ * @return Maximized flow value.
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+typename Net::Flow_Type heap_preflow_maximum_flow(Net &net)
+{
+  using Node = typename Net::Node;
+  return generic_preflow_vertex_push_maximum_flow<Net, DynBinHeap<Node *, Compare_Height<Net>>>(net);
+}
+
+/** @brief Functor wrapper for heap_preflow_maximum_flow().
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+struct Heap_Preflow_Maximum_Flow
+{
+  /// Invoke heap_preflow_maximum_flow().
+  typename Net::Flow_Type operator () (Net &net) const
+  {
+    return heap_preflow_maximum_flow(net);
+  }
+};
+
+/** @brief Preflow-push maximum flow using a random active-node queue.
+ *
+ * @param[in,out] net Flow network (must have a single source and sink).
+ * @return Maximized flow value.
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+typename Net::Flow_Type random_preflow_maximum_flow(Net &net)
+{
+  using Node = typename Net::Node;
+  return generic_preflow_vertex_push_maximum_flow<Net, Random_Set<Node *>>(net);
+}
+
+/** @brief Functor wrapper for random_preflow_maximum_flow().
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+struct Random_Preflow_Maximum_Flow
+{
+  /// Invoke random_preflow_maximum_flow().
+  typename Net::Flow_Type operator () (Net &net) const
+  {
+    return random_preflow_maximum_flow(net);
+  }
+};
+
+/** @brief Compute max flow and the corresponding minimum cut.
+ *
+ * @param[in,out] net Flow network (must have a single source and sink).
+ * @param[out] vs Set of nodes in V_s.
+ * @param[out] vt Set of nodes in V_t.
+ * @param[out] cuts Arcs from V_s to V_t (the cut).
+ * @param[out] cutt Arcs from V_t to V_s.
+ * @return Max flow value (equal to min-cut capacity).
+ *
+ * @ingroup Networks
+ */
+template <class Net, template <class> class Maxflow>
+typename Net::Flow_Type min_cut(Net &net, DynSetTree<typename Net::Node *> &vs,
+                                DynSetTree<typename Net::Node *> &vt,
+                                DynList<typename Net::Arc *> &cuts,
+                                DynList<typename Net::Arc *> &cutt)
+{
+  Maxflow<Net>()(net);  // compute max flow
+
+  typename Net::Node *source = net.get_source();
+
+  // Traverse the residual network from source: reachable nodes go to vs.
+  (Graph_Traverse_BFS<Net, Net_Iterator<Net>>(net))(source, [&vs](typename Net::Node *p)
+    {
+      vs.insert(p);
+      return true;
+    });
+
+  // Compute vt by complement.
+  const size_t size_vt = net.get_num_nodes() - vs.size();
+  for (Node_Iterator<Net> it(net); it.has_curr() and vt.size() < size_vt; it.next_ne())
+    {
+      if (auto p = it.get_curr(); p->state() == Unprocessed)
+        vt.insert(p);
+    }
+
+  for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+    {
+      auto arc = it.get_curr();
+      if (arc->flow == 0)                           // residual candidate
+        if (vt.contains(net.get_src_node(arc)) and  // vt -> vs
+            vs.contains(net.get_tgt_node(arc)))
+          {
+            cutt.insert(arc);
+            continue;
+          }
+
+      if (arc->flow == arc->cap)                    // saturated candidate
+        if (vs.contains(net.get_src_node(arc)) and  // vs -> vt
+            vt.contains(net.get_tgt_node(arc)))
+          cuts.insert(arc);
+    }
+
+  return net.flow_value();
+}
+
+/** @brief Functor wrapper for min_cut().
+ *
+ * @ingroup Networks
+ */
+template <class Net, template <class> class Maxflow = Heap_Preflow_Maximum_Flow>
+struct Min_Cut
+{
+  /// Invoke min_cut().
+  typename Net::Flow_Type operator () (Net &net, DynSetTree<typename Net::Node *> &vs,
+                                       DynSetTree<typename Net::Node *> &vt,
+                                       DynList<typename Net::Arc *> &cuts,
+                                       DynList<typename Net::Arc *> &cutt)
+  {
+    return min_cut<Net, Maxflow>(net, vs, vt, cuts, cutt);
+  }
+};
+}  // end namespace Aleph
+
+#endif  // TPL_NET_H

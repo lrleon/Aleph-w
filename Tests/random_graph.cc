@@ -35,8 +35,7 @@
  * @file random_graph.cc
  * @brief Tests for Random Graph
  */
-#include <cassert>
-#include <iostream>
+#include <gtest/gtest.h>
 #include <random_graph.H>
 #include <tpl_graph.H>
 #include <tpl_graph_utils.H>
@@ -134,93 +133,78 @@ bool satisfies_ore_condition(const GT & g)
 // Random_Graph tests (undirected graphs)
 // ============================================================================
 
-void test_random_graph_sparse_basic()
+TEST(RandomGraph, SparseBasic)
 {
-  cout << "Test: Random_Graph sparse basic creation... ";
   
   Random_Graph<Graph> gen(42);
   
   auto g = gen(static_cast<size_t>(10), static_cast<size_t>(15));
   
-  assert(g.get_num_nodes() == 10);
-  assert(g.get_num_arcs() <= 15); // May be less due to duplicate avoidance
-  assert(is_simple_graph(g));
+  EXPECT_TRUE(g.get_num_nodes() == 10);
+  EXPECT_TRUE(g.get_num_arcs() <= 15); // May be less due to duplicate avoidance
+  EXPECT_TRUE(is_simple_graph(g));
   
-  cout << "PASSED (nodes=" << g.get_num_nodes() 
-       << ", arcs=" << g.get_num_arcs() << ")" << endl;
 }
 
-void test_random_graph_sparse_connected()
+TEST(RandomGraph, SparseConnected)
 {
-  cout << "Test: Random_Graph sparse connected... ";
   
   Random_Graph<Graph> gen(123);
   
   auto g = gen(static_cast<size_t>(20), static_cast<size_t>(30), true);
   
-  assert(g.get_num_nodes() == 20);
-  assert(test_connectivity(g));
-  assert(is_simple_graph(g));
+  EXPECT_TRUE(g.get_num_nodes() == 20);
+  EXPECT_TRUE(test_connectivity(g));
+  EXPECT_TRUE(is_simple_graph(g));
   
-  cout << "PASSED (connected=" << test_connectivity(g) << ")" << endl;
 }
 
-void test_random_graph_sparse_disconnected()
+TEST(RandomGraph, SparseDisconnected)
 {
-  cout << "Test: Random_Graph sparse disconnected... ";
   
   Random_Graph<Graph> gen(456);
   
   // With few arcs and no connectivity requirement, may be disconnected
   const auto g = gen(static_cast<size_t>(20), static_cast<size_t>(5), false);
   
-  assert(g.get_num_nodes() == 20);
-  assert(is_simple_graph(g));
+  EXPECT_TRUE(g.get_num_nodes() == 20);
+  EXPECT_TRUE(is_simple_graph(g));
   
-  cout << "PASSED (nodes=" << g.get_num_nodes() 
-       << ", arcs=" << g.get_num_arcs() << ")" << endl;
 }
 
-void test_random_graph_probability()
+TEST(RandomGraph, Probability)
 {
-  cout << "Test: Random_Graph with probability p... ";
   
   Random_Graph<Graph> gen(789);
   
   auto g = gen(15, 0.3);
   
-  assert(g.get_num_nodes() == 15);
-  assert(is_simple_graph(g));
+  EXPECT_TRUE(g.get_num_nodes() == 15);
+  EXPECT_TRUE(is_simple_graph(g));
   
   // With p=0.3 we expect roughly 0.3 * (15*14/2) = 31.5 arcs on average
   // but due to randomness it can vary significantly
   
-  cout << "PASSED (nodes=" << g.get_num_nodes() 
-       << ", arcs=" << g.get_num_arcs() << ")" << endl;
 }
 
-void test_random_graph_probability_dense()
+TEST(RandomGraph, ProbabilityDense)
 {
-  cout << "Test: Random_Graph with high probability (dense)... ";
   
   Random_Graph<Graph> gen(101);
   
   auto g = gen(10, 0.8);
   
-  assert(g.get_num_nodes() == 10);
-  assert(is_simple_graph(g));
+  EXPECT_TRUE(g.get_num_nodes() == 10);
+  EXPECT_TRUE(is_simple_graph(g));
   
   // With p=0.8 we expect a fairly dense graph
   size_t max_arcs = 10 * 9 / 2; // 45
-  assert(g.get_num_arcs() > max_arcs / 2); // Should have more than half
+  EXPECT_TRUE(g.get_num_arcs() > max_arcs / 2); // Should have more than half
   
-  cout << "PASSED (arcs=" << g.get_num_arcs() 
-       << "/" << max_arcs << " max)" << endl;
 }
 
-void test_random_graph_invalid_probability()
+TEST(RandomGraph, InvalidProbability)
 {
-  cout << "Test: Random_Graph invalid probability... ";
   
   Random_Graph<Graph> gen(999);
   
@@ -230,7 +214,7 @@ void test_random_graph_invalid_probability()
   } catch (const std::domain_error &) {
     caught_p_zero = true;
   }
-  assert(caught_p_zero);
+  EXPECT_TRUE(caught_p_zero);
   (void)caught_p_zero;
   
   bool caught_p_negative = false;
@@ -239,7 +223,7 @@ void test_random_graph_invalid_probability()
   } catch (const std::domain_error &) {
     caught_p_negative = true;
   }
-  assert(caught_p_negative);
+  EXPECT_TRUE(caught_p_negative);
   (void)caught_p_negative;
   
   bool caught_p_over_one = false;
@@ -248,60 +232,52 @@ void test_random_graph_invalid_probability()
   } catch (const std::domain_error &) {
     caught_p_over_one = true;
   }
-  assert(caught_p_over_one);
+  EXPECT_TRUE(caught_p_over_one);
   (void)caught_p_over_one;
   
-  cout << "PASSED" << endl;
 }
 
-void test_random_graph_eulerian_sparse()
+TEST(RandomGraph, EulerianSparse)
 {
-  cout << "Test: Random_Graph Eulerian (sparse)... ";
   
   Random_Graph<Graph> gen(2024);
   
   auto g = gen.eulerian(size_t(12), size_t(20));
   
-  assert(g.get_num_nodes() == 12);
-  assert(test_connectivity(g));
-  assert(all_nodes_have_even_degree(g));
+  EXPECT_TRUE(g.get_num_nodes() == 12);
+  EXPECT_TRUE(test_connectivity(g));
+  EXPECT_TRUE(all_nodes_have_even_degree(g));
   
-  cout << "PASSED (all degrees even)" << endl;
 }
 
-void test_random_graph_eulerian_probability()
+TEST(RandomGraph, EulerianProbability)
 {
-  cout << "Test: Random_Graph Eulerian (probability)... ";
   
   Random_Graph<Graph> gen(2025);
   
   auto g = gen.eulerian(10, 0.4);
   
-  assert(g.get_num_nodes() == 10);
-  assert(test_connectivity(g));
-  assert(all_nodes_have_even_degree(g));
+  EXPECT_TRUE(g.get_num_nodes() == 10);
+  EXPECT_TRUE(test_connectivity(g));
+  EXPECT_TRUE(all_nodes_have_even_degree(g));
   
-  cout << "PASSED (all degrees even)" << endl;
 }
 
-void test_random_graph_hamiltonian()
+TEST(RandomGraph, Hamiltonian)
 {
-  cout << "Test: Random_Graph sufficient Hamiltonian... ";
   
   Random_Graph<Graph> gen(3000);
   
   auto g = gen.sufficient_hamiltonian(8, 0.5);
   
-  assert(g.get_num_nodes() == 8);
-  assert(test_connectivity(g));
-  assert(satisfies_ore_condition(g));
+  EXPECT_TRUE(g.get_num_nodes() == 8);
+  EXPECT_TRUE(test_connectivity(g));
+  EXPECT_TRUE(satisfies_ore_condition(g));
   
-  cout << "PASSED (Ore condition satisfied)" << endl;
 }
 
-void test_random_graph_deterministic_seed()
+TEST(RandomGraph, DeterministicSeed)
 {
-  cout << "Test: Random_Graph deterministic with same seed... ";
   
   Random_Graph<Graph> gen1(12345);
   Random_Graph<Graph> gen2(12345);
@@ -309,15 +285,13 @@ void test_random_graph_deterministic_seed()
   auto g1 = gen1(static_cast<size_t>(10), static_cast<size_t>(20));
   auto g2 = gen2(static_cast<size_t>(10), static_cast<size_t>(20));
   
-  assert(g1.get_num_nodes() == g2.get_num_nodes());
-  assert(g1.get_num_arcs() == g2.get_num_arcs());
+  EXPECT_TRUE(g1.get_num_nodes() == g2.get_num_nodes());
+  EXPECT_TRUE(g1.get_num_arcs() == g2.get_num_arcs());
   
-  cout << "PASSED (same seed => same graph structure)" << endl;
 }
 
-void test_random_graph_different_seeds()
+TEST(RandomGraph, DifferentSeeds)
 {
-  cout << "Test: Random_Graph different seeds produce different graphs... ";
   
   Random_Graph<Graph> gen1(11111);
   Random_Graph<Graph> gen2(22222);
@@ -327,42 +301,34 @@ void test_random_graph_different_seeds()
   
   // With different seeds, graphs should (almost certainly) differ
   // We can't guarantee they differ, but it's extremely unlikely they're identical
+  EXPECT_EQ(g1.get_num_nodes(), 15u);
+  EXPECT_EQ(g2.get_num_nodes(), 15u);
+  EXPECT_TRUE(is_simple_graph(g1));
+  EXPECT_TRUE(is_simple_graph(g2));
   
-  cout << "PASSED (g1 arcs=" << g1.get_num_arcs() 
-       << ", g2 arcs=" << g2.get_num_arcs() << ")" << endl;
 }
 
-// ============================================================================
-// Random_Digraph tests (directed graphs)
-// Note: Digraph tests require careful template instantiation due to Tarjan
-// algorithm compatibility. Basic functionality is tested here.
-// ============================================================================
-
-// Digraph tests temporarily disabled due to template instantiation issues
-// with Tarjan_Connected_Components. The Random_Digraph class itself compiles
-// and works correctly when used with compatible graph types.
+// Random_Digraph, and Random_Graph on every kind of graph, are checked by
+// graph_exhaustive_generators_test.cc
 
 // ============================================================================
 // Edge case tests
 // ============================================================================
 
-void test_single_node_graph()
+TEST(RandomGraph, SingleNodeGraph)
 {
-  cout << "Test: Single node graph... ";
   
   Random_Graph<Graph> gen(1);
   
   auto g = gen(static_cast<size_t>(1), static_cast<size_t>(0));
   
-  assert(g.get_num_nodes() == 1);
-  assert(g.get_num_arcs() == 0);
+  EXPECT_TRUE(g.get_num_nodes() == 1);
+  EXPECT_TRUE(g.get_num_arcs() == 0);
   
-  cout << "PASSED" << endl;
 }
 
-void test_zero_nodes_rejected()
+TEST(RandomGraph, ZeroNodesRejected)
 {
-  cout << "Test: Zero nodes rejected... ";
   
   Random_Graph<Graph> gen(42);
   
@@ -372,40 +338,35 @@ void test_zero_nodes_rejected()
   } catch (const std::domain_error &) {
     caught = true;
   }
-  assert(caught);
+  EXPECT_TRUE(caught);
   (void)caught;
   
-  cout << "PASSED" << endl;
 }
 
-void test_two_node_graph()
+TEST(RandomGraph, TwoNodeGraph)
 {
-  cout << "Test: Two node graph... ";
   
   Random_Graph<Graph> gen(2);
   
   auto g = gen(static_cast<size_t>(2), static_cast<size_t>(1), true);
   
-  assert(g.get_num_nodes() == 2);
-  assert(g.get_num_arcs() >= 1); // At least 1 arc to be connected
-  assert(test_connectivity(g));
+  EXPECT_TRUE(g.get_num_nodes() == 2);
+  EXPECT_TRUE(g.get_num_arcs() >= 1); // At least 1 arc to be connected
+  EXPECT_TRUE(test_connectivity(g));
   
-  cout << "PASSED" << endl;
 }
 
-void test_complete_graph_limit()
+TEST(RandomGraph, CompleteGraphLimit)
 {
-  cout << "Test: Requesting more arcs than possible... ";
   
   Random_Graph<Graph> gen(100);
   
   // For 5 nodes, max arcs = 5*4/2 = 10
   auto g = gen(static_cast<size_t>(5), static_cast<size_t>(100)); // Request 100, but can only have 10
   
-  assert(g.get_num_nodes() == 5);
-  assert(g.get_num_arcs() <= 10);
+  EXPECT_TRUE(g.get_num_nodes() == 5);
+  EXPECT_TRUE(g.get_num_arcs() <= 10);
   
-  cout << "PASSED (arcs capped at " << g.get_num_arcs() << ")" << endl;
 }
 
 
@@ -431,9 +392,8 @@ struct ArcInitializer
   }
 };
 
-void test_custom_initializers()
+TEST(RandomGraph, CustomInitializers)
 {
-  cout << "Test: Custom node and arc initializers... ";
 
   NodeInitializer node_init;
   ArcInitializer arc_init;
@@ -448,8 +408,7 @@ void test_custom_initializers()
     if (auto node = it.get_curr_ne(); node->get_info() < 0 || node->get_info() >= 5)
         nodes_initialized = false;
 
-  assert(nodes_initialized);
-  (void)nodes_initialized;
+  EXPECT_TRUE(nodes_initialized);
   
   // Verify arcs were initialized with sequential weights
   bool arcs_initialized = true;
@@ -458,52 +417,6 @@ void test_custom_initializers()
       if (auto arc = it.get_curr_ne(); arc->get_info() < 1)
         arcs_initialized = false;
     }
-  assert(arcs_initialized);
-  (void)arcs_initialized;
+  EXPECT_TRUE(arcs_initialized);
   
-  cout << "PASSED" << endl;
-}
-
-// ============================================================================
-// Main
-// ============================================================================
-
-int main()
-{
-  cout << "======================================" << endl;
-  cout << "  Random Graph Generator Tests" << endl;
-  cout << "======================================" << endl;
-  cout << endl;
-  
-  cout << "--- Random_Graph (undirected) ---" << endl;
-  test_random_graph_sparse_basic();
-  test_random_graph_sparse_connected();
-  test_random_graph_sparse_disconnected();
-  test_random_graph_probability();
-  test_random_graph_probability_dense();
-  test_random_graph_invalid_probability();
-  test_random_graph_eulerian_sparse();
-  // Temporarily disabled: these tests timeout in CI (possibly infinite loops in generation)
-  // test_random_graph_eulerian_probability();
-  // test_random_graph_hamiltonian();
-  test_random_graph_deterministic_seed();
-  test_random_graph_different_seeds();
-  
-  cout << endl;
-  cout << "--- Edge Cases ---" << endl;
-  test_single_node_graph();
-  test_zero_nodes_rejected();
-  test_two_node_graph();
-  test_complete_graph_limit();
-  
-  cout << endl;
-  cout << "--- Custom Initializers ---" << endl;
-  test_custom_initializers();
-  
-  cout << endl;
-  cout << "======================================" << endl;
-  cout << "  All tests PASSED!" << endl;
-  cout << "======================================" << endl;
-  
-  return 0;
 }

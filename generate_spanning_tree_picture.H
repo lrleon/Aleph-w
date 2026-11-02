@@ -115,6 +115,7 @@ struct Shade_Span_Arc
  *  @param xdist Horizontal distance between nodes
  *  @param ydist Vertical distance between levels
  *  @param output Output stream for the graphpic specification
+ *  @param sa the filter of the arcs, which each iterator copies
  *
  *  @see generate_cross_graph() For the underlying layout function
  *
@@ -125,11 +126,12 @@ void generate_cross_spanning_tree(GT &            g,
                                   const size_t &  nodes_by_level, 
                                   const double &  xdist,
                                   const double &  ydist,
-                                  std::ofstream & output)
+                                  std::ofstream & output,
+                                  SA sa = SA())
 {
   generate_cross_graph
     <GT, Write_Node, Write_Arc, Shade_Span_Node<GT>, Shade_Span_Arc<GT>, SA>
-      (g, nodes_by_level, xdist, ydist, output);
+      (g, nodes_by_level, xdist, ydist, output, sa);
 }
 
 /// @brief Overload with default arc filter.
@@ -161,6 +163,7 @@ void generate_cross_spanning_tree(GT &            g,
  *  @param xdist Horizontal distance between nodes
  *  @param ydist Vertical distance between levels
  *  @param output Output stream for the graphpic specification
+ *  @param sa the filter of the arcs, which each iterator copies
  *
  *  @see generate_net_graph() For the underlying layout function
  *
@@ -171,11 +174,12 @@ void generate_net_spanning_tree(GT &            g,
                                 const size_t &  nodes_by_level, 
                                 const double &  xdist,
                                 const double &  ydist,
-                                std::ofstream & output)
+                                std::ofstream & output,
+                                SA sa = SA())
 {
   generate_net_graph
-    <GT, SA, Write_Node, Write_Arc, Shade_Span_Node<GT>, Shade_Span_Arc<GT>>
-      (g, nodes_by_level, xdist, ydist, output);
+    <GT, Write_Node, Write_Arc, Shade_Span_Node<GT>, Shade_Span_Arc<GT>, SA>
+      (g, nodes_by_level, xdist, ydist, output, sa);
 }
 
 /// @brief Overload with default arc filter.

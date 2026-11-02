@@ -45,6 +45,8 @@
  *    call on an arc. `Zero_Distance`/`Max_Distance`/`set_zero` are not part of
  *    it: no algorithm relies on them generally.
  *  - **FlowNetwork<Net>** — what the flow algorithms need from a network.
+ *  - **DigraphType<GT>** — a graph type built with the `Digraph<>` template,
+ *    which keeps each arc only in the list of its source.
  *
  *  Each concept states a condition every algorithm that constrains with it
  *  needs anyway, so it never rejects a type the algorithm would accept; an
@@ -69,6 +71,8 @@
 
 namespace Aleph
 {
+  template <class BaseGraph> class Digraph;
+
   namespace graph_concepts_detail
   {
     /// Unqualified form of `AlephGraph`, applied to a cv/ref-free type.
@@ -93,6 +97,14 @@ namespace Aleph
     /// `GT` with cv-qualifiers and references removed.
     template <class GT>
     using graph_t = std::remove_cvref_t<GT>;
+
+    /// Chosen when a pointer to the graph converts to one to a
+    /// `Digraph<B>`, that is, when its type derives from the template.
+    template <class B>
+    std::true_type derives_from_digraph(const volatile Digraph<B> *);
+
+    /// Chosen when the type of the graph does not derive from `Digraph`.
+    std::false_type derives_from_digraph(const volatile void *);
   } // namespace graph_concepts_detail
 
   /** @brief A graph usable by the graph algorithms.
@@ -124,15 +136,16 @@ namespace Aleph
   /** @brief An arc filter (`SA`) for graph `GT`.
    *
    *  Invoked as `Filter_Iterator` does: a non-`const` lvalue called with an
-   *  `Arc *`, its result used as a condition. `set_cookie()` is not required:
-   *  no algorithm calls it.
+   *  `Arc *`, its result used as a condition. It must be copy
+   *  constructible, since each iterator keeps a copy of it, as each frame of
+   *  a search does. `set_cookie()` is not required: no algorithm calls it.
    *
    *  @tparam SA filter type.
    *  @tparam GT graph type.
    */
   template <class SA, class GT>
   concept ArcFilter =
-      AlephGraph<GT> and
+      AlephGraph<GT> and std::copy_constructible<SA> and
       PredicateWith<SA &, typename graph_concepts_detail::graph_t<GT>::Arc *>;
 
   /** @brief An arc distance (`Distance`) for graph `GT`.
@@ -152,6 +165,27 @@ namespace Aleph
         {
           { d(a) } -> std::convertible_to<typename D::Distance_Type>;
         };
+
+  /** @brief A graph type built with the `Digraph` template.
+
+      `List_Digraph`, `List_SDigraph`, `Array_Digraph` and the classes
+      derived from them, such as `MCF_Graph`, keep each arc only in the
+      list of its source, while a graph that is not directed keeps it in
+      the lists of both ends. So the forms that read the arcs into a node
+      from its list, as `In_Iterator(p)` and `in_degree(p)`, do not compile
+      on these types; the forms that take the graph do.
+
+      The concept looks at the type: a graph of an undirected type that
+      says that it is directed (see `set_digraph()`) is not one. It must be
+      checked where `GT` is complete, as inside a function.
+
+      @tparam GT candidate graph type; cv-qualifiers and references are
+      ignored.
+   */
+  template <class GT>
+  concept DigraphType =
+      decltype(graph_concepts_detail::derives_from_digraph(
+                 static_cast<graph_concepts_detail::graph_t<GT> *>(nullptr)))::value;
 
   /** @brief A flow network usable by the max-flow and min-cost algorithms.
    *

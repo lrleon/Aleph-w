@@ -314,7 +314,10 @@ namespace Aleph
 
     /** Node iterator for a graph.
 
-        This class iterates over all nodes of a graph.
+        This class iterates over all nodes of a graph. It goes only
+        forward: it has no prev(), so that the filtered iterators built on
+        it, as `Node_Iterator<GT, SN>`, have no prev(), prev_ne() nor
+        reset_last().
 
         @ingroup Graphs
      */
@@ -366,7 +369,11 @@ namespace Aleph
     /** Arc iterator for a graph node.
 
         This class iterates over all adjacent arcs of a node
-        belonging to a graph or digraph.
+        belonging to a graph or digraph. The arcs of a node are in a
+        singly linked list, so that the iterator goes only forward: it has
+        no prev(), and the filtered iterators built on it, as
+        `Node_Arc_Iterator<GT, SA>`, `Out_Iterator` and `In_Iterator`, have
+        no prev(), prev_ne(), reset_last() nor end().
 
         @ingroup Graphs
      */
@@ -432,7 +439,11 @@ namespace Aleph
 
         This iterator traverses each arc of the graph, in the order of
         their addresses: the arcs are in a set ordered by them, so there is
-        no sort_arcs(), which the graphs with a list of arcs have.
+        no sort_arcs(), which the graphs with a list of arcs have. It goes
+        only forward: it has no prev(), so that the filtered
+        `Arc_Iterator<GT, SA>` and the `In_Iterator` of `List_SDigraph`,
+        which walks the arcs of the graph, have no prev(), prev_ne() nor
+        reset_last().
      */
     class Arc_Iterator : public DynSetArc::Iterator
     {

@@ -104,6 +104,7 @@
 # include <tpl_dfs_stack.H>
 # include <tpl_graph.H>
 # include <tpl_graph_utils.H>
+# include <tpl_test_acyclique.H>
 # include <ah-errors.H>
 
 namespace Aleph {
@@ -121,17 +122,19 @@ namespace Aleph {
       Node_Arc_Iterator<GT, SA> it;
 
       template <class... Args>
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Frame(Tree_Node<Key> * t, typename GT::Arc * a, Args &&... args)
         : troot(t), from(a), it(std::forward<Args>(args)...) {}
 
-      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
 
       // Moves the iterator to the next arc that is not that through which
       // the node was reached, and gives its target, or nullptr when the
       // arcs are done. In a tree, which the graph is, the other arcs go
       // to nodes not reached yet, so that the arcs need no marks.
-      [[gnu::always_inline, gnu::flatten]] typename GT::Node * next_target() noexcept
+      [[gnu::always_inline]] ALEPH_FLATTEN typename GT::Node * next_target()
+        noexcept(noexcept(it.next_ne()))
       {
         for (; it.has_curr(); it.next_ne())
           if (it.get_current_arc_ne() != from)
@@ -167,17 +170,18 @@ namespace Aleph {
 
       // The node being visited keeps its iterator in here until it visits
       // a node; then it waits in frames, where it goes on when it comes
-      // back
+      // back. here is optional, so that the frame of each node is built in
+      // its place: a frame keeps the filter, which may not be assignable
       Dfs_Stack<Frame> frames;
-      Frame here(troot, nullptr, groot, args...);
+      std::optional<Frame> here(std::in_place, troot, nullptr, groot, args...);
       while (true)
         {
-          if (auto gtgt = here.next_target())
+          if (auto gtgt = here->next_target())
             { // the iterator stays on the arc to gtgt, as in a recursion
-              Frame next(child_of(here, gtgt), here.it.get_current_arc_ne(),
-                         gtgt, args...);
-              frames.push(std::move(here));
-              here = std::move(next);
+              auto child = child_of(*here, gtgt);
+              auto arc = here->it.get_current_arc_ne();
+              frames.push(std::move(*here));
+              here.emplace(child, arc, gtgt, args...);
               continue;
             }
 
@@ -190,7 +194,7 @@ namespace Aleph {
               f.next_arc(); // past the arc to the node that was visited
               if (auto gtgt = f.next_target())
                 {
-                  here = Frame(child_of(f, gtgt), f.it.get_current_arc_ne(),
+                  here.emplace(child_of(f, gtgt), f.it.get_current_arc_ne(),
                                gtgt, args...);
                   break;
                 }
@@ -202,7 +206,7 @@ namespace Aleph {
 
   template <AlephGraph GT, typename Key, typename Convert, ArcFilter<GT> SA> static inline
 void __graph_to_tree_node(GT & g, typename GT::Node * groot,
-                          Tree_Node<Key> * troot);
+                          Tree_Node<Key> * troot, const SA & sa);
 
 /** @brief Convert a tree graph to a Tree_Node structure.
  *
@@ -224,7 +228,7 @@ void __graph_to_tree_node(GT & g, typename GT::Node * groot,
  *
  *  - Tree_Node<Key> cannot store arc data (only node data)
  *  - The Key type may differ from GT::Node's data type
- *  - Requires the input graph to be acyclic (a tree)
+ *  - Requires the arcs that SA shows to be acyclic (a tree)
  *
  *  @tparam GT Graph type (derived from List_Graph)
  *  @tparam Key Data type for tree nodes
@@ -233,9 +237,10 @@ void __graph_to_tree_node(GT & g, typename GT::Node * groot,
  *
  *  @param g The tree graph to convert
  *  @param groot Node to use as the tree root
+ *  @param sa the filter of the arcs, which each iterator copies
  *  @return Root of the new Tree_Node<Key> tree
  *
- *  @throw std::domain_error If the graph is not acyclic
+ *  @throw std::domain_error If the arcs that SA shows have a cycle
  *  @throw std::bad_alloc If memory allocation fails
  *  @throw anything that Convert throws. If something throws, the tree
  *  that was built is freed.
@@ -252,9 +257,11 @@ void __graph_to_tree_node(GT & g, typename GT::Node * groot,
  */
     template <AlephGraph GT, typename Key, 
               class Convert, ArcFilter<GT> SA = Dft_Show_Arc<GT>> inline
-Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
+Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot,
+                                    SA sa = SA())
 { 
-  ah_domain_error_if(not is_graph_acyclique<GT>(g))
+  // acyclic by the arcs of the traversal, those that sa shows
+  ah_domain_error_if(not (Is_Graph_Acyclique<GT, SA>(sa)(g)))
     << "Graph is not a tree (not acyclique)";
 
   Tree_Node<Key> * troot = new Tree_Node<Key>; // the root
@@ -262,7 +269,7 @@ Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
     {
       Convert () (groot, troot); // convert groot into troot
 
-      __graph_to_tree_node <GT, Key, Convert, SA> (g, groot, troot);
+      __graph_to_tree_node <GT, Key, Convert, SA> (g, groot, troot, sa);
     }
   catch (...)
     {
@@ -325,7 +332,8 @@ class Graph_To_Tree_Node
 				 typename GT::Node * groot,
 				 Convert & conv)
   { 
-    ah_domain_error_if(not is_graph_acyclique<GT>(g))
+    // acyclic by the arcs that the filter shows, which the tree takes
+    ah_domain_error_if(not (Is_Graph_Acyclique<GT, SA>(sa)(g)))
       << "Graph is not a tree (not acyclique)";
 
     Tree_Node<Key> * troot = new Tree_Node<Key>; // the root
@@ -352,12 +360,13 @@ public:
 
 /** @brief Convert a tree graph to Tree_Node structure.
    *
-   *  @param g The tree graph to convert (must be acyclic)
+   *  @param g The tree graph to convert (acyclic by the arcs that the
+   *         filter shows)
    *  @param groot Node to use as the tree root
    *  @param conv Converter functor instance
    *  @return Root of the new Tree_Node<Key> tree
    *
-   *  @throw std::domain_error If the graph is not acyclic
+   *  @throw std::domain_error If the arcs that the filter shows have a cycle
    *  @throw std::bad_alloc If memory allocation fails
    *  @throw anything that conv throws. If something throws, the tree
    *  that was built is freed.
@@ -381,7 +390,7 @@ public:
 
   template <AlephGraph GT, typename Key, typename Convert, ArcFilter<GT> SA> static inline
 void __graph_to_tree_node(GT & g, typename GT::Node * groot,
-                          Tree_Node<Key> * troot)
+                          Tree_Node<Key> * troot, const SA & sa)
 {           
   (void) g;
 
@@ -390,7 +399,7 @@ void __graph_to_tree_node(GT & g, typename GT::Node * groot,
     (troot, [](typename GT::Node * gtgt, Tree_Node<Key> * ttgt)
              {
                Convert () (gtgt, ttgt);
-             }, groot);
+             }, groot, sa);
 }
 
 } // end namespace Aleph

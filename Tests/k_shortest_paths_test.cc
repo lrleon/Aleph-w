@@ -42,6 +42,7 @@
 # include <functional>
 # include <limits>
 # include <random>
+# include <stdexcept>
 # include <string>
 # include <tuple>
 # include <utility>
@@ -565,6 +566,237 @@ TEST(KShortestPathsTest, SelfLoopAndParallelArcs)
   EXPECT_EQ(epp_results[1].nodes(1), 1);
   EXPECT_EQ(epp_results[1].nodes(2), 1);
   EXPECT_EQ(epp_results[1].nodes(3), 2);
+}
+
+
+// Eppstein made the deviations of a walk also after the last one that was
+// asked, and threw when the cost of one did not fit: with a loop of max() at
+// the target, a query of one walk threw. A walk whose cost does not fit is
+// left out, and overflow_error comes only when one of the first k does not
+// fit.
+TEST(KShortestPathsTest, EppsteinLeavesOutTheWalksWhoseCostDoesNotFit)
+{
+  using Int_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  constexpr int M = std::numeric_limits<int>::max();
+
+  Int_Graph g;
+  auto * s = g.insert_node(0);
+  auto * t = g.insert_node(1);
+  g.insert_arc(s, t, 1);
+  g.insert_arc(t, t, M);
+
+  const auto one = eppstein_k_shortest_paths<Int_Graph>(g, s, t, 1);
+  ASSERT_EQ(one.size(), 1u);
+  EXPECT_EQ(one.get_first().total_cost, 1);
+  // The second walk, s->t->t, costs M + 1
+  EXPECT_THROW(eppstein_k_shortest_paths<Int_Graph>(g, s, t, 2), std::overflow_error);
+
+  // A second walk that fits comes before the one that does not
+  g.insert_arc(s, t, 5);
+  const auto two = eppstein_k_shortest_paths<Int_Graph>(g, s, t, 2);
+  ASSERT_EQ(two.size(), 2u);
+  EXPECT_EQ(two.get_first().total_cost, 1);
+  EXPECT_EQ(two.get_last().total_cost, 5);
+  EXPECT_THROW(eppstein_k_shortest_paths<Int_Graph>(g, s, t, 3), std::overflow_error);
+
+  // A deviation at the source whose cost does not fit
+  Int_Graph h;
+  auto * a = h.insert_node(0);
+  auto * b = h.insert_node(1);
+  auto * x = h.insert_node(2);
+  h.insert_arc(a, b, 1);
+  h.insert_arc(a, x, M);
+  h.insert_arc(x, b, 1);
+  EXPECT_EQ(eppstein_k_shortest_paths<Int_Graph>(h, a, b, 1).size(), 1u);
+  EXPECT_THROW(eppstein_k_shortest_paths<Int_Graph>(h, a, b, 2), std::overflow_error);
+}
+
+
+// max() marked a node that does not reach the target, and Yen took a
+// spur path of that cost for none: a path of exactly max() was not given.
+TEST(KShortestPathsTest, APathOfExactlyMaxIsGiven)
+{
+  using Int_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  constexpr int M = std::numeric_limits<int>::max();
+
+  Int_Graph g;
+  auto * a = g.insert_node(0);
+  auto * b = g.insert_node(1);
+  auto * c = g.insert_node(2);
+  g.insert_arc(a, b, M - 1);
+  g.insert_arc(b, c, 1);
+
+  for (bool by_yen : {true, false})
+    {
+      SCOPED_TRACE(by_yen ? "Yen" : "Eppstein");
+      const auto one = by_yen ? yen_k_shortest_paths<Int_Graph>(g, a, c, 2)
+                              : eppstein_k_shortest_paths<Int_Graph>(g, a, c, 2);
+      ASSERT_EQ(one.size(), 1u);
+      EXPECT_EQ(one.get_first().total_cost, M);
+    }
+
+  // After a cheaper path
+  g.insert_arc(a, b, M / 2);
+  for (bool by_yen : {true, false})
+    {
+      SCOPED_TRACE(by_yen ? "Yen" : "Eppstein");
+      const auto two = by_yen ? yen_k_shortest_paths<Int_Graph>(g, a, c, 2)
+                              : eppstein_k_shortest_paths<Int_Graph>(g, a, c, 2);
+      ASSERT_EQ(two.size(), 2u);
+      EXPECT_EQ(two.get_first().total_cost, M / 2 + 1);
+      EXPECT_EQ(two.get_last().total_cost, M);
+    }
+}
+
+// The search of Yen from each spur node is a Dijkstra, which threw when
+// the target was reached only beyond max(): the next path, from another
+// spur node, was lost.
+TEST(KShortestPathsTest, YenGoesOnPastASpurNodeBeyondMax)
+{
+  using Int_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  constexpr int M = std::numeric_limits<int>::max();
+
+  Int_Graph g;
+  auto * s = g.insert_node(0);
+  auto * a = g.insert_node(1);
+  auto * c = g.insert_node(2);
+  auto * d = g.insert_node(3);
+  auto * t = g.insert_node(4);
+  g.insert_arc(s, a, 1);
+  g.insert_arc(a, t, 1);
+  g.insert_arc(a, c, 1);
+  g.insert_arc(c, t, 1);
+  g.insert_arc(s, d, M - 1); // from s, without s->a, only beyond max()
+  g.insert_arc(d, t, M - 1);
+
+  const auto two = yen_k_shortest_paths<Int_Graph>(g, s, t, 2);
+  ASSERT_EQ(two.size(), 2u);
+  EXPECT_EQ(two.get_first().total_cost, 2);
+  EXPECT_EQ(two.get_last().total_cost, 3);
+  // The third path, s->d->t, costs 2 M - 2
+  EXPECT_THROW(yen_k_shortest_paths<Int_Graph>(g, s, t, 3), std::overflow_error);
+}
+
+// Eppstein chose the arc of its tree among the parallel arcs to the parent
+// by a checked sum, which threw on a heavy one.
+TEST(KShortestPathsTest, EppsteinTakesAHeavyParallelArcOfTheTree)
+{
+  using Int_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  using Int_Undigraph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+  constexpr int M = std::numeric_limits<int>::max();
+
+  Int_Graph g;
+  auto * s = g.insert_node(0);
+  auto * a = g.insert_node(1);
+  auto * t = g.insert_node(2);
+  g.insert_arc(s, a, 1);
+  g.insert_arc(s, a, M); // M + d(a, t) does not fit
+  g.insert_arc(a, t, 1);
+  const auto walks = eppstein_k_shortest_paths<Int_Graph>(g, s, t, 1);
+  ASSERT_EQ(walks.size(), 1u);
+  EXPECT_EQ(walks.get_first().total_cost, 2);
+
+  Int_Undigraph u;
+  auto * us = u.insert_node(0);
+  auto * ua = u.insert_node(1);
+  auto * ut = u.insert_node(2);
+  u.insert_arc(us, ua, 1);
+  u.insert_arc(us, ua, M);
+  u.insert_arc(ua, ut, 1);
+  const auto uwalks = eppstein_k_shortest_paths<Int_Undigraph>(u, us, ut, 1);
+  ASSERT_EQ(uwalks.size(), 1u);
+  EXPECT_EQ(uwalks.get_first().total_cost, 2);
+}
+
+
+// The search of Yen from each spur node takes a target that it reaches
+// only beyond max() for no path, but an overflow_error that the distance or
+// the filter throws, at whatever call, passes on, as in Eppstein.
+TEST(KShortestPathsTest, AnOverflowErrorOfTheDistanceOrOfTheFilterPassesOn)
+{
+  using Int_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  using Arc = Int_Graph::Arc;
+  constexpr int M = std::numeric_limits<int>::max();
+
+  // As in YenGoesOnPastASpurNodeBeyondMax: from s, without s->a, the target
+  // is reached only beyond max()
+  Int_Graph g;
+  auto * s = g.insert_node(0);
+  auto * a = g.insert_node(1);
+  auto * c = g.insert_node(2);
+  auto * d = g.insert_node(3);
+  auto * t = g.insert_node(4);
+  g.insert_arc(s, a, 1);
+  g.insert_arc(a, t, 1);
+  g.insert_arc(a, c, 1);
+  g.insert_arc(c, t, 1);
+  g.insert_arc(s, d, M - 1);
+  g.insert_arc(d, t, M - 1);
+
+  // Each throws at its call number at; with at == 0, never
+  struct Distance
+  {
+    using Distance_Type = int;
+    size_t * calls;
+    size_t at;
+    int operator()(Arc * arc) const
+    {
+      if (++*calls == at)
+        throw std::overflow_error("thrown by the distance");
+      return arc->get_info();
+    }
+  };
+  struct Filter
+  {
+    size_t * calls;
+    size_t at;
+    bool operator()(Arc *) const
+    {
+      if (++*calls == at)
+        throw std::overflow_error("thrown by the filter");
+      return true;
+    }
+  };
+
+  size_t distance_calls = 0, filter_calls = 0;
+  for (bool by_yen : {true, false})
+    for (bool by_distance : {true, false})
+      {
+        SCOPED_TRACE(std::string(by_yen ? "Yen" : "Eppstein")
+                     + (by_distance ? ", the distance" : ", the filter"));
+        const size_t & calls = by_distance ? distance_calls : filter_calls;
+        const char * what =
+          by_distance ? "thrown by the distance" : "thrown by the filter";
+        auto run = [&] (size_t at)
+          {
+            distance_calls = filter_calls = 0;
+            const Distance distance{&distance_calls, by_distance ? at : 0};
+            const Filter filter{&filter_calls, by_distance ? 0 : at};
+            if (by_yen)
+              return yen_k_shortest_paths(g, s, t, 2, distance, filter).size();
+            return eppstein_k_shortest_paths(g, s, t, 2, distance, filter).size();
+          };
+
+        ASSERT_EQ(run(0), 2u);
+        const size_t total = calls;
+        ASSERT_GT(total, 0u);
+        for (size_t at = 1; at <= total; ++at)
+          {
+            bool threw = false;
+            try
+              {
+                (void) run(at);
+              }
+            catch (const std::overflow_error & e)
+              {
+                threw = true;
+                EXPECT_STREQ(e.what(), what) << "at the call " << at;
+              }
+            // A run may make fewer calls
+            EXPECT_TRUE(threw or calls < at)
+              << "the call " << at << " threw nothing out";
+          }
+      }
 }
 
 

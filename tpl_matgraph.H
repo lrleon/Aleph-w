@@ -65,6 +65,7 @@
 #ifndef TPL_MAT_GRAPH_H
 #define TPL_MAT_GRAPH_H
 
+#include <utility>
 #include <tpl_graph.H>
 #include <tpl_sort_utils.H>
 #include <ah-errors.H>
@@ -683,7 +684,8 @@ public:
  *
  * @tparam GT Graph type
  * @tparam __Entry_Type Type of matrix entries
- * @tparam SA Arc filter (default: show all arcs)
+ * @tparam SA Arc filter (default: show all arcs); the constructors take the
+ *         object, which operate_all_arcs_list_graph() calls
  *
  * @see Floyd_Warshall.H Usage in Floyd-Warshall algorithm
  * @ingroup Graphs
@@ -712,6 +714,7 @@ public:
 
 private:
   GT*                  lgraph = nullptr;
+  SA                   sa; ///< the filter of the arcs that the operations visit
   DynArray<Node*>      nodes;
   DynArray<Entry_Type> mat;
   mutable size_t       num_nodes = 0;
@@ -736,14 +739,17 @@ private:
     quicksort(nodes);
   }
 
-  Ady_Mat& copy(Ady_Mat& other)
+  Ady_Mat& copy(const Ady_Mat& other)
   {
     if (this == &other)
       return *this;
 
     test_same_graph(other);
+    sa = other.sa;
+    nodes = other.nodes;
+    mat = other.mat;
+    num_nodes = other.num_nodes;
     Null_Value = other.Null_Value;
-    copy_nodes(*other.lgraph);
     return *this;
   }
 
@@ -851,10 +857,12 @@ public:
    * to define the null value.
    *
    * @param g Source graph
+   * @param arc_filter the filter of the arcs that
+   *        operate_all_arcs_list_graph() visits
    * @throw std::bad_alloc if memory allocation fails
    */
-  explicit Ady_Mat(GT& g)
-    : lgraph(&g), num_nodes(g.get_num_nodes())
+  explicit Ady_Mat(GT& g, SA arc_filter = SA())
+    : lgraph(&g), sa(std::move(arc_filter)), num_nodes(g.get_num_nodes())
   {
     copy_nodes(g);
   }
@@ -863,10 +871,13 @@ public:
    * @brief Construct from graph with null value.
    * @param g Source graph
    * @param null Value indicating no entry
+   * @param arc_filter the filter of the arcs that
+   *        operate_all_arcs_list_graph() visits
    * @throw std::bad_alloc if memory allocation fails
    */
-  Ady_Mat(GT& g, const Entry_Type& null)
-    : lgraph(&g), num_nodes(g.get_num_nodes()), Null_Value(null)
+  Ady_Mat(GT& g, const Entry_Type& null, SA arc_filter = SA())
+    : lgraph(&g), sa(std::move(arc_filter)), num_nodes(g.get_num_nodes()),
+      Null_Value(null)
   {
     copy_nodes(g);
   }
@@ -874,16 +885,26 @@ public:
   /// Set the null value
   void set_null_value(const Entry_Type& null) noexcept { Null_Value = null; }
 
-  /// Copy constructor
-  Ady_Mat(Ady_Mat& other) { copy(other); }
+  /// Copy constructor: the graph, the entries, the null value and the
+  /// filter of other
+  Ady_Mat(const Ady_Mat& other)
+    : lgraph(other.lgraph), sa(other.sa), nodes(other.nodes),
+      mat(other.mat), num_nodes(other.num_nodes),
+      Null_Value(other.Null_Value)
+  {}
 
-  /// Copy assignment
-  Ady_Mat& operator=(Ady_Mat& other) { return copy(other); }
+  /**
+   * @brief Copy assignment from a matrix of the same graph: its entries,
+   * its null value and its filter.
+   * @throw std::domain_error if other is of another graph
+   */
+  Ady_Mat& operator=(const Ady_Mat& other) { return copy(other); }
 
   /**
    * @brief Apply operation to all arcs from the graph.
    *
-   * Iterates over all arcs in the underlying graph and invokes:
+   * Iterates over the arcs of the underlying graph that the filter shows,
+   * from each end of an arc of a graph that is not directed, and invokes:
    * ```
    * Operation()(mat, arc, i, j, entry)
    * ```
@@ -949,7 +970,7 @@ Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_list_graph()
       Node* src = nit.get_current_node_ne();
       const long src_idx = matgraph_detail::node_index<Graph_Type>(nodes, num_nodes, src);
 
-      for (Node_Arc_Iterator<GT, SA> at(src); at.has_curr(); at.next_ne())
+      for (Node_Arc_Iterator<GT, SA> at(src, sa); at.has_curr(); at.next_ne())
         {
           Arc* arc = at.get_current_arc_ne();
           Node* tgt = at.get_tgt_node();
@@ -972,10 +993,10 @@ Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_list_graph(void* ptr)
       Node* src = nit.get_current_node_ne();
       const long src_idx = matgraph_detail::node_index<Graph_Type>(nodes, num_nodes, src);
 
-      for (Node_Arc_Iterator<GT, SA> at(src); at.has_curr(); at.next_ne())
+      for (Node_Arc_Iterator<GT, SA> at(src, sa); at.has_curr(); at.next_ne())
         {
           Arc* arc = at.get_current_arc_ne();
-          Node* tgt = lgraph->get_tgt_node(arc);
+          Node* tgt = at.get_tgt_node(); // the other end, also from the target
           const long tgt_idx = matgraph_detail::node_index<Graph_Type>(nodes, num_nodes, tgt);
           Entry_Type& entry =
             mat.touch(matgraph_detail::index_array(src_idx, tgt_idx, num_nodes));
@@ -1082,7 +1103,9 @@ private:
   DynArray<typename GT::Node*> nodes;
   mutable size_t               n = 0;
 
-  void copy_list_graph(GT& g)
+  // Sets the bits of the arcs of g that sa shows, on a matrix whose bits
+  // are clear
+  void copy_list_graph(GT& g, const SA & sa)
   {
     n = g.get_num_nodes();
     nodes.cut();
@@ -1098,7 +1121,7 @@ private:
         typename GT::Node* src = it.get_current_node_ne();
         const size_t src_idx = matgraph_detail::node_index<Graph_Type>(nodes, n, src);
 
-        for (Node_Arc_Iterator<GT, SA> jt(src); jt.has_curr(); jt.next_ne())
+        for (Node_Arc_Iterator<GT, SA> jt(src, sa); jt.has_curr(); jt.next_ne())
           {
             typename GT::Node* tgt = jt.get_tgt_node_ne();
             const size_t tgt_idx = matgraph_detail::node_index<Graph_Type>(nodes, n, tgt);
@@ -1143,11 +1166,12 @@ public:
   /**
    * @brief Construct from graph.
    * @param g Source graph
+   * @param sa the filter of the arcs: only those that it shows set a bit
    */
-  explicit Bit_Mat_Graph(GT& g)
+  explicit Bit_Mat_Graph(GT& g, SA sa = SA())
     : bit_array(g.get_num_nodes() * g.get_num_nodes()), lgraph(&g)
   {
-    copy_list_graph(g);
+    copy_list_graph(g, sa);
   }
 
   /// Copy constructor
@@ -1166,14 +1190,19 @@ public:
 
   /**
    * @brief Associate with a graph.
+   *
+   * The bits are those of the arcs of g alone: none is kept from the
+   * graph that the matrix had.
+   *
    * @param g Graph to associate
+   * @param sa the filter of the arcs: only those that it shows set a bit
    */
-  void set_list_graph(GT& g)
+  void set_list_graph(GT& g, SA sa = SA())
   {
     const size_t new_n = g.get_num_nodes();
-    bit_array.set_size(new_n * new_n);
+    bit_array = BitArray(new_n * new_n); // set_size() would keep the old bits
     lgraph = &g;
-    copy_list_graph(g);
+    copy_list_graph(g, sa);
   }
 
   /// Get pointer to associated graph (nullptr if none)
@@ -1195,11 +1224,11 @@ public:
     return *this;
   }
 
-  /// Assign from graph
+  /// Assign from graph, with the filter SA(), as set_list_graph(): also
+  /// when the matrix is already of g, so that it holds the arcs of g now
   Bit_Mat_Graph& operator=(GT& g)
   {
-    if (&g != lgraph)
-        set_list_graph(g);
+    set_list_graph(g);
     return *this;
   }
 

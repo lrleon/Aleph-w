@@ -371,13 +371,25 @@ public:
 
   /** @brief Copy constructor.
    *
-   * @param other Network to copy from.
+   * @param other Network to copy from, with the capacities and flows of
+   *        its nodes.
+   * @throw std::bad_alloc if there is not enough memory.
    * @note The auxiliary network is NOT copied.
    */
   Net_Cap_Graph(const Net_Cap_Graph& other)
     : Net_Class(other), aux_net(nullptr)
   {
-    // aux_net is not copied; must be recomputed if needed
+    // The copy of the network builds the nodes from their infos, in the
+    // order of other; aux_net is not copied, and must be recomputed
+    Node_Iterator<Net_Cap_Graph> it(*this);
+    for (Node_Iterator<Net_Cap_Graph> jt(other); jt.has_curr(); it.next_ne(), jt.next_ne())
+      {
+        Node* p = it.get_curr();
+        const Node* q = jt.get_curr();
+        p->max_cap = q->max_cap;
+        p->in_flow = q->in_flow;
+        p->out_flow = q->out_flow;
+      }
   }
 
   /** @brief Move constructor.
@@ -393,18 +405,35 @@ public:
   /** @brief Copy assignment operator.
    *
    * @param other Network to copy from.
-   * @return Reference to this network.
-   * @note Frees existing auxiliary network before copying.
+   * @return Reference to this network, which keeps its cookie.
+   * @throw std::bad_alloc if there is not enough memory. Then the network
+   *        is as it was.
+   * @note Frees the existing auxiliary network.
    */
   Net_Cap_Graph& operator=(const Net_Cap_Graph& other)
   {
     if (this != &other)
     {
-      if (aux_net != nullptr)
-        free_aux_net();
-      Net_Class::operator=(other);
+      Net_Cap_Graph tmp(other);
+      tmp.get_cookie() = this->get_cookie();
+      swap(tmp); // tmp frees the old auxiliary network
     }
     return *this;
+  }
+
+  /** @brief Swap contents with another network, with their auxiliary
+   *  networks. O(1).
+   *
+   * copy_graph() empties a target whose copy fails by a swap with an empty
+   * network: so the auxiliary network, which maps to the nodes and arcs
+   * that went, goes with them.
+   *
+   * @param other Network to swap with.
+   */
+  void swap(Net_Cap_Graph& other) noexcept
+  {
+    Net_Class::swap(other);
+    std::swap(aux_net, other.aux_net);
   }
 
   /** @brief Move assignment operator.
@@ -416,9 +445,8 @@ public:
   {
     if (this != &other)
     {
-      if (aux_net != nullptr)
-        free_aux_net();
       Net_Class::operator=(std::move(other));
+      delete aux_net; // ~Array_Graph() frees without allocating
       aux_net = other.aux_net;
       other.aux_net = nullptr;
     }
@@ -431,12 +459,7 @@ public:
    */
   ~Net_Cap_Graph()
   {
-    if (aux_net != nullptr)
-    {
-      clear_graph(*aux_net);
-      delete aux_net;
-      aux_net = nullptr;
-    }
+    delete aux_net; // ~Array_Graph() frees without allocating
   }
 
   /** @brief Get pointer to the auxiliary network.
@@ -592,8 +615,9 @@ public:
 
   /** @brief Free the auxiliary network.
    *
-   * Releases all memory used by the auxiliary network and clears
-   * the cookie mappings.
+   * Releases all memory used by the auxiliary network, without
+   * allocating. The cookies of the nodes and arcs, which
+   * compute_aux_net() pointed to it, are left as they are.
    *
    * @throw std::domain_error if auxiliary network has not been computed.
    */
@@ -602,15 +626,14 @@ public:
     ah_domain_error_if(aux_net == nullptr)
       << "Auxiliary network has not been computed";
 
-    clear_graph(*aux_net);
     delete aux_net;
     aux_net = nullptr;
   }
 
   /** @brief Get the total flow value of the network.
    *
-   * Returns the total flow passing through the network, computed
-   * as the sum of flows through all nodes (using their in_flow).
+   * Returns the value of the flow, the flow out of the sources, which
+   * update() copied from the auxiliary network to the arcs.
    *
    * @return Total network flow value.
    * @throw std::domain_error if auxiliary network has not been computed.
@@ -622,13 +645,7 @@ public:
     ah_domain_error_if(aux_net == nullptr)
       << "Auxiliary network has not been computed";
 
-    Flow_Type total = Flow_Type{0};
-    for (Node_Iterator<Net_Cap_Graph> it(*this); it.has_curr(); it.next_ne())
-    {
-      Node* p = it.get_curr();
-      total += p->in_flow;
-    }
-    return total;
+    return this->flow_value();
   }
 
   /** @brief Check if all node capacity constraints are satisfied.

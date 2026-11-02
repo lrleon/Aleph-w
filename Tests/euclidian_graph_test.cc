@@ -388,6 +388,93 @@ TEST_F(EuclidianGraphTest, DigraphCopyConstructor)
   EXPECT_EQ(dg2.get_num_nodes(), dg1.get_num_nodes());
 }
 
+namespace
+{
+  // Whether each node of dg has its arcs, and only the arcs that leave it,
+  // in its list, as the nodes of a digraph do
+  bool each_arc_leaves_its_node(const EDigraph & dg, const size_t degree)
+  {
+    for (auto it = dg.get_node_it(); it.has_curr(); it.next_ne())
+      {
+        auto p = it.get_curr();
+        size_t num = 0;
+        for (Node_Arc_Iterator<EDigraph> ait(p); ait.has_curr(); ait.next_ne(), ++num)
+          if (dg.get_src_node(ait.get_curr()) != p)
+            return false;
+        if (num != degree)
+          return false;
+      }
+    return true;
+  }
+
+  // The positions of the nodes of g, in the order of its nodes
+  template <class G>
+  std::vector<std::string> positions(const G & g)
+  {
+    std::vector<std::string> ret;
+    for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+      ret.push_back(it.get_curr()->get_position().to_string());
+    return ret;
+  }
+}
+
+// A copy, made by copy_graph(), which copies only the info of the nodes,
+// put every node at the origin
+TEST_F(EuclidianGraphTest, CopyAndAssignmentKeepThePositions)
+{
+  EGraph g1;
+  auto n1 = g1.insert_node(Point(3.0, 4.0));
+  auto n2 = g1.insert_node(Point(6.0, 8.0));
+  g1.insert_arc(n1, n2);
+  const std::vector<std::string> where = positions(g1);
+  ASSERT_EQ(where.size(), 2u);
+
+  const EGraph & source = g1;
+  EGraph g2(source);
+  EXPECT_EQ(positions(g2), where);
+
+  EGraph g3;
+  g3.insert_node(Point(1.0, 1.0));
+  g3 = source;
+  EXPECT_FALSE(g3.is_digraph());
+  EXPECT_EQ(g3.get_num_arcs(), 1u);
+  EXPECT_EQ(positions(g3), where);
+  for (auto it = g3.get_arc_it(); it.has_curr(); it.next_ne())
+    EXPECT_EQ(g3.get_distance(it.get_curr()), g1.get_distance(g1.get_first_arc()));
+}
+
+// The copy of a digraph was made as of an undirected graph, which puts each
+// arc in the lists of its two nodes, and then marked directed: destroying
+// the copy freed each arc twice. The assignment of a digraph did not
+// compile.
+TEST_F(EuclidianGraphTest, DigraphCopyAndAssignmentWithArcs)
+{
+  EDigraph dg1;
+  auto n1 = dg1.insert_node(Point(0.0, 0.0));
+  auto n2 = dg1.insert_node(Point(3.0, 4.0));
+  auto n3 = dg1.insert_node(Point(6.0, 8.0));
+  dg1.insert_arc(n1, n2);
+  dg1.insert_arc(n2, n3);
+  dg1.insert_arc(n3, n1);
+
+  const EDigraph & source = dg1;
+  EDigraph dg2(source);
+  EXPECT_TRUE(dg2.is_digraph());
+  EXPECT_EQ(dg2.get_num_nodes(), 3u);
+  EXPECT_EQ(dg2.get_num_arcs(), 3u);
+  EXPECT_TRUE(each_arc_leaves_its_node(dg2, 1));
+  EXPECT_EQ(positions(dg2), positions(dg1));
+
+  EDigraph dg3;
+  dg3.insert_node(Point(1.0, 1.0));
+  dg3 = source;
+  EXPECT_TRUE(dg3.is_digraph());
+  EXPECT_EQ(dg3.get_num_nodes(), 3u);
+  EXPECT_EQ(dg3.get_num_arcs(), 3u);
+  EXPECT_TRUE(each_arc_leaves_its_node(dg3, 1));
+  EXPECT_EQ(positions(dg3), positions(dg1));
+}
+
 // =============================================================================
 // Stress Tests
 // =============================================================================

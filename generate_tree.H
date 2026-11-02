@@ -288,6 +288,11 @@ namespace Aleph
      *  @param root Root of the tree to draw
      *  @param out Output stream for the DOT specification
      *
+     *  @throw std::bad_alloc if there is not enough memory; @p out may
+     *         then hold part of the tree. The ancestors of a node wait in
+     *         a Dfs_Stack, and the thread keeps up to 1 MiB of its room
+     *         for its next stack.
+     *
      *  @see Dft_Write Default writer using to_str()
      *
      *  @ingroup Trees

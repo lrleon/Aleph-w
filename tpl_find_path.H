@@ -106,16 +106,16 @@ namespace Aleph
       typename GT::Node *curr;
       Itor<GT, SA> it;
 
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Frame(typename GT::Node *p, SA &sa) : curr(p), it(p, sa) {}
 
       // next() and not next_ne(), so that what the filter throws goes on
-      [[gnu::always_inline, gnu::flatten]] void next_arc() { it.next(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN void next_arc() { it.next(); }
     };
 
     // Takes the last node out of path; inlined, with what it calls, in the
     // loop of find_path()
-    [[gnu::always_inline, gnu::flatten]]
+    [[gnu::always_inline]] ALEPH_FLATTEN
     static void remove_last_node(Path<GT> & path) { path.remove_last_node(); }
 
     // Moves the iterator of f to the next arc not visited, which it
@@ -170,21 +170,23 @@ namespace Aleph
 
       // The node being visited keeps its iterator in here until it visits
       // a node; then it waits in frames, where it goes on when it comes
-      // back
+      // back. here is a Dfs_Here, which assigns the frames if their
+      // filter can be assigned: building them in place, in an optional,
+      // costs here up to 0.2 % with GCC
       frames.clear();
-      Frame here(curr, sa);
+      auto here = dfs_here<Frame>(curr, sa);
       bool found = false;
       while (true)
         {
-          if (auto next = next_target(here, op, found))
+          if (auto next = next_target(dfs_frame(here), op, found))
             { // the iterator stays on the arc to next, as in a recursion
-              path.append(dfs_curr(here.it));
+              path.append(dfs_curr(dfs_frame(here).it));
               if (found)
                 return true;
 
               NODE_BITS(next).set_bit(Find_Path, true);
-              frames.push(std::move(here));
-              here = Frame(next, sa);
+              frames.push(std::move(dfs_frame(here)));
+              dfs_replace(here, next, sa);
               continue;
             }
 
@@ -203,7 +205,7 @@ namespace Aleph
                     return true;
 
                   NODE_BITS(next).set_bit(Find_Path, true);
-                  here = Frame(next, sa);
+                  dfs_replace(here, next, sa);
                   break;
                 }
 
@@ -336,7 +338,9 @@ Find_Path_Breadth_First searches breadth-first for a path between
 start_node and end_node, building a path toward the destination
 node as it goes. If a path is found, the method returns true and
 the path parameter holds the path in question; otherwise, the
-function returns false and the path's value is indeterminate.
+function returns false and the path's value is indeterminate. From
+a node to itself, or from a start that meets the criterion, the path
+is the start alone, with no arc, as that of Find_Path_Depth_First.
 
 The class takes two type parameters:
 -# GT: the graph type, which must be derived from List_Graph
@@ -369,6 +373,12 @@ shown to the traversal
         }
 
       path.empty(); // clear anything that may be in path
+      if (op(start)) // the path of no arc, as that of Find_Path_Depth_First
+        {
+          path.init(start);
+          return true;
+        }
+
       g.reset_nodes();
       g.reset_arcs();
 
@@ -395,7 +405,7 @@ shown to the traversal
 
           ARC_BITS(arc).set_bit(Find_Path, true);
           NODE_BITS(tgt).set_bit(Find_Path, true);
-          NODE_COOKIE(tgt) = src;
+          NODE_COOKIE(tgt) = arc; // the arc of the path to tgt
 
           if (op(tgt)) // was a path satisfying op found?
             {
@@ -403,7 +413,7 @@ shown to the traversal
               break;
             }
 
-          for (Itor<GT, SA> i(tgt); i.has_curr(); i.next())
+          for (Itor<GT, SA> i(tgt, sa); i.has_curr(); i.next())
             {
               auto a = i.get_current_arc();
               if (IS_ARC_VISITED(a, Find_Path)) // arc visited?
@@ -422,13 +432,11 @@ shown to the traversal
         return false;
 
       q.empty();
+      // By the arcs of the search, not by the nodes, whose arcs between
+      // them may be others: hidden, or parallel, or the other way
       path.insert(end);
-      auto p = end;
-      while (p != start)
-        {
-          p = (typename GT::Node *) NODE_COOKIE(p);
-          path.insert(p);
-        }
+      for (auto p = end; p != start; p = path.get_first_node())
+        path.insert(static_cast<typename GT::Arc *>(NODE_COOKIE(p)));
 
       return true;
     }
@@ -513,6 +521,10 @@ shown to the traversal
   /** Path search on directed graphs defined through a graph class
       (not a digraph).
 
+      dfs() and bfs() give the path found, or an empty one. From a node
+      to itself, or from a start that meets the criterion, the path is
+      the start alone, with no arc, as that of Find_Path_Depth_First.
+
      @ingroup Graphs
    */
   template <AlephGraph GT,
@@ -526,6 +538,9 @@ shown to the traversal
     template <template <typename T> class Q, class Op>
     Path<GT> find(typename GT::Node *start, Op & op)
     {
+      if (op(start)) // the path of no arc, as that of Find_Path_Depth_First
+        return Path<GT>(g, start);
+
       g.reset_nodes();
       g.reset_arcs();
 
@@ -535,7 +550,10 @@ shown to the traversal
       for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next())
         {
           auto a = it.get_curr();
-          g.get_tgt_node(a)->set_state(Processing);
+          auto tgt = g.get_tgt_node(a);
+          if (tgt == start) // a loop, which would make start a target
+            continue;
+          tgt->set_state(Processing);
           a->set_state(Processing);
           q.put(a);
         }
@@ -552,7 +570,7 @@ shown to the traversal
             continue;
 
           curr->set_state(Processed);
-          NODE_COOKIE(curr) = g.get_src_node(arc);
+          NODE_COOKIE(curr) = arc; // the arc of the path to curr
 
           if (op(curr))
             {
@@ -585,12 +603,11 @@ shown to the traversal
 
       assert(curr == end);
 
-      while (curr != start)
-        {
-          ret.insert(curr);
-          curr = (typename GT::Node *) NODE_COOKIE(curr);
-        }
-      ret.insert(start);
+      // By the arcs of the search, not by the nodes, whose arcs between
+      // them may be others: hidden, or parallel, or the other way
+      ret.init(end);
+      for (; curr != start; curr = ret.get_first_node())
+        ret.insert_directed(static_cast<typename GT::Arc *>(NODE_COOKIE(curr)));
 
       return ret;
     }

@@ -152,24 +152,73 @@ class Hungarian_Assignment
   Array<long> row_to_col_;  // row i -> column (or -1 if dummy)
   Array<long> col_to_row_;  // column j -> row (or -1 if dummy)
 
+  static constexpr bool Integer = std::is_integral_v<Cost_Type>;
+
+  // The type of the potentials and of the reduced costs: long long for an
+  // integer type narrower than it, so that they are far from its limits;
+  // else Cost_Type
+  using Wide = std::conditional_t<Integer and sizeof(Cost_Type) < sizeof(long long),
+                                  long long, Cost_Type>;
+
+  // The least and the largest of the costs and zero, of an integer type
+  struct Cost_Range
+  {
+    Cost_Type lo{0};
+    Cost_Type hi{0};
+
+    void add(const Cost_Type & c) noexcept
+    {
+      if constexpr (Integer)
+        {
+          lo = c < lo ? c : lo;
+          hi = c > hi ? c : hi;
+        }
+    }
+  };
+
+  [[noreturn, gnu::noinline, gnu::cold]] static void throw_beyond()
+  {
+    ah_overflow_error() << "Hungarian_Assignment: the costs, with the potentials, come too "
+                        << "near the limits of their integer type";
+  }
+
   /** Core algorithm: shortest augmenting paths with dual variables.
    *
    *  Uses 1-indexed arrays with virtual column 0 trick.
    *  cost is an (n+1) x (n+1) matrix with 1-based indexing.
    */
-  void solve(const DynMatrix<Cost_Type> &cost)
+  void solve(const DynMatrix<Cost_Type> &cost, [[maybe_unused]] const Cost_Range & range)
   {
     const long n = static_cast<long>(n_);
     const auto sz = static_cast<size_t>(n + 1);
 
     // Dual variables (potentials), 1-indexed
-    Array<Cost_Type> u(sz, Cost_Type{0});
-    Array<Cost_Type> v(sz, Cost_Type{0});
+    Array<Wide> u(sz, Wide{0});
+    Array<Wide> v(sz, Wide{0});
 
     // p[j] = row matched to column j (0 = unmatched)
     Array<long> p(sz, 0L);
 
-    const Cost_Type Inf = std::numeric_limits<Cost_Type>::max() / 2;
+    const Wide Inf = std::numeric_limits<Wide>::max() / 2;
+
+    // With an integer type, each step moves each potential by delta at
+    // most, so that the sum of the |delta| bounds the potentials, and a
+    // reduced cost is within twice that sum of a cost. While a bound of
+    // the costs and twice the sum add up to at most max() / 4 of Wide,
+    // every sum is in Wide and every reduced cost below Inf, so that the
+    // answer is exact; a step beyond that throws overflow_error. An
+    // integer type narrower than long long keeps its sums in long long,
+    // which they do not come near: it throws only if the optimum does not
+    // fit in it
+    constexpr Wide Wide_Max = std::numeric_limits<Wide>::max();
+    [[maybe_unused]] Wide room{-1}; // what the sum may still grow; none below 0
+    if constexpr (Integer)
+      if (Wide(range.lo) != std::numeric_limits<Wide>::lowest())
+        {
+          const Wide c = std::max(Wide(range.hi), Wide(-Wide(range.lo)));
+          if (c <= Wide_Max / 4)
+            room = Wide((Wide_Max / 4 - c) / 2);
+        }
 
     // For each row, find the shortest augmenting path
     for (long i = 1; i <= n; ++i)
@@ -178,8 +227,8 @@ class Hungarian_Assignment
         p(0) = i;
 
         // Minimum reduced cost to reach each column
-        Array<Cost_Type> dist(sz, Inf);
-        dist(0) = Cost_Type{0};
+        Array<Wide> dist(sz, Inf);
+        dist(0) = Wide{0};
 
         // way[j] = previous column on the shortest path to j
         Array<long> way(sz, 0L);
@@ -193,8 +242,12 @@ class Hungarian_Assignment
           {
             visited(j0) = true;
             const long i0 = p(j0);  // row matched to current column
-            Cost_Type delta = Inf;
+            Wide delta = Inf;
             long j1 = -1;
+
+            if constexpr (Integer)
+              if (room < 0)
+                throw_beyond();
 
             for (long j = 1; j <= n; ++j)
               {
@@ -202,8 +255,9 @@ class Hungarian_Assignment
                   continue;
 
                 // Reduced cost: c[i0][j] - u[i0] - v[j]
-                const Cost_Type reduced =
-                  cost.read(static_cast<size_t>(i0 - 1), static_cast<size_t>(j - 1)) - u(i0) - v(j);
+                const Wide reduced =
+                  Wide(cost.read(static_cast<size_t>(i0 - 1), static_cast<size_t>(j - 1)))
+                  - u(i0) - v(j);
 
                 if (reduced < dist(j))
                   {
@@ -228,6 +282,14 @@ class Hungarian_Assignment
               else
                 dist(j) -= delta;
 
+            // Every reduced cost left is at the infinity or above it: the
+            // costs do not fit in Cost_Type with room for the potentials
+            ah_overflow_error_if(j1 == -1)
+              << "Hungarian_Assignment: the costs are too large for their type";
+
+            if constexpr (Integer) // |delta| <= Wide_Max / 4, and room too
+              room -= delta >= 0 ? delta : Wide(-delta);
+
             j0 = j1;
         } while (p(j0) != 0);  // until we reach a free column
 
@@ -240,8 +302,13 @@ class Hungarian_Assignment
         } while (j0 != 0);
       }
 
-    // Extract results
-    total_cost_ = -v(0);  // v[0] accumulates the total cost
+    // Extract results: v[0] accumulates the total cost, which, with an
+    // integer type, must fit in Cost_Type
+    if constexpr (Integer)
+      if (-v(0) > Wide(std::numeric_limits<Cost_Type>::max())
+          or -v(0) < Wide(std::numeric_limits<Cost_Type>::lowest()))
+        throw_beyond();
+    total_cost_ = Cost_Type(-v(0));
 
     row_to_col_ = Array<long>(orig_rows_, -1L);
     col_to_row_ = Array<long>(orig_cols_, -1L);
@@ -268,6 +335,11 @@ public:
    *
    *  @param[in] cost The m x n cost matrix.
    *  @throws std::invalid_argument if the matrix is empty.
+   *  @throws std::overflow_error if, with an integer cost type, the
+   *          optimum does not fit in it; with long long, also if the costs
+   *          come near its limits: when a bound of the costs, and twice
+   *          the sum of the steps of the potentials, which is about the
+   *          optimum, pass max() / 4.
    */
   explicit Hungarian_Assignment(const DynMatrix<Cost_Type> &cost)
   {
@@ -287,11 +359,16 @@ public:
     // Build padded square matrix (zeros for padding)
     DynMatrix<Cost_Type> padded(n_, n_, Cost_Type{0});
     padded.allocate();
+    Cost_Range range;
     for (size_t i = 0; i < orig_rows_; ++i)
       for (size_t j = 0; j < orig_cols_; ++j)
-        padded(i, j) = cost.read(i, j);
+        {
+          const Cost_Type c = cost.read(i, j);
+          padded(i, j) = c;
+          range.add(c);
+        }
 
-    solve(padded);
+    solve(padded, range);
   }
 
   /** @brief Construct and solve from an initializer list of rows.
@@ -302,6 +379,11 @@ public:
    *                   list of costs. All rows must have the same length.
    *  @throws std::invalid_argument if rows is empty or rows have
    *          different lengths.
+   *  @throws std::overflow_error if, with an integer cost type, the
+   *          optimum does not fit in it; with long long, also if the costs
+   *          come near its limits: when a bound of the costs, and twice
+   *          the sum of the steps of the potentials, which is about the
+   *          optimum, pass max() / 4.
    *
    *  @par Example
    *  ```cpp
@@ -325,6 +407,7 @@ public:
 
     DynMatrix<Cost_Type> padded(n_, n_, Cost_Type{0});
     padded.allocate();
+    Cost_Range range;
 
     size_t i = 0;
     for (const auto &row : rows)
@@ -338,11 +421,12 @@ public:
               ah_invalid_argument_if(not std::isfinite(val))
                 << "Hungarian_Assignment: non-finite cost value at row " << i;
             padded(i, j++) = val;
+            range.add(val);
           }
         ++i;
       }
 
-    solve(padded);
+    solve(padded, range);
   }
 
   /** @brief Get the optimal total cost.
@@ -456,6 +540,7 @@ public:
  *  @tparam Cost_Type Numeric type for costs.
  *  @param[in] cost The m x n cost matrix.
  *  @return Hungarian_Result with optimal assignment.
+ *  @throws std::overflow_error as Hungarian_Assignment.
  *
  *  @par Example
  *  ```cpp
@@ -493,6 +578,9 @@ template <typename Cost_Type>
  *  @tparam Cost_Type Numeric type for costs.
  *  @param[in] cost The m x n profit matrix.
  *  @return Hungarian_Result with optimal assignment maximizing profit.
+ *  @throws std::overflow_error if a profit is the least of an integer type,
+ *          which cannot be negated, or the maximum does not fit in the
+ *          type, or as Hungarian_Assignment on the negated profits.
  *
  *  @par Example
  *  ```cpp
@@ -515,8 +603,9 @@ template <typename Cost_Type>
   // Use a promoted signed type for negation to avoid overflow when
   // Cost_Type is a signed integer and a cell contains its minimum value.
   using Common = std::common_type_t<Cost_Type, long long>;
-  using Promoted =
-    std::conditional_t<std::is_floating_point_v<Common>, Common, std::make_signed_t<Common>>;
+  using Promoted = typename std::conditional_t<std::is_floating_point_v<Common>,
+                                               std::type_identity<Common>,
+                                               std::make_signed<Common>>::type;
 
   const size_t rows = cost.rows();
   const size_t cols = cost.cols();
@@ -537,6 +626,14 @@ template <typename Cost_Type>
       }
 
   auto inner = hungarian_assignment(negated);
+
+  // the maximum, the opposite of the minimum of the negated costs, must fit
+  // in Cost_Type
+  if constexpr (std::is_integral_v<Promoted>)
+    ah_overflow_error_if(inner.total_cost == std::numeric_limits<Promoted>::min()
+                         or -inner.total_cost > Promoted(std::numeric_limits<Cost_Type>::max())
+                         or -inner.total_cost < Promoted(std::numeric_limits<Cost_Type>::lowest()))
+      << "hungarian_max_assignment(): the maximum does not fit in the type of the costs";
 
   Hungarian_Result<Cost_Type> result;
   result.total_cost = static_cast<Cost_Type>(-inner.total_cost);

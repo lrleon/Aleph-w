@@ -180,12 +180,13 @@ components as well as the cross arcs.
       long low;
       bool p_is_cut_node = false;
 
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Cut_Frame(typename GT::Node *n, typename GT::Arc *arc, SA &sa,
                 const long n_low)
         : p(n), a(arc), it(n, sa), low(n_low) {}
 
-      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
     };
 
     // Visits p, reached through a, and pushes its frame
@@ -202,8 +203,8 @@ components as well as the cross arcs.
     // not visited, which it marks, and gives that node, or nullptr when the
     // arcs of f.p are done. The arcs to nodes visited lower f.low, which is
     // kept in a local and stored once.
-    [[gnu::always_inline, gnu::flatten]]
-    typename GT::Node *next_child(Cut_Frame &f) noexcept
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    typename GT::Node *next_child(Cut_Frame &f) noexcept(noexcept(f.it.next_ne()))
     {
       long p_low = f.low;
       typename GT::Node *child = nullptr;
@@ -336,17 +337,18 @@ components as well as the cross arcs.
     {
       Node_Arc_Iterator<GT, SA> it;
 
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Arc_Frame(typename GT::Node *p, SA &sa) : it(p, sa) {}
 
-      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
     };
 
     // Moves the iterator of f to the next arc that goes to a node that is
     // not a cut node and was not painted, and paints both; gives that
     // node, or nullptr when the arcs are done
-    [[gnu::always_inline, gnu::flatten]]
-    typename GT::Node *next_to_paint(Arc_Frame &f) noexcept
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    typename GT::Node *next_to_paint(Arc_Frame &f) noexcept(noexcept(f.it.next_ne()))
     {
       for (; f.it.has_curr(); f.it.next_ne())
         {
@@ -454,17 +456,19 @@ components as well as the cross arcs.
       typename GT::Node *tsrc;
       Node_Arc_Iterator<GT, SA> it;
 
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Map_Frame(typename GT::Node *gsrc, SA &sa)
         : tsrc(mapped_node<GT>(gsrc)), it(gsrc, sa) {}
 
-      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
     };
 
     // Moves the iterator of f to the next arc of the color that was not
     // copied, and gives it, or nullptr when the arcs are done
-    [[gnu::always_inline, gnu::flatten]]
-    typename GT::Arc *next_to_map(Map_Frame &f, const long & color) noexcept
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    typename GT::Arc *next_to_map(Map_Frame &f, const long & color)
+      noexcept(noexcept(f.it.next_ne()))
     {
       for (; f.it.has_curr(); f.it.next_ne())
         {
@@ -488,7 +492,7 @@ components as well as the cross arcs.
       assert(get_color <GT> (gsrc) == color);
 
       // Copies garc, an arc of f.it, and gtgt, its target, if gtgt was not
-      // copied; gives the frame of gtgt
+      // copied; gives gtgt
       auto copy = [&](Map_Frame &f, typename GT::Arc *garc)
         {
           // the target before the mark, which the compiler takes for a
@@ -507,21 +511,23 @@ components as well as the cross arcs.
           auto tarc = sg.insert_arc(f.tsrc, ttgt, garc->get_info());
           ARC_COOKIE(garc) = nullptr; // else it would compose with a former copy
           GT::map_arcs(garc, tarc);
-          return Map_Frame(gtgt, sa);
+          return gtgt;
         };
 
       // The node being visited keeps its iterator in here until the copy
       // goes on from a target of it; then it waits in frames, where it goes
-      // on when the copy comes back
+      // on when the copy comes back. here is optional, so that the frame of
+      // each node is built in its place: a frame keeps the filter, which
+      // may not be assignable
       Dfs_Stack<Map_Frame> frames;
-      Map_Frame here(gsrc, sa);
+      std::optional<Map_Frame> here(std::in_place, gsrc, sa);
       while (true)
         {
-          if (auto garc = next_to_map(here, color))
+          if (auto garc = next_to_map(*here, color))
             { // the iterator stays on garc, as in a recursion
-              Map_Frame next = copy(here, garc);
-              frames.push(std::move(here));
-              here = std::move(next);
+              auto gtgt = copy(*here, garc);
+              frames.push(std::move(*here));
+              here.emplace(gtgt, sa);
               continue;
             }
 
@@ -534,7 +540,7 @@ components as well as the cross arcs.
               f.next_arc(); // past the arc that was copied
               if (auto garc = next_to_map(f, color))
                 {
-                  here = copy(f, garc);
+                  here.emplace(copy(f, garc), sa);
                   break;
                 }
               frames.pop();
@@ -878,11 +884,12 @@ components as well as the cross arcs.
       typename GT::Arc *parent_arc;
       Node_Arc_Iterator<GT, SA> it;
 
-      [[gnu::always_inline, gnu::flatten]]
+      [[gnu::always_inline]] ALEPH_FLATTEN
       Frame(typename GT::Node *n, typename GT::Arc *a, SA &sa)
         : p(n), parent_arc(a), it(n, sa) {}
 
-      [[gnu::always_inline, gnu::flatten]] void next_arc() noexcept { it.next_ne(); }
+      [[gnu::always_inline]] ALEPH_FLATTEN
+      void next_arc() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
     };
 
     // Moves the iterator of f to the next arc of f.p that goes to a node
@@ -890,8 +897,8 @@ components as well as the cross arcs.
     // arcs of f.p are done. The back-edges lower low(f.p), which is stored
     // once: a store in the loop could be to the iterator, which would have
     // to be read again.
-    [[gnu::always_inline, gnu::flatten]]
-    typename GT::Node *next_child(Frame &f) noexcept
+    [[gnu::always_inline]] ALEPH_FLATTEN
+    typename GT::Node *next_child(Frame &f) noexcept(noexcept(f.it.next_ne()))
     {
       long p_low = low<GT>(f.p);
       typename GT::Node *child = nullptr;

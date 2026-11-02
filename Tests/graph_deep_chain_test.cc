@@ -43,6 +43,7 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
+#include <type_traits>
 #include <vector>
 
 #if defined(__unix__) || defined(__APPLE__)
@@ -63,6 +64,7 @@
 #include <tpl_bipartite.H>
 #include <tpl_spanning_tree.H>
 #include <tpl_test_acyclique.H>
+#include <tpl_test_connectivity.H>
 #include <tpl_test_cycle.H>
 #include <tpl_test_path.H>
 
@@ -126,6 +128,8 @@ TEST(DeepChain, TarjanFindsTheComponentsOfAnOpenChain)
   bool has_cycle = true;
   bool is_dag = false;
   DynList<size_t> sizes;
+  DynList<Chain_Digraph> blocks;
+  DynList<Chain_Digraph::Arc *> between;
   run_with_small_stack([&]
     {
       Tarjan_Connected_Components<Chain_Digraph> tarjan;
@@ -133,12 +137,18 @@ TEST(DeepChain, TarjanFindsTheComponentsOfAnOpenChain)
       has_cycle = tarjan.has_cycle(g);
       is_dag = tarjan.is_dag(g);
       tarjan.connected_components(g, sizes);
+      // a block for each node, in a time that does not grow with the
+      // square of the blocks
+      tarjan.connected_components(g, blocks, between);
     });
   EXPECT_EQ(num, N);
   EXPECT_FALSE(has_cycle);
   EXPECT_TRUE(is_dag);
   EXPECT_EQ(sizes.size(), N);
   EXPECT_TRUE(sizes.all([](size_t s) { return s == 1; }));
+  EXPECT_EQ(blocks.size(), N);
+  EXPECT_TRUE(blocks.all([](const Chain_Digraph & b) { return b.get_num_nodes() == 1; }));
+  EXPECT_EQ(between.size(), N - 1);
 }
 
 // and a closed chain is one component, and a cycle
@@ -343,7 +353,9 @@ TEST(DeepChain, KosarajuAndTopologicalSortOfAChain)
   auto nodes = build_chain(open, N, false);
   build_chain(closed, N, true);
   size_t open_components = 0, closed_components = 0, blocks = 0, sorted = 0;
+  size_t sorted_in_list = 0;
   Chain_Digraph::Node * first = nullptr;
+  Chain_Digraph::Node * first_in_list = nullptr;
   run_with_small_stack([&]
     {
       open_components = kosaraju_connected_components(open).size();
@@ -356,12 +368,19 @@ TEST(DeepChain, KosarajuAndTopologicalSortOfAChain)
       Topological_Sort<Chain_Digraph>()(open, order);
       sorted = order.size();
       first = order.get_first();
+      // into a DynList, whose size() counts, in a time that does not
+      // grow with the square of the nodes
+      auto listed = Topological_Sort<Chain_Digraph>().perform<DynList>(open);
+      sorted_in_list = listed.size();
+      first_in_list = listed.get_first();
     });
   EXPECT_EQ(open_components, N);
   EXPECT_EQ(closed_components, 1u);
   EXPECT_EQ(blocks, 1u);
   EXPECT_EQ(sorted, N);
   EXPECT_EQ(first, nodes[0]);
+  EXPECT_EQ(sorted_in_list, N);
+  EXPECT_EQ(first_in_list, nodes[0]);
 }
 
 namespace
@@ -482,4 +501,189 @@ TEST(DeepChain, TestsThePlanarityOfACycle)
   EXPECT_TRUE(planar);
   EXPECT_TRUE(embedded);
   EXPECT_EQ(faces, 2u); // inside and outside
+}
+
+namespace
+{
+  // Shows the arcs whose info is not hidden, here all of them. It has a
+  // const member, so that it cannot be assigned, and a copy that may throw,
+  // so that the stack copies the frames that keep it when it grows
+  struct Const_Filter
+  {
+    const size_t hidden = size_t(-1);
+
+    Const_Filter() = default;
+    Const_Filter(const Const_Filter & other) : hidden(other.hidden) {}
+
+    template <class Arc>
+    bool operator()(Arc * a) const { return a->get_info() != hidden; }
+  };
+
+  // What the searches give with a filter that shows every arc of the
+  // chains
+  struct Search_Results
+  {
+    size_t dft = 0, connected = 0, components = 0, sub_arcs = 0,
+           list_nodes = 0, count = 0, cuts = 0, block_nodes = 0, blocks = 0,
+           path = 0, tree_arcs = 0, tree_height = 0, matched = 0, cycle = 0;
+    bool has_cycle = false, dag = true, strong = false, acyclique = false,
+         path_has_cycle = true, cycle_found = false, to_end = false;
+  };
+
+  // The nodes of the chains of the searches with a filter: enough for the
+  // stack to grow, and copy its frames, several times
+  constexpr size_t M = 10000;
+
+  // Runs, with sa, the searches that keep a frame for each node of a path,
+  // with its iterator and so its filter, on the chains of M nodes
+  template <class SA>
+  Search_Results run_the_searches(SA sa)
+  {
+    Chain_Graph path, cycle;
+    auto p = build_chain(path, M, false);
+    auto c = build_chain(cycle, M, true);
+    Chain_Digraph dpath, dcycle;
+    build_chain(dpath, M, false);
+    build_chain(dcycle, M, true);
+
+    Search_Results r;
+    r.dft = Depth_First_Traversal<Chain_Graph, Default_Visit_Op<Chain_Graph>, SA>(sa)(path, p[0]);
+    SA copy = sa;
+    r.connected = Test_Connectivity<Chain_Graph, SA>()(path, copy);
+
+    Tarjan_Connected_Components<Chain_Digraph, Out_Iterator, SA> tarjan(sa);
+    r.components = tarjan.num_connected_components(dpath);
+    r.dag = tarjan.is_dag(dpath);
+    r.has_cycle = tarjan.has_cycle(dcycle);
+    r.strong = tarjan.test_connectivity(dcycle);
+    Path<Chain_Digraph> dc(dcycle);
+    if (tarjan.compute_cycle(dcycle, dc))
+      r.cycle = dc.size();
+
+    r.acyclique = Is_Graph_Acyclique<Chain_Graph, SA>(sa)(path);
+    r.path_has_cycle = Has_Cycle<Chain_Graph, SA>(sa)(path);
+
+    Path<Chain_Graph> found(path);
+    Find_Path_Depth_First<Chain_Graph, Node_Arc_Iterator, SA> find_path(sa);
+    find_path(path, p[0], p[M - 1], found);
+    r.path = found.size();
+
+    path.reset_nodes();
+    path.reset_arcs();
+    r.sub_arcs = Build_Subgraph<Chain_Graph, SA>(sa)(path, p[M / 2]).get_num_arcs();
+    path.reset_nodes();
+    path.reset_arcs();
+    DynList<Chain_Graph::Node *> list;
+    Build_Subgraph<Chain_Graph, SA> build(sa);
+    build(path, list, p[M / 2]);
+    r.list_nodes = list.size();
+    r.count = Unconnected_Components<Chain_Graph, SA>(sa).count_components(path);
+
+    // the block of the cycle, with a node hung from it
+    auto hung = cycle.insert_node(M);
+    cycle.insert_arc(c[0], hung, M);
+    Compute_Cut_Nodes<Chain_Graph, SA> cc(cycle, sa);
+    DynDlist<Chain_Graph::Node *> cuts;
+    cc(c[1], cuts);
+    r.cuts = cuts.size();
+    cc.paint_subgraphs();
+    Chain_Graph block;
+    cc.map_subgraph(block, NODE_COUNTER(c[1]));
+    r.block_nodes = block.get_num_nodes();
+    Compute_Cut_Nodes<Chain_Graph, SA> all(cycle, sa);
+    DynDlist<Chain_Graph::Node *> again;
+    all(c[1], again);
+    DynDlist<Chain_Graph> block_list;
+    Chain_Graph cut_graph;
+    DynDlist<Chain_Graph::Arc *> cross;
+    all.compute_blocks(block_list, cut_graph, cross);
+    for (auto it = block_list.get_it(); it.has_curr(); it.next_ne())
+      r.blocks += it.get_curr().get_num_nodes() > 0;
+
+    Chain_Graph tree;
+    Find_Depth_First_Spanning_Tree<Chain_Graph, SA> spanning(sa);
+    spanning(path, p[0], tree);
+    r.tree_arcs = tree.get_num_arcs();
+
+    path.reset_arcs();
+    auto root = Graph_To_Tree_Node<Chain_Graph, size_t, Key_Of_Node, SA>(sa)(path, p[0]);
+    r.tree_height = height_of_chain(root);
+    destroy_tree(root);
+
+    r.cycle_found = Test_For_Cycle<Chain_Graph, SA>(sa)(cycle, c[0]);
+    r.to_end = Test_For_Path<Chain_Graph, SA>(sa)(path, p[0], p[M - 1]);
+
+    // the graph of HopcroftKarpFollowsALongAugmentingPath
+    Chain_Graph bg;
+    std::vector<Chain_Graph::Node *> left(M + 1), right(M + 2);
+    for (size_t i = 1; i <= M; ++i)
+      left[i] = bg.insert_node(i);
+    left[0] = bg.insert_node(size_t(0));
+    for (size_t i = 1; i <= M + 1; ++i)
+      right[i] = bg.insert_node(M + i);
+    bg.insert_arc(left[0], right[1], size_t(0));
+    for (size_t i = 1; i <= M; ++i)
+      {
+        bg.insert_arc(left[i], right[i], 2 * i - 1);
+        bg.insert_arc(left[i], right[i + 1], 2 * i);
+      }
+    DynDlist<Chain_Graph::Arc *> matching;
+    hopcroft_karp_matching<Chain_Graph, SA>(bg, matching, sa);
+    r.matched = matching.size();
+    return r;
+  }
+
+  void expect_the_results_of_the_chains(const Search_Results & r)
+  {
+    EXPECT_EQ(r.dft, M);
+    EXPECT_TRUE(r.connected);
+    EXPECT_EQ(r.components, M);
+    EXPECT_TRUE(r.dag);
+    EXPECT_TRUE(r.has_cycle);
+    EXPECT_TRUE(r.strong);
+    EXPECT_EQ(r.cycle, M + 1);
+    EXPECT_TRUE(r.acyclique);
+    EXPECT_FALSE(r.path_has_cycle);
+    EXPECT_EQ(r.path, M);
+    EXPECT_EQ(r.sub_arcs, M - 1);
+    EXPECT_EQ(r.list_nodes, M);
+    EXPECT_EQ(r.count, 1u);
+    EXPECT_EQ(r.cuts, 1u);
+    EXPECT_EQ(r.block_nodes, M - 1);
+    EXPECT_EQ(r.blocks, 2u);
+    EXPECT_EQ(r.tree_arcs, M - 1);
+    EXPECT_EQ(r.tree_height, M);
+    EXPECT_TRUE(r.cycle_found);
+    EXPECT_TRUE(r.to_end);
+    EXPECT_EQ(r.matched, M + 1);
+  }
+}
+
+// The searches that keep the frame of a node, with its iterator and so its
+// filter, take a filter that cannot be assigned: a lambda that captures,
+// and a filter with a const member, whose copy may throw, so that the stack
+// copies the frames when it grows (#24 of the 7.3.2 review: they assigned
+// the frames, and did not compile with such a filter)
+TEST(DeepChain, TheSearchesTakeAFilterThatCannotBeAssigned)
+{
+  const size_t hidden = size_t(-1);
+  auto lambda = [hidden](auto * a) { return a->get_info() != hidden; };
+  static_assert(not std::is_copy_assignable_v<decltype(lambda)>);
+  static_assert(not std::is_copy_assignable_v<Const_Filter>);
+  static_assert(not std::is_nothrow_move_constructible_v<Const_Filter>);
+
+  Search_Results by_lambda, by_const;
+  run_with_small_stack([&]
+    {
+      by_lambda = run_the_searches(lambda);
+      by_const = run_the_searches(Const_Filter());
+    });
+  {
+    SCOPED_TRACE("a lambda that captures");
+    expect_the_results_of_the_chains(by_lambda);
+  }
+  {
+    SCOPED_TRACE("a filter with a const member");
+    expect_the_results_of_the_chains(by_const);
+  }
 }

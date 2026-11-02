@@ -47,6 +47,8 @@
 # include <functional>
 # include <memory>
 # include <stdexcept>
+# include <type_traits>
+# include <utility>
 # if defined(__unix__) || defined(__APPLE__)
 #   include <pthread.h>
 # endif
@@ -85,6 +87,43 @@ protected:
 // =============================================================================
 // Basic Construction Tests
 // =============================================================================
+
+namespace
+{
+  // A comparison whose copy, move and swap may throw
+  struct Throwing_Copy_Less
+  {
+    Throwing_Copy_Less() noexcept = default;
+    Throwing_Copy_Less(const Throwing_Copy_Less &) noexcept(false) {}
+    Throwing_Copy_Less(Throwing_Copy_Less &&) noexcept(false) {}
+    Throwing_Copy_Less & operator = (const Throwing_Copy_Less &) noexcept(false)
+    {
+      return *this;
+    }
+    Throwing_Copy_Less & operator = (Throwing_Copy_Less &&) noexcept(false)
+    {
+      return *this;
+    }
+
+    bool operator()(const int a, const int b) const noexcept { return a < b; }
+  };
+
+  using Fragile_Compare_Heap = Fibonacci_Heap<int, Throwing_Copy_Less>;
+} // namespace
+
+// The constructors, the moves and swap were noexcept whatever the
+// comparison, which they copy, move or swap
+static_assert(std::is_nothrow_default_constructible_v<Fibonacci_Heap<int>>);
+static_assert(std::is_nothrow_move_constructible_v<Fibonacci_Heap<int>>);
+static_assert(std::is_nothrow_move_assignable_v<Fibonacci_Heap<int>>);
+static_assert(std::is_nothrow_swappable_v<Fibonacci_Heap<int>>);
+static_assert(not std::is_nothrow_default_constructible_v<Fragile_Compare_Heap>);
+static_assert(not noexcept(Fragile_Compare_Heap(std::in_place,
+                                                std::declval<const Throwing_Copy_Less &>())));
+static_assert(noexcept(Fragile_Compare_Heap(std::in_place)));
+static_assert(not std::is_nothrow_move_constructible_v<Fragile_Compare_Heap>);
+static_assert(not std::is_nothrow_move_assignable_v<Fragile_Compare_Heap>);
+static_assert(not std::is_nothrow_swappable_v<Fragile_Compare_Heap>);
 
 TEST(FibonacciHeapConstruction, DefaultConstructor)
 {
@@ -148,6 +187,102 @@ TEST(FibonacciHeapConstruction, MoveAssignmentRoundtrip)
 
   EXPECT_EQ(h.size(), original_size);
   EXPECT_EQ(h.get_min(), 3);
+}
+
+namespace
+{
+  // A comparison whose move assignment throws while armed
+  struct Armed_Move_Less
+  {
+    static inline bool armed = false;
+
+    Armed_Move_Less() noexcept = default;
+    Armed_Move_Less(const Armed_Move_Less &) noexcept = default;
+    Armed_Move_Less & operator = (const Armed_Move_Less &) noexcept = default;
+    Armed_Move_Less & operator = (Armed_Move_Less &&) noexcept(false)
+    {
+      if (armed)
+        throw std::runtime_error("Armed_Move_Less");
+      return *this;
+    }
+
+    bool operator()(const int a, const int b) const noexcept { return a < b; }
+  };
+
+  // A comparison, ascending or descending by its order, whose moves throw
+  // and whose own swap does not
+  struct Own_Swap_Order
+  {
+    bool descending = false;
+
+    explicit Own_Swap_Order(const bool d = false) noexcept : descending(d) {}
+    Own_Swap_Order(const Own_Swap_Order &) noexcept = default;
+    Own_Swap_Order(Own_Swap_Order &&) noexcept(false)
+    {
+      throw std::runtime_error("Own_Swap_Order");
+    }
+    Own_Swap_Order & operator = (const Own_Swap_Order &) noexcept = default;
+    Own_Swap_Order & operator = (Own_Swap_Order &&) noexcept(false)
+    {
+      throw std::runtime_error("Own_Swap_Order");
+    }
+
+    friend void swap(Own_Swap_Order & a, Own_Swap_Order & b) noexcept
+    {
+      std::swap(a.descending, b.descending);
+    }
+
+    bool operator()(const int a, const int b) const noexcept
+    {
+      return descending ? b < a : a < b;
+    }
+  };
+} // namespace
+
+// The move assignment took the nodes of the other heap before it moved the
+// comparison: when the move threw, both heaps owned the nodes, and each
+// freed them
+TEST(FibonacciHeapConstruction, MoveAssignmentWhoseComparisonThrows)
+{
+  Fibonacci_Heap<int, Armed_Move_Less> to, from;
+  to.insert(7);
+  for (int i = 0; i < 5; ++i)
+    from.insert(i);
+
+  Armed_Move_Less::armed = true;
+  EXPECT_THROW(to = std::move(from), std::runtime_error);
+  Armed_Move_Less::armed = false;
+
+  EXPECT_TRUE(to.is_empty());
+  ASSERT_EQ(from.size(), 5u);
+  for (int i = 0; i < 5; ++i)
+    EXPECT_EQ(from.extract_min(), i);
+}
+
+// swap() said noexcept for the swap of the comparisons that ADL finds, but
+// called std::swap, which moves: with the swap of Own_Swap_Order, which
+// does not throw, it ended the program
+static_assert(std::is_nothrow_swappable_v<Fibonacci_Heap<int, Own_Swap_Order>>);
+
+TEST(FibonacciHeapConstruction, SwapUsesTheSwapOfTheComparison)
+{
+  Fibonacci_Heap<int, Own_Swap_Order> up(std::in_place, false);
+  Fibonacci_Heap<int, Own_Swap_Order> down(std::in_place, true);
+  for (int i = 0; i < 4; ++i)
+    {
+      up.insert(i);
+      down.insert(10 + i);
+    }
+
+  EXPECT_NO_THROW(up.swap(down));
+  EXPECT_TRUE(up.get_compare().descending);
+  EXPECT_FALSE(down.get_compare().descending);
+  EXPECT_EQ(up.extract_min(), 13);
+  EXPECT_EQ(down.extract_min(), 0);
+
+  EXPECT_NO_THROW(swap(up, down));
+  EXPECT_EQ(up.extract_min(), 1);
+  EXPECT_EQ(down.extract_min(), 12);
 }
 
 // =============================================================================

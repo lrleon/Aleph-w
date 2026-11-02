@@ -129,7 +129,13 @@ namespace Aleph
    *
    *  The class caches its computation: calling multiple methods with
    *  the same graph and root reuses the previous result without
-   *  recomputing.
+   *  recomputing. The cache knows the graph and the root by their
+   *  addresses, and its queries find the nodes by their `NODE_COUNTER`,
+   *  so call invalidate() before a query if, since the computation, the
+   *  graph or the filter changed, another algorithm wrote the counters
+   *  of the nodes (another computation of dominators on the same graph
+   *  does), or the graph was destroyed and another was built at its
+   *  address.
    *
    *  @tparam GT The directed graph type.
    *  @tparam SA Arc filter class for the internal iterator.
@@ -304,17 +310,10 @@ namespace Aleph
       // Phase 1: DFS from root
       dfs(root); // dfs updates num_reachable
 
-      if (num_reachable <= 1)
-        {
-          if (num_reachable == 1)
-            idom_arr[0] = -1; // root has no dominator
-          is_computed = true;
-          return;
-        }
-
       // Build predecessor lists by iterating over all arcs.
       // In_Iterator does not work on List_Digraph because arcs are
-      // only stored in the source node's adjacency list.
+      // only stored in the source node's adjacency list. A root reached
+      // alone may still have a loop, which the frontiers need.
       pred = Array<DynList<long>>(static_cast<size_t>(num_reachable), DynList<long>());
       for (typename GT::Arc_Iterator ait(g); ait.has_curr(); ait.next_ne())
         {
@@ -325,6 +324,14 @@ namespace Aleph
           long t = NODE_COUNTER(gptr->get_tgt_node(arc));
           if (s >= 0 and s < num_reachable and t >= 0 and t < num_reachable)
             pred[t].append(s);
+        }
+
+      if (num_reachable <= 1)
+        {
+          if (num_reachable == 1)
+            idom_arr[0] = -1; // root has no dominator
+          is_computed = true;
+          return;
         }
 
       // Allocate buckets (one per reachable node)
@@ -388,8 +395,10 @@ namespace Aleph
     /** @brief Construct a dominator computation instance.
      *
      *  @param __sa Arc filter functor. Defaults to Dft_Show_Arc<GT>.
+     *  @throw bad_alloc if there is not enough memory for the arrays.
+     *  @throw anything that the move of the filter throws.
      */
-    Lengauer_Tarjan_Dominators(SA __sa = SA()) noexcept
+    Lengauer_Tarjan_Dominators(SA __sa = SA())
       : sa(std::move(__sa))
     { /* empty */
     }
@@ -551,13 +560,13 @@ namespace Aleph
       for (long i = 0; i < num_reachable; ++i)
         df.insert(vertex[i], DynSetTree<Node *>());
 
-      if (num_reachable <= 1)
-        return df;
-
-      // For each node with 2+ predecessors, walk up from each pred
+      // For each node with 2+ predecessors, walk up from each pred. A node
+      // with one predecessor p has p as idom, and gets in no frontier
+      // through it, unless it is the root, which has no idom: the walk
+      // from p goes up to the root.
       for (long b = 0; b < num_reachable; ++b)
         {
-          if (pred[b].size() < 2)
+          if (pred[b].size() < (b == 0 ? 1U : 2U))
             continue;
 
           Node *bnode = vertex[b];
@@ -599,6 +608,15 @@ namespace Aleph
 
     /** @brief Check if a computation has been performed. */
     [[nodiscard]] bool has_computation() const noexcept { return is_computed; }
+
+    /** @brief Drop the cached computation, so that the next query computes
+     *  the dominators again. */
+    void invalidate() noexcept
+    {
+      is_computed = false;
+      gptr = nullptr;
+      root_ptr = nullptr;
+    }
 
     /** @brief Get the graph of the last computation. */
     [[nodiscard]] GT * get_graph() const noexcept { return gptr; }
@@ -701,9 +719,8 @@ namespace Aleph
    *  runs `Lengauer_Tarjan_Dominators` on the result.  Results are
    *  transparently mapped back to the original graph nodes.
    *
-   *  The class caches its computation: calling multiple methods with
-   *  the same graph and exit node reuses the previous result without
-   *  recomputing.
+   *  Each method computes the post-dominators again, with a new reversed
+   *  graph, so that a change of the graph is always seen.
    *
    *  @tparam GT The directed graph type.
    *  @tparam SA Arc filter class for the internal iterator.
@@ -809,8 +826,10 @@ namespace Aleph
     /** @brief Construct a post-dominator computation instance.
      *
      *  @param __sa Arc filter functor. Defaults to Dft_Show_Arc<GT>.
+     *  @throw bad_alloc if there is not enough memory for the arrays.
+     *  @throw anything that the copy or the move of the filter throws.
      */
-    Lengauer_Tarjan_Post_Dominators(SA __sa = SA()) noexcept
+    Lengauer_Tarjan_Post_Dominators(SA __sa = SA())
       : sa(std::move(__sa)), dom(sa)
     { /* empty */
     }

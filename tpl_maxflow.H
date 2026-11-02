@@ -341,13 +341,14 @@ namespace Aleph
                   }
               }
 
-            // Augment flow along the path
+            // Augment flow along the path; a floating flow that rounding
+            // leaves next to the capacity or to zero is set to it
             for (size_t i = 0; i + 1 < depth; ++i)
               {
                 if (path_fwd[i])
-                  path_arcs[i]->flow += bottleneck;
+                  net_detail::add_flow(path_arcs[i], bottleneck);
                 else
-                  path_arcs[i]->flow -= bottleneck;
+                  net_detail::subtract_flow(path_arcs[i], bottleneck);
               }
 
             total_flow += bottleneck;
@@ -479,14 +480,12 @@ namespace Aleph
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
       NODE_COOKIE(it.get_curr()) = &node_info[idx];
 
-    Flow_Type max_flow{0};
-
     // Main loop: build level graph and find blocking flows
     while (build_level_graph(net, source, sink))
-      max_flow += dinic_blocking_flow(net, source, sink);
+      (void) dinic_blocking_flow(net, source, sink);
 
     // Cookie_Saver destructor will restore original NODE_COOKIE values
-    return max_flow;
+    return net.flow_value(); // with the flow that the network had
   }
 
   /** @brief Functor wrapper for Dinic's algorithm.
@@ -581,8 +580,6 @@ namespace Aleph
     while (delta <= max_cap / 2)
       delta *= 2;
 
-    Flow_Type max_flow{0};
-
     // BFS augmentation helper.
     // Finds and augments all s-t paths where every edge has
     // residual >= min_residual.  Returns total flow found.
@@ -652,9 +649,9 @@ namespace Aleph
                   {
                     Arc *arc = parent_arc[n];
                     if (is_forward[n])
-                      arc->flow += path_flow;
+                      net_detail::add_flow(arc, path_flow);
                     else
-                      arc->flow -= path_flow;
+                      net_detail::subtract_flow(arc, path_flow);
                   }
 
                 phase_flow += path_flow;
@@ -666,16 +663,16 @@ namespace Aleph
     // Scaling phases (delta = largest power of 2 down to 1)
     while (delta >= Flow_Type{1})
       {
-        max_flow += bfs_augment(delta);
+        (void) bfs_augment(delta);
         delta /= 2;
       }
 
     // Final cleanup: capture any fractional residual flow.
     // For integer capacities the scaling phases already found all flow,
     // so this is a single O(V+E) no-op BFS.
-    max_flow += bfs_augment(Flow_Type{0});
+    (void) bfs_augment(Flow_Type{0});
 
-    return max_flow;
+    return net.flow_value(); // with the flow that the network had
   }
 
   /** @brief Functor wrapper for capacity scaling.
@@ -841,7 +838,11 @@ namespace Aleph
    *             remain unchanged.
    *  @return FlowDecomposition containing all paths and cycles.
    *
-   *  @throw domain_error If network is not single source/sink.
+   *  @throw domain_error If network is not single source/sink, or if the
+   *         flow is not conserved at a node between the source and the sink
+   *         beyond the tolerance of check_node(): a node that receives more
+   *         than it sends. What a floating flow keeps within that tolerance
+   *         is a residue of rounding and is left out of the paths.
    *
    *  @par Example
    *  ```cpp
@@ -928,7 +929,17 @@ namespace Aleph
               }
 
             if (next_arc == nullptr)
-              break; // No outgoing arc with a positive flow
+              { // curr does not send all it receives: if rounding leaves
+                // it, in a floating flow, what the last arc brings is left
+                // out, so that the walk does not start again forever; any
+                // more is a flow that is not conserved
+                const Flow_Type in = net.get_in_flow(curr), out = net.get_out_flow(curr);
+                ah_domain_error_if(in - out > Net::node_tolerance(in, out))
+                  << "decompose_flow(): the flow is not conserved at a node, which receives "
+                  << in << " and sends " << out;
+                remaining_flow[path.arcs.get_last()] = Flow_Type{0};
+                break;
+              }
 
             Node *next_node = net.get_tgt_node(next_arc);
 
@@ -960,7 +971,9 @@ namespace Aleph
                     node_it.next_ne();
                     arc_it.next_ne();
                   }
-                // Add the closing arc and closing node to complete the cycle
+                // Add the node where the closing arc starts, the closing
+                // arc and the closing node to complete the cycle
+                cycle.nodes.append(curr);
                 cycle.arcs.append(next_arc);
                 cycle.flow = std::min(cycle.flow, remaining_flow[next_arc]);
                 cycle.nodes.append(next_node);
@@ -1143,11 +1156,29 @@ namespace Aleph
    *  Stores height label and excess flow for O(1) cookie-based access.
    *  @ingroup Networks
    */
-  template <typename Flow_Type>
+  template <typename Flow_Type, bool = std::is_floating_point_v<Flow_Type>>
   struct HLPP_Node_Info
   {
     long height = 0;
     Flow_Type excess{0};
+  };
+
+  /** @brief Node information of HLPP for a floating flow.
+   *
+   *  An active node with only a residue of rounding of its flows as excess
+   *  leaves the buckets, and in_bucket tells whether it is in one. The
+   *  flows into and out of the node, which keep what their rounding loses,
+   *  give its excess.
+   *  @ingroup Networks
+   */
+  template <typename Flow_Type>
+  struct HLPP_Node_Info<Flow_Type, true>
+  {
+    long height = 0;
+    Flow_Type excess{0};
+    bool in_bucket = false;
+    net_detail::Flow_Sum<Flow_Type> in;  ///< The flow into the node
+    net_detail::Flow_Sum<Flow_Type> out; ///< The flow out of the node
   };
 
   /// Access the height label stored in the node's cookie.
@@ -1174,6 +1205,16 @@ namespace Aleph
    *
    *  ## Complexity
    *  O(V²√E) - often fastest in practice for dense graphs.
+   *
+   *  With a floating flow, the excess of a node is that of its flows in
+   *  and out, which each push updates keeping what their rounding loses,
+   *  so that a small flow beside a large one is not lost; an excess up to
+   *  a residue of rounding of its own flows, an epsilon of the larger of
+   *  its flows in and out by each of its arcs and two more, is not pushed;
+   *  and at the end what the nodes keep or lack of it goes back toward the
+   *  source, or forward toward the sink, so that every node keeps its flow
+   *  within the tolerance of check_node(), as check_network() takes it,
+   *  and a network whose maximum flow is 0 gives 0.
    *
    *  @tparam Net Network type.
    *  @param net Flow network.
@@ -1246,15 +1287,56 @@ namespace Aleph
     // Source always has height = n
     hlpp_height<Net>(source) = n;
 
+    // With a floating flow, the flows into and out of each node, which
+    // follow every push and give its excess; they start from the flow
+    // that the network has
+    constexpr bool floating = std::is_floating_point_v<Flow_Type>;
+    [[maybe_unused]] auto info = [] (Node *p)
+      {
+        return static_cast<HLPP_Node_Info<Flow_Type> *>(NODE_COOKIE(p));
+      };
+    if constexpr (floating)
+      for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        {
+          Arc *arc = it.get_curr();
+          info(net.get_src_node(arc))->out.add(arc->flow);
+          info(net.get_tgt_node(arc))->in.add(arc->flow);
+        }
+
     // --- Saturate all arcs from source ---
     for (typename Net::Node_Arc_Iterator it(source); it.has_curr(); it.next_ne())
       if (Arc *arc = it.get_curr(); net.get_src_node(arc) == source)
         {
           Flow_Type delta = arc->cap - arc->flow;
+          if constexpr (floating)
+            {
+              info(source)->out.replace(arc->flow, arc->cap);
+              info(net.get_tgt_node(arc))->in.replace(arc->flow, arc->cap);
+            }
           arc->flow = arc->cap;
           hlpp_excess<Net>(net.get_tgt_node(arc)) += delta;
           hlpp_excess<Net>(source) -= delta;
         }
+    if constexpr (floating) // the excesses, from the flows
+      for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        hlpp_excess<Net>(it.get_curr()) = info(it.get_curr())->in.minus(info(it.get_curr())->out);
+
+    // With a floating flow, whether p is in a bucket; else whether it has
+    // an excess, as a node with one is in a bucket
+    auto in_a_bucket = [] (Node *p) -> bool
+      {
+        if constexpr (floating)
+          return static_cast<HLPP_Node_Info<Flow_Type> *>(NODE_COOKIE(p))->in_bucket;
+        else
+          return hlpp_excess<Net>(p) > Flow_Type{0};
+      };
+    auto set_in_a_bucket = [] (Node *p, bool in)
+      {
+        if constexpr (floating)
+          static_cast<HLPP_Node_Info<Flow_Type> *>(NODE_COOKIE(p))->in_bucket = in;
+        else
+          (void) p, (void) in;
+      };
 
     // --- Initialize bucket structure ---
     const size_t bucket_count = static_cast<size_t>(2 * n + 1);
@@ -1270,6 +1352,7 @@ namespace Aleph
           {
             long h = hlpp_height<Net>(p);
             buckets[h].append(p);
+            set_in_a_bucket(p, true);
             max_height = std::max(max_height, h);
           }
       }
@@ -1284,13 +1367,21 @@ namespace Aleph
           }
 
         Node *u = buckets[max_height].remove_first();
+        set_in_a_bucket(u, false);
+
+        // With a floating flow, an excess of u up to this is a residue of
+        // rounding of its flows, and is not pushed
+        Flow_Type residue{0};
+        if constexpr (floating)
+          residue = net_detail::node_residue(info(u)->in.value(), info(u)->out.value(),
+                                             net.get_num_arcs(u));
 
         // Push/Relabel
         bool pushed = false;
         long min_height = 2 * n;
 
         for (typename Net::Node_Arc_Iterator it(u);
-             it.has_curr() and hlpp_excess<Net>(u) > Flow_Type{0};
+             it.has_curr() and hlpp_excess<Net>(u) > residue;
              it.next_ne())
           {
             Arc *arc = it.get_curr();
@@ -1307,23 +1398,43 @@ namespace Aleph
               {
                 if (hlpp_height<Net>(u) == hlpp_height<Net>(v) + 1)
                   {
-                    // Push
-                    Flow_Type delta = std::min(hlpp_excess<Net>(u), residual);
-                    if (is_forward)
+                    // Push, as much as the arc takes; v becomes active if
+                    // it was not
+                    [[maybe_unused]] const Flow_Type delta =
+                        std::min(hlpp_excess<Net>(u), residual);
+                    if constexpr (floating)
+                      {
+                        // The flow of the arc keeps u in balance, and the
+                        // excesses of u and v follow their flows: a small
+                        // push beside a large excess would be lost in it
+                        const Flow_Type before = arc->flow;
+                        net_detail::push_excess(arc, is_forward, info(u)->in, info(u)->out);
+                        if (is_forward)
+                          info(v)->in.replace(before, arc->flow);
+                        else
+                          info(v)->out.replace(before, arc->flow);
+                        hlpp_excess<Net>(u) = info(u)->in.minus(info(u)->out);
+                      }
+                    else if (is_forward)
                       arc->flow += delta;
                     else
                       arc->flow -= delta;
 
                     const bool was_inactive =
-                        (v != source and v != sink and
-                         hlpp_excess<Net>(v) <= Flow_Type{0});
+                        (v != source and v != sink and not in_a_bucket(v));
 
-                    hlpp_excess<Net>(u) -= delta;
-                    hlpp_excess<Net>(v) += delta;
+                    if constexpr (floating)
+                      hlpp_excess<Net>(v) = info(v)->in.minus(info(v)->out);
+                    else
+                      {
+                        hlpp_excess<Net>(u) -= delta;
+                        hlpp_excess<Net>(v) += delta;
+                      }
 
                     if (was_inactive and hlpp_excess<Net>(v) > Flow_Type{0})
                       {
                         buckets[hlpp_height<Net>(v)].append(v);
+                        set_in_a_bucket(v, true);
                         max_height = std::max(max_height, hlpp_height<Net>(v));
                       }
 
@@ -1334,7 +1445,7 @@ namespace Aleph
               }
           }
 
-        if (hlpp_excess<Net>(u) > Flow_Type{0})
+        if (hlpp_excess<Net>(u) > residue)
           {
             if (not pushed)
               {
@@ -1343,11 +1454,15 @@ namespace Aleph
                 hlpp_height<Net>(u) = min_height + 1;
               }
             buckets[hlpp_height<Net>(u)].append(u);
+            set_in_a_bucket(u, true);
             max_height = std::max(max_height, hlpp_height<Net>(u));
           }
       }
 
-    return hlpp_excess<Net>(sink);
+    // What a floating flow keeps as residues of rounding goes back
+    net_detail::return_dust(net, source, sink);
+
+    return net.flow_value(); // with the flow that the network had
   }
 
   /** @brief Functor wrapper for HLPP.

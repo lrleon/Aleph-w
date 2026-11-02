@@ -340,9 +340,23 @@ public:
 
     auto *heap_node = heap.get_min_node();
     auto *arc = heap_node->data;
-    handle_of(heap_node) = nullptr;
+    handle_type & handle = handle_of(heap_node);
 
-    (void) heap.extract_min();
+    // Without memory, extract_min() throws before it changes the heap, and
+    // the node keeps its handle; if the distance throws, the node is
+    // already out of the heap and freed
+    const size_t num_nodes = heap.size();
+    try
+      {
+        (void) heap.extract_min();
+      }
+    catch (...)
+      {
+        if (heap.size() != num_nodes)
+          handle = nullptr;
+        throw;
+      }
+    handle = nullptr;
 
     return arc;
   }

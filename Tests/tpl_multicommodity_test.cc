@@ -464,6 +464,101 @@ TEST_F(MultiCommodityTest, ResultStructure)
   EXPECT_NEAR(sum, result.total_cost, 0.1);
 }
 
+//==============================================================================
+// demands_satisfied()
+//==============================================================================
+
+// MCF_Graph derives from Array_Digraph: a digraph, whose list of a node
+// holds only the arcs that leave it
+static_assert(DigraphType<TestNet>);
+
+// The flow that comes back into a source counts against its demand
+TEST_F(MultiCommodityTest, DemandsSatisfiedCountsTheFlowIntoTheSource)
+{
+  TestNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto t = net.insert_node();
+  auto sa = net.insert_arc(s, a, 10.0, 1.0);
+  auto at = net.insert_arc(a, t, 10.0, 1.0);
+  auto as = net.insert_arc(a, s, 10.0, 1.0); // back into the source
+  net.add_commodity(s, t, 2.0);
+
+  // 3 leave s and 1 comes back: 2 go out, the demand
+  sa->set_flow(0, 3.0);
+  as->set_flow(0, 1.0);
+  at->set_flow(0, 2.0);
+  EXPECT_TRUE(net.demands_satisfied());
+
+  // Without the flow back, 3 go out
+  as->set_flow(0, 0.0);
+  EXPECT_FALSE(net.demands_satisfied());
+
+  // 2 leave s and 2 come back: nothing goes out
+  sa->set_flow(0, 2.0);
+  as->set_flow(0, 2.0);
+  EXPECT_FALSE(net.demands_satisfied());
+
+  // A loop at the source leaves it and comes back
+  auto ss = net.insert_arc(s, s, 5.0, 1.0);
+  sa->set_flow(0, 3.0);
+  as->set_flow(0, 1.0);
+  ss->set_flow(0, 4.0);
+  EXPECT_TRUE(net.demands_satisfied());
+}
+
+// Each commodity counts its own flow, at its own source
+TEST_F(MultiCommodityTest, DemandsSatisfiedOnEachCommodity)
+{
+  TestNet net;
+  auto s1 = net.insert_node();
+  auto s2 = net.insert_node();
+  auto t = net.insert_node();
+  auto s1s2 = net.insert_arc(s1, s2, 10.0, 1.0);
+  auto s2s1 = net.insert_arc(s2, s1, 10.0, 1.0);
+  auto s2t = net.insert_arc(s2, t, 10.0, 1.0);
+  net.add_commodity(s1, t, 1.0, "from s1");
+  net.add_commodity(s2, t, 2.0, "from s2");
+
+  // Commodity 0: 3 from s1 to s2, 2 back, 1 on to t. Commodity 1: 1 from
+  // s2 to s1 and back, and 2 from s2 to t
+  s1s2->set_flow(0, 3.0);
+  s2s1->set_flow(0, 2.0);
+  s2t->set_flow(0, 1.0);
+  s2s1->set_flow(1, 1.0);
+  s1s2->set_flow(1, 1.0);
+  s2t->set_flow(1, 2.0);
+  EXPECT_TRUE(net.demands_satisfied());
+
+  // The flow of commodity 1 into s2 does not count for commodity 0
+  s2s1->set_flow(0, 0.0);
+  EXPECT_FALSE(net.demands_satisfied());
+}
+
+TEST_F(MultiCommodityTest, DemandsSatisfiedByTheSolver)
+{
+  auto net = build_diamond_network();
+  auto nodes = net.nodes();
+  auto it = nodes.get_it();
+  auto s = it.get_curr(); it.next();
+  it.next(); it.next();
+  auto t = it.get_curr();
+  net.add_commodity(s, t, 5.0, "K1");
+  net.add_commodity(s, t, 3.0, "K2");
+
+  EXPECT_FALSE(net.demands_satisfied()); // no flow yet
+  auto result = solve_multicommodity_flow(net);
+  ASSERT_TRUE(result.is_optimal());
+  EXPECT_TRUE(net.demands_satisfied());
+  EXPECT_TRUE(net.capacities_respected());
+}
+
+TEST_F(MultiCommodityTest, DemandsSatisfiedWithoutCommodities)
+{
+  auto net = build_single_arc_network(10.0, 1.0);
+  EXPECT_TRUE(net.demands_satisfied());
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

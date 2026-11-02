@@ -61,7 +61,8 @@ namespace Aleph {
           shown to the traversal.
 
           The test_path bit is used to mark the nodes and arcs
-          visited during the search.
+          visited during the search. From a node to itself there is
+          always the path of no arc, as in test_for_path().
 
          @see find_path_depth_first() find_path_breadth_first()
          @ingroup Graphs
@@ -87,20 +88,22 @@ class Test_For_Path
 
     // search through the arcs not painted, which it paints. The node being
     // visited keeps its iterator in here until it visits a node; then it
-    // waits in frames, where it goes on when it comes back.
+    // waits in frames, where it goes on when it comes back. here is
+    // optional, so that the frame of each node is built in its place: a
+    // frame keeps the filter, which may not be assignable.
     using Frame = Dfs_Arc_Frame<Node_Arc_Iterator<GT, SA>>;
     Dfs_Stack<Frame> frames;
-    Frame here(curr, sa);
+    std::optional<Frame> here(std::in_place, curr, sa);
     while (true)
       {
-        if (auto next = here.template next_target<Find_Path>(tgt))
+        if (auto next = here->template next_target<Find_Path>(tgt))
           { // the iterator stays on the arc to next, as in a recursion
             if (next == tgt)
               return true;
 
             NODE_BITS(next).set_bit(Find_Path, true);
-            frames.push(std::move(here));
-            here = Frame(next, sa);
+            frames.push(std::move(*here));
+            here.emplace(next, sa);
             continue;
           }
 
@@ -119,7 +122,7 @@ class Test_For_Path
                   return true;
 
                 NODE_BITS(next).set_bit(Find_Path, true);
-                here = Frame(next, sa);
+                here.emplace(next, sa);
                 break;
               }
             frames.pop();
@@ -127,10 +130,14 @@ class Test_For_Path
       }
   }
 
-  // It concluded that there was a path in an undirected graph with as many
-  // arcs as nodes; a graph that is not connected can have them
+  // Whether a path goes from src to dest: from a node to itself, the path
+  // of no arc, as in test_for_path(); otherwise a search in depth from
+  // each arc of src
   bool test_path(const GT & g, typename GT::Node * src, typename GT::Node * dest)
   {
+    if (src == dest)
+      return true;
+
     g.reset_bit_nodes(Find_Path); 
     g.reset_bit_arcs(Find_Path);
 
@@ -159,7 +166,8 @@ public:
          @param[in] g the graph to search a path in.
          @param[in] start_node pointer to the path's source node.
          @param[in] end_node pointer to the path's destination node.
-         @return true if a path exists between start_node and end_node.
+         @return true if a path exists between start_node and end_node;
+         from a node to itself, always.
     */
   bool operator () (const GT& g, typename GT::Node * start_node, 
 		    typename GT::Node * end_node) 

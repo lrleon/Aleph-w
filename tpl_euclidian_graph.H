@@ -34,42 +34,40 @@
  *
  *  Graph where nodes have 2D positions and arc weights
  *  are Euclidean distances automatically computed from node positions.
+ *  A copy of the graph keeps the positions of its nodes.
  *
  *  @par Example: City network with geographic positions
  *  @code
- *  using Point2D = Point2D_Num<double>;
- *  using EG = Euclidian_Graph<Graph_Node<string>, Graph_Arc<Empty_Class>, Point2D>;
+ *  using EG = Euclidian_Graph<Euclidian_Node<std::string>, Euclidian_Arc<Empty_Class>>;
  *
  *  EG city_map;
  *
- *  // Add cities with lat/lon coordinates
- *  auto nyc = city_map.insert_node("NYC", Point2D(40.7128, -74.0060));
- *  auto boston = city_map.insert_node("Boston", Point2D(42.3601, -71.0589));
- *  auto dc = city_map.insert_node("DC", Point2D(38.9072, -77.0369));
+ *  auto nyc = city_map.insert_node("NYC", Point(40.7128, -74.0060));
+ *  auto boston = city_map.insert_node("Boston", Point(42.3601, -71.0589));
+ *  auto dc = city_map.insert_node("DC", Point(38.9072, -77.0369));
  *
- *  // Insert arc - distance computed automatically from positions
- *  city_map.insert_arc(nyc, boston);
- *
- *  // Get computed Euclidean distance
- *  auto arc = city_map.search_arc(nyc, boston);
- *  double distance = city_map.get_distance(arc);
+ *  // An arc has no weight of its own: its distance comes from the
+ *  // positions of its nodes
+ *  auto arc = city_map.insert_arc(nyc, boston);
+ *  Geom_Number distance = city_map.get_distance(arc);
  *  @endcode
  *
  *  @par Example: Nearest neighbor search
  *  @code
- *  auto query_pos = Point2D(41.0, -73.0);
+ *  const Point query(41.0, -73.0);
  *
- *  double min_dist = numeric_limits<double>::max();
- *  EG::Node* nearest = nullptr;
- *
- *  for (Node_Iterator<EG> it(city_map); it.has_curr(); it.next()) {
- *    auto node = it.get_curr();
- *    double dist = query_pos.distance_to(city_map.get_position(node));
- *    if (dist < min_dist) {
- *      min_dist = dist;
- *      nearest = node;
+ *  EG::Node * nearest = nullptr;
+ *  Geom_Number min_dist2 = 0;
+ *  for (EG::Node_Iterator it(city_map); it.has_curr(); it.next_ne())
+ *    {
+ *      auto node = it.get_curr();
+ *      const Geom_Number d2 = query.distance_squared_to(node->get_position());
+ *      if (nearest == nullptr or d2 < min_dist2)
+ *        {
+ *          min_dist2 = d2;
+ *          nearest = node;
+ *        }
  *    }
- *  }
  *  @endcode
  *
  *  @see point_utils.H Point utilities
@@ -192,7 +190,7 @@ public:
 
   Euclidian_Graph(const Euclidian_Graph<Node, Arc> &euclidian_graph) : Graph()
   {
-    copy_graph(*this, const_cast<Euclidian_Graph<Node, Arc> &>(euclidian_graph), false);
+    copy_from(euclidian_graph);
   }
 
   Node *insert_node(Node *node) noexcept override
@@ -222,11 +220,22 @@ public:
     return src_point.distance_to(tgt_point);
   }
 
-  Euclidian_Graph<Node, Arc> &operator = (Euclidian_Graph<Node, Arc> &eg)
+  /** Replaces the contents of this graph with a copy of `eg`. The copy
+      is made first, as directed as this graph is, so that if it throws
+      this graph is as it was; the graph keeps its cookie.
+
+      @throw bad_alloc if there is not enough memory for the copy.
+  */
+  Euclidian_Graph<Node, Arc> &operator = (const Euclidian_Graph<Node, Arc> &eg)
   {
     if (this == &eg)
       return *this;
-    copy_graph(*this, const_cast<Euclidian_Graph<Node, Arc> &>(eg), false);
+
+    Euclidian_Graph<Node, Arc> copy;
+    copy.digraph = this->digraph;
+    copy.copy_from(eg);
+    copy.get_cookie() = this->get_cookie();
+    this->swap(copy);
     return *this;
   }
 
@@ -236,6 +245,30 @@ public:
   }
 
   Node *search_node(const Point &);
+
+protected:
+  /** Copies into this graph, which must be empty, the nodes of `src`, with
+      their positions, which copy_graph() does not copy, and its arcs. If
+      it throws, this graph keeps what it copied, which its destructor
+      frees.
+  */
+  void copy_from(const Euclidian_Graph<Node, Arc> &src)
+  {
+    DynMapTree<Node *, Node *> image;
+    for (typename Graph::Node_Iterator it(src); it.has_curr(); it.next_ne())
+      {
+        Node *p = it.get_curr();
+        image.insert(p, insert_node(new Node(p))); // its info and position
+      }
+
+    for (typename Graph::Arc_Iterator it(src); it.has_curr(); it.next_ne())
+      {
+        Arc *a = it.get_curr();
+        Arc *copy = Graph::insert_arc(image.find(src.get_src_node(a)),
+                                      image.find(src.get_tgt_node(a)));
+        *copy = *a;
+      }
+  }
 };  // End class Euclidian_Graph
 
 template <class __Euclidian_Node, class __Euclidian_Arc>
@@ -247,16 +280,20 @@ public:
     Euclidian_Graph<__Euclidian_Node, __Euclidian_Arc>::digraph = true;
   }
 
+  // Directed before the copy, as Digraph does, so that each arc goes only
+  // in the list of its source
   Euclidian_Digraph(const Euclidian_Digraph<__Euclidian_Node, __Euclidian_Arc> &euclidian_digraph)
-    : Euclidian_Graph<__Euclidian_Node, __Euclidian_Arc>(euclidian_digraph)
+    : Euclidian_Graph<__Euclidian_Node, __Euclidian_Arc>()
   {
     Euclidian_Graph<__Euclidian_Node, __Euclidian_Arc>::digraph = true;
+    this->copy_from(euclidian_digraph);
   }
 
   Euclidian_Digraph<__Euclidian_Node, __Euclidian_Arc> &operator = (
-    Euclidian_Digraph<__Euclidian_Node, __Euclidian_Arc> &eg)
+    const Euclidian_Digraph<__Euclidian_Node, __Euclidian_Arc> &eg)
   {
-    return Euclidian_Graph<__Euclidian_Node, __Euclidian_Arc>::operator = (eg);
+    Euclidian_Graph<__Euclidian_Node, __Euclidian_Arc>::operator = (eg);
+    return *this;
   }
 };  // End class Euclidian_Digraph
 

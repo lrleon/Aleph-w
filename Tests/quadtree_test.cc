@@ -38,6 +38,9 @@
 
 #include <gtest/gtest.h>
 #include <quadtree.H>
+// They define macros with the names of those of quadnode.H
+#include <rbNode.H>
+#include <Dijkstra.H>
 #include <random>
 #include <algorithm>
 #include <unordered_set>
@@ -691,6 +694,28 @@ TEST(QuadTreeFuzz, RandomOperations)
   for (const auto & p : inserted_points)
     EXPECT_NE(tree.search(p), nullptr) 
       << "Point (" << p.get_x() << ", " << p.get_y() << ") should be in tree";
+}
+
+// ============================================================================
+// Macros
+// ============================================================================
+
+// rbNode.H gave COLOR another definition, which a QuadNode did not take,
+// and Dijkstra.H took PARENT away
+TEST(QuadNodeMacros, WorkAlongWithThoseOfOtherHeaders)
+{
+  QuadTree tree(0, 100, 0, 100, 1);
+  tree.insert(Point(10, 10));
+  tree.insert(Point(90, 90));
+
+  QuadNode * root = tree.get_root();
+  ASSERT_EQ(COLOR(root), QuadNode::Color::Gray);
+  for (QuadNode * child : {NW_CHILD(root), NE_CHILD(root),
+                           SW_CHILD(root), SE_CHILD(root)})
+    EXPECT_EQ(PARENT(child), root);
+
+  RbNode<int> node(5);
+  EXPECT_EQ(COLOR(&node), RED);
 }
 
 // ============================================================================
