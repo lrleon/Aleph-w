@@ -5,6 +5,25 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.3.3](https://github.com/lrleon/Aleph-w/compare/v7.3.2...v7.3.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* Address the 7.3.2 review and test the graphs exhaustively ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **errors:** Take the condition of the throwing macros as an if does, and make them a while again ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **graph:** Let what the arc filters throw reach the caller of every algorithm ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **graph:** Make the shortest paths, Johnson and the k shortest paths work near the limits of the type ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **graph:** Give the arcs into a node of a digraph, with In_Arcs_Index and the forms that take the graph ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **graph:** Take the filter object where only its type could be given ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **graph:** Make the walks of Eppstein go on from the target ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **flow:** Give the maximum flow with floating capacities, and with an arc from the source to the sink ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **matching:** Make the Hungarian assignment right near the limits, and the bipartite matching maximum on graphs that are not directed ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **list:** Keep the items of the sorts of lists and of DynDlist when a comparison or a move throws ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **heap:** Keep the Fibonacci heaps whole when the move of their comparison throws ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **test:** Test the graph algorithms exhaustively, and their filters by a contract matrix ([#155](https://github.com/lrleon/Aleph-w/issues/155)) ([951e9a0](https://github.com/lrleon/Aleph-w/commit/951e9a0cf0816bd6879b61915ad3e1065f8c5e43))
+* **graph:** Make latex_floyd.H take the lightest of the parallel arcs ([#153](https://github.com/lrleon/Aleph-w/issues/153)) ([5b4d233](https://github.com/lrleon/Aleph-w/commit/5b4d233c5c283e6d6f074a8b7920bf6dfd4937aa))
+
 ## [7.3.2](https://github.com/lrleon/Aleph-w/compare/v7.3.1...v7.3.2) (2026-10-29)
 
 
