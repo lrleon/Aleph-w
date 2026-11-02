@@ -2396,9 +2396,16 @@ namespace
     Check epp_beyond("eppstein_k_shortest_paths(), near the limits of int, a walk or a "
                      "distance to the end beyond max()");
 
+    // Three weights on each arc, and every pair and k: up to 3 nodes and 3
+    // arcs also in the heavy mode, whose node and arc more would make more
+    // than a hundred times as many queries
+    Domain dom = domain(3, 3);
+    dom.max_nodes = std::min(dom.max_nodes, 3);
+    dom.max_arcs = std::min(dom.max_arcs, 3);
+
     std::vector<T> w;
     const bool directed = GT().is_digraph();
-    for_each_spec(domain(3, 3), directed, [&] (const Spec & shape)
+    for_each_spec(dom, directed, [&] (const Spec & shape)
       {
         for_each_weighting(shape, {1, M / 2, M - 1}, [&] (const Spec & s)
           {

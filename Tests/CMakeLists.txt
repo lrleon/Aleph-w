@@ -681,6 +681,13 @@ foreach(test_program ${TEST_PROGRAMS})
             target_compile_options(${test_exe} PRIVATE /bigobj)
         endif()
 
+        # Without the elisions that the language does not require, so that
+        # the tests of the moves of DynDlist see a move that a compiler may
+        # not elide, as that of a named result
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND test_program STREQUAL "dyndlist")
+            target_compile_options(${test_exe} PRIVATE -fno-elide-constructors)
+        endif()
+
         # Add test to CTest (gtest_discover_tests for IDE integration)
         gtest_discover_tests(${test_exe} DISCOVERY_MODE PRE_TEST)
 

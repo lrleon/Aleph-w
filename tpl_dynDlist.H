@@ -353,6 +353,59 @@ public:
     return get_last_ne();
   }
 
+private:
+  // Frees the first node, or the last one
+  template <bool First>
+  void delete_end() noexcept
+  {
+    if constexpr (First)
+      delete this->remove_next();
+    else
+      delete this->remove_prev();
+    --num_elem;
+  }
+
+  // Removes the first item, or the last one. A move that can throw goes
+  // straight into the result, which a named object could not guarantee,
+  // and the node leaves when leave ends, after that move; if the move
+  // throws, the node stays, and with it the item.
+  template <bool First>
+  T remove_end_ne() noexcept(std::is_nothrow_move_constructible_v<T>)
+  {
+    T & item = First ? get_first_ne() : get_last_ne();
+    if constexpr (std::is_nothrow_move_constructible_v<T>)
+      {
+        T ret_val = std::move(item);
+        delete_end<First>();
+        return ret_val;
+      }
+    else
+      {
+        struct Leave
+        {
+          DynDlist & list;
+          bool keep = false;
+
+          ~Leave()
+          {
+            if (not keep)
+              list.template delete_end<First>();
+          }
+        } leave{*this};
+
+        try
+          {
+            return std::move(item);
+          }
+        catch (...)
+          {
+            leave.keep = true;
+            throw;
+          }
+      }
+  }
+
+public:
   /** Remove the first item of the list, which must not be empty.
 
         The item moves out before its node leaves, so that if its move
@@ -362,11 +415,7 @@ public:
     */
   T remove_first_ne() noexcept(std::is_nothrow_move_constructible_v<T>)
   {
-    T retVal = std::move(get_first_ne());
-    delete this->remove_next();
-    --num_elem;
-
-    return retVal;
+    return remove_end_ne<true>();
   }
 
   /** Remove the last item of the list, which must not be empty.
@@ -378,11 +427,7 @@ public:
   */
   T remove_last_ne() noexcept(std::is_nothrow_move_constructible_v<T>)
   {
-    T retVal = std::move(get_last_ne());
-    delete this->remove_prev();
-    --num_elem;
-
-    return retVal;
+    return remove_end_ne<false>();
   }
 
   /** Remove the first item of the list; return a copy of removed item.

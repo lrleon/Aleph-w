@@ -620,16 +620,18 @@ namespace
     }
   };
 
-  // Its move throws while fail is true
+  // Its move throws while fail is true; moves counts them
   struct Fragile_Move
   {
     static inline bool fail = false;
+    static inline int moves = 0;
     int value = 0;
 
     Fragile_Move(int v = 0) noexcept : value(v) {}
     Fragile_Move(const Fragile_Move & c) = default;
     Fragile_Move(Fragile_Move && c) : value(c.value)
     {
+      ++moves;
       if (fail)
         throw std::runtime_error("move failed");
     }
@@ -679,6 +681,25 @@ TEST(DynDlist, AMoveThatThrowsLeavesTheItemInTheList)
   EXPECT_EQ(list.remove_first_ne().value, 1);
   EXPECT_EQ(list.remove_last_ne().value, 3);
   EXPECT_EQ(list.size(), 1u);
+}
+
+// The item moves once, straight into the result: a second move, as that of
+// a named result that the compiler does not elide, would come after the
+// node left, and if it threw the item would be lost
+TEST(DynDlist, ARemoveMovesTheItemOnce)
+{
+  DynDlist<Fragile_Move> list;
+  for (int i = 1; i <= 4; ++i)
+    list.append(Fragile_Move(i));
+
+  Fragile_Move::moves = 0;
+  const Fragile_Move first = list.remove_first_ne();
+  EXPECT_EQ(Fragile_Move::moves, 1);
+  const Fragile_Move last = list.remove_last_ne();
+  EXPECT_EQ(Fragile_Move::moves, 2);
+  EXPECT_EQ(first.value, 1);
+  EXPECT_EQ(last.value, 4);
+  EXPECT_EQ(list.size(), 2u);
 }
 
 TEST(DynDlist, EqualityOperator)
