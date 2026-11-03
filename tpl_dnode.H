@@ -55,7 +55,7 @@
  *
  *  | Operation | Time |
  *  |-----------|------|
- *  | insert_next/prev | O(1) |
+ *  | insert/append | O(1) |
  *  | remove_next/prev | O(1) |
  *  | get_data | O(1) |
  *
@@ -64,8 +64,8 @@
  *  ```cpp
  *  Dnode<int> head;  // Header node (sentinel)
  *
- *  head.insert_next(new Dnode<int>(42));
- *  head.insert_next(new Dnode<int>(17));
+ *  head.insert(new Dnode<int>(42));
+ *  head.insert(new Dnode<int>(17));
  *
  *  // Traverse forward
  *  for (auto* p = head.get_next(); p != &head; p = p->get_next())

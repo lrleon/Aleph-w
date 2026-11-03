@@ -74,7 +74,7 @@ class Dnode;  // Forward declaration of derived class
     @par Complexity:
     - Insert/remove at known position: O(1)
     - Concatenate two lists: O(1)
-    - Split list: O(1)
+    - Split list: O(n), a walk to the middle
     - Traverse: O(n)
 
     @par Example:
@@ -82,9 +82,9 @@ class Dnode;  // Forward declaration of derived class
     Dlink header;  // sentinel node
     Dlink node1, node2, node3;
 
-    header.insert_next(&node1);  // Insert after header
-    node1.insert_next(&node2);   // Insert after node1
-    header.insert_prev(&node3);  // Insert before header (at end)
+    header.insert(&node1);  // Insert after header
+    node1.insert(&node2);   // Insert after node1
+    header.append(&node3);  // Insert before header (at end)
 
     // Traverse forward
     for (auto it = header.get_next(); it != &header; it = it->get_next())
@@ -373,12 +373,12 @@ public:
     l->append(this);
   }
 
-  /** Insert the list `head` before `this`
+  /** Insert the list `head` after `this`
 
       This method assumes that `this` is a node part of list; it is
       not the header node. On the other hand, `head` is the header
       node of an entire list. So, all the list `head` is entirely
-      inserted, in constant time, before the node `this`. After
+      inserted, in constant time, after the node `this`. After
       insertion, the list `head` becomes empty.
 
       @param[in] head header for the list to insert
@@ -395,12 +395,12 @@ public:
     head->reset();
   }
 
-  /** Insert the list `head` after `this`
+  /** Insert the list `head` before `this`
 
       This method assumes that `this` is a node part of list; it is
       not the header node. On the other hand, `head` is the header
       node of an entire list. So, all the list `head` is entirely
-      appended, in constant time, after the node `this`. After
+      appended, in constant time, before the node `this`. After
       append, the list `head` becomes empty.
 
       @param[in] head header for the list to insert
