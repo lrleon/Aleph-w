@@ -557,33 +557,58 @@ namespace Aleph {
 
     /**  Split `this` in the middle in two lists.
 
-         `split_list(l, r)` searches the middle of `this` an on this point
-         cuts the list in two lists `l` and `r` respectively. After the
-         operation, `this` becomes empty.
+         `split_list(l, r)` cuts `this` in its middle: `l` takes its first
+         n - n / 2 nodes and `r` the last n / 2, in their order. After the
+         operation, `this` becomes empty. It walks from both ends to the
+         middle and splices the two halves, without moving the nodes one
+         by one.
 
          \note `l` and `r` must be empty before calling this method.
 
-         @param[out] l first n/2 items of `this`
-         @param[out] r last  n/2 items of `this`
+         @param[out] l the first n - n / 2 nodes of `this`
+         @param[out] r the last n / 2 nodes of `this`
          @return total number of nodes of both lists (which is the same
          number of nodes that `this` had before the split)
     */
     size_t split_list_ne(Dlink & l, Dlink & r) noexcept
     {
-      assert(l.is_empty() and r.is_empty()); // l y r deben estar vacías
+      assert(l.is_empty() and r.is_empty()); // l and r must be empty
 
-      size_t count = 0;
-      while (not is_empty())
+      if (is_empty())
+        return 0;
+
+      // p from the first node and q from the last meet in the middle; l
+      // takes the nodes up to p, the first n - n / 2, after its own, and r
+      // the others before its own, as if they had moved one by one
+      Dlink * p = next;
+      Dlink * q = prev;
+      size_t half = 0;
+      while (p != q and p->next != q)
         {
-          l.append(remove_next()); ++count;
-
-          if (is_empty())
-            break;
-
-          r.insert(remove_prev()); ++count;
+          p = p->next;
+          q = q->prev;
+          ++half;
         }
 
-      return count;
+      Dlink * const first = next;
+      Dlink * const last = prev;
+      if (p != last)
+        {
+          Dlink * const r_first = p->next;
+          last->next = r.next;
+          r.next->prev = last;
+          r.next = r_first;
+          r_first->prev = &r;
+        }
+
+      l.prev->next = first;
+      first->prev = l.prev;
+      p->next = &l;
+      l.prev = p;
+
+      reset();
+
+      return 2 * half + (p == q ? 1 : 2);
     }
 
     size_t split_list(Dlink & l, Dlink & r) noexcept
@@ -629,11 +654,11 @@ namespace Aleph {
           return list;
         }
 
-      list.prev = this->prev;       // enlazar list a link (punto de corte)
+      list.prev = this->prev;       // link list to link (cutting point)
       list.next = link;
-      this->prev = link->prev;       // quitar de this todo a partir de link
+      this->prev = link->prev;       // remove from this everything from link
       link->prev->next = this;
-      link->prev = &list;       // colocar el corte en list
+      link->prev = &list;       //place the cut in list
       list.prev->next = &list;
 
       return list;
@@ -797,9 +822,9 @@ namespace Aleph {
         assert(curr != nullptr and head != nullptr);
         assert(has_curr());
 
-        Dlink * current = get_curr(); // obtener nodo actual
-        next(); // avanzar al siguiente nodo
-        current->del(); // eliminar de la lista antiguo nodo actual
+        Dlink * current = get_curr(); // the current node
+        next(); // move to the next node
+        current->del(); // unlink the node that was current
         return current;
       }
 
@@ -808,9 +833,9 @@ namespace Aleph {
         assert(curr != nullptr and head != nullptr);
         assert(has_curr());
 
-        Dlink * current = get_curr(); // obtener nodo actual
-        next_ne(); // avanzar al siguiente nodo
-        current->del(); // eliminar de la lista antiguo nodo actual
+        Dlink * current = get_curr(); // the current node
+        next_ne(); // move to the next node
+        current->del(); // unlink the node that was current
         return current;
       }
 

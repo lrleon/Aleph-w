@@ -545,6 +545,48 @@ TEST(DynDlist, IteratorListOperationsRequireCurrent)
   EXPECT_EQ(extra.size(), 2u);
 }
 
+// The sizes of the halves are those of the items that they take, the first
+// n - n / 2 and the others, in their order; the sizes stay right as items
+// come and go
+TEST(DynDlist, SplitGivesTheSizesOfTheHalves)
+{
+  for (int n = 0; n <= 9; ++n)
+    {
+      DynDlist<int> list, l, r;
+      for (int i = 0; i < n; ++i)
+        list.append(i);
+
+      if (n % 2 == 0)
+        list.split(l, r);
+      else
+        list.split_list_ne(l, r);
+
+      EXPECT_TRUE(list.is_empty());
+      EXPECT_EQ(list.size(), 0u);
+      ASSERT_EQ(l.size(), size_t(n - n / 2)) << "n = " << n;
+      ASSERT_EQ(r.size(), size_t(n / 2)) << "n = " << n;
+
+      int i = 0;
+      for (auto it = l.get_it(); it.has_curr(); it.next_ne(), ++i)
+        EXPECT_EQ(it.get_curr(), i);
+      EXPECT_EQ(i, n - n / 2);
+      for (auto it = r.get_it(); it.has_curr(); it.next_ne(), ++i)
+        EXPECT_EQ(it.get_curr(), i);
+      EXPECT_EQ(i, n);
+
+      l.append(n);
+      r.insert(-1);
+      EXPECT_EQ(l.size(), size_t(n - n / 2 + 1));
+      EXPECT_EQ(r.size(), size_t(n / 2 + 1));
+      while (not l.is_empty())
+        l.remove_first();
+      while (not r.is_empty())
+        r.remove_first();
+      EXPECT_EQ(l.size(), 0u);
+      EXPECT_EQ(r.size(), 0u);
+    }
+}
+
 TEST(DynDlist, SplitRequiresEmptyDestination)
 {
   DynDlist<int> source = {1, 2, 3};

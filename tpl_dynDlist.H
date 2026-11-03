@@ -552,41 +552,34 @@ public:
 
   /** Split the list in two.
 
-    This method takes the first n/2 items of `this` and puts them, in
-    the same order, in list `l`. The remainder items are put in list
+    This method takes the first n - n / 2 items of `this` and puts them,
+    in the same order, in list `l`. The remainder items are put in list
     `r`. After operation `this` becomes empty. The order of items is
-    preserved through `l` and `r`.
+    preserved through `l` and `r`. The sizes of `l` and `r` follow from
+    the number of items, without counting them.
 
-    \param[out] l list containing the first n/2 items
-    \param[out] r list containing the last n/2 items
-    @throw domain_error any of the lists is not empty
+    \param[out] l list containing the first n - n / 2 items (must be
+    empty)
+    \param[out] r list containing the last n / 2 items (must be empty)
    */
   void split_list_ne(DynDlist &l, DynDlist &r) noexcept
   {
-    Dlink::split_list(l, r);
-
-    const auto count_nodes = [](const DynDlist &list) noexcept -> size_t
-    {
-      size_t count = 0;
-      for (auto it = list.get_it(); it.has_curr(); it.next_ne())
-        ++count;
-      return count;
-    };
-
-    l.num_elem = count_nodes(l);
-    r.num_elem = count_nodes(r);
+    const size_t n = Dlink::split_list(l, r);  // l takes the first n - n / 2
+    l.num_elem += n - n / 2;
+    r.num_elem += n / 2;
     num_elem = 0;
   }
 
   /** Split the list in two.
 
-  This method takes the first n/2 items of `this` and puts them, in
-  the same order, in list `l`. The remainder items are put in list
+  This method takes the first n - n / 2 items of `this` and puts them,
+  in the same order, in list `l`. The remainder items are put in list
   `r`. After operation `this` becomes empty. The order of items is
   preserved through `l` and `r`.
 
-  \param[out] l list containing the first n/2 items (must be empty)
-  \param[out] r list containing the last n/2 items (must be empty)
+  \param[out] l list containing the first n - n / 2 items (must be
+  empty)
+  \param[out] r list containing the last n / 2 items (must be empty)
   @throw domain_error if any of the lists is not empty
  */
   void split_list(DynDlist &l, DynDlist &r)
