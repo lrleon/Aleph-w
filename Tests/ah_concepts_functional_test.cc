@@ -284,4 +284,27 @@ TEST(AhConceptsFunctionalTest, MapHelpersDeduceTFromStdFunctionArguments)
   // with T explicit, without becoming ambiguous with each other.
   EXPECT_EQ((Aleph::nodes_map<Graph, int>(g, [](Graph::Node * p) { return p->get_info(); }).size()), 3u);
   EXPECT_EQ((Aleph::nodes_map<Graph, int>(g, nf).size()), 3u);
+
+  // The forms that take only the node were ambiguous with T explicit and a
+  // std::function: GT, only in the types of the node and of the arc, did
+  // not order the two overloads
+  auto la = [](Graph::Arc * a) { return a->get_info() + 1; };
+  EXPECT_EQ((Aleph::map_in_arcs<Graph, int>(n3, af).size()), 2u);
+  EXPECT_EQ((Aleph::map_in_arcs<Graph, int>(n3, la).size()), 2u);
+  EXPECT_EQ((Aleph::map_out_arcs<Graph, int>(n1, af).size()), 2u);
+  EXPECT_EQ((Aleph::map_out_arcs<Graph, int>(n1, la).size()), 2u);
+  EXPECT_EQ((Aleph::map_in_arcs<Graph, int>(g, n3, af).size()), 2u);
+  EXPECT_EQ((Aleph::arcs_map<Graph, int>(g, af).size()), 3u);
+  EXPECT_EQ((Aleph::arcs_map<Graph, int>(g, n1, af).size()), 2u);
+  EXPECT_EQ((Aleph::map_out_arcs<Graph, int>(n1, af).foldl(0, [](int acc, int x) { return acc + x; })),
+            11 + 21);
+
+  // Op may be named too, as before: an actual std::function goes to its
+  // overload, and any other callable to the generic one
+  EXPECT_EQ((Aleph::map_in_arcs<Graph, int, decltype(af)>(n3, af).foldl(0, [](int acc, int x) { return acc + x; })),
+            21 + 31);
+  EXPECT_EQ((Aleph::map_out_arcs<Graph, int, decltype(af)>(n1, af).size()), 2u);
+  EXPECT_EQ((Aleph::map_in_arcs<Graph, int, decltype(la)>(n3, la).size()), 2u);
+  EXPECT_EQ((Aleph::map_out_arcs<Graph, int, decltype(la)>(n1, la).foldl(0, [](int acc, int x) { return acc + x; })),
+            11 + 21);
 }

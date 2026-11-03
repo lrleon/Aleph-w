@@ -44,6 +44,7 @@
 # ifndef TPL_DYNLISTSTACK_H
 # define TPL_DYNLISTSTACK_H
 
+# include <type_traits>
 # include <ahDry.H>
 # include <ahIterator.H>
 # include <ah-args-ctor.H>
@@ -331,7 +332,10 @@ public:
    *
    *  Time complexity: O(1)
    *
-   *  @return A copy of the removed item.
+   *  The item moves out before it leaves the stack, so that if its move
+   *  throws the stack keeps it, and its size.
+   *
+   *  @return The removed item.
    *  @throw std::underflow_error If the stack is empty.
    *
    *  @warning Calling pop() on an empty stack throws an exception.
@@ -339,9 +343,37 @@ public:
    */
   [[nodiscard]] T pop()
   {
-    T ret_val = s.remove_first();
-    --num_items;
-    return ret_val;
+    if constexpr (std::is_nothrow_move_constructible_v<T>)
+      {
+        T ret_val = s.remove_first();
+        --num_items;
+        return ret_val;
+      }
+    else
+      { // as remove_first(), the item moves once, into the result, and the
+        // count goes down after that move, unless it threw
+        struct Count_Down
+        {
+          size_t & n;
+          bool keep = false;
+
+          ~Count_Down()
+          {
+            if (not keep)
+              --n;
+          }
+        } count_down{num_items};
+
+        try
+          {
+            return s.remove_first();
+          }
+        catch (...)
+          {
+            count_down.keep = true;
+            throw;
+          }
+      }
   }
 
   /** @brief Alias for pop() - removes and returns the top item.

@@ -1174,10 +1174,17 @@ inline void subtract_flow(Arc *arc, const Flow_Type &slack) noexcept
     large one, as 0.53 beside 7e13, which the sum rounds away, comes
     back when the large one goes. The preflows and HLPP sum so the
     flows of their nodes. It needs strict floating arithmetic, which
-    -ffast-math is not. */
+    -ffast-math and /fp:fast are not: with them a floating flow does not
+    compile. */
 template <typename Flow_Type>
 struct Flow_Sum
 {
+#if defined(__FAST_MATH__) || defined(_M_FP_FAST)
+  static_assert(not std::is_floating_point_v<Flow_Type>,
+                "The floating flows of tpl_net.H need strict floating "
+                "arithmetic, which -ffast-math and /fp:fast are not");
+#endif
+
   Flow_Type hi{0};  ///< The sum, rounded
   Flow_Type lo{0};  ///< What its rounding lost
 
@@ -2239,13 +2246,16 @@ static inline void remove_from_active_queue(Q_Type &q, typename Q_Type::Item_Typ
  * and a network whose maximum flow is 0 gives 0.
  *
  * @param[in,out] net Flow network (must have a single source and sink).
+ * @param[in] q the queue of the active nodes, empty, which the push takes;
+ *            by default Q_Type(), and with a seed for the random order of
+ *            random_preflow_maximum_flow(net, seed).
  * @return Maximized flow value.
  *
  * @see fifo_preflow_maximum_flow() heap_preflow_maximum_flow() random_preflow_maximum_flow()
  * @ingroup Networks
  */
 template <class Net, class Q_Type>
-typename Net::Flow_Type generic_preflow_vertex_push_maximum_flow(Net &net)
+typename Net::Flow_Type generic_preflow_vertex_push_maximum_flow(Net &net, Q_Type q = Q_Type())
 {
   ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
     << "Network is not single source and single sink";
@@ -2260,7 +2270,6 @@ typename Net::Flow_Type generic_preflow_vertex_push_maximum_flow(Net &net)
 
   using Itor = __Net_Iterator<Net>;
   using Flow_Type = typename Net::Flow_Type;
-  Q_Type q;
   for (Itor it(source); it.has_curr(); it.next_ne())  // initial preflow
     {
       auto arc = it.get_curr();
@@ -2430,6 +2439,10 @@ struct Heap_Preflow_Maximum_Flow
 
 /** @brief Preflow-push maximum flow using a random active-node queue.
  *
+ * The order of the active nodes takes its seed from the time, so that two
+ * runs may push the flow along other arcs; the overload with a seed
+ * repeats them.
+ *
  * @param[in,out] net Flow network (must have a single source and sink).
  * @return Maximized flow value.
  *
@@ -2440,6 +2453,26 @@ typename Net::Flow_Type random_preflow_maximum_flow(Net &net)
 {
   using Node = typename Net::Node;
   return generic_preflow_vertex_push_maximum_flow<Net, Random_Set<Node *>>(net);
+}
+
+/** @brief Preflow-push maximum flow using a random active-node queue
+ * whose order takes the seed `seed`.
+ *
+ * Two runs on equal networks with the same seed push the same flows.
+ *
+ * @param[in,out] net Flow network (must have a single source and sink).
+ * @param[in] seed the seed of the order of the active nodes.
+ * @return Maximized flow value.
+ *
+ * @ingroup Networks
+ */
+template <class Net>
+typename Net::Flow_Type random_preflow_maximum_flow(Net &net, const unsigned long seed)
+{
+  using Node = typename Net::Node;
+  Random_Set<Node *> q;
+  q.set_seed(seed);
+  return generic_preflow_vertex_push_maximum_flow<Net, Random_Set<Node *>>(net, std::move(q));
 }
 
 /** @brief Functor wrapper for random_preflow_maximum_flow().

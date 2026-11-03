@@ -246,6 +246,59 @@ TEST(NetGraphFlowAlgorithms, PreflowVariants)
   EXPECT_TRUE(net3.check_network());
 }
 
+namespace
+{
+  // Four nodes after the source, each with an arc to each of four before
+  // the sink, all of capacity 1: every perfect matching between them is a
+  // maximum flow, so that the order of the pushes chooses one
+  void build_matching_net(Net & net)
+  {
+    auto s = net.insert_node(0);
+    auto t = net.insert_node(1);
+    std::vector<Net::Node *> left, right;
+    for (int i = 0; i < 4; ++i)
+      left.push_back(net.insert_node(10 + i));
+    for (int i = 0; i < 4; ++i)
+      right.push_back(net.insert_node(20 + i));
+    for (auto * l : left)
+      net.insert_arc(s, l, 1, 0);
+    for (auto * l : left)
+      for (auto * r : right)
+        net.insert_arc(l, r, 1, 0);
+    for (auto * r : right)
+      net.insert_arc(r, t, 1, 0);
+  }
+
+  std::vector<int> arc_flows(Net & net)
+  {
+    std::vector<int> flows;
+    for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+      flows.push_back(it.get_curr_ne()->flow);
+    return flows;
+  }
+} // namespace
+
+// The random preflow took its seed from the time, so that its runs could
+// not be repeated: with a seed, two runs on equal networks push the same
+// flows
+TEST(NetGraphFlowAlgorithms, RandomPreflowWithASeedRepeatsItsPushes)
+{
+  std::set<std::vector<int>> seen;
+  for (unsigned long seed : {7ul, 8ul, 9ul, 10ul, 11ul, 12ul, 13ul, 14ul})
+    {
+      Net net1, net2;
+      build_matching_net(net1);
+      build_matching_net(net2);
+      EXPECT_EQ(random_preflow_maximum_flow(net1, seed), 4);
+      EXPECT_EQ(random_preflow_maximum_flow(net2, seed), 4);
+      EXPECT_TRUE(net1.check_network());
+      const auto flows = arc_flows(net1);
+      EXPECT_EQ(flows, arc_flows(net2)) << "seed " << seed;
+      seen.insert(flows);
+    }
+  EXPECT_GT(seen.size(), 1u); // the seed chooses among the maximum flows
+}
+
 TEST(NetGraphAugmentingPaths, IncreaseFlowOnPath)
 {
   Net net;

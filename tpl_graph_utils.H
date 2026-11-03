@@ -1103,8 +1103,12 @@ namespace Aleph {
    * - Uses the `Build_Subtree` control bit on both nodes and arcs.
    * - Maps nodes and arcs between each subgraph and `g` via cookies.
    *
-   * @param[in] g Graph to split.
+   * @param[in] g Graph to split, which is not directed: on a digraph,
+   *            following the arcs that leave each node does not give the
+   *            components, and an arc toward a component built before
+   *            would point to a node of its subgraph.
    * @return List of mapped subgraphs, one per connected component.
+   * @throw domain_error If `g` is a digraph.
    * @throw bad_alloc If there is not enough memory.
    *
    * @ingroup Graphs
@@ -1113,6 +1117,8 @@ namespace Aleph {
   template <AlephGraph GT> inline
   DynList<GT> inconnected_components(const GT & g) 
   {
+    ah_domain_error_if(g.is_digraph())
+      << "inconnected_components() does not work on digraphs";
     g.reset_nodes(); 
     g.reset_arcs(); 
 

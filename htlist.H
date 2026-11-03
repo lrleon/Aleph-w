@@ -1291,38 +1291,87 @@ public:
     return __append(new Snodenc<T> (std::forward<T>(item)));
   }
 
-  /** Remove the first item of the list without exception.
-
-      \return a copy of removed item
-      \throw underflow_error if the list is empty
-  */
-  T remove_ne() noexcept
+private:
+  // Removes the first item, which the list must have, when its move can
+  // throw. The move goes straight into the result, which a named object
+  // could not guarantee, and the node leaves when leave ends, after that
+  // move; if the move throws, the node stays, and with it the item.
+  T remove_first_whose_move_throws()
   {
-    Slinknc * l = this->HTList::remove_head_ne();
-    auto * p = static_cast<Snodenc<T>*> (l);
-    T ret_val = std::move(p->get_data());
-    delete p;
+    struct Leave
+    {
+      DynList & list;
+      bool keep = false;
 
-    return ret_val;
+      ~Leave()
+      {
+        if (not keep)
+          delete static_cast<Snodenc<T>*>(list.HTList::remove_head_ne());
+      }
+    } leave{*this};
+
+    try
+      {
+        return std::move(get_first_ne());
+      }
+    catch (...)
+      {
+        leave.keep = true;
+        throw;
+      }
+  }
+
+public:
+  /** Remove the first item of the list, which must not be empty.
+
+      The item moves out before its node leaves, so that if its move
+      throws the list keeps it.
+
+      \return the removed item
+  */
+  T remove_ne() noexcept(std::is_nothrow_move_constructible_v<T>)
+  {
+    if constexpr (std::is_nothrow_move_constructible_v<T>)
+      {
+        Slinknc * l = this->HTList::remove_head_ne();
+        auto * p = static_cast<Snodenc<T>*> (l);
+        T ret_val = std::move(p->get_data());
+        delete p;
+
+        return ret_val;
+      }
+    else
+      return remove_first_whose_move_throws();
   }
 
   /** Remove the first item of the list.
 
-      \return a copy of removed item
+      The item moves out before its node leaves, so that if its move
+      throws the list keeps it.
+
+      \return the removed item
       \throw underflow_error if the list is empty
   */
   T remove()
   {
-    Slinknc * l = this->HTList::remove_head();
-    auto * p = static_cast<Snodenc<T>*> (l);
-    T ret_val = std::move(p->get_data());
-    delete p;
+    if constexpr (std::is_nothrow_move_constructible_v<T>)
+      {
+        Slinknc * l = this->HTList::remove_head();
+        auto * p = static_cast<Snodenc<T>*> (l);
+        T ret_val = std::move(p->get_data());
+        delete p;
 
-    return ret_val;
+        return ret_val;
+      }
+    else
+      {
+        ah_underflow_error_if(this->is_empty()) << "HTList is empty";
+        return remove_first_whose_move_throws();
+      }
   }
 
   /// \overload remove()
-  T remove_first_ne() noexcept
+  T remove_first_ne() noexcept(std::is_nothrow_move_constructible_v<T>)
   {
     return remove_ne();
   }

@@ -3082,8 +3082,12 @@ namespace Aleph
         @param[in] op transformation
         \result a `DynList<T>` containing the mapping.
     */
+  // An actual std::function<T (Arc *)> goes to the overload below: with T
+  // given, the two took it, and the call was ambiguous, since GT, only in
+  // the types of the node and of the arc, does not order them
   template <AlephGraph GT, typename T, class Op>
-    requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
+    requires (std::is_invocable_r_v<T, Op &, typename GT::Arc *>
+              and not std::is_same_v<Op, std::function<T (typename GT::Arc *)>>)
   inline
   auto map_in_arcs(typename GT::Node *p, Op op)
   {
@@ -3103,10 +3107,15 @@ namespace Aleph
    *  Compatibility overload deducing `T` from an actual
    *  `std::function<T (typename GT::Arc *)>` argument; see the equivalent
    *  `nodes_map` overload for why the generic one above cannot deduce it.
+   *  Its third template parameter, which only that type satisfies, keeps
+   *  the call that names it, `map_in_arcs<GT, T, std::function<T (Arc *)>>`,
+   *  which the generic one took before it left that type to this overload.
    *
    *  @ingroup Graphs
    */
-  template <AlephGraph GT, typename T>
+  template <AlephGraph GT, typename T,
+            class Op = std::function<T (typename GT::Arc *)>>
+    requires std::is_same_v<Op, std::function<T (typename GT::Arc *)>>
   inline
   auto map_in_arcs(typename GT::Node *p, std::function<T (typename GT::Arc *)> op)
   {
@@ -3369,8 +3378,11 @@ namespace Aleph
         @param[in] op transformation
         \result a `DynList<T>` containing the mapping.
     */
+  // An actual std::function<T (Arc *)> goes to the overload below, as in
+  // map_in_arcs(p, op)
   template <AlephGraph GT, typename T, class Op>
-    requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
+    requires (std::is_invocable_r_v<T, Op &, typename GT::Arc *>
+              and not std::is_same_v<Op, std::function<T (typename GT::Arc *)>>)
   inline
   auto map_out_arcs(typename GT::Node *p, Op op)
   {
@@ -3387,10 +3399,14 @@ namespace Aleph
    *  Compatibility overload deducing `T` from an actual
    *  `std::function<T (typename GT::Arc *)>` argument; see the equivalent
    *  `nodes_map` overload for why the generic one above cannot deduce it.
+   *  Its third template parameter keeps the call that names that type, as
+   *  in `map_in_arcs(p, op)`.
    *
    *  @ingroup Graphs
    */
-  template <AlephGraph GT, typename T>
+  template <AlephGraph GT, typename T,
+            class Op = std::function<T (typename GT::Arc *)>>
+    requires std::is_same_v<Op, std::function<T (typename GT::Arc *)>>
   inline
   auto map_out_arcs(typename GT::Node *p, std::function<T (typename GT::Arc *)> op)
   {

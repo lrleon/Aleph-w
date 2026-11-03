@@ -45,6 +45,7 @@
 # define TPL_DYNLISTQUEUE_H
 
 # include <iostream>
+# include <type_traits>
 # include <ahDry.H>
 # include <ahIterator.H>
 # include <ah-args-ctor.H>
@@ -198,14 +199,45 @@ public:
 
       /** Remove the oldest item of the queue.
 
-          @return a copy of the removed item
+          The item moves out before it leaves the queue, so that if its
+          move throws the queue keeps it, and its size.
+
+          @return the removed item
           @throw underflow_error if the queue is empty
        */
   T get() 
   {
-    T ret_val = q.remove_first();
-    --num_items;
-    return ret_val;
+    if constexpr (std::is_nothrow_move_constructible_v<T>)
+      {
+        T ret_val = q.remove_first();
+        --num_items;
+        return ret_val;
+      }
+    else
+      { // as remove_first(), the item moves once, into the result, and the
+        // count goes down after that move, unless it threw
+        struct Count_Down
+        {
+          size_t & n;
+          bool keep = false;
+
+          ~Count_Down()
+          {
+            if (not keep)
+              --n;
+          }
+        } count_down{num_items};
+
+        try
+          {
+            return q.remove_first();
+          }
+        catch (...)
+          {
+            count_down.keep = true;
+            throw;
+          }
+      }
   }
  
   /** Return a modifiable reference to the oldest item in the queue.

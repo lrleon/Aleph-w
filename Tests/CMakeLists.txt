@@ -682,9 +682,9 @@ foreach(test_program ${TEST_PROGRAMS})
         endif()
 
         # Without the elisions that the language does not require, so that
-        # the tests of the moves of DynDlist see a move that a compiler may
+        # the tests of the moves of the lists see a move that a compiler may
         # not elide, as that of a named result
-        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND test_program STREQUAL "dyndlist")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND test_program MATCHES "^(dyndlist|htlist|dynliststack|dynlistqueue)$")
             target_compile_options(${test_exe} PRIVATE -fno-elide-constructors)
         endif()
 
@@ -1041,6 +1041,17 @@ if(ALEPH_COMPILE_CHECKS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND
                 -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/..
                 -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/ah_errors_condition_check
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/ah_errors_condition_check.cmake
+    )
+
+    # A floating flow of tpl_net.H needs strict floating arithmetic: with
+    # -ffast-math it must not compile
+    add_test(
+        NAME NetFlows.FloatingFlowsNeedStrictArithmetic
+        COMMAND ${CMAKE_COMMAND}
+                -DCXX_COMPILER=${CMAKE_CXX_COMPILER}
+                -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/..
+                -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/net_fast_math_check
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/net_fast_math_check.cmake
     )
 
     # What the contract matrix of the graph templates cannot hold: the

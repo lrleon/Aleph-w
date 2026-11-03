@@ -543,6 +543,18 @@ TEST(GraphUtilsProperties, TestForPathBasicAndRegression)
 // Connected components and subgraph mapping
 // =============================================================================
 
+// On a digraph an arc toward a component built before pointed to a node of
+// its subgraph, as in a -> b, c -> b, with a first; it rejects a digraph, as
+// test_connectivity() does
+TEST(GraphUtilsComponents, InconnectedComponentsRejectsDigraphs)
+{
+  TestDigraph dg;
+  auto nodes = make_nodes(dg, 3);
+  dg.insert_arc(nodes[0], nodes[1], 1);
+  dg.insert_arc(nodes[2], nodes[1], 2);
+  EXPECT_THROW((void) inconnected_components(dg), std::domain_error);
+}
+
 TEST(GraphUtilsComponents, InconnectedComponentsReturnsMappedSubgraphs)
 {
   Graph g;

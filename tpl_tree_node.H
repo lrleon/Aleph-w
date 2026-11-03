@@ -1366,6 +1366,14 @@ namespace tree_node_detail
      in a list, by their sibling links: when a node goes, its children,
      which a circle of sibling links already joins, join the list as a
      whole. */
+  // GCC 12 and on warn that the address of pending, a local list, is
+  // stored in root, as the list links it; the list is empty again before
+  // the function ends, so that nothing dangles. GCC 11 does not know the
+  // warning.
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 12
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
   template <class Node>
   void free_detached_tree(Node *root) noexcept
   {
@@ -1385,6 +1393,9 @@ namespace tree_node_detail
         delete p;
       }
   }
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 12
+#  pragma GCC diagnostic pop
+#endif
 
   /* Takes root, with the nodes below it, out of its tree, or out of its
      forest if root is a tree of one: what is left is as if root had not
