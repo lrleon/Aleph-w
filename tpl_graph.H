@@ -3082,8 +3082,12 @@ namespace Aleph
         @param[in] op transformation
         \result a `DynList<T>` containing the mapping.
     */
+  // An actual std::function<T (Arc *)> goes to the overload below: with T
+  // given, the two took it, and the call was ambiguous, since GT, only in
+  // the types of the node and of the arc, does not order them
   template <AlephGraph GT, typename T, class Op>
-    requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
+    requires (std::is_invocable_r_v<T, Op &, typename GT::Arc *>
+              and not std::is_same_v<Op, std::function<T (typename GT::Arc *)>>)
   inline
   auto map_in_arcs(typename GT::Node *p, Op op)
   {
@@ -3369,8 +3373,11 @@ namespace Aleph
         @param[in] op transformation
         \result a `DynList<T>` containing the mapping.
     */
+  // An actual std::function<T (Arc *)> goes to the overload below, as in
+  // map_in_arcs(p, op)
   template <AlephGraph GT, typename T, class Op>
-    requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
+    requires (std::is_invocable_r_v<T, Op &, typename GT::Arc *>
+              and not std::is_same_v<Op, std::function<T (typename GT::Arc *)>>)
   inline
   auto map_out_arcs(typename GT::Node *p, Op op)
   {

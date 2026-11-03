@@ -39,6 +39,7 @@
 # include <gtest/gtest.h>
 
 # include <tpl_dynListStack.H>
+# include <stdexcept>
 
 using namespace std;
 using namespace testing;
@@ -325,4 +326,52 @@ TEST_F(ComplexStack, traverse)
 			});
   EXPECT_TRUE(ret);
   EXPECT_EQ(i, n);
+}
+
+
+namespace
+{
+  // Its move throws while fail is true; moves counts them
+  struct Fragile_Move
+  {
+    static inline bool fail = false;
+    static inline int moves = 0;
+    int value = 0;
+
+    Fragile_Move(int v = 0) noexcept : value(v) {}
+    Fragile_Move(const Fragile_Move &) = default;
+    Fragile_Move(Fragile_Move && c) : value(c.value)
+    {
+      ++moves;
+      if (fail)
+        throw std::runtime_error("move failed");
+    }
+    Fragile_Move & operator = (const Fragile_Move &) = default;
+    Fragile_Move & operator = (Fragile_Move &&) = default;
+  };
+} // namespace
+
+// pop() took the item from a list that had dropped its node already, so that
+// a move that threw lost the item and left the size one more than the items
+TEST(DynListStack, AMoveThatThrowsLeavesTheItemInTheStack)
+{
+  DynListStack<Fragile_Move> stack;
+  for (int i = 1; i <= 3; ++i)
+    stack.push(Fragile_Move(i));
+
+  Fragile_Move::fail = true;
+  EXPECT_THROW((void) stack.pop(), std::runtime_error);
+  EXPECT_THROW((void) stack.get(), std::runtime_error);
+  Fragile_Move::fail = false;
+
+  ASSERT_EQ(stack.size(), 3u);
+  EXPECT_EQ(stack.top().value, 3);
+  Fragile_Move::moves = 0;
+  EXPECT_EQ(stack.pop().value, 3); // one move, straight into the result
+  EXPECT_EQ(Fragile_Move::moves, 1);
+  EXPECT_EQ(stack.size(), 2u);
+
+  DynListStack<Fragile_Move> empty;
+  EXPECT_THROW((void) empty.pop(), std::underflow_error);
+  EXPECT_EQ(empty.size(), 0u);
 }

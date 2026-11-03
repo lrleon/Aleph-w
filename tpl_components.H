@@ -448,6 +448,13 @@ public:
  *
  * @note Uses the `Build_Subtree` control bit on nodes and arcs.
  *
+ * @note For graphs that are not directed: on a digraph the operations
+ *       throw `std::domain_error`. Following the arcs that leave each node
+ *       does not give the components of a digraph, and an arc toward a
+ *       component built before would point to a node of its subgraph; its
+ *       strongly connected components are those of
+ *       `Tarjan_Connected_Components`.
+ *
  * @tparam GT Graph type (must satisfy Aleph graph concept).
  * @tparam SA Arc filter type (default: `Dft_Show_Arc<GT>`).
  *
@@ -477,11 +484,14 @@ public:
    * @param[in] g Source graph.
    * @param[out] list Output list of subgraphs, one per component.
    *
+   * @throw std::domain_error If `g` is a digraph.
    * @throw std::bad_alloc If memory allocation fails.
    */
   template <template <class> class List>
   void compute_blocks(const GT & g, List<GT> & list)
   {
+    ah_domain_error_if(g.is_digraph())
+      << "Unconnected_Components does not work on digraphs";
     g.reset_nodes();
     g.reset_arcs();
     size_t count = 0;  // Count of visited nodes
@@ -509,11 +519,14 @@ public:
    * @param[in] g Source graph.
    * @param[out] list Output list of node lists, one per component.
    *
+   * @throw std::domain_error If `g` is a digraph.
    * @throw std::bad_alloc If memory allocation fails.
    */
   template <template <class> class List>
   void compute_lists(const GT & g, List<List<typename GT::Node*>> & list)
   {
+    ah_domain_error_if(g.is_digraph())
+      << "Unconnected_Components does not work on digraphs";
     g.reset_nodes();
     g.reset_arcs();
     size_t count = 0;  // Count of visited nodes
@@ -544,6 +557,7 @@ public:
    * @param[out] list Output list of subgraphs, one per component.
    *             Each subgraph is mapped to `g` via cookies.
    *
+   * @throw std::domain_error If `g` is a digraph.
    * @throw std::bad_alloc If memory allocation fails.
    *
    * @note Uses the `Build_Subtree` control bit on nodes and arcs.
@@ -561,6 +575,7 @@ public:
    * @param[in] g Source graph.
    * @param[out] list Output list of node lists, one per component.
    *
+   * @throw std::domain_error If `g` is a digraph.
    * @throw std::bad_alloc If memory allocation fails.
    *
    * @note Uses the `Build_Subtree` control bit on nodes and arcs.
@@ -575,6 +590,7 @@ public:
    * @param[in] g Source graph.
    *
    * @return Number of connected components.
+   * @throw std::domain_error If `g` is a digraph.
    */
   size_t count_components(const GT & g)
   {
@@ -589,9 +605,12 @@ public:
    *
    * @return `true` if the graph has exactly one connected component
    *         (or is empty), `false` otherwise.
+   * @throw std::domain_error If `g` is a digraph.
    */
   bool is_connected(const GT & g)
   {
+    ah_domain_error_if(g.is_digraph())
+      << "Unconnected_Components does not work on digraphs";
     if (g.get_num_nodes() <= 1)
       return true;
     return count_components(g) == 1;

@@ -38,6 +38,8 @@
 # include <gtest/gtest.h>
 
 # include <htlist.H>
+# include <stdexcept>
+# include <utility>
 
 using namespace std;
 using namespace testing;
@@ -330,3 +332,71 @@ TEST(HTList, As_stack)
   ASSERT_TRUE(stack.is_empty());
 }
 
+namespace
+{
+  // Its move throws while fail is true; moves counts them
+  struct Fragile_Move
+  {
+    static inline bool fail = false;
+    static inline int moves = 0;
+    int value = 0;
+
+    Fragile_Move(int v = 0) noexcept : value(v) {}
+    Fragile_Move(const Fragile_Move &) = default;
+    Fragile_Move(Fragile_Move && c) : value(c.value)
+    {
+      ++moves;
+      if (fail)
+        throw std::runtime_error("move failed");
+    }
+    Fragile_Move & operator = (const Fragile_Move &) = default;
+    Fragile_Move & operator = (Fragile_Move &&) = default;
+  };
+} // namespace
+
+// remove_ne() copied nothing, but it was noexcept, so that a move that threw
+// ended the program
+static_assert(noexcept(std::declval<DynList<int> &>().remove_ne()));
+static_assert(not noexcept(std::declval<DynList<Fragile_Move> &>().remove_ne()));
+
+// remove() unlinked the node before it moved the item out: a move that threw
+// lost the item and its node
+TEST(DynList, AMoveThatThrowsLeavesTheItemInTheList)
+{
+  DynList<Fragile_Move> list;
+  for (int i = 1; i <= 3; ++i)
+    list.append(Fragile_Move(i));
+
+  Fragile_Move::fail = true;
+  EXPECT_THROW((void) list.remove_ne(), std::runtime_error);
+  EXPECT_THROW((void) list.remove(), std::runtime_error);
+  EXPECT_THROW((void) list.remove_first(), std::runtime_error);
+  EXPECT_THROW((void) list.pop(), std::runtime_error);
+  EXPECT_THROW((void) list.get(), std::runtime_error);
+  Fragile_Move::fail = false;
+
+  ASSERT_EQ(list.size(), 3u);
+  EXPECT_EQ(list.get_first().value, 1);
+  EXPECT_EQ(list.remove().value, 1);
+  EXPECT_EQ(list.size(), 2u);
+  EXPECT_THROW((void) DynList<Fragile_Move>().remove(), std::underflow_error);
+}
+
+// The item moves once, straight into the result: a second move, as that of
+// a named result that the compiler does not elide, would come after the
+// node left, and if it threw the item would be lost
+TEST(DynList, ARemoveMovesTheItemOnce)
+{
+  DynList<Fragile_Move> list;
+  for (int i = 1; i <= 3; ++i)
+    list.append(Fragile_Move(i));
+
+  Fragile_Move::moves = 0;
+  const Fragile_Move first = list.remove_ne();
+  EXPECT_EQ(Fragile_Move::moves, 1);
+  const Fragile_Move second = list.remove();
+  EXPECT_EQ(Fragile_Move::moves, 2);
+  EXPECT_EQ(first.value, 1);
+  EXPECT_EQ(second.value, 2);
+  EXPECT_EQ(list.size(), 1u);
+}

@@ -52,6 +52,7 @@
  */
 
 #include <set>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 
@@ -70,56 +71,14 @@
 
 #include "graph_harness.H"
 #include "graph_filter_catalog.H"
+#include "graph_contract_matrix.H"
 
 using namespace Aleph;
 using namespace graph_harness;
+using namespace graph_contract_matrix;
 
 namespace
 {
-  /// The number of the arc that the filters hide
-  constexpr int Hidden = 2;
-
-  /// The mask of the filters: only the arc Hidden
-  const unsigned long Hidden_Mask = 1UL << Hidden;
-
-  /// Whether a filter of type SA hides the arc Hidden: all but Dft_Show_Arc
-  template <class GT, class SA>
-  constexpr bool hides = not std::is_same_v<SA, Dft_Show_Arc<GT>>;
-
-  /** Calls f(sa, name) with a filter of each kind of the catalog of
-      graph_filter_catalog.H, and with Dft_Show_Arc. All but Dft_Show_Arc
-      hide the arc Hidden. f takes the filter by value, so that it can pass
-      it on as an lvalue and as an rvalue. The filters whose call is not
-      noexcept go through with_each_throw(), which calls f again throwing
-      at each of their calls. */
-  template <class GT, class F>
-  void for_each_filter(F && f)
-  {
-    size_t calls = 0;
-    f(Dft_Show_Arc<GT>(), "Dft_Show_Arc");
-    f(graph_filters::Hide_Mask<GT>{Hidden_Mask}, "Hide_Mask");
-    f(graph_filters::Counting<GT>{Hidden_Mask, &calls}, "Counting");
-    with_each_throw(f, graph_filters::make_capturing_lambda<GT>(Hidden_Mask), "Capturing_Lambda");
-    f(graph_filters::Reference_Member<GT>(Hidden_Mask), "Reference_Member");
-    f(graph_filters::Const_Member<GT>(Hidden_Mask), "Const_Member");
-    with_each_throw(f, graph_filters::Throwing_Copy<GT>(Hidden_Mask), "Throwing_Copy");
-    with_each_throw(f, graph_filters::Deque_Member<GT>(Hidden_Mask), "Deque_Member");
-  }
-
-  /// Calls f(g) with g as it is and as a const graph
-  template <class GT, class F>
-  void for_each_constness(GT & g, F && f)
-  {
-    {
-      SCOPED_TRACE("GT &");
-      f(g);
-    }
-    {
-      SCOPED_TRACE("const GT &");
-      f(std::as_const(g));
-    }
-  }
-
   /// The numbers of the arcs of a container of arcs
   template <class List>
   std::set<int> arc_numbers(const List & l)
@@ -437,6 +396,8 @@ TYPED_TEST(ContractSearchAll, BuildSubgraph)
     });
 }
 
+// On a digraph the arcs that leave each node do not give the components,
+// and every operation throws domain_error, before it calls the filter
 TYPED_TEST(ContractSearchAll, UnconnectedComponents)
 {
   using GT = TypeParam;
@@ -449,6 +410,23 @@ TYPED_TEST(ContractSearchAll, UnconnectedComponents)
       for_each_constness(b.g, [&] (auto & g)
         {
           Unconnected_Components<GT, SA> cc(sa);
+          if (g.is_digraph())
+            {
+              DynList<GT> blocks;
+              DynList<DynList<typename GT::Node *>> lists;
+              EXPECT_THROW_OR_FILTER(cc(g, blocks), std::domain_error);
+              EXPECT_THROW_OR_FILTER(cc(g, lists), std::domain_error);
+              EXPECT_THROW_OR_FILTER((void) cc.count_components(g), std::domain_error);
+              EXPECT_THROW_OR_FILTER((void) cc.is_connected(g), std::domain_error);
+              EXPECT_THROW_OR_FILTER(cc.template compute_blocks<DynList>(g, blocks),
+                                     std::domain_error);
+              EXPECT_THROW_OR_FILTER(cc.template compute_lists<DynList>(g, lists),
+                                     std::domain_error);
+              EXPECT_TRUE(blocks.is_empty());
+              EXPECT_TRUE(lists.is_empty());
+              return;
+            }
+
           DynList<GT> blocks;
           cc(g, blocks);
           DynList<DynList<typename GT::Node *>> lists;
@@ -466,18 +444,9 @@ TYPED_TEST(ContractSearchAll, UnconnectedComponents)
                 }
             }
 
-          // In a digraph the blocks follow the arcs out of the nodes in
-          // the order of the nodes, which a List_SDigraph does not keep
-          if (not g.is_digraph())
-            {
-              EXPECT_EQ(count, hiding ? 2U : 1U);
-              EXPECT_EQ(cc.is_connected(g), not hiding);
-              EXPECT_EQ(arcs, hiding ? 2U : 3U);
-            }
-          else
-            {
-              EXPECT_EQ(cc.is_connected(g), count == 1);
-            }
+          EXPECT_EQ(count, hiding ? 2U : 1U);
+          EXPECT_EQ(cc.is_connected(g), not hiding);
+          EXPECT_EQ(arcs, hiding ? 2U : 3U);
 
           DynList<GT> blocks2;
           cc.template compute_blocks<DynList>(g, blocks2);
@@ -487,10 +456,9 @@ TYPED_TEST(ContractSearchAll, UnconnectedComponents)
           EXPECT_EQ(lists2.size(), count);
 
           if constexpr (default_built<SA>)
-            if (not g.is_digraph())
-              {
-                EXPECT_EQ((Unconnected_Components<GT, SA>().count_components(g)), 1U);
-              }
+            {
+              EXPECT_EQ((Unconnected_Components<GT, SA>().count_components(g)), 1U);
+            }
         });
     });
 }

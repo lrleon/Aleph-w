@@ -38,6 +38,7 @@
 # include <gtest/gtest.h>
 
 # include <tpl_dynListQueue.H>
+# include <stdexcept>
 # include <ahFunctional.H>
 
 using namespace std;
@@ -341,3 +342,51 @@ TEST_F(ComplexQueue, traverse)
 
 
 
+
+
+namespace
+{
+  // Its move throws while fail is true; moves counts them
+  struct Fragile_Move
+  {
+    static inline bool fail = false;
+    static inline int moves = 0;
+    int value = 0;
+
+    Fragile_Move(int v = 0) noexcept : value(v) {}
+    Fragile_Move(const Fragile_Move &) = default;
+    Fragile_Move(Fragile_Move && c) : value(c.value)
+    {
+      ++moves;
+      if (fail)
+        throw std::runtime_error("move failed");
+    }
+    Fragile_Move & operator = (const Fragile_Move &) = default;
+    Fragile_Move & operator = (Fragile_Move &&) = default;
+  };
+} // namespace
+
+// get() took the item from a list that had dropped its node already, so that
+// a move that threw lost the item and left the size one more than the items
+TEST(DynListQueue, AMoveThatThrowsLeavesTheItemInTheQueue)
+{
+  DynListQueue<Fragile_Move> queue;
+  for (int i = 1; i <= 3; ++i)
+    queue.put(Fragile_Move(i));
+
+  Fragile_Move::fail = true;
+  EXPECT_THROW((void) queue.get(), std::runtime_error);
+  EXPECT_THROW((void) queue.pop(), std::runtime_error);
+  Fragile_Move::fail = false;
+
+  ASSERT_EQ(queue.size(), 3u);
+  EXPECT_EQ(queue.front().value, 1);
+  Fragile_Move::moves = 0;
+  EXPECT_EQ(queue.get().value, 1); // one move, straight into the result
+  EXPECT_EQ(Fragile_Move::moves, 1);
+  EXPECT_EQ(queue.size(), 2u);
+
+  DynListQueue<Fragile_Move> empty;
+  EXPECT_THROW((void) empty.get(), std::underflow_error);
+  EXPECT_EQ(empty.size(), 0u);
+}

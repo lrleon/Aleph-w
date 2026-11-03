@@ -483,6 +483,49 @@ using UndirectedGraphTypes = ::testing::Types<
 
 TYPED_TEST_SUITE(ComponentsUndirectedGraphs, UndirectedGraphTypes);
 
+template <typename GraphType>
+class ComponentsDigraphs : public ::testing::Test
+{
+protected:
+  GraphType g;
+};
+
+using DigraphTypes = ::testing::Types<
+  ListDigraph,
+  SparseDigraph,
+  ArrayDigraph
+>;
+
+TYPED_TEST_SUITE(ComponentsDigraphs, DigraphTypes);
+
+// Following the arcs that leave each node, a -> b, c -> b with a first gave
+// {a, b} and {c}, and the copy of c -> b, in the subgraph of c, pointed to
+// the image of b in that of a: every operation rejects a digraph
+TYPED_TEST(ComponentsDigraphs, EveryOperationRejectsADigraph)
+{
+  using Graph = TypeParam;
+  Graph & g = this->g;
+  auto * a = g.insert_node(0);
+  auto * b = g.insert_node(1);
+  auto * c = g.insert_node(2);
+  g.insert_arc(a, b, 10);
+  g.insert_arc(c, b, 20);
+
+  Unconnected_Components<Graph> cc;
+  DynList<Graph> blocks;
+  DynList<DynList<typename Graph::Node *>> lists;
+  EXPECT_THROW(cc(g, blocks), std::domain_error);
+  EXPECT_THROW(cc(g, lists), std::domain_error);
+  EXPECT_THROW((void) cc.count_components(g), std::domain_error);
+  EXPECT_THROW((void) cc.is_connected(g), std::domain_error);
+  EXPECT_TRUE(blocks.is_empty());
+  EXPECT_TRUE(lists.is_empty());
+
+  Graph one;
+  one.insert_node(0);
+  EXPECT_THROW((void) cc.is_connected(one), std::domain_error);
+}
+
 TYPED_TEST(ComponentsAllGraphs, BuildSubgraphSingleNode)
 {
   using Graph = TypeParam;
