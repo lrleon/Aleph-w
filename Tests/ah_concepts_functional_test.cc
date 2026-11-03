@@ -298,4 +298,13 @@ TEST(AhConceptsFunctionalTest, MapHelpersDeduceTFromStdFunctionArguments)
   EXPECT_EQ((Aleph::arcs_map<Graph, int>(g, n1, af).size()), 2u);
   EXPECT_EQ((Aleph::map_out_arcs<Graph, int>(n1, af).foldl(0, [](int acc, int x) { return acc + x; })),
             11 + 21);
+
+  // Op may be named too, as before: an actual std::function goes to its
+  // overload, and any other callable to the generic one
+  EXPECT_EQ((Aleph::map_in_arcs<Graph, int, decltype(af)>(n3, af).foldl(0, [](int acc, int x) { return acc + x; })),
+            21 + 31);
+  EXPECT_EQ((Aleph::map_out_arcs<Graph, int, decltype(af)>(n1, af).size()), 2u);
+  EXPECT_EQ((Aleph::map_in_arcs<Graph, int, decltype(la)>(n3, la).size()), 2u);
+  EXPECT_EQ((Aleph::map_out_arcs<Graph, int, decltype(la)>(n1, la).foldl(0, [](int acc, int x) { return acc + x; })),
+            11 + 21);
 }
