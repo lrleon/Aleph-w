@@ -110,7 +110,6 @@ class DynListStack
         public StlAlephIterator<DynListStack<T>>
 {
   DynList<T> s;
-  size_t num_items = 0;
 
 public:
 
@@ -135,7 +134,6 @@ public:
    */
   void swap(DynListStack & other) noexcept
   {
-    std::swap(num_items, other.num_items);
     s.swap(other.s);
   }
 
@@ -146,7 +144,7 @@ public:
    *
    *  Time complexity: O(1)
    */
-  DynListStack() noexcept : num_items(0) { /* empty */ }
+  DynListStack() noexcept { /* empty */ }
 
   /** @brief Copy constructor.
    *
@@ -160,7 +158,7 @@ public:
    *  @throw Any exception thrown by T's copy constructor.
    */
   DynListStack(const DynListStack & other)
-    : s(other.s), num_items(other.num_items)
+    : s(other.s)
   {
     // empty
   }
@@ -201,7 +199,6 @@ public:
       return *this;
 
     s = rhs.s;
-    num_items = rhs.num_items;
 
     return *this;
   }
@@ -219,7 +216,6 @@ public:
    */
   DynListStack & operator = (DynListStack && rhs) noexcept
   {
-    std::swap(num_items, rhs.num_items);
     s.swap(rhs.s);
     return *this;
   }
@@ -230,7 +226,7 @@ public:
    *
    *  @return The number of elements currently in the stack.
    */
-  [[nodiscard]] constexpr size_t size() const noexcept { return num_items; }
+  [[nodiscard]] size_t size() const noexcept { return s.size(); }
 
   /** @brief Check if the stack is empty.
    *
@@ -238,7 +234,7 @@ public:
    *
    *  @return true if the stack contains no elements, false otherwise.
    */
-  [[nodiscard]] bool is_empty() const noexcept { return num_items == 0; }
+  [[nodiscard]] bool is_empty() const noexcept { return s.is_empty(); }
 
   /** @brief Push an item by copy onto the top of the stack.
    *
@@ -253,9 +249,7 @@ public:
    */
   T & push(const T & data)
   {
-    T & ret_val = s.insert(data);
-    ++num_items;
-    return ret_val;
+    return s.insert(data);
   }
 
   /** @brief Push an item by move onto the top of the stack.
@@ -270,9 +264,7 @@ public:
    */
   T & push(T && data)
   {
-    T & ret_val = s.insert(std::forward<T>(data));
-    ++num_items;
-    return ret_val;
+    return s.insert(std::forward<T>(data));
   }
 
   /** @brief Construct an item in place at the top of the stack.
@@ -343,37 +335,7 @@ public:
    */
   [[nodiscard]] T pop()
   {
-    if constexpr (std::is_nothrow_move_constructible_v<T>)
-      {
-        T ret_val = s.remove_first();
-        --num_items;
-        return ret_val;
-      }
-    else
-      { // as remove_first(), the item moves once, into the result, and the
-        // count goes down after that move, unless it threw
-        struct Count_Down
-        {
-          size_t & n;
-          bool keep = false;
-
-          ~Count_Down()
-          {
-            if (not keep)
-              --n;
-          }
-        } count_down{num_items};
-
-        try
-          {
-            return s.remove_first();
-          }
-        catch (...)
-          {
-            count_down.keep = true;
-            throw;
-          }
-      }
+    return s.remove_first();
   }
 
   /** @brief Alias for pop() - removes and returns the top item.
@@ -433,7 +395,6 @@ public:
   void empty() noexcept
   {
     s.empty();
-    num_items = 0;
   }
 
   /** @brief Empties the container. 

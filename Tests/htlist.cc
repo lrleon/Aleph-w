@@ -400,3 +400,44 @@ TEST(DynList, ARemoveMovesTheItemOnce)
   EXPECT_EQ(second.value, 2);
   EXPECT_EQ(list.size(), 1u);
 }
+
+// Iterator::del() also unlinked the node before it moved the item out. Now a
+// move that throws leaves the item, and the iterator on it, on the first, a
+// middle and the last item
+TEST(DynList, AMoveThatThrowsInDelLeavesTheItemInTheList)
+{
+  for (int pos = 0; pos < 3; ++pos)
+    {
+      DynList<Fragile_Move> list;
+      for (int i = 1; i <= 3; ++i)
+        list.append(Fragile_Move(i));
+
+      DynList<Fragile_Move>::Iterator it(list);
+      for (int k = 0; k < pos; ++k)
+        it.next();
+
+      Fragile_Move::fail = true;
+      EXPECT_THROW((void) it.del(), std::runtime_error);
+      Fragile_Move::fail = false;
+
+      ASSERT_EQ(list.size(), 3u);
+      ASSERT_TRUE(it.has_curr());
+      EXPECT_EQ(it.get_curr().value, pos + 1);
+
+      Fragile_Move::moves = 0;
+      EXPECT_EQ(it.del().value, pos + 1); // one move, straight into the result
+      EXPECT_EQ(Fragile_Move::moves, 1);
+      ASSERT_EQ(list.size(), 2u);
+      EXPECT_EQ(list.get_first().value, pos == 0 ? 2 : 1);
+      EXPECT_EQ(list.get_last().value, pos == 2 ? 2 : 3);
+      ASSERT_EQ(it.has_curr(), pos < 2);
+      if (pos < 2)
+        {
+          EXPECT_EQ(it.get_curr().value, pos + 2);
+        }
+    }
+
+  DynList<Fragile_Move> empty;
+  DynList<Fragile_Move>::Iterator it(empty);
+  EXPECT_THROW((void) it.del(), std::overflow_error);
+}

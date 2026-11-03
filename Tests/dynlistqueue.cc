@@ -390,3 +390,22 @@ TEST(DynListQueue, AMoveThatThrowsLeavesTheItemInTheQueue)
   EXPECT_THROW((void) empty.get(), std::underflow_error);
   EXPECT_EQ(empty.size(), 0u);
 }
+
+// The queue had a count of its own, which a delete through its iterator, that
+// removes from the list, left one more than the items. Now its size is that
+// of its list
+TEST(DynListQueue, ADeleteThroughTheIteratorLowersTheSize)
+{
+  DynListQueue<int> q;
+  for (int i = 1; i <= 3; ++i)
+    q.put(i);
+
+  DynListQueue<int>::Iterator it(q);
+  it.next();
+  EXPECT_EQ(it.del(), 2);
+  EXPECT_EQ(q.size(), 2u);
+  EXPECT_EQ(q.get(), 1);
+  EXPECT_EQ(q.get(), 3);
+  EXPECT_EQ(q.size(), 0u);
+  EXPECT_TRUE(q.is_empty());
+}

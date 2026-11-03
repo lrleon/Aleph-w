@@ -103,12 +103,16 @@ protected:
   mutable Dlink *next;
 
 public:
+  /// Convert `this`, which must be the link of a `Dnode<T>`, to that node.
   template <typename T>
   Dnode<T> *to_dnode() noexcept;
+  /// Convert `this`, which must be the link of a `Dnode<T>`, to that constant node.
   template <typename T>
   const Dnode<T> *to_dnode() const noexcept;
+  /// Return the item of the `Dnode<T>` whose link is `this`.
   template <typename T>
   T &to_data() noexcept;
+  /// Return the constant item of the `Dnode<T>` whose link is `this`.
   template <typename T>
   const T &to_data() const noexcept;
 

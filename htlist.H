@@ -172,12 +172,15 @@ public:
   template <typename T>
   inline Snodenc<T> *to_snodenc() noexcept;
 
+  /// Return the item of the `Snodenc<T>` that `this` is.
   template <typename T>
   inline T &to_data() noexcept;
 
+  /// Convert `this` to a constant `Snodenc<T>`, as the other overload.
   template <typename T>
   inline const Snodenc<T> *to_snodenc() const noexcept;
 
+  /// Return the constant item of the `Snodenc<T>` that `this` is.
   template <typename T>
   inline const T &to_data() const noexcept;
 
@@ -889,6 +892,13 @@ public:
 
     long pos = 0;
 
+  protected:
+    /// The list of the iterator, for the iterators of the derived lists.
+    HTList *get_list_ptr() const noexcept
+    {
+      return lptr;
+    }
+
   public:
     Iterator() noexcept = default;
 
@@ -1080,15 +1090,11 @@ public:
       Count the number of elements of the list.
 
       This method counts, it does not retrieve, the number of elements
-      stored in the list.
-
-      So it is complexity is \f$O(n)\f$. This is some polemic because one
-      could maintain an internal counter and retrieve it in constant
-      time. It possible that this feauture is put in next versions. We
-      do not maintain this counter because it is possible to add or
-      remove items from a given node. So these operations would
-      require access to the full list's context, what it often not the
-      case.
+      stored in the list, so that its complexity is \f$O(n)\f$.
+      `HTList` does not keep a counter, because items can be added or
+      removed through a node, without the list. `DynList`, whose items
+      change through its own operations, keeps one, and its size() is
+      \f$O(1)\f$.
 
       \return the number of items of list
 
@@ -1133,6 +1139,19 @@ public:
   }
 };
 
+namespace htlist_detail {
+/** The number of items of a DynList, which its operations keep.
+
+    It is a base of DynList that comes before SpecialCtors, so that the
+    count is 0 when the constructors of SpecialCtors append the items,
+    before the members of DynList are initialized.
+*/
+struct Item_Count
+{
+  size_t num_items = 0;  ///< The number of items of the list
+};
+}  // namespace htlist_detail
+
 /** @brief Dynamic singly linked list with functional programming support.
 
    DynList<T> is a versatile singly linked list that combines efficient
@@ -1150,8 +1169,16 @@ public:
    @par Complexity:
    - insert() / append(): O(1)
    - remove_first(): O(1)
-   - size(): O(n) - computed by traversal
+   - size(): O(1)
+   - split(): O(n), a walk to the middle
+   - cut(): linear in the items that it moves, which it counts
    - Access by index: O(n)
+
+   @note The list keeps the number of its items, which its own
+   operations update. Changing it through its base `HTList`, as with a
+   call qualified with `HTList::`, or through its nodes, as with
+   `Slinknc::insert()` or `remove_next()`, does not update it, and
+   leaves size() wrong.
 
    @par Example:
    @code
@@ -1176,6 +1203,7 @@ public:
 */
 template <typename T = int>
 class DynList : public HTList,
+                private htlist_detail::Item_Count,
                 public GenericTraverse<DynList<T>>,
                 public LocateFunctions<DynList<T>, T>,
                 public SpecialCtors<DynList<T>, T>,
@@ -1187,6 +1215,10 @@ class DynList : public HTList,
   using CtorBase = SpecialCtors<DynList<T>, T>;
 
   using CtorBase::CtorBase;
+
+  // in_place_transpose() moves the nodes of the rows between lists
+  template <typename U>
+  friend void in_place_transpose(DynList<DynList<U>> &l);
 
 public:
   using Item_Type = T;
@@ -1203,7 +1235,19 @@ public:
      */
   DynList &swap(DynList &l) noexcept
   {
+    std::swap(num_items, l.num_items);
     return static_cast<DynList &>(HTList::swap(l));
+  }
+
+  /** Return the number of items of the list, in constant time.
+
+      The operations of `DynList` keep the count; see the note of the
+      class about what does not.
+  */
+  [[nodiscard]] size_t size() const noexcept
+  {
+    assert((num_items == 0) == this->is_empty());
+    return num_items;
   }
 
   /// Initialize an empty list
@@ -1220,6 +1264,7 @@ private:
     static_assert(std::is_copy_constructible_v<T> or std::is_move_constructible_v<T>,
                   "No copy assign for T");
     HTList::insert(p);
+    ++num_items;
     return p->get_data();
   }
 
@@ -1228,6 +1273,7 @@ private:
     static_assert(std::is_copy_constructible_v<T> or std::is_move_constructible_v<T>,
                   "No copy assign for T");
     HTList::append(p);
+    ++num_items;
     return p->get_data();
   }
 
@@ -1331,7 +1377,10 @@ private:
       ~Leave()
       {
         if (not keep)
-          delete static_cast<Snodenc<T> *>(list.HTList::remove_head_ne());
+          {
+            delete static_cast<Snodenc<T> *>(list.HTList::remove_head_ne());
+            --list.num_items;
+          }
       }
     } leave{*this};
 
@@ -1359,6 +1408,7 @@ public:
     if constexpr (std::is_nothrow_move_constructible_v<T>)
       {
         Slinknc *l = this->HTList::remove_head_ne();
+        --num_items;
         auto *p = static_cast<Snodenc<T> *>(l);
         T ret_val = std::move(p->get_data());
         delete p;
@@ -1382,6 +1432,7 @@ public:
     if constexpr (std::is_nothrow_move_constructible_v<T>)
       {
         Slinknc *l = this->HTList::remove_head();
+        --num_items;
         auto *p = static_cast<Snodenc<T> *>(l);
         T ret_val = std::move(p->get_data());
         delete p;
@@ -1520,7 +1571,8 @@ public:
         delete q;
       }
     delete p;
-    reset();
+    HTList::reset();
+    num_items = 0;
   }
 
   /** @brief Empties the container.
@@ -1543,6 +1595,42 @@ public:
    */
   class Iterator : public HTList::Iterator
   {
+    // The list, whose count the deletes lower: the one of the base
+    // iterator, so that the iterator takes no more room
+    DynList *list_ptr() const noexcept
+    {
+      return static_cast<DynList *>(this->get_list_ptr());
+    }
+
+    // Removes the current item, which the iterator must have, when its
+    // move can throw. As in remove_first_whose_move_throws(), the move
+    // goes straight into the result and the node leaves after it; if the
+    // move throws, the node stays, and the iterator on it.
+    T del_whose_move_throws()
+    {
+      struct Leave
+      {
+        Iterator &it;
+        bool keep = false;
+
+        ~Leave()
+        {
+          if (not keep)
+            delete static_cast<Snodenc<T> *>(it.del_ne());
+        }
+      } leave{*this};
+
+      try
+        {
+          return std::move(get_curr_ne());
+        }
+      catch (...)
+        {
+          leave.keep = true;
+          throw;
+        }
+    }
+
   public:
     using Item_Type = T;  /// The type of elements of list
 
@@ -1579,7 +1667,9 @@ public:
     /** Remove the current item of the iterator.
 
         `del()` removes the current item and advance forward the
-        iterator to the next item.
+        iterator to the next item. The item moves out before its node
+        leaves, so that if its move throws the list keeps it, and the
+        iterator stays on it.
 
         \return a moved copy of removed item (moved because the original
         will be destroyed)
@@ -1587,10 +1677,31 @@ public:
     */
     T del()
     {
-      auto *p = static_cast<Snodenc<T> *>(this->HTList::Iterator::del());
-      T ret_val = std::move(p->get_data());
-      delete p;
-      return ret_val;
+      if constexpr (std::is_nothrow_move_constructible_v<T>)
+        {
+          auto *p = static_cast<Snodenc<T> *>(this->HTList::Iterator::del());
+          --list_ptr()->num_items;
+          T ret_val = std::move(p->get_data());
+          delete p;
+          return ret_val;
+        }
+      else
+        {
+          ah_overflow_error_if(not this->has_curr()) << "Iterator overflow";
+          return del_whose_move_throws();
+        }
+    }
+
+    /** Remove the current node, which the caller takes, and move the
+        iterator forward; the iterator must have a current item.
+
+        \return the removed node
+    */
+    Slinknc *del_ne() noexcept
+    {
+      Slinknc *p = HTList::Iterator::del_ne();
+      --list_ptr()->num_items;
+      return p;
     }
   };
 
@@ -1671,6 +1782,7 @@ public:
         {
           T ret = item;  // performs a copy
           auto *removed = static_cast<Snodenc<T> *>(it.HTList::Iterator::del());
+          --num_items;
           delete removed;
           return ret;
         }
@@ -1757,6 +1869,8 @@ public:
   DynList &append(DynList &&list) noexcept
   {
     HTList::append(list);
+    num_items += list.num_items;
+    list.num_items = 0;
     return *this;
   }
 
@@ -1777,6 +1891,8 @@ public:
   DynList &insert(DynList &&list) noexcept
   {
     HTList::insert(list);
+    num_items += list.num_items;
+    list.num_items = 0;
     return *this;
   }
 
@@ -1791,8 +1907,7 @@ public:
   DynList &append(const DynList &list)
   {
     DynList copy = list;
-    HTList::append(copy);
-    return *this;
+    return append(std::move(copy));
   }
 
   /** Insert to `this` a copy of `list`.
@@ -1806,8 +1921,129 @@ public:
   DynList &insert(const DynList &list)
   {
     DynList tmp = list;
-    HTList::insert(tmp);
-    return *this;
+    return insert(std::move(tmp));
+  }
+
+  /** Append the items of `l` to `this`, in constant time; `l` becomes
+      empty. As append(DynList &&).
+  */
+  void concat(DynList &l) noexcept
+  {
+    append(std::move(l));
+  }
+
+  /// \overload concat(DynList & l)
+  void concat_list(DynList &l) noexcept
+  {
+    append(std::move(l));
+  }
+
+  /** Move to `list`, which must be empty, the items that follow the node
+      `link` of `this`.
+
+      It counts the items that it moves, in time linear in them, so as to
+      keep the sizes of both lists.
+
+      \param[in] link a node of `this`
+      \param[out] list the list that takes the items after `link`
+  */
+  void cut(Slinknc *link, DynList &list) noexcept
+  {
+    size_t k = 0;
+    for (Slinknc *p = link->get_next(); p != nullptr; p = p->get_next())
+      ++k;
+
+    HTList::cut(link, list);
+    num_items -= k;
+    list.num_items = k;
+  }
+
+  /// \overload cut(Slinknc * link, DynList & list)
+  void cut_list(Slinknc *link, DynList &list) noexcept
+  {
+    cut(link, list);
+  }
+
+  /** Remove the first node of the list, which must not be empty; the
+      caller takes the node, and its item.
+
+      \return the removed node
+  */
+  Slinknc *remove_head_ne() noexcept
+  {
+    --num_items;
+    return HTList::remove_head_ne();
+  }
+
+  /** Remove the first node of the list; the caller takes the node, and
+      its item.
+
+      \return the removed node
+      \throw underflow_error if the list is empty
+  */
+  Slinknc *remove_head()
+  {
+    Slinknc *p = HTList::remove_head();
+    --num_items;
+    return p;
+  }
+
+  /// Delete all the items, as empty() does.
+  void remove_all_and_delete() noexcept
+  {
+    empty();
+  }
+
+  /** Forget all the nodes of the list, without deleting them, as
+      HTList::reset() does; the list becomes empty.
+  */
+  void reset() noexcept
+  {
+    HTList::reset();
+    num_items = 0;
+  }
+
+  /** Split the list in two.
+
+      `l` takes the first n - n / 2 items and `r` the others, in their
+      order, and `this` becomes empty. With the number of items known, it
+      walks only to the middle.
+
+      \param[out] l the first n - n / 2 items (must be empty)
+      \param[out] r the last n / 2 items (must be empty)
+      \return the number of items that `this` had
+  */
+  size_t split_list_ne(DynList &l, DynList &r) noexcept
+  {
+    assert(l.is_empty() and r.is_empty());
+
+    const size_t n = num_items;
+    if (n == 0)
+      return 0;
+
+    Slinknc *p = HTList::get_first();  // to be the last node of l
+    for (size_t i = 1; i < n - n / 2; ++i)
+      p = p->get_next();
+
+    HTList::cut(p, r);
+    HTList::swap(l);
+    l.num_items = n - n / 2;
+    r.num_items = n / 2;
+    num_items = 0;
+
+    return n;
+  }
+
+  /// \overload split_list_ne(DynList & l, DynList & r)
+  size_t split_list(DynList &l, DynList &r) noexcept
+  {
+    return split_list_ne(l, r);
+  }
+
+  /// \overload split_list_ne(DynList & l, DynList & r)
+  size_t split(DynList &l, DynList &r) noexcept
+  {
+    return split_list_ne(l, r);
   }
 
   /// Obtains a modifiable reference to the i-th item of `this`. Throws
