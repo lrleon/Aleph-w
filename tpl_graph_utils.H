@@ -1552,8 +1552,8 @@ namespace Aleph {
                     if (ga == nullptr)
                       return;
 
-                    Node * gsrc = (Node*) ga->src_node;
-                    Node * gtgt = (Node*) ga->tgt_node;
+                    Node * gsrc = static_cast<Node *>(ga->src_node);
+                    Node * gtgt = static_cast<Node *>(ga->tgt_node);
 
                     Node * tsrc;
                     auto * pair_ptr = table.search(gsrc);
@@ -1815,7 +1815,7 @@ namespace Aleph {
    *
    * Used by paint_subgraphs()/map_cut_graph().
    */
-  const long Cross_Arc = -1;
+  constexpr long Cross_Arc = -1;
 
   /// @brief Return `true` if the arc is marked as a cross-arc by paint_subgraphs().
   template <AlephGraph GT> inline static 
@@ -1993,12 +1993,9 @@ namespace Aleph {
             ARC_BITS(arc).set_bit(Cut, true);
             continue;
           }
-        else 
-          {
-            paint_arc <GT> (arc, Cross_Arc);
-            if (is_node_painted <GT> (tgt_node)) 
-              continue; 
-          }
+        paint_arc<GT>(arc, Cross_Arc);
+        if (is_node_painted<GT>(tgt_node))
+          continue;
 
         __paint_subgraph(g, frames, tgt_node, current_color);
 
