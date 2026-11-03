@@ -29,9 +29,8 @@
   SOFTWARE.
 */
 
-
-# ifndef DLINK_H
-# define DLINK_H
+#ifndef DLINK_H
+#define DLINK_H
 
 /** @file dlink.H
     @brief Doubly linked circular list implementation.
@@ -48,1015 +47,1061 @@
  *  @author Leandro Rabindranath León
 */
 
-# include <aleph.H>
-# include <ah-errors.H>
+#include <aleph.H>
+#include <ah-errors.H>
 
 namespace Aleph {
 
-  template <typename T> class Dnode; // Forward declaration of derived class
+template <typename T>
+class Dnode;  // Forward declaration of derived class
 
-  /** @brief Doubly linked circular list node.
+/** @brief Doubly linked circular list node.
 
-      Dlink is the fundamental building block for doubly linked circular
-      lists in Aleph-w. Each node contains pointers to its previous and
-      next neighbors, forming a circular structure. An empty list consists
-      of a single sentinel node pointing to itself.
+    Dlink is the fundamental building block for doubly linked circular
+    lists in Aleph-w. Each node contains pointers to its previous and
+    next neighbors, forming a circular structure. An empty list consists
+    of a single sentinel node pointing to itself.
 
-      This class provides low-level operations for manipulating the list
-      structure. For a higher-level interface with data storage, see Dnode
-      and DynDlist.
+    This class provides low-level operations for manipulating the list
+    structure. For a higher-level interface with data storage, see Dnode
+    and DynDlist.
 
-      @par Design Principles:
-      - Circular structure: last->next == first, first->prev == last
-      - Sentinel node: empty list has sentinel->next == sentinel
-      - Intrusive design: nodes can be embedded in other structures
+    @par Design Principles:
+    - Circular structure: last->next == first, first->prev == last
+    - Sentinel node: empty list has sentinel->next == sentinel
+    - Intrusive design: nodes can be embedded in other structures
 
-      @par Complexity:
-      - Insert/remove at known position: O(1)
-      - Concatenate two lists: O(1)
-      - Split list: O(1)
-      - Traverse: O(n)
+    @par Complexity:
+    - Insert/remove at known position: O(1)
+    - Concatenate two lists: O(1)
+    - Split list: O(1)
+    - Traverse: O(n)
 
-      @par Example:
-      @code
-      Dlink header;  // sentinel node
-      Dlink node1, node2, node3;
+    @par Example:
+    @code
+    Dlink header;  // sentinel node
+    Dlink node1, node2, node3;
 
-      header.insert_next(&node1);  // Insert after header
-      node1.insert_next(&node2);   // Insert after node1
-      header.insert_prev(&node3);  // Insert before header (at end)
+    header.insert_next(&node1);  // Insert after header
+    node1.insert_next(&node2);   // Insert after node1
+    header.insert_prev(&node3);  // Insert before header (at end)
 
-      // Traverse forward
-      for (auto it = header.get_next(); it != &header; it = it->get_next())
-        process(it);
-      @endcode
+    // Traverse forward
+    for (auto it = header.get_next(); it != &header; it = it->get_next())
+      process(it);
+    @endcode
 
-      @see Dnode Node with embedded data.
-      @see DynDlist High-level dynamic doubly linked list.
-      @see Dlink::Iterator Bidirectional iterator for Dlink lists.
-      @ingroup Sequences
-  */
-  class Dlink
+    @see Dnode Node with embedded data.
+    @see DynDlist High-level dynamic doubly linked list.
+    @see Dlink::Iterator Bidirectional iterator for Dlink lists.
+    @ingroup Sequences
+*/
+class Dlink
+{
+protected:
+  mutable Dlink *prev;
+  mutable Dlink *next;
+
+public:
+  template <typename T>
+  Dnode<T> *to_dnode() noexcept;
+  template <typename T>
+  const Dnode<T> *to_dnode() const noexcept;
+  template <typename T>
+  T &to_data() noexcept;
+  template <typename T>
+  const T &to_data() const noexcept;
+
+  /// Initialize a node or an empty list
+  Dlink() noexcept : prev(this), next(this)
   {
-  protected:
+    assert(is_empty());
+  }
 
-    mutable Dlink * prev;
-    mutable Dlink * next;
+  /// Copy constructor. Be very careful because if `l` contains
+  /// items, then these will be lost
+  Dlink(const Dlink &l) noexcept : prev(l.prev), next(l.next)
+  {
+    if (l.is_empty())
+      reset();
+  }
+
+  /** Swap `this` with list whose header is `link`.
+
+      `swap(link)` swaps the content og `this` with all the content of
+      the list pointed by `link`. The operation is performed in constant
+      time independently of sizes of both lists.
+
+      \param[in] link pointer to the list to be swapped
+  */
+  void swap(Dlink *link) noexcept
+  {
+    if (is_empty() and link->is_empty())
+      return;
+
+    if (is_empty())
+      {
+        link->next->prev = this;
+        link->prev->next = this;
+        next = link->next;
+        prev = link->prev;
+        link->reset();
+        return;
+      }
+
+    if (link->is_empty())
+      {
+        next->prev = link;
+        prev->next = link;
+        link->next = next;
+        link->prev = prev;
+        reset();
+        return;
+      }
+
+    std::swap(prev->next, link->prev->next);
+    std::swap(next->prev, link->next->prev);
+    std::swap(prev, link->prev);
+    std::swap(next, link->next);
+  }
+
+  /** Swap `this` with list whose header is `l`.
+
+      `swap(l)` swaps the content og `this` with all the content of the
+      list referenced by `l`. The operation is performed in constant
+      time independently of sizes of both lists.
+
+      \param[in] l list to be swapped with `this`
+  */
+  void swap(Dlink &l) noexcept
+  {
+    swap(&l);
+  }
+
+  /** Construct a new list with the items of l moved.
+
+      This constructor takes a rvalue reference `l` to a list and moves it
+      in constant time to `this`
+
+      \param[in] l rvalue reference to the to be moved
+  */
+  Dlink(Dlink &&l) noexcept : Dlink()
+  {
+    swap(l);
+  }
+
+  /** Copy assignation
+
+      \warning Be very careful with the possibility of `this` has
+      items, because these will be lost
+
+      @param[in] l link to be copied
+  */
+  Dlink &operator = (const Dlink &l) noexcept
+  {
+    if (l.is_empty())
+      return *this;
+
+    assert(is_empty());
+    prev = l.prev;
+    next = l.next;
+    return *this;
+  }
+
+  /** Move assignation
+
+      Assign a rvalue list to `this` without copying.
+
+      @param[in] l rvalue reference to the list to move from.
+      \note Since `l` is rvalue reference, take care of that if you are
+      interested in to avoid the copy. So, if you have a lvalue
+      reference to a list, use `std::move()`, upon your responsability,
+      if and only if you are absolutely sure that the list will not be
+      needed after.
+  */
+  Dlink &operator = (Dlink &&l) noexcept
+  {
+    swap(l);
+    return *this;
+  }
+
+  /** Reset `this`
+
+      `reset()` reinitialize the node to point to itself. So, all the
+      context is lost. Use with care.
+
+  */
+  void reset() noexcept
+  {
+    next = prev = this;
+  }
+
+  /// \overload reset()
+  void init() noexcept
+  {
+    reset();
+  }
+
+  /// Return `true` if `this` (as header node) is empty
+  [[nodiscard]] constexpr bool is_empty() const noexcept
+  {
+    return this == next and this == prev;
+  }
+
+  /// Return `true` if `this` (as header node) has exactly one element
+  [[nodiscard]] constexpr bool is_unitarian() const noexcept
+  {
+    return this != next and next == prev;
+  }
+
+  /// Return `true` if `this` (as header node) has zero or one element
+  [[nodiscard]] constexpr bool is_unitarian_or_empty() const noexcept
+  {
+    return next == prev;
+  }
+
+  /** Insert `node` after `this`.
+
+      @param[in] node pointer to an empty node (it must not be linked
+      to nothing
+  */
+  void insert(Dlink *node) noexcept
+  {
+    assert(next != nullptr and prev != nullptr);
+    assert(node != nullptr);
+    assert(node->is_empty());
+
+    node->prev = this;
+    node->next = next;
+    next->prev = node;
+    next = node;
+  }
+
+  /// \overload insert(Dlink * node)
+  void push(Dlink *node) noexcept
+  {
+    insert(node);
+  }
+
+  /** Insert `node` before `this`.
+
+      @param[in] node pointer to an empty node (it must not be
+      inserted in another list)
+  */
+  void append(Dlink *node) noexcept
+  {
+    assert(next != nullptr and prev != nullptr);
+    assert(node != nullptr);
+    assert(node->is_empty());
+
+    node->next = this;
+    node->prev = prev;
+    prev->next = node;
+    prev = node;
+  }
+
+  /// Return the link that is after `this`
+  [[nodiscard]] Dlink *&get_next() const noexcept
+  {
+    assert(next != nullptr and prev != nullptr);
+    return next;
+  }
+
+  /// Return the link that is before `this`
+  [[nodiscard]] Dlink *&get_prev() const noexcept
+  {
+    assert(next != nullptr and prev != nullptr);
+    return prev;
+  }
+
+  /// If `this` is a header node, it return the first node of `this`
+  [[nodiscard]] constexpr Dlink *&get_first_ne() const noexcept
+  {
+    return next;
+  }
+
+  /// If `this` is a header node, it return the last node of `this`
+  [[nodiscard]] constexpr Dlink *&get_last_ne() const noexcept
+  {
+    return prev;
+  }
+
+  /// If `this` is a header node, it return the first node of `this`
+  [[nodiscard]] constexpr Dlink *&get_first() const noexcept
+  {
+    return next;
+  }
+
+  /// If `this` is a header node, it return the last node of `this`
+  [[nodiscard]] constexpr Dlink *&get_last() const noexcept
+  {
+    return prev;
+  }
+
+  /** Wrap a header to a list (without header).
+
+      Sometimes, especially for low level applications, you coult manage
+      linked list without header nodes. In this case, in order to profit
+      some operations expeting a list with header, you could "wrap" a
+      temporal header and use the list and the operations of this class.
+
+      For example, suppose we have a list `l` without header node and we
+      wish to insert it into a another list with a header node. In this
+      case, we wrap a header to `l` as follows:
+
+      Dlink h;
+      h.wrap_header(l);
+
+      Now, if we have a node `p` of another list, we could insert `l`
+      after `p` as follows:
+
+      p->insert_list(&h);
+
+      After this operation `h` becomes empty and the list `l` is
+      inserted after the node `p`
+
+      @param[in] l first node of a double and circular list **without
+      header node**
+  */
+  void wrap_header(Dlink *l) noexcept
+  {
+    assert(is_empty());
+    l->append(this);
+  }
+
+  /** Insert the list `head` before `this`
+
+      This method assumes that `this` is a node part of list; it is
+      not the header node. On the other hand, `head` is the header
+      node of an entire list. So, all the list `head` is entirely
+      inserted, in constant time, before the node `this`. After
+      insertion, the list `head` becomes empty.
+
+      @param[in] head header for the list to insert
+  */
+  void insert_list(Dlink *head) noexcept
+  {
+    if (head->is_empty())
+      return;
+
+    head->prev->next = next;
+    head->next->prev = this;
+    next->prev = head->prev;
+    next = head->next;
+    head->reset();
+  }
+
+  /** Insert the list `head` after `this`
+
+      This method assumes that `this` is a node part of list; it is
+      not the header node. On the other hand, `head` is the header
+      node of an entire list. So, all the list `head` is entirely
+      appended, in constant time, after the node `this`. After
+      append, the list `head` becomes empty.
+
+      @param[in] head header for the list to insert
+  */
+  void append_list(Dlink *head) noexcept
+  {
+    if (head->is_empty())
+      return;
+
+    head->next->prev = prev;
+    head->prev->next = this;
+    prev->next = head->next;
+    prev = head->prev;
+    head->reset();
+  }
+
+  /** Insert a list `l` without header node after the node `this`.
+
+      @param[in] l list **without header node** to be inserted after `this`
+  */
+  void splice(Dlink *l) noexcept
+  {
+    Dlink head;
+    head.wrap_header(l);
+    insert_list(&head);
+    assert(head.is_empty());
+  }
+
+  /** Concatenate list `head` to list `this`
+
+      `this` and `head` are both header nodes of
+      lists. `concat_list(head)` concatenates in constant time all
+      the list `head` after `this`. After the concatenation `head`
+      becomes empty.
+
+      @param head header node of list to concatenate
+  */
+  void concat_list(Dlink *head) noexcept
+  {
+    assert(head != nullptr);
+
+    if (head->is_empty())
+      return;
+
+    if (this->is_empty())
+      {
+        swap(head);
+        return;
+      }
+
+    prev->next = head->next;
+    head->next->prev = prev;
+    prev = head->prev;
+    head->prev->next = this;
+    head->reset();
+  }
+
+  /// \overload concat_list(Dlink * head)
+  void concat_list(Dlink &head) noexcept
+  {
+    concat_list(&head);
+  }
+
+  /// Remove `this` from the list. `this` must not be a header node
+  Dlink *del() noexcept
+  {
+    assert(next != nullptr and prev != nullptr);
+
+    prev->next = next;
+    next->prev = prev;
+    reset();
+    return this;
+  }
+
+  /// \overload del()
+  void erase() noexcept
+  {
+    del();
+  }
+
+  /** Remove the item that is before `this`
+
+      Remove the item predecessor of `this`.
+
+      \note If `this` is a header node, then this method is equivalent
+      to remove the last node.
+
+      \warning The predecessor of `this` must not be a header node.
+
+      @return a pointer to the removed node.
+  */
+  Dlink *remove_prev() noexcept
+  {
+    assert(not is_empty());
+
+    Dlink *retValue = prev;
+    retValue->del();
+
+    return retValue;
+  }
+
+  /** Remove the item that is after `this`
+
+      Remove the item successor of `this`.
+
+      \note If `this` is a header node, then this method is equivalent
+      to remove the first node.
+
+      \warning The successor of `this` must not be a header node.
+
+      @return a pointer to the removed node.
+  */
+  Dlink *remove_next() noexcept
+  {
+    assert(not is_empty());
+
+    Dlink *retValue = next;
+    retValue->del();
+
+    return retValue;
+  }
+
+  /// \overload remove_prev()
+  Dlink *remove_last_ne() noexcept
+  {
+    return remove_prev();
+  }
+
+  /// \overload remove_next()
+  Dlink *remove_first_ne() noexcept
+  {
+    return remove_next();
+  }
+
+  /// \overload remove_prev()
+  Dlink *remove_last() noexcept
+  {
+    return remove_prev();
+  }
+
+  /// \overload remove_next()
+  Dlink *remove_first() noexcept
+  {
+    return remove_next();
+  }
+
+  /// \overload get_next()
+  Dlink *top() const
+  {
+    ah_underflow_error_if(is_empty()) << "Dlink as stack is empty";
+    return get_next();
+  }
+
+  /// \overload remove_next()
+  Dlink *pop()
+  {
+    ah_underflow_error_if(is_empty()) << "Dlink as stack is empty";
+    return remove_next();
+  }
+
+  /** Reverse the list.
+
+      @return the number of items that has the list
+  */
+  size_t reverse_list() noexcept
+  {
+    if (is_empty())
+      return 0;
+
+    Dlink tmp;
+    size_t counter = 0;
+    for (; not is_empty(); counter++)
+      tmp.insert(remove_next());
+
+    swap(&tmp);
+
+    return counter;
+  }
+
+  /// \overload reverse_list
+  size_t reverse() noexcept
+  {
+    return reverse_list();
+  }
+
+  /**  Split `this` in the middle in two lists.
+
+       `split_list(l, r)` cuts `this` in its middle: `l` takes its first
+       n - n / 2 nodes and `r` the last n / 2, in their order. After the
+       operation, `this` becomes empty. It walks from both ends to the
+       middle and splices the two halves, without moving the nodes one
+       by one.
+
+       \note `l` and `r` must be empty before calling this method.
+
+       @param[out] l the first n - n / 2 nodes of `this`
+       @param[out] r the last n / 2 nodes of `this`
+       @return total number of nodes of both lists (which is the same
+       number of nodes that `this` had before the split)
+  */
+  size_t split_list_ne(Dlink &l, Dlink &r) noexcept
+  {
+    assert(l.is_empty() and r.is_empty());  // l and r must be empty
+
+    if (is_empty())
+      return 0;
+
+    // p from the first node and q from the last meet in the middle; l
+    // takes the nodes up to p, the first n - n / 2, after its own, and r
+    // the others before its own, as if they had moved one by one
+    Dlink *p = next;
+    Dlink *q = prev;
+    size_t half = 0;
+    while (p != q and p->next != q)
+      {
+        p = p->next;
+        q = q->prev;
+        ++half;
+      }
+
+    Dlink *const first = next;
+    Dlink *const last = prev;
+    if (p != last)
+      {
+        Dlink *const r_first = p->next;
+        last->next = r.next;
+        r.next->prev = last;
+        r.next = r_first;
+        r_first->prev = &r;
+      }
+
+    l.prev->next = first;
+    first->prev = l.prev;
+    p->next = &l;
+    l.prev = p;
+
+    reset();
+
+    return 2 * half + (p == q ? 1 : 2);
+  }
+
+  size_t split_list(Dlink &l, Dlink &r) noexcept
+  {
+    return split_list_ne(l, r);
+  }
+
+  /**  Cut `this` from `link`.
+
+       `cut_list(link)` takes a valid link to an item of the list and on
+       that `link` performs a cut; that is, all the items from `link`
+       passes to a new list whose head is the return value.
+
+       The operation takes constant time.
+
+       \warning Takes in account that the return value is `Dlink`
+       object, not a pointer.
+
+       \warning if `link` belongs to a list, then this one will be in
+       an inconsistent state.
+
+       @param[in] link pointer to the item from which the cut will be
+       done
+       @return a `Dlink` header of a new list containing the items from
+       `link`
+  */
+  Dlink cut_list(Dlink *link) noexcept
+  {
+    assert(not is_empty() and not link->is_empty() and link != this);
+
+    Dlink list;
+    if (link == this->prev)  // is link the last item?
+      {
+        link->del();
+        list.append(link);
+        return list;
+      }
+
+    if (link == this->next)  // is link the first item?
+      {
+        list.swap(this);
+        assert(this->is_empty());
+        return list;
+      }
+
+    list.prev = this->prev;  // link list to link (cutting point)
+    list.next = link;
+    this->prev = link->prev;  // remove from this everything from link
+    link->prev->next = this;
+    link->prev = &list;  // place the cut in list
+    list.prev->next = &list;
+
+    return list;
+  }
+
+  /**  Iterator on `Dlink` lists
+
+       @ingroup Sequences
+  */
+  class Iterator
+  {
+  private:
+    mutable Dlink *head = nullptr;
+    mutable Dlink *curr = nullptr;
 
   public:
+    /// The set type
+    using Set_Type = Dlink;
 
-    template <typename T>
-    Dnode<T> * to_dnode() noexcept;
-    template <typename T>
-    const Dnode<T> * to_dnode() const noexcept;
-    template <typename T>
-    T& to_data() noexcept;
-    template <typename T>
-    const T& to_data() const noexcept;
+    /// The type of elements of container
+    using Item_Type = Dlink *;
 
-    /// Initialize a node or an empty list
-    Dlink() noexcept : prev(this), next(this) { assert(is_empty()); }
+    /** Initialize an iterator on the first item of the list pointed
+        by `head_ptr`.
 
-    /// Copy constructor. Be very careful because if `l` contains
-    /// items, then these will be lost
-    Dlink(const Dlink & l) noexcept
-      : prev(l.prev), next(l.next)
-    {
-      if (l.is_empty())
-        reset();
-    }
-
-    /** Swap `this` with list whose header is `link`.
-
-        `swap(link)` swaps the content og `this` with all the content of
-        the list pointed by `link`. The operation is performed in constant
-        time independently of sizes of both lists.
-
-        \param[in] link pointer to the list to be swapped
+        @param[in] head_ptr pointer to the list (hedaer node)
     */
-    void swap(Dlink * link) noexcept
-    {
-      if (is_empty() and link->is_empty())
-        return;
-
-      if (is_empty())
-        {
-          link->next->prev = this;
-          link->prev->next = this;
-          next = link->next;
-          prev = link->prev;
-          link->reset();
-          return;
-        }
-
-      if (link->is_empty())
-        {
-          next->prev = link;
-          prev->next = link;
-          link->next = next;
-          link->prev = prev;
-          reset();
-          return;
-        }
-
-      std::swap(prev->next, link->prev->next);
-      std::swap(next->prev, link->next->prev);
-      std::swap(prev, link->prev);
-      std::swap(next, link->next);
+    Iterator(Dlink *head_ptr) noexcept : head(head_ptr), curr(head->get_next())
+    { /* */
     }
 
-    /** Swap `this` with list whose header is `l`.
+    /** Initialize an iterator on the first item of `list`.
 
-        `swap(l)` swaps the content og `this` with all the content of the
-        list referenced by `l`. The operation is performed in constant
-        time independently of sizes of both lists.
-
-        \param[in] l list to be swapped with `this`
+        @param[in] list reference to the list
     */
-    void swap(Dlink & l) noexcept
+    Iterator(const Dlink &list) noexcept : head(&const_cast<Dlink &>(list)), curr(head->get_next())
     {
-      swap(&l);
+      // Empty
     }
 
-    /** Construct a new list with the items of l moved.
+    /** Set the current node .
 
-        This constructor takes a rvalue reference `l` to a list and moves it
-        in constant time to `this`
+        This method set the current node to `new_curr`, which of course
+        must be a valid pointer to a item in the list.
 
-        \param[in] l rvalue reference to the to be moved
+        @param[in] new_curr pointer to the new current item
     */
-    Dlink(Dlink && l) noexcept : Dlink()
+    void set(Dlink *new_curr) noexcept
     {
-      swap(l);
+      assert(curr != nullptr and head != nullptr);
+      curr = new_curr;
     }
 
-    /** Copy assignation
+    Iterator() noexcept : head(nullptr), curr(nullptr)
+    { /* Empty */
+    }
 
-        \warning Be very careful with the possibility of `this` has
-        items, because these will be lost
+    /// Reset the iterator to the first item of list
+    void reset_first() noexcept
+    {
+      assert(curr != nullptr and head != nullptr);
+      curr = head->get_next();
+    }
 
-        @param[in] l link to be copied
+    /// Reset the iterator to the last item of list
+    void reset_last() noexcept
+    {
+      assert(curr != nullptr and head != nullptr);
+      curr = head->get_prev();
+    }
+
+    /// Put the iterator out of range
+    void end() noexcept
+    {
+      put_itor_at_the_end(*this);
+    }
+
+    /// Return `true` if the iterator has current item
+    [[nodiscard]] bool has_curr() const noexcept
+    {
+      assert(curr != nullptr and head != nullptr);
+      return curr != head;
+    }
+
+    [[nodiscard]] bool is_last() const noexcept
+    {
+      return head->is_empty() ? false : curr == head->prev;
+    }
+
+    /// Return the current link guaranteeing no exception. Be careful.
+    [[nodiscard]] Dlink *get_curr_ne() const noexcept
+    {
+      assert(curr != nullptr and head != nullptr);
+      return curr;
+    }
+
+    /** Return the current node of iterator
+
+        \return a pointer to the current node
+        \throw overflow_error if there is not current node
     */
-    Dlink & operator = (const Dlink & l) noexcept
+    [[nodiscard]] Dlink *get_curr() const
     {
-      if (l.is_empty())
-        return *this;
+      ah_overflow_error_if(not has_curr()) << "Not element in list";
 
-      assert(is_empty());
-      prev = l.prev;
-      next = l.next;
-      return *this;
+      return get_curr_ne();
     }
 
-    /** Move assignation
+    ///  Return `true` if the iterator is positiones on the first item
+    [[nodiscard]] constexpr bool is_in_first() const noexcept
+    {
+      return head->is_empty() ? false : curr == head->next;
+    }
 
-        Assign a rvalue list to `this` without copying.
+    ///  Return `true` if the iterator is positiones on the last item
+    [[nodiscard]] bool is_in_last() const noexcept
+    {
+      return is_last();
+    }
 
-        @param[in] l rvalue reference to the list to move from.
-        \note Since `l` is rvalue reference, take care of that if you are
-        interested in to avoid the copy. So, if you have a lvalue
-        reference to a list, use `std::move()`, upon your responsability,
-        if and only if you are absolutely sure that the list will not be
-        needed after.
+    /// Move the iterator one position backward guaranteeing no
+    /// exception. Be careful.
+    void prev_ne() noexcept
+    {
+      curr = curr->get_prev();
+    }
+
+    /** Move the iterator one position backward
+
+        \throw underflow_error if there is no current item
     */
-    Dlink & operator = (Dlink && l) noexcept
+    void prev()
     {
-      swap(l);
-      return *this;
+      ah_underflow_error_if(not has_curr()) << "Not previous element in list";
+      prev_ne();
     }
 
-    /** Reset `this`
+    /// Move the iterator one position backward guaranteeing no
+    /// exception. Be careful.
+    void next_ne() noexcept
+    {
+      curr = curr->get_next();
+    }
 
-        `reset()` reinitialize the node to point to itself. So, all the
-        context is lost. Use with care.
+    /** Move the iterator one position forward
 
+        \throw overflow_error if there is no current item
     */
-    void reset() noexcept
+    void next()
     {
-      next = prev = this;
+      ah_overflow_error_if(not has_curr()) << "Not next element in list";
+      next_ne();
     }
 
-    /// \overload reset()
-    void init() noexcept
+    /// Return `true` if `this` and it are positioned on the same item
+    [[nodiscard]] constexpr bool operator == (const Iterator &it) const noexcept
     {
-      reset();
+      return curr == it.curr;
     }
 
-    /// Return `true` if `this` (as header node) is empty
-    [[nodiscard]] constexpr bool is_empty() const noexcept { return this == next and this == prev; }
+    /// Return `true` if `this` and `it` hace different states
+    [[nodiscard]] constexpr bool operator != (const Iterator &it) const noexcept
+    {
+      return curr != it.curr;
+    }
 
-    /// Return `true` if `this` (as header node) has exactly one element
-    [[nodiscard]] constexpr bool is_unitarian() const noexcept { return this != next and next == prev; }
+    /** Remove from the list the current node and move the iterator one
+        position forward.
 
-    /// Return `true` if `this` (as header node) has zero or one element
-    [[nodiscard]] constexpr bool is_unitarian_or_empty() const noexcept { return next == prev; }
-
-    /** Insert `node` after `this`.
-
-        @param[in] node pointer to an empty node (it must not be linked
-        to nothing
+        @return a pointer to removed item
     */
-    void insert(Dlink * node) noexcept
+    Dlink *del()
     {
-      assert(next != nullptr and prev != nullptr);
-      assert(node != nullptr);
-      assert(node->is_empty());
+      assert(curr != nullptr and head != nullptr);
+      assert(has_curr());
 
-      node->prev = this;
-      node->next = next;
-      next->prev = node;
-      next       = node;
+      Dlink *current = get_curr();  // the current node
+      next();                       // move to the next node
+      current->del();               // unlink the node that was current
+      return current;
     }
 
-    /// \overload insert(Dlink * node)
-    void push(Dlink * node) noexcept
+    Dlink *del_ne() noexcept
     {
-      insert(node);
+      assert(curr != nullptr and head != nullptr);
+      assert(has_curr());
+
+      Dlink *current = get_curr();  // the current node
+      next_ne();                    // move to the next node
+      current->del();               // unlink the node that was current
+      return current;
     }
 
-    /** Insert `node` before `this`.
-
-        @param[in] node pointer to an empty node (it must not be
-        inserted in another list)
-    */
-    void append(Dlink * node) noexcept
+    /// Return `true` if the iterator is on the list pointed by `l`
+    [[nodiscard]] constexpr bool verify(Dlink *l) const noexcept
     {
-      assert(next != nullptr and prev != nullptr);
-      assert(node != nullptr);
-      assert(node->is_empty());
-
-      node->next = this;
-      node->prev = prev;
-      prev->next = node;
-      prev       = node;
+      return head == l;
     }
 
-    /// Return the link that is after `this`
-    [[nodiscard]] Dlink *& get_next() const noexcept
+    /// Return `true` if `this` and `it` are on the same list
+    [[nodiscard]] constexpr bool verify(const Iterator &it) const noexcept
     {
-      assert(next != nullptr and prev != nullptr);
-      return next;
-    }
-
-    /// Return the link that is before `this`
-    [[nodiscard]] Dlink *& get_prev() const noexcept
-    {
-      assert(next != nullptr and prev != nullptr);
-      return prev;
-    }
-
-    /// If `this` is a header node, it return the first node of `this`
-    [[nodiscard]] constexpr Dlink *& get_first_ne() const noexcept { return next; }
-
-    /// If `this` is a header node, it return the last node of `this`
-    [[nodiscard]] constexpr Dlink *& get_last_ne() const noexcept { return prev; }
-
-    /// If `this` is a header node, it return the first node of `this`
-    [[nodiscard]] constexpr Dlink *& get_first() const noexcept { return next; }
-
-    /// If `this` is a header node, it return the last node of `this`
-    [[nodiscard]] constexpr Dlink *& get_last() const noexcept { return prev; }
-
-    /** Wrap a header to a list (without header).
-
-        Sometimes, especially for low level applications, you coult manage
-        linked list without header nodes. In this case, in order to profit
-        some operations expeting a list with header, you could "wrap" a
-        temporal header and use the list and the operations of this class.
-
-        For example, suppose we have a list `l` without header node and we
-        wish to insert it into a another list with a header node. In this
-        case, we wrap a header to `l` as follows:
-
-        Dlink h;
-        h.wrap_header(l);
-
-        Now, if we have a node `p` of another list, we could insert `l`
-        after `p` as follows:
-
-        p->insert_list(&h);
-
-        After this operation `h` becomes empty and the list `l` is
-        inserted after the node `p`
-
-        @param[in] l first node of a double and circular list **without
-        header node**
-    */
-    void wrap_header(Dlink * l) noexcept
-    {
-      assert(is_empty());
-      l->append(this);
-    }
-
-    /** Insert the list `head` before `this`
-
-        This method assumes that `this` is a node part of list; it is
-        not the header node. On the other hand, `head` is the header
-        node of an entire list. So, all the list `head` is entirely
-        inserted, in constant time, before the node `this`. After
-        insertion, the list `head` becomes empty.
-
-        @param[in] head header for the list to insert
-    */
-    void insert_list(Dlink * head) noexcept
-    {
-      if (head->is_empty())
-        return;
-
-      head->prev->next = next;
-      head->next->prev = this;
-      next->prev       = head->prev;
-      next             = head->next;
-      head->reset();
-    }
-
-    /** Insert the list `head` after `this`
-
-        This method assumes that `this` is a node part of list; it is
-        not the header node. On the other hand, `head` is the header
-        node of an entire list. So, all the list `head` is entirely
-        appended, in constant time, after the node `this`. After
-        append, the list `head` becomes empty.
-
-        @param[in] head header for the list to insert
-    */
-    void append_list(Dlink * head) noexcept
-    {
-      if (head->is_empty())
-        return;
-
-      head->next->prev = prev;
-      head->prev->next = this;
-      prev->next       = head->next;
-      prev             = head->prev;
-      head->reset();
-    }
-
-    /** Insert a list `l` without header node after the node `this`.
-
-        @param[in] l list **without header node** to be inserted after `this`
-    */
-    void splice(Dlink * l) noexcept
-    {
-      Dlink head;
-      head.wrap_header(l);
-      insert_list(&head);
-      assert(head.is_empty());
-    }
-
-    /** Concatenate list `head` to list `this`
-
-        `this` and `head` are both header nodes of
-        lists. `concat_list(head)` concatenates in constant time all
-        the list `head` after `this`. After the concatenation `head`
-        becomes empty.
-
-        @param head header node of list to concatenate
-    */
-    void concat_list(Dlink * head) noexcept
-    {
-      assert(head != nullptr);
-
-      if (head->is_empty())
-        return;
-
-      if (this->is_empty())
-        {
-          swap(head);
-          return;
-        }
-
-      prev->next       = head->next;
-      head->next->prev = prev;
-      prev             = head->prev;
-      head->prev->next = this;
-      head->reset();
-    }
-
-    /// \overload concat_list(Dlink * head)
-    void concat_list(Dlink & head) noexcept
-    {
-      concat_list(&head);
-    }
-
-    /// Remove `this` from the list. `this` must not be a header node
-    Dlink * del() noexcept
-    {
-      assert(next != nullptr and prev != nullptr);
-
-      prev->next = next;
-      next->prev = prev;
-      reset();
-      return this;
-    }
-
-    /// \overload del()
-    void erase() noexcept { del(); }
-
-    /** Remove the item that is before `this`
-
-        Remove the item predecessor of `this`.
-
-        \note If `this` is a header node, then this method is equivalent
-        to remove the last node.
-
-        \warning The predecessor of `this` must not be a header node.
-
-        @return a pointer to the removed node.
-    */
-    Dlink * remove_prev() noexcept
-    {
-      assert(not is_empty());
-
-      Dlink* retValue = prev;
-      retValue->del();
-
-      return retValue;
-    }
-
-    /** Remove the item that is after `this`
-
-        Remove the item successor of `this`.
-
-        \note If `this` is a header node, then this method is equivalent
-        to remove the first node.
-
-        \warning The successor of `this` must not be a header node.
-
-        @return a pointer to the removed node.
-    */
-    Dlink * remove_next() noexcept
-    {
-      assert(not is_empty());
-
-      Dlink* retValue = next;
-      retValue->del();
-
-      return retValue;
-    }
-
-    /// \overload remove_prev()
-    Dlink * remove_last_ne() noexcept
-    {
-      return remove_prev();
-    }
-
-    /// \overload remove_next()
-    Dlink * remove_first_ne() noexcept
-    {
-      return remove_next();
-    }
-
-    /// \overload remove_prev()
-    Dlink * remove_last() noexcept
-    {
-      return remove_prev();
-    }
-
-    /// \overload remove_next()
-    Dlink * remove_first() noexcept
-    {
-      return remove_next();
-    }
-
-    /// \overload get_next()
-    Dlink * top() const
-    {
-      ah_underflow_error_if(is_empty()) << "Dlink as stack is empty";
-      return get_next();
-    }
-
-    /// \overload remove_next()
-    Dlink * pop()
-    {
-      ah_underflow_error_if(is_empty()) << "Dlink as stack is empty";
-      return remove_next();
-    }
-
-    /** Reverse the list.
-
-        @return the number of items that has the list
-    */
-    size_t reverse_list() noexcept
-    {
-      if (is_empty())
-        return 0;
-
-      Dlink tmp;
-      size_t counter = 0;
-      for (; not is_empty(); counter++)
-        tmp.insert(remove_next());
-
-      swap(&tmp);
-
-      return counter;
-    }
-
-    /// \overload reverse_list
-    size_t reverse() noexcept { return reverse_list(); }
-
-    /**  Split `this` in the middle in two lists.
-
-         `split_list(l, r)` cuts `this` in its middle: `l` takes its first
-         n - n / 2 nodes and `r` the last n / 2, in their order. After the
-         operation, `this` becomes empty. It walks from both ends to the
-         middle and splices the two halves, without moving the nodes one
-         by one.
-
-         \note `l` and `r` must be empty before calling this method.
-
-         @param[out] l the first n - n / 2 nodes of `this`
-         @param[out] r the last n / 2 nodes of `this`
-         @return total number of nodes of both lists (which is the same
-         number of nodes that `this` had before the split)
-    */
-    size_t split_list_ne(Dlink & l, Dlink & r) noexcept
-    {
-      assert(l.is_empty() and r.is_empty()); // l and r must be empty
-
-      if (is_empty())
-        return 0;
-
-      // p from the first node and q from the last meet in the middle; l
-      // takes the nodes up to p, the first n - n / 2, after its own, and r
-      // the others before its own, as if they had moved one by one
-      Dlink * p = next;
-      Dlink * q = prev;
-      size_t half = 0;
-      while (p != q and p->next != q)
-        {
-          p = p->next;
-          q = q->prev;
-          ++half;
-        }
-
-      Dlink * const first = next;
-      Dlink * const last = prev;
-      if (p != last)
-        {
-          Dlink * const r_first = p->next;
-          last->next = r.next;
-          r.next->prev = last;
-          r.next = r_first;
-          r_first->prev = &r;
-        }
-
-      l.prev->next = first;
-      first->prev = l.prev;
-      p->next = &l;
-      l.prev = p;
-
-      reset();
-
-      return 2 * half + (p == q ? 1 : 2);
-    }
-
-    size_t split_list(Dlink & l, Dlink & r) noexcept
-    {
-      return split_list_ne(l, r);
-    }
-
-    /**  Cut `this` from `link`.
-
-         `cut_list(link)` takes a valid link to an item of the list and on
-         that `link` performs a cut; that is, all the items from `link`
-         passes to a new list whose head is the return value.
-
-         The operation takes constant time.
-
-         \warning Takes in account that the return value is `Dlink`
-         object, not a pointer.
-
-         \warning if `link` belongs to a list, then this one will be in
-         an inconsistent state.
-
-         @param[in] link pointer to the item from which the cut will be
-         done
-         @return a `Dlink` header of a new list containing the items from
-         `link`
-    */
-    Dlink cut_list(Dlink * link) noexcept
-    {
-      assert(not is_empty() and not link->is_empty() and link != this);
-
-      Dlink list;
-      if (link == this->prev) // is link the last item?
-        {
-          link->del();
-          list.append(link);
-          return list;
-        }
-
-      if (link == this->next) // is link the first item?
-        {
-          list.swap(this);
-          assert(this->is_empty());
-          return list;
-        }
-
-      list.prev = this->prev;       // link list to link (cutting point)
-      list.next = link;
-      this->prev = link->prev;       // remove from this everything from link
-      link->prev->next = this;
-      link->prev = &list;       //place the cut in list
-      list.prev->next = &list;
-
-      return list;
-    }
-
-    /**  Iterator on `Dlink` lists
-
-         @ingroup Sequences
-    */
-    class Iterator
-    {
-    private:
-
-      mutable Dlink * head = nullptr;
-      mutable Dlink * curr = nullptr;
-
-    public:
-
-      /// The set type
-      using Set_Type = Dlink;
-
-      /// The type of elements of container
-      using Item_Type = Dlink *;
-
-      /** Initialize an iterator on the first item of the list pointed
-          by `head_ptr`.
-
-          @param[in] head_ptr pointer to the list (hedaer node) 
-      */
-      Iterator(Dlink * head_ptr) noexcept
-        : head(head_ptr), curr(head->get_next()) { /* */ }
-
-      /** Initialize an iterator on the first item of `list`.
-
-          @param[in] list reference to the list
-      */
-      Iterator(const Dlink & list) noexcept
-        : head(&const_cast<Dlink&>(list)), curr(head->get_next())
-      {
-        // Empty
-      }
-
-      /** Set the current node .
-
-          This method set the current node to `new_curr`, which of course
-          must be a valid pointer to a item in the list.
-
-          @param[in] new_curr pointer to the new current item
-      */
-      void set(Dlink * new_curr) noexcept
-      {
-        assert(curr != nullptr and head != nullptr);
-        curr = new_curr;
-      }
-
-      Iterator() noexcept : head(nullptr), curr(nullptr) { /* Empty */ }
-
-      /// Reset the iterator to the first item of list
-      void reset_first() noexcept
-      {
-        assert(curr != nullptr and head != nullptr);
-        curr = head->get_next();
-      }
-
-      /// Reset the iterator to the last item of list
-      void reset_last() noexcept
-      {
-        assert(curr != nullptr and head != nullptr);
-        curr = head->get_prev();
-      }
-
-      /// Put the iterator out of range
-      void end() noexcept
-      {
-        put_itor_at_the_end(*this);
-      }
-
-      /// Return `true` if the iterator has current item
-      [[nodiscard]] bool has_curr() const noexcept
-      {
-        assert(curr != nullptr and head != nullptr);
-        return curr != head;
-      }
-
-      [[nodiscard]] bool is_last() const noexcept
-      {
-        return head->is_empty() ? false : curr == head->prev;
-      }
-
-      /// Return the current link guaranteeing no exception. Be careful.
-      [[nodiscard]] Dlink * get_curr_ne() const noexcept
-      {
-        assert(curr != nullptr and head != nullptr);
-        return curr;
-      }
-
-      /** Return the current node of iterator
-
-          \return a pointer to the current node
-          \throw overflow_error if there is not current node
-      */
-      [[nodiscard]] Dlink * get_curr() const
-      {
-        ah_overflow_error_if(not has_curr()) << "Not element in list";
-
-        return get_curr_ne();
-      }
-
-      ///  Return `true` if the iterator is positiones on the first item
-      [[nodiscard]] constexpr bool is_in_first() const noexcept
-      {
-        return head->is_empty() ? false : curr == head->next;
-      }
-
-      ///  Return `true` if the iterator is positiones on the last item
-      [[nodiscard]] bool is_in_last() const noexcept { return is_last(); }
-
-      /// Move the iterator one position backward guaranteeing no
-      /// exception. Be careful.
-      void prev_ne() noexcept { curr = curr->get_prev(); }
-
-      /** Move the iterator one position backward
-
-          \throw underflow_error if there is no current item
-      */
-      void prev()
-      {
-        ah_underflow_error_if(not has_curr()) << "Not previous element in list";
-        prev_ne();
-      }
-
-      /// Move the iterator one position backward guaranteeing no
-      /// exception. Be careful.
-      void next_ne() noexcept { curr = curr->get_next(); }
-
-      /** Move the iterator one position forward
-
-          \throw overflow_error if there is no current item
-      */
-      void next()
-      {
-        ah_overflow_error_if(not has_curr()) << "Not next element in list";
-        next_ne();
-      }
-
-      /// Return `true` if `this` and it are positioned on the same item
-      [[nodiscard]] constexpr bool operator == (const Iterator & it) const noexcept
-      { return curr == it.curr; }
-
-      /// Return `true` if `this` and `it` hace different states
-      [[nodiscard]] constexpr bool operator != (const Iterator & it) const noexcept
-      { return curr != it.curr; }
-
-      /** Remove from the list the current node and move the iterator one
-          position forward.
-
-          @return a pointer to removed item
-      */
-      Dlink * del()
-      {
-        assert(curr != nullptr and head != nullptr);
-        assert(has_curr());
-
-        Dlink * current = get_curr(); // the current node
-        next(); // move to the next node
-        current->del(); // unlink the node that was current
-        return current;
-      }
-
-      Dlink * del_ne() noexcept
-      {
-        assert(curr != nullptr and head != nullptr);
-        assert(has_curr());
-
-        Dlink * current = get_curr(); // the current node
-        next_ne(); // move to the next node
-        current->del(); // unlink the node that was current
-        return current;
-      }
-
-      /// Return `true` if the iterator is on the list pointed by `l`
-      [[nodiscard]] constexpr bool verify(Dlink * l) const noexcept { return head == l; }
-
-      /// Return `true` if `this` and `it` are on the same list
-      [[nodiscard]] constexpr bool verify(const Iterator & it) const noexcept { return head == it.head; }
-    };
-
-    /** Remove and free memory for all the items of list.
-
-        `remove_all_and_delete()` remove each item of the list and call to
-        `delete` operator on the removed item. At the end of call, all the
-        items were removed, all the memory freed qand the list emptied.
-
-        \warning This method only has sense if the items of list were
-        dynamically allocated with `new`. Although That is very frequently
-        the case, there are some exceptions. So, be sure that the items
-        were allocated with `new` operator.
-    */
-    void remove_all_and_delete() noexcept
-    {
-      while (not is_empty())
-        delete remove_next();
-    }
-
-    /** Rotate to left the list n positions.
-
-        `rotate_left(n)` rotates the items to left `n` positions. For
-        example, if the list is as follows:
-
-        l0, l1, l2, l3, l4, l5, l6, l7, l8, l9
-
-        Then `rotate_left(4)` produces the following state:
-
-        l4, l5, l6, l7, l8, l9, l0, l1, l2, l3
-
-        \param[in] n the number of position to be rotated
-        \throw domain_error if list is empty
-    */
-    void rotate_left(size_t n)
-    {
-      if (is_empty())
-        {
-          if (n == 0)
-            return;
-          ah_domain_error() << "List is empty";
-        }
-
-      for (size_t i = 0; i < n; ++i)
-        append(remove_first());
-    }
-
-    /** Analogous to rotate_left() but to right */
-    void rotate_right(size_t n)
-    {
-      if (is_empty())
-        {
-          if (n == 0)
-            return;
-          ah_domain_error() << "List is empty";
-        }
-
-      for (size_t i = 0; i < n; ++i)
-        insert(remove_last());
-    }
-
-    /// Return `true` if the list is consistent
-    bool check()
-    {
-      Iterator itor(this);
-      Dlink* node;
-
-      for (/* nothing */; itor.has_curr(); itor.next_ne())
-        {
-          node = itor.get_curr();
-
-          if (not (node->get_next()->get_prev() == node))
-            return false;
-
-          if (not (node->get_prev()->get_next() == node))
-            return false;
-        }
-
-      for (itor.reset_last(); itor.has_curr(); itor.prev())
-        {
-          node = itor.get_curr();
-
-          if (not (node->get_next()->get_prev() == node))
-            return false;
-
-          if (not (node->get_prev()->get_next() == node))
-            return false;
-        }
-
-      return true;
+      return head == it.head;
     }
   };
 
-  /** Generate a conversion function from a `Dlink` field to a class
-      containing it.
+  /** Remove and free memory for all the items of list.
 
-      This macro is used when inside a class exists one o more
-      `Dlink` fields and it is needed to obtain from a `Dlink` field
-      a pointer to the class containing it.
+      `remove_all_and_delete()` remove each item of the list and call to
+      `delete` operator on the removed item. At the end of call, all the
+      items were removed, all the memory freed qand the list emptied.
 
-      For example, suppose the following situation:
-
-      struct Record
-      {
-      ...
-      Dlink l;
-      ...
-      };
-
-      So, `DLINK_TO_TYPE(Record, l)` will generate the function:
-
-      Record * dlink_to_Record(Dlink * link)
-
-      which receives a pointer to the `Dlink` field `l` and returns
-      a pointer to the class `Record` containing `l`.
-
-      @param type_name the name of class or struct containing the
-      `Dlink` field
-      @param link_name the name of the `Dlink` field inside the class
-      or struct.
-      @ingroup Sequences
+      \warning This method only has sense if the items of list were
+      dynamically allocated with `new`. Although That is very frequently
+      the case, there are some exceptions. So, be sure that the items
+      were allocated with `new` operator.
   */
-# define DLINK_TO_TYPE(type_name, link_name)                            \
-  inline static type_name * dlink_to_##type_name(Dlink * link) noexcept \
-  {                                                                     \
-    const size_t offset_link = __builtin_offsetof(type_name, link_name); \
-    char * address_type = reinterpret_cast<char*>(link) - offset_link;	\
-    return reinterpret_cast<type_name *>(address_type);                 \
+  void remove_all_and_delete() noexcept
+  {
+    while (not is_empty())
+      delete remove_next();
   }
 
-  /** Generate a conversion function from a `Dlink` field pointer to
-      a pointer to the class containing it.
+  /** Rotate to left the list n positions.
 
-      The name of the function is literally the name of second parameter
+      `rotate_left(n)` rotates the items to left `n` positions. For
+      example, if the list is as follows:
 
-      This macro is used when one o more `Dlink` field are used inside
-      a class and it is desired to obtain pointers to the class from
-      the `Dlink` fields. Consider for example,
+      l0, l1, l2, l3, l4, l5, l6, l7, l8, l9
 
-      struct Redcordgistro
-      {
-      ...
-      Dlink l1;
-      Dlink l2;
-      ...
-      };
+      Then `rotate_left(4)` produces the following state:
 
-      So, `LINKNAME_TO_TYPE(Record, l1)` and
-      `LINKNAME_TO_TYPE(Record, l2)` will generate the following functions:
+      l4, l5, l6, l7, l8, l9, l0, l1, l2, l3
 
-      Record * l1_to_type(Dlink * link)
-
-      Record * l2_to_type(Dlink * link)
-
-      So for converting a `Dlink` pointer to `l1` to a pointer to
-      `Record` object which contains it, you use `l1_to_type(link)`;
-      analogously with `l2_to_type(link)`.
-
-      The idea is having naming schemes allowing to distinguish
-      several `Dlink` fields.
-
-      \note You could have several `Dlink` fields. This situation
-      arises if you want that the class simultaneously belongs to
-      several lists. In this case you would declare a `Dlink` field by
-      each different list.
-
-      @param type_name the name of struct or class containing to the
-      `Dlink` object.
-      @param link_name the name of `Dlink` field
-      @ingroup Sequences
+      \param[in] n the number of position to be rotated
+      \throw domain_error if list is empty
   */
-# define LINKNAME_TO_TYPE(type_name, link_name)                         \
-  inline static type_name * link_name##_to_##type_name(Dlink * link) noexcept \
-  {                                                                     \
-    const size_t offset_link = __builtin_offsetof(type_name, link_name); \
-    char * address_type = reinterpret_cast<char*>(link) - offset_link;	\
-    return reinterpret_cast<type_name *>(address_type);                 \
+  void rotate_left(size_t n)
+  {
+    if (is_empty())
+      {
+        if (n == 0)
+          return;
+        ah_domain_error() << "List is empty";
+      }
+
+    for (size_t i = 0; i < n; ++i)
+      append(remove_first());
   }
 
-
-  /** Generate a function with name `link_to_base()` what converts a
-      `Dlink` pointer to the class or struct that contains it.
-
-      This macro could be used when a class have a `Dlink` field y
-      and from it it is desired to get a pointer to the class. For
-      example, suppose some such as:
-
-      struct Record
+  /** Analogous to rotate_left() but to right */
+  void rotate_right(size_t n)
+  {
+    if (is_empty())
       {
-      ...
-      Dlink l;
-      ...
-      };
+        if (n == 0)
+          return;
+        ah_domain_error() << "List is empty";
+      }
 
-      Then `DLINK_TO_BASE(Record, l)` will produce the function:
-
-      Record * dlink_to_base(Dlink * link)
-
-      which receives a pointer to the `Dlink` field `l` and return a
-      pointer to the `Record` object storing `l`.
-
-      @param type_name the name of class of struct containing the
-      `Dlink` field.
-      @param link_name the name of `Dlink` field inside the class or struct
-      @ingroup Sequences
-  */
-# define DLINK_TO_BASE(type_name, link_name)                            \
-  inline static type_name * dlink_to_base(Dlink * link)	noexcept        \
-  {                                                                     \
-    const size_t offset_link = __builtin_offsetof(type_name, link_name); \
-    char * address_type = reinterpret_cast<char*>(link) - offset_link;	\
-    return reinterpret_cast<type_name *>(address_type);                 \
+    for (size_t i = 0; i < n; ++i)
+      insert(remove_last());
   }
 
-}
+  /// Return `true` if the list is consistent
+  bool check()
+  {
+    Iterator itor(this);
+    Dlink *node;
 
-# endif /* DLINK_H */
+    for (/* nothing */; itor.has_curr(); itor.next_ne())
+      {
+        node = itor.get_curr();
+
+        if (not (node->get_next()->get_prev() == node))
+          return false;
+
+        if (not (node->get_prev()->get_next() == node))
+          return false;
+      }
+
+    for (itor.reset_last(); itor.has_curr(); itor.prev())
+      {
+        node = itor.get_curr();
+
+        if (not (node->get_next()->get_prev() == node))
+          return false;
+
+        if (not (node->get_prev()->get_next() == node))
+          return false;
+      }
+
+    return true;
+  }
+};
+
+/** Generate a conversion function from a `Dlink` field to a class
+    containing it.
+
+    This macro is used when inside a class exists one o more
+    `Dlink` fields and it is needed to obtain from a `Dlink` field
+    a pointer to the class containing it.
+
+    For example, suppose the following situation:
+
+    struct Record
+    {
+    ...
+    Dlink l;
+    ...
+    };
+
+    So, `DLINK_TO_TYPE(Record, l)` will generate the function:
+
+    Record * dlink_to_Record(Dlink * link)
+
+    which receives a pointer to the `Dlink` field `l` and returns
+    a pointer to the class `Record` containing `l`.
+
+    @param type_name the name of class or struct containing the
+    `Dlink` field
+    @param link_name the name of the `Dlink` field inside the class
+    or struct.
+    @ingroup Sequences
+*/
+#define DLINK_TO_TYPE(type_name, link_name)                                                        \
+  inline static type_name *dlink_to_##type_name(Dlink *link) noexcept                              \
+  {                                                                                                \
+    const size_t offset_link = __builtin_offsetof(type_name, link_name);                           \
+    char *address_type = reinterpret_cast<char *>(link) - offset_link;                             \
+    return reinterpret_cast<type_name *>(address_type);                                            \
+  }
+
+/** Generate a conversion function from a `Dlink` field pointer to
+    a pointer to the class containing it.
+
+    The name of the function is literally the name of second parameter
+
+    This macro is used when one o more `Dlink` field are used inside
+    a class and it is desired to obtain pointers to the class from
+    the `Dlink` fields. Consider for example,
+
+    struct Redcordgistro
+    {
+    ...
+    Dlink l1;
+    Dlink l2;
+    ...
+    };
+
+    So, `LINKNAME_TO_TYPE(Record, l1)` and
+    `LINKNAME_TO_TYPE(Record, l2)` will generate the following functions:
+
+    Record * l1_to_type(Dlink * link)
+
+    Record * l2_to_type(Dlink * link)
+
+    So for converting a `Dlink` pointer to `l1` to a pointer to
+    `Record` object which contains it, you use `l1_to_type(link)`;
+    analogously with `l2_to_type(link)`.
+
+    The idea is having naming schemes allowing to distinguish
+    several `Dlink` fields.
+
+    \note You could have several `Dlink` fields. This situation
+    arises if you want that the class simultaneously belongs to
+    several lists. In this case you would declare a `Dlink` field by
+    each different list.
+
+    @param type_name the name of struct or class containing to the
+    `Dlink` object.
+    @param link_name the name of `Dlink` field
+    @ingroup Sequences
+*/
+#define LINKNAME_TO_TYPE(type_name, link_name)                                                     \
+  inline static type_name *link_name##_to_##type_name(Dlink *link) noexcept                        \
+  {                                                                                                \
+    const size_t offset_link = __builtin_offsetof(type_name, link_name);                           \
+    char *address_type = reinterpret_cast<char *>(link) - offset_link;                             \
+    return reinterpret_cast<type_name *>(address_type);                                            \
+  }
+
+/** Generate a function with name `link_to_base()` what converts a
+    `Dlink` pointer to the class or struct that contains it.
+
+    This macro could be used when a class have a `Dlink` field y
+    and from it it is desired to get a pointer to the class. For
+    example, suppose some such as:
+
+    struct Record
+    {
+    ...
+    Dlink l;
+    ...
+    };
+
+    Then `DLINK_TO_BASE(Record, l)` will produce the function:
+
+    Record * dlink_to_base(Dlink * link)
+
+    which receives a pointer to the `Dlink` field `l` and return a
+    pointer to the `Record` object storing `l`.
+
+    @param type_name the name of class of struct containing the
+    `Dlink` field.
+    @param link_name the name of `Dlink` field inside the class or struct
+    @ingroup Sequences
+*/
+#define DLINK_TO_BASE(type_name, link_name)                                                        \
+  inline static type_name *dlink_to_base(Dlink *link) noexcept                                     \
+  {                                                                                                \
+    const size_t offset_link = __builtin_offsetof(type_name, link_name);                           \
+    char *address_type = reinterpret_cast<char *>(link) - offset_link;                             \
+    return reinterpret_cast<type_name *>(address_type);                                            \
+  }
+
+}  // namespace Aleph
+
+#endif /* DLINK_H */

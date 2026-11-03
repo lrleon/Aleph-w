@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-
 /** @file tpl_arrayStack.H
     @brief Stack implementations backed by dynamic or fixed arrays.
 
@@ -57,758 +56,820 @@
 #include <ah-errors.H>
 #include <ah-iterator.H>
 
-namespace Aleph
+namespace Aleph {
+/** Stack implemented with simple dynamic array and with bounds
+    verification.
+
+    `ArrayStack<T>` instruments a stack of elements of generic type
+    `T`. The stack is store into an internal contiguous array which
+    grows and ungrows dynamically according to the number of elements.
+
+    `ArrayStack<T>` is a good trade-off between performance and memory
+    consumption. In general is faster than a stack implemented with
+    linked list, but since the internal array growths in two powers,
+    the waste of memory could reach twice the number of elements.
+
+    You could use `FixedStack`, which other than the internal array
+    does not dynamically grow, it does not still perform bound_min_clock checks.
+
+    @see FixedStack DynListStack
+    @ingroup Sequences
+ */
+template <typename T>
+class ArrayStack : public LocateFunctions<ArrayStack<T>, T>,
+                   public FunctionalMethods<ArrayStack<T>, T>,
+                   public GenericKeys<ArrayStack<T>, T>,
+                   public EqualSequenceMethod<ArrayStack<T>>,
+                   public StlAlephIterator<ArrayStack<T>>
 {
-  /** Stack implemented with simple dynamic array and with bounds
-      verification.
+  MemArray<T> array;
 
-      `ArrayStack<T>` instruments a stack of elements of generic type
-      `T`. The stack is store into an internal contiguous array which
-      grows and ungrows dynamically according to the number of elements.
+public:
+  using Item_Type = T;  /// The type of element
 
-      `ArrayStack<T>` is a good trade-off between performance and memory
-      consumption. In general is faster than a stack implemented with
-      linked list, but since the internal array growths in two powers,
-      the waste of memory could reach twice the number of elements.
+  /// Initializes a stack with a capacity of `dim`
+  ArrayStack(size_t dim = 4) : array(dim)
+  { /* empty */
+  }
 
-      You could use `FixedStack`, which other than the internal array
-      does not dynamically grow, it does not still perform bound_min_clock checks.
+  /// Copy constructor
+  ArrayStack(const ArrayStack &s) : array(s.array)
+  { /* empty */
+  }
 
-      @see FixedStack DynListStack
-      @ingroup Sequences
-   */
-  template <typename T>
-  class ArrayStack : public LocateFunctions<ArrayStack<T>, T>,
-                     public FunctionalMethods<ArrayStack<T>, T>,
-                     public GenericKeys<ArrayStack<T>, T>,
-                     public EqualSequenceMethod<ArrayStack<T>>,
-                     public StlAlephIterator<ArrayStack<T>>
+  /// Move constructor
+  ArrayStack(ArrayStack &&s) noexcept : array(std::move(s.array))
+  { /* empty */
+  }
+
+  Special_Ctors(ArrayStack, T);
+
+  /// Assign by copy `s` to `this`
+  ArrayStack &operator = (const ArrayStack &s)
   {
-    MemArray<T> array;
-
-  public:
-    using Item_Type = T; /// The type of element
-
-    /// Initializes a stack with a capacity of `dim`
-    ArrayStack(size_t dim = 4) : array(dim)
-    { /* empty */
-    }
-
-    /// Copy constructor
-    ArrayStack(const ArrayStack & s) : array(s.array)
-    { /* empty */
-    }
-
-    /// Move constructor
-    ArrayStack(ArrayStack && s) noexcept
-      : array(std::move(s.array))
-    { /* empty */
-    }
-
-    Special_Ctors(ArrayStack, T);
-
-    /// Assign by copy `s` to `this`
-    ArrayStack &operator =(const ArrayStack & s)
-    {
-      if (this == &s)
-        return *this;
-
-      array = s.array;
-
+    if (this == &s)
       return *this;
-    }
 
-    /// Swap `this` with `s`
-    void swap(ArrayStack & s) noexcept
-    {
-      array.swap(s.array);
-    }
+    array = s.array;
 
-    /// Assign by moving `s` to `this`
-    ArrayStack &operator =(ArrayStack && s) noexcept
-    {
-      array.swap(s.array);
-      return *this;
-    }
+    return *this;
+  }
 
-    /** Push into stack a copy of `data`
-
-        @param[in] data to be pushed by copy
-        @return a modifiable reference to the copy of inserted `data`
-        @throw bad_alloc if there is no enough memory
-    */
-    T &push(const T & data)
-    {
-      return array.put(data);
-    }
-
-    /** Push into stack `data`
-
-        @param[in] data to be pushed by moving
-        @return a modifiable reference to the moved inserted `data`
-        @throw bad_alloc if there is no enough memory
-    */
-    T &push(T && data)
-    {
-      return array.put(std::forward<T>(data));
-    }
-
-    /// \overload push(const T & data)
-    T &append(const T & data) { return push(data); }
-
-    /// \overload push(T && data)
-    T &append(T && data) { return push(std::forward<T>(data)); }
-
-    /// \overload push(const T & data)
-    T &insert(const T & data) { return push(data); }
-
-    /// \overload push(T && data)
-    T &insert(T && data) { return push(std::forward<T>(data)); }
-
-    /** Push `n` cells into the stack.
-
-        `pushn(n)` is functionally equivalent to perform `n` pushes of
-        `T()` in constant time. The idea is to reserve enough space for
-        later use.
-
-        @param[in] n number of cells to reserve
-        @return a modifiable reference to the stack's top
-        @throw bad_alloc if there is no enough memory
-     */
-    T &pushn(const size_t & n = 1)
-    {
-      ah_invalid_argument_if(n == 0) << "ArrayStack::pushn: n must be positive";
-      array.putn(n);
-      return array.last();
-    }
-
-    /** Extract the last more recently inserted element
-
-        @return a copy of extracted element
-        @throw underflow_error if stack is empty
-     */
-    T pop()
-    {
-      return array.get(1);
-    }
-
-    T pop_ne() noexcept
-    {
-      return array.get_ne(1);
-    }
-
-    /** Extract in constant time the `n` more recently inserted
-        elements of stack.
-
-        @param[in] n number of elements to pop
-        @return a copy of last extracted element
-        @throw underflow_error if `n` is greater than stack size
-     */
-    T popn(size_t n)
-    {
-      ah_invalid_argument_if(n == 0) << "ArrayStack::popn: n must be positive";
-      return array.get(n);
-    }
-
-    /// Return a modifiable reference to youngest element of stack
-    /// (called the top)
-    T &top()
-    {
-      return array.last();
-    }
-
-    const T &top() const
-    {
-      return array.last();
-    }
-
-    /** @brief Return a modifiable reference to the oldest element (the base).
-        @return Reference to the bottom of the stack.
-        @throws std::underflow_error if the stack is empty.
-    */
-    T &base()
-    {
-      return array.first();
-    }
-
-    /** @brief Return a constant reference to the oldest element (the base).
-        @return Constant reference to the bottom of the stack.
-        @throws std::underflow_error if the stack is empty.
-    */
-    const T &base() const
-    {
-      return array.first();
-    }
-
-    /** Return a modifiable reference to the element located at `i`
-        positions from top.
-
-        @param[in] i número of positions
-        @return a modifiable reference to the element at `i` positions
-        after top
-        @throw out_of_range if `i` is greater than the number of
-        elements of stack
-    */
-    T &top(const size_t i)
-    {
-      const size_t sz = array.size();
-      ah_out_of_range_error_if(i >= sz) << "top index out of range";
-      return array.access(sz - i - 1);
-    }
-
-    const T &top(const size_t i) const
-    {
-      const size_t sz = array.size();
-      ah_out_of_range_error_if(i >= sz) << "top index out of range";
-      return array(sz - i - 1);
-    }
-
-    T &get_last() { return top(); }
-
-    const T &get_last() const { return top(); }
-
-    /// Empty the stack
-    void empty() noexcept { array.empty(); }
-
-    /** @brief Empties the container. 
-        
-        @throws none
-        @see empty()
-    */
-    void clear() noexcept { empty(); }
-
-    /// Return `true` if stack is empty
-    bool is_empty() const noexcept { return array.size() == 0; }
-
-    /// Return the number of elements stored in the stack
-    size_t size() const noexcept { return array.size(); }
-
-    /// Return the internal capacity
-    size_t capacity() const noexcept { return array.capacity(); }
-
-    /** Traverse all the items of stack from the youngest to oldest and
-        conditionally performs an operation.
-
-        @param[in] operation to perform on the current element. If it
-        returns `true`, the traversal continues to the next item;
-        otherwise the traversal stops
-     */
-    template <class Operation>
-      requires Aleph::PredicateWith<Operation &, T &>
-    bool traverse(Operation & operation)
-      noexcept(noexcept(array.traverse(operation)))
-    {
-      return array.traverse(operation);
-    }
-
-    /// \overload traverse(Operation & operation)
-    template <class Operation>
-      requires Aleph::PredicateWith<Operation &, const T &>
-    bool traverse(Operation & operation) const
-      noexcept(noexcept(array.traverse(operation)))
-    {
-      return array.traverse(operation);
-    }
-
-    /// \overload traverse(Operation & operation)
-    template <class Operation>
-      requires Aleph::PredicateWith<Operation &, const T &>
-    bool traverse(Operation && operation = Operation()) const
-      noexcept(noexcept(array.traverse(operation)))
-    {
-      return array.traverse(operation);
-    }
-
-    /// \overload traverse(Operation & operation)
-    template <class Operation>
-      requires Aleph::PredicateWith<Operation &, T &>
-    bool traverse(Operation && operation = Operation())
-      noexcept(noexcept(array.traverse(operation)))
-    {
-      return array.traverse(operation);
-    }
-
-    /** Iterator on the items of a stack.
-
-        The visit order goes from the oldest to the youngest item
-
-        @ingroup Sequences
-    */
-    class Iterator : public MemArray<T>::Iterator
-    {
-    public:
-      using Base = typename MemArray<T>::Iterator;
-      using Set_Type = ArrayStack;
-
-      using Base::Base;
-
-      /// Iterator on the modifiable stack `s`.
-      Iterator(ArrayStack<T> & s) : Base(s.array) {}
-
-      /// A constant stack is iterated through Const_Iterator.
-      Iterator(const ArrayStack<T> &) = delete;
-    };
-
-    /// Read-only iterator: the iterator of a constant container.
-    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
-  };
-
-  /** Fixed length stack.
-
-      `FixedStack<T>` models a stack with a maximum capacity. In
-      addition, no operation performs checks, what gives to all
-      operations the highest performance.
-
-      \note Use this type when you have an precise idea about the
-      maximum stack size and this last is not too big.
-
-      @see ArrayStack DynListStack
-      @ingroup Sequences
-   */
-  template <typename T>
-  class FixedStack : public LocateFunctions<FixedStack<T>, T>,
-                     public FunctionalMethods<FixedStack<T>, T>,
-                     public GenericKeys<FixedStack<T>, T>,
-                     public EqualSequenceMethod<FixedStack<T>>,
-                     public StlAlephIterator<FixedStack<T>>
+  /// Swap `this` with `s`
+  void swap(ArrayStack &s) noexcept
   {
-    T *array = nullptr;
-    size_t head = 0;
-    size_t dim = 0;
+    array.swap(s.array);
+  }
 
-  public:
-    using Item_Type = T; /// The type of element
+  /// Assign by moving `s` to `this`
+  ArrayStack &operator = (ArrayStack &&s) noexcept
+  {
+    array.swap(s.array);
+    return *this;
+  }
 
-    /// Construct a fixed stack of maximum `d` items
-    FixedStack(const size_t d = 1024)
-    // Don't change the default value because you would risk of
-    // breaking the tests
-      : array(new T[d]), head(0), dim(d)
-    {
-      /* empty */
-    }
+  /** Push into stack a copy of `data`
 
-    ~FixedStack()
-    {
-      if (array)
-        delete [] array;
-    }
+      @param[in] data to be pushed by copy
+      @return a modifiable reference to the copy of inserted `data`
+      @throw bad_alloc if there is no enough memory
+  */
+  T &push(const T &data)
+  {
+    return array.put(data);
+  }
 
-    /// Copy constructor
-    FixedStack(const FixedStack & s)
-      : array(nullptr), head(s.head), dim(s.dim)
-    {
-      std::unique_ptr<T[]> tmp(new T[s.dim]);
-      for (size_t i = 0; i < head; ++i)
-        tmp[i] = s.array[i];
-      array = tmp.release();
-    }
+  /** Push into stack `data`
 
-    Special_Ctors(FixedStack, T);
+      @param[in] data to be pushed by moving
+      @return a modifiable reference to the moved inserted `data`
+      @throw bad_alloc if there is no enough memory
+  */
+  T &push(T &&data)
+  {
+    return array.put(std::forward<T>(data));
+  }
 
-    /// Swap in constant time `s` with `this`
-    void swap(FixedStack & s) noexcept
-    {
-      std::swap(array, s.array);
-      std::swap(head, s.head);
-      std::swap(dim, s.dim);
-    }
+  /// \overload push(const T & data)
+  T &append(const T &data)
+  {
+    return push(data);
+  }
 
-    /// Move constructor
-    FixedStack(FixedStack && s) noexcept
-      : array(nullptr), head(0), dim(0)
-    {
-      swap(s);
-    }
+  /// \overload push(T && data)
+  T &append(T &&data)
+  {
+    return push(std::forward<T>(data));
+  }
 
-    /// Assign by copy `s` to `this`
-    FixedStack &operator =(const FixedStack & s)
-    {
-      if (this == &s)
-        return *this;
+  /// \overload push(const T & data)
+  T &insert(const T &data)
+  {
+    return push(data);
+  }
 
-      FixedStack tmp(s);
-      swap(tmp);
-      return *this;
-    }
+  /// \overload push(T && data)
+  T &insert(T &&data)
+  {
+    return push(std::forward<T>(data));
+  }
 
-    FixedStack &operator =(FixedStack && s) noexcept
-    {
-      swap(s);
-      return *this;
-    }
+  /** Push `n` cells into the stack.
 
-    /** Push a copy of `data`
+      `pushn(n)` is functionally equivalent to perform `n` pushes of
+      `T()` in constant time. The idea is to reserve enough space for
+      later use.
 
-        @param[in] data
-        @return a modifiable reference to the copied data.
-     */
-    T &push(const T & data) noexcept(std::is_nothrow_copy_assignable_v<T>)
-    {
-      assert(head < dim);
-      array[head++] = data;
-      return array[head - 1];
-    }
+      @param[in] n number of cells to reserve
+      @return a modifiable reference to the stack's top
+      @throw bad_alloc if there is no enough memory
+   */
+  T &pushn(const size_t &n = 1)
+  {
+    ah_invalid_argument_if(n == 0) << "ArrayStack::pushn: n must be positive";
+    array.putn(n);
+    return array.last();
+  }
 
-    /** Push and move `data`
+  /** Extract the last more recently inserted element
 
-        @param[in] data to be moved
-        @return a modifiable reference to the moved data.
-     */
-    T &push(T && data) noexcept(std::is_nothrow_move_assignable_v<T>)
-    {
-      assert(head < dim);
-      array[head++] = std::move(data);
-      return array[head - 1];
-    }
+      @return a copy of extracted element
+      @throw underflow_error if stack is empty
+   */
+  T pop()
+  {
+    return array.get(1);
+  }
 
-    /// \overload push(const T & data)
-    T &append(const T & data) noexcept(std::is_nothrow_copy_assignable_v<T>)
-    {
-      return push(data);
-    }
+  T pop_ne() noexcept
+  {
+    return array.get_ne(1);
+  }
 
-    /// \overload push(T && data)
-    T &append(T && data) noexcept(std::is_nothrow_move_assignable_v<T>)
-    {
-      return push(std::forward<T>(data));
-    }
+  /** Extract in constant time the `n` more recently inserted
+      elements of stack.
 
-    /// \overload push(const T & data)
-    T &insert(const T & data) noexcept(std::is_nothrow_copy_assignable_v<T>)
-    {
-      return push(data);
-    }
+      @param[in] n number of elements to pop
+      @return a copy of last extracted element
+      @throw underflow_error if `n` is greater than stack size
+   */
+  T popn(size_t n)
+  {
+    ah_invalid_argument_if(n == 0) << "ArrayStack::popn: n must be positive";
+    return array.get(n);
+  }
 
-    /// \overload push(T && data)
-    T &insert(T && data) noexcept(std::is_nothrow_move_assignable_v<T>)
-    {
-      return push(std::forward<T>(data));
-    }
+  /// Return a modifiable reference to youngest element of stack
+  /// (called the top)
+  T &top()
+  {
+    return array.last();
+  }
 
-    /** Push in constant time `n`spaces into stack
+  const T &top() const
+  {
+    return array.last();
+  }
 
-        @param[in] n number of cells to push
-        @return a modifiable reference to stack's top
-     */
-    T &pushn(const size_t & n = 1) noexcept
-    {
-      assert(n > 0);
-      assert(n <= dim - head);
+  /** @brief Return a modifiable reference to the oldest element (the base).
+      @return Reference to the bottom of the stack.
+      @throws std::underflow_error if the stack is empty.
+  */
+  T &base()
+  {
+    return array.first();
+  }
 
-      head += n;
-      return array[head - 1];
-    }
+  /** @brief Return a constant reference to the oldest element (the base).
+      @return Constant reference to the bottom of the stack.
+      @throws std::underflow_error if the stack is empty.
+  */
+  const T &base() const
+  {
+    return array.first();
+  }
 
-    /// Pop by moving the top of stack
-    T pop() noexcept
-    {
-      assert(head > 0);
+  /** Return a modifiable reference to the element located at `i`
+      positions from top.
 
-      return std::move(array[--head]);
-    }
+      @param[in] i número of positions
+      @return a modifiable reference to the element at `i` positions
+      after top
+      @throw out_of_range if `i` is greater than the number of
+      elements of stack
+  */
+  T &top(const size_t i)
+  {
+    const size_t sz = array.size();
+    ah_out_of_range_error_if(i >= sz) << "top index out of range";
+    return array.access(sz - i - 1);
+  }
 
-    /** Perform in constant time `n` pops
+  const T &top(const size_t i) const
+  {
+    const size_t sz = array.size();
+    ah_out_of_range_error_if(i >= sz) << "top index out of range";
+    return array(sz - i - 1);
+  }
 
-        @param[in] n number of items to opo
-        @return the last popped item
-     */
-    T popn(const int n) noexcept
-    {
-      assert(n >= 0);
-      const auto count = static_cast<size_t>(n);
-      assert(head >= count);
+  T &get_last()
+  {
+    return top();
+  }
 
-      head -= count;
-      return std::move(array[head]);
-    }
+  const T &get_last() const
+  {
+    return top();
+  }
 
-    /// Return a modifiable reference to stack's top
-    T &top() noexcept
-    {
-      assert(head > 0);
+  /// Empty the stack
+  void empty() noexcept
+  {
+    array.empty();
+  }
 
-      return array[head - 1];
-    }
+  /** @brief Empties the container.
 
-    const T &top() const noexcept
-    {
-      assert(head > 0);
+      @throws none
+      @see empty()
+  */
+  void clear() noexcept
+  {
+    empty();
+  }
 
-      return array[head - 1];
-    }
+  /// Return `true` if stack is empty
+  bool is_empty() const noexcept
+  {
+    return array.size() == 0;
+  }
 
-    T &get_last() noexcept { return top(); }
+  /// Return the number of elements stored in the stack
+  size_t size() const noexcept
+  {
+    return array.size();
+  }
 
-    const T &get_last() const noexcept { return top(); }
+  /// Return the internal capacity
+  size_t capacity() const noexcept
+  {
+    return array.capacity();
+  }
 
-    /// Return the internal array base
-    T &base() noexcept { return array[0]; }
+  /** Traverse all the items of stack from the youngest to oldest and
+      conditionally performs an operation.
 
-    const T &base() const noexcept { return array[0]; }
+      @param[in] operation to perform on the current element. If it
+      returns `true`, the traversal continues to the next item;
+      otherwise the traversal stops
+   */
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
+  bool traverse(Operation &operation) noexcept(noexcept(array.traverse(operation)))
+  {
+    return array.traverse(operation);
+  }
 
-    /** Return a modifiable reference to item located `i` positions
-        after top
+  /// \overload traverse(Operation & operation)
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
+  bool traverse(Operation &operation) const noexcept(noexcept(array.traverse(operation)))
+  {
+    return array.traverse(operation);
+  }
 
-        @param[in] i number of positions.
-        @return a modifiable reference to item located `i` positions
-        after top.
-    */
-    T &top(const size_t i) noexcept
-    {
-      assert(i < head);
-      return array[head - i - 1];
-    }
+  /// \overload traverse(Operation & operation)
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
+  bool traverse(Operation &&operation = Operation()) const
+    noexcept(noexcept(array.traverse(operation)))
+  {
+    return array.traverse(operation);
+  }
 
-    const T &top(const size_t i) const noexcept
-    {
-      assert(i < head);
-      return array[head - i - 1];
-    }
+  /// \overload traverse(Operation & operation)
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
+  bool traverse(Operation &&operation = Operation()) noexcept(noexcept(array.traverse(operation)))
+  {
+    return array.traverse(operation);
+  }
 
-    /// Return `true` if stack is empty
-    [[nodiscard]] bool is_empty() const noexcept { return head == 0; }
+  /** Iterator on the items of a stack.
 
-    /// Empty the stack
-    void empty() noexcept { head = 0; }
+      The visit order goes from the oldest to the youngest item
 
-    /** @brief Empties the container. 
-        
-        @throws none
-        @see empty()
-    */
-    void clear() noexcept { empty(); }
-
-    /// Return the number of elements stored in the stack
-    [[nodiscard]] size_t size() const noexcept { return head; }
-
-    /** Traverse all the items of stack from the youngest to oldest and
-        conditionally performs an operation.
-
-        @param[in] operation to perform on the current element. If it
-        returns `true`, then the traversal continues to the next item;
-        otherwise the traversal stops
-     */
-    template <class Operation>
-      requires Aleph::PredicateWith<Operation &, T &>
-    bool traverse(Operation & operation)
-      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
-    {
-      for (size_t i = 0; i < head; i++)
-        if (not operation(array[i]))
-          return false;
-
-      return true;
-    }
-
-    /// \overload traverse(Operation & operation)
-    template <class Operation>
-      requires Aleph::PredicateWith<Operation &, const T &>
-    bool traverse(Operation & operation) const
-      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
-    {
-      for (size_t i = 0; i < head; i++)
-        if (not operation(static_cast<const T &>(array[i])))
-          return false;
-      return true;
-    }
-
-    /// \overload traverse(Operation & operation)
-    template <class Operation>
-      requires Aleph::PredicateWith<Operation &, const T &>
-    bool traverse(Operation && operation = Operation()) const
-      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
-    {
-      return traverse<Operation>(operation);
-    }
-
-    /// \overload traverse(Operation & operation)
-    template <class Operation>
-      requires Aleph::PredicateWith<Operation &, T &>
-    bool traverse(Operation && operation = Operation())
-      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
-    {
-      return traverse<Operation>(operation);
-    }
-
-    /** Iterator on the items of a stack.
-
-        The visit order goes from the youngest item to the oldest.
-
-        @ingroup Sequences
-    */
-    class Iterator : public Array_Iterator<T>
-    {
-    public:
-      using Base = Array_Iterator<T>;
-      using Base::Base;
-      using Set_Type = FixedStack;
-
-      /// Iterator on the modifiable stack `s`.
-      Iterator(FixedStack<T> & s)
-        : Base(no_exception_ctor, s.array, s.dim, s.head) {}
-
-      /// A constant stack is iterated through Const_Iterator.
-      Iterator(const FixedStack<T> &) = delete;
-    };
-
-    /// Read-only iterator: the iterator of a constant container.
-    using Const_Iterator = Aleph::Const_Iterator<Iterator>;
-  };
-
-  /** @brief Stack of fixed capacity whose storage is inside the object.
-
-      Unlike FixedStack, it never allocates: the capacity `N` is a
-      compile-time constant and the items live in the object, so
-      construction, copy, move and swap cannot throw. Only the items in use
-      are copied or exchanged, so an empty or short stack costs nothing to
-      copy even when `N` is large.
-
-      It is meant for bounded paths that are built and consumed in place:
-      the path from the root of a balanced tree, whose length is bounded by
-      `Node::MaxHeight`, is the typical one.
-
-      No operation checks its preconditions, except by `assert()`: pushing
-      beyond `N` or popping an empty stack is a logic error.
-
-      @tparam T type of the items; it must be trivially copyable (pointers,
-              indices).
-      @tparam N maximum number of items.
-
-      @see FixedStack ArrayStack
       @ingroup Sequences
   */
-  template <typename T, size_t N>
-  class InlineStack
+  class Iterator : public MemArray<T>::Iterator
   {
-    static_assert(N > 0, "InlineStack needs a positive capacity");
-    static_assert(std::is_trivially_copyable_v<T>,
-                  "InlineStack holds trivially copyable items only");
-
-    T array[N];  // only [0, head) holds items; the rest is never read
-    size_t head = 0;
-
   public:
-    using Item_Type = T;  ///< The type of element
+    using Base = typename MemArray<T>::Iterator;
+    using Set_Type = ArrayStack;
 
-    /// Construct an empty stack. The storage is not initialized.
-    InlineStack() noexcept = default;
+    using Base::Base;
 
-    /// Copy the items in use of `s`.
-    InlineStack(const InlineStack & s) noexcept : head(s.head)
-    {
-      for (size_t i = 0; i < head; ++i)
-        array[i] = s.array[i];
-    }
+    /// Iterator on the modifiable stack `s`.
+    Iterator(ArrayStack<T> &s) : Base(s.array) {}
 
-    /// Assign the items in use of `s`.
-    InlineStack & operator = (const InlineStack & s) noexcept
-    {
-      if (this == &s)
-        return *this;
-      head = s.head;
-      for (size_t i = 0; i < head; ++i)
-        array[i] = s.array[i];
-      return *this;
-    }
-
-    /// Exchange the items in use of `s` and `this`, in time O(size()).
-    void swap(InlineStack & s) noexcept
-    {
-      InlineStack tmp(s);
-      s = *this;
-      *this = tmp;
-    }
-
-    /// Maximum number of items.
-    [[nodiscard]] static constexpr size_t capacity() noexcept { return N; }
-
-    /** Push a copy of `data`.
-        @param[in] data item to push; the stack must not be full.
-        @return a modifiable reference to the pushed item.
-    */
-    T & push(const T & data) noexcept
-    {
-      assert(head < N);
-      array[head++] = data;
-      return array[head - 1];
-    }
-
-    /// Pop the top; the stack must not be empty.
-    T pop() noexcept
-    {
-      assert(head > 0);
-      return array[--head];
-    }
-
-    /** Perform `n` pops in constant time.
-        @param[in] n number of items to pop; at most size().
-        @return the last popped item.
-    */
-    T popn(const size_t n) noexcept
-    {
-      assert(n <= head);
-      head -= n;
-      return array[head];
-    }
-
-    /// Return a modifiable reference to the top; the stack must not be empty.
-    [[nodiscard]] T & top() noexcept
-    {
-      assert(head > 0);
-      return array[head - 1];
-    }
-
-    /// \overload top()
-    [[nodiscard]] const T & top() const noexcept
-    {
-      assert(head > 0);
-      return array[head - 1];
-    }
-
-    /** Return a modifiable reference to the item `i` positions below the top.
-        @param[in] i number of positions; `top(0)` is the top.
-        @return a modifiable reference to the item.
-    */
-    [[nodiscard]] T & top(const size_t i) noexcept
-    {
-      assert(i < head);
-      return array[head - i - 1];
-    }
-
-    /// \overload top(const size_t i)
-    [[nodiscard]] const T & top(const size_t i) const noexcept
-    {
-      assert(i < head);
-      return array[head - i - 1];
-    }
-
-    /// Return a modifiable reference to the bottom; the stack must not be empty.
-    [[nodiscard]] T & base() noexcept
-    {
-      assert(head > 0);
-      return array[0];
-    }
-
-    /// \overload base()
-    [[nodiscard]] const T & base() const noexcept
-    {
-      assert(head > 0);
-      return array[0];
-    }
-
-    /// Return `true` if the stack is empty.
-    [[nodiscard]] bool is_empty() const noexcept { return head == 0; }
-
-    /// Return the number of items.
-    [[nodiscard]] size_t size() const noexcept { return head; }
-
-    /// Empty the stack.
-    void empty() noexcept { head = 0; }
-
-    /// \overload empty()
-    void clear() noexcept { head = 0; }
+    /// A constant stack is iterated through Const_Iterator.
+    Iterator(const ArrayStack<T> &) = delete;
   };
-} // end namespace Aleph
 
-# endif /* TPL_ARRAYSTACK_H */
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
+};
+
+/** Fixed length stack.
+
+    `FixedStack<T>` models a stack with a maximum capacity. In
+    addition, no operation performs checks, what gives to all
+    operations the highest performance.
+
+    \note Use this type when you have an precise idea about the
+    maximum stack size and this last is not too big.
+
+    @see ArrayStack DynListStack
+    @ingroup Sequences
+ */
+template <typename T>
+class FixedStack : public LocateFunctions<FixedStack<T>, T>,
+                   public FunctionalMethods<FixedStack<T>, T>,
+                   public GenericKeys<FixedStack<T>, T>,
+                   public EqualSequenceMethod<FixedStack<T>>,
+                   public StlAlephIterator<FixedStack<T>>
+{
+  T *array = nullptr;
+  size_t head = 0;
+  size_t dim = 0;
+
+public:
+  using Item_Type = T;  /// The type of element
+
+  /// Construct a fixed stack of maximum `d` items
+  FixedStack(const size_t d = 1024)
+    // Don't change the default value because you would risk of
+    // breaking the tests
+    : array(new T[d]), head(0), dim(d)
+  {
+    /* empty */
+  }
+
+  ~FixedStack()
+  {
+    if (array)
+      delete[] array;
+  }
+
+  /// Copy constructor
+  FixedStack(const FixedStack &s) : array(nullptr), head(s.head), dim(s.dim)
+  {
+    std::unique_ptr<T[]> tmp(new T[s.dim]);
+    for (size_t i = 0; i < head; ++i)
+      tmp[i] = s.array[i];
+    array = tmp.release();
+  }
+
+  Special_Ctors(FixedStack, T);
+
+  /// Swap in constant time `s` with `this`
+  void swap(FixedStack &s) noexcept
+  {
+    std::swap(array, s.array);
+    std::swap(head, s.head);
+    std::swap(dim, s.dim);
+  }
+
+  /// Move constructor
+  FixedStack(FixedStack &&s) noexcept : array(nullptr), head(0), dim(0)
+  {
+    swap(s);
+  }
+
+  /// Assign by copy `s` to `this`
+  FixedStack &operator = (const FixedStack &s)
+  {
+    if (this == &s)
+      return *this;
+
+    FixedStack tmp(s);
+    swap(tmp);
+    return *this;
+  }
+
+  FixedStack &operator = (FixedStack &&s) noexcept
+  {
+    swap(s);
+    return *this;
+  }
+
+  /** Push a copy of `data`
+
+      @param[in] data
+      @return a modifiable reference to the copied data.
+   */
+  T &push(const T &data) noexcept(std::is_nothrow_copy_assignable_v<T>)
+  {
+    assert(head < dim);
+    array[head++] = data;
+    return array[head - 1];
+  }
+
+  /** Push and move `data`
+
+      @param[in] data to be moved
+      @return a modifiable reference to the moved data.
+   */
+  T &push(T &&data) noexcept(std::is_nothrow_move_assignable_v<T>)
+  {
+    assert(head < dim);
+    array[head++] = std::move(data);
+    return array[head - 1];
+  }
+
+  /// \overload push(const T & data)
+  T &append(const T &data) noexcept(std::is_nothrow_copy_assignable_v<T>)
+  {
+    return push(data);
+  }
+
+  /// \overload push(T && data)
+  T &append(T &&data) noexcept(std::is_nothrow_move_assignable_v<T>)
+  {
+    return push(std::forward<T>(data));
+  }
+
+  /// \overload push(const T & data)
+  T &insert(const T &data) noexcept(std::is_nothrow_copy_assignable_v<T>)
+  {
+    return push(data);
+  }
+
+  /// \overload push(T && data)
+  T &insert(T &&data) noexcept(std::is_nothrow_move_assignable_v<T>)
+  {
+    return push(std::forward<T>(data));
+  }
+
+  /** Push in constant time `n`spaces into stack
+
+      @param[in] n number of cells to push
+      @return a modifiable reference to stack's top
+   */
+  T &pushn(const size_t &n = 1) noexcept
+  {
+    assert(n > 0);
+    assert(n <= dim - head);
+
+    head += n;
+    return array[head - 1];
+  }
+
+  /// Pop by moving the top of stack
+  T pop() noexcept
+  {
+    assert(head > 0);
+
+    return std::move(array[--head]);
+  }
+
+  /** Perform in constant time `n` pops
+
+      @param[in] n number of items to opo
+      @return the last popped item
+   */
+  T popn(const int n) noexcept
+  {
+    assert(n >= 0);
+    const auto count = static_cast<size_t>(n);
+    assert(head >= count);
+
+    head -= count;
+    return std::move(array[head]);
+  }
+
+  /// Return a modifiable reference to stack's top
+  T &top() noexcept
+  {
+    assert(head > 0);
+
+    return array[head - 1];
+  }
+
+  const T &top() const noexcept
+  {
+    assert(head > 0);
+
+    return array[head - 1];
+  }
+
+  T &get_last() noexcept
+  {
+    return top();
+  }
+
+  const T &get_last() const noexcept
+  {
+    return top();
+  }
+
+  /// Return the internal array base
+  T &base() noexcept
+  {
+    return array[0];
+  }
+
+  const T &base() const noexcept
+  {
+    return array[0];
+  }
+
+  /** Return a modifiable reference to item located `i` positions
+      after top
+
+      @param[in] i number of positions.
+      @return a modifiable reference to item located `i` positions
+      after top.
+  */
+  T &top(const size_t i) noexcept
+  {
+    assert(i < head);
+    return array[head - i - 1];
+  }
+
+  const T &top(const size_t i) const noexcept
+  {
+    assert(i < head);
+    return array[head - i - 1];
+  }
+
+  /// Return `true` if stack is empty
+  [[nodiscard]] bool is_empty() const noexcept
+  {
+    return head == 0;
+  }
+
+  /// Empty the stack
+  void empty() noexcept
+  {
+    head = 0;
+  }
+
+  /** @brief Empties the container.
+
+      @throws none
+      @see empty()
+  */
+  void clear() noexcept
+  {
+    empty();
+  }
+
+  /// Return the number of elements stored in the stack
+  [[nodiscard]] size_t size() const noexcept
+  {
+    return head;
+  }
+
+  /** Traverse all the items of stack from the youngest to oldest and
+      conditionally performs an operation.
+
+      @param[in] operation to perform on the current element. If it
+      returns `true`, then the traversal continues to the next item;
+      otherwise the traversal stops
+   */
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
+  bool traverse(Operation &operation) noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
+  {
+    for (size_t i = 0; i < head; i++)
+      if (not operation(array[i]))
+        return false;
+
+    return true;
+  }
+
+  /// \overload traverse(Operation & operation)
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
+  bool traverse(Operation &operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
+  {
+    for (size_t i = 0; i < head; i++)
+      if (not operation(static_cast<const T &>(array[i])))
+        return false;
+    return true;
+  }
+
+  /// \overload traverse(Operation & operation)
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
+  bool traverse(Operation &&operation = Operation()) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
+  {
+    return traverse<Operation>(operation);
+  }
+
+  /// \overload traverse(Operation & operation)
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
+  bool traverse(Operation &&operation = Operation()) noexcept(
+    Aleph::NothrowPredicateWith<Operation &, T &>)
+  {
+    return traverse<Operation>(operation);
+  }
+
+  /** Iterator on the items of a stack.
+
+      The visit order goes from the youngest item to the oldest.
+
+      @ingroup Sequences
+  */
+  class Iterator : public Array_Iterator<T>
+  {
+  public:
+    using Base = Array_Iterator<T>;
+    using Base::Base;
+    using Set_Type = FixedStack;
+
+    /// Iterator on the modifiable stack `s`.
+    Iterator(FixedStack<T> &s) : Base(no_exception_ctor, s.array, s.dim, s.head) {}
+
+    /// A constant stack is iterated through Const_Iterator.
+    Iterator(const FixedStack<T> &) = delete;
+  };
+
+  /// Read-only iterator: the iterator of a constant container.
+  using Const_Iterator = Aleph::Const_Iterator<Iterator>;
+};
+
+/** @brief Stack of fixed capacity whose storage is inside the object.
+
+    Unlike FixedStack, it never allocates: the capacity `N` is a
+    compile-time constant and the items live in the object, so
+    construction, copy, move and swap cannot throw. Only the items in use
+    are copied or exchanged, so an empty or short stack costs nothing to
+    copy even when `N` is large.
+
+    It is meant for bounded paths that are built and consumed in place:
+    the path from the root of a balanced tree, whose length is bounded by
+    `Node::MaxHeight`, is the typical one.
+
+    No operation checks its preconditions, except by `assert()`: pushing
+    beyond `N` or popping an empty stack is a logic error.
+
+    @tparam T type of the items; it must be trivially copyable (pointers,
+            indices).
+    @tparam N maximum number of items.
+
+    @see FixedStack ArrayStack
+    @ingroup Sequences
+*/
+template <typename T, size_t N>
+class InlineStack
+{
+  static_assert(N > 0, "InlineStack needs a positive capacity");
+  static_assert(std::is_trivially_copyable_v<T>, "InlineStack holds trivially copyable items only");
+
+  T array[N];  // only [0, head) holds items; the rest is never read
+  size_t head = 0;
+
+public:
+  using Item_Type = T;  ///< The type of element
+
+  /// Construct an empty stack. The storage is not initialized.
+  InlineStack() noexcept = default;
+
+  /// Copy the items in use of `s`.
+  InlineStack(const InlineStack &s) noexcept : head(s.head)
+  {
+    for (size_t i = 0; i < head; ++i)
+      array[i] = s.array[i];
+  }
+
+  /// Assign the items in use of `s`.
+  InlineStack &operator = (const InlineStack &s) noexcept
+  {
+    if (this == &s)
+      return *this;
+    head = s.head;
+    for (size_t i = 0; i < head; ++i)
+      array[i] = s.array[i];
+    return *this;
+  }
+
+  /// Exchange the items in use of `s` and `this`, in time O(size()).
+  void swap(InlineStack &s) noexcept
+  {
+    InlineStack tmp(s);
+    s = *this;
+    *this = tmp;
+  }
+
+  /// Maximum number of items.
+  [[nodiscard]] static constexpr size_t capacity() noexcept
+  {
+    return N;
+  }
+
+  /** Push a copy of `data`.
+      @param[in] data item to push; the stack must not be full.
+      @return a modifiable reference to the pushed item.
+  */
+  T &push(const T &data) noexcept
+  {
+    assert(head < N);
+    array[head++] = data;
+    return array[head - 1];
+  }
+
+  /// Pop the top; the stack must not be empty.
+  T pop() noexcept
+  {
+    assert(head > 0);
+    return array[--head];
+  }
+
+  /** Perform `n` pops in constant time.
+      @param[in] n number of items to pop; at most size().
+      @return the last popped item.
+  */
+  T popn(const size_t n) noexcept
+  {
+    assert(n <= head);
+    head -= n;
+    return array[head];
+  }
+
+  /// Return a modifiable reference to the top; the stack must not be empty.
+  [[nodiscard]] T &top() noexcept
+  {
+    assert(head > 0);
+    return array[head - 1];
+  }
+
+  /// \overload top()
+  [[nodiscard]] const T &top() const noexcept
+  {
+    assert(head > 0);
+    return array[head - 1];
+  }
+
+  /** Return a modifiable reference to the item `i` positions below the top.
+      @param[in] i number of positions; `top(0)` is the top.
+      @return a modifiable reference to the item.
+  */
+  [[nodiscard]] T &top(const size_t i) noexcept
+  {
+    assert(i < head);
+    return array[head - i - 1];
+  }
+
+  /// \overload top(const size_t i)
+  [[nodiscard]] const T &top(const size_t i) const noexcept
+  {
+    assert(i < head);
+    return array[head - i - 1];
+  }
+
+  /// Return a modifiable reference to the bottom; the stack must not be empty.
+  [[nodiscard]] T &base() noexcept
+  {
+    assert(head > 0);
+    return array[0];
+  }
+
+  /// \overload base()
+  [[nodiscard]] const T &base() const noexcept
+  {
+    assert(head > 0);
+    return array[0];
+  }
+
+  /// Return `true` if the stack is empty.
+  [[nodiscard]] bool is_empty() const noexcept
+  {
+    return head == 0;
+  }
+
+  /// Return the number of items.
+  [[nodiscard]] size_t size() const noexcept
+  {
+    return head;
+  }
+
+  /// Empty the stack.
+  void empty() noexcept
+  {
+    head = 0;
+  }
+
+  /// \overload empty()
+  void clear() noexcept
+  {
+    head = 0;
+  }
+};
+}  // end namespace Aleph
+
+#endif /* TPL_ARRAYSTACK_H */

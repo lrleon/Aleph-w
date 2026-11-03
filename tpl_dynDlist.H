@@ -157,8 +157,8 @@ public:
 
   /** `@brief` Empties the container.
 
-      Removes all elements from the list, leaving it empty. This operation 
-      is performed in O(n) time, where n is the number of elements in 
+      Removes all elements from the list, leaving it empty. This operation
+      is performed in O(n) time, where n is the number of elements in
       the list.
 
       @throws none
@@ -178,7 +178,10 @@ public:
      @throws none
      @see empty()
    */
-  void clear() noexcept { empty(); }
+  void clear() noexcept
+  {
+    empty();
+  }
 
   ~DynDlist()  /// Destructor
   {
@@ -372,7 +375,7 @@ private:
   template <bool First>
   T remove_end_ne() noexcept(std::is_nothrow_move_constructible_v<T>)
   {
-    T & item = First ? get_first_ne() : get_last_ne();
+    T &item = First ? get_first_ne() : get_last_ne();
     if constexpr (std::is_nothrow_move_constructible_v<T>)
       {
         T ret_val = std::move(item);
@@ -383,7 +386,7 @@ private:
       {
         struct Leave
         {
-          DynDlist & list;
+          DynDlist &list;
           bool keep = false;
 
           ~Leave()
@@ -664,8 +667,7 @@ public:
     }
 
     /// Iterator on the first item of the modifiable list `list`.
-    Iterator(DynDlist<T> &list) noexcept
-      : Base(list), list_ptr(&list), pos(0)
+    Iterator(DynDlist<T> &list) noexcept : Base(list), list_ptr(&list), pos(0)
     {
       // empty
     }
@@ -679,11 +681,11 @@ public:
 
     Iterator(const Iterator &) = default;
 
-    Iterator &operator=(const Iterator &it) noexcept
+    Iterator &operator = (const Iterator &it) noexcept
     {
       if (this == &it)
         return *this;
-      Dnode<T>::Iterator::operator=(it);
+      Dnode<T>::Iterator::operator = (it);
       list_ptr = it.list_ptr;
       pos = it.pos;
 
@@ -856,7 +858,7 @@ public:
       @param[in] list to be copied
       \throw bad_alloc if there is no enough memory
   */
-  DynDlist<T> &operator=(const DynDlist &list)
+  DynDlist<T> &operator = (const DynDlist &list)
   {
     if (this == &list)
       return *this;
@@ -905,7 +907,7 @@ public:
       @param[in] list to be assigned by moving
       \throw bad_alloc if there is no enough memory
   */
-  DynDlist<T> &operator=(DynDlist &&list) noexcept
+  DynDlist<T> &operator = (DynDlist &&list) noexcept
   {
     swap(list);
     return *this;
@@ -913,7 +915,7 @@ public:
 
   /// Return a modifiable reference to the i-th item of the list.
   /// @throw out_of_range if `n` is greater than or equal to the list size.
-  T &operator[](const size_t n)
+  T &operator [] (const size_t n)
   {
     auto it = this->get_it();
     for (size_t i = 0; i < n && it.has_curr(); ++i)
@@ -926,7 +928,7 @@ public:
 
   /// Return a reference to const to the i-th item of the list.
   /// @throw out_of_range if `n` is greater than or equal to the list size.
-  const T &operator[](const size_t n) const
+  const T &operator [] (const size_t n) const
   {
     auto it = this->get_it();
     for (size_t i = 0; i < n && it.has_curr(); ++i)
