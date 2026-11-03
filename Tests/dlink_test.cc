@@ -501,6 +501,48 @@ TEST_F(DlinkListOperationsTest, SplitOddList)
   EXPECT_TRUE(list.is_empty());
 }
 
+// The positions in nodes of the nodes of h, from the first, checking that
+// each one links back to the one before it; it stops after nodes.size()
+// steps, should the links not come back to h
+static vector<size_t> positions_of(const Dlink & h, const vector<Dlink> & nodes)
+{
+  vector<size_t> out;
+  const Dlink * before = &h;
+  for (const Dlink * p = h.get_next(); p != &h and out.size() <= nodes.size();
+       before = p, p = p->get_next())
+    {
+      EXPECT_EQ(p->get_prev(), before);
+      out.push_back(static_cast<size_t>(p - nodes.data()));
+    }
+  EXPECT_EQ(h.get_prev(), before);
+  return out;
+}
+
+// l takes the first n - n / 2 nodes and r the others, in their order and
+// linked both ways, and the list is left empty
+TEST_F(DlinkListOperationsTest, SplitGivesTheFirstHalfToTheLeft)
+{
+  for (size_t n = 0; n <= 9; ++n)
+    {
+      Dlink src, l, r;
+      for (size_t i = 0; i < n; ++i)
+        {
+          nodes[i].reset();
+          src.append(&nodes[i]);
+        }
+
+      EXPECT_EQ(src.split_list(l, r), n);
+      EXPECT_TRUE(src.is_empty());
+      EXPECT_EQ(src.get_prev(), &src);
+
+      vector<size_t> left, right;
+      for (size_t i = 0; i < n; ++i)
+        (i < n - n / 2 ? left : right).push_back(i);
+      EXPECT_EQ(positions_of(l, nodes), left) << "n = " << n;
+      EXPECT_EQ(positions_of(r, nodes), right) << "n = " << n;
+    }
+}
+
 TEST_F(DlinkListOperationsTest, CutListAtFirst)
 {
   populateList(list, 0, 5); // list: 0, 1, 2, 3, 4
