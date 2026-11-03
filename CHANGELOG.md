@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.3.4](https://github.com/lrleon/Aleph-w/compare/v7.3.3...v7.3.4) (2026-11-03)
+
+
+### Bug Fixes
+
+* Address the small items of the 7.3.3 backlog ([#157](https://github.com/lrleon/Aleph-w/issues/157)) ([4905326](https://github.com/lrleon/Aleph-w/commit/49053265314130f12e046e45c770e1bc4408cfa9))
+
 ## [7.3.3](https://github.com/lrleon/Aleph-w/compare/v7.3.2...v7.3.3) (2026-11-02)
 
 
