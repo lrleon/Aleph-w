@@ -10,7 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
+* **simplex:** Give RevisedSimplex a first phase, and refactorize its inverse of the basis ([#162](https://github.com/lrleon/Aleph-w/issues/162)) ([4acb0b3](https://github.com/lrleon/Aleph-w/commit/4acb0b375cfbd8d3358c3a4b8adeecefa1bd07b9))
+* **simplex:** Keep Dantzig's rule from cycling on degenerate programs ([#162](https://github.com/lrleon/Aleph-w/issues/162)) ([4acb0b3](https://github.com/lrleon/Aleph-w/commit/4acb0b375cfbd8d3358c3a4b8adeecefa1bd07b9))
+* **simplex:** Make print_matrix(), latex_matrix() and latex_solve() compile ([#162](https://github.com/lrleon/Aleph-w/issues/162)) ([4acb0b3](https://github.com/lrleon/Aleph-w/commit/4acb0b375cfbd8d3358c3a4b8adeecefa1bd07b9))
+* **simplex:** Read the solution from the basic variable of each row ([#162](https://github.com/lrleon/Aleph-w/issues/162)) ([4acb0b3](https://github.com/lrleon/Aleph-w/commit/4acb0b375cfbd8d3358c3a4b8adeecefa1bd07b9))
+* **simplex:** Scale the program before solving it ([#162](https://github.com/lrleon/Aleph-w/issues/162)) ([4acb0b3](https://github.com/lrleon/Aleph-w/commit/4acb0b375cfbd8d3358c3a4b8adeecefa1bd07b9))
 * **simplex:** Solve in two phases, and fix the sensitivity analysis ([#162](https://github.com/lrleon/Aleph-w/issues/162)) ([4acb0b3](https://github.com/lrleon/Aleph-w/commit/4acb0b375cfbd8d3358c3a4b8adeecefa1bd07b9))
+* **simplex:** Take the constraints with a negative right-hand side as written ([#162](https://github.com/lrleon/Aleph-w/issues/162)) ([4acb0b3](https://github.com/lrleon/Aleph-w/commit/4acb0b375cfbd8d3358c3a4b8adeecefa1bd07b9))
 
 ## [7.3.5](https://github.com/lrleon/Aleph-w/compare/v7.3.4...v7.3.5) (2026-11-04)
 
