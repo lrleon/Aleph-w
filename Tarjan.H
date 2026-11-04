@@ -447,6 +447,32 @@ private:
       }
   }
 
+  // What scc_by_lists() does when search() leaves the node v: if v is the
+  // first visited node of its block, it pops the block out of the stack
+  // into a new list of blks. A class, so that its call is inline: search()
+  // makes it for each node, and Clang left a lambda out of line.
+  struct Pop_Block_To_List
+  {
+    Tarjan_Connected_Components *tarjan;
+    DynList<DynList<typename GT::Node *>> *blks;
+
+    [[gnu::always_inline]] bool operator () (typename GT::Node *v) const
+    {
+      if (low<GT>(v) == df<GT>(v))  // first visited node of the block?
+        {                           // yes pop out block nodes that are on stack
+          auto &l = blks->append(DynList<typename GT::Node *>());
+          while (true)  // remove block from stack until reaching v
+            {
+              auto p = tarjan->pop_from_stack();
+              l.append(p);
+              if (p == v)
+                break;
+            }
+        }
+      return false;
+    }
+  };
+
   /** @brief Depth-first search that finds SCCs and collects their nodes.
    *
    *  For each SCC found, collects the node pointers into a list
@@ -457,21 +483,7 @@ private:
    */
   void scc_by_lists(typename GT::Node *root, DynList<DynList<typename GT::Node *>> &blks)
   {
-    search(root, go_on_with_loops, [this, &blks](typename GT::Node *v)
-      {
-        if (low<GT>(v) == df<GT>(v))  // first visited node of the block?
-          {                           // yes pop out block nodes that are on stack
-            auto &l = blks.append(DynList<typename GT::Node *>());
-            while (true)  // remove block from stack until reaching v
-              {
-                auto p = pop_from_stack();
-                l.append(p);
-                if (p == v)
-                  break;
-              }
-          }
-        return false;
-      });
+    search(root, go_on_with_loops, Pop_Block_To_List{this, &blks});
   }
 
   /** @brief Depth-first search that finds SCCs and counts their sizes.

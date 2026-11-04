@@ -1252,3 +1252,272 @@ TEST(SlinkncIterator, TraversalAndOverflow)
   EXPECT_FALSE(it.has_curr());
   EXPECT_THROW(it.get_curr(), std::overflow_error);
 }
+
+// =============================================================================
+// DynList keeps the number of its items
+// =============================================================================
+
+namespace
+{
+  // The number of items of l, counted by walking its nodes
+  template <typename T>
+  size_t recount(const DynList<T> & l)
+  {
+    return static_cast<const HTList &>(l).HTList::size();
+  }
+
+  template <typename T>
+  vector<T> items_of(const DynList<T> & l)
+  {
+    vector<T> out;
+    l.for_each([&out] (const T & x) { out.push_back(x); });
+    return out;
+  }
+}
+
+TEST(DynListCount, EveryOperationKeepsTheCount)
+{
+  DynList<string> a = {"a", "b", "c"};
+  EXPECT_EQ(a.size(), 3u);
+  a.insert("x");
+  a.append(string("y"));
+  a.push("z");
+  a.put("w");
+  EXPECT_EQ(a.size(), 7u);
+  (void) a.remove_first();
+  (void) a.remove();
+  (void) a.pop();
+  (void) a.get();
+  (void) a.remove_ne();
+  EXPECT_EQ(a.size(), 2u);
+  EXPECT_EQ(a.size(), recount(a));
+
+  vector<string> v = {"1", "2", "3"};
+  DynList<string> range(v.begin(), v.end());
+  EXPECT_EQ(range.size(), 3u);
+  DynList<string> from_list(range);
+  EXPECT_EQ(from_list.size(), 3u);
+
+  a.append(std::move(range));
+  EXPECT_EQ(a.size(), 5u);
+  EXPECT_EQ(range.size(), 0u);
+  a.insert(std::move(from_list));
+  EXPECT_EQ(a.size(), 8u);
+  EXPECT_EQ(from_list.size(), 0u);
+  const DynList<string> d = {"4", "5"};
+  a.append(d);
+  a.insert(d);
+  EXPECT_EQ(a.size(), 12u);
+  EXPECT_EQ(a.size(), recount(a));
+
+  DynList<string> b = a;
+  EXPECT_EQ(b.size(), 12u);
+  DynList<string> c = std::move(b);
+  EXPECT_EQ(c.size(), 12u);
+  EXPECT_EQ(b.size(), 0u);
+  b = c;
+  EXPECT_EQ(b.size(), 12u);
+  b = std::move(a);
+  EXPECT_EQ(b.size(), 12u);
+  b.swap(a);
+  EXPECT_EQ(a.size(), 12u);
+  EXPECT_EQ(b.size(), 12u);
+
+  {
+    DynList<string>::Iterator it(a);
+    (void) it.del();
+    it.next();
+    delete static_cast<Snodenc<string> *>(it.del_ne());
+  }
+  EXPECT_EQ(a.size(), 10u);
+  (void) a.remove([] (const string & s) { return s == "4"; });
+  (void) a.remove_ne([] (const string & s) { return s == "5"; });
+  EXPECT_EQ(a.size(), 8u);
+  EXPECT_EQ(a.size(), recount(a));
+
+  a.concat(b);
+  EXPECT_EQ(a.size(), 20u);
+  EXPECT_EQ(b.size(), 0u);
+  c.concat_list(a);
+  EXPECT_EQ(c.size(), 32u);
+
+  DynList<string> rest;
+  Slinknc * third = static_cast<HTList &>(c).get_first()->get_next()->get_next();
+  c.cut(third, rest);
+  EXPECT_EQ(c.size(), 3u);
+  EXPECT_EQ(rest.size(), 29u);
+  EXPECT_EQ(rest.size(), recount(rest));
+  rest.cut_list(static_cast<HTList &>(rest).get_last(), a);
+  EXPECT_EQ(rest.size(), 29u);
+  EXPECT_EQ(a.size(), 0u);
+
+  delete static_cast<Snodenc<string> *>(rest.remove_head());
+  delete static_cast<Snodenc<string> *>(rest.remove_head_ne());
+  EXPECT_EQ(rest.size(), 27u);
+  EXPECT_EQ(rest.size(), recount(rest));
+
+  rest.reverse();
+  rest.rotate_left(5);
+  EXPECT_EQ(rest.size(), 27u);
+
+  vector<Slinknc *> nodes;
+  for (HTList::Iterator it(rest); it.has_curr(); it.next_ne())
+    nodes.push_back(it.get_curr_ne());
+  rest.reset();
+  EXPECT_EQ(rest.size(), 0u);
+  EXPECT_TRUE(rest.is_empty());
+  for (Slinknc * p : nodes)
+    delete static_cast<Snodenc<string> *>(p);
+
+  c.remove_all_and_delete();
+  EXPECT_EQ(c.size(), 0u);
+  DynList<int> e = {1, 2, 3};
+  e.empty();
+  EXPECT_EQ(e.size(), 0u);
+  e = {4, 5};
+  e.clear();
+  EXPECT_EQ(e.size(), 0u);
+}
+
+TEST(DynListCount, SplitGivesTheFirstHalfToTheLeft)
+{
+  for (size_t n = 0; n <= 9; ++n)
+    {
+      DynList<int> list, l, r;
+      for (size_t i = 0; i < n; ++i)
+        list.append(int(i));
+
+      size_t count = 0;
+      if (n % 3 == 0)
+        count = list.split(l, r);
+      else if (n % 3 == 1)
+        count = list.split_list(l, r);
+      else
+        count = list.split_list_ne(l, r);
+
+      EXPECT_EQ(count, n);
+      EXPECT_TRUE(list.is_empty());
+      EXPECT_EQ(list.size(), 0u);
+      ASSERT_EQ(l.size(), n - n / 2) << "n = " << n;
+      ASSERT_EQ(r.size(), n / 2) << "n = " << n;
+      EXPECT_EQ(recount(l), l.size());
+      EXPECT_EQ(recount(r), r.size());
+
+      vector<int> left, right;
+      for (size_t i = 0; i < n; ++i)
+        (i < n - n / 2 ? left : right).push_back(int(i));
+      EXPECT_EQ(items_of(l), left) << "n = " << n;
+      EXPECT_EQ(items_of(r), right) << "n = " << n;
+    }
+}
+
+// Random sequences of the operations that change the lists, against a
+// vector for each list
+TEST(DynListCount, RandomSequencesKeepTheCount)
+{
+  mt19937 rng(20261103);
+  DynList<int> lists[3];
+  vector<int> model[3];
+  int next_value = 0;
+
+  auto pick = [&rng] (size_t n) { return uniform_int_distribution<size_t>(0, n - 1)(rng); };
+
+  for (int step = 0; step < 3000; ++step)
+    {
+      const size_t i = pick(3), j = (i + 1 + pick(2)) % 3;
+      DynList<int> & l = lists[i];
+      vector<int> & m = model[i];
+      switch (pick(13))
+        {
+        case 0:
+          l.insert(next_value);
+          m.insert(m.begin(), next_value++);
+          break;
+        case 1:
+        case 2:
+          l.append(next_value);
+          m.push_back(next_value++);
+          break;
+        case 3:
+          if (not m.empty())
+            {
+              EXPECT_EQ(l.remove_first(), m.front());
+              m.erase(m.begin());
+            }
+          break;
+        case 4: // delete through an iterator at a random position
+          if (not m.empty())
+            {
+              const size_t k = pick(m.size());
+              DynList<int>::Iterator it(l);
+              for (size_t q = 0; q < k; ++q)
+                it.next_ne();
+              EXPECT_EQ(it.del(), m[k]);
+              m.erase(m.begin() + long(k));
+            }
+          break;
+        case 5: // remove by equality
+          if (not m.empty())
+            {
+              const int x = m[pick(m.size())];
+              EXPECT_EQ(l.remove([x] (int y) { return y == x; }), x);
+              m.erase(find(m.begin(), m.end(), x));
+            }
+          break;
+        case 6:
+          l.append(std::move(lists[j]));
+          m.insert(m.end(), model[j].begin(), model[j].end());
+          model[j].clear();
+          break;
+        case 7:
+          l.insert(std::move(lists[j]));
+          m.insert(m.begin(), model[j].begin(), model[j].end());
+          model[j].clear();
+          break;
+        case 8:
+          l.swap(lists[j]);
+          m.swap(model[j]);
+          break;
+        case 9:
+          lists[j] = l;
+          model[j] = m;
+          break;
+        case 10: // split and join back
+          {
+            DynList<int> a, b;
+            l.split(a, b);
+            EXPECT_EQ(a.size() + b.size(), m.size());
+            l.append(std::move(a));
+            l.append(std::move(b));
+          }
+          break;
+        case 11: // cut after a random node and join back
+          if (not m.empty())
+            {
+              const size_t k = pick(m.size());
+              Slinknc * p = static_cast<HTList &>(l).get_first();
+              for (size_t q = 0; q < k; ++q)
+                p = p->get_next();
+              DynList<int> tail;
+              l.cut(p, tail);
+              EXPECT_EQ(l.size(), k + 1);
+              EXPECT_EQ(tail.size(), m.size() - k - 1);
+              l.concat(tail);
+            }
+          break;
+        case 12:
+          l.reverse();
+          std::reverse(m.begin(), m.end());
+          break;
+        }
+
+      for (size_t q = 0; q < 3; ++q)
+        {
+          ASSERT_EQ(lists[q].size(), model[q].size()) << "step " << step;
+          ASSERT_EQ(recount(lists[q]), model[q].size()) << "step " << step;
+        }
+    }
+
+  for (size_t q = 0; q < 3; ++q)
+    EXPECT_EQ(items_of(lists[q]), model[q]);
+}

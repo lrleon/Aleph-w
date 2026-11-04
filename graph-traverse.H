@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /** @file graph-traverse.H
  *  @brief Graph traversal algorithms (DFS, BFS).
  *
@@ -40,23 +39,23 @@
  *  @author Leandro Rabindranath León
  */
 
-# ifndef GRAPH_TRAVERSE_H
-# define GRAPH_TRAVERSE_H
+#ifndef GRAPH_TRAVERSE_H
+#define GRAPH_TRAVERSE_H
 
-# include <ah-graph-concepts.H>
+#include <ah-graph-concepts.H>
 
-# include <tuple>
-# include <cassert>
-# include <tpl_agraph.H>
-# include <tpl_dynListStack.H>
-# include <tpl_dynListQueue.H>
+#include <tuple>
+#include <cassert>
+#include <tpl_agraph.H>
+#include <tpl_dynListStack.H>
+#include <tpl_dynListQueue.H>
 
-namespace // local constants to avoid collisions with aleph-graph.H
+namespace  // local constants to avoid collisions with aleph-graph.H
 {
-  constexpr unsigned char GT_Unprocessed = 0;
-  constexpr unsigned char GT_Processing  = 1;
-  constexpr unsigned char GT_Processed   = 2;
-}
+constexpr unsigned char GT_Unprocessed = 0;
+constexpr unsigned char GT_Processing = 1;
+constexpr unsigned char GT_Processed = 2;
+}  // namespace
 
 /** Traverse a graph depth-first or breadth-first and execute a visit function.
 
@@ -79,12 +78,11 @@ namespace // local constants to avoid collisions with aleph-graph.H
 
     @ingroup Graphs
  */
-template <AlephGraph GT, class Itor,
-          template <typename T> class Q = DynListStack,
+template <AlephGraph GT, class Itor, template <typename T> class Q = DynListStack,
           ArcFilter<GT> Show_Arc = Dft_Show_Arc<GT>>
 class Graph_Traverse
 {
-  GT & g;
+  GT &g;
   Show_Arc sa;
 
   /** Prepare arc `a` (leading to `tgt`) for frontier expansion out of
@@ -117,7 +115,7 @@ class Graph_Traverse
 
 public:
   /// Construct a traverser with a graph and arc filter
-  Graph_Traverse(GT & __g, Show_Arc __sa = Show_Arc()) : g(__g), sa(__sa) {}
+  Graph_Traverse(GT &__g, Show_Arc __sa = Show_Arc()) : g(__g), sa(__sa) {}
 
   /** Traverse the graph starting from `start` and execute `op` on each node.
 
@@ -127,7 +125,7 @@ public:
       @return Number of nodes visited
   */
   template <class Node_Op>
-  size_t operator ()(typename GT::Node *start, Node_Op & op)
+  size_t operator () (typename GT::Node *start, Node_Op &op)
   {
     assert(start != nullptr);
     g.reset_nodes();
@@ -182,7 +180,7 @@ public:
 
   /// \overload
   template <class Node_Op>
-  size_t operator ()(typename GT::Node *start, Node_Op && op = Node_Op())
+  size_t operator () (typename GT::Node *start, Node_Op &&op = Node_Op())
   {
     return (*this)(start, op);
   }
@@ -197,7 +195,7 @@ public:
       @return Number of nodes visited
   */
   template <class Op>
-  size_t exec(typename GT::Node *start, Op & op)
+  size_t exec(typename GT::Node *start, Op &op)
   {
     assert(start != nullptr);
     g.reset_nodes();
@@ -250,7 +248,7 @@ public:
 
   /// \overload
   template <class Operation>
-  size_t exec(typename GT::Node *start, Operation && op = Operation())
+  size_t exec(typename GT::Node *start, Operation &&op = Operation())
   {
     return exec(start, op);
   }
@@ -263,8 +261,7 @@ public:
       @return Tuple of (nodes_visited, arcs_visited)
   */
   template <class Node_Op, class Arc_Op>
-  std::tuple<size_t, size_t> operator ()(typename GT::Node *start,
-                                    Node_Op & node_op, Arc_Op & arc_op)
+  std::tuple<size_t, size_t> operator () (typename GT::Node *start, Node_Op &node_op, Arc_Op &arc_op)
   {
     assert(start != nullptr);
     g.reset_nodes();
@@ -346,22 +343,17 @@ public:
 
   /// \overload
   template <class Node_Op, class Arc_Op>
-  std::tuple<size_t, size_t> operator ()(typename GT::Node *start,
-                                    Node_Op && node_op = Node_Op(),
-                                    Arc_Op && arc_op = Arc_Op())
+  std::tuple<size_t, size_t> operator () (typename GT::Node *start, Node_Op &&node_op = Node_Op(),
+                                          Arc_Op &&arc_op = Arc_Op())
   {
     return (*this)(start, node_op, arc_op);
   }
 };
 
-
-template <class GT, class Itor,
-          class Show_Arc = Dft_Show_Arc<GT>>
+template <class GT, class Itor, class Show_Arc = Dft_Show_Arc<GT>>
 using Graph_Traverse_DFS = Graph_Traverse<GT, Itor, DynListStack, Show_Arc>;
 
-template <class GT, class Itor,
-          class Show_Arc = Dft_Show_Arc<GT>>
+template <class GT, class Itor, class Show_Arc = Dft_Show_Arc<GT>>
 using Graph_Traverse_BFS = Graph_Traverse<GT, Itor, DynListQueue, Show_Arc>;
 
-
-# endif // GRAPH_TRAVERSE_H
+#endif  // GRAPH_TRAVERSE_H

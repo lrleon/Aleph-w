@@ -375,3 +375,22 @@ TEST(DynListStack, AMoveThatThrowsLeavesTheItemInTheStack)
   EXPECT_THROW((void) empty.pop(), std::underflow_error);
   EXPECT_EQ(empty.size(), 0u);
 }
+
+// The stack had a count of its own, which a delete through its iterator, that
+// removes from the list, left one more than the items. Now its size is that
+// of its list
+TEST(DynListStack, ADeleteThroughTheIteratorLowersTheSize)
+{
+  DynListStack<int> stack;
+  for (int i = 1; i <= 3; ++i)
+    stack.push(i);
+
+  DynListStack<int>::Iterator it(stack);
+  it.next();
+  EXPECT_EQ(it.del(), 2);
+  EXPECT_EQ(stack.size(), 2u);
+  EXPECT_EQ(stack.pop(), 3);
+  EXPECT_EQ(stack.pop(), 1);
+  EXPECT_EQ(stack.size(), 0u);
+  EXPECT_TRUE(stack.is_empty());
+}

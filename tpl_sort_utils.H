@@ -973,7 +973,7 @@ inline void insert_sorted(Dlink &list, Dlink *p, const Compare &cmp)
   Dlink *q = list.get_last();
   while (q != &list and cmp(p, q))
     q = q->get_prev();
-  q->insert(p); // after q, or first if q is the header
+  q->insert(p);  // after q, or first if q is the header
 }
 
 template <class Compare>
@@ -1151,7 +1151,7 @@ template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
                   const Compare &cmp = Compare())
 {
-  const long s = m - l + 1; // the first partition
+  const long s = m - l + 1;  // the first partition
 
   // Grow the buffer's logical size once instead of multiple push_back
   // calls. Array::putn() is additive (adds to the current logical size)
@@ -1165,7 +1165,7 @@ inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
 
   // Move left partition [l..m] to buffer start; b reaches it without the
   // range checks of buf[], which could throw
-  T * const b = &buf.base();
+  T *const b = &buf.base();
   for (long i = 0; i < s; ++i)
     b[i] = std::move(a[l + i]);
 
@@ -1198,7 +1198,7 @@ inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
         throw;
       }
 
-  while (i < s) // what is left of the right partition is in place
+  while (i < s)  // what is left of the right partition is in place
     a[k++] = std::move(b[i++]);
 }
 
@@ -1425,8 +1425,7 @@ inline void mergesort(Tlist &list, const Compare &cmp = Compare())
 // nothing is allocated. Only the comparison can throw; then list keeps all
 // its nodes, in an unspecified order.
 template <class Tlist, class Tlink, class Compare>
-inline void __link_mergeinsertsort(Tlist &list, const size_t n, const Compare &cmp,
-                                   const size_t lsz)
+inline void __link_mergeinsertsort(Tlist &list, const size_t n, const Compare &cmp, const size_t lsz)
 {
   if (n <= 1)
     return;
@@ -1536,7 +1535,7 @@ template <template <typename> class Tlist, typename T, StrictWeakOrder<T> Compar
 inline void mergesort(Tlist<T> &list, const Compare &cmp = Compare())
 {
   if constexpr (std::is_same_v<Tlist<T>, DynList<T>> or std::is_same_v<Tlist<T>, DynDlist<T>>)
-    mergesort<T, Compare>(list, cmp); // they link their nodes again
+    mergesort<T, Compare>(list, cmp);  // they link their nodes again
   else
     mergesort<Tlist<T>, Compare>(list, cmp);
 }
@@ -4393,7 +4392,9 @@ bool stable_index_less(const C &c, const size_t i, const size_t j, const Compare
  *  @see build_index_ptr()
  *  @ingroup Algorithms
  */
-template <class C, StrictWeakOrder<sort_utils_detail::Indexed_Value_Type<C>> Compare = Aleph::less<sort_utils_detail::Indexed_Value_Type<C>>>
+template <class C,
+          StrictWeakOrder<sort_utils_detail::Indexed_Value_Type<C>> Compare =
+            Aleph::less<sort_utils_detail::Indexed_Value_Type<C>>>
 inline Array<size_t> build_index(const C &a, const Compare &cmp = Compare())
 {
   const size_t n = a.size();
@@ -4448,7 +4449,9 @@ inline Array<size_t> build_index(const C &a, const Compare &cmp = Compare())
  *  @see stable_argsort() High-level counterpart in `ahSort.H`.
  *  @ingroup Algorithms
  */
-template <class C, StrictWeakOrder<sort_utils_detail::Indexed_Value_Type<C>> Compare = Aleph::less<sort_utils_detail::Indexed_Value_Type<C>>>
+template <class C,
+          StrictWeakOrder<sort_utils_detail::Indexed_Value_Type<C>> Compare =
+            Aleph::less<sort_utils_detail::Indexed_Value_Type<C>>>
 inline Array<size_t> stable_build_index(const C &a, const Compare &cmp = Compare())
 {
   const size_t n = a.size();
@@ -4769,7 +4772,8 @@ void counting_sort_indices(Array<size_t> &sa, Array<size_t> &tmp, const size_t n
   const auto range_minus_one = static_cast<unsigned long long>(static_cast<long long>(max_key) -
                                                                static_cast<long long>(min_key));
   /// Largest range representable without overflowing a size_t index count.
-  constexpr auto max_count = static_cast<unsigned long long>(std::numeric_limits<size_t>::max() - size_t(1));
+  constexpr auto max_count =
+    static_cast<unsigned long long>(std::numeric_limits<size_t>::max() - size_t(1));
   ah_runtime_error_unless(range_minus_one <= max_count)
     << "counting_sort_indices(): key range is too large";
 

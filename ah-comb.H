@@ -372,7 +372,7 @@ inline void in_place_transpose(DynList<DynList<T>> &l)
       for (size_t i = 0; i < nrow; ++i)
         {
           Slinknc *node_ptr = mat(i)(j);
-          row.HTList::append(static_cast<Snodenc<T> *>(node_ptr));
+          row.__append(static_cast<Snodenc<T> *>(node_ptr)); // counts it
         }
       l.append(std::move(row));
     }

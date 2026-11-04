@@ -70,7 +70,6 @@ class DynListQueue
 	public StlAlephIterator<DynListQueue<T>>
 {
   DynList<T> q;
-  size_t num_items = 0;
 
   using Base = DynList<T>;
 
@@ -79,15 +78,14 @@ public:
   /// Swap `this` with `__q` in constant time
   void swap(DynListQueue & __q) noexcept
   {
-    std::swap(num_items, __q.num_items);
     q.swap(__q.q);
   }
 
   /// Construct an empty queue
-  DynListQueue() noexcept : num_items(0) { /* empty */ }
+  DynListQueue() noexcept { /* empty */ }
 
   /// Construct a copy of `__q`
-  DynListQueue(const DynListQueue & __q) : q(__q.q), num_items(__q.num_items)
+  DynListQueue(const DynListQueue & __q) : q(__q.q)
   {
     // empty
   }
@@ -107,7 +105,6 @@ public:
       return *this;
 
     q = rhs.q;
-    num_items = rhs.num_items;
 
     return *this;
   }
@@ -115,13 +112,12 @@ public:
   /// Assign to `this` by moving `rsh` in constant time the queue `rhs`
   DynListQueue & operator = (DynListQueue && rhs) noexcept
   {
-    std::swap(num_items, rhs.num_items);
     q.swap(rhs.q);
     return *this;
   }
 
   /// Return the number of elements
-  [[nodiscard]] constexpr size_t size() const noexcept { return num_items; }
+  [[nodiscard]] size_t size() const noexcept { return q.size(); }
 
   /// Return `true` if `this` is empty
   [[nodiscard]] bool is_empty() const noexcept { return q.is_empty(); }
@@ -139,9 +135,7 @@ public:
        */
   T & put(const T & data) 
   {
-    T & ret_val = q.append(data);
-    ++num_items;
-    return ret_val;
+    return q.append(data);
   }
 
   /** Put an item by moving
@@ -153,9 +147,7 @@ public:
   */
   T & put(T && data)
   {
-    T & ret_val = q.append(std::forward<T>(data));
-    ++num_items;
-    return ret_val;
+    return q.append(std::forward<T>(data));
   }
 
   T & append(const T & data) { return put(data); }
@@ -207,37 +199,7 @@ public:
        */
   T get() 
   {
-    if constexpr (std::is_nothrow_move_constructible_v<T>)
-      {
-        T ret_val = q.remove_first();
-        --num_items;
-        return ret_val;
-      }
-    else
-      { // as remove_first(), the item moves once, into the result, and the
-        // count goes down after that move, unless it threw
-        struct Count_Down
-        {
-          size_t & n;
-          bool keep = false;
-
-          ~Count_Down()
-          {
-            if (not keep)
-              --n;
-          }
-        } count_down{num_items};
-
-        try
-          {
-            return q.remove_first();
-          }
-        catch (...)
-          {
-            count_down.keep = true;
-            throw;
-          }
-      }
+    return q.remove_first();
   }
  
   /** Return a modifiable reference to the oldest item in the queue.
@@ -284,7 +246,6 @@ public:
   void empty() noexcept
   {
     q.empty();
-    num_items = 0;
     assert(q.is_empty());
   }
 

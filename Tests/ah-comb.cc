@@ -115,6 +115,10 @@ TEST(AhComb, TransposeRectangular)
   auto m2 = m;
   in_place_transpose(m2);
   EXPECT_EQ(m2, expected);
+
+  // the rows take the nodes of the columns, and count them
+  ASSERT_EQ(m2.size(), 3u);
+  m2.for_each([](const DynList<int> &row) { EXPECT_EQ(row.size(), 2u); });
 }
 
 TEST(AhComb, InPlaceTransposeDynArray)
@@ -634,6 +638,7 @@ TEST(AhComb, InPlaceTransposeSingleRow)
 
   in_place_transpose(m);
   EXPECT_EQ(m.size(), 3u);
+  m.for_each([](const DynList<int> &row) { EXPECT_EQ(row.size(), 1u); });
 
   auto it = m.get_it();
   EXPECT_EQ(it.get_curr().get_first(), 1);
