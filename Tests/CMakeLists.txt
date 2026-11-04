@@ -403,6 +403,7 @@ set(TEST_PROGRAMS
     tpl_sgraph_test
     tpl_graph_test
     Simplex_test
+    simplex_exhaustive_test
     prefix_tree_test
     skiplist_test
     dynskiplist_test

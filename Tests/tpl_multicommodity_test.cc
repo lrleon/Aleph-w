@@ -404,14 +404,21 @@ TEST_F(MultiCommodityTest, MediumNetwork)
 
   auto node_at = [&](int i, int j) { return grid_nodes[i * grid_size + j]; };
 
+  // Arcs both ways, so that the commodities that cross have paths
   for (int i = 0; i < grid_size; ++i)
     {
       for (int j = 0; j < grid_size; ++j)
         {
           if (j + 1 < grid_size)
-            mcf_net.insert_arc(node_at(i, j), node_at(i, j + 1), 5.0, 1.0);
+            {
+              mcf_net.insert_arc(node_at(i, j), node_at(i, j + 1), 5.0, 1.0);
+              mcf_net.insert_arc(node_at(i, j + 1), node_at(i, j), 5.0, 1.0);
+            }
           if (i + 1 < grid_size)
-            mcf_net.insert_arc(node_at(i, j), node_at(i + 1, j), 5.0, 1.0);
+            {
+              mcf_net.insert_arc(node_at(i, j), node_at(i + 1, j), 5.0, 1.0);
+              mcf_net.insert_arc(node_at(i + 1, j), node_at(i, j), 5.0, 1.0);
+            }
         }
     }
 
@@ -428,7 +435,45 @@ TEST_F(MultiCommodityTest, MediumNetwork)
             << ", iterations=" << result.iterations << "\n";
 
   EXPECT_TRUE(result.is_optimal());
-  EXPECT_GT(result.total_cost, 0.0);
+
+  // Each commodity takes 2 units along a shortest path, of 6 arcs of cost
+  // 1, and the capacities leave room for both
+  EXPECT_NEAR(result.total_cost, 2 * 6.0 + 2 * 6.0, 1e-9);
+}
+
+TEST_F(MultiCommodityTest, MediumNetworkWithoutAPathIsInfeasible)
+{
+  // Arcs only to the right and down: no path from the top right corner to
+  // the bottom left one. Simplex reported such a program as solved.
+  const int grid_size = 4;
+  TestNet mcf_net;
+
+  std::vector<TestNode*> grid_nodes;
+  grid_nodes.reserve(grid_size * grid_size);
+
+  for (int i = 0; i < grid_size * grid_size; ++i)
+    grid_nodes.push_back(mcf_net.insert_node());
+
+  auto node_at = [&](int i, int j) { return grid_nodes[i * grid_size + j]; };
+
+  for (int i = 0; i < grid_size; ++i)
+    for (int j = 0; j < grid_size; ++j)
+      {
+        if (j + 1 < grid_size)
+          mcf_net.insert_arc(node_at(i, j), node_at(i, j + 1), 5.0, 1.0);
+        if (i + 1 < grid_size)
+          mcf_net.insert_arc(node_at(i, j), node_at(i + 1, j), 5.0, 1.0);
+      }
+
+  mcf_net.add_commodity(node_at(0, 0), node_at(grid_size-1, grid_size-1),
+                        2.0, "TopLeft-BottomRight");
+  mcf_net.add_commodity(node_at(0, grid_size-1), node_at(grid_size-1, 0),
+                        2.0, "TopRight-BottomLeft");
+
+  auto result = solve_multicommodity_flow(mcf_net);
+
+  EXPECT_FALSE(result.is_optimal());
+  EXPECT_EQ(result.status, decltype(result)::Infeasible);
 }
 
 //==============================================================================

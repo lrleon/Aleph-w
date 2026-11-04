@@ -50,7 +50,15 @@
 
 #include <gtest/gtest.h>
 #include <Simplex.H>
+#include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <random>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 using namespace Aleph;
 
@@ -1001,8 +1009,23 @@ TEST_F(SimplexTest, SensitivityAnalysisObjective)
   auto range = simplex.objective_sensitivity(0);
   
   EXPECT_EQ(range.current_value, 40.0);
-  // Range should be finite
-  EXPECT_FALSE(std::isinf(range.lower_bound) && std::isinf(range.upper_bound));
+
+  // x = y = 20 stays optimal while 40/30 lies between the slopes 1 and 2
+  // of the constraints: c_0 in [30, 60], c_1 in [20, 40]
+  EXPECT_NEAR(range.lower_bound, 30.0, 1e-9);
+  EXPECT_NEAR(range.upper_bound, 60.0, 1e-9);
+  range = simplex.objective_sensitivity(1);
+  EXPECT_NEAR(range.lower_bound, 20.0, 1e-9);
+  EXPECT_NEAR(range.upper_bound, 40.0, 1e-9);
+
+  // b_0 in [30, 60] and b_1 in [40, 80] keep x and y basic and >= 0
+  range = simplex.rhs_sensitivity(0);
+  EXPECT_EQ(range.current_value, 40.0);
+  EXPECT_NEAR(range.lower_bound, 30.0, 1e-9);
+  EXPECT_NEAR(range.upper_bound, 60.0, 1e-9);
+  range = simplex.rhs_sensitivity(1);
+  EXPECT_NEAR(range.lower_bound, 40.0, 1e-9);
+  EXPECT_NEAR(range.upper_bound, 80.0, 1e-9);
 }
 
 TEST_F(SimplexTest, ShadowPrices)
@@ -1023,7 +1046,12 @@ TEST_F(SimplexTest, ShadowPrices)
   auto prices = simplex.get_all_shadow_prices();
   
   EXPECT_EQ(prices.size(), 2u);
-  // Shadow prices should be non-negative for <= constraints in maximization
+
+  // The optimal dual solution: y_0 + 2 y_1 = 40 and y_0 + y_1 = 30, so
+  // that 40 y_0 + 60 y_1 = 1400, the optimal value; >= 0, since they are
+  // of <= constraints in a maximization
+  EXPECT_NEAR(prices[0], 20.0, 1e-9);
+  EXPECT_NEAR(prices[1], 10.0, 1e-9);
 }
 
 TEST_F(SimplexTest, ReducedCosts)
@@ -1044,6 +1072,12 @@ TEST_F(SimplexTest, ReducedCosts)
   auto costs = simplex.get_all_reduced_costs();
   
   EXPECT_EQ(costs.size(), 2u);
+
+  // Both variables are basic
+  EXPECT_NEAR(costs[0], 0.0, 1e-9);
+  EXPECT_NEAR(costs[1], 0.0, 1e-9);
+  EXPECT_TRUE(simplex.is_basic_variable(0));
+  EXPECT_TRUE(simplex.is_basic_variable(1));
 }
 
 TEST_F(SimplexTest, DualSimplexReoptimize)
@@ -1067,13 +1101,14 @@ TEST_F(SimplexTest, DualSimplexReoptimize)
   // Update RHS of first constraint and reoptimize
   auto state2 = simplex.update_rhs_and_reoptimize(0, 50.0);
   
-  if (state2 == Simplex<double>::Solved)
-    {
-      simplex.load_solution();
-      // New objective should be different (likely higher with more room)
-      EXPECT_GE(simplex.objetive_value(), original_obj);
-      EXPECT_TRUE(simplex.verify_solution());
-    }
+  // 50 is within [30, 60], the range of b_0: x = 60 - 50, y = 2 * 50 - 60,
+  // and the value grows by the shadow price 20 per unit
+  ASSERT_EQ(state2, Simplex<double>::Solved);
+  simplex.load_solution();
+  EXPECT_NEAR(simplex.get_solution(0), 10.0, 1e-9);
+  EXPECT_NEAR(simplex.get_solution(1), 40.0, 1e-9);
+  EXPECT_NEAR(simplex.objetive_value(), original_obj + 20.0 * 10, 1e-9);
+  EXPECT_TRUE(simplex.verify_solution());
 }
 
 TEST_F(SimplexTest, LargeDegenerateProblem)
@@ -1609,38 +1644,9 @@ TEST_F(NonStandardConstraintsTest, InfeasibleWithGEConstraints)
   simplex.prepare_linear_program();
   auto state = simplex.solve();
   
-  // The problem is mathematically infeasible
-  // Either the solver correctly reports Unfeasible, or if it reports Solved,
-  // the verify_solution() must fail (proving the "solution" violates constraints)
-  if (state == Simplex<double>::Solved)
-    {
-      simplex.load_solution();
-      double x = simplex.get_solution(0);
-      double y = simplex.get_solution(1);
-      
-      // Either verification fails, or the solution actually violates constraints
-      bool ge_satisfied = (x + y >= 10.0 - EPSILON);
-      bool le1_satisfied = (x <= 3.0 + EPSILON);
-      bool le2_satisfied = (y <= 4.0 + EPSILON);
-      
-      // At least one constraint must be violated since problem is infeasible
-      // If all appear satisfied, then there's a numerical tolerance issue
-      // or the implementation has a bug
-      if (ge_satisfied && le1_satisfied && le2_satisfied)
-        {
-          // This would indicate a bug - log it for debugging
-          std::cout << "WARNING: Simplex returned 'Solved' for infeasible problem\n";
-          std::cout << "  x=" << x << ", y=" << y << ", x+y=" << (x+y) << "\n";
-        }
-      
-      // The GE constraint cannot be satisfied given the LE bounds
-      EXPECT_FALSE(ge_satisfied && le1_satisfied && le2_satisfied)
-        << "All constraints appear satisfied but problem is mathematically infeasible";
-    }
-  else
-    {
-      EXPECT_EQ(state, Simplex<double>::Unfeasible);
-    }
+  // The problem is infeasible: x + y >= 10, x <= 3 and y <= 4. Simplex
+  // reported it as solved, with a point that broke a constraint.
+  EXPECT_EQ(state, Simplex<double>::Unfeasible);
 }
 
 //==============================================================================
@@ -1874,6 +1880,715 @@ TEST_F(MinimizationTest, CompareMinimizeVsNegatedMaximize)
   
   // They should be negatives of each other
   EXPECT_TRUE(nearly_equal(min_value, -max_value, 0.1));
+}
+
+//==============================================================================
+// The defects of the Big-M version, and the classic hard programs
+//==============================================================================
+
+namespace
+{
+  using Rows = std::initializer_list<std::pair<std::vector<double>, ConstraintType>>;
+
+  // Adds the rows to lp and prepares it
+  void add_rows(Simplex<double> & lp, Rows rows)
+  {
+    for (const auto & [row, type] : rows)
+      lp.put_restriction(row.data(), type);
+    lp.prepare_linear_program();
+  }
+
+  // A file name in the temporary directory, unused
+  std::string temp_name(const std::string & stem)
+  {
+    return (std::filesystem::temp_directory_path()
+            / (stem + "_" + std::to_string(std::random_device{}()))).string();
+  }
+
+  std::string read_file(const std::string & name)
+  {
+    std::ifstream in(name);
+    std::ostringstream s;
+    s << in.rdbuf();
+    return s.str();
+  }
+}
+
+TEST(SimplexDefects, AnInfeasibleProgramIsReported)
+{
+  // x <= 0 and x >= 1: Simplex reported it as solved
+  Simplex<double> lp(1);
+  lp.put_objetive_function_coef(0, 1);
+  add_rows(lp, {{{1, 0}, ConstraintType::LE}, {{1, 1}, ConstraintType::GE}});
+
+  EXPECT_EQ(lp.solve(), Simplex<double>::Unfeasible);
+  EXPECT_EQ(lp.get_state(), Simplex<double>::Unfeasible);
+  EXPECT_THROW((void) lp.shadow_price(0), std::logic_error);
+  EXPECT_THROW((void) lp.update_rhs_and_reoptimize(0, 2), std::logic_error);
+}
+
+TEST(SimplexDefects, ColumnsWithTheSameUnitVectorAreNotBothBasic)
+{
+  // max x + y, x + y <= 1: at the optimum both columns are the same unit
+  // vector of cost zero, and the solution was read as x = y = 1
+  Simplex<double> lp(2);
+  lp.put_objetive_function_coef(0, 1);
+  lp.put_objetive_function_coef(1, 1);
+  add_rows(lp, {{{1, 1, 1}, ConstraintType::LE}});
+
+  ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+  lp.load_solution();
+  EXPECT_NEAR(lp.get_solution(0) + lp.get_solution(1), 1.0, 1e-12);
+  EXPECT_NEAR(lp.objetive_value(), 1.0, 1e-12);
+  EXPECT_TRUE(lp.verify_solution());
+  EXPECT_NE(lp.is_basic_variable(0), lp.is_basic_variable(1));
+}
+
+TEST(SimplexDefects, ANegativeRightHandSideIsNotIgnored)
+{
+  {
+    // max -x, -x <= -1, x <= 3: the first row was skipped, which gave x = 0
+    Simplex<double> lp(1);
+    lp.put_objetive_function_coef(0, -1);
+    add_rows(lp, {{{-1, -1}, ConstraintType::LE}, {{1, 3}, ConstraintType::LE}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.get_solution(0), 1.0, 1e-12);
+    EXPECT_NEAR(lp.objetive_value(), -1.0, 1e-12);
+    EXPECT_TRUE(lp.verify_solution());
+    // the shadow price of -x <= -1 when maximizing -x: raising b by one
+    // lowers x by one, and raises the objective by one
+    EXPECT_NEAR(lp.shadow_price(0), 1.0, 1e-12);
+  }
+  {
+    // min x + y, x - y = -1: (0, 1)
+    Simplex<double> lp(2, OptimizationType::Minimize);
+    lp.put_objetive_function_coef(0, 1);
+    lp.put_objetive_function_coef(1, 1);
+    add_rows(lp, {{{1, -1, -1}, ConstraintType::EQ}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.get_solution(0), 0.0, 1e-12);
+    EXPECT_NEAR(lp.get_solution(1), 1.0, 1e-12);
+  }
+  {
+    // max -x - y, x - y >= -2, which holds at 0: (0, 0)
+    Simplex<double> lp(2);
+    lp.put_objetive_function_coef(0, -1);
+    lp.put_objetive_function_coef(1, -1);
+    add_rows(lp, {{{1, -1, -2}, ConstraintType::GE}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.objetive_value(), 0.0, 1e-12);
+  }
+  {
+    // x + y <= 5 and x + y >= 10 written as -x - y <= -10: infeasible
+    Simplex<double> lp(2);
+    lp.put_objetive_function_coef(0, 1);
+    lp.put_objetive_function_coef(1, 1);
+    add_rows(lp, {{{1, 1, 5}, ConstraintType::LE}, {{-1, -1, -10}, ConstraintType::LE}});
+    EXPECT_EQ(lp.solve(), Simplex<double>::Unfeasible);
+  }
+}
+
+TEST(SimplexDefects, AnObjectiveAboveTheBigMOfBefore)
+{
+  // min 1e12 x, x >= 1: with an artificial variable of cost 1e9, keeping it
+  // in the basis was cheaper than x, and that was the solution
+  Simplex<double> lp(1, OptimizationType::Minimize);
+  lp.put_objetive_function_coef(0, 1e12);
+  add_rows(lp, {{{1, 1}, ConstraintType::GE}});
+  ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+  lp.load_solution();
+  EXPECT_NEAR(lp.get_solution(0), 1.0, 1e-12);
+  EXPECT_NEAR(lp.objetive_value(), 1e12, 1e-3);
+}
+
+TEST(SimplexDefects, SensitivityOfEqualitiesAndOfGreaterOrEqual)
+{
+  {
+    // max x, x = 2: the shadow price of an = was 0
+    Simplex<double> lp(1);
+    lp.put_objetive_function_coef(0, 1);
+    add_rows(lp, {{{1, 2}, ConstraintType::EQ}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    EXPECT_NEAR(lp.shadow_price(0), 1.0, 1e-12);
+  }
+  {
+    // min x + y, x + y = 3, x - y = 1: (2, 1); the dual y_0 + y_1 = 1,
+    // y_0 - y_1 = 1 gives (1, 0)
+    Simplex<double> lp(2, OptimizationType::Minimize);
+    lp.put_objetive_function_coef(0, 1);
+    lp.put_objetive_function_coef(1, 1);
+    add_rows(lp, {{{1, 1, 3}, ConstraintType::EQ}, {{1, -1, 1}, ConstraintType::EQ}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.get_solution(0), 2.0, 1e-12);
+    EXPECT_NEAR(lp.get_solution(1), 1.0, 1e-12);
+    EXPECT_NEAR(lp.shadow_price(0), 1.0, 1e-12);
+    EXPECT_NEAR(lp.shadow_price(1), 0.0, 1e-12);
+  }
+  {
+    // min 2x + 3y, x + y >= 4, x + 3y >= 6: (3, 1), z = 9; the duals 1.5
+    // and 0.5; x = (3 b_0 - b_1) / 2 and y = (b_1 - b_0) / 2 give b_0 in
+    // [2, 6] and b_1 in [4, 12]; c_x / c_y in [1/3, 1] gives c_x in [1, 3]
+    // and c_y in [2, 6]
+    Simplex<double> lp(2, OptimizationType::Minimize);
+    lp.put_objetive_function_coef(0, 2);
+    lp.put_objetive_function_coef(1, 3);
+    add_rows(lp, {{{1, 1, 4}, ConstraintType::GE}, {{1, 3, 6}, ConstraintType::GE}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.objetive_value(), 9.0, 1e-12);
+    EXPECT_NEAR(lp.shadow_price(0), 1.5, 1e-12);
+    EXPECT_NEAR(lp.shadow_price(1), 0.5, 1e-12);
+
+    auto r = lp.rhs_sensitivity(0);
+    EXPECT_NEAR(r.lower_bound, 2.0, 1e-12);
+    EXPECT_NEAR(r.upper_bound, 6.0, 1e-12);
+    r = lp.rhs_sensitivity(1);
+    EXPECT_NEAR(r.lower_bound, 4.0, 1e-12);
+    EXPECT_NEAR(r.upper_bound, 12.0, 1e-12);
+    r = lp.objective_sensitivity(0);
+    EXPECT_NEAR(r.lower_bound, 1.0, 1e-12);
+    EXPECT_NEAR(r.upper_bound, 3.0, 1e-12);
+    r = lp.objective_sensitivity(1);
+    EXPECT_NEAR(r.lower_bound, 2.0, 1e-12);
+    EXPECT_NEAR(r.upper_bound, 6.0, 1e-12);
+  }
+  {
+    // A non-basic variable: max x, x <= 3, x + y <= 5 has y = 0, and it
+    // stays so while its cost is <= 0
+    Simplex<double> lp(2);
+    lp.put_objetive_function_coef(0, 1);
+    add_rows(lp, {{{1, 0, 3}, ConstraintType::LE}, {{1, 1, 5}, ConstraintType::LE}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    lp.load_solution();
+    if (not lp.is_basic_variable(1))
+      {
+        const auto r = lp.objective_sensitivity(1);
+        EXPECT_TRUE(r.is_unbounded_below());
+        EXPECT_NEAR(r.upper_bound, 0.0, 1e-12);
+      }
+  }
+}
+
+TEST(SimplexDefects, ReoptimizationOfEqualitiesAndOfGreaterOrEqual)
+{
+  {
+    // max x, x = 2, x <= 10; x = 5: the change of an = was lost
+    Simplex<double> lp(1);
+    lp.put_objetive_function_coef(0, 1);
+    add_rows(lp, {{{1, 2}, ConstraintType::EQ}, {{1, 10}, ConstraintType::LE}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    ASSERT_EQ(lp.update_rhs_and_reoptimize(0, 5), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.get_solution(0), 5.0, 1e-12);
+    // beyond the <= : infeasible
+    EXPECT_EQ(lp.update_rhs_and_reoptimize(0, 11), Simplex<double>::Unfeasible);
+    EXPECT_THROW((void) lp.update_rhs_and_reoptimize(0, 1), std::logic_error);
+  }
+  {
+    // min x + y, x + y >= 2, x - y = 0: (1, 1); x + y >= 4: (2, 2)
+    Simplex<double> lp(2, OptimizationType::Minimize);
+    lp.put_objetive_function_coef(0, 1);
+    lp.put_objetive_function_coef(1, 1);
+    add_rows(lp, {{{1, 1, 2}, ConstraintType::GE}, {{1, -1, 0}, ConstraintType::EQ}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    ASSERT_EQ(lp.update_rhs_and_reoptimize(0, 4), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.get_solution(0), 2.0, 1e-12);
+    EXPECT_NEAR(lp.get_solution(1), 2.0, 1e-12);
+    // x - y = 2 too: (3, 1)
+    ASSERT_EQ(lp.update_rhs_and_reoptimize(1, 2), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.get_solution(0), 3.0, 1e-12);
+    EXPECT_NEAR(lp.get_solution(1), 1.0, 1e-12);
+    EXPECT_TRUE(lp.verify_solution());
+  }
+  {
+    // max -x, -x <= -1, whose row was multiplied by -1, and x <= 3: x = 1;
+    // -x <= 2 always holds: x = 0; x <= -1 cannot hold
+    Simplex<double> lp(1);
+    lp.put_objetive_function_coef(0, -1);
+    add_rows(lp, {{{-1, -1}, ConstraintType::LE}, {{1, 3}, ConstraintType::LE}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    ASSERT_EQ(lp.update_rhs_and_reoptimize(0, 2), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.get_solution(0), 0.0, 1e-12);
+    EXPECT_EQ(lp.update_rhs_and_reoptimize(1, -1), Simplex<double>::Unfeasible);
+  }
+  {
+    // x + y = 1 twice: the second row is redundant; x + y = 2 in it makes
+    // the program infeasible
+    Simplex<double> lp(2);
+    lp.put_objetive_function_coef(0, 1);
+    add_rows(lp, {{{1, 1, 1}, ConstraintType::EQ}, {{1, 1, 1}, ConstraintType::EQ}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.objetive_value(), 1.0, 1e-12);
+    // the duals are not unique, but they add up to the value
+    EXPECT_NEAR(lp.shadow_price(0) + lp.shadow_price(1), 1.0, 1e-12);
+    EXPECT_EQ(lp.update_rhs_and_reoptimize(1, 2), Simplex<double>::Unfeasible);
+  }
+}
+
+TEST(SimplexDefects, PrintAndLatexOutput)
+{
+  // print_matrix(), latex_matrix() and so latex_solve() did not compile
+  Simplex<double> lp(2, OptimizationType::Minimize);
+  lp.put_objetive_function_coef(0, 2);
+  lp.put_objetive_function_coef(1, 3);
+  add_rows(lp, {{{1, 1, 4}, ConstraintType::GE}, {{1, 3, 6}, ConstraintType::EQ},
+                {{1, 0, 9}, ConstraintType::LE}});
+
+  testing::internal::CaptureStdout();
+  lp.print_matrix();
+  const std::string out = testing::internal::GetCapturedStdout();
+  // row 0 and three rows, of the scaled program, whose slack and
+  // artificial variables have unit columns
+  EXPECT_EQ(std::count(out.begin(), out.end(), '\n'), 4);
+  EXPECT_NE(out.find("1.00"), std::string::npos);
+
+  const std::string program = temp_name("aleph_simplex_program") + ".tex";
+  lp.latex_linear_program(program);
+  const std::string text = read_file(program);
+  EXPECT_NE(text.find("\\min"), std::string::npos);
+  EXPECT_NE(text.find("\\geq"), std::string::npos);
+  EXPECT_NE(text.find(" = "), std::string::npos);
+  EXPECT_NE(text.find("\\leq"), std::string::npos);
+  std::filesystem::remove(program);
+
+  const std::string base = temp_name("aleph_simplex_steps");
+  ASSERT_EQ(lp.latex_solve(base.c_str()), Simplex<double>::Solved);
+  EXPECT_NE(read_file(base + "-1.tex").find("\\circled"), std::string::npos);
+  for (size_t k = 0; k <= lp.get_pivot_count() + 1; ++k)
+    {
+      std::filesystem::remove(base + "-" + std::to_string(k) + ".tex");
+      std::filesystem::remove(base + "-" + std::to_string(k) + "-after.tex");
+    }
+  lp.load_solution();
+  EXPECT_NEAR(lp.objetive_value(), 9.0, 1e-12);
+
+  Simplex<double> unprepared(1);
+  EXPECT_THROW(unprepared.print_matrix(), std::logic_error);
+}
+
+TEST(SimplexDefects, LargeCoefficientsDoNotHideTheLeavingRow)
+{
+  // max 4x + 2y, 2e8 x - 1e8 y <= 2e8, 5e8 x + 1e8 y <= 8e8: (0, 8), z =
+  // 16. With a tolerance of the size of the coefficients, 1e-5, the
+  // entries of order 1e-9 of the column of a slack looked like zeros, and
+  // the program unbounded (found by Codex)
+  Simplex<double> lp(2);
+  lp.put_objetive_function_coef(0, 4);
+  lp.put_objetive_function_coef(1, 2);
+  add_rows(lp, {{{2e8, -1e8, 2e8}, ConstraintType::LE}, {{5e8, 1e8, 8e8}, ConstraintType::LE}});
+  ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+  lp.load_solution();
+  EXPECT_NEAR(lp.get_solution(0), 0.0, 1e-12);
+  EXPECT_NEAR(lp.get_solution(1), 8.0, 1e-12);
+  EXPECT_NEAR(lp.objetive_value(), 16.0, 1e-12);
+}
+
+TEST(SimplexDefects, SmallDataDoNotMakeAPivot)
+{
+  // Three unbounded programs, with their data multiplied by 1e-6 (found by
+  // the CI, whose libc++ made them). With a tolerance that did not go
+  // below eps for data below 1, a zero of the tableau came out as a
+  // rounding error above it, which looked like a pivot, and the programs
+  // as solved, with optima near -1e11. The products are not the literals
+  // in their last bits (5 * 1e-6 is not 5e-6), and the literals do not
+  // show the defect
+  using C = ConstraintType;
+  struct Program
+  {
+    std::vector<double> c;
+    std::vector<std::pair<std::vector<double>, ConstraintType>> rows;
+  };
+  const Program programs[] = {
+    {{-5, 2, -4},
+     {{{5, -3, -2, 10}, C::LE}, {{3, 1, 0, 7}, C::LE}, {{0, -1, 0, -1}, C::GE},
+      {{0, 0, 2, -1}, C::GE}}},
+    {{-4, 0}, {{{0, -3, -9}, C::EQ}, {{-4, 5, 4}, C::LE}, {{0, 0, 0}, C::EQ}, {{0, 0, 3}, C::LE}}},
+    {{3, -4, -2},
+     {{{0, -2, 5, 2}, C::LE}, {{0, -1, 4, 4}, C::LE}, {{0, 0, -3, 6}, C::LE},
+      {{0, 0, 2, 3}, C::EQ}}}};
+  const double u = 1e-6;
+  for (const auto & p : programs)
+    {
+      Simplex<double> lp(p.c.size(), OptimizationType::Minimize);
+      for (size_t j = 0; j < p.c.size(); ++j)
+        lp.put_objetive_function_coef(j, p.c[j] * u);
+      for (auto [row, type] : p.rows)
+        {
+          for (double & x : row)
+            x *= u;
+          lp.put_restriction(row.data(), type);
+        }
+      lp.prepare_linear_program();
+      EXPECT_EQ(lp.solve(), Simplex<double>::Unbounded) << "program " << &p - programs;
+    }
+}
+
+TEST(SimplexScaling, TheSensitivityInOtherUnits)
+{
+  // The sensitivity of the textbook program, in other units: the prices
+  // and the ranges scale with them, though the solver scales the program
+  Simplex<double> lp(2);
+  lp.put_objetive_function_coef(0, 40e-3);
+  lp.put_objetive_function_coef(1, 30e-3);
+  add_rows(lp, {{{1e5, 1e5, 40e5}, ConstraintType::LE}, {{2e5, 1e5, 60e5}, ConstraintType::LE}});
+  ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+  EXPECT_NEAR(lp.shadow_price(0), 20e-3 / 1e5, 1e-15);
+  EXPECT_NEAR(lp.shadow_price(1), 10e-3 / 1e5, 1e-15);
+  auto r = lp.rhs_sensitivity(0);
+  EXPECT_NEAR(r.lower_bound, 30e5, 1e-6);
+  EXPECT_NEAR(r.upper_bound, 60e5, 1e-6);
+  r = lp.objective_sensitivity(0);
+  EXPECT_NEAR(r.lower_bound, 30e-3, 1e-15);
+  EXPECT_NEAR(r.upper_bound, 60e-3, 1e-15);
+  ASSERT_EQ(lp.update_rhs_and_reoptimize(0, 50e5), Simplex<double>::Solved);
+  lp.load_solution();
+  EXPECT_NEAR(lp.get_solution(0), 10.0, 1e-9);
+  EXPECT_NEAR(lp.get_solution(1), 40.0, 1e-9);
+}
+
+TEST(SimplexScaling, SubnormalMagnitudesAreNotScaled)
+{
+  // max x, t x <= 1, x <= 5, with t = 2^-1032, subnormal: x = 5. The
+  // power of two that would take t into [1/2, 1) overflows: the row stays
+  // as it is, and its coefficient, below the tolerance, counts as zero, as
+  // it did before the scaling
+  const double t = std::ldexp(1.0, -1032);
+  Simplex<double> lp(1);
+  lp.put_objetive_function_coef(0, 1);
+  add_rows(lp, {{{t, 1}, ConstraintType::LE}, {{1, 5}, ConstraintType::LE}});
+  ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+  lp.load_solution();
+  EXPECT_DOUBLE_EQ(lp.get_solution(0), 5.0);
+  EXPECT_TRUE(lp.verify_solution());
+
+  RevisedSimplex<double> rs(1, 2);
+  rs.set_objective(0, 1);
+  const double r1[] = {t}, r2[] = {1};
+  rs.set_constraint_row(0, r1, 1);
+  rs.set_constraint_row(1, r2, 5);
+  ASSERT_EQ(rs.solve(), RevisedSimplex<double>::Solved);
+  EXPECT_DOUBLE_EQ(rs.objective_value(), 5.0);
+  EXPECT_TRUE(rs.verify_solution());
+
+  // float, whose subnormals are below 2^-126
+  Simplex<float> lf(1);
+  lf.put_objetive_function_coef(0, 1);
+  float f1[] = {std::ldexp(1.0f, -140), 1}, f2[] = {1, 5};
+  lf.put_restriction(f1, ConstraintType::LE);
+  lf.put_restriction(f2, ConstraintType::LE);
+  lf.prepare_linear_program();
+  ASSERT_EQ(lf.solve(), Simplex<float>::Solved);
+  lf.load_solution();
+  EXPECT_FLOAT_EQ(lf.get_solution(0), 5.0f);
+
+  // an objective of subnormals: zero, so that any feasible point is optimal
+  Simplex<double> lo(1);
+  lo.put_objetive_function_coef(0, t);
+  add_rows(lo, {{{1, 5}, ConstraintType::LE}});
+  ASSERT_EQ(lo.solve(), Simplex<double>::Solved);
+  lo.load_solution();
+  EXPECT_TRUE(lo.verify_solution());
+  EXPECT_LE(std::abs(lo.objetive_value()), 1e-300);
+
+  // a column of subnormals: x can grow beyond the largest double
+  Simplex<double> lc(2);
+  lc.put_objetive_function_coef(0, 1);
+  lc.put_objetive_function_coef(1, 1);
+  add_rows(lc, {{{t, 0, 1}, ConstraintType::LE}, {{0, 1, 2}, ConstraintType::LE}});
+  EXPECT_EQ(lc.solve(), Simplex<double>::Unbounded);
+}
+
+TEST(SimplexClassic, BealesCyclingProgramEnds)
+{
+  // Beale (1955): a degenerate program on which the most negative cost
+  // with ties broken by the least index cycles; the optimum is 1/20 at
+  // x = (1/25, 0, 1, 0)
+  for (bool bland : {false, true})
+    {
+      Simplex<double> lp(4);
+      lp.put_objetive_function_coef(0, 0.75);
+      lp.put_objetive_function_coef(1, -150);
+      lp.put_objetive_function_coef(2, 0.02);
+      lp.put_objetive_function_coef(3, -6);
+      if (bland)
+        lp.enable_bland_rule();
+      add_rows(lp, {{{0.25, -60, -0.04, 9, 0}, ConstraintType::LE},
+                    {{0.5, -90, -0.02, 3, 0}, ConstraintType::LE},
+                    {{0, 0, 1, 0, 1}, ConstraintType::LE}});
+      ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+      lp.load_solution();
+      EXPECT_NEAR(lp.objetive_value(), 0.05, 1e-12);
+      EXPECT_NEAR(lp.get_solution(0), 0.04, 1e-12);
+      EXPECT_NEAR(lp.get_solution(2), 1.0, 1e-12);
+      EXPECT_TRUE(lp.verify_solution());
+
+      const auto & st = lp.get_stats();
+      EXPECT_GE(st.iterations, st.pivots);
+      EXPECT_GE(st.pivots, st.degenerate_pivots);
+      EXPECT_GT(st.degenerate_pivots, 0u);
+    }
+}
+
+TEST(SimplexClassic, KleeMintyCube)
+{
+  // max sum 2^(n-j) x_j, sum_{j<i} 2^(i-j+1) x_j + x_i <= 5^i: on the
+  // program as it is, the most negative cost visits every vertex; on the
+  // scaled one that the solver works on, it takes x_n first. The optimum is
+  // x_n = 5^n.
+  const size_t n = 8;
+  for (bool bland : {false, true})
+    {
+      Simplex<double> lp(n);
+      for (size_t j = 0; j < n; ++j)
+        lp.put_objetive_function_coef(j, std::pow(2.0, double(n - 1 - j)));
+      if (bland)
+        lp.enable_bland_rule();
+      for (size_t i = 0; i < n; ++i)
+        {
+          std::vector<double> row(n + 1, 0.0);
+          for (size_t j = 0; j < i; ++j)
+            row[j] = std::pow(2.0, double(i - j + 1));
+          row[i] = 1;
+          row[n] = std::pow(5.0, double(i + 1));
+          lp.put_restriction(row.data());
+        }
+      lp.prepare_linear_program();
+      ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+      lp.load_solution();
+      EXPECT_NEAR(lp.objetive_value(), std::pow(5.0, double(n)), 1e-6);
+      EXPECT_NEAR(lp.get_solution(n - 1), std::pow(5.0, double(n)), 1e-6);
+      EXPECT_TRUE(lp.verify_solution());
+    }
+}
+
+TEST(SimplexClassic, ZeroRowsAndZeroObjective)
+{
+  {
+    // 0 <= 5 always holds, 0 >= -5 too
+    Simplex<double> lp(1);
+    lp.put_objetive_function_coef(0, 1);
+    add_rows(lp, {{{0, 5}, ConstraintType::LE}, {{0, -5}, ConstraintType::GE},
+                  {{1, 3}, ConstraintType::LE}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.get_solution(0), 3.0, 1e-12);
+  }
+  for (auto [rhs, type] : {std::pair{5.0, ConstraintType::GE}, std::pair{3.0, ConstraintType::EQ},
+                           std::pair{-1.0, ConstraintType::LE}})
+    {
+      // 0 >= 5, 0 = 3 and 0 <= -1 never hold
+      Simplex<double> lp(1);
+      lp.put_objetive_function_coef(0, 1);
+      double row[] = {0, rhs};
+      lp.put_restriction(row, type);
+      lp.prepare_linear_program();
+      EXPECT_EQ(lp.solve(), Simplex<double>::Unfeasible);
+    }
+  {
+    // 0 = 0 is redundant
+    Simplex<double> lp(1);
+    lp.put_objetive_function_coef(0, 1);
+    add_rows(lp, {{{0, 0}, ConstraintType::EQ}, {{1, 2}, ConstraintType::LE}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.get_solution(0), 2.0, 1e-12);
+  }
+  {
+    // a zero objective: any feasible point, of value 0
+    Simplex<double> lp(2);
+    add_rows(lp, {{{1, 1, 4}, ConstraintType::LE}, {{1, 0, 1}, ConstraintType::GE}});
+    ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+    lp.load_solution();
+    EXPECT_NEAR(lp.objetive_value(), 0.0, 1e-12);
+    EXPECT_TRUE(lp.verify_solution());
+  }
+}
+
+TEST(SimplexClassic, InconsistentEqualities)
+{
+  Simplex<double> lp(2);
+  lp.put_objetive_function_coef(0, 1);
+  add_rows(lp, {{{1, 1, 1}, ConstraintType::EQ}, {{1, 1, 2}, ConstraintType::EQ}});
+  EXPECT_EQ(lp.solve(), Simplex<double>::Unfeasible);
+}
+
+TEST(SimplexClassic, AMovedSolverSolves)
+{
+  Simplex<double> lp(2);
+  lp.put_objetive_function_coef(0, 40);
+  lp.put_objetive_function_coef(1, 30);
+  add_rows(lp, {{{1, 1, 40}, ConstraintType::LE}, {{2, 1, 60}, ConstraintType::LE}});
+
+  Simplex<double> moved(std::move(lp));
+  ASSERT_EQ(moved.solve(), Simplex<double>::Solved);
+  moved.load_solution();
+  EXPECT_NEAR(moved.objetive_value(), 1400.0, 1e-9);
+
+  Simplex<double> assigned(1);
+  assigned = std::move(moved);
+  EXPECT_NEAR(assigned.shadow_price(0), 20.0, 1e-9);
+}
+
+TEST(SimplexClassic, StateErrors)
+{
+  Simplex<double> lp(1);
+  lp.put_objetive_function_coef(0, 1);
+  EXPECT_THROW(lp.prepare_linear_program(), std::logic_error);
+  add_rows(lp, {{{1, 1}, ConstraintType::LE}});
+  EXPECT_THROW((void) lp.shadow_price(0), std::logic_error);
+  EXPECT_THROW((void) lp.reduced_cost(0), std::logic_error);
+  EXPECT_THROW((void) lp.rhs_sensitivity(0), std::logic_error);
+  EXPECT_THROW((void) lp.objective_sensitivity(0), std::logic_error);
+  EXPECT_THROW((void) lp.dual_solve(), std::logic_error);
+  EXPECT_THROW((void) lp.update_rhs_and_reoptimize(0, 1), std::logic_error);
+  ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+  EXPECT_THROW((void) lp.solve(), std::logic_error);
+  EXPECT_THROW((void) lp.latex_solve(), std::logic_error);
+  EXPECT_THROW((void) lp.shadow_price(1), std::out_of_range);
+  EXPECT_THROW((void) lp.objective_sensitivity(1), std::out_of_range);
+  EXPECT_NO_THROW(lp.print_sensitivity_analysis());
+}
+
+TEST(RevisedSimplexDefects, ANegativeRightHandSideNeedsTheFirstPhase)
+{
+  // max -x, -x <= -1, x <= 3: the slack of the first row started at -1
+  RevisedSimplex<double> rs(1, 2);
+  rs.set_objective(0, -1);
+  rs.set_constraint(0, 0, -1);
+  rs.set_rhs(0, -1);
+  rs.set_constraint(1, 0, 1);
+  rs.set_rhs(1, 3);
+  ASSERT_EQ(rs.solve(), RevisedSimplex<double>::Solved);
+  EXPECT_NEAR(rs.get_solution(0), 1.0, 1e-12);
+  EXPECT_NEAR(rs.objective_value(), -1.0, 1e-12);
+  EXPECT_TRUE(rs.verify_solution());
+}
+
+TEST(RevisedSimplexDefects, InfeasibleAndUnbounded)
+{
+  {
+    // x <= -1 with x >= 0
+    RevisedSimplex<double> rs(1, 1);
+    rs.set_objective(0, 1);
+    rs.set_constraint(0, 0, 1);
+    rs.set_rhs(0, -1);
+    EXPECT_EQ(rs.solve(), RevisedSimplex<double>::Unfeasible);
+  }
+  {
+    // max x, x - y <= 1
+    RevisedSimplex<double> rs(2, 1);
+    rs.set_objective(0, 1);
+    const double row[] = {1, -1};
+    rs.set_constraint_row(0, row, 1);
+    EXPECT_EQ(rs.solve(), RevisedSimplex<double>::Unbounded);
+  }
+}
+
+TEST(RevisedSimplexDefects, RefactorizationEveryPivotGivesTheSame)
+{
+  // the Klee-Minty cube of 6 dimensions, with B^-1 computed again after
+  // each pivot and never
+  const size_t n = 6;
+  double value[2];
+  for (size_t f : {size_t(1), size_t(1000)})
+    {
+      RevisedSimplex<double> rs(n, n);
+      for (size_t j = 0; j < n; ++j)
+        rs.set_objective(j, std::pow(2.0, double(n - 1 - j)));
+      for (size_t i = 0; i < n; ++i)
+        {
+          for (size_t j = 0; j < i; ++j)
+            rs.set_constraint(i, j, std::pow(2.0, double(i - j + 1)));
+          rs.set_constraint(i, i, 1);
+          rs.set_rhs(i, std::pow(5.0, double(i + 1)));
+        }
+      rs.set_refactorization_frequency(f);
+      ASSERT_EQ(rs.solve(), RevisedSimplex<double>::Solved);
+      value[f == 1 ? 0 : 1] = rs.objective_value();
+    }
+  EXPECT_NEAR(value[0], std::pow(5.0, double(n)), 1e-6);
+  EXPECT_NEAR(value[1], std::pow(5.0, double(n)), 1e-6);
+
+  RevisedSimplex<double> rs(1, 1);
+  EXPECT_THROW(rs.set_refactorization_frequency(0), std::invalid_argument);
+}
+
+TEST(RevisedSimplexDefects, LargeCoefficientsDoNotHideTheLeavingRow)
+{
+  // The program of the test of the same name of Simplex, on which the
+  // ratio test of RevisedSimplex skipped every row too
+  RevisedSimplex<double> rs(2, 2);
+  rs.set_objective(0, 4);
+  rs.set_objective(1, 2);
+  const double r1[] = {2e8, -1e8}, r2[] = {5e8, 1e8};
+  rs.set_constraint_row(0, r1, 2e8);
+  rs.set_constraint_row(1, r2, 8e8);
+  ASSERT_EQ(rs.solve(), RevisedSimplex<double>::Solved);
+  EXPECT_NEAR(rs.objective_value(), 16.0, 1e-12);
+}
+
+TEST(SimplexClassic, TheRestOfTheInterface)
+{
+  // min 2x + 3y, x + y >= 4 by put_ge_restriction(), x + 3y = 6 by
+  // put_eq_restriction(): (3, 1), z = 9
+  Simplex<double> lp(2);
+  lp.set_optimization_type(OptimizationType::Minimize);
+  EXPECT_EQ(lp.get_optimization_type(), OptimizationType::Minimize);
+  lp.set_pivot_rule(Simplex<double>::PivotRule::Bland);
+  lp.set_pivot_rule(Simplex<double>::PivotRule::Dantzig);
+  lp.set_epsilon(1e-12);
+  lp.put_objetive_function_coef(0, 2);
+  lp.put_objetive_function_coef(1, 3);
+  const double ge[] = {1, 1, 4}, eq[] = {1, 3, 6};
+  lp.put_ge_restriction(ge);
+  lp.put_eq_restriction(eq);
+  lp.prepare_linear_program();
+  ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+  lp.load_solution();
+  EXPECT_NEAR(lp.get_solution(0), 3.0, 1e-12);
+  EXPECT_NEAR(lp.get_solution(1), 1.0, 1e-12);
+
+  EXPECT_GE(lp.get_iteration_count(), lp.get_pivot_count());
+  EXPECT_LE(lp.get_degenerate_pivot_count(), lp.get_pivot_count());
+  EXPECT_GE(lp.get_elapsed_time_ms(), 0.0);
+  EXPECT_FALSE(lp.get_stats().bland_rule_used);
+
+  // nothing to restore: no pivot
+  ASSERT_EQ(lp.dual_solve(), Simplex<double>::Solved);
+  EXPECT_EQ(lp.get_pivot_count(), 0u);
+
+  testing::internal::CaptureStdout();
+  lp.print_stats();
+  lp.print_sensitivity_analysis();
+  const std::string out = testing::internal::GetCapturedStdout();
+  EXPECT_NE(out.find("Pivots:"), std::string::npos);
+  EXPECT_NE(out.find("shadow price"), std::string::npos);
+
+  const std::string name = temp_name("aleph_simplex_matrix") + ".tex";
+  lp.latex_matrix(name, 3, 1, 0);
+  EXPECT_NE(read_file(name).find("\\circled{"), std::string::npos);
+  std::filesystem::remove(name);
+
+  RevisedSimplex<double> rs(1, 1);
+  rs.set_objective(0, 1);
+  rs.set_constraint(0, 0, 1);
+  rs.set_rhs(0, 2);
+  ASSERT_EQ(rs.solve(), RevisedSimplex<double>::Solved);
+  EXPECT_EQ(rs.get_num_vars(), 1u);
+  EXPECT_EQ(rs.get_num_constraints(), 1u);
+  EXPECT_EQ(rs.get_stats().pivots, 1u);
+  testing::internal::CaptureStdout();
+  rs.print_stats();
+  EXPECT_NE(testing::internal::GetCapturedStdout().find("Refactorizations: 0"),
+            std::string::npos);
 }
 
 //==============================================================================

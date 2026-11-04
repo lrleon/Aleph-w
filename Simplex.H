@@ -34,17 +34,21 @@
  *  @brief Simplex algorithm for linear programming.
  *
  *  Implements the Simplex method for solving linear programming problems:
- *  maximize/minimize c'x subject to Ax ≤ b, x ≥ 0.
+ *  maximize/minimize c'x subject to Ax ≤ b, ≥ b or = b, x ≥ 0.
  *
  *  ## Features
- *  - Two-phase simplex method
+ *  - Two-phase simplex method: the first phase finds a feasible basis or
+ *    proves that there is none
  *  - Handles unbounded and infeasible cases
- *  - Big-M method for artificial variables
+ *  - Negative right-hand sides in any constraint
  *  - Dual Simplex for re-optimization
  *  - Sensitivity analysis for objective and RHS coefficients
- *  - Bland's anti-cycling rule
+ *  - Bland's anti-cycling rule, which a run of degenerate pivots also
+ *    turns on
  *  - Direct minimization and >= / = constraints
  *  - Execution statistics (iterations, pivot counts)
+ *  - RevisedSimplex, which keeps the inverse of the basis instead of the
+ *    tableau
  *
  *  ## Complexity: O(2^n) worst case, polynomial average
  *
@@ -55,10 +59,18 @@
 # ifndef SIMPLEX_H
 # define SIMPLEX_H
 
-# include <limits>
-# include <fstream>
-# include <vector>
+# include <algorithm>
+# include <cassert>
 # include <chrono>
+# include <cmath>
+# include <fstream>
+# include <iomanip>
+# include <iostream>
+# include <limits>
+# include <memory>
+# include <sstream>
+# include <string>
+# include <vector>
 # include <tpl_dynMat.H>
 # include <tpl_dynDlist.H>
 # include <ah-errors.H>
@@ -138,11 +150,46 @@ namespace Aleph
    *
    * ## Non-Standard Constraints (Automatic Handling)
    *
-   * This implementation now handles non-standard forms directly:
+   * This implementation handles non-standard forms directly:
    * 1. **Minimization**: Use `set_minimize()` instead of negating coefficients
    * 2. **≥ constraints**: Use `put_restriction(coefs, ConstraintType::GE)`
    * 3. **= constraints**: Use `put_restriction(coefs, ConstraintType::EQ)`
-   * 4. **Unrestricted variables**: Replace xᵢ with (xᵢ⁺ - xᵢ⁻) where both ≥ 0
+   * 4. **Negative right-hand sides**: allowed in any constraint
+   * 5. **Unrestricted variables**: Replace xᵢ with (xᵢ⁺ - xᵢ⁻) where both ≥ 0
+   *
+   * ## Method
+   *
+   * prepare_linear_program() builds the tableau. A constraint whose
+   * right-hand side is negative is multiplied by -1, which swaps ≤ and ≥,
+   * so that every right-hand side is >= 0. A ≤ constraint gets a slack
+   * variable, a ≥ one a surplus variable and an artificial one, and an =
+   * one an artificial one.
+   *
+   * solve() runs two phases. The first one minimizes the sum of the
+   * artificial variables: if it stays above zero, the problem is
+   * infeasible. Else the artificial variables that are still basic, at
+   * zero, leave the basis, but for those of constraints that are
+   * combinations of others, and the second phase optimizes the objective
+   * from that basis. An artificial variable never enters the basis again.
+   * The basic variable of each row is kept, and the solution is read from
+   * it.
+   *
+   * With Dantzig's rule, a run of degenerate pivots switches to Bland's
+   * rule until a pivot improves the objective, so that the method always
+   * ends.
+   *
+   * prepare_linear_program() scales the program: each constraint, each
+   * column and the objective are multiplied by a power of two, which
+   * changes no digit, so that their largest magnitudes are in [1/2, 1);
+   * one whose largest magnitude is subnormal stays as it is, below the
+   * tolerances. The solver works on the scaled program, so that its
+   * tolerances do not depend on the units of the data, and scales its
+   * results back: the solution, the shadow prices, the reduced costs and
+   * the ranges are those of the program as it was given. A value of the
+   * scaled program is taken as zero when its magnitude is below the
+   * tolerance of set_epsilon(); a right-hand side, when it is below that
+   * tolerance times the largest magnitude of the right-hand sides, if this
+   * one is above 1.
    *
    * ## Complete Example: Production Planning Problem
    *
@@ -199,6 +246,9 @@ namespace Aleph
    *   else if (state == Simplex<double>::Unbounded) {
    *     std::cout << "Problem is unbounded (check constraints).\n";
    *   }
+   *   else if (state == Simplex<double>::Unfeasible) {
+   *     std::cout << "No point satisfies all the constraints.\n";
+   *   }
    *
    *   return 0;
    * }
@@ -213,7 +263,8 @@ namespace Aleph
    * ## Algorithm Complexity
    *
    * - **Time**: O(2ⁿ) worst case, but typically polynomial in practice
-   * - **Space**: O((m+1) × (n+m+1)) for the tableau matrix
+   * - **Space**: O((m+1) × (n+m+a+1)) for the tableau matrix, where a is
+   *   the number of artificial variables
    *
    * Where n = number of variables, m = number of constraints.
    *
@@ -230,121 +281,193 @@ namespace Aleph
      *
      * - `Not_Solved`: Initial state, solve() has not been called yet.
      * - `Solving`: Algorithm is in progress (internal state).
-     * - `Unbounded`: The system is unbounded (design error in constraints).
+     * - `Unbounded`: The objective improves without limit over the
+     *   feasible points.
      * - `Solved`: An optimal solution has been found.
-     * - `Unfeasible`: No feasible solution exists.
+     * - `Unfeasible`: No point satisfies all the constraints.
      */
     enum State { Not_Solved, Solving, Unbounded, Solved, Unfeasible };
 
     /** @brief Pivot selection rule.
      *
-     * - `Dantzig`: Standard most-negative rule (may cycle on degenerate problems).
-     * - `Bland`: Anti-cycling rule (guaranteed termination, slower).
+     * - `Dantzig`: Most negative reduced cost; a run of degenerate pivots
+     *   switches to Bland's rule until a pivot improves the objective.
+     * - `Bland`: Least index (guaranteed termination, slower).
      */
     enum class PivotRule { Dantzig, Bland };
 
   private:
-    // Selects the cell in the objective function with minimum value.
-    // Returns -1 if all cells are non-negative (optimality reached).
-    // Uses Bland's rule if enabled (select smallest index among negatives).
-    int compute_pivot_col() const noexcept
-    {
-      const int M = num_var + num_rest;
+    std::unique_ptr<DynMatrix<T>> m; // Simplex tableau
+    std::unique_ptr<T[]> objetive; // Objective function coefficients
+    DynDlist<T *> rest_list; // List of restrictions
+    DynDlist<ConstraintType> rest_types; // Type of each restriction
+    size_t num_var; // Number of decision variables
+    size_t num_rest; // Number of restrictions
+    size_t num_artificial; // Number of artificial variables
+    std::unique_ptr<T[]> solution; // Solution values
+    State state; // Current state
+    OptimizationType opt_type; // Maximize or Minimize
+    PivotRule pivot_rule; // Pivot selection rule
+    T eps; // Tolerance for floating point comparisons
 
-      if (pivot_rule == PivotRule::Bland)
+    // Execution statistics
+    mutable SimplexStats stats;
+
+    // Reusable buffers for pivot operations (avoid repeated allocations)
+    mutable std::vector<T> pivot_row_buffer;
+    mutable std::vector<T> pivot_col_buffer;
+
+    // The column of the basic variable of each row, the row i + 1 of the
+    // tableau
+    mutable std::vector<int> basic_vars;
+
+    // Of each restriction: -1 if its row was multiplied by -1, so that its
+    // right-hand side is >= 0; else 1
+    std::vector<int> row_sign;
+
+    // Of each restriction: the column that was the unit vector of its row
+    // in the first tableau, its slack or its artificial variable, which
+    // pivoting turns into the column of the inverse of the basis
+    std::vector<size_t> unit_col;
+
+    // The costs that the second phase minimizes: -c to maximize, c to
+    // minimize, as prepare_linear_program() found them, scaled
+    std::vector<T> phase2_cost;
+
+    // The powers of two by which prepare_linear_program() multiplies each
+    // row, each column and the objective, so that the largest magnitude of
+    // each is in [1/2, 1): the solver works on the scaled program, whose
+    // tolerances so do not depend on the units of the data, and the
+    // results are scaled back
+    std::vector<T> row_scale;
+    std::vector<T> col_scale;
+    T obj_scale = T{1};
+
+    // The tolerances of eps, on the scaled program: times the largest
+    // magnitude of its coefficients, of its right-hand sides and of its
+    // objective, at least 1 each
+    T tol_coef = T{0};
+    T tol_rhs = T{0};
+    T tol_cost = T{0};
+
+    // The degenerate pivots in a row; past num_var + num_rest, Bland's rule
+    size_t degenerate_run = 0;
+
+    // During the first phase, the costs of the second one in terms of the
+    // variables that are not basic. They break the ties of Dantzig's rule,
+    // as a Big-M did: among the columns that lower the sum of the
+    // artificial variables the most, the one that improves the objective
+    // the most enters, which saves pivots to the second phase.
+    std::vector<T> tie_cost;
+    bool in_phase1 = false;
+
+    // The columns of the tableau: the num_var decision variables, a slack
+    // or surplus variable of each restriction (an = one has an empty
+    // column), the artificial variables and the right-hand side
+    size_t first_artificial() const noexcept { return num_var + num_rest; }
+
+    size_t rhs_col() const noexcept { return num_var + num_rest + num_artificial; }
+
+    bool is_artificial(const size_t j) const noexcept
+    {
+      return j >= first_artificial() and j < rhs_col();
+    }
+
+    // Whether the next pivot follows Bland's rule: always with it, and with
+    // Dantzig's after a run of degenerate pivots
+    bool bland_now() const noexcept
+    {
+      return pivot_rule == PivotRule::Bland or degenerate_run > num_var + num_rest;
+    }
+
+    // Whether two ratios of a ratio test are taken as equal
+    bool same_ratio(const T & a, const T & b) const noexcept
+    {
+      return std::abs(a - b) <= eps * std::max(T{1}, std::abs(b));
+    }
+
+    // The column that enters the basis: one whose cost in row 0 is below
+    // -tol, the most negative one with Dantzig's rule and the first one
+    // with Bland's; -1 if there is none, which is optimal. In the first
+    // phase, Dantzig's rule breaks its ties by tie_cost. An artificial
+    // variable never enters.
+    int compute_pivot_col(const T & tol) const noexcept
+    {
+      const size_t M = first_artificial();
+
+      if (bland_now())
         {
-          // Bland's rule: select first (smallest index) negative coefficient
-          for (int i = 0; i < M; ++i)
-            if (m->read(0, i) < -eps)
-              return i;
+          for (size_t j = 0; j < M; ++j)
+            if (m->read(0, j) < -tol)
+              return static_cast<int>(j);
           return -1;
         }
 
-      // Dantzig's rule: select most negative coefficient
-      T minimum = std::numeric_limits<T>::max();
-      int p = -1;
-      for (int i = 0; i < M; ++i)
+      int q = -1;
+      T minimum = T{0};
+      for (size_t j = 0; j < M; ++j)
         {
-          const T & c = m->read(0, i);
-          if (c < minimum)
+          const T & c = m->read(0, j);
+          if (c >= -tol)
+            continue;
+
+          if (q == -1 or (c < minimum and not same_ratio(c, minimum)))
             {
-              p = i;
+              q = static_cast<int>(j);
               minimum = c;
             }
-        }
-      return minimum >= -eps ? -1 : p;
-    }
-
-    // Selects among elements B the minimum ratio between the RHS value
-    // and the pivot column coefficient (must be positive).
-    // Returns -1 if no valid pivot row exists (unbounded).
-    // Uses Bland's rule if enabled (select smallest index among ties).
-    int compute_pivot_row(int p) const noexcept
-    {
-      assert(p >= 0 and p < static_cast<int>(num_var + num_rest + num_artificial));
-
-      int q = -1;
-      T min_ratio = std::numeric_limits<T>::max();
-      const size_t rhs_col = num_var + num_rest + num_artificial;
-
-      for (int i = 1; i <= static_cast<int>(num_rest); ++i)
-        {
-          const T val = m->read(i, rhs_col); // RHS value
-          if (val < -eps)
-            continue;
-
-          const T den = m->read(i, p); // pivot column coefficient
-          if (den <= eps)
-            continue;
-
-          const T ratio = val / den;
-
-          if (pivot_rule == PivotRule::Bland)
-            {
-              // Bland's rule: among ties, select smallest row index
-              if (ratio < min_ratio - eps)
-                {
-                  q = i;
-                  min_ratio = ratio;
-                }
-            }
-          else if (ratio < min_ratio)
-            {
-              q = i;
-              min_ratio = ratio;
-            }
+          else if (in_phase1 and same_ratio(c, minimum) and tie_cost[j] < tie_cost[q])
+            q = static_cast<int>(j);
         }
       return q;
     }
 
-    // Selects pivot element. Returns new state.
-    State select_pivot(int & p, int & q) noexcept
+    // The row whose basic variable leaves the basis when the column q
+    // enters: the least ratio of its right-hand side to its entry in q,
+    // among the positive entries. Among ties, Bland's rule takes the row
+    // whose basic variable has the least index, and Dantzig's the largest
+    // entry. -1 if no entry is positive, which is unbounded.
+    int compute_pivot_row(const size_t q) const noexcept
     {
-      assert(state == Not_Solved or state == Solving);
+      const size_t rhs = rhs_col();
+      const bool bland = bland_now();
 
-      const int col = compute_pivot_col();
-      if (col == -1)
-        return state = Solved;
+      int p = -1;
+      T min_ratio = T{0};
+      T max_den = T{0};
+      for (size_t i = 1; i <= num_rest; ++i)
+        {
+          const T den = m->read(i, q);
+          if (den <= tol_coef)
+            continue;
 
-      const int row = compute_pivot_row(col);
-      if (row == -1)
-        return state = Unbounded;
-
-      p = row;
-      q = col;
-
-      return state = Solving;
+          const T ratio = std::max(m->read(i, rhs), T{0}) / den;
+          if (p == -1 or (ratio < min_ratio and not same_ratio(ratio, min_ratio)))
+            {
+              p = static_cast<int>(i);
+              min_ratio = ratio;
+              max_den = den;
+            }
+          else if (same_ratio(ratio, min_ratio)
+                   and (bland ? basic_vars[i - 1] < basic_vars[p - 1] : den > max_den))
+            {
+              p = static_cast<int>(i);
+              max_den = den;
+            }
+        }
+      return p;
     }
 
-    // Performs pivot operation on element (p, q).
+    // Performs pivot operation on element (p, q), whose variable becomes
+    // the basic one of the row p.
     // Optimized version: uses reusable buffers to avoid repeated allocations.
     void to_pivot(size_t p, size_t q)
     {
-      assert(p <= num_rest and q <= num_var + num_rest + num_artificial);
+      assert(p >= 1 and p <= num_rest and q < rhs_col());
 
       // Total columns: decision vars + slack/surplus + artificial + RHS
-      const size_t M = num_var + num_rest + num_artificial;  // last data column
-      const size_t cols = M + 1;                             // total columns including RHS
+      const size_t M = rhs_col();  // last data column
+      const size_t cols = M + 1;   // total columns including RHS
       const T pivot = m->read(p, q);
       const T inv_pivot = T{1} / pivot;
 
@@ -361,6 +484,15 @@ namespace Aleph
       // Write normalized pivot row back to matrix
       for (size_t j = 0; j <= M; ++j)
         m->write(p, j, pivot_row_buffer[j]);
+
+      // The costs that break the ties of the first phase
+      if (in_phase1)
+        if (const T f = tie_cost[q]; f != T{0})
+          {
+            for (size_t j = 0; j <= M; ++j)
+              tie_cost[j] -= f * pivot_row_buffer[j];
+            tie_cost[q] = T{0};
+          }
 
       // Cache pivot column values before modification
       for (size_t i = 0; i <= num_rest; ++i)
@@ -382,64 +514,166 @@ namespace Aleph
             else
               m->write(i, j, m->read(i, j) - factor * pivot_row_buffer[j]);
         }
+
+      basic_vars[p - 1] = static_cast<int>(q);
     }
 
-    // Finds the value of variable j from the tableau.
-    // A variable is basic if its column has exactly one 1 and all other
-    // entries are 0 (including row 0!). The value is the RHS of that row.
-    T find_value(const size_t j) const noexcept
+    // Pivots until row 0 has no cost below -cost_tol, which is optimal, or
+    // the entering column has no positive entry, which is unbounded.
+    // Before and after each pivot it calls hook(p, q, after).
+    template <class Hook>
+    State iterate(const T & cost_tol, Hook & hook)
     {
-      assert(j < num_var);
-
-      // First check row 0: must be 0 for a basic variable
-      if (std::abs(m->read(0, j)) > eps)
-        return T{0};  // Not basic: non-zero in objective row
-
-      T ret_val = T{0};
-      int count = 0;
-      const size_t rhs_col = num_var + num_rest + num_artificial;
-
-      for (size_t i = 1; i <= num_rest; ++i)
+      const size_t rhs = rhs_col();
+      degenerate_run = 0;
+      while (true)
         {
-          const T & value = m->read(i, j);
-          if (std::abs(value) < eps)
-            continue;
+          ++stats.iterations;
+          const int q = compute_pivot_col(cost_tol);
+          if (q < 0)
+            return Solved;
 
-          if (std::abs(value - T{1}) < eps)
+          const int p = compute_pivot_row(static_cast<size_t>(q));
+          if (p < 0)
+            return Unbounded;
+
+          if (bland_now())
+            stats.bland_rule_used = true;
+
+          // A degenerate pivot leaves the vertex, and the objective, as
+          // they were
+          if (m->read(p, rhs) <= tol_rhs)
             {
-              if (count++ == 0)
-                ret_val = m->read(i, rhs_col);
-              else
-                return T{0}; // Not a basic variable (multiple 1s)
+              ++stats.degenerate_pivots;
+              ++degenerate_run;
             }
           else
-            return T{0}; // Not a basic variable
+            degenerate_run = 0;
+
+          hook(static_cast<size_t>(p), static_cast<size_t>(q), false);
+          ++stats.pivots;
+          to_pivot(static_cast<size_t>(p), static_cast<size_t>(q));
+          hook(static_cast<size_t>(p), static_cast<size_t>(q), true);
         }
-      return ret_val;
     }
 
-    std::unique_ptr<DynMatrix<T>> m; // Simplex tableau
-    std::unique_ptr<T[]> objetive; // Objective function coefficients
-    DynDlist<T *> rest_list; // List of restrictions
-    DynDlist<ConstraintType> rest_types; // Type of each restriction
-    size_t num_var; // Number of decision variables
-    size_t num_rest; // Number of restrictions
-    size_t num_artificial; // Number of artificial variables (for Big-M)
-    std::unique_ptr<T[]> solution; // Solution values
-    State state; // Current state
-    OptimizationType opt_type; // Maximize or Minimize
-    PivotRule pivot_rule; // Pivot selection rule
-    T eps; // Tolerance for floating point comparisons
+    // Sets row 0 to the costs of the first phase, the sum of the
+    // artificial variables to minimize, as all of them are basic, and
+    // tie_cost to the costs of the second phase, as the first basis costs
+    // nothing
+    void load_phase1_costs()
+    {
+      const size_t cols = rhs_col() + 1;
+      std::vector<T> cost(cols, T{0});
+      for (size_t i = 1; i <= num_rest; ++i)
+        if (is_artificial(static_cast<size_t>(basic_vars[i - 1])))
+          for (size_t j = 0; j < cols; ++j)
+            if (not is_artificial(j))
+              cost[j] -= m->read(i, j);
 
-    // Execution statistics
-    mutable SimplexStats stats;
+      for (size_t j = 0; j < cols; ++j)
+        m->write(0, j, cost[j]);
 
-    // Reusable buffers for pivot operations (avoid repeated allocations)
-    mutable std::vector<T> pivot_row_buffer;
-    mutable std::vector<T> pivot_col_buffer;
+      tie_cost.assign(cols, T{0});
+      for (size_t j = 0; j < num_var; ++j)
+        tie_cost[j] = phase2_cost[j];
+    }
 
-    // Basic variable indices for sensitivity analysis
-    mutable std::vector<int> basic_vars;
+    // Sets row 0 to the costs of the second phase, in terms of the
+    // variables that are not basic, which the pivots of the first phase
+    // kept in tie_cost
+    void load_phase2_costs()
+    {
+      for (size_t j = 0; j <= rhs_col(); ++j)
+        m->write(0, j, tie_cost[j]);
+    }
+
+    // After the first phase, the artificial variables that are still basic,
+    // at zero, leave the basis by a pivot on the largest entry of their row
+    // in a column that is not artificial. A row without such an entry is a
+    // combination of others: its artificial variable stays basic, at zero,
+    // since no pivot changes the row.
+    template <class Hook>
+    void drive_out_artificials(Hook & hook)
+    {
+      const size_t M = first_artificial();
+      const size_t rhs = rhs_col();
+      for (size_t i = 1; i <= num_rest; ++i)
+        {
+          if (not is_artificial(static_cast<size_t>(basic_vars[i - 1])))
+            continue;
+
+          m->write(i, rhs, T{0}); // at most a rounding above zero
+
+          size_t q = M;
+          T largest = tol_coef;
+          for (size_t j = 0; j < M; ++j)
+            if (const T a = std::abs(m->read(i, j)); a > largest)
+              {
+                q = j;
+                largest = a;
+              }
+
+          if (q == M) // what is left in the row is rounding
+            {
+              for (size_t j = 0; j < M; ++j)
+                m->write(i, j, T{0});
+              continue;
+            }
+
+          hook(i, q, false);
+          ++stats.pivots;
+          ++stats.degenerate_pivots;
+          to_pivot(i, q);
+          hook(i, q, true);
+        }
+    }
+
+    // The two phases, with hook as in iterate()
+    template <class Hook>
+    State run(Hook & hook)
+    {
+      stats.reset();
+      stats.bland_rule_used = pivot_rule == PivotRule::Bland;
+      const auto start_time = std::chrono::high_resolution_clock::now();
+      state = Solving;
+
+      if (num_artificial > 0)
+        {
+          load_phase1_costs();
+          in_phase1 = true;
+          const T scale = T(num_artificial);
+          (void) iterate(tol_coef * scale, hook); // bounded below by zero
+
+          // the sum of the artificial variables, which is >= 0
+          if (-m->read(0, rhs_col()) > tol_rhs * scale)
+            state = Unfeasible;
+          else
+            {
+              drive_out_artificials(hook);
+              load_phase2_costs();
+            }
+          in_phase1 = false;
+        }
+
+      // Row 0 has the costs of the second phase: those of create_matrix(),
+      // or those that the first phase left
+      if (state == Solving)
+        state = iterate(tol_cost, hook);
+
+      const auto end_time = std::chrono::high_resolution_clock::now();
+      stats.elapsed_ms = std::chrono::duration<double, std::milli>(end_time - start_time).count();
+
+      return state;
+    }
+
+    // value in fixed notation with d decimals
+    static std::string format_entry(const T & value, const int d)
+    {
+      std::ostringstream s;
+      s << std::fixed << std::setprecision(d) << value;
+      return s.str();
+    }
 
     // Validates variable index is within range.
     void verify_var_index(const size_t i) const
@@ -467,127 +701,149 @@ namespace Aleph
       return ptr;
     }
 
-    // Count artificial variables needed
-    size_t count_artificial_vars() const noexcept
+    // The power of two that takes magnitude into [1/2, 1); 1 for 0, for a
+    // subnormal magnitude, whose power could overflow, or for a magnitude
+    // that is not finite
+    static T scale_of(const T & magnitude) noexcept
     {
-      size_t count = 0;
-      for (auto it = rest_types.get_it(); it.has_curr(); it.next_ne())
-        if (it.get_curr() != ConstraintType::LE)
-          ++count;
-      return count;
+      if (not (magnitude >= std::numeric_limits<T>::min()) or not std::isfinite(magnitude))
+        return T{1};
+      int e;
+      (void) std::frexp(magnitude, &e);
+      return std::ldexp(T{1}, -e);
     }
 
-    // Creates the simplex tableau matrix from objective and constraints.
-    // Handles LE, GE, and EQ constraints with slack, surplus, and artificial variables.
+    // Creates the simplex tableau from the objective and the constraints,
+    // scaled, with the slack, surplus and artificial variables, and takes
+    // the costs of the second phase and the tolerances
     void create_matrix()
     {
-      num_artificial = count_artificial_vars();
-      const size_t total_slack = num_rest; // One slack/surplus per constraint
-      const size_t total_cols = num_var + total_slack + num_artificial + 1; // +1 for RHS
+      // A row whose right-hand side is negative is multiplied by -1, which
+      // swaps <= and >=
+      std::vector<ConstraintType> type;
+      type.reserve(num_rest);
+      row_sign.assign(num_rest, 1);
+      num_artificial = 0;
+      {
+        auto type_it = rest_types.get_it();
+        for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), type_it.next_ne())
+          {
+            ConstraintType t = type_it.get_curr();
+            if (it.get_curr()[num_var] < T{0})
+              {
+                row_sign[type.size()] = -1;
+                if (t == ConstraintType::LE)
+                  t = ConstraintType::GE;
+                else if (t == ConstraintType::GE)
+                  t = ConstraintType::LE;
+              }
+            if (t != ConstraintType::LE)
+              ++num_artificial;
+            type.push_back(t);
+          }
+      }
 
-      m = std::unique_ptr<DynMatrix<T>>(
-        new DynMatrix<T>(num_rest + 1, total_cols));
+      // The scales: of each row, by its largest coefficient; of each
+      // column, by its largest coefficient once the rows are scaled; and of
+      // the objective, by its largest coefficient once the columns are
+      row_scale.assign(num_rest, T{1});
+      col_scale.assign(num_var, T{0});
+      {
+        size_t i = 0;
+        for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), ++i)
+          {
+            T largest = T{0};
+            for (size_t j = 0; j < num_var; ++j)
+              largest = std::max(largest, std::abs(it.get_curr()[j]));
+            row_scale[i] = scale_of(largest);
+          }
+        i = 0;
+        for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), ++i)
+          for (size_t j = 0; j < num_var; ++j)
+            col_scale[j] = std::max(col_scale[j], std::abs(it.get_curr()[j]) * row_scale[i]);
+        T largest = T{0};
+        for (size_t j = 0; j < num_var; ++j)
+          {
+            col_scale[j] = scale_of(col_scale[j]);
+            largest = std::max(largest, std::abs(objetive[j]) * col_scale[j]);
+          }
+        obj_scale = scale_of(largest);
+      }
 
-      // Big-M value for artificial variables
-      const T big_m = T{1e9};
+      const size_t total_cols = num_var + num_rest + num_artificial + 1; // +1 for RHS
+      m = std::unique_ptr<DynMatrix<T>>(new DynMatrix<T>(num_rest + 1, total_cols));
+      basic_vars.assign(num_rest, 0);
+      unit_col.assign(num_rest, 0);
 
-      // Objective coefficient multiplier:
-      // - For MAX c·x: Row 0 = -c, and we look for negative coefficients to pivot
-      //   (a negative coef means increasing that var improves the objective)
-      // - For MIN c·x: Row 0 = c, and we look for negative coefficients to pivot
-      //   (a negative coef means increasing that var REDUCES the objective, good for MIN)
-      // With this convention, compute_pivot_col always looks for negatives.
-      const T obj_mult = (opt_type == OptimizationType::Maximize) ? T{-1} : T{1};
-
-      // Fill objective function coefficients
-      for (size_t i = 0; i < num_var; ++i)
-        m->write(0, i, obj_mult * objetive[i]);
-
-      // Fill artificial variable coefficients in objective (Big-M penalty)
-      // With the tableau always using -c (maximization form), artificial
-      // variables need +M coefficient so they are penalized and driven out.
-      size_t art_idx = num_var + num_rest;
-      for (auto it = rest_types.get_it(); it.has_curr(); it.next_ne())
-        {
-          if (it.get_curr() != ConstraintType::LE)
-            {
-              m->write(0, art_idx, big_m);  // Always +M
-              ++art_idx;
-            }
-        }
-
-      // Fill constraint coefficients
-      size_t row = 1;
+      T max_coef = T{0};
+      T max_rhs = T{0};
       size_t artificial_col = num_var + num_rest;
-      auto type_it = rest_types.get_it();
-
-      for (auto it = rest_list.get_it(); it.has_curr();
-           it.next_ne(), type_it.next_ne(), ++row)
+      size_t row = 1;
+      for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), ++row)
         {
-          T *rest = it.get_curr();
-          ConstraintType ctype = type_it.get_curr();
+          const T *rest = it.get_curr();
+          const T sign = T(row_sign[row - 1]) * row_scale[row - 1];
 
           // Decision variable coefficients
           for (size_t j = 0; j < num_var; ++j)
-            m->write(row, j, rest[j]);
-
-          // Slack/surplus variable
-          switch (ctype)
             {
-            case ConstraintType::LE:
-              // Slack variable: +1
-              m->write(row, num_var + row - 1, T{1});
-              break;
-            case ConstraintType::GE:
-              // Surplus variable: -1, plus artificial: +1
-              m->write(row, num_var + row - 1, T{-1});
-              m->write(row, artificial_col++, T{1});
-              break;
-            case ConstraintType::EQ:
-              // No slack/surplus, just artificial: +1
-              m->write(row, num_var + row - 1, T{0});
-              m->write(row, artificial_col++, T{1});
-              break;
+              const T a = sign * rest[j] * col_scale[j];
+              m->write(row, j, a);
+              max_coef = std::max(max_coef, std::abs(a));
             }
 
-          // RHS value
-          m->write(row, total_cols - 1, rest[num_var]);
+          // RHS value, which is >= 0
+          const T b = sign * rest[num_var];
+          m->write(row, total_cols - 1, b);
+          max_rhs = std::max(max_rhs, std::abs(b));
+
+          // Slack/surplus and artificial variables
+          const size_t slack_col = num_var + row - 1;
+          switch (type[row - 1])
+            {
+            case ConstraintType::LE: // slack variable: +1, basic
+              m->write(row, slack_col, T{1});
+              unit_col[row - 1] = slack_col;
+              break;
+            case ConstraintType::GE: // surplus variable: -1, plus artificial: +1, basic
+              m->write(row, slack_col, T{-1});
+              m->write(row, artificial_col, T{1});
+              unit_col[row - 1] = artificial_col++;
+              break;
+            case ConstraintType::EQ: // no slack/surplus, just artificial: +1, basic
+              m->write(row, artificial_col, T{1});
+              unit_col[row - 1] = artificial_col++;
+              break;
+            }
+          basic_vars[row - 1] = static_cast<int>(unit_col[row - 1]);
         }
 
-      // Initialize basic variable tracking
-      basic_vars.resize(num_rest);
-      for (size_t i = 0; i < num_rest; ++i)
-        basic_vars[i] = static_cast<int>(num_var + i); // Initially slack vars
-
-      // Big-M elimination: For artificial variables to be in valid basis form,
-      // we need to eliminate their coefficient from row 0 by subtracting
-      // M * constraint_row from row 0. This ensures the artificial var's
-      // column has 0 in row 0 (basic variable form).
-      if (num_artificial > 0)
+      // The costs of the second phase, which row 0 has until solve():
+      // -c to maximize, c to minimize, so that a negative cost always
+      // improves the objective
+      const T sense = opt_type == OptimizationType::Maximize ? -obj_scale : obj_scale;
+      T max_cost = T{0};
+      phase2_cost.resize(num_var);
+      for (size_t j = 0; j < num_var; ++j)
         {
-          size_t row = 1;
-          size_t art_col = num_var + num_rest;
-          auto type_it = rest_types.get_it();
-
-          for (; type_it.has_curr(); type_it.next_ne(), ++row)
-            {
-              ConstraintType ctype = type_it.get_curr();
-              if (ctype == ConstraintType::LE)
-                continue;
-
-              // For GE/EQ constraints, artificial variable is in basis initially
-              // Update basic_vars to reflect this
-              basic_vars[row - 1] = static_cast<int>(art_col);
-
-              // Eliminate M from row 0 by: row0 -= M * row_i
-              // (for MAX, artificial has +M in row0; for MIN, it has -M)
-              const T art_coef = m->read(0, art_col);  // This is ±M
-              for (size_t j = 0; j < total_cols; ++j)
-                m->write(0, j, m->read(0, j) - art_coef * m->read(row, j));
-
-              ++art_col;
-            }
+          phase2_cost[j] = sense * objetive[j] * col_scale[j];
+          m->write(0, j, phase2_cost[j]);
+          max_cost = std::max(max_cost, std::abs(phase2_cost[j]));
         }
+
+      tol_coef = eps * std::max(T{1}, max_coef);
+      tol_rhs = eps * std::max(T{1}, max_rhs);
+      tol_cost = eps * std::max(T{1}, max_cost);
+    }
+
+    // The restriction rest_idx
+    T * restriction(const size_t rest_idx) const
+    {
+      size_t i = 0;
+      for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), ++i)
+        if (i == rest_idx)
+          return it.get_curr();
+      return nullptr;
     }
 
   public:
@@ -614,7 +870,7 @@ namespace Aleph
 
       // Initialize objective coefficients to zero
       for (size_t i = 0; i < n; ++i)
-        objetive[i] = T{0};
+        objetive[i] = solution[i] = T{0};
     }
 
     /** @brief Destructor.
@@ -670,7 +926,8 @@ namespace Aleph
      * @param[in] rule Dantzig (default, faster) or Bland (anti-cycling).
      *
      * Bland's rule guarantees termination on degenerate problems but
-     * may be slower on non-degenerate problems.
+     * may be slower on non-degenerate problems. Dantzig's rule switches to
+     * it after a run of degenerate pivots, so that it ends too.
      */
     void set_pivot_rule(PivotRule rule) noexcept
     {
@@ -689,7 +946,14 @@ namespace Aleph
 
     /** @brief Sets the floating-point comparison tolerance.
      *
+     * A value of the scaled program (see the class documentation) is taken
+     * as zero when its magnitude is below `epsilon`; a right-hand side,
+     * when it is below `epsilon` times the largest magnitude of the
+     * right-hand sides, if this one is above 1.
+     *
      * @param[in] epsilon Tolerance for comparing values to zero.
+     *
+     * @note Must be called before prepare_linear_program().
      */
     void set_epsilon(T epsilon) noexcept
     {
@@ -759,7 +1023,7 @@ namespace Aleph
      *   c[0]*x_0 + c[1]*x_1 + ... + c[n-1]*x_{n-1} [op] c[n]
      *
      * where c[n] is the RHS (right-hand side) bound and [op] is determined
-     * by the constraint type (≤, ≥, or =).
+     * by the constraint type (≤, ≥, or =). The RHS may be negative.
      *
      * @param[in] coefs Array of n+1 coefficients (n variable coefficients + RHS).
      *                  If nullptr, creates a zero-initialized constraint.
@@ -836,13 +1100,7 @@ namespace Aleph
     [[nodiscard]] T * get_restriction(const size_t rest_num)
     {
       verify_rest_index(rest_num);
-
-      size_t i = 0;
-      for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), ++i)
-        if (i == rest_num)
-          return it.get_curr();
-
-      return nullptr; // Should never reach here
+      return restriction(rest_num);
     }
 
     /** @brief Gets the number of constraints.
@@ -913,7 +1171,9 @@ namespace Aleph
      * Must be called after all objective function coefficients and
      * constraints have been set, and before calling solve().
      *
-     * Creates the internal simplex tableau matrix with slack variables.
+     * Creates the internal simplex tableau matrix, with the slack, surplus
+     * and artificial variables, after multiplying by -1 each constraint
+     * whose right-hand side is negative.
      *
      * @throw std::bad_alloc If memory allocation fails.
      * @throw std::logic_error If no constraints have been added.
@@ -928,17 +1188,14 @@ namespace Aleph
     /** @brief Solves the linear program.
      *
      * Solves a correctly and completely specified linear program
-     * using the simplex algorithm.
+     * using the two-phase simplex method.
      *
      * @return Solution state:
-     *   - `Unbounded`: System is unbounded (constraint error).
+     *   - `Unbounded`: The objective improves without limit.
      *   - `Solved`: Optimal solution found.
      *   - `Unfeasible`: No feasible solution exists.
      *
      * @note After solving, call load_solution() to retrieve variable values.
-     *
-     * @warning The solution may not satisfy all constraints if the problem
-     *          was incorrectly formulated. Use verify_solution() to check.
      *
      * @throw std::logic_error If solve() has already been called.
      * @throw std::logic_error If no constraints have been added.
@@ -950,47 +1207,8 @@ namespace Aleph
       ah_logic_error_if(num_rest == 0) << "Linear program has no constraints";
       ah_logic_error_if(m == nullptr) << "prepare_linear_program() must be called before solve()";
 
-      stats.reset();
-      auto start_time = std::chrono::high_resolution_clock::now();
-
-      T prev_obj = std::numeric_limits<T>::lowest();
-
-      for (int i, j; true;)
-        {
-          ++stats.iterations;
-          const State st = select_pivot(i, j);
-
-          if (st == Unbounded or st == Solved)
-            {
-              auto end_time = std::chrono::high_resolution_clock::now();
-              stats.elapsed_ms = std::chrono::duration<double, std::milli>(
-                end_time - start_time).count();
-
-              // Check for infeasibility (artificial vars in basis with positive value)
-              if (st == Solved and num_artificial > 0)
-                {
-                  load_solution();
-                  // If any artificial variable is positive, problem is infeasible
-                  // (This is a simplified check; a proper two-phase method is more robust)
-                }
-
-              return st;
-            }
-
-          // Track degenerate pivots (no improvement in objective)
-          const size_t rhs_col = num_var + num_rest + num_artificial;
-          T curr_obj = m->read(0, rhs_col);
-          if (std::abs(curr_obj - prev_obj) < eps)
-            ++stats.degenerate_pivots;
-          prev_obj = curr_obj;
-
-          ++stats.pivots;
-          to_pivot(i, j);
-
-          // Update basic variable tracking
-          if (static_cast<size_t>(i) <= num_rest and i > 0)
-            basic_vars[i - 1] = j;
-        }
+      auto no_hook = [] (size_t, size_t, bool) { /* empty */ };
+      return run(no_hook);
     }
 
     /** @brief Gets the current state of the solver.
@@ -1004,13 +1222,24 @@ namespace Aleph
 
     /** @brief Loads the solution values into the solution array.
      *
-     * Must be called after solve() returns Solved state.
+     * Each decision variable takes the value of its row if it is basic,
+     * and zero if not. After solve() returns `Solved`, it is an optimal
+     * solution; after `Unbounded`, the vertex from which the objective
+     * improves without limit.
      * After this, individual variable values can be retrieved with get_solution().
      */
     void load_solution() noexcept
     {
       for (size_t j = 0; j < num_var; ++j)
-        solution[j] = find_value(j);
+        solution[j] = T{0};
+
+      if (m == nullptr)
+        return;
+
+      const size_t rhs = rhs_col();
+      for (size_t i = 1; i <= num_rest; ++i)
+        if (const int b = basic_vars[i - 1]; b < static_cast<int>(num_var))
+          solution[b] = col_scale[b] * m->read(i, rhs);
     }
 
     /** @brief Gets the solution value for a specific variable.
@@ -1046,8 +1275,10 @@ namespace Aleph
 
     /** @brief Verifies that the solution satisfies all constraints.
      *
-     * Checks each constraint to ensure the solution does not violate
-     * any less-than-or-equal-to bounds.
+     * Checks that every variable is >= 0 and that every constraint holds,
+     * up to a tolerance relative to the magnitude of its terms: the
+     * largest of the tolerance of set_epsilon() and 10000 times the
+     * epsilon of `T`.
      *
      * @return true if all constraints are satisfied, false otherwise.
      *
@@ -1055,6 +1286,12 @@ namespace Aleph
      */
     [[nodiscard]] bool verify_solution() const
     {
+      const T tol = std::max(eps, T(10000) * std::numeric_limits<T>::epsilon());
+
+      for (size_t j = 0; j < num_var; ++j)
+        if (solution[j] < -tol * std::max(T{1}, std::abs(solution[j])))
+          return false;
+
       auto type_it = rest_types.get_it();
       for (auto it = rest_list.get_it(); it.has_curr();
            it.next_ne(), type_it.next_ne())
@@ -1062,22 +1299,27 @@ namespace Aleph
           const T *rest = it.get_curr();
           ConstraintType ctype = type_it.get_curr();
           T sum = 0;
+          T size = std::abs(rest[num_var]);
           for (size_t j = 0; j < num_var; ++j)
-            sum += rest[j] * solution[j];
+            {
+              sum += rest[j] * solution[j];
+              size += std::abs(rest[j] * solution[j]);
+            }
 
           const T rhs = rest[num_var];
+          const T room = tol * std::max(T{1}, size);
           switch (ctype)
             {
             case ConstraintType::LE:
-              if (sum > rhs + eps)
+              if (sum > rhs + room)
                 return false;
               break;
             case ConstraintType::GE:
-              if (sum < rhs - eps)
+              if (sum < rhs - room)
                 return false;
               break;
             case ConstraintType::EQ:
-              if (std::abs(sum - rhs) > eps)
+              if (std::abs(sum - rhs) > room)
                 return false;
               break;
             }
@@ -1087,14 +1329,21 @@ namespace Aleph
 
     /** @brief Prints the simplex tableau to stdout.
      *
-     * Useful for debugging and understanding the algorithm's progress.
+     * It is the tableau of the scaled program that the solver works on (see
+     * the class documentation). Row 0 holds the costs that the current
+     * phase minimizes, and the last column the right-hand sides. Useful for
+     * debugging and understanding the algorithm's progress.
+     *
+     * @throw std::logic_error If prepare_linear_program() was not called.
      */
     void print_matrix() const
     {
+      ah_logic_error_if(m == nullptr) << "prepare_linear_program() must be called first";
+
       for (size_t i = 0; i <= num_rest; ++i)
         {
-          for (size_t j = 0; j <= num_var + num_rest; ++j)
-            std::cout << float_f(m->read(i, j), 2) << " ";
+          for (size_t j = 0; j <= rhs_col(); ++j)
+            std::cout << format_entry(m->read(i, j), 2) << " ";
 
           std::cout << std::endl;
         }
@@ -1106,13 +1355,17 @@ namespace Aleph
      * @param[in] d Number of decimal places (default 2).
      * @param[in] p Pivot row to highlight (-1 for none).
      * @param[in] q Pivot column to highlight (-1 for none).
+     *
+     * @throw std::logic_error If prepare_linear_program() was not called.
      */
     void latex_matrix(const std::string & name, const int d = 2,
                       const int p = -1, const int q = -1) const
     {
+      ah_logic_error_if(m == nullptr) << "prepare_linear_program() must be called first";
+
       std::ofstream out(name, std::ios::out);
 
-      const size_t cols = num_var + num_rest;
+      const size_t cols = rhs_col();
 
       out << "$\\left(\\begin{array}{c";
       for (size_t i = 0; i < cols; ++i)
@@ -1124,9 +1377,9 @@ namespace Aleph
           for (size_t j = 0; j <= cols; ++j)
             {
               if (static_cast<int>(i) == p and static_cast<int>(j) == q)
-                out << "\\circled{" << float_f(m->read(i, j), d) << "}" << " ";
+                out << "\\circled{" << format_entry(m->read(i, j), d) << "}" << " ";
               else
-                out << float_f(m->read(i, j), d) << " ";
+                out << format_entry(m->read(i, j), d) << " ";
               if (j != cols)
                 out << "& ";
             }
@@ -1150,6 +1403,7 @@ namespace Aleph
     {
       std::ofstream out(name, std::ios::out);
       out << "\\begin{equation*}" << std::endl
+          << (opt_type == OptimizationType::Maximize ? "\\max " : "\\min ")
           << "Z = ";
 
       bool first = true;
@@ -1166,12 +1420,15 @@ namespace Aleph
             out << objetive[i];
           out << "x_" << i;
         }
+      if (first)
+        out << "0";
       out << std::endl
           << "\\end{equation*}" << std::endl
           << "Subject to:" << std::endl
           << "\\begin{eqnarray*}" << std::endl;
 
-      for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne())
+      auto type_it = rest_types.get_it();
+      for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), type_it.next_ne())
         {
           const T *rest = it.get_curr();
 
@@ -1189,8 +1446,16 @@ namespace Aleph
                 out << rest[i];
               out << " x_" << i;
             }
+          if (first_term)
+            out << "0";
 
-          out << " & \\leq & " << rest[num_var];
+          switch (type_it.get_curr())
+            {
+            case ConstraintType::LE: out << " & \\leq & "; break;
+            case ConstraintType::GE: out << " & \\geq & "; break;
+            case ConstraintType::EQ: out << " & = & "; break;
+            }
+          out << rest[num_var];
 
           if (not it.is_in_last())
             out << " \\\\";
@@ -1202,33 +1467,38 @@ namespace Aleph
 
     /** @brief Solves with LaTeX output at each iteration.
      *
-     * Similar to solve(), but outputs LaTeX files showing each
-     * pivot operation for educational purposes.
+     * As solve(), but it writes the tableau to LaTeX files for educational
+     * purposes: `name-0.tex` before the first phase, `name-k.tex` with the
+     * pivot of the pivot k circled, `name-k-after.tex` after it, and
+     * `name-k.tex`, for the next k, at the end.
      *
      * @param[in] name Base name for output files.
      * @return Solution state.
+     *
+     * @throw std::logic_error As solve().
      */
     State latex_solve(const char *name = nullptr)
     {
+      ah_logic_error_if(state != Not_Solved) << "solve() has already been called";
+      ah_logic_error_if(num_rest == 0) << "Linear program has no constraints";
+      ah_logic_error_if(m == nullptr) << "prepare_linear_program() must be called before solve()";
+
       const std::string base = name ? name : "simplex";
       latex_matrix(base + "-0.tex");
 
-      for (int i, j, k = 1; true; ++k)
+      size_t k = 1;
+      auto hook = [&] (size_t p, size_t q, bool after)
         {
-          const State st = select_pivot(i, j);
-
-          std::string str = base + "-" + std::to_string(k) + ".tex";
-          if (st == Unbounded or st == Solved)
-            {
-              latex_matrix(str);
-              return st;
-            }
-
-          latex_matrix(str, 2, i, j);
-          to_pivot(i, j);
-
-          latex_matrix(base + "-" + std::to_string(k) + "-after.tex", 2, i, j);
-        }
+          if (after)
+            latex_matrix(base + "-" + std::to_string(k++) + "-after.tex", 2,
+                         static_cast<int>(p), static_cast<int>(q));
+          else
+            latex_matrix(base + "-" + std::to_string(k) + ".tex", 2,
+                         static_cast<int>(p), static_cast<int>(q));
+        };
+      const State st = run(hook);
+      latex_matrix(base + "-" + std::to_string(k) + ".tex");
+      return st;
     }
 
     // ================== Statistics ==================
@@ -1287,10 +1557,12 @@ namespace Aleph
     /** @brief Computes sensitivity range for an objective coefficient.
      *
      * Determines the range [lower, upper] within which the objective
-     * coefficient c_j can vary without changing the optimal basis.
+     * coefficient c_j can vary, the others fixed, while the optimal basis
+     * stays optimal, and so the solution too.
      *
      * @param[in] var_idx Variable index (0-based).
-     * @return SensitivityRange structure with bounds and current value.
+     * @return SensitivityRange structure with bounds and current value; an
+     *         infinite bound means no limit.
      *
      * @pre solve() must have been called and returned Solved.
      * @throw std::out_of_range If var_idx is out of range.
@@ -1301,53 +1573,48 @@ namespace Aleph
       verify_var_index(var_idx);
       ah_logic_error_if(state != Solved) << "Must solve before sensitivity analysis";
 
+      constexpr T inf = std::numeric_limits<T>::infinity();
       SensitivityRange<T> result;
       result.current_value = objetive[var_idx];
-      result.lower_bound = -std::numeric_limits<T>::infinity();
-      result.upper_bound = std::numeric_limits<T>::infinity();
 
-      // Check if variable is basic or non-basic
-      bool is_basic = false;
-      size_t basic_row = 0;
-      for (size_t i = 0; i < num_rest; ++i)
-        if (basic_vars[i] == static_cast<int>(var_idx))
+      // The range [lo, hi] of a change d of the cost that row 0 minimizes
+      // (-c_j to maximize), for which no cost in row 0 goes below zero
+      T lo = -inf, hi = inf;
+      size_t row = 0;
+      for (size_t i = 1; i <= num_rest; ++i)
+        if (basic_vars[i - 1] == static_cast<int>(var_idx))
+          row = i;
+
+      if (row == 0) // not basic: only its own cost changes, by d
+        lo = -std::max(m->read(0, var_idx), T{0});
+      else // basic: the cost of each column k changes by -d times its entry
+        for (size_t k = 0; k < first_artificial(); ++k)
           {
-            is_basic = true;
-            basic_row = i + 1;
-            break;
+            const T a = m->read(row, k);
+            if (k == var_idx or std::abs(a) <= tol_coef)
+              continue;
+
+            const T ratio = std::max(m->read(0, k), T{0}) / a;
+            if (a > 0)
+              hi = std::min(hi, ratio);
+            else
+              lo = std::max(lo, ratio);
           }
 
-      const size_t total_cols = num_var + num_rest + num_artificial;
+      // d is of the scaled cost: c_j changes by d / its scale
+      const T unit = col_scale[var_idx] * obj_scale;
+      lo /= unit;
+      hi /= unit;
 
-      if (is_basic)
+      if (opt_type == OptimizationType::Maximize) // c_j changes by -d
         {
-          // For basic variables, analyze reduced costs
-          for (size_t j = 0; j < total_cols; ++j)
-            {
-              if (basic_vars[basic_row - 1] == static_cast<int>(j))
-                continue;
-
-              const T tableau_coef = m->read(basic_row, j);
-              const T reduced_cost = m->read(0, j);
-
-              if (std::abs(tableau_coef) > eps)
-                {
-                  T delta = -reduced_cost / tableau_coef;
-                  if (tableau_coef > 0)
-                    result.upper_bound = std::min(result.upper_bound, delta);
-                  else
-                    result.lower_bound = std::max(result.lower_bound, delta);
-                }
-            }
+          result.lower_bound = hi == inf ? -inf : result.current_value - hi;
+          result.upper_bound = lo == -inf ? inf : result.current_value - lo;
         }
       else
         {
-          // For non-basic variables at zero
-          const T reduced_cost = m->read(0, var_idx);
-          if (opt_type == OptimizationType::Maximize)
-            result.upper_bound = result.current_value - reduced_cost;
-          else
-            result.lower_bound = result.current_value + reduced_cost;
+          result.lower_bound = lo == -inf ? -inf : result.current_value + lo;
+          result.upper_bound = hi == inf ? inf : result.current_value + hi;
         }
 
       return result;
@@ -1356,10 +1623,13 @@ namespace Aleph
     /** @brief Computes sensitivity range for a RHS value.
      *
      * Determines the range within which the right-hand side value b_i
-     * can vary without changing the optimal basis.
+     * can vary, the others fixed, while the optimal basis stays feasible,
+     * and so optimal: over it, the optimal value changes by
+     * shadow_price() per unit.
      *
      * @param[in] rest_idx Constraint index (0-based).
-     * @return SensitivityRange structure with bounds and current value.
+     * @return SensitivityRange structure with bounds and current value; an
+     *         infinite bound means no limit.
      *
      * @pre solve() must have been called and returned Solved.
      * @throw std::out_of_range If rest_idx is out of range.
@@ -1370,51 +1640,61 @@ namespace Aleph
       verify_rest_index(rest_idx);
       ah_logic_error_if(state != Solved) << "Must solve before sensitivity analysis";
 
+      constexpr T inf = std::numeric_limits<T>::infinity();
       SensitivityRange<T> result;
-      const size_t rhs_col = num_var + num_rest + num_artificial;
+      result.current_value = restriction(rest_idx)[num_var];
 
-      // Get current RHS value from original constraint
-      size_t i = 0;
-      for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), ++i)
-        if (i == rest_idx)
-          {
-            result.current_value = it.get_curr()[num_var];
-            break;
-          }
-
-      result.lower_bound = -std::numeric_limits<T>::infinity();
-      result.upper_bound = std::numeric_limits<T>::infinity();
-
-      // Find the column corresponding to the slack/surplus variable
-      const size_t slack_col = num_var + rest_idx;
-
-      // Analyze how changes in RHS affect current basic solution
-      for (size_t row = 1; row <= num_rest; ++row)
+      // The range [lo, hi] of a change d of the right-hand side of the
+      // row, which changes the right-hand sides by d times the column of
+      // the inverse of the basis, for which none of them goes below zero;
+      // an artificial variable that stays basic must stay at zero
+      const size_t rhs = rhs_col();
+      const size_t col = unit_col[rest_idx];
+      T lo = -inf, hi = inf;
+      for (size_t i = 1; i <= num_rest; ++i)
         {
-          const T b_i = m->read(row, rhs_col);
-          const T a_ij = m->read(row, slack_col);
+          const T a = m->read(i, col);
+          if (std::abs(a) <= tol_coef)
+            continue;
 
-          if (std::abs(a_ij) > eps)
+          if (is_artificial(static_cast<size_t>(basic_vars[i - 1])))
             {
-              T delta = -b_i / a_ij;
-              if (a_ij > 0)
-                result.upper_bound = std::min(result.upper_bound, delta);
-              else
-                result.lower_bound = std::max(result.lower_bound, delta);
+              lo = std::max(lo, T{0});
+              hi = std::min(hi, T{0});
+              continue;
             }
+
+          const T ratio = -std::max(m->read(i, rhs), T{0}) / a;
+          if (a > 0)
+            lo = std::max(lo, ratio);
+          else
+            hi = std::min(hi, ratio);
         }
 
-      // Adjust bounds to be relative to current value
-      result.lower_bound = result.current_value + result.lower_bound;
-      result.upper_bound = result.current_value + result.upper_bound;
+      // d is of the scaled row: b_i changes by d / its scale
+      lo /= row_scale[rest_idx];
+      hi /= row_scale[rest_idx];
+
+      if (row_sign[rest_idx] < 0) // the row was multiplied by -1
+        {
+          const T old_lo = lo;
+          lo = -hi;
+          hi = -old_lo;
+        }
+
+      result.lower_bound = lo == -inf ? -inf : result.current_value + lo;
+      result.upper_bound = hi == inf ? inf : result.current_value + hi;
 
       return result;
     }
 
     /** @brief Gets the shadow price (dual value) for a constraint.
      *
-     * The shadow price represents the marginal value of relaxing
-     * a constraint by one unit.
+     * The shadow price is the change of the optimal value of the objective
+     * per unit increase of the right-hand side b_i, over the range of
+     * rhs_sensitivity(): when maximizing, >= 0 for a ≤ constraint and
+     * <= 0 for a ≥ one; when minimizing, the other way. The shadow prices
+     * are an optimal solution of the dual program.
      *
      * @param[in] rest_idx Constraint index (0-based).
      * @return Shadow price (dual variable value).
@@ -1428,21 +1708,24 @@ namespace Aleph
       verify_rest_index(rest_idx);
       ah_logic_error_if(state != Solved) << "Must solve before computing shadow prices";
 
-      // Shadow price is the negative of the reduced cost of slack variable
-      const size_t slack_col = num_var + rest_idx;
-      T price = -m->read(0, slack_col);
-
-      // Adjust sign for minimization
+      // The cost in row 0 of the column of the inverse of the basis of the
+      // row is minus its dual value, in the problem that row 0 minimizes
+      T price = m->read(0, unit_col[rest_idx]);
       if (opt_type == OptimizationType::Minimize)
         price = -price;
 
-      return price;
+      // that of the scaled row and objective, scaled back
+      price = price * row_scale[rest_idx] / obj_scale;
+
+      return row_sign[rest_idx] < 0 ? -price : price;
     }
 
     /** @brief Gets the reduced cost for a variable.
      *
-     * The reduced cost indicates how much the objective would improve
-     * per unit increase in a non-basic variable.
+     * The reduced cost is the change of the objective per unit increase of
+     * a non-basic variable, the others non-basic at zero:
+     * c_j - sum_i shadow_price(i) * a_ij. At the optimum it is <= 0 when
+     * maximizing and >= 0 when minimizing, and 0 for a basic variable.
      *
      * @param[in] var_idx Variable index (0-based).
      * @return Reduced cost value.
@@ -1462,7 +1745,8 @@ namespace Aleph
       if (opt_type == OptimizationType::Maximize)
         rc = -rc;
 
-      return rc;
+      // that of the scaled column and objective, scaled back
+      return rc / (col_scale[var_idx] * obj_scale);
     }
 
     /** @brief Checks if a variable is basic in the optimal solution.
@@ -1475,7 +1759,7 @@ namespace Aleph
     [[nodiscard]] bool is_basic_variable(size_t var_idx) const
     {
       verify_var_index(var_idx);
-      for (size_t i = 0; i < num_rest; ++i)
+      for (size_t i = 0; i < basic_vars.size(); ++i)
         if (basic_vars[i] == static_cast<int>(var_idx))
           return true;
       return false;
@@ -1515,12 +1799,18 @@ namespace Aleph
 
     /** @brief Performs dual simplex iteration.
      *
-     * Used for re-optimization when the RHS values change.
-     * The current solution must be dual feasible (reduced costs ≥ 0 for max).
+     * Used for re-optimization when the RHS values change. The current
+     * basis must be optimal for the objective (no cost of row 0 below
+     * zero), as after solve(); each iteration takes out of the basis a
+     * variable whose value is negative. An artificial variable never
+     * enters the basis, and one that stays basic, of a constraint that is
+     * a combination of others, must stay at zero.
      *
-     * @return New solution state after re-optimization.
+     * @return New solution state after re-optimization: `Solved`, or
+     *         `Unfeasible` if no point satisfies the constraints.
      *
      * @pre solve() must have been called and returned Solved.
+     * @throw std::logic_error If the problem is not solved.
      */
     [[nodiscard]] State dual_solve()
     {
@@ -1529,78 +1819,119 @@ namespace Aleph
 
       state = Solving;
 
-      auto start_time = std::chrono::high_resolution_clock::now();
+      const auto start_time = std::chrono::high_resolution_clock::now();
       stats.iterations = 0;
       stats.pivots = 0;
 
-      const size_t rhs_col = num_var + num_rest + num_artificial;
+      const size_t rhs = rhs_col();
+      const size_t M = first_artificial();
+      degenerate_run = 0;
 
-      while (true)
+      while (state == Solving)
         {
           ++stats.iterations;
+          const bool bland = bland_now();
 
-          // Select leaving variable (row with most negative RHS)
+          // Select leaving variable: a row with a negative RHS, the most
+          // negative one, or with Bland's rule the one whose basic
+          // variable has the least index
           int leaving_row = -1;
-          T min_rhs = T{0};
+          T min_rhs = -tol_rhs;
           for (size_t i = 1; i <= num_rest; ++i)
             {
-              T rhs = m->read(i, rhs_col);
-              if (rhs < min_rhs - eps)
+              const T b = m->read(i, rhs);
+              if (b >= -tol_rhs)
+                continue;
+
+              if (leaving_row == -1
+                  or (bland ? basic_vars[i - 1] < basic_vars[leaving_row - 1] : b < min_rhs))
                 {
-                  min_rhs = rhs;
+                  min_rhs = b;
                   leaving_row = static_cast<int>(i);
                 }
             }
 
           if (leaving_row == -1)
-            {
-              state = Solved;
-              auto end_time = std::chrono::high_resolution_clock::now();
-              stats.elapsed_ms = std::chrono::duration<double, std::milli>(
-                end_time - start_time).count();
-              return Solved;
-            }
+            break;
 
-          // Select entering variable (minimum ratio test on reduced costs)
+          // Select entering variable: a negative entry of the row, not
+          // artificial, with the least ratio of its cost to its magnitude;
+          // among ties, the least index with Bland's rule and the largest
+          // magnitude else
           int entering_col = -1;
-          T min_ratio = std::numeric_limits<T>::max();
-          const size_t total_vars = num_var + num_rest + num_artificial;
-
-          for (size_t j = 0; j < total_vars; ++j)
+          T min_ratio = T{0};
+          T max_mag = T{0};
+          for (size_t j = 0; j < M; ++j)
             {
-              T a_ij = m->read(leaving_row, j);
-              if (a_ij >= -eps)
+              const T a = m->read(leaving_row, j);
+              if (a >= -tol_coef)
                 continue; // Must be negative
 
-              T ratio = -m->read(0, j) / a_ij;
-              if (ratio < min_ratio)
+              const T ratio = std::max(m->read(0, j), T{0}) / -a;
+              if (entering_col == -1 or (ratio < min_ratio and not same_ratio(ratio, min_ratio)))
                 {
-                  min_ratio = ratio;
                   entering_col = static_cast<int>(j);
+                  min_ratio = ratio;
+                  max_mag = -a;
+                }
+              else if (same_ratio(ratio, min_ratio) and not bland and -a > max_mag)
+                {
+                  entering_col = static_cast<int>(j);
+                  max_mag = -a;
                 }
             }
 
           if (entering_col == -1)
             {
               state = Unfeasible;
-              return Unfeasible;
+              break;
             }
 
+          if (bland)
+            stats.bland_rule_used = true;
+
+          // A degenerate pivot leaves the objective as it was
+          if (m->read(0, entering_col) <= tol_cost)
+            {
+              ++stats.degenerate_pivots;
+              ++degenerate_run;
+            }
+          else
+            degenerate_run = 0;
+
           ++stats.pivots;
-          to_pivot(leaving_row, entering_col);
-          basic_vars[leaving_row - 1] = entering_col;
+          to_pivot(static_cast<size_t>(leaving_row), static_cast<size_t>(entering_col));
         }
+
+      if (state == Solving)
+        {
+          state = Solved;
+          for (size_t i = 1; i <= num_rest; ++i)
+            if (is_artificial(static_cast<size_t>(basic_vars[i - 1]))
+                and m->read(i, rhs) > tol_rhs)
+              state = Unfeasible;
+        }
+
+      const auto end_time = std::chrono::high_resolution_clock::now();
+      stats.elapsed_ms = std::chrono::duration<double, std::milli>(end_time - start_time).count();
+
+      return state;
     }
 
     /** @brief Updates RHS value and re-optimizes using dual simplex.
      *
-     * Efficiently re-solves the problem when only RHS values change.
+     * Efficiently re-solves the problem when only RHS values change: the
+     * right-hand sides of the tableau change by the column of the inverse
+     * of the basis of the constraint, and dual_solve() restores their
+     * feasibility.
      *
      * @param[in] rest_idx Constraint index to update.
      * @param[in] new_rhs New right-hand side value.
      * @return Solution state after re-optimization.
      *
      * @pre solve() must have been called and returned Solved.
+     * @throw std::out_of_range If rest_idx is out of range.
+     * @throw std::logic_error If the problem is not solved.
      */
     [[nodiscard]] State update_rhs_and_reoptimize(size_t rest_idx, T new_rhs)
     {
@@ -1608,30 +1939,14 @@ namespace Aleph
       ah_logic_error_if(state != Solved)
         << "Cannot update RHS without a solved problem";
 
-      // Update the RHS in the tableau
-      const size_t rhs_col = num_var + num_rest + num_artificial;
-      const size_t slack_col = num_var + rest_idx;
+      T *rest = restriction(rest_idx);
+      const T delta = T(row_sign[rest_idx]) * row_scale[rest_idx] * (new_rhs - rest[num_var]);
+      rest[num_var] = new_rhs;
 
-      // Compute the change in RHS
-      T old_rhs = T{0};
-      size_t i = 0;
-      for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), ++i)
-        if (i == rest_idx)
-          {
-            old_rhs = it.get_curr()[num_var];
-            it.get_curr()[num_var] = new_rhs;
-            break;
-          }
-
-      T delta = new_rhs - old_rhs;
-
-      // Update tableau RHS using slack variable column
+      const size_t rhs = rhs_col();
+      const size_t col = unit_col[rest_idx];
       for (size_t row = 0; row <= num_rest; ++row)
-        {
-          T coef = m->read(row, slack_col);
-          T current_rhs = m->read(row, rhs_col);
-          m->write(row, rhs_col, current_rhs + coef * delta);
-        }
+        m->write(row, rhs, m->read(row, rhs) + m->read(row, col) * delta);
 
       return dual_solve();
     }
@@ -1696,10 +2011,11 @@ namespace Aleph
 
   /** @brief Revised Simplex algorithm for linear programming.
    *
-   * The Revised Simplex method is an efficient variant of the standard
-   * Simplex algorithm that maintains only the basis inverse B⁻¹ instead
-   * of the full tableau. This provides significant memory and computational
-   * savings for larger problems.
+   * Maximizes c·x subject to A·x ≤ b and x ≥ 0, where the entries of b
+   * may be negative. The Revised Simplex method is a variant of the
+   * standard Simplex algorithm that maintains only the basis inverse B⁻¹
+   * instead of the full tableau, which saves memory and work when there
+   * are many more variables than constraints.
    *
    * ## Key Differences from Standard Simplex
    *
@@ -1712,26 +2028,36 @@ namespace Aleph
    *
    * ## Algorithm Overview
    *
-   * 1. **Initialize**: Set up initial basis (slack variables)
-   * 2. **Pricing**: Compute dual prices π = c_B · B⁻¹
-   * 3. **Select entering**: Find j with most negative c̄_j = c_j - π · a_j
-   * 4. **FTRAN**: Compute d = B⁻¹ · a_j (tableau column)
-   * 5. **Ratio test**: Find leaving variable using d
-   * 6. **BTRAN/Update**: Update B⁻¹ using eta-matrix product form
-   * 7. **Repeat** until optimal or unbounded
+   * 1. **Initialize**: the basis has the slack variable of each row whose
+   *    b_i is >= 0, and an artificial variable, of column -e_i, of each
+   *    other row
+   * 2. **Phase I**, if there are artificial variables: maximize minus
+   *    their sum; if it stays below zero, the problem is infeasible. The
+   *    artificial variables that are still basic, at zero, leave the
+   *    basis, but for those of rows that are combinations of others, and
+   *    an artificial variable never enters it again
+   * 3. **Phase II**, from that basis, on the objective; each phase
+   *    iterates:
+   *    - **Pricing**: compute dual prices π = c_B · B⁻¹
+   *    - **Select entering**: the j with the most positive
+   *      c̄_j = c_j - π · a_j (with Bland's rule, the first one)
+   *    - **FTRAN**: compute d = B⁻¹ · a_j (tableau column)
+   *    - **Ratio test**: find the leaving variable using d
+   *    - **Update**: B⁻¹ by the pivot on d, in place
    *
-   * ## Eta-Matrix Updates
-   *
-   * Instead of computing B⁻¹ directly, we maintain it as a product of
-   * elementary matrices (eta-matrices): B⁻¹ = E_k · E_{k-1} · ... · E_1 · B_0⁻¹
-   *
-   * Periodic refactorization is performed to maintain numerical stability
-   * and reduce accumulated errors.
+   * Every refactorization-frequency pivots, B⁻¹ is computed again from
+   * the basis by Gauss-Jordan elimination, and so are the values of the
+   * basic variables, so that the rounding of the updates does not build
+   * up. As Simplex, it works on the program with each row, each column and
+   * the objective multiplied by a power of two, so that its tolerances do
+   * not depend on the units of the data, and scales the solution back. A
+   * run of degenerate pivots switches to Bland's rule until a pivot
+   * improves the objective, so that the method always ends.
    *
    * ## Performance
    *
    * - **Memory**: O(m² + mn) vs O(mn + m²) for standard
-   * - **Time per iteration**: O(m²) for dense, O(nnz) for sparse
+   * - **Time per iteration**: O(m² + mn), and O(m³) for a refactorization
    * - **Best for**: n >> m (many variables, few constraints)
    *
    * @tparam T Numeric type for coefficients (typically double).
@@ -1754,19 +2080,26 @@ namespace Aleph
     std::vector<std::vector<T>> A;  // Constraint matrix (m × n)
     std::vector<T> b;           // RHS values (m)
 
+    // The scaled program that solve() works on: each row, each column and
+    // the objective multiplied by a power of two, so that the largest
+    // magnitude of each is in [1/2, 1), and the tolerances do not depend
+    // on the units of the data
+    std::vector<std::vector<T>> As;
+    std::vector<T> bs;
+    std::vector<T> cs;
+    std::vector<T> row_scale;
+    std::vector<T> col_scale;
+
+    // The columns: the n original variables, the m slack variables, of
+    // columns e_i, and the artificial variables, of columns -e_i for the
+    // rows art_row
+    std::vector<size_t> art_row;
+
     // Basis information
     std::vector<int> basic;     // basic[i] = index of basic variable in row i
-    std::vector<int> nonbasic;  // Non-basic variable indices
     std::vector<bool> is_basic; // is_basic[j] = true if variable j is in basis
 
-    // Basis inverse representation using eta-matrices (product form)
-    struct EtaMatrix
-    {
-      size_t col;           // Column being replaced
-      std::vector<T> eta;   // The eta column (m elements)
-    };
-    std::vector<EtaMatrix> eta_file;  // Product form of B⁻¹
-    std::vector<std::vector<T>> B_inv_explicit;  // Explicit B⁻¹ (after refactorization)
+    std::vector<std::vector<T>> B_inv_explicit;  // Explicit B⁻¹
 
     // Current solution
     std::vector<T> x_B;         // Basic variable values (m)
@@ -1775,24 +2108,52 @@ namespace Aleph
     // Working vectors (reused across iterations)
     mutable std::vector<T> pi;      // Dual prices (m)
     mutable std::vector<T> d;       // FTRAN result / tableau column (m)
-    mutable std::vector<T> work;    // General work vector (m)
+    mutable std::vector<T> work;    // A column of the problem (m)
+    std::vector<T> cost;            // The costs of the current phase
 
     // Configuration
     T eps;
-    size_t refactor_frequency;  // Refactorize B⁻¹ every N iterations
-    bool use_steepest_edge;
+    size_t refactor_frequency;  // Refactorize B⁻¹ every N pivots
+    size_t refactorizations = 0;
+    size_t since_refactor = 0;
+
+    // Tolerances: eps times the largest magnitude of the entries of the
+    // scaled As, bs and cs, at least 1 each
+    T tol_coef = T{0};
+    T tol_rhs = T{0};
+    T tol_cost = T{0};
+
+    // The degenerate pivots in a row; past n + m, Bland's rule
+    size_t degenerate_run = 0;
 
     // State and statistics
     State state;
     mutable SimplexStats stats;
 
+    size_t num_columns() const noexcept { return n + m + art_row.size(); }
+
+    bool is_artificial(const size_t j) const noexcept { return j >= n + m; }
+
+    // ============ The column j of the problem ============
+
+    void get_column(size_t j, std::vector<T>& col) const
+    {
+      if (j < n)
+        for (size_t i = 0; i < m; ++i)
+          col[i] = As[i][j];
+      else if (j < n + m)
+        for (size_t i = 0; i < m; ++i)
+          col[i] = i == j - n ? T{1} : T{0};
+      else
+        for (size_t i = 0; i < m; ++i)
+          col[i] = i == art_row[j - n - m] ? T{-1} : T{0};
+    }
+
     // ============ FTRAN: Solve B·y = a (forward transformation) ============
     // Computes y = B⁻¹·a
-    // Uses explicit B⁻¹ for simplicity and numerical stability
 
     void ftran(const std::vector<T>& a, std::vector<T>& y) const
     {
-      // y = B⁻¹ · a
       for (size_t i = 0; i < m; ++i)
         {
           T sum = T{0};
@@ -1804,11 +2165,9 @@ namespace Aleph
 
     // ============ BTRAN: Solve π·B = c_B (backward transformation) ============
     // Computes π = c_B · B⁻¹
-    // Uses explicit B⁻¹ for simplicity
 
     void btran(const std::vector<T>& c_B, std::vector<T>& pi_out) const
     {
-      // π_j = sum_i c_B[i] * B⁻¹[i][j]
       for (size_t j = 0; j < m; ++j)
         {
           T sum = T{0};
@@ -1823,62 +2182,43 @@ namespace Aleph
     T compute_reduced_cost(size_t j) const
     {
       // c̄_j = c_j - π · a_j
-      T rc = (j < n) ? c[j] : T{0};  // Slack variables have c = 0
-
+      get_column(j, work);
+      T rc = cost[j];
       for (size_t i = 0; i < m; ++i)
-        {
-          T a_ij = (j < n) ? A[i][j] : ((j - n == i) ? T{1} : T{0});
-          rc -= pi[i] * a_ij;
-        }
-
+        rc -= pi[i] * work[i];
       return rc;
     }
 
-    // ============ Get column of A (including slack columns) ============
-
-    void get_column(size_t j, std::vector<T>& col) const
-    {
-      if (j < n)
-        {
-          // Original variable column
-          for (size_t i = 0; i < m; ++i)
-            col[i] = A[i][j];
-        }
-      else
-        {
-          // Slack variable column (identity)
-          size_t slack_idx = j - n;
-          for (size_t i = 0; i < m; ++i)
-            col[i] = (i == slack_idx) ? T{1} : T{0};
-        }
-    }
+    // Whether the next pivot follows Bland's rule: after a run of
+    // degenerate pivots
+    bool bland_now() const noexcept { return degenerate_run > n + m; }
 
     // ============ Pricing: Find entering variable ============
 
-    int select_entering_variable()
+    // The column that enters the basis: the one of most positive reduced
+    // cost, or with Bland's rule the first positive one; -1 if there is
+    // none, which is optimal. An artificial variable never enters.
+    int select_entering_variable(const T & tol)
     {
-      // Compute dual prices: π = c_B · B⁻¹
       std::vector<T> c_B(m);
       for (size_t i = 0; i < m; ++i)
-        {
-          int var = basic[i];
-          c_B[i] = (var < static_cast<int>(n)) ? c[var] : T{0};
-        }
-
+        c_B[i] = cost[basic[i]];
       btran(c_B, pi);
 
-      // For maximization: find most POSITIVE reduced cost
-      // (positive rc means increasing that variable improves objective)
-      T max_rc = eps;
+      const bool bland = bland_now();
+      T max_rc = tol;
       int entering = -1;
-
-      for (int j : nonbasic)
+      for (size_t j = 0; j < n + m; ++j)
         {
-          T rc = compute_reduced_cost(j);
-          if (rc > max_rc)
+          if (is_basic[j])
+            continue;
+
+          if (const T rc = compute_reduced_cost(j); rc > max_rc)
             {
+              entering = static_cast<int>(j);
+              if (bland)
+                break;
               max_rc = rc;
-              entering = j;
             }
         }
 
@@ -1887,102 +2227,101 @@ namespace Aleph
 
     // ============ Ratio test: Find leaving variable ============
 
+    // The row whose basic variable leaves the basis: the least ratio of its
+    // value to its positive entry in d = B⁻¹·a; among ties, with Bland's
+    // rule the row whose basic variable has the least index, else the
+    // largest entry. -1 if no entry is positive, which is unbounded.
     int select_leaving_variable(int entering, T& theta)
     {
-      // Get column of entering variable
-      std::vector<T> a_j(m);
-      get_column(entering, a_j);
+      get_column(static_cast<size_t>(entering), work);
+      ftran(work, d);
 
-      // FTRAN: compute d = B⁻¹ · a_j
-      ftran(a_j, d);
-
-      // Ratio test
-      theta = std::numeric_limits<T>::max();
+      const bool bland = bland_now();
       int leaving = -1;
-
+      theta = T{0};
+      T max_den = T{0};
       for (size_t i = 0; i < m; ++i)
         {
-          if (d[i] > eps)
+          if (d[i] <= tol_coef)
+            continue;
+
+          const T ratio = std::max(x_B[i], T{0}) / d[i];
+          const bool tie =
+            leaving != -1 and std::abs(ratio - theta) <= eps * std::max(T{1}, std::abs(theta));
+          if (leaving == -1 or (ratio < theta and not tie))
             {
-              T ratio = x_B[i] / d[i];
-              if (ratio < theta - eps)
-                {
-                  theta = ratio;
-                  leaving = static_cast<int>(i);
-                }
+              leaving = static_cast<int>(i);
+              theta = ratio;
+              max_den = d[i];
+            }
+          else if (tie and (bland ? basic[i] < basic[leaving] : d[i] > max_den))
+            {
+              leaving = static_cast<int>(i);
+              max_den = d[i];
             }
         }
+
+      if (leaving != -1)
+        theta = std::max(x_B[leaving], T{0}) / d[leaving];
 
       return leaving;
     }
 
     // ============ Update basis inverse after pivot ============
-    // Uses the formula: B_new⁻¹ = E · B_old⁻¹
-    // where E is an elementary matrix based on the pivot column d
+    // The row r of B⁻¹ is divided by d_r, and d_i times it is subtracted
+    // from each other row i, in place
 
     void update_basis_inverse(int leaving_row, const std::vector<T>& d_col)
     {
-      T pivot = d_col[leaving_row];
-      if (std::abs(pivot) < eps)
-        return;  // Numerical issue
-
-      // Compute eta column: eta[i] = -d[i]/pivot for i != leaving_row
-      //                     eta[leaving_row] = 1/pivot
-      std::vector<T> eta(m);
-      for (size_t i = 0; i < m; ++i)
-        {
-          if (static_cast<int>(i) == leaving_row)
-            eta[i] = T{1} / pivot;
-          else
-            eta[i] = -d_col[i] / pivot;
-        }
-
-      // Update B⁻¹: new_B_inv = E · B_inv
-      // E is identity except column leaving_row has the eta values
-      std::vector<std::vector<T>> new_B_inv(m, std::vector<T>(m));
+      const size_t r = static_cast<size_t>(leaving_row);
+      const T inv_pivot = T{1} / d_col[r];
+      for (size_t j = 0; j < m; ++j)
+        B_inv_explicit[r][j] *= inv_pivot;
 
       for (size_t i = 0; i < m; ++i)
         {
+          if (i == r or d_col[i] == T{0})
+            continue;
+
+          const T factor = d_col[i];
           for (size_t j = 0; j < m; ++j)
-            {
-              if (static_cast<int>(i) == leaving_row)
-                {
-                  // Row leaving_row: multiply by 1/pivot
-                  new_B_inv[i][j] = B_inv_explicit[leaving_row][j] / pivot;
-                }
-              else
-                {
-                  // Other rows: subtract multiple of leaving_row
-                  new_B_inv[i][j] = B_inv_explicit[i][j] -
-                    (d_col[i] / pivot) * B_inv_explicit[leaving_row][j];
-                }
-            }
+            B_inv_explicit[i][j] -= factor * B_inv_explicit[r][j];
         }
+    }
 
-      B_inv_explicit = std::move(new_B_inv);
+    // The variable of column entering becomes the basic one of the row
+    // leaving, at the value theta, with d = B⁻¹ times its column
+    void pivot(int leaving, int entering, const T & theta)
+    {
+      const size_t r = static_cast<size_t>(leaving);
+      for (size_t i = 0; i < m; ++i)
+        x_B[i] -= theta * d[i];
+      x_B[r] = theta;
+
+      is_basic[basic[r]] = false;
+      is_basic[entering] = true;
+      basic[r] = entering;
+
+      update_basis_inverse(leaving, d);
+
+      ++stats.pivots;
+      if (++since_refactor >= refactor_frequency)
+        refactorize();
     }
 
     // ============ Refactorize B⁻¹ explicitly ============
 
+    // B⁻¹ from the columns of the basis, by Gauss-Jordan elimination with
+    // partial pivoting, and the values of the basic variables, B⁻¹·b
     void refactorize()
     {
       // Build explicit B from current basis
       std::vector<std::vector<T>> B(m, std::vector<T>(m, T{0}));
-
       for (size_t i = 0; i < m; ++i)
         {
-          int var = basic[i];
-          if (var < static_cast<int>(n))
-            {
-              // Original variable column
-              for (size_t row = 0; row < m; ++row)
-                B[row][i] = A[row][var];
-            }
-          else
-            {
-              // Slack variable (identity column)
-              B[var - n][i] = T{1};
-            }
+          get_column(static_cast<size_t>(basic[i]), work);
+          for (size_t row = 0; row < m; ++row)
+            B[row][i] = work[row];
         }
 
       // Compute B⁻¹ using Gauss-Jordan elimination
@@ -1996,13 +2335,11 @@ namespace Aleph
           size_t pivot_row = col;
           T max_val = std::abs(B[col][col]);
           for (size_t row = col + 1; row < m; ++row)
-            {
-              if (std::abs(B[row][col]) > max_val)
-                {
-                  max_val = std::abs(B[row][col]);
-                  pivot_row = row;
-                }
-            }
+            if (std::abs(B[row][col]) > max_val)
+              {
+                max_val = std::abs(B[row][col]);
+                pivot_row = row;
+              }
 
           // Swap rows if needed
           if (pivot_row != col)
@@ -2012,7 +2349,7 @@ namespace Aleph
             }
 
           // Scale pivot row
-          T pivot = B[col][col];
+          const T pivot = B[col][col];
           for (size_t j = 0; j < m; ++j)
             {
               B[col][j] /= pivot;
@@ -2022,20 +2359,150 @@ namespace Aleph
           // Eliminate column
           for (size_t row = 0; row < m; ++row)
             {
-              if (row != col)
+              if (row == col)
+                continue;
+
+              const T factor = B[row][col];
+              if (factor == T{0})
+                continue;
+
+              for (size_t j = 0; j < m; ++j)
                 {
-                  T factor = B[row][col];
-                  for (size_t j = 0; j < m; ++j)
-                    {
-                      B[row][j] -= factor * B[col][j];
-                      B_inv_explicit[row][j] -= factor * B_inv_explicit[col][j];
-                    }
+                  B[row][j] -= factor * B[col][j];
+                  B_inv_explicit[row][j] -= factor * B_inv_explicit[col][j];
                 }
             }
         }
 
-      // Clear eta-file after refactorization
-      eta_file.clear();
+      ftran(bs, x_B);
+      ++refactorizations;
+      since_refactor = 0;
+    }
+
+    // Pivots until no reduced cost is above tol, which is optimal, or the
+    // entering column has no positive entry in B⁻¹, which is unbounded
+    State iterate(const T & tol)
+    {
+      degenerate_run = 0;
+      while (true)
+        {
+          ++stats.iterations;
+          const int entering = select_entering_variable(tol);
+          if (entering < 0)
+            return Solved;
+
+          T theta;
+          const int leaving = select_leaving_variable(entering, theta);
+          if (leaving < 0)
+            return Unbounded;
+
+          if (bland_now())
+            stats.bland_rule_used = true;
+
+          // A degenerate pivot leaves the vertex, and the objective, as
+          // they were
+          if (x_B[leaving] <= tol_rhs)
+            {
+              ++stats.degenerate_pivots;
+              ++degenerate_run;
+            }
+          else
+            degenerate_run = 0;
+
+          pivot(leaving, entering, theta);
+        }
+    }
+
+    // After the first phase, the artificial variables that are still basic,
+    // at zero, leave the basis by a pivot on the largest entry of their row
+    // of B⁻¹·a_j, for a column j that is not artificial. A row without such
+    // an entry is a combination of others: its artificial variable stays
+    // basic, at zero.
+    void drive_out_artificials()
+    {
+      for (size_t r = 0; r < m; ++r)
+        {
+          if (not is_artificial(static_cast<size_t>(basic[r])))
+            continue;
+
+          x_B[r] = T{0}; // at most a rounding above zero
+
+          int entering = -1;
+          T largest = tol_coef;
+          for (size_t j = 0; j < n + m; ++j)
+            {
+              if (is_basic[j])
+                continue;
+
+              get_column(j, work);
+              T entry = T{0};
+              for (size_t k = 0; k < m; ++k)
+                entry += B_inv_explicit[r][k] * work[k];
+              if (std::abs(entry) > largest)
+                {
+                  largest = std::abs(entry);
+                  entering = static_cast<int>(j);
+                }
+            }
+
+          if (entering == -1)
+            continue;
+
+          get_column(static_cast<size_t>(entering), work);
+          ftran(work, d);
+          ++stats.degenerate_pivots;
+          pivot(static_cast<int>(r), entering, T{0});
+        }
+    }
+
+    // The power of two that takes magnitude into [1/2, 1); 1 for 0, for a
+    // subnormal magnitude, whose power could overflow, or for a magnitude
+    // that is not finite
+    static T scale_of(const T & magnitude) noexcept
+    {
+      if (not (magnitude >= std::numeric_limits<T>::min()) or not std::isfinite(magnitude))
+        return T{1};
+      int e;
+      (void) std::frexp(magnitude, &e);
+      return std::ldexp(T{1}, -e);
+    }
+
+    // The scaled program: each row by its largest coefficient, each column
+    // by its largest coefficient once the rows are scaled, and the
+    // objective by its largest coefficient once the columns are
+    void scale()
+    {
+      row_scale.assign(m, T{1});
+      col_scale.assign(n, T{0});
+      for (size_t i = 0; i < m; ++i)
+        {
+          T largest = T{0};
+          for (size_t j = 0; j < n; ++j)
+            largest = std::max(largest, std::abs(A[i][j]));
+          row_scale[i] = scale_of(largest);
+        }
+      for (size_t i = 0; i < m; ++i)
+        for (size_t j = 0; j < n; ++j)
+          col_scale[j] = std::max(col_scale[j], std::abs(A[i][j]) * row_scale[i]);
+      T largest = T{0};
+      for (size_t j = 0; j < n; ++j)
+        {
+          col_scale[j] = scale_of(col_scale[j]);
+          largest = std::max(largest, std::abs(c[j]) * col_scale[j]);
+        }
+      const T obj_scale = scale_of(largest);
+
+      As.assign(m, std::vector<T>(n));
+      bs.resize(m);
+      cs.resize(n);
+      for (size_t i = 0; i < m; ++i)
+        {
+          for (size_t j = 0; j < n; ++j)
+            As[i][j] = A[i][j] * row_scale[i] * col_scale[j];
+          bs[i] = b[i] * row_scale[i];
+        }
+      for (size_t j = 0; j < n; ++j)
+        cs[j] = c[j] * col_scale[j] * obj_scale;
     }
 
   public:
@@ -2043,6 +2510,8 @@ namespace Aleph
      *
      * @param[in] num_vars Number of decision variables.
      * @param[in] num_constraints Number of constraints.
+     *
+     * @throw std::invalid_argument If num_vars or num_constraints is zero.
      */
     RevisedSimplex(size_t num_vars, size_t num_constraints)
       : m(num_constraints), n(num_vars),
@@ -2050,13 +2519,11 @@ namespace Aleph
         A(num_constraints, std::vector<T>(num_vars, T{0})),
         b(num_constraints, T{0}),
         basic(num_constraints),
-        is_basic(num_vars + num_constraints, false),
         x_B(num_constraints, T{0}),
         solution(num_vars + num_constraints, T{0}),
         pi(num_constraints), d(num_constraints), work(num_constraints),
         eps(std::numeric_limits<T>::epsilon() * 1000),
         refactor_frequency(std::max(size_t{50}, num_constraints)),
-        use_steepest_edge(false),
         state(Not_Solved)
     {
       ah_invalid_argument_if(num_vars == 0 || num_constraints == 0)
@@ -2067,6 +2534,8 @@ namespace Aleph
      *
      * @param[in] j Variable index.
      * @param[in] coef Coefficient value.
+     *
+     * @throw std::out_of_range If j is out of range.
      */
     void set_objective(size_t j, T coef)
     {
@@ -2089,6 +2558,8 @@ namespace Aleph
      * @param[in] i Constraint index.
      * @param[in] j Variable index.
      * @param[in] coef Coefficient value.
+     *
+     * @throw std::out_of_range If i or j is out of range.
      */
     void set_constraint(size_t i, size_t j, T coef)
     {
@@ -2100,7 +2571,9 @@ namespace Aleph
     /** @brief Sets RHS value for a constraint.
      *
      * @param[in] i Constraint index.
-     * @param[in] rhs Right-hand side value.
+     * @param[in] rhs Right-hand side value, which may be negative.
+     *
+     * @throw std::out_of_range If i is out of range.
      */
     void set_rhs(size_t i, T rhs)
     {
@@ -2112,7 +2585,9 @@ namespace Aleph
      *
      * @param[in] i Constraint index.
      * @param[in] coefs Array of n coefficients.
-     * @param[in] rhs Right-hand side value.
+     * @param[in] rhs Right-hand side value, which may be negative.
+     *
+     * @throw std::out_of_range If i is out of range.
      */
     void set_constraint_row(size_t i, const T* coefs, T rhs)
     {
@@ -2124,19 +2599,24 @@ namespace Aleph
 
     /** @brief Sets refactorization frequency.
      *
-     * B⁻¹ is recomputed explicitly every N iterations to maintain
+     * B⁻¹ is recomputed explicitly every N pivots to maintain
      * numerical stability.
      *
      * @param[in] freq Refactorization frequency (default: max(50, m)).
+     *
+     * @throw std::invalid_argument If freq is zero.
      */
     void set_refactorization_frequency(size_t freq)
     {
+      ah_invalid_argument_if(freq == 0) << "Refactorization frequency must be > 0";
       refactor_frequency = freq;
     }
 
     /** @brief Solves the linear program.
      *
      * @return Solution state (Solved, Unbounded, or Unfeasible).
+     *
+     * @throw std::logic_error If solve() has already been called.
      */
     [[nodiscard]] State solve()
     {
@@ -2145,81 +2625,81 @@ namespace Aleph
       stats.reset();
       auto start_time = std::chrono::high_resolution_clock::now();
 
-      // Initialize basis with slack variables
+      scale();
+      T max_coef = T{0}, max_rhs = T{0}, max_cost = T{0};
       for (size_t i = 0; i < m; ++i)
         {
-          basic[i] = static_cast<int>(n + i);  // Slack variable index
-          is_basic[n + i] = true;
-          x_B[i] = b[i];  // Initial basic solution
+          for (size_t j = 0; j < n; ++j)
+            max_coef = std::max(max_coef, std::abs(As[i][j]));
+          max_rhs = std::max(max_rhs, std::abs(bs[i]));
         }
-
-      // Initialize non-basic variable list
-      nonbasic.clear();
       for (size_t j = 0; j < n; ++j)
-        nonbasic.push_back(static_cast<int>(j));
+        max_cost = std::max(max_cost, std::abs(cs[j]));
+      tol_coef = eps * std::max(T{1}, max_coef);
+      tol_rhs = eps * std::max(T{1}, max_rhs);
+      tol_cost = eps * std::max(T{1}, max_cost);
 
-      // Initial B⁻¹ is identity (slack variables)
+      // The initial basis: the slack variable of each row whose b_i is >=
+      // 0, and an artificial variable of each other row, at -b_i; B⁻¹ is
+      // diagonal, of 1 and -1
+      art_row.clear();
       B_inv_explicit.assign(m, std::vector<T>(m, T{0}));
       for (size_t i = 0; i < m; ++i)
-        B_inv_explicit[i][i] = T{1};
+        if (bs[i] < T{0})
+          {
+            basic[i] = static_cast<int>(n + m + art_row.size());
+            art_row.push_back(i);
+            B_inv_explicit[i][i] = T{-1};
+            x_B[i] = -bs[i];
+          }
+        else
+          {
+            basic[i] = static_cast<int>(n + i);
+            B_inv_explicit[i][i] = T{1};
+            x_B[i] = bs[i];
+          }
+
+      is_basic.assign(num_columns(), false);
+      for (size_t i = 0; i < m; ++i)
+        is_basic[basic[i]] = true;
+      cost.assign(num_columns(), T{0});
+      refactorizations = since_refactor = 0;
 
       state = Solving;
 
-      // Main loop
-      while (true)
+      if (not art_row.empty())
         {
-          ++stats.iterations;
+          // Phase I: maximize minus the sum of the artificial variables
+          for (size_t j = n + m; j < num_columns(); ++j)
+            cost[j] = T{-1};
+          const T scale = T(art_row.size());
+          (void) iterate(tol_coef * scale); // bounded above by zero
 
-          // Pricing: select entering variable
-          int entering = select_entering_variable();
-
-          if (entering < 0)
-            {
-              // Optimal!
-              state = Solved;
-              break;
-            }
-
-          // Ratio test: select leaving variable
-          T theta;
-          int leaving = select_leaving_variable(entering, theta);
-
-          if (leaving < 0)
-            {
-              // Unbounded!
-              state = Unbounded;
-              break;
-            }
-
-          // Update solution
+          T sum = T{0};
           for (size_t i = 0; i < m; ++i)
-            x_B[i] -= theta * d[i];
-          x_B[leaving] = theta;
+            if (is_artificial(static_cast<size_t>(basic[i])))
+              sum += x_B[i];
 
-          // Update basis
-          int leaving_var = basic[leaving];
-          basic[leaving] = entering;
-          is_basic[leaving_var] = false;
-          is_basic[entering] = true;
-
-          // Update non-basic list
-          for (auto& nb : nonbasic)
-            if (nb == entering)
-              {
-                nb = leaving_var;
-                break;
-              }
-
-          // Update B⁻¹
-          update_basis_inverse(leaving, d);
-
-          ++stats.pivots;
+          if (sum > tol_rhs * scale)
+            state = Unfeasible;
+          else
+            drive_out_artificials();
         }
 
-      // Load final solution
+      if (state == Solving)
+        {
+          // Phase II, on the objective
+          for (size_t j = 0; j < num_columns(); ++j)
+            cost[j] = j < n ? cs[j] : T{0};
+          state = iterate(tol_cost);
+        }
+
+      // Load final solution, scaled back: a variable by its column, a
+      // slack by its row
       std::fill(solution.begin(), solution.end(), T{0});
       for (size_t i = 0; i < m; ++i)
-        solution[basic[i]] = x_B[i];
+        if (const auto j = static_cast<size_t>(basic[i]); not is_artificial(j))
+          solution[j] = j < n ? x_B[i] * col_scale[j] : x_B[i] / row_scale[j - n];
 
       auto end_time = std::chrono::high_resolution_clock::now();
       stats.elapsed_ms = std::chrono::duration<double, std::milli>(
@@ -2232,6 +2712,8 @@ namespace Aleph
      *
      * @param[in] j Variable index.
      * @return Optimal value of variable x_j.
+     *
+     * @throw std::out_of_range If j is out of range.
      */
     [[nodiscard]] T get_solution(size_t j) const
     {
@@ -2265,16 +2747,29 @@ namespace Aleph
 
     /** @brief Verifies solution satisfies all constraints.
      *
+     * Checks that every variable is >= 0 and that every constraint holds,
+     * up to a tolerance relative to the magnitude of its terms: 10 times
+     * the tolerance of the solver.
+     *
      * @return true if feasible, false otherwise.
      */
     [[nodiscard]] bool verify_solution() const
     {
+      const T tol = T(10) * eps;
+      for (size_t j = 0; j < n; ++j)
+        if (solution[j] < -tol * std::max(T{1}, std::abs(solution[j])))
+          return false;
+
       for (size_t i = 0; i < m; ++i)
         {
           T lhs = T{0};
+          T size = std::abs(b[i]);
           for (size_t j = 0; j < n; ++j)
-            lhs += A[i][j] * solution[j];
-          if (lhs > b[i] + eps)
+            {
+              lhs += A[i][j] * solution[j];
+              size += std::abs(A[i][j] * solution[j]);
+            }
+          if (lhs > b[i] + tol * std::max(T{1}, size))
             return false;
         }
       return true;
@@ -2288,9 +2783,7 @@ namespace Aleph
                 << "Iterations: " << stats.iterations << "\n"
                 << "Pivots: " << stats.pivots << "\n"
                 << "Elapsed time: " << stats.elapsed_ms << " ms\n"
-                << "Eta-matrices: " << eta_file.size() << "\n"
-                << "Refactorizations: "
-                << (stats.pivots / refactor_frequency) << "\n";
+                << "Refactorizations: " << refactorizations << "\n";
     }
   };
 
