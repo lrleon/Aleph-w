@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.3.6](https://github.com/lrleon/Aleph-w/compare/v7.3.5...v7.3.6) (2026-11-04)
+
+
+### Bug Fixes
+
+* **simplex:** Solve in two phases, and fix the sensitivity analysis ([#162](https://github.com/lrleon/Aleph-w/issues/162)) ([4acb0b3](https://github.com/lrleon/Aleph-w/commit/4acb0b375cfbd8d3358c3a4b8adeecefa1bd07b9))
+
 ## [7.3.5](https://github.com/lrleon/Aleph-w/compare/v7.3.4...v7.3.5) (2026-11-04)
 
 
