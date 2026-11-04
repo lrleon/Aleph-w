@@ -2145,8 +2145,10 @@ TEST(SimplexDefects, PrintAndLatexOutput)
   testing::internal::CaptureStdout();
   lp.print_matrix();
   const std::string out = testing::internal::GetCapturedStdout();
-  EXPECT_EQ(std::count(out.begin(), out.end(), '\n'), 4); // row 0 and three rows
-  EXPECT_NE(out.find("4.00"), std::string::npos);         // a right-hand side
+  // row 0 and three rows, of the scaled program, whose slack and
+  // artificial variables have unit columns
+  EXPECT_EQ(std::count(out.begin(), out.end(), '\n'), 4);
+  EXPECT_NE(out.find("1.00"), std::string::npos);
 
   const std::string program = temp_name("aleph_simplex_program") + ".tex";
   lp.latex_linear_program(program);
@@ -2170,6 +2172,138 @@ TEST(SimplexDefects, PrintAndLatexOutput)
 
   Simplex<double> unprepared(1);
   EXPECT_THROW(unprepared.print_matrix(), std::logic_error);
+}
+
+TEST(SimplexDefects, LargeCoefficientsDoNotHideTheLeavingRow)
+{
+  // max 4x + 2y, 2e8 x - 1e8 y <= 2e8, 5e8 x + 1e8 y <= 8e8: (0, 8), z =
+  // 16. With a tolerance of the size of the coefficients, 1e-5, the
+  // entries of order 1e-9 of the column of a slack looked like zeros, and
+  // the program unbounded (found by Codex)
+  Simplex<double> lp(2);
+  lp.put_objetive_function_coef(0, 4);
+  lp.put_objetive_function_coef(1, 2);
+  add_rows(lp, {{{2e8, -1e8, 2e8}, ConstraintType::LE}, {{5e8, 1e8, 8e8}, ConstraintType::LE}});
+  ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+  lp.load_solution();
+  EXPECT_NEAR(lp.get_solution(0), 0.0, 1e-12);
+  EXPECT_NEAR(lp.get_solution(1), 8.0, 1e-12);
+  EXPECT_NEAR(lp.objetive_value(), 16.0, 1e-12);
+}
+
+TEST(SimplexDefects, SmallDataDoNotMakeAPivot)
+{
+  // Three unbounded programs, with their data multiplied by 1e-6 (found by
+  // the CI, whose libc++ made them). With a tolerance that did not go
+  // below eps for data below 1, a zero of the tableau came out as a
+  // rounding error above it, which looked like a pivot, and the programs
+  // as solved, with optima near -1e11. The products are not the literals
+  // in their last bits (5 * 1e-6 is not 5e-6), and the literals do not
+  // show the defect
+  using C = ConstraintType;
+  struct Program
+  {
+    std::vector<double> c;
+    std::vector<std::pair<std::vector<double>, ConstraintType>> rows;
+  };
+  const Program programs[] = {
+    {{-5, 2, -4},
+     {{{5, -3, -2, 10}, C::LE}, {{3, 1, 0, 7}, C::LE}, {{0, -1, 0, -1}, C::GE},
+      {{0, 0, 2, -1}, C::GE}}},
+    {{-4, 0}, {{{0, -3, -9}, C::EQ}, {{-4, 5, 4}, C::LE}, {{0, 0, 0}, C::EQ}, {{0, 0, 3}, C::LE}}},
+    {{3, -4, -2},
+     {{{0, -2, 5, 2}, C::LE}, {{0, -1, 4, 4}, C::LE}, {{0, 0, -3, 6}, C::LE},
+      {{0, 0, 2, 3}, C::EQ}}}};
+  const double u = 1e-6;
+  for (const auto & p : programs)
+    {
+      Simplex<double> lp(p.c.size(), OptimizationType::Minimize);
+      for (size_t j = 0; j < p.c.size(); ++j)
+        lp.put_objetive_function_coef(j, p.c[j] * u);
+      for (auto [row, type] : p.rows)
+        {
+          for (double & x : row)
+            x *= u;
+          lp.put_restriction(row.data(), type);
+        }
+      lp.prepare_linear_program();
+      EXPECT_EQ(lp.solve(), Simplex<double>::Unbounded) << "program " << &p - programs;
+    }
+}
+
+TEST(SimplexScaling, TheSensitivityInOtherUnits)
+{
+  // The sensitivity of the textbook program, in other units: the prices
+  // and the ranges scale with them, though the solver scales the program
+  Simplex<double> lp(2);
+  lp.put_objetive_function_coef(0, 40e-3);
+  lp.put_objetive_function_coef(1, 30e-3);
+  add_rows(lp, {{{1e5, 1e5, 40e5}, ConstraintType::LE}, {{2e5, 1e5, 60e5}, ConstraintType::LE}});
+  ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+  EXPECT_NEAR(lp.shadow_price(0), 20e-3 / 1e5, 1e-15);
+  EXPECT_NEAR(lp.shadow_price(1), 10e-3 / 1e5, 1e-15);
+  auto r = lp.rhs_sensitivity(0);
+  EXPECT_NEAR(r.lower_bound, 30e5, 1e-6);
+  EXPECT_NEAR(r.upper_bound, 60e5, 1e-6);
+  r = lp.objective_sensitivity(0);
+  EXPECT_NEAR(r.lower_bound, 30e-3, 1e-15);
+  EXPECT_NEAR(r.upper_bound, 60e-3, 1e-15);
+  ASSERT_EQ(lp.update_rhs_and_reoptimize(0, 50e5), Simplex<double>::Solved);
+  lp.load_solution();
+  EXPECT_NEAR(lp.get_solution(0), 10.0, 1e-9);
+  EXPECT_NEAR(lp.get_solution(1), 40.0, 1e-9);
+}
+
+TEST(SimplexScaling, SubnormalMagnitudesAreNotScaled)
+{
+  // max x, t x <= 1, x <= 5, with t = 2^-1032, subnormal: x = 5. The
+  // power of two that would take t into [1/2, 1) overflows: the row stays
+  // as it is, and its coefficient, below the tolerance, counts as zero, as
+  // it did before the scaling
+  const double t = std::ldexp(1.0, -1032);
+  Simplex<double> lp(1);
+  lp.put_objetive_function_coef(0, 1);
+  add_rows(lp, {{{t, 1}, ConstraintType::LE}, {{1, 5}, ConstraintType::LE}});
+  ASSERT_EQ(lp.solve(), Simplex<double>::Solved);
+  lp.load_solution();
+  EXPECT_DOUBLE_EQ(lp.get_solution(0), 5.0);
+  EXPECT_TRUE(lp.verify_solution());
+
+  RevisedSimplex<double> rs(1, 2);
+  rs.set_objective(0, 1);
+  const double r1[] = {t}, r2[] = {1};
+  rs.set_constraint_row(0, r1, 1);
+  rs.set_constraint_row(1, r2, 5);
+  ASSERT_EQ(rs.solve(), RevisedSimplex<double>::Solved);
+  EXPECT_DOUBLE_EQ(rs.objective_value(), 5.0);
+  EXPECT_TRUE(rs.verify_solution());
+
+  // float, whose subnormals are below 2^-126
+  Simplex<float> lf(1);
+  lf.put_objetive_function_coef(0, 1);
+  float f1[] = {std::ldexp(1.0f, -140), 1}, f2[] = {1, 5};
+  lf.put_restriction(f1, ConstraintType::LE);
+  lf.put_restriction(f2, ConstraintType::LE);
+  lf.prepare_linear_program();
+  ASSERT_EQ(lf.solve(), Simplex<float>::Solved);
+  lf.load_solution();
+  EXPECT_FLOAT_EQ(lf.get_solution(0), 5.0f);
+
+  // an objective of subnormals: zero, so that any feasible point is optimal
+  Simplex<double> lo(1);
+  lo.put_objetive_function_coef(0, t);
+  add_rows(lo, {{{1, 5}, ConstraintType::LE}});
+  ASSERT_EQ(lo.solve(), Simplex<double>::Solved);
+  lo.load_solution();
+  EXPECT_TRUE(lo.verify_solution());
+  EXPECT_LE(std::abs(lo.objetive_value()), 1e-300);
+
+  // a column of subnormals: x can grow beyond the largest double
+  Simplex<double> lc(2);
+  lc.put_objetive_function_coef(0, 1);
+  lc.put_objetive_function_coef(1, 1);
+  add_rows(lc, {{{t, 0, 1}, ConstraintType::LE}, {{0, 1, 2}, ConstraintType::LE}});
+  EXPECT_EQ(lc.solve(), Simplex<double>::Unbounded);
 }
 
 TEST(SimplexClassic, BealesCyclingProgramEnds)
@@ -2205,8 +2339,10 @@ TEST(SimplexClassic, BealesCyclingProgramEnds)
 
 TEST(SimplexClassic, KleeMintyCube)
 {
-  // max sum 2^(n-j) x_j, sum_{j<i} 2^(i-j+1) x_j + x_i <= 5^i: the most
-  // negative cost visits every vertex; the optimum is x_n = 5^n
+  // max sum 2^(n-j) x_j, sum_{j<i} 2^(i-j+1) x_j + x_i <= 5^i: on the
+  // program as it is, the most negative cost visits every vertex; on the
+  // scaled one that the solver works on, it takes x_n first. The optimum is
+  // x_n = 5^n.
   const size_t n = 8;
   for (bool bland : {false, true})
     {
@@ -2229,7 +2365,7 @@ TEST(SimplexClassic, KleeMintyCube)
       lp.load_solution();
       EXPECT_NEAR(lp.objetive_value(), std::pow(5.0, double(n)), 1e-6);
       EXPECT_NEAR(lp.get_solution(n - 1), std::pow(5.0, double(n)), 1e-6);
-      EXPECT_GE(lp.get_pivot_count(), n);
+      EXPECT_TRUE(lp.verify_solution());
     }
 }
 
@@ -2383,6 +2519,20 @@ TEST(RevisedSimplexDefects, RefactorizationEveryPivotGivesTheSame)
 
   RevisedSimplex<double> rs(1, 1);
   EXPECT_THROW(rs.set_refactorization_frequency(0), std::invalid_argument);
+}
+
+TEST(RevisedSimplexDefects, LargeCoefficientsDoNotHideTheLeavingRow)
+{
+  // The program of the test of the same name of Simplex, on which the
+  // ratio test of RevisedSimplex skipped every row too
+  RevisedSimplex<double> rs(2, 2);
+  rs.set_objective(0, 4);
+  rs.set_objective(1, 2);
+  const double r1[] = {2e8, -1e8}, r2[] = {5e8, 1e8};
+  rs.set_constraint_row(0, r1, 2e8);
+  rs.set_constraint_row(1, r2, 8e8);
+  ASSERT_EQ(rs.solve(), RevisedSimplex<double>::Solved);
+  EXPECT_NEAR(rs.objective_value(), 16.0, 1e-12);
 }
 
 TEST(SimplexClassic, TheRestOfTheInterface)

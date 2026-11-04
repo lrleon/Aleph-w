@@ -178,10 +178,18 @@ namespace Aleph
    * rule until a pivot improves the objective, so that the method always
    * ends.
    *
-   * A value is taken as zero when its magnitude is below the tolerance of
-   * set_epsilon() times the largest magnitude of the coefficients of the
-   * constraints, of their right-hand sides or of the objective, according
-   * to what the value is.
+   * prepare_linear_program() scales the program: each constraint, each
+   * column and the objective are multiplied by a power of two, which
+   * changes no digit, so that their largest magnitudes are in [1/2, 1);
+   * one whose largest magnitude is subnormal stays as it is, below the
+   * tolerances. The solver works on the scaled program, so that its
+   * tolerances do not depend on the units of the data, and scales its
+   * results back: the solution, the shadow prices, the reduced costs and
+   * the ranges are those of the program as it was given. A value of the
+   * scaled program is taken as zero when its magnitude is below the
+   * tolerance of set_epsilon(); a right-hand side, when it is below that
+   * tolerance times the largest magnitude of the right-hand sides, if this
+   * one is above 1.
    *
    * ## Complete Example: Production Planning Problem
    *
@@ -323,12 +331,21 @@ namespace Aleph
     std::vector<size_t> unit_col;
 
     // The costs that the second phase minimizes: -c to maximize, c to
-    // minimize, as prepare_linear_program() found them
+    // minimize, as prepare_linear_program() found them, scaled
     std::vector<T> phase2_cost;
 
-    // The tolerances of eps: times the largest magnitude of the
-    // coefficients of the restrictions, of their right-hand sides and of
-    // the objective, at least 1 each
+    // The powers of two by which prepare_linear_program() multiplies each
+    // row, each column and the objective, so that the largest magnitude of
+    // each is in [1/2, 1): the solver works on the scaled program, whose
+    // tolerances so do not depend on the units of the data, and the
+    // results are scaled back
+    std::vector<T> row_scale;
+    std::vector<T> col_scale;
+    T obj_scale = T{1};
+
+    // The tolerances of eps, on the scaled program: times the largest
+    // magnitude of its coefficients, of its right-hand sides and of its
+    // objective, at least 1 each
     T tol_coef = T{0};
     T tol_rhs = T{0};
     T tol_cost = T{0};
@@ -684,9 +701,21 @@ namespace Aleph
       return ptr;
     }
 
+    // The power of two that takes magnitude into [1/2, 1); 1 for 0, for a
+    // subnormal magnitude, whose power could overflow, or for a magnitude
+    // that is not finite
+    static T scale_of(const T & magnitude) noexcept
+    {
+      if (not (magnitude >= std::numeric_limits<T>::min()) or not std::isfinite(magnitude))
+        return T{1};
+      int e;
+      (void) std::frexp(magnitude, &e);
+      return std::ldexp(T{1}, -e);
+    }
+
     // Creates the simplex tableau from the objective and the constraints,
-    // with the slack, surplus and artificial variables, and takes the
-    // costs of the second phase and the tolerances
+    // scaled, with the slack, surplus and artificial variables, and takes
+    // the costs of the second phase and the tolerances
     void create_matrix()
     {
       // A row whose right-hand side is negative is multiplied by -1, which
@@ -714,6 +743,33 @@ namespace Aleph
           }
       }
 
+      // The scales: of each row, by its largest coefficient; of each
+      // column, by its largest coefficient once the rows are scaled; and of
+      // the objective, by its largest coefficient once the columns are
+      row_scale.assign(num_rest, T{1});
+      col_scale.assign(num_var, T{0});
+      {
+        size_t i = 0;
+        for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), ++i)
+          {
+            T largest = T{0};
+            for (size_t j = 0; j < num_var; ++j)
+              largest = std::max(largest, std::abs(it.get_curr()[j]));
+            row_scale[i] = scale_of(largest);
+          }
+        i = 0;
+        for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), ++i)
+          for (size_t j = 0; j < num_var; ++j)
+            col_scale[j] = std::max(col_scale[j], std::abs(it.get_curr()[j]) * row_scale[i]);
+        T largest = T{0};
+        for (size_t j = 0; j < num_var; ++j)
+          {
+            col_scale[j] = scale_of(col_scale[j]);
+            largest = std::max(largest, std::abs(objetive[j]) * col_scale[j]);
+          }
+        obj_scale = scale_of(largest);
+      }
+
       const size_t total_cols = num_var + num_rest + num_artificial + 1; // +1 for RHS
       m = std::unique_ptr<DynMatrix<T>>(new DynMatrix<T>(num_rest + 1, total_cols));
       basic_vars.assign(num_rest, 0);
@@ -726,18 +782,20 @@ namespace Aleph
       for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), ++row)
         {
           const T *rest = it.get_curr();
-          const T sign = T(row_sign[row - 1]);
+          const T sign = T(row_sign[row - 1]) * row_scale[row - 1];
 
           // Decision variable coefficients
           for (size_t j = 0; j < num_var; ++j)
             {
-              m->write(row, j, sign * rest[j]);
-              max_coef = std::max(max_coef, std::abs(rest[j]));
+              const T a = sign * rest[j] * col_scale[j];
+              m->write(row, j, a);
+              max_coef = std::max(max_coef, std::abs(a));
             }
 
           // RHS value, which is >= 0
-          m->write(row, total_cols - 1, sign * rest[num_var]);
-          max_rhs = std::max(max_rhs, std::abs(rest[num_var]));
+          const T b = sign * rest[num_var];
+          m->write(row, total_cols - 1, b);
+          max_rhs = std::max(max_rhs, std::abs(b));
 
           // Slack/surplus and artificial variables
           const size_t slack_col = num_var + row - 1;
@@ -763,14 +821,14 @@ namespace Aleph
       // The costs of the second phase, which row 0 has until solve():
       // -c to maximize, c to minimize, so that a negative cost always
       // improves the objective
-      const T sense = opt_type == OptimizationType::Maximize ? T{-1} : T{1};
+      const T sense = opt_type == OptimizationType::Maximize ? -obj_scale : obj_scale;
       T max_cost = T{0};
       phase2_cost.resize(num_var);
       for (size_t j = 0; j < num_var; ++j)
         {
-          phase2_cost[j] = sense * objetive[j];
+          phase2_cost[j] = sense * objetive[j] * col_scale[j];
           m->write(0, j, phase2_cost[j]);
-          max_cost = std::max(max_cost, std::abs(objetive[j]));
+          max_cost = std::max(max_cost, std::abs(phase2_cost[j]));
         }
 
       tol_coef = eps * std::max(T{1}, max_coef);
@@ -888,10 +946,10 @@ namespace Aleph
 
     /** @brief Sets the floating-point comparison tolerance.
      *
-     * A value is taken as zero when its magnitude is below `epsilon` times
-     * the largest magnitude of the coefficients of the constraints, of
-     * their right-hand sides or of the objective, according to what the
-     * value is, and at least `epsilon`.
+     * A value of the scaled program (see the class documentation) is taken
+     * as zero when its magnitude is below `epsilon`; a right-hand side,
+     * when it is below `epsilon` times the largest magnitude of the
+     * right-hand sides, if this one is above 1.
      *
      * @param[in] epsilon Tolerance for comparing values to zero.
      *
@@ -1181,7 +1239,7 @@ namespace Aleph
       const size_t rhs = rhs_col();
       for (size_t i = 1; i <= num_rest; ++i)
         if (const int b = basic_vars[i - 1]; b < static_cast<int>(num_var))
-          solution[b] = m->read(i, rhs);
+          solution[b] = col_scale[b] * m->read(i, rhs);
     }
 
     /** @brief Gets the solution value for a specific variable.
@@ -1271,9 +1329,10 @@ namespace Aleph
 
     /** @brief Prints the simplex tableau to stdout.
      *
-     * Row 0 holds the costs that the current phase minimizes, and the last
-     * column the right-hand sides. Useful for debugging and understanding
-     * the algorithm's progress.
+     * It is the tableau of the scaled program that the solver works on (see
+     * the class documentation). Row 0 holds the costs that the current
+     * phase minimizes, and the last column the right-hand sides. Useful for
+     * debugging and understanding the algorithm's progress.
      *
      * @throw std::logic_error If prepare_linear_program() was not called.
      */
@@ -1542,6 +1601,11 @@ namespace Aleph
               lo = std::max(lo, ratio);
           }
 
+      // d is of the scaled cost: c_j changes by d / its scale
+      const T unit = col_scale[var_idx] * obj_scale;
+      lo /= unit;
+      hi /= unit;
+
       if (opt_type == OptimizationType::Maximize) // c_j changes by -d
         {
           result.lower_bound = hi == inf ? -inf : result.current_value - hi;
@@ -1607,6 +1671,10 @@ namespace Aleph
             hi = std::min(hi, ratio);
         }
 
+      // d is of the scaled row: b_i changes by d / its scale
+      lo /= row_scale[rest_idx];
+      hi /= row_scale[rest_idx];
+
       if (row_sign[rest_idx] < 0) // the row was multiplied by -1
         {
           const T old_lo = lo;
@@ -1646,6 +1714,9 @@ namespace Aleph
       if (opt_type == OptimizationType::Minimize)
         price = -price;
 
+      // that of the scaled row and objective, scaled back
+      price = price * row_scale[rest_idx] / obj_scale;
+
       return row_sign[rest_idx] < 0 ? -price : price;
     }
 
@@ -1674,7 +1745,8 @@ namespace Aleph
       if (opt_type == OptimizationType::Maximize)
         rc = -rc;
 
-      return rc;
+      // that of the scaled column and objective, scaled back
+      return rc / (col_scale[var_idx] * obj_scale);
     }
 
     /** @brief Checks if a variable is basic in the optimal solution.
@@ -1868,7 +1940,7 @@ namespace Aleph
         << "Cannot update RHS without a solved problem";
 
       T *rest = restriction(rest_idx);
-      const T delta = T(row_sign[rest_idx]) * (new_rhs - rest[num_var]);
+      const T delta = T(row_sign[rest_idx]) * row_scale[rest_idx] * (new_rhs - rest[num_var]);
       rest[num_var] = new_rhs;
 
       const size_t rhs = rhs_col();
@@ -1976,7 +2048,10 @@ namespace Aleph
    * Every refactorization-frequency pivots, B⁻¹ is computed again from
    * the basis by Gauss-Jordan elimination, and so are the values of the
    * basic variables, so that the rounding of the updates does not build
-   * up. A run of degenerate pivots switches to Bland's rule until a pivot
+   * up. As Simplex, it works on the program with each row, each column and
+   * the objective multiplied by a power of two, so that its tolerances do
+   * not depend on the units of the data, and scales the solution back. A
+   * run of degenerate pivots switches to Bland's rule until a pivot
    * improves the objective, so that the method always ends.
    *
    * ## Performance
@@ -2005,6 +2080,16 @@ namespace Aleph
     std::vector<std::vector<T>> A;  // Constraint matrix (m × n)
     std::vector<T> b;           // RHS values (m)
 
+    // The scaled program that solve() works on: each row, each column and
+    // the objective multiplied by a power of two, so that the largest
+    // magnitude of each is in [1/2, 1), and the tolerances do not depend
+    // on the units of the data
+    std::vector<std::vector<T>> As;
+    std::vector<T> bs;
+    std::vector<T> cs;
+    std::vector<T> row_scale;
+    std::vector<T> col_scale;
+
     // The columns: the n original variables, the m slack variables, of
     // columns e_i, and the artificial variables, of columns -e_i for the
     // rows art_row
@@ -2032,8 +2117,8 @@ namespace Aleph
     size_t refactorizations = 0;
     size_t since_refactor = 0;
 
-    // Tolerances: eps times the largest magnitude of the entries of A, b
-    // and c, at least 1 each
+    // Tolerances: eps times the largest magnitude of the entries of the
+    // scaled As, bs and cs, at least 1 each
     T tol_coef = T{0};
     T tol_rhs = T{0};
     T tol_cost = T{0};
@@ -2055,7 +2140,7 @@ namespace Aleph
     {
       if (j < n)
         for (size_t i = 0; i < m; ++i)
-          col[i] = A[i][j];
+          col[i] = As[i][j];
       else if (j < n + m)
         for (size_t i = 0; i < m; ++i)
           col[i] = i == j - n ? T{1} : T{0};
@@ -2289,7 +2374,7 @@ namespace Aleph
             }
         }
 
-      ftran(b, x_B);
+      ftran(bs, x_B);
       ++refactorizations;
       since_refactor = 0;
     }
@@ -2368,6 +2453,56 @@ namespace Aleph
           ++stats.degenerate_pivots;
           pivot(static_cast<int>(r), entering, T{0});
         }
+    }
+
+    // The power of two that takes magnitude into [1/2, 1); 1 for 0, for a
+    // subnormal magnitude, whose power could overflow, or for a magnitude
+    // that is not finite
+    static T scale_of(const T & magnitude) noexcept
+    {
+      if (not (magnitude >= std::numeric_limits<T>::min()) or not std::isfinite(magnitude))
+        return T{1};
+      int e;
+      (void) std::frexp(magnitude, &e);
+      return std::ldexp(T{1}, -e);
+    }
+
+    // The scaled program: each row by its largest coefficient, each column
+    // by its largest coefficient once the rows are scaled, and the
+    // objective by its largest coefficient once the columns are
+    void scale()
+    {
+      row_scale.assign(m, T{1});
+      col_scale.assign(n, T{0});
+      for (size_t i = 0; i < m; ++i)
+        {
+          T largest = T{0};
+          for (size_t j = 0; j < n; ++j)
+            largest = std::max(largest, std::abs(A[i][j]));
+          row_scale[i] = scale_of(largest);
+        }
+      for (size_t i = 0; i < m; ++i)
+        for (size_t j = 0; j < n; ++j)
+          col_scale[j] = std::max(col_scale[j], std::abs(A[i][j]) * row_scale[i]);
+      T largest = T{0};
+      for (size_t j = 0; j < n; ++j)
+        {
+          col_scale[j] = scale_of(col_scale[j]);
+          largest = std::max(largest, std::abs(c[j]) * col_scale[j]);
+        }
+      const T obj_scale = scale_of(largest);
+
+      As.assign(m, std::vector<T>(n));
+      bs.resize(m);
+      cs.resize(n);
+      for (size_t i = 0; i < m; ++i)
+        {
+          for (size_t j = 0; j < n; ++j)
+            As[i][j] = A[i][j] * row_scale[i] * col_scale[j];
+          bs[i] = b[i] * row_scale[i];
+        }
+      for (size_t j = 0; j < n; ++j)
+        cs[j] = c[j] * col_scale[j] * obj_scale;
     }
 
   public:
@@ -2490,15 +2625,16 @@ namespace Aleph
       stats.reset();
       auto start_time = std::chrono::high_resolution_clock::now();
 
+      scale();
       T max_coef = T{0}, max_rhs = T{0}, max_cost = T{0};
       for (size_t i = 0; i < m; ++i)
         {
           for (size_t j = 0; j < n; ++j)
-            max_coef = std::max(max_coef, std::abs(A[i][j]));
-          max_rhs = std::max(max_rhs, std::abs(b[i]));
+            max_coef = std::max(max_coef, std::abs(As[i][j]));
+          max_rhs = std::max(max_rhs, std::abs(bs[i]));
         }
       for (size_t j = 0; j < n; ++j)
-        max_cost = std::max(max_cost, std::abs(c[j]));
+        max_cost = std::max(max_cost, std::abs(cs[j]));
       tol_coef = eps * std::max(T{1}, max_coef);
       tol_rhs = eps * std::max(T{1}, max_rhs);
       tol_cost = eps * std::max(T{1}, max_cost);
@@ -2509,18 +2645,18 @@ namespace Aleph
       art_row.clear();
       B_inv_explicit.assign(m, std::vector<T>(m, T{0}));
       for (size_t i = 0; i < m; ++i)
-        if (b[i] < T{0})
+        if (bs[i] < T{0})
           {
             basic[i] = static_cast<int>(n + m + art_row.size());
             art_row.push_back(i);
             B_inv_explicit[i][i] = T{-1};
-            x_B[i] = -b[i];
+            x_B[i] = -bs[i];
           }
         else
           {
             basic[i] = static_cast<int>(n + i);
             B_inv_explicit[i][i] = T{1};
-            x_B[i] = b[i];
+            x_B[i] = bs[i];
           }
 
       is_basic.assign(num_columns(), false);
@@ -2554,15 +2690,16 @@ namespace Aleph
         {
           // Phase II, on the objective
           for (size_t j = 0; j < num_columns(); ++j)
-            cost[j] = j < n ? c[j] : T{0};
+            cost[j] = j < n ? cs[j] : T{0};
           state = iterate(tol_cost);
         }
 
-      // Load final solution
+      // Load final solution, scaled back: a variable by its column, a
+      // slack by its row
       std::fill(solution.begin(), solution.end(), T{0});
       for (size_t i = 0; i < m; ++i)
-        if (not is_artificial(static_cast<size_t>(basic[i])))
-          solution[basic[i]] = x_B[i];
+        if (const auto j = static_cast<size_t>(basic[i]); not is_artificial(j))
+          solution[j] = j < n ? x_B[i] * col_scale[j] : x_B[i] / row_scale[j - n];
 
       auto end_time = std::chrono::high_resolution_clock::now();
       stats.elapsed_ms = std::chrono::duration<double, std::milli>(

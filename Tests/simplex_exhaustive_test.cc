@@ -801,7 +801,9 @@ namespace
   Program random_program(std::mt19937_64 & rng, const size_t max_n, const size_t max_m,
                          const i64 amax, const i64 bmax, const bool only_le = false)
   {
-    auto pick = [&] (i64 lo, i64 hi) { return std::uniform_int_distribution<i64>(lo, hi)(rng); };
+    // the raw numbers of std::mt19937_64, which the standard fixes, so that
+    // every standard library makes the same programs
+    auto pick = [&] (i64 lo, i64 hi) { return lo + i64(rng() % std::uint64_t(hi - lo + 1)); };
     Program p;
     p.n = size_t(pick(1, i64(max_n)));
     const size_t m = size_t(pick(1, i64(max_m)));
@@ -1016,48 +1018,93 @@ TEST(SimplexExhaustive, LargerRandomPrograms)
   EXPECT_GT(cov.unbounded, 55u);
 }
 
-// The same programs, scaled by 1e6 and by 1e-6: the same states, and the
-// values scaled as the data
+// Random programs with all their data multiplied by 1e6 and by 1e-6, and
+// with each row, each column and the objective multiplied by its own power
+// of ten, in [1e-6, 1e6]: the same states; the optimum scaled as the
+// objective; a solution feasible in the program as given; and shadow prices
+// of the right signs whose dual value is the optimum. The tolerances of the
+// solver must not depend on the units of the data.
 TEST(SimplexExhaustive, ScaledProgramsGiveScaledResults)
 {
   std::mt19937_64 rng(77);
-  size_t failures = 0, solved = 0;
-  for (int k = 0; k < 300; ++k)
+  auto power = [&] { return std::pow(10.0, double(i64(rng() % 13) - 6)); };
+  size_t failures = 0, solved = 0, programs = 0;
+  for (int k = 0; k < 400; ++k)
     {
       const Program p = random_program(rng, 3, 4, 5, 10);
       const Optimum want = solve_exactly(p);
-      for (double scale : {1e6, 1e-6})
+      for (int how = 0; how < 3; ++how)
         {
-          // the constraints scaled by scale; the objective too
+          // the scales: of each row, of each column (x_j = col_j x'_j) and
+          // of the objective
+          std::vector<double> row(p.m()), col(p.n);
+          double obj;
+          if (how < 2)
+            {
+              const double all = how == 0 ? 1e6 : 1e-6;
+              std::fill(row.begin(), row.end(), all);
+              std::fill(col.begin(), col.end(), 1.0);
+              obj = all;
+            }
+          else
+            {
+              for (auto & v : row)
+                v = power();
+              for (auto & v : col)
+                v = power();
+              obj = power();
+            }
+
           Simplex<double> lp(p.n, p.maximize ? OptimizationType::Maximize
                                              : OptimizationType::Minimize);
           for (size_t j = 0; j < p.n; ++j)
-            lp.put_objetive_function_coef(j, double(p.c[j]) * scale);
+            lp.put_objetive_function_coef(j, double(p.c[j]) * col[j] * obj);
+          std::vector<std::vector<double>> a(p.m(), std::vector<double>(p.n + 1));
           for (size_t i = 0; i < p.m(); ++i)
             {
-              std::vector<double> row(p.n + 1);
               for (size_t j = 0; j < p.n; ++j)
-                row[j] = double(p.a[i][j]) * scale;
-              row[p.n] = double(p.b[i]) * scale;
-              lp.put_restriction(row.data(), p.type[i]);
+                a[i][j] = double(p.a[i][j]) * row[i] * col[j];
+              a[i][p.n] = double(p.b[i]) * row[i];
+              lp.put_restriction(a[i].data(), p.type[i]);
             }
           lp.prepare_linear_program();
           const auto st = lp.solve();
-          bool ok = kind_of<double>(st) == want.kind;
-          if (ok and st == Simplex<double>::Solved)
+          ++programs;
+          std::string err;
+          if (kind_of<double>(st) != want.kind)
+            err = std::string(name(kind_of<double>(st))) + ", want " + name(want.kind);
+          else if (st == Simplex<double>::Solved)
             {
               ++solved;
               lp.load_solution();
-              const double v = want.value() * scale;
-              ok = std::abs(lp.objetive_value() - v) <= tol(v, 1e-7) and lp.verify_solution();
+              const double v = want.value() * obj;
+              if (std::abs(lp.objetive_value() - v) > tol(v, 1e-7))
+                err = "value " + std::to_string(lp.objetive_value()) + ", want "
+                  + std::to_string(v);
+              else if (not lp.verify_solution())
+                err = "verify_solution() is false";
+
+              // the shadow prices: strong duality and their signs
+              double dual = 0, size = std::abs(v);
+              for (size_t i = 0; i < p.m(); ++i)
+                {
+                  const double y = lp.shadow_price(i);
+                  dual += y * a[i][p.n];
+                  size += std::abs(y * a[i][p.n]);
+                  const bool up = (p.type[i] == CT::LE) == p.maximize;
+                  if (p.type[i] != CT::EQ and (up ? y < -tol(y) : y > tol(y)))
+                    err += " shadow price " + std::to_string(i) + " of the wrong sign;";
+                }
+              if (std::abs(dual - v) > 1e-7 * std::max(1.0, size))
+                err += " dual value " + std::to_string(dual) + ", want " + std::to_string(v);
             }
-          if (not ok and ++failures <= 20)
-            ADD_FAILURE() << p.str() << " scaled by " << scale << ": "
-                          << name(kind_of<double>(st)) << ", want " << name(want.kind);
+          if (not err.empty() and ++failures <= 20)
+            ADD_FAILURE() << p.str() << " scaled (" << how << "): " << err;
         }
     }
   EXPECT_EQ(failures, 0u);
-  EXPECT_GT(solved, 100u);
+  EXPECT_EQ(programs, 1200u);
+  EXPECT_GT(solved, 300u);
 }
 
 // ==========================================================================
@@ -1122,6 +1169,53 @@ TEST(RevisedSimplexExhaustive, RandomProgramsOfLessOrEqualConstraints)
   EXPECT_GT(optimal, 180u);
   EXPECT_GT(infeasible, 60u);
   EXPECT_GT(unbounded, 150u);
+}
+
+// RevisedSimplex on random programs of <= constraints with each row, each
+// column and the objective multiplied by its own power of ten, in
+// [1e-6, 1e6]: the same states, the optimum scaled as the objective, and a
+// solution feasible in the program as given
+TEST(RevisedSimplexExhaustive, ScaledPrograms)
+{
+  std::mt19937_64 rng(4321);
+  auto power = [&] { return std::pow(10.0, double(i64(rng() % 13) - 6)); };
+  size_t failures = 0, solved = 0;
+  for (int k = 0; k < 400; ++k)
+    {
+      const Program p = random_program(rng, 4, 5, 5, 10, true);
+      const Optimum want = solve_exactly(p);
+      std::vector<double> row(p.m()), col(p.n);
+      for (auto & v : row)
+        v = power();
+      for (auto & v : col)
+        v = power();
+      const double obj = power();
+
+      RevisedSimplex<double> rs(p.n, p.m());
+      for (size_t j = 0; j < p.n; ++j)
+        rs.set_objective(j, double(p.c[j]) * col[j] * obj);
+      for (size_t i = 0; i < p.m(); ++i)
+        {
+          std::vector<double> r(p.n);
+          for (size_t j = 0; j < p.n; ++j)
+            r[j] = double(p.a[i][j]) * row[i] * col[j];
+          rs.set_constraint_row(i, r.data(), double(p.b[i]) * row[i]);
+        }
+      const auto st = rs.solve();
+      const Optimum::Kind got = st == RevisedSimplex<double>::Solved ? Optimum::Optimal
+        : st == RevisedSimplex<double>::Unbounded ? Optimum::Unbounded : Optimum::Infeasible;
+      bool ok = got == want.kind;
+      if (ok and got == Optimum::Optimal)
+        {
+          ++solved;
+          const double v = want.value() * obj;
+          ok = std::abs(rs.objective_value() - v) <= tol(v, 1e-7) and rs.verify_solution();
+        }
+      if (not ok and ++failures <= 20)
+        ADD_FAILURE() << p.str() << ": " << name(got) << ", want " << name(want.kind);
+    }
+  EXPECT_EQ(failures, 0u);
+  EXPECT_GT(solved, 100u);
 }
 
 TEST(RevisedSimplexExhaustive, AgreesWithSimplex)
