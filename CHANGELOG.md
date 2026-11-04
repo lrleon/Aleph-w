@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [7.3.5](https://github.com/lrleon/Aleph-w/compare/v7.3.4...v7.3.5) (2026-11-04)
 
 
+### Bug Fixes
+
+* **list:** Keep the item that DynList::Iterator::del() removes when its move throws ([#161](https://github.com/lrleon/Aleph-w/issues/161)) ([836cb1a](https://github.com/lrleon/Aleph-w/commit/836cb1abe42ebdf52f94155bc9d9f6c8703a4ecb))
+* **list:** Lower the size of DynListStack and DynListQueue on a delete through their iterators ([#161](https://github.com/lrleon/Aleph-w/issues/161)) ([836cb1a](https://github.com/lrleon/Aleph-w/commit/836cb1abe42ebdf52f94155bc9d9f6c8703a4ecb))
+
 ### Performance Improvements
 
 * **list:** Keep the count of the items of DynList ([#161](https://github.com/lrleon/Aleph-w/issues/161)) ([836cb1a](https://github.com/lrleon/Aleph-w/commit/836cb1abe42ebdf52f94155bc9d9f6c8703a4ecb))
