@@ -43,7 +43,7 @@
 # ifndef TPL_RANDOM_QUEUE_H
 # define TPL_RANDOM_QUEUE_H
 
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <htlist.H>
 # include <ah-dry.H>
 # include <tpl_dynArray.H>
@@ -58,10 +58,11 @@ namespace Aleph {
         Random_Set<T> implements a random set of items which are
         inserted and extracted in a random order.
 
-	The class internally uses the gsl random number generator of 
-	[GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/). 
-	By default, the Mersene twister is used and the seed is taken from
-	system time. 
+	The class uses a Gsl_Compatible_Rng, the Mersenne twister with the
+	numbers of the one of [GSL - GNU Scientific
+	Library](\https://www.gnu.org/software/gsl/), which it used before:
+	for a seed, the order is the same. By default, the seed is taken from
+	system time.
 
 	@ingroup Sequences 
      */
@@ -75,7 +76,7 @@ class Random_Set
 private:
 
   DynArray<T> array;
-  gsl_rng * r = nullptr;
+  Gsl_Compatible_Rng_Owner r;
 
 public:
 
@@ -83,28 +84,41 @@ public:
 
   using Item_Type = T; /// The type of data contained in the queue
 
-  /// Return a pointer to random number generator
-  [[nodiscard]] gsl_rng * get_rng() const { return r; }
+  /// The random number generator, which draws the positions
+  [[nodiscard]] Gsl_Compatible_Rng & rng() const noexcept { return *r; }
 
-  /// Set the seed of random number generator
-  void set_seed(unsigned long seed) const noexcept { gsl_rng_set(r, seed); }
+# if ALEPH_WITH_GSL
+  /** @brief A `gsl_rng` whose numbers come from rng().
+
+      @deprecated The generator is no longer of GSL; use rng(). It goes in
+      8.0.0.
+      @return The `gsl_rng`, which the set frees.
+      @throw std::bad_alloc If there is not enough memory, the first time.
+  */
+  [[deprecated("the generator is no longer of GSL: use rng(); it goes in 8.0.0")]]
+  [[nodiscard]] gsl_rng * get_rng() const { return r.gsl(); }
+# endif
+
+  /// Set the seed of random number generator, as `gsl_rng_set()` did
+  void set_seed(unsigned long seed) const noexcept { r->seed(seed); }
 
   /// Return the number of items in the queue
   [[nodiscard]] size_t size() const { return array.size(); }
   
-  Random_Set() : array(0), r(nullptr)
+  /// A random queue whose generator is seeded with the system time,
+  /// modulo 2^32 - 1, as it was for GSL
+  Random_Set()
+    : array(0),
+      r(time(nullptr) % static_cast<unsigned long>(Gsl_Compatible_Rng::max()))
   {
-    r = gsl_rng_alloc (gsl_rng_mt19937);
-    ah_bad_alloc_if(r == nullptr);
-
-    gsl_rng_set(r, time(nullptr) % gsl_rng_max(r));
+    // empty
   }
 
   /// Swap in constant time `this` with `s`
   void swap(Random_Set & s)
   {
     array.swap(s.array);
-    std::swap(r, s.r);
+    r.swap(s.r);
   }
 
   /// Copy constructor
@@ -152,12 +166,6 @@ public:
   {
     for (const auto & item : l)
       append(item);
-  }
-
-  ~Random_Set()
-  {
-    if (r != nullptr)
-      gsl_rng_free(r);
   }
 
   /** Insert an item by copy.
@@ -208,7 +216,7 @@ public:
   {
     put(item);
     const size_t last_index = array.size() - 1;
-    const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
+    const size_t pos = r->uniform_int(array.size()); // at random
     if (pos != last_index)
       std::swap(array(pos), array(last_index));
     return array(pos);
@@ -224,7 +232,7 @@ public:
   {
     put(std::forward<T>(item));
     const size_t last_index = array.size() - 1;
-    const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
+    const size_t pos = r->uniform_int(array.size()); // at random
     if (pos != last_index)
       std::swap(array(pos), array(last_index));
     return array(pos);
@@ -235,7 +243,7 @@ public:
   {
     ah_underflow_error_if(array.size() == 0) << "Random set is empty";
 
-    const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
+    const size_t pos = r->uniform_int(array.size()); // at random
     T ret_val = array.access(pos);
     array.access(pos) = array.access(array.size() - 1);
     array.cut(array.size() - 1);
@@ -247,7 +255,7 @@ public:
   {
     ah_underflow_error_if(array.size() == 0) << "Random set is empty";
 
-    const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
+    const size_t pos = r->uniform_int(array.size()); // at random
     return array.access(pos);
   }
 

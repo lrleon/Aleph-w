@@ -34,7 +34,7 @@
 # include <cassert>
 # include <charconv>
 # include <ctime>
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <fstream>
 # include <iostream>
 # include <string_view>
@@ -60,12 +60,10 @@ fstream tex_file;
 Treap<int>::Node * last_node = nullptr;
 
 
-gsl_rng * rand_gen = nullptr;
-
 void print_pair(Treap<int>::Node *node, int, int) 
 {
   mpz_class pri = 
-    mpz_class(gsl_rng_max(rand_gen)) + mpz_class(node->getPriority()) ;
+    mpz_class(static_cast<unsigned long>(Gsl_Compatible_Rng::max())) + mpz_class(node->getPriority()) ;
 
   pri = pri / 10000000;
 
@@ -92,7 +90,7 @@ void print_treap(Treap<int>::Node *node, int, int)
 void print_prio(Treap<int>::Node *node, int, int)
 {
   mpz_class pri = 
-    mpz_class(gsl_rng_max(rand_gen)) + mpz_class(node->getPriority()) ;
+    mpz_class(static_cast<unsigned long>(Gsl_Compatible_Rng::max())) + mpz_class(node->getPriority()) ;
 
   pri = pri / 10000000;
 
@@ -164,10 +162,8 @@ int main(int argc, char *argv[])
 
   assert(is_treap(tree.getRoot()));
 
-  rand_gen = tree.gsl_rng_object();
-
-  cout << "Min = " << gsl_rng_min(rand_gen) << endl
-       << "Max = " << gsl_rng_max(rand_gen) << endl;
+  cout << "Min = " << Gsl_Compatible_Rng::min() << endl
+       << "Max = " << Gsl_Compatible_Rng::max() << endl;
 
   preOrderRec(tree.getRoot(), print_key); 
   fig_file << endl << "START-AUX " << endl;

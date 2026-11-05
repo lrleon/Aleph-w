@@ -50,7 +50,7 @@
 
 # include <ctime>
 # include <climits>
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <ahUtils.H>
 # include <ahFunction.H>
 # include <tpl_randNode.H>
@@ -105,8 +105,10 @@ namespace Aleph
       - Space: O(n) + O(1) per node for COUNT
 
       @par Random Number Generator:
-      Uses GSL (GNU Scientific Library) Mersenne Twister (mt19937) by default.
-      Seed can be set via set_seed() for reproducible behavior.
+      Uses a Gsl_Compatible_Rng, the Mersenne Twister (mt19937) with the
+      numbers of the one of GSL, which it used before: for a seed, the
+      trees are the same. Seed can be set via set_seed() for reproducible
+      behavior.
 
       @par Example:
       @code
@@ -157,7 +159,7 @@ namespace Aleph
 
   private:
     Node *tree_root;
-    gsl_rng *r;
+    Gsl_Compatible_Rng_Owner r;
     Compare cmp;
 
     Node * random_insert(Node *root, Node *p) noexcept
@@ -170,7 +172,7 @@ namespace Aleph
       __builtin_prefetch(RLINK(root));
 
       const long n = COUNT(root);
-      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) [[unlikely]]
+      if (const size_t rn = r->uniform_int(n + 1); rn == n) [[unlikely]]
           return BinTreeXt_Operation<Node, Compare>(cmp).insert_root(root, p);
 
       Node *result;
@@ -210,7 +212,7 @@ namespace Aleph
       __builtin_prefetch(RLINK(root));
 
       const long n = COUNT(root);
-      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) [[unlikely]]
+      if (const size_t rn = r->uniform_int(n + 1); rn == n) [[unlikely]]
           return BinTreeXt_Operation<Node, Compare>(cmp).insert_dup_root(root, p);
 
       const Key & pk = KEY(p);
@@ -237,7 +239,7 @@ namespace Aleph
         __builtin_prefetch(RLINK(root));
 
       const long n = COUNT(root);
-      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) [[unlikely]]
+      if (const size_t rn = r->uniform_int(n + 1); rn == n) [[unlikely]]
         {
           if (BinTreeXt_Operation<Node, Compare>(cmp).insert_root(root, p) != Node::NullPtr)
             return p;
@@ -273,13 +275,10 @@ namespace Aleph
     Gen_Rand_Tree &operator =(const Gen_Rand_Tree &) = delete;
 
   private:
-    void init(const unsigned long seed)
+    // The seed of the generator, modulo 2^32 - 1, as it was taken for GSL
+    static unsigned long generator_seed(const unsigned long seed) noexcept
     {
-      r = gsl_rng_alloc(gsl_rng_mt19937);
-
-      ah_bad_alloc_if(r == nullptr);
-
-      gsl_rng_set(r, seed % gsl_rng_max(r));
+      return seed % static_cast<unsigned long>(Gsl_Compatible_Rng::max());
     }
 
   public:
@@ -295,21 +294,33 @@ namespace Aleph
     /// \overload get_compare() const version
     const Compare &get_compare() const noexcept { return cmp; }
 
-    /// Get a pointer to gsl random number generator
-    gsl_rng * gsl_rng_object() noexcept { return r; }
+    /// The random number generator, which draws the positions of the nodes
+    [[nodiscard]] Gsl_Compatible_Rng & rng() noexcept { return *r; }
 
-    /// Set the random number generator seed
+# if ALEPH_WITH_GSL
+    /** @brief A `gsl_rng` whose numbers come from rng().
+
+        @deprecated The generator is no longer of GSL; use rng(). It goes
+        in 8.0.0.
+        @return The `gsl_rng`, which the tree frees.
+        @throw std::bad_alloc If there is not enough memory, the first time.
+    */
+    [[deprecated("the generator is no longer of GSL: use rng(); it goes in 8.0.0")]]
+    gsl_rng * gsl_rng_object() { return r.gsl(); }
+# endif
+
+    /// Set the random number generator seed, modulo 2^32 - 1
     void set_seed(const unsigned long seed) noexcept
     {
-      gsl_rng_set(r, seed % gsl_rng_max(r));
+      r->seed(generator_seed(seed));
     }
 
     /// Initialize a random tree with random `seed` and comparison criteria
     /// `__cmp`
     Gen_Rand_Tree(const unsigned int seed, const Compare & __cmp = Compare())
-      : tree_root(Node::NullPtr), r(nullptr), cmp(__cmp)
+      : tree_root(Node::NullPtr), r(generator_seed(seed)), cmp(__cmp)
     {
-      init(seed);
+      // empty
     }
 
     /// Initialize a random tree with random seed from system time and
@@ -323,16 +334,15 @@ namespace Aleph
     void swap(Gen_Rand_Tree & tree) noexcept
     {
       std::swap(tree_root, tree.tree_root);
-      std::swap(r, tree.r);
+      r.swap(tree.r);
       std::swap(cmp, tree.cmp);
     }
 
     /// Move constructor - transfers ownership of tree and RNG
     Gen_Rand_Tree(Gen_Rand_Tree && other) noexcept
-      : tree_root(other.tree_root), r(other.r), cmp(std::move(other.cmp))
+      : tree_root(other.tree_root), r(std::move(other.r)), cmp(std::move(other.cmp))
     {
       other.tree_root = Node::NullPtr;
-      other.r = nullptr;
     }
 
     /// Move assignment - transfers ownership of tree and RNG
@@ -341,26 +351,21 @@ namespace Aleph
       if (this != &other)
         {
           // Clean up current resources
-          if (r != nullptr)
-            gsl_rng_free(r);
           destroyRec(tree_root);
 
-          // Transfer ownership
+          // Transfer ownership; the RNG of this is freed
           tree_root = other.tree_root;
-          r = other.r;
+          r = std::move(other.r);
           cmp = std::move(other.cmp);
 
           // Reset other
           other.tree_root = Node::NullPtr;
-          other.r = nullptr;
         }
       return *this;
     }
 
     virtual ~Gen_Rand_Tree() noexcept
     {
-      if (r != nullptr)
-        gsl_rng_free(r);
       // Note: nodes are NOT freed here. DynSetTree::empty() handles node deletion.
       // The underlying tree only manages the tree structure, not node memory.
     }
@@ -415,7 +420,7 @@ namespace Aleph
 
       const size_t & m = COUNT(tl);
       const size_t & n = COUNT(tr);
-      if (const size_t rn = 1 + gsl_rng_uniform_int(r, m + n); rn <= m)
+      if (const size_t rn = 1 + r->uniform_int(m + n); rn <= m)
         { // left subtree wins
           COUNT(tl) += COUNT(tr);
           RLINK(tl) = random_join_exclusive(RLINK(tl), tr);
@@ -675,7 +680,7 @@ namespace Aleph
       Node *ret = Node::NullPtr;
       const size_t m = COUNT(t1);
       const size_t n = COUNT(t2);
-      if (const size_t rn = 1 + gsl_rng_uniform_int(r, m + n); rn <= m)
+      if (const size_t rn = 1 + r->uniform_int(m + n); rn <= m)
         { // root of t1 wins
           Node *l = LLINK(t1), *r = RLINK(t1);
           t1->reset();
@@ -727,7 +732,7 @@ namespace Aleph
       const size_t & m = COUNT(t1);
       const size_t & n = COUNT(t2);
       const size_t total = m + n;
-      if (const size_t rn = 1 + gsl_rng_uniform_int(r, total); rn <= m)
+      if (const size_t rn = 1 + r->uniform_int(total); rn <= m)
         { // root of t1 wins
           Node *l = LLINK(t1), *r = RLINK(t1);
           t1->reset();
@@ -835,10 +840,10 @@ namespace Aleph
       data sets, while the randomized approach takes \f$O(\max(\lg n,
       \lg m))\f$.
 
-      The class internally uses the gsl random number generator of
-      [GSL - GNU Scientific
-      Library](\https://www.gnu.org/software/gsl/).  By default, the
-      Mersenne twister is used and the seed is taken from system time.
+      The class uses a Gsl_Compatible_Rng, the Mersenne twister with the
+      numbers of the one of [GSL - GNU Scientific
+      Library](\https://www.gnu.org/software/gsl/), which it used before.
+      By default, the seed is taken from system time.
 
       @see Treap Treap_Vtl Treap_Rk
 
@@ -873,10 +878,10 @@ namespace Aleph
       m)\f$, where \f$n\f$ and \f$m\f$ are the size of two data sets,
       while the randomized approach takes \f$O(\max(\lg n, \lg m))\f$.
 
-      The class internally uses the gsl random number generator of
-      [GSL - GNU Scientific
-      Library](\https://www.gnu.org/software/gsl/).  By default, the
-      Mersenne twister is used and the seed is taken from system time.
+      The class uses a Gsl_Compatible_Rng, the Mersenne twister with the
+      numbers of the one of [GSL - GNU Scientific
+      Library](\https://www.gnu.org/software/gsl/), which it used before.
+      By default, the seed is taken from system time.
 
       @see Treap Treap_Vtl Treap_Rk
 

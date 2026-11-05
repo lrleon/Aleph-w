@@ -53,7 +53,7 @@
 
 # include <climits>
 # include <ctime>
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <aleph.H>
 # include <ah-errors.H>
 
@@ -74,9 +74,10 @@ namespace Aleph
    *  - Simple implementation compared to balanced trees
    *  - Good cache locality for sequential access
    *
-   *  The class internally uses the gsl random number generator of
-   *  [GSL - GNU Scientific Library](https://www.gnu.org/software/gsl/).
-   *  By default, the Mersenne twister is used and the seed is taken from
+   *  The class uses a Gsl_Compatible_Rng, the Mersenne twister with the
+   *  numbers of the one of [GSL - GNU Scientific
+   *  Library](https://www.gnu.org/software/gsl/), which it used before: for
+   *  a seed, the levels are the same. By default, the seed is taken from
    *  system time.
    *
    *  @warning Nodes must be allocated with extra space for forward pointers:
@@ -244,24 +245,34 @@ namespace Aleph
 
     HeaderNode header; // SkipList's header
     HeaderNode *headerPtr; // Pointer to header
-    gsl_rng *r;  // GSL random number generator
+    Gsl_Compatible_Rng_Owner r;  // random number generator
     double probability; // probability for randomLevel
     int level; // Current Maximum level of list linked
 
-
-    void init(unsigned long seed)
+    // The seed of the generator, modulo 2^32 - 1, as it was taken for GSL
+    static unsigned long generator_seed(const unsigned long seed) noexcept
     {
-      r = gsl_rng_alloc(gsl_rng_mt19937);
-      ah_bad_alloc_if(r == nullptr);
-      gsl_rng_set(r, seed % gsl_rng_max(r));
+      return seed % static_cast<unsigned long>(Gsl_Compatible_Rng::max());
     }
 
   public:
-    /// Set the random number generator seed
-    void set_seed(unsigned long seed) noexcept { gsl_rng_set(r, seed); }
+    /// Set the random number generator seed, as `gsl_rng_set()` did
+    void set_seed(unsigned long seed) noexcept { r->seed(seed); }
 
-    /// Get a pointer to the GSL random number generator
-    gsl_rng * gsl_rng_object() noexcept { return r; }
+    /// The random number generator, which draws the levels
+    [[nodiscard]] Gsl_Compatible_Rng & rng() noexcept { return *r; }
+
+# if ALEPH_WITH_GSL
+    /** @brief A `gsl_rng` whose numbers come from rng().
+
+        @deprecated The generator is no longer of GSL; use rng(). It goes
+        in 8.0.0.
+        @return The `gsl_rng`, which the list frees.
+        @throw std::bad_alloc If there is not enough memory, the first time.
+    */
+    [[deprecated("the generator is no longer of GSL: use rng(); it goes in 8.0.0")]]
+    gsl_rng * gsl_rng_object() { return r.gsl(); }
+# endif
 
     /** @brief Construct a SkipList with given seed and probability.
      *  @param[in] seed Random seed for level generation.
@@ -269,12 +280,11 @@ namespace Aleph
      */
     SkipList(unsigned long seed, double p = defaultProbability)
       : headerPtr(&header),
-        r(nullptr),
+        r(generator_seed(seed)),
         probability(p),
         level(0)
     {
       assert(probability >= 0 and probability <= 1);
-      init(seed);
     }
 
     /** @brief Construct a SkipList with time-based seed.
@@ -286,14 +296,7 @@ namespace Aleph
       // Empty
     }
 
-    /// Destructor - frees GSL random number generator
-    ~SkipList()
-    {
-      if (r != nullptr)
-        gsl_rng_free(r);
-    }
-
-    // Disable copy (owns GSL resource)
+    // Disable copy (owns its random number generator)
     SkipList(const SkipList &) = delete;
     SkipList & operator=(const SkipList &) = delete;
 
@@ -301,11 +304,10 @@ namespace Aleph
     SkipList(SkipList && other) noexcept
       : header(std::move(other.header)),
         headerPtr(&header),
-        r(other.r),
+        r(std::move(other.r)),
         probability(other.probability),
         level(other.level)
     {
-      other.r = nullptr;
       other.level = 0;
     }
 
@@ -314,14 +316,11 @@ namespace Aleph
     {
       if (this != &other)
         {
-          if (r != nullptr)
-            gsl_rng_free(r);
           header = std::move(other.header);
           headerPtr = &header;
-          r = other.r;
+          r = std::move(other.r);
           probability = other.probability;
           level = other.level;
-          other.r = nullptr;
           other.level = 0;
         }
       return *this;
@@ -439,14 +438,14 @@ namespace Aleph
     }
 
     /** @brief Generate a random level for a new node.
-     *  Uses GSL Mersenne Twister for high-quality randomness.
+     *  Uses the Mersenne Twister of rng() for high-quality randomness.
      *  @return Random level in range [1, maxLevel].
      */
     [[nodiscard]] int generateRandomLevel() noexcept
     {
       int l = 1;
       assert(probability > 0 and probability < 1);
-      while (gsl_rng_uniform(r) < probability and l < maxLevel)
+      while (r->uniform() < probability and l < maxLevel)
         ++l;
       return l;
     }

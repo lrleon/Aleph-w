@@ -58,7 +58,7 @@
 # ifndef TPL_INTERVAL_TREE_H
 # define TPL_INTERVAL_TREE_H
 
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 
 # include <cassert>
 # include <ctime>
@@ -521,16 +521,16 @@ namespace Aleph
     Node head;
     Node *head_ptr;
     Node *& tree_root;
-    gsl_rng *r;
+    Gsl_Compatible_Rng_Owner r;
     Compare cmp;
     size_t num_nodes;
 
-    void init(const unsigned int seed)
+    // The seed of the generator for that of a constructor, as it was taken
+    // for GSL: through an unsigned int, modulo 2^32 - 1
+    static unsigned long generator_seed(const unsigned long seed) noexcept
     {
-      PRIO(head_ptr) = Min_Priority;
-      r = gsl_rng_alloc(gsl_rng_mt19937);
-      ah_bad_alloc_if(r == nullptr);
-      gsl_rng_set(r, seed % gsl_rng_max(r));
+      return static_cast<unsigned int>(seed)
+        % static_cast<unsigned long>(Gsl_Compatible_Rng::max());
     }
 
     /// Recalculate max_endpoint from node's own high and children
@@ -728,8 +728,8 @@ namespace Aleph
     }
 
   public:
-    /// Set the random number generator seed
-    void set_seed(const unsigned long seed) noexcept { gsl_rng_set(r, seed); }
+    /// Set the random number generator seed, as `gsl_rng_set()` did
+    void set_seed(const unsigned long seed) noexcept { r->seed(seed); }
 
     /// Return the interval comparison functor (over Interval<T> keys). It
     /// holds a copy of the endpoint comparator, so it throws what copying
@@ -749,31 +749,33 @@ namespace Aleph
     void swap(Gen_Interval_Tree & tree)
       noexcept(noexcept(std::swap(tree_root, tree.tree_root)) and
                noexcept(std::swap(cmp, tree.cmp)) and
-               noexcept(std::swap(r, tree.r)) and
+               noexcept(r.swap(tree.r)) and
                noexcept(std::swap(num_nodes, tree.num_nodes)))
     {
       std::swap(tree_root, tree.tree_root);
       std::swap(cmp, tree.cmp);
-      std::swap(r, tree.r);
+      r.swap(tree.r);
       std::swap(num_nodes, tree.num_nodes);
     }
 
     /** @brief Construct with explicit seed and comparator.
      *  @param[in] seed Random seed.
      *  @param[in] _cmp Comparison functor.
-     *  @throws ah_bad_alloc_if if random number generator allocation fails.
+     *  @throws std::bad_alloc if the random number generator cannot be
+     *  allocated.
      */
     Gen_Interval_Tree(const unsigned long seed,
                       const Compare & _cmp = Compare())
-      : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr),
+      : head_ptr(&head), tree_root(RLINK(head_ptr)), r(generator_seed(seed)),
         cmp(_cmp), num_nodes(0)
     {
-      init(seed);
+      PRIO(head_ptr) = Min_Priority;
     }
 
     /** @brief Construct with default seed (from system time).
      *  @param[in] _cmp Comparison functor.
-     *  @throws ah_bad_alloc_if if random number generator allocation fails.
+     *  @throws std::bad_alloc if the random number generator cannot be
+     *  allocated.
      */
     Gen_Interval_Tree(const Compare & _cmp = Compare())
       : Gen_Interval_Tree(static_cast<unsigned long>(time(nullptr)), _cmp)
@@ -790,14 +792,20 @@ namespace Aleph
     /** @brief Deleted move assignment. */
     Gen_Interval_Tree &operator =(Gen_Interval_Tree &&) = delete;
 
-    ~Gen_Interval_Tree()
-    {
-      if (r != nullptr)
-        gsl_rng_free(r);
-    }
+    /// The random number generator, which gives the priorities
+    [[nodiscard]] Gsl_Compatible_Rng & rng() const noexcept { return *r; }
 
-    /// Get a pointer to the GSL random number generator
-    [[nodiscard]] gsl_rng * gsl_rng_object() const noexcept { return r; }
+# if ALEPH_WITH_GSL
+    /** @brief A `gsl_rng` whose numbers come from rng().
+
+        @deprecated The generator is no longer of GSL; use rng(). It goes
+        in 8.0.0.
+        @return The `gsl_rng`, which the tree frees.
+        @throw std::bad_alloc If there is not enough memory, the first time.
+    */
+    [[deprecated("the generator is no longer of GSL: use rng(); it goes in 8.0.0")]]
+    [[nodiscard]] gsl_rng * gsl_rng_object() const { return r.gsl(); }
+# endif
 
     /// Return the tree's root
     Node *&getRoot() noexcept { return tree_root; }
@@ -833,7 +841,7 @@ namespace Aleph
     Node * insert(Node *p)
     {
       assert(p != Node::NullPtr);
-      PRIO(p) = gsl_rng_get(r);
+      PRIO(p) = r->get();
       p->getMaxEndpoint() = KEY(p).high;
       Node *result = insert(tree_root, p);
       if (result == Node::NullPtr)
@@ -851,7 +859,7 @@ namespace Aleph
     Node * insert_dup(Node *p)
     {
       assert(p != Node::NullPtr);
-      PRIO(p) = gsl_rng_get(r);
+      PRIO(p) = r->get();
       p->getMaxEndpoint() = KEY(p).high;
       tree_root = insert_dup(tree_root, p);
       ++num_nodes;
@@ -1088,7 +1096,7 @@ namespace Aleph
      *
      *  Not declared noexcept because the initializer
      *  `tree(src.tree.endpoint_comp())` constructs a new Tree, which
-     *  allocates a GSL RNG via gsl_rng_alloc and copies the comparator —
+     *  allocates a random number generator and copies the comparator —
      *  both can throw.
      *
      *  @param[in,out] src Source tree to move from.
