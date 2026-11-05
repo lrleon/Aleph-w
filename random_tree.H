@@ -31,7 +31,7 @@
 
 
 /** @file random_tree.H
- *  @brief Random tree generation using GSL random number generator.
+ *  @brief Random tree generation.
  *
  *  This file provides the RandTree class for generating uniformly random
  *  trees with n nodes. Uses the recursive bijection between binary trees
@@ -45,7 +45,10 @@
  *  3. Recursively building right subtree with n-i-1 nodes
  *  4. Converting binary tree to general tree
  *
- *  This produces uniformly distributed random trees.
+ *  This produces uniformly distributed random trees. The positions come
+ *  from a Gsl_Compatible_Rng, which gives the numbers of the
+ *  `gsl_rng_mt19937` of GSL: a seed gives the tree that it gave when they
+ *  came from GSL.
  *
  *  ## Usage Example
  *
@@ -71,21 +74,21 @@
 #ifndef RANDOM_TREE_H
 #define RANDOM_TREE_H
 
-# include <gsl/gsl_rng.h>
 # include <memory>
 # include <tpl_tree_node.H>
 # include <tpl_binNodeUtils.H>
 
 # include <ah-errors.H>
+# include <ah-random.H>
 
 using namespace Aleph;
 
 /**
  * @brief Generator for uniformly random trees.
  *
- * Uses the GSL Mersenne Twister (MT19937) random number generator to
- * create uniformly distributed random trees with a specified number
- * of nodes.
+ * Uses a Gsl_Compatible_Rng, the Mersenne Twister (MT19937) with the
+ * numbers of GSL, to create uniformly distributed random trees with a
+ * specified number of nodes.
  *
  * @tparam T Type of data stored in tree nodes (not used for generation)
  *
@@ -111,7 +114,7 @@ using namespace Aleph;
 template <typename T>
 class RandTree
 {
-  gsl_rng * r = nullptr;  ///< GSL random number generator
+  Gsl_Compatible_Rng_Owner r;  ///< The generator, in dynamic memory
 
   /**
    * @brief Recursively generate random binary tree.
@@ -125,7 +128,7 @@ class RandTree
       return nullptr;
 
     // inorder position of the root (random choice)
-    unsigned long i = gsl_rng_uniform_int(r, n);
+    unsigned long i = r->uniform_int(n);
     BinNode<T> * root = new BinNode<T>();
     LLINK(root) = random(i);
     RLINK(root) = random(n - i - 1);
@@ -138,16 +141,11 @@ public:
    * @brief Construct generator with specified seed.
    *
    * @param seed Random seed for reproducibility
-   * @throw std::bad_alloc if GSL allocation fails
+   * @throw std::bad_alloc if there is not enough memory for the generator
    */
-  RandTree(unsigned long seed)
+  RandTree(unsigned long seed) : r(seed % Gsl_Compatible_Rng::max())
   {
-    r = gsl_rng_alloc (gsl_rng_mt19937);
-    if (r == nullptr)
-      {
-        ah_bad_alloc_if(true);
-      }
-    gsl_rng_set(r, seed % gsl_rng_max(r));
+    // empty
   }
 
   /**
@@ -158,13 +156,13 @@ public:
   RandTree() : RandTree(time(nullptr)) {}
 
   /**
-   * @brief Destructor releases GSL resources.
+   * @brief Not copyable: a copy compiled, and both freed the same
+   * generator.
    */
-  ~RandTree()
-  {
-    if (r != nullptr)
-      gsl_rng_free(r);
-  }
+  RandTree(const RandTree &) = delete;
+
+  /// Not assignable, as it is not copyable.
+  RandTree & operator = (const RandTree &) = delete;
 
   /**
    * @brief Generate a random tree with n nodes.

@@ -35,7 +35,9 @@
  *
  *  Provides classes for generating random graphs with various
  *  properties: Erdős–Rényi, random connected, Hamiltonian, Eulerian,
- *  and scale-free graphs. Uses GSL for randomness.
+ *  and scale-free graphs. Their numbers come from a Gsl_Compatible_Rng,
+ *  which gives those of the `gsl_rng_mt19937` of GSL: a seed gives the
+ *  graph that it gave when they came from GSL.
  *
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
@@ -46,7 +48,6 @@
 
 # include <ah-graph-concepts.H>
 
-# include <gsl/gsl_rng.h>
 # include <concepts>
 # include <memory>
 # include <optional>
@@ -59,6 +60,7 @@
 # include <Tarjan.H>
 # include <ah-errors.H>
 # include <ah_init_guard.H>
+# include <ah-random.H>
 
 namespace Aleph
 {
@@ -139,11 +141,10 @@ namespace Aleph
     typedef typename GT::Node GT_Node;
     typedef typename GT::Arc GT_Arc;
 
-    // before r, which leaks if a copy of an initializer throws after it
     Kept_Initializer<Init_Node> kept_node;
     Kept_Initializer<Init_Arc> kept_arc;
 
-    gsl_rng *r;
+    Gsl_Compatible_Rng_Owner r; // the generator, in dynamic memory
 
     Init_Node & init_node;
     Init_Arc & init_arc;
@@ -220,7 +221,7 @@ namespace Aleph
       GT_Node *ret_val = nullptr;
       while (true)
         {
-          unsigned long idx = gsl_rng_uniform_int(r, num_nodes);
+          unsigned long idx = r->uniform_int(num_nodes);
           ret_val = nodes->access(idx);
           if (excluded == nullptr or ret_val != excluded)
             break;
@@ -232,7 +233,7 @@ namespace Aleph
     /// Select a random node from the given list.
     GT_Node * select_random_node(DynList<GT_Node *> & list) noexcept
     {
-      const unsigned long k = gsl_rng_uniform_int(r, list.size());
+      const unsigned long k = r->uniform_int(list.size());
       typename DynList<GT_Node *>::Iterator it(list);
       for (unsigned long i = 0; i < k; ++i, it.next_ne()) {}
 
@@ -275,22 +276,16 @@ namespace Aleph
     Random_Graph_Base(const unsigned long seed, N && __init_node, A && __init_arc)
       : kept_node(std::forward<N>(__init_node)),
         kept_arc(std::forward<A>(__init_arc)),
-        r(gsl_rng_alloc(gsl_rng_mt19937)),
+        r(seed % Gsl_Compatible_Rng::max()),
         init_node(kept_node.get()),
         init_arc(kept_arc.get()),
         num_nodes(0), num_arcs(0),
-        rand_max(gsl_rng_max(r)), save_parity(false)
+        rand_max(Gsl_Compatible_Rng::max()), save_parity(false)
     {
-      ah_bad_alloc_if(r == nullptr);
-
-      gsl_rng_set(r, seed % rand_max);
+      // empty
     }
 
-    virtual ~Random_Graph_Base()
-    {
-      if (r != nullptr)
-        gsl_rng_free(r);
-    }
+    virtual ~Random_Graph_Base() = default;
 
     /// Create a sparse random graph.
     GT create(const size_t & __num_nodes, const size_t & __num_arcs,
@@ -578,7 +573,7 @@ namespace Aleph
         {
           auto src = this->nodes->access(i);
           for (size_t j = i + 1; j < this->num_nodes; ++j)
-            if (gsl_rng_uniform(this->r) <= p) // random draw
+            if (this->r->uniform() <= p) // random draw
               {
                 auto tgt = this->nodes->access(j);
                 assert(src != tgt);
@@ -683,7 +678,7 @@ namespace Aleph
            --tries)
         {
           auto q = this->even_nodes.select
-              (gsl_rng_uniform_int(this->r, this->even_nodes.size()));
+              (this->r->uniform_int(this->even_nodes.size()));
           if (fits(q))
             p = q;
         }
@@ -710,11 +705,11 @@ namespace Aleph
       for (size_t tries = this->odd_nodes.size(); tries > 0; --tries)
         {
           GT_Node *src = this->odd_nodes.select
-              (gsl_rng_uniform_int(this->r, this->odd_nodes.size()));
+              (this->r->uniform_int(this->odd_nodes.size()));
           GT_Node *tgt = nullptr;
           do
             tgt = this->odd_nodes.select
-                (gsl_rng_uniform_int(this->r, this->odd_nodes.size()));
+                (this->r->uniform_int(this->odd_nodes.size()));
           while (tgt == src);
 
           if (this->idx_arc->search(src, tgt) == nullptr)
@@ -873,7 +868,7 @@ namespace Aleph
 
       while (this->g.get_num_arcs(src) + this->g.get_num_arcs(tgt) < n)
         {
-          auto p = this->nodes->access(gsl_rng_uniform_int(this->r, n));
+          auto p = this->nodes->access(this->r->uniform_int(n));
           if (p == src or p == tgt)
             continue;
 
@@ -1268,7 +1263,7 @@ namespace Aleph
         {
           auto src = this->nodes->access(i);
           for (size_t j = 0; j < this->num_nodes; ++j)
-            if (i != j and gsl_rng_uniform(this->r) <= p)
+            if (i != j and this->r->uniform() <= p)
               {
                 auto tgt = this->nodes->access(j);
                 assert(this->idx_arc->search_directed(src, tgt) == nullptr);
@@ -1389,7 +1384,7 @@ namespace Aleph
            --tries)
         {
           auto p = this->equal.select
-              (gsl_rng_uniform_int(this->r, this->equal.size()));
+              (this->r->uniform_int(this->equal.size()));
           if (fits(p))
             mid = p;
         }
@@ -1496,9 +1491,9 @@ namespace Aleph
           do
             {
               tgt = this->greater.select
-                  (gsl_rng_uniform_int(this->r, this->greater.size()));
+                  (this->r->uniform_int(this->greater.size()));
               src = this->smaller.select
-                  (gsl_rng_uniform_int(this->r, this->smaller.size()));
+                  (this->r->uniform_int(this->smaller.size()));
             }
           while (src == tgt);
 
@@ -1514,7 +1509,7 @@ namespace Aleph
 
       while (not (this->g.get_num_arcs(p) >= n2 and NODE_COUNTER(p) >= n2))
         {
-          auto q = this->nodes->access(gsl_rng_uniform_int(this->r, n));
+          auto q = this->nodes->access(this->r->uniform_int(n));
           if (q == p)
             continue;
 
@@ -1548,7 +1543,7 @@ namespace Aleph
 
       while (this->g.get_num_arcs(src) + NODE_COUNTER(tgt) < n)
         {
-          auto p = this->nodes->access(gsl_rng_uniform_int(this->r, n));
+          auto p = this->nodes->access(this->r->uniform_int(n));
           if (p == src or p == tgt)
             continue;
 

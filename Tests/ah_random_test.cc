@@ -47,6 +47,7 @@
 #include <algorithm>
 #include <climits>
 #include <cmath>
+#include <cstdint>
 #include <iomanip>
 #include <memory>
 #include <numeric>
@@ -242,6 +243,32 @@ TEST(GslCompatibleRng, TheNumbersOfTheStandard)
   for (int i = 0; i < 10000; ++i)
     x = g();
   EXPECT_EQ(x, 4123659995u);
+}
+
+TEST(GslCompatibleRng, TheNumbersAreThoseOfStdMt19937)
+{
+  // The generator keeps the Mersenne Twister itself: its numbers are those
+  // of a std::mt19937 seeded as GSL seeds, with 4357 for 0, and else with
+  // the low 32 bits, which may be 0, through several generations of the
+  // state, and after seeding both again
+  const auto mt_seed = [] (const unsigned long x)
+    {
+      return x == 0 ? std::uint32_t(4357) : static_cast<std::uint32_t>(x & 0xffffffffUL);
+    };
+  for (const unsigned long s : seeds())
+    {
+      Gsl_Compatible_Rng g(s);
+      std::mt19937 e(mt_seed(s));
+      for (int i = 0; i < 3 * 624 + 7; ++i)
+        ASSERT_EQ(g(), e()) << "seed " << s << ", number " << i;
+      g.seed(s + 1);
+      e.seed(mt_seed(s + 1));
+      for (int i = 0; i < 700; ++i)
+        ASSERT_EQ(g(), e()) << "seed " << s << " + 1, number " << i;
+    }
+
+  // Its state is 624 words of 32 bits and the position of the next one
+  EXPECT_EQ(sizeof(Gsl_Compatible_Rng), 624 * sizeof(std::uint32_t) + sizeof(int));
 }
 
 TEST(GslCompatibleRng, UniformIntRejectsZeroAndTooLargeBounds)

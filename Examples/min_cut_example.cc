@@ -41,8 +41,7 @@
  * COMPILE & RUN
  * ============================================================================
  *
- *   g++ -std=c++20 -O2 -I.. -o min_cut_example min_cut_example.cc \
- *       -lgsl -lgslcblas -lpthread
+ *   g++ -std=c++20 -O2 -I.. -o min_cut_example min_cut_example.cc -lpthread
  *   ./min_cut_example
  */
 

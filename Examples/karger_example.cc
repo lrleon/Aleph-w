@@ -26,7 +26,7 @@
  * 
  * COMPILE & RUN:
  * ==============
- * g++ -std=c++20 -I.. -o karger_example karger_example.cc -lgsl -lgslcblas
+ * g++ -std=c++20 -I.. -o karger_example karger_example.cc
  * ./karger_example
  */
 

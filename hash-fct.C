@@ -30,7 +30,6 @@
 
 
 # include <ctime>
-# include <gsl/gsl_rng.h>
 # include <stdexcept>
 # include <limits>
 # include <mutex>
@@ -39,6 +38,7 @@
 # include "hash-fct.H"
 
 # include <ah-errors.H>
+# include <ah-random.H>
 
 namespace Aleph
 { 
@@ -218,34 +218,18 @@ static FORCE_INLINE std::uint64_t wyhash_mix(std::uint64_t lhs,
   return mul_xor_fold64(lhs, rhs);
 }
 
-static FORCE_INLINE std::uint32_t jsw_fallback_next(std::uint32_t &state) noexcept
-{
-  state = state * 1664525u + 1013904223u;
-  return state;
-}
-
 // ============================================================================
 // Initialization and classic hashes
 // ============================================================================
 
-// Internal helper: populate tab[] from a given seed.
-// Must be called either via std::call_once or with jsw_mtx held.
+// Internal helper: populate tab[] from a given seed, with the numbers that
+// the gsl_rng_mt19937 of GSL gives for it, so that the table is the one of
+// before. Must be called either via std::call_once or with jsw_mtx held.
 static void jsw_fill_table(std::uint32_t seed) noexcept
 {
-  gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
-  if (r == nullptr)
-    {
-      std::uint32_t state = seed == 0 ? Default_Hash_Seed : seed;
-      for (int i = 0; i < 256; ++i)
-        tab[i] = static_cast<long>(jsw_fallback_next(state));
-      init.store(true, std::memory_order_release);
-      return;
-    }
-
-  gsl_rng_set(r, seed % gsl_rng_max(r));
+  Gsl_Compatible_Rng r(seed % Gsl_Compatible_Rng::max());
   for (int i = 0; i < 256; ++i)
-    tab[i] = gsl_rng_get(r);
-  gsl_rng_free(r);
+    tab[i] = r.get();
   // Release store: any thread that subsequently reads init==true with an
   // acquire load is guaranteed to observe the fully populated tab[].
   init.store(true, std::memory_order_release);

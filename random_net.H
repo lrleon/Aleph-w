@@ -33,7 +33,10 @@
 /** @file random_net.H
  *  @brief Random network flow graph generation.
  *
- *  Generates random capacitated networks for flow algorithm testing.
+ *  Generates random capacitated networks for flow algorithm testing. The
+ *  numbers come from a Gsl_Compatible_Rng, which gives those of the
+ *  `gsl_rng_mt19937` of GSL and its draws: a seed gives the network that
+ *  it gave when they came from GSL.
  *
  *  @see random_graph.H Random graph generation
  *  @see tpl_net.H Network structures
@@ -44,9 +47,6 @@
 # ifndef RANDOM_NET_H
 # define RANDOM_NET_H
 
-# include <gsl/gsl_rng.h>
-# include <gsl/gsl_randist.h>
-
 # include <memory>
 # include <stdexcept>
 # include <algorithm>
@@ -55,6 +55,7 @@
 # include <tpl_netcost.H>
 # include <tpl_indexArc.H>
 # include <ah-errors.H>
+# include <ah-random.H>
 
 
 template <class Net>
@@ -64,20 +65,21 @@ class Random_Network_Flow
   typedef typename Net::Arc Arc;
 
   DynArray<DynArray<Node *>> rank;
-  gsl_rng *r;
+  Aleph::Gsl_Compatible_Rng_Owner r; // the generator, in dynamic memory
   std::unique_ptr<Net> net;
 
 public:
   Random_Network_Flow(const unsigned int seed = time(nullptr))
-    : r(gsl_rng_alloc(gsl_rng_mt19937)), net(new Net)
+    : r(seed % Aleph::Gsl_Compatible_Rng::max()), net(new Net)
   {
-    gsl_rng_set(r, seed % gsl_rng_max(r));
+    // empty
   }
 
-  ~Random_Network_Flow()
-  {
-    gsl_rng_free(r);
-  }
+  /// Not copyable, nor movable: it owns its generator and its network.
+  Random_Network_Flow(const Random_Network_Flow &) = delete;
+
+  /// Not assignable, as it is not copyable.
+  Random_Network_Flow & operator = (const Random_Network_Flow &) = delete;
 
 private:
   void connect_ranks(size_t src_idx_rank,
@@ -95,17 +97,17 @@ private:
       {
         auto src = src_rank.access(i);
         const double lambda = density * num_nodes_tgt_rank;
-        size_t num_arcs = gsl_ran_exponential(r, lambda);
+        size_t num_arcs = r->exponential(lambda);
         num_arcs = std::min(num_arcs, num_nodes_tgt_rank);
         for (int k = 0; k < num_arcs; ++k)
           {
           repeat:
-            auto tgt_idx = gsl_rng_uniform_int(r, num_nodes_tgt_rank);
+            auto tgt_idx = r->uniform_int(num_nodes_tgt_rank);
             auto tgt = tgt_rank.access(tgt_idx);
             if (arcs.search(src, tgt) != nullptr)
               goto repeat;
 
-            const double cap = gsl_ran_gaussian(r, cap_sigma) + cap_mean;
+            const double cap = r->gaussian(cap_sigma) + cap_mean;
             this->net->insert_arc(src, tgt, cap);
           }
       }
@@ -143,7 +145,7 @@ private:
       << "Rank sigma " + std::to_string(rank_sigma) + " greater than 1";
     for (int i = 0; i < num_ranks; ++i)
       {
-        const double mu = gsl_ran_gaussian(r, rank_sigma * num_nodes_by_rank);
+        const double mu = r->gaussian(rank_sigma * num_nodes_by_rank);
         const size_t num_nodes = num_nodes_by_rank + mu;
         rank.touch(i).reserve(num_nodes);
         DynArray<Node *> & curr_rank = rank.access(i);
@@ -204,10 +206,12 @@ public:
      @param[in] num_ranks Number of ranks in the network
      @param[in] num_nodes_by_rank Average number of nodes per rank
      @param[in] rank_sigma Standard deviation of the number of nodes per rank (0-1)
-     @param[in] cap_mean media de la capacidad por arco
-     @param[in] cap_sigma desviación estándar de la capacidad de arcos
-     @param[in] forward_density densidad de arcos hacia adelante (0-1)
-     @param[in] backward_density densidad de arcos hacia atrás (0-1)
+     @param[in] cap_mean Mean of the capacity of an arc
+     @param[in] cap_sigma Standard deviation of the capacity of an arc
+     @param[in] forward_density Density of the arcs from a rank to the next
+                one, in (0, 1), and not less than backward_density
+     @param[in] backward_density Density of the arcs from a rank to the
+                previous one, in (0, 1)
      @return Pointer to the generated network
    */
   Net * operator ()(const size_t num_ranks,

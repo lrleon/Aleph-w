@@ -107,13 +107,13 @@
 # include <vector>
 # include <limits>
 # include <ctime>
-# include <gsl/gsl_rng.h>
 # include <cmath>
 # include <ahFunctional.H>
 # include <bitArray.H>
 # include <hash-fct.H>
 # include <tpl_dynSetHash.H>
 # include <ah-errors.H>
+# include <ah-random.H>
 
 namespace Aleph
 {
@@ -125,7 +125,9 @@ namespace Aleph
 
       This implementation:
       - Stores bits in a BitArray.
-      - Generates `k` per-hash seeds from a PRNG (GSL mt19937).
+      - Generates `k` per-hash seeds from a Gsl_Compatible_Rng, which
+        gives the numbers of the `gsl_rng_mt19937` of GSL: a seed gives
+        the per-hash seeds that it gave when they came from GSL.
       - Uses a user-provided hash function `(item, seed) -> size_t`.
 
       @tparam T Item type.
@@ -244,7 +246,7 @@ namespace Aleph
 
         @throw std::invalid_argument if `dim == 0`, `num_hashes == 0` or
         `hash_fn == nullptr`.
-        @throw std::bad_alloc if the internal random generator cannot be allocated.
+        @throw std::bad_alloc if there is not enough memory.
     */
     Bloom_Filter(const size_t dim, size_t num_hashes,
                  Hash_Fct hash_fn = dft_seed_hash_ptr_fct<T>,
@@ -257,13 +259,9 @@ namespace Aleph
       ah_invalid_argument_if(hash_fct == nullptr) << "Bloom filter hash function is null";
 
       bits.reserve(dim);
-      const std::unique_ptr<gsl_rng, void(*)(gsl_rng *)>
-          r(gsl_rng_alloc(gsl_rng_mt19937), gsl_rng_free);
-      ah_bad_alloc_if(r.get() == nullptr);
-      gsl_rng_set(r.get(), seed % gsl_rng_max(r.get()));
-
+      Gsl_Compatible_Rng r(seed % Gsl_Compatible_Rng::max());
       for (auto & s: seeds)
-        s = gsl_rng_get(r.get());
+        s = r.get();
     }
 
     /**

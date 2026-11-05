@@ -47,9 +47,9 @@
 # include <limits>
 # include <memory>
 # include <iterator>
-# include <gsl/gsl_rng.h>
 
 # include <ah-errors.H>
+# include <ah-random.H>
 # include <tpl_array.H>
 
 namespace Aleph
@@ -67,12 +67,13 @@ namespace Aleph
    *  @tparam T Element type.
    *  @note k is an unsigned size_t. If `k == 0`, no elements are stored and
    *        `get_sample()` returns an empty array.
+   *  @note The positions come from a Gsl_Compatible_Rng, which gives the
+   *        numbers of the `gsl_rng_mt19937` of GSL: a seed gives the sample
+   *        that it gave when they came from GSL.
    */
   template <typename T>
   class Reservoir_Sampler
   {
-    using GslRngPtr = std::unique_ptr<gsl_rng, void(*)(gsl_rng *)>;
-
     size_t k_;             /**< Sample size. */
     size_t n_seen_ = 0;    /**< Total elements seen so far. */
     unsigned long seed_;   /**< Stored seed for RNG reset. */
@@ -80,26 +81,22 @@ namespace Aleph
     uint64_t rng_max_;     /**< Maximum value produced by RNG. */
     uint64_t rng_range_;   /**< Cached range of the RNG (max - min + 1). */
     Array<T> reservoir_;   /**< Current random sample. */
-    GslRngPtr rng_;        /**< Random number generator. */
+    Gsl_Compatible_Rng_Owner rng_; /**< Random number generator. */
 
   public:
     /** @brief Initialize sampler.
      *
      *  @param[in] k    Size of the sample to maintain.
      *  @param[in] seed Optional seed for RNG (defaults to current time).
-     *  @throws std::runtime_error if GSL RNG allocation fails (checked via 
-     *          ah_runtime_error_unless).
+     *  @throws std::bad_alloc if there is not enough memory.
      */
     explicit Reservoir_Sampler(const size_t k,
                                const unsigned long seed = static_cast<unsigned long>(
                                  std::chrono::high_resolution_clock::now().time_since_epoch().count()))
-      : k_(k), seed_(seed),
-        rng_(gsl_rng_alloc(gsl_rng_mt19937), gsl_rng_free)
+      : k_(k), seed_(seed), rng_(seed_)
     {
-      ah_runtime_error_unless(rng_ != nullptr) << "Reservoir_Sampler: GSL RNG allocation failed";
-      gsl_rng_set(rng_.get(), seed_);
-      rng_min_ = static_cast<uint64_t>(gsl_rng_min(rng_.get()));
-      rng_max_ = static_cast<uint64_t>(gsl_rng_max(rng_.get()));
+      rng_min_ = static_cast<uint64_t>(Gsl_Compatible_Rng::min());
+      rng_max_ = static_cast<uint64_t>(Gsl_Compatible_Rng::max());
       rng_range_ = rng_max_ - rng_min_ + 1ULL;
       if (k_ > 0)
         reservoir_.reserve(k_);
@@ -133,12 +130,14 @@ namespace Aleph
           ah_overflow_error_if(n_seen_ >= std::numeric_limits<unsigned long>::max())
             << "Reservoir_Sampler::update: stream length exceeds unsigned long capacity";
 
-          ah_runtime_error_unless(n_seen_ < rng_range_)
+          // the bound n_seen_ + 1 of uniform_int() is at most
+          // max() - min(), which is rng_range_ - 1
+          ah_runtime_error_unless(n_seen_ + 1 < rng_range_)
             << "Reservoir_Sampler::update: stream length exceeds RNG generator range (" << rng_range_ << ")";
 
           // Exclusive upper bound for the uniform random index in [0, n_seen_]
           const auto upper_bound = static_cast<unsigned long>(n_seen_ + 1);
-          const size_t j = gsl_rng_uniform_int(rng_.get(), upper_bound);
+          const size_t j = rng_->uniform_int(upper_bound);
           if (j < k_)
             reservoir_(j) = val;
         }
@@ -219,7 +218,7 @@ namespace Aleph
     {
       reservoir_.clear();
       n_seen_ = 0;
-      gsl_rng_set(rng_.get(), seed_);
+      rng_->seed(seed_);
     }
   };
 
@@ -234,7 +233,7 @@ namespace Aleph
    *  @param[in] seed Random seed.
    *  @return Array of the iterator's value_type (derived from std::iterator_traits<Itor>::value_type) 
    *          containing the sampled elements.
-   *  @throws std::runtime_error if GSL RNG allocation fails.
+   *  @throws std::bad_alloc if there is not enough memory.
    *  @throws std::overflow_error if stream length exceeds safe limits.
    *
    *  @note Complexity: O(n) time, O(k) space.
