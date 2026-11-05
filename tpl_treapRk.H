@@ -50,6 +50,7 @@
 # ifndef TPL_TREAPRK_H
 # define TPL_TREAPRK_H
 
+# include <type_traits>
 # include <ah-random.H>
 # include <ahFunction.H>
 # include <tpl_binTreeOps.H>
@@ -235,8 +236,10 @@ public:
       swapped or destroyed.
 
       @param[in,out] tree The treap to move.
+      @throw anything that the move of the comparison criteria throws; then
+             `tree` keeps its nodes, but not its generator.
   */
-  Gen_Treap_Rk(Gen_Treap_Rk && tree) noexcept
+  Gen_Treap_Rk(Gen_Treap_Rk && tree) noexcept(std::is_nothrow_move_constructible_v<Compare>)
     : head_ptr(&head), tree_root(RLINK(head_ptr)), r(std::move(tree.r)),
       cmp(std::move(tree.cmp))
   {

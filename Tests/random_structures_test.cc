@@ -55,6 +55,7 @@
 #include <cstdio>
 #include <limits>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -359,6 +360,65 @@ TEST(RandomStructures, TheDeprecatedGslRngFollowsItsGenerator)
   EXPECT_EQ(twin, Gsl_Compatible_Rng(1));
   EXPECT_EQ(gsl_rng_get(ra), twin.get());
   EXPECT_EQ(b.rng(), twin);
+}
+
+TEST(RandomStructures, TheDeprecatedGslRngCopiesSavesAndRestoresTheGenerator)
+{
+  // its state is the generator, which GSL copies, saves and restores by its
+  // bytes
+  Treap<int> t(7);
+  gsl_rng * r = t.gsl_rng_object();
+  EXPECT_EQ(gsl_rng_size(r), sizeof(Gsl_Compatible_Rng));
+  EXPECT_EQ(gsl_rng_state(r), static_cast<void *>(&t.rng()));
+
+  // a clone goes on with the same numbers, on its own
+  gsl_rng * c = gsl_rng_clone(r);
+  ASSERT_NE(c, nullptr);
+  for (int i = 0; i < 1000; ++i)
+    ASSERT_EQ(gsl_rng_get(c), gsl_rng_get(r)) << "at " << i;
+  (void) gsl_rng_get(c);
+  EXPECT_FALSE(*static_cast<const Gsl_Compatible_Rng *>(gsl_rng_state(c)) == t.rng());
+  gsl_rng_free(c);
+
+  // saved, advanced and restored, the generator of the treap gives the
+  // same numbers again
+  std::FILE * f = std::tmpfile();
+  ASSERT_NE(f, nullptr);
+  ASSERT_EQ(gsl_rng_fwrite(f, r), 0);
+  const Gsl_Compatible_Rng saved = t.rng();
+  std::vector<unsigned long> next(100);
+  for (auto & x : next)
+    x = t.rng().get();
+  std::rewind(f);
+  ASSERT_EQ(gsl_rng_fread(f, r), 0);
+  std::fclose(f);
+  EXPECT_EQ(t.rng(), saved);
+  for (const auto x : next)
+    EXPECT_EQ(gsl_rng_get(r), x);
+
+  // gsl_rng_memcpy() copies the generator of a treap into that of another
+  Treap<int> u(8);
+  ASSERT_EQ(gsl_rng_memcpy(u.gsl_rng_object(), r), 0);
+  EXPECT_EQ(u.rng(), t.rng());
+}
+
+TEST(RandomStructures, TheDeprecatedGslRngIsMadeOnceFromSeveralThreads)
+{
+  // the gsl_rng of a const structure, which gsl_rng_object() makes the
+  // first time, is one even if several threads ask for it at once
+  for (int round = 0; round < 50; ++round)
+    {
+      const Interval_Tree<int> t(9);
+      std::vector<gsl_rng *> got(4, nullptr);
+      std::vector<std::thread> threads;
+      for (size_t k = 0; k < got.size(); ++k)
+        threads.emplace_back([&t, &got, k] { got[k] = t.gsl_rng_object(); });
+      for (auto & th : threads)
+        th.join();
+      for (gsl_rng * p : got)
+        ASSERT_EQ(p, got[0]) << "round " << round;
+      EXPECT_EQ(gsl_rng_state(got[0]), static_cast<void *>(&t.rng()));
+    }
 }
 
 #  if defined(__GNUC__)

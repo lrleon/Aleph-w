@@ -30,7 +30,8 @@
 
 /**
  * @file ah_random_test.cc
- * @brief Gsl_Compatible_Rng against GSL, bit by bit.
+ * @brief Gsl_Compatible_Rng against GSL, bit by bit, but for the reals of
+ * flat() and gaussian() where GSL fuses multiply-adds.
  *
  * Each test seeds a Gsl_Compatible_Rng and a gsl_rng_mt19937 alike, and
  * draws from both, in an order that another generator picks, so that a
@@ -45,6 +46,8 @@
 
 #include <algorithm>
 #include <climits>
+#include <cmath>
+#include <iomanip>
 #include <memory>
 #include <numeric>
 #include <random>
@@ -58,6 +61,31 @@ namespace
   {
     void operator () (gsl_rng * r) const noexcept { gsl_rng_free(r); }
   };
+
+  // Whether a draw of flat() or gaussian() is the one of GSL: bit by bit
+  // where GSL rounds each product, as the distributions build it for
+  // x86-64; elsewhere, where GSL may fuse multiply-adds, as for arm64, up
+  // to its last bits, which the logarithm of a Gaussian near the edge of
+  // the circle amplifies (6.6e-13 at most in the draws of these tests)
+  ::testing::AssertionResult same_real(const double ours, const double gsl)
+  {
+#if defined(__x86_64__) || defined(_M_X64)
+    const bool same = ours == gsl;
+#else
+    const bool same = std::abs(ours - gsl) <= 1e-9 * std::max(1.0, std::abs(gsl));
+#endif
+    if (same)
+      return ::testing::AssertionSuccess();
+    return ::testing::AssertionFailure() << std::setprecision(17) << ours << " is not "
+                                         << gsl;
+  }
+
+  // A product rounded to double, as gaussian() and flat() round theirs
+  double rounded(const double product)
+  {
+    volatile double v = product;
+    return v;
+  }
 
   using Gsl_Ptr = std::unique_ptr<gsl_rng, Gsl_Free>;
 
@@ -134,11 +162,11 @@ TEST(GslCompatibleRng, EveryDrawIsTheOneOfGsl)
               << "seed " << s << " at " << i;
             break;
           case 5:
-            ASSERT_EQ(g.flat(-3.5, 7.25), gsl_ran_flat(r.get(), -3.5, 7.25))
+            ASSERT_TRUE(same_real(g.flat(-3.5, 7.25), gsl_ran_flat(r.get(), -3.5, 7.25)))
               << "seed " << s << " at " << i;
             break;
           case 6:
-            ASSERT_EQ(g.gaussian(2.5), gsl_ran_gaussian(r.get(), 2.5))
+            ASSERT_TRUE(same_real(g.gaussian(2.5), gsl_ran_gaussian(r.get(), 2.5)))
               << "seed " << s << " at " << i;
             break;
           default:
@@ -148,6 +176,36 @@ TEST(GslCompatibleRng, EveryDrawIsTheOneOfGsl)
           }
     }
   EXPECT_EQ(draws, 20000 * seeds().size());
+}
+
+TEST(GslCompatibleRng, TheRealDrawsRoundEachProduct)
+{
+  // flat() and gaussian() are the formulas of GSL with each product
+  // rounded, bit by bit, whatever the options of the build: a fused
+  // multiply-add would show here on a platform that has them
+  for (unsigned long s : seeds())
+    {
+      Gsl_Compatible_Rng g(s), twin(s);
+      for (int i = 0; i < 2000; ++i)
+        {
+          const double a = 0.1, b = 1.7; // their products are not exact
+          const double u = twin.uniform();
+          ASSERT_EQ(g.flat(a, b), rounded(a * (1 - u)) + rounded(b * u))
+            << "seed " << s << " at " << i;
+
+          double x, y, r2;
+          do
+            {
+              x = -1 + 2 * twin.uniform_pos();
+              y = -1 + 2 * twin.uniform_pos();
+              r2 = rounded(x * x) + rounded(y * y);
+            }
+          while (r2 > 1.0 or r2 == 0);
+          ASSERT_EQ(g.gaussian(2.5), 2.5 * y * std::sqrt(-2.0 * std::log(r2) / r2))
+            << "seed " << s << " at " << i;
+        }
+      EXPECT_EQ(g, twin);
+    }
 }
 
 TEST(GslCompatibleRng, SeedingAgainIsAsGslRngSet)

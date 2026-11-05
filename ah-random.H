@@ -36,9 +36,19 @@
  *  Gsl_Compatible_Rng is the Mersenne Twister of the standard library,
  *  `std::mt19937`, which is the algorithm of `gsl_rng_mt19937` and whose
  *  output the standard fixes, seeded as GSL seeds it. Its draws follow
- *  the algorithms of GSL. So, for each seed, it gives the numbers that GSL
- *  gives, bit by bit, on every platform, and a structure or a test that
- *  took its numbers from GSL takes the same ones from it.
+ *  the algorithms of GSL. So, for each seed, its integers and the reals of
+ *  uniform() and uniform_pos() are those of GSL, bit by bit, on every
+ *  platform, and a structure or a test that took its numbers from GSL
+ *  takes the same ones from it.
+ *
+ *  flat(), gaussian() and exponential() take the logarithm and the square
+ *  root of the C library, as GSL does; flat() and gaussian() round each
+ *  product, so that a fused multiply-add of the compiler cannot change
+ *  their draws, which do not depend on the options with which a program is
+ *  built. On a platform, they are those of GSL where GSL rounds them too,
+ *  as in the builds of the distributions for x86-64; where GSL is built
+ *  with fused multiply-adds, as for arm64, a draw of flat() or gaussian()
+ *  may differ from that of GSL in its last bits.
  *
  *  @ingroup Utilities
  */
@@ -46,12 +56,14 @@
 # ifndef AH_RANDOM_H
 # define AH_RANDOM_H
 
+# include <atomic>
 # include <cmath>
 # include <cstdint>
 # include <cstdlib>
 # include <memory>
 # include <new>
 # include <random>
+# include <type_traits>
 # include <utility>
 # include <ah-errors.H>
 
@@ -81,7 +93,8 @@ namespace Aleph
    *  `gsl_rng_mt19937`.
    *
    *  For each seed, the numbers and the draws are those of the functions
-   *  of GSL named on each member, bit by bit:
+   *  of GSL named on each member, bit by bit, but for what the
+   *  documentation of the file says of flat() and gaussian():
    *
    *  | Member | GSL |
    *  |---|---|
@@ -124,6 +137,15 @@ namespace Aleph
     {
       ah_domain_error() << "Gsl_Compatible_Rng::uniform_int(): n is " << n
                         << ", outside [1, " << max() << "]";
+    }
+
+    // A product rounded to double: through a volatile, the compiler cannot
+    // fuse it with an addition into a multiply-add, whose single rounding
+    // would change a draw, and so how many numbers a rejection takes
+    static double rounded(const double product) noexcept
+    {
+      volatile double v = product;
+      return v;
     }
 
   public:
@@ -219,12 +241,13 @@ namespace Aleph
      *
      *  @param[in] a The least value.
      *  @param[in] b The bound of the values.
-     *  @return a (1 - u) + b u, for u of uniform().
+     *  @return a (1 - u) + b u, for u of uniform(), with each product
+     *          rounded.
      */
     double flat(const double a, const double b) noexcept
     {
       const double u = uniform();
-      return a * (1 - u) + b * u;
+      return rounded(a * (1 - u)) + rounded(b * u);
     }
 
     /** @brief A real number of the normal distribution of mean 0, as
@@ -232,7 +255,8 @@ namespace Aleph
      *
      *  The polar method of Box and Muller: a point of the square
      *  (-1, 1)^2, of uniform_pos(), until it falls inside the unit circle
-     *  and is not its center.
+     *  and is not its center; the squares of its coordinates are rounded
+     *  before their sum.
      *
      *  @param[in] sigma The standard deviation.
      *  @return The number.
@@ -244,7 +268,7 @@ namespace Aleph
         {
           x = -1 + 2 * uniform_pos();
           y = -1 + 2 * uniform_pos();
-          r2 = x * x + y * y;
+          r2 = rounded(x * x) + rounded(y * y);
         }
       while (r2 > 1.0 or r2 == 0);
 
@@ -279,65 +303,63 @@ namespace Aleph
 # if ALEPH_WITH_GSL
   extern "C"
   {
-    // The functions of the gsl_rng_type of a gsl_rng that reads from a
-    // Gsl_Compatible_Rng, whose state is a pointer to it
+    // The functions of the gsl_rng_type of a gsl_rng whose state is a
+    // Gsl_Compatible_Rng
 
     inline void aleph_gsl_compatible_rng_set(void * state, unsigned long s)
     {
-      (*static_cast<Gsl_Compatible_Rng **>(state))->seed(s);
+      static_cast<Gsl_Compatible_Rng *>(state)->seed(s);
     }
 
     inline unsigned long aleph_gsl_compatible_rng_get(void * state)
     {
-      return (*static_cast<Gsl_Compatible_Rng **>(state))->get();
+      return static_cast<Gsl_Compatible_Rng *>(state)->get();
     }
 
     inline double aleph_gsl_compatible_rng_get_double(void * state)
     {
-      return (*static_cast<Gsl_Compatible_Rng **>(state))->uniform();
+      return static_cast<Gsl_Compatible_Rng *>(state)->uniform();
     }
   }
+
+  static_assert(std::is_trivially_copyable_v<Gsl_Compatible_Rng>
+                and std::is_trivially_destructible_v<Gsl_Compatible_Rng>,
+                "GSL copies the state of a gsl_rng by its bytes");
 
   namespace random_detail
   {
     // The type of the gsl_rng of gsl_rng_object(): that of
-    // gsl_rng_mt19937, in its limits, but its numbers come from a
-    // Gsl_Compatible_Rng
+    // gsl_rng_mt19937, in its limits, but its state is a
+    // Gsl_Compatible_Rng, which gsl_rng_clone(), gsl_rng_memcpy(),
+    // gsl_rng_fwrite() and gsl_rng_fread() copy by its bytes
     inline const gsl_rng_type gsl_compatible_rng_type =
       {
         "aleph_gsl_compatible_rng",
         0xffffffffUL,
         0,
-        sizeof(Gsl_Compatible_Rng *),
+        sizeof(Gsl_Compatible_Rng),
         &aleph_gsl_compatible_rng_set,
         &aleph_gsl_compatible_rng_get,
         &aleph_gsl_compatible_rng_get_double
       };
 
-    // A gsl_rng that reads from rng. It is made by hand, as gsl_rng_alloc()
-    // would seed rng, and so it is freed by hand too: the free() of GSL may
-    // not be the one of this malloc(), as with a DLL of GSL that has a CRT
-    // of its own on Windows.
+    // A gsl_rng whose state is rng. It is made by hand, as gsl_rng_alloc()
+    // would make another state and seed it, and so it is freed by hand too:
+    // the free() of GSL may not be the one of this malloc(), as with a DLL
+    // of GSL that has a CRT of its own on Windows.
     inline gsl_rng * make_gsl_adapter(Gsl_Compatible_Rng & rng)
     {
       auto * r = static_cast<gsl_rng *>(std::malloc(sizeof(gsl_rng)));
       if (r == nullptr)
         throw std::bad_alloc();
-      r->state = std::malloc(sizeof(Gsl_Compatible_Rng *));
-      if (r->state == nullptr)
-        {
-          std::free(r);
-          throw std::bad_alloc();
-        }
       r->type = &gsl_compatible_rng_type;
-      *static_cast<Gsl_Compatible_Rng **>(r->state) = &rng;
+      r->state = &rng;
       return r;
     }
 
     inline void free_gsl_adapter(void * r) noexcept
     {
-      std::free(static_cast<gsl_rng *>(r)->state);
-      std::free(r);
+      std::free(r); // the state is the generator, which is not its own
     }
   } // namespace random_detail
 # endif
@@ -348,30 +370,32 @@ namespace Aleph
    *
    *  It moves and swaps with the structure; it is not copied, since each
    *  structure makes its own generator. While `ALEPH_WITH_GSL` is 1, gsl()
-   *  gives a `gsl_rng` whose numbers come from the generator, for the
-   *  deprecated `gsl_rng_object()` of the structures: `gsl_rng_set()`,
-   *  `gsl_rng_get()` or `gsl_rng_uniform_int()` on it act on the generator
-   *  of the structure.
+   *  gives a `gsl_rng` whose state is the generator, for the deprecated
+   *  `gsl_rng_object()` of the structures: the functions of GSL on it act
+   *  on the generator of the structure.
    *
    *  @ingroup Utilities
    */
   class Gsl_Compatible_Rng_Owner
   {
-    // The generator, and a gsl_rng that reads from it, made the first time
+    // The generator, and a gsl_rng whose state it is, made the first time
     // that gsl() is called, with the function that frees it; untyped, so
-    // that the layout does not depend on ALEPH_WITH_GSL
+    // that the layout does not depend on ALEPH_WITH_GSL. Atomic, so that
+    // calls to gsl() from several threads make one.
     struct Block
     {
+      using Free = void (*)(void *) noexcept;
+
       Gsl_Compatible_Rng rng;
-      void * adapter = nullptr;
-      void (*free_adapter)(void *) noexcept = nullptr;
+      std::atomic<void *> adapter{nullptr};
+      std::atomic<Free> free_adapter{nullptr};
 
       explicit Block(const unsigned long s) noexcept : rng(s) {}
 
       ~Block()
       {
-        if (adapter != nullptr)
-          free_adapter(adapter);
+        if (void * a = adapter.load(std::memory_order_acquire); a != nullptr)
+          free_adapter.load(std::memory_order_relaxed)(a);
       }
 
       Block(const Block &) = delete;
@@ -443,23 +467,33 @@ namespace Aleph
     }
 
 # if ALEPH_WITH_GSL
-    /** @brief A `gsl_rng` whose numbers come from the generator.
+    /** @brief A `gsl_rng` whose state is the generator.
      *
-     *  It is made the first time, and freed with the generator. Its state
-     *  is a pointer to the generator: a copy of it by `gsl_rng_clone()`
-     *  reads from the same generator, and only while it lives.
+     *  It is made the first time, once even if several threads call it,
+     *  and freed with the generator, so that it must not be passed to
+     *  `gsl_rng_free()`. As its state is the generator, `gsl_rng_clone()`,
+     *  `gsl_rng_memcpy()`, `gsl_rng_fwrite()` and `gsl_rng_fread()` copy,
+     *  save and restore the generator, as they do the state of a `gsl_rng`
+     *  of GSL; a file of `gsl_rng_fwrite()` is read back by a program built
+     *  with the same standard library.
      *
      *  @return The `gsl_rng`.
      *  @throw std::bad_alloc If there is not enough memory.
      */
     [[nodiscard]] gsl_rng * gsl() const
     {
-      if (block->adapter == nullptr)
+      void * a = block->adapter.load(std::memory_order_acquire);
+      if (a == nullptr)
         {
-          block->adapter = random_detail::make_gsl_adapter(block->rng);
-          block->free_adapter = &random_detail::free_gsl_adapter;
+          gsl_rng * made = random_detail::make_gsl_adapter(block->rng);
+          block->free_adapter.store(&random_detail::free_gsl_adapter, std::memory_order_relaxed);
+          if (block->adapter.compare_exchange_strong(a, made, std::memory_order_acq_rel,
+                                                     std::memory_order_acquire))
+            a = made;
+          else // another thread made one first, which a is now
+            random_detail::free_gsl_adapter(made);
         }
-      return static_cast<gsl_rng *>(block->adapter);
+      return static_cast<gsl_rng *>(a);
     }
 # endif
   };
