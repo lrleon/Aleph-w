@@ -54,6 +54,7 @@
 # include <generate_graph.H>
 # include <tpl_graph_utils.H>
 # include <ah-errors.H>
+# include <ah-random.H>
 
 namespace Aleph
 {
@@ -84,7 +85,10 @@ namespace Aleph
       - Early termination when a cut of size 1 is found
       - Reuses internal graph structures across iterations for efficiency
       - Move-only semantics (non-copyable, moveable)
-      - Reproducible results with seed control
+      - Reproducible results with seed control: the arcs are drawn by a
+        Gsl_Compatible_Rng, which gives the numbers of the
+        `gsl_rng_mt19937` of GSL, so that a seed gives the cuts that it
+        gave when they came from GSL
 
       @note This algorithm is designed for undirected graphs.
       @note The graph must be connected (considering the arc filter) and contain no self-loops.
@@ -239,7 +243,7 @@ namespace Aleph
     }
 
     unsigned long seed;
-    gsl_rng *r;
+    Gsl_Compatible_Rng_Owner r; // the generator, in dynamic memory
     SA sa;
 
     /// Build the contracted graph representation from the original graph.
@@ -307,6 +311,15 @@ namespace Aleph
         arcs.insert(it.get_curr());
     }
 
+    /// The position of an arc among num_arcs, drawn out of line: a
+    /// contraction takes much longer than a draw, and with the draw inline
+    /// GCC stops inlining the contraction and the removal of its nodes,
+    /// which cost more than the call.
+    [[gnu::noinline]] size_t draw_arc(const size_t num_arcs)
+    {
+      return r->uniform_int(num_arcs);
+    }
+
     /// Contract the graph by randomly merging edges until left_num_nodes remain.
     /// This is the core of Karger's algorithm. Each iteration:
     /// 1. Randomly selects an arc
@@ -322,7 +335,7 @@ namespace Aleph
         { // randomly select an arc from kg
           assert(arcs.size() == kg.get_num_arcs() &&
                  "Arc index and graph arc count must be in sync");
-          auto num_arc = gsl_rng_uniform_int(r, arcs.size());
+          auto num_arc = draw_arc(arcs.size());
           auto a = arcs.select(num_arc); // arc to remove
           auto s = kg.get_src_node(a); // nodes to "contract"
           auto t = kg.get_tgt_node(a);
@@ -468,32 +481,29 @@ namespace Aleph
                    reproducible results.
         @param[in] _sa Arc filter to determine which arcs to consider.
                    Defaults to Dft_Show_Arc<GT> which includes all arcs.
+        @throw std::bad_alloc if there is not enough memory for the
+               generator.
      */
     Karger_Min_Cut(const unsigned long _seed = time(nullptr), SA _sa = SA())
-      : seed(_seed), r(gsl_rng_alloc(gsl_rng_mt19937)), sa(_sa)
+      : seed(_seed), r(seed % Gsl_Compatible_Rng::max()), sa(_sa)
     {
-      gsl_rng_set(r, seed % gsl_rng_max(r));
+      // empty
     }
 
-    /// Destructor. Frees the random number generator (if not moved).
-    ~Karger_Min_Cut()
-    {
-      if (r)
-        gsl_rng_free(r);
-    }
-
-    /// Disable copy constructor (class owns gsl_rng pointer)
+    /// Disable copy constructor (class owns its generator)
     Karger_Min_Cut(const Karger_Min_Cut &) = delete;
 
-    /// Disable copy assignment (class owns gsl_rng pointer)
+    /// Disable copy assignment (class owns its generator)
     Karger_Min_Cut &operator=(const Karger_Min_Cut &) = delete;
 
-    /// Move constructor. Transfers ownership of the random number generator.
+    /** Move constructor. Transfers ownership of the random number
+        generator, once the filter is moved: if its move throws, `other`
+        keeps its generator. */
     Karger_Min_Cut(Karger_Min_Cut && other)
       noexcept(std::is_nothrow_move_constructible_v<SA>)
-      : seed(other.seed), r(other.r), sa(std::move(other.sa))
+      : seed(other.seed), sa(std::move(other.sa))
     {
-      other.r = nullptr;
+      r.swap(other.r);
     }
 
     /** Move assignment operator. Transfers ownership of the random number
@@ -506,11 +516,8 @@ namespace Aleph
       if (this != &other)
         {
           sa = std::move(other.sa); // first, which may throw
-          if (r)
-            gsl_rng_free(r);
           seed = other.seed;
-          r = other.r;
-          other.r = nullptr;
+          r = std::move(other.r);
         }
       return *this;
     }
@@ -523,8 +530,8 @@ namespace Aleph
     void reseed(const unsigned long new_seed) noexcept
     {
       seed = new_seed;
-      if (r)
-        gsl_rng_set(r, seed % gsl_rng_max(r));
+      if (r.get() != nullptr)
+        r->seed(seed % Gsl_Compatible_Rng::max());
     }
 
     /** Compute only the minimum cut size (without partition info).
@@ -539,7 +546,7 @@ namespace Aleph
      */
     size_t compute_min_cut_size(GT & g, size_t num_iter = 0)
     {
-      assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
+      assert(r.get() != nullptr && "Cannot use moved-from Karger_Min_Cut object");
       validate_graph(g);
 
       if (num_iter == 0)
@@ -585,7 +592,7 @@ namespace Aleph
                        DynList<typename GT::Arc *> & cut,
                        const size_t num_iter)
     {
-      assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
+      assert(r.get() != nullptr && "Cannot use moved-from Karger_Min_Cut object");
       return karger_min_cut(g, vs, vt, cut, num_iter);
     }
 
@@ -606,7 +613,7 @@ namespace Aleph
                        DynList<typename GT::Node *> & vt,
                        DynList<typename GT::Arc *> & cut)
     {
-      assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
+      assert(r.get() != nullptr && "Cannot use moved-from Karger_Min_Cut object");
       const size_t n = g.get_num_nodes();
       // 1.05 * n^2 iterations gives high probability of finding min cut
       const auto num_iter = static_cast<size_t>(1.05 * n * n);
@@ -635,7 +642,7 @@ namespace Aleph
                 DynList<typename GT::Arc *> & cut,
                 size_t num_iter = 0)
     {
-      assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
+      assert(r.get() != nullptr && "Cannot use moved-from Karger_Min_Cut object");
       validate_graph(g);
 
       // Default iterations: ceil(log^2 n) for high probability

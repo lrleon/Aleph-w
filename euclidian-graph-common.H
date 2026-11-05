@@ -49,8 +49,8 @@
 # include <cstddef>
 # include <limits>
 
-# include <gsl/gsl_rng.h>
-
+# include <ah-random.H>
+# include <ah_init_guard.H>
 # include <tpl_sgraph.H>
 # include <io_graph.H>
 # include <random_graph.H>
@@ -65,12 +65,13 @@ namespace Aleph
 
   /** @brief Internal RNG handle used by the helper functors in this header.
    *
-   * It is set by gen_random_euclidian_graph() and cleared before returning.
-   * This is not thread-safe.
+   * It is set by gen_random_euclidian_graph(), to a Gsl_Compatible_Rng,
+   * which gives the numbers of the `gsl_rng_mt19937` of GSL, and cleared
+   * before it returns or throws. This is not thread-safe.
    *
    * @note This variable is defined in euclidian-graph-common.C.
    */
-  extern gsl_rng *rand_gen;
+  extern Gsl_Compatible_Rng *rand_gen;
 
   template <class GT>
   struct Init_P
@@ -96,8 +97,8 @@ namespace Aleph
       long x, y;
       while (true)
         {
-          x = gsl_rng_uniform_int(rand_gen, W);
-          y = gsl_rng_uniform_int(rand_gen, H);
+          x = rand_gen->uniform_int(W);
+          y = rand_gen->uniform_int(H);
           std::pair<int, int> q(x, y);
           if (puntos.search(q) != nullptr)
             continue;
@@ -130,7 +131,7 @@ namespace Aleph
       const double dist = std::hypot(static_cast<double>(psrc.x - ptgt.x),
                                      static_cast<double>(psrc.y - ptgt.y));
 
-      const int offset = max_offset > 0 ? static_cast<int>(gsl_rng_uniform_int(rand_gen, max_offset)) : 0;
+      const int offset = max_offset > 0 ? static_cast<int>(rand_gen->uniform_int(max_offset)) : 0;
 
       a->get_info() = dist + offset;
     }
@@ -186,9 +187,9 @@ namespace Aleph
     ah_domain_error_if(n > max_unique)
       << "gen_random_euclidian_graph(): requested n exceeds available unique grid points";
 
-    rand_gen = gsl_rng_alloc(gsl_rng_mt19937);
-    ah_bad_alloc_if(rand_gen == nullptr);
-    gsl_rng_set(rand_gen, seed % gsl_rng_max(rand_gen));
+    Gsl_Compatible_Rng rng(seed % Gsl_Compatible_Rng::max());
+    rand_gen = &rng;
+    Init_Guard clear_rand_gen([] { rand_gen = nullptr; });
 
     Init_P<GT> initp(w, h);
     const int max_offset = std::max(1,
@@ -196,12 +197,7 @@ namespace Aleph
                                                                           static_cast<double>(h)))));
     Init_Arc<GT> initarc(max_offset);
 
-    GT g = Random_Graph<GT, Init_P<GT>, Init_Arc<GT>>(seed, initp, initarc)(n, m);
-
-    gsl_rng_free(rand_gen);
-    rand_gen = nullptr;
-
-    return g;
+    return Random_Graph<GT, Init_P<GT>, Init_Arc<GT>>(seed, initp, initarc)(n, m);
   }
 } // end namespace Aleph 
 

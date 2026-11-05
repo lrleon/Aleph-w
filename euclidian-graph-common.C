@@ -35,5 +35,5 @@
 
 namespace Aleph
 {
-  gsl_rng * rand_gen = nullptr;
+  Gsl_Compatible_Rng * rand_gen = nullptr;
 }

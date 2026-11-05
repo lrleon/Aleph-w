@@ -291,6 +291,7 @@ set(TEST_PROGRAMS
     ah_generator_test
     ah_random_test
     random_structures_test
+    random_generators_test
     tpl_binNodeGenerators_test
     graph_traverse_generators_test
     ah_comb_generators_test

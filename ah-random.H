@@ -33,13 +33,19 @@
  *  @brief A random number generator that gives the numbers of the
  *  `gsl_rng_mt19937` of GSL, without GSL.
  *
- *  Gsl_Compatible_Rng is the Mersenne Twister of the standard library,
- *  `std::mt19937`, which is the algorithm of `gsl_rng_mt19937` and whose
- *  output the standard fixes, seeded as GSL seeds it. Its draws follow
- *  the algorithms of GSL. So, for each seed, its integers and the reals of
- *  uniform() and uniform_pos() are those of GSL, bit by bit, on every
- *  platform, and a structure or a test that took its numbers from GSL
- *  takes the same ones from it.
+ *  Gsl_Compatible_Rng is the Mersenne Twister MT19937, the algorithm of
+ *  `gsl_rng_mt19937` and of `std::mt19937`, whose output the standard
+ *  fixes, seeded as GSL seeds it. Its draws follow the algorithms of GSL.
+ *  So, for each seed, its integers and the reals of uniform() and
+ *  uniform_pos() are those of GSL, bit by bit, on every platform, and a
+ *  structure or a test that took its numbers from GSL takes the same ones
+ *  from it.
+ *
+ *  It keeps the state of the Mersenne Twister itself, instead of in a
+ *  `std::mt19937`, so that the step of each number is inline code, which
+ *  a compiler inlines where a number is drawn: GCC does not inline the
+ *  operator of `std::mt19937`, which is not declared inline, in a unit
+ *  where it is called from several places.
  *
  *  flat(), gaussian() and exponential() take the logarithm and the square
  *  root of the C library, as GSL does; flat() and gaussian() round each
@@ -56,6 +62,7 @@
 # ifndef AH_RANDOM_H
 # define AH_RANDOM_H
 
+# include <algorithm>
 # include <atomic>
 # include <cmath>
 # include <cstdint>
@@ -113,16 +120,66 @@ namespace Aleph
    *  The numbers come from inline code, without the call through a
    *  pointer to a function that GSL makes for each one.
    *
-   *  @note It holds the state of the Mersenne Twister, 624 words of
-   *        `std::uint_fast32_t`: about 2500 or 5000 bytes, as the standard
-   *        library goes. A structure that holds one may keep it in dynamic
-   *        memory.
+   *  @note It holds the state of the Mersenne Twister, 624 words of 32
+   *        bits and the position of the next one: about 2500 bytes. A
+   *        structure that holds one may keep it in dynamic memory.
    *
    *  @ingroup Utilities
    */
   class Gsl_Compatible_Rng
   {
-    std::mt19937 engine;
+    // The Mersenne Twister MT19937, as std::mt19937 and gsl_rng_mt19937
+    // define it: the words of its state, and the position of the next one
+    // to temper, which is state_size when the words must be generated again
+    static constexpr int state_size = 624;
+    static constexpr int shift_size = 397;
+
+    std::uint32_t mt[state_size];
+    int mti;
+
+    // The state for a seed of the Mersenne Twister
+    void init(const std::uint32_t s) noexcept
+    {
+      mt[0] = s;
+      for (int i = 1; i < state_size; ++i)
+        mt[i] = 1812433253u * (mt[i - 1] ^ (mt[i - 1] >> 30)) + static_cast<std::uint32_t>(i);
+      mti = state_size;
+    }
+
+    // The next words of the state, out of line, as they are generated once
+    // every state_size numbers
+    [[gnu::noinline]] void generate() noexcept
+    {
+      constexpr std::uint32_t upper = 0x80000000u, lower = 0x7fffffffu;
+      constexpr std::uint32_t matrix = 0x9908b0dfu;
+      int k = 0;
+      for (; k < state_size - shift_size; ++k)
+        {
+          const std::uint32_t y = (mt[k] & upper) | (mt[k + 1] & lower);
+          mt[k] = mt[k + shift_size] ^ (y >> 1) ^ ((y & 1u) ? matrix : 0u);
+        }
+      for (; k < state_size - 1; ++k)
+        {
+          const std::uint32_t y = (mt[k] & upper) | (mt[k + 1] & lower);
+          mt[k] = mt[k + shift_size - state_size] ^ (y >> 1) ^ ((y & 1u) ? matrix : 0u);
+        }
+      const std::uint32_t y = (mt[state_size - 1] & upper) | (mt[0] & lower);
+      mt[state_size - 1] = mt[shift_size - 1] ^ (y >> 1) ^ ((y & 1u) ? matrix : 0u);
+      mti = 0;
+    }
+
+    // The next number: the next word, tempered
+    std::uint32_t next() noexcept
+    {
+      if (mti >= state_size) [[unlikely]]
+        generate();
+      std::uint32_t y = mt[mti++];
+      y ^= y >> 11;
+      y ^= (y << 7) & 0x9d2c5680u;
+      y ^= (y << 15) & 0xefc60000u;
+      y ^= y >> 18;
+      return y;
+    }
 
     // The seed of the Mersenne Twister for a seed of GSL: 4357 for 0, and
     // else its low 32 bits, which may be 0
@@ -162,7 +219,7 @@ namespace Aleph
     [[nodiscard]] static constexpr result_type max() noexcept { return 0xffffffffu; }
 
     /// A generator with the default seed, as `gsl_rng_alloc(gsl_rng_mt19937)`.
-    Gsl_Compatible_Rng() noexcept : engine(default_seed) {}
+    Gsl_Compatible_Rng() noexcept { init(default_seed); }
 
     /** @brief A generator with a seed, as `gsl_rng_alloc()` followed by
      *  `gsl_rng_set(r, s)`.
@@ -170,26 +227,26 @@ namespace Aleph
      *  @param[in] s The seed: 0 is taken as 4357, and else its low 32 bits
      *               count.
      */
-    explicit Gsl_Compatible_Rng(const unsigned long s) noexcept : engine(engine_seed(s)) {}
+    explicit Gsl_Compatible_Rng(const unsigned long s) noexcept { init(engine_seed(s)); }
 
     /** @brief Seeds again, as `gsl_rng_set(r, s)`.
      *
      *  @param[in] s The seed: 0 is taken as 4357, and else its low 32 bits
      *               count.
      */
-    void seed(const unsigned long s) noexcept { engine.seed(engine_seed(s)); }
+    void seed(const unsigned long s) noexcept { init(engine_seed(s)); }
 
     /** @brief The next number, in [min(), max()], as `gsl_rng_get(r)`.
      *
      *  @return The number.
      */
-    result_type operator () () noexcept { return engine(); }
+    result_type operator () () noexcept { return next(); }
 
     /** @brief The next number, as operator()().
      *
      *  @return The number, in [min(), max()].
      */
-    unsigned long get() noexcept { return engine(); }
+    unsigned long get() noexcept { return next(); }
 
     /** @brief An integer in [0, n), each with the same probability, as
      *  `gsl_rng_uniform_int(r, n)`.
@@ -210,7 +267,7 @@ namespace Aleph
       const unsigned long scale = static_cast<unsigned long>(max()) / n;
       unsigned long k;
       do
-        k = static_cast<unsigned long>(engine()) / scale;
+        k = static_cast<unsigned long>(next()) / scale;
       while (k >= n);
 
       return k;
@@ -220,7 +277,7 @@ namespace Aleph
      *
      *  @return The next number divided by 2^32.
      */
-    double uniform() noexcept { return engine() / 4294967296.0; }
+    double uniform() noexcept { return next() / 4294967296.0; }
 
     /** @brief A real number in (0, 1), as `gsl_rng_uniform_pos(r)`.
      *
@@ -294,7 +351,7 @@ namespace Aleph
      */
     friend bool operator == (const Gsl_Compatible_Rng & a, const Gsl_Compatible_Rng & b)
     {
-      return a.engine == b.engine;
+      return a.mti == b.mti and std::equal(a.mt, a.mt + state_size, b.mt);
     }
   };
 
@@ -474,8 +531,9 @@ namespace Aleph
      *  `gsl_rng_free()`. As its state is the generator, `gsl_rng_clone()`,
      *  `gsl_rng_memcpy()`, `gsl_rng_fwrite()` and `gsl_rng_fread()` copy,
      *  save and restore the generator, as they do the state of a `gsl_rng`
-     *  of GSL; a file of `gsl_rng_fwrite()` is read back by a program built
-     *  with the same standard library.
+     *  of GSL; a file of `gsl_rng_fwrite()` holds the words of the state in
+     *  the byte order of the machine, and is read back on a machine of the
+     *  same order.
      *
      *  @return The `gsl_rng`.
      *  @throw std::bad_alloc If there is not enough memory.

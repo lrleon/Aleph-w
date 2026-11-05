@@ -15,7 +15,7 @@
  * 6. Consistency tests (multiple runs should converge)
  *
  * COMPILE:
- *   g++ -std=c++20 -O2 -I.. -o min_cut_test min_cut_test.cc -lgsl -lgslcblas -lpthread
+ *   g++ -std=c++20 -O2 -I.. -o min_cut_test min_cut_test.cc -lpthread
  *
  * RUN:
  *   ./min_cut_test
