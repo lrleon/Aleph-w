@@ -31,16 +31,22 @@
 
 
 /** @file lfit.H
- *  @brief Linear regression (least squares fitting) using GSL.
+ *  @brief Linear regression (least squares fitting).
  *
  *  This file provides the LFit struct for performing simple linear
- *  regression on paired (x, y) data using the GNU Scientific Library.
+ *  regression on paired (x, y) data. It makes the computations of
+ *  `gsl_fit_linear()`, `gsl_stats_correlation()` and
+ *  `gsl_fit_linear_est()` of the GNU Scientific Library, in their order
+ *  of operations, without GSL: built without fused multiply-adds, as GSL
+ *  is for x86-64, its results are those of GSL, bit by bit; where the
+ *  compiler fuses multiply-adds, as on arm64, the fit and the prediction
+ *  may differ in their last bits, as the builds of GSL there do.
  *
  *  ## Features
  *
  *  - Least squares linear fitting: y = c + m*x
  *  - Coefficient of determination (R²)
- *  - Mean squared error and standard deviation
+ *  - Mean squared error and standard deviation of the errors
  *  - Prediction with error estimates
  *
  *  ## Usage Example
@@ -65,10 +71,11 @@
 # ifndef LFIT_H
 # define LFIT_H
 
-# include <gsl/gsl_statistics_double.h>
-# include <gsl/gsl_fit.h>
-
+# include <cmath>
+# include <cstddef>
+# include <limits>
 # include <string>
+# include <utility>
 
 # include <ah-zip.H>
 # include <tpl_array.H>
@@ -80,7 +87,7 @@
  * @brief Linear regression calculator using least squares method.
  *
  * Computes the best-fit line y = c + m*x that minimizes the sum of
- * squared residuals. Uses GSL for numerical computation.
+ * squared residuals, with the algorithms of GSL (see the file).
  *
  * ## Computed Statistics
  *
@@ -88,10 +95,11 @@
  * |-------|-------------|
  * | c | Y-intercept |
  * | m | Slope |
+ * | cov00, cov01, cov11 | Covariances of c and m |
  * | r2 | Coefficient of determination (0-1) |
- * | sumsq | Sum of squared residuals |
- * | sigma | Standard deviation of errors |
- * | mse | Mean squared error |
+ * | sumsq | Sum of the squared residuals, y - (c + m x) |
+ * | sigma | Standard deviation of the errors: the root of sumsq / (n - 2) |
+ * | mse | Mean squared error: sumsq / n |
  *
  * @ingroup Utilities
  */
@@ -102,10 +110,12 @@ struct LFit
   mutable double cov00 = 0; ///< Covariance matrix element (0,0)
   mutable double cov01 = 0; ///< Covariance matrix element (0,1)
   mutable double cov11 = 0; ///< Covariance matrix element (1,1)
-  mutable double sumsq = 0; ///< Sum of squared residuals
+  mutable double sumsq = 0; ///< Sum of the squares of the residuals, y - (c + m x)
   mutable double r2 = 0; ///< Coefficient of determination
-  mutable double sigma = 0; ///< Standard deviation of errors
-  mutable double mse = 0; ///< Mean squared error
+  /// Standard deviation of the errors: the root of sumsq / (n - 2), the
+  /// estimate from which the covariances come; NaN for two points
+  mutable double sigma = 0;
+  mutable double mse = 0; ///< Mean squared error: sumsq / n
 
   /**
    * @brief Output stream operator for fit results.
@@ -130,14 +140,16 @@ struct LFit
   /**
    * @brief Construct and compute linear regression.
    *
-   * Fits the model y = c + m*x to minimize sum of squared errors.
-   * Computes R², standard deviation, and MSE.
+   * Fits the model y = c + m*x to minimize sum of squared errors, as
+   * `gsl_fit_linear()` does, and computes R², as the square of
+   * `gsl_stats_correlation()`, the mean squared error and the standard
+   * deviation of the errors.
    *
    * @param x Array of independent variable values
    * @param y Array of dependent variable values
    *
    * @throw SizeMismatch if x and y have different sizes
-   * @throw SizeMismatch if arrays have only 1 element
+   * @throw SizeMismatch if the arrays are empty or have only 1 element
    *
    * @par Example
    * @code
@@ -148,39 +160,24 @@ struct LFit
    */
   LFit(const Array<double> & x, const Array<double> & y)
   {
-    const size_t & n = y.size();
+    const size_t n = y.size();
     if (x.size() != n)
       ALEPHTHROW(SizeMismatch, "x and y have different sizes");
+
+    if (n == 0)
+      ALEPHTHROW(SizeMismatch, "arrays are empty");
 
     if (n == 1)
       ALEPHTHROW(SizeMismatch, "arrays have length = 1");
 
-    gsl_fit_linear(&x.base(), 1, &y.base(), 1, y.size(), &c, &m,
-                   &cov00, &cov01, &cov11, &sumsq);
+    fit(&x.base(), &y.base(), n);
 
-    const auto pearson_corr = gsl_stats_correlation(&x.base(), 1, &y.base(), 1, n);
-    r2 = pow2(pearson_corr);
+    r2 = pow2(correlation(&x.base(), &y.base(), n));
     if (not is_normal_number(r2))
       r2 = 1;
 
-    double sum_sigma = 0, sum_mse = 0;
-    Array<double> error;
-    for (auto it = zip_it(x, y); it.has_curr(); it.next_ne())
-      {
-        auto t = it.get_curr();
-        const auto diff = get<0>(t) - get<1>(t);
-        auto e = fabs(diff);
-        error.append(e);
-        sum_sigma += e;
-        sum_mse += pow2(diff);
-      }
-
-    sigma = sqrt(error.foldl<double>(0.0, [ym = sum_sigma / n](auto acu, auto y)
-                                       {
-                                         return acu + pow2(y - ym);
-                                       }) / n);
-
-    mse = sqrt(sum_mse / n);
+    mse = sumsq / n;
+    sigma = n > 2 ? std::sqrt(sumsq / (n - 2.0)) : std::numeric_limits<double>::quiet_NaN();
   }
 
   /**
@@ -199,11 +196,87 @@ struct LFit
    * // y ± err is the predicted range
    * @endcode
    */
-  std::pair<double, double> predict(double x) const noexcept
+  std::pair<double, double> predict(const double x) const noexcept
   {
-    double y = 0, y_err = 0;
-    gsl_fit_linear_est(x, c, m, cov00, cov01, cov11, &y, &y_err);
+    // as gsl_fit_linear_est()
+    const double y = c + m * x;
+    const double y_err = std::sqrt(cov00 + x * (2 * cov01 + cov11 * x));
     return std::make_pair(y, y_err);
+  }
+
+private:
+  // gsl_fit_linear(), in its order of operations: the means of x and y,
+  // and those of the squares and of the products of their deviations, by
+  // Welford's recurrences; the sum of the squares of the residuals, from
+  // the deviations; and the covariances, from that sum over n - 2. The
+  // divisor i + 1 of the recurrences is counted in a double, which is
+  // exact below 2^53, instead of converting i for each element
+  void fit(const double * x, const double * y, const size_t n) noexcept
+  {
+    double m_x = 0, m_y = 0, m_dx2 = 0, m_dxdy = 0;
+    double ip1 = 1;
+    for (size_t i = 0; i < n; ++i, ip1 += 1)
+      {
+        m_x += (x[i] - m_x) / ip1;
+        m_y += (y[i] - m_y) / ip1;
+      }
+
+    ip1 = 1;
+    for (size_t i = 0; i < n; ++i, ip1 += 1)
+      {
+        const double dx = x[i] - m_x;
+        const double dy = y[i] - m_y;
+        m_dx2 += (dx * dx - m_dx2) / ip1;
+        m_dxdy += (dx * dy - m_dxdy) / ip1;
+      }
+
+    const double b = m_dxdy / m_dx2;
+    const double a = m_y - m_x * b;
+
+    double d2 = 0;
+    for (size_t i = 0; i < n; ++i)
+      {
+        const double dx = x[i] - m_x;
+        const double dy = y[i] - m_y;
+        const double d = dy - b * dx;
+        d2 += d * d;
+      }
+
+    const double s2 = d2 / (n - 2.0);
+    c = a;
+    m = b;
+    cov00 = s2 * (1.0 / n) * (1 + m_x * m_x / m_dx2);
+    cov11 = s2 * 1.0 / (n * m_dx2);
+    cov01 = s2 * (-m_x) / (n * m_dx2);
+    sumsq = d2;
+  }
+
+  // gsl_stats_correlation(), with its sums in long double, by Welford's
+  // recurrences, and the roots of double, which C takes for a long double
+  // in GSL. i and i + 1 are counted in doubles, exactly below 2^53, and
+  // each mean is updated after its deviation, which changes no value and
+  // leaves Clang the registers of x87 for more of the sums
+  static double correlation(const double * x, const double * y, const size_t n) noexcept
+  {
+    long double sum_xsq = 0, sum_ysq = 0, sum_cross = 0;
+    long double mean_x = x[0], mean_y = y[0];
+    double di = 1;
+    for (size_t i = 1; i < n; ++i, di += 1)
+      {
+        const double ip1 = di + 1;
+        const long double delta_x = x[i] - mean_x;
+        mean_x += delta_x / ip1;
+        const long double delta_y = y[i] - mean_y;
+        mean_y += delta_y / ip1;
+        const long double ratio = di / ip1;
+        sum_xsq += delta_x * delta_x * ratio;
+        sum_ysq += delta_y * delta_y * ratio;
+        sum_cross += delta_x * delta_y * ratio;
+      }
+
+    const long double r = sum_cross / (std::sqrt(static_cast<double>(sum_xsq))
+                                       * std::sqrt(static_cast<double>(sum_ysq)));
+    return static_cast<double>(r);
   }
 };
 
