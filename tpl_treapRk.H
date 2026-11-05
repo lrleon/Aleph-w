@@ -50,7 +50,7 @@
 # ifndef TPL_TREAPRK_H
 # define TPL_TREAPRK_H
 
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <ahFunction.H>
 # include <tpl_binTreeOps.H>
 # include <ran_array.h>
@@ -133,8 +133,10 @@ public:
       - Space: O(n) + O(1) per node for priority and COUNT
 
       @par Random Number Generator:
-      Uses GSL (GNU Scientific Library) Mersenne Twister (mt19937) by default.
-      Seed can be set via set_seed() for reproducible behavior.
+      Uses a Gsl_Compatible_Rng, the Mersenne Twister (mt19937) with the
+      numbers of the one of GSL, which it used before: for a seed, the
+      priorities, and so the trees, are the same. Seed can be set via
+      set_seed() for reproducible behavior.
 
       @par Example:
       @code
@@ -190,23 +192,24 @@ private:
   Node      head;
   Node *    head_ptr;
   Node *&   tree_root;
-  gsl_rng * r;
+  Gsl_Compatible_Rng_Owner r;
   Compare   cmp;
 
-  void init(unsigned int seed)
+  // The seed of the generator for that of a constructor, as it was taken
+  // for GSL: through an unsigned int, modulo 2^32 - 1
+  static unsigned long generator_seed(const unsigned long seed) noexcept
   {
-    PRIO(head_ptr) = Min_Priority;
-    r = gsl_rng_alloc(gsl_rng_mt19937);
-
-    ah_bad_alloc_if(r == nullptr);
-
-    gsl_rng_set(r, seed % gsl_rng_max(r));
+    return static_cast<unsigned int>(seed)
+      % static_cast<unsigned long>(Gsl_Compatible_Rng::max());
   }
 
 public:
 
-   /// Set the random number generator seed
-  void set_seed(const unsigned long seed) noexcept { gsl_rng_set(r, seed); }
+   /// Set the random number generator seed, as `gsl_rng_set()` did
+  void set_seed(const unsigned long seed) noexcept { r->seed(seed); }
+
+  /// The random number generator, which gives the priorities
+  [[nodiscard]] Gsl_Compatible_Rng & rng() noexcept { return *r; }
 
   /// return the comparison criteria
   Compare & key_comp() noexcept { return cmp; }
@@ -217,9 +220,9 @@ public:
   /// Initialize a treap with random `seed` and comparison criteria
   /// `__cmp`
   Gen_Treap_Rk(const unsigned long seed, Compare __cmp = Compare())
-    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
+    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(generator_seed(seed)), cmp(__cmp)
   {
-    init(seed);
+    PRIO(head_ptr) = Min_Priority;
   }
 
   Gen_Treap_Rk(Compare __cmp = Compare()) : Gen_Treap_Rk(time(nullptr), __cmp)
@@ -227,10 +230,19 @@ public:
     // empty
   }
 
-  ~Gen_Treap_Rk()
+  /** @brief Takes the nodes, the comparison criteria and the generator of
+      `tree`, which keeps no nodes and no generator: it can then only be
+      swapped or destroyed.
+
+      @param[in,out] tree The treap to move.
+  */
+  Gen_Treap_Rk(Gen_Treap_Rk && tree) noexcept
+    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(std::move(tree.r)),
+      cmp(std::move(tree.cmp))
   {
-    if (r != nullptr)
-      gsl_rng_free(r);
+    PRIO(head_ptr) = Min_Priority;
+    tree_root = tree.tree_root;
+    tree.tree_root = Node::NullPtr;
   }
 
   /// Swap in constant time all the nodes of `this` with `tree`
@@ -238,7 +250,7 @@ public:
   {
     std::swap(tree_root, tree.tree_root);
     std::swap(cmp, tree.cmp);
-    std::swap(r, tree.r);
+    r.swap(tree.r);
   }
 
   /// Return the tree's root
@@ -382,7 +394,7 @@ public:
   {
     assert(p != Node::NullPtr);
 
-    PRIO(p) = gsl_rng_get(r);
+    PRIO(p) = r->get();
 
     return insert(tree_root, p) ? p : nullptr;
   }
@@ -398,7 +410,7 @@ public:
   {
     assert(p != Node::NullPtr);
 
-    PRIO(p) = gsl_rng_get(r);
+    PRIO(p) = r->get();
 
     return insert_dup(tree_root, p);
   }
@@ -419,7 +431,7 @@ public:
   {
     assert(p != Node::NullPtr);
 
-    PRIO(p) = gsl_rng_get(r);
+    PRIO(p) = r->get();
 
     return search_or_insert(tree_root, p);
   }
@@ -1070,10 +1082,10 @@ public:
       it takes \f$O(\max(\lg n, \lg m))\f$ with randomized trees. In
       addition,
 
-      The class internally uses the gsl random number generator of
-      [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
-      By default, the Mersenne twister is used and the seed is taken from
-      system time.
+      The class uses a Gsl_Compatible_Rng, the Mersenne twister with the
+      numbers of the one of [GSL - GNU Scientific
+      Library](\https://www.gnu.org/software/gsl/), which it used before.
+      By default, the seed is taken from system time.
 
       @ingroup Trees
       @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
@@ -1117,10 +1129,10 @@ struct Treap_Rk : public Gen_Treap_Rk<Treap_Rk_Node, Key, Compare>
       it takes \f$O(\max(\lg n, \lg m))\f$ with randomized trees. In
       addition,
 
-      The class internally uses the gsl random number generator of
-      [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
-      By default, the Mersenne twister is used and the seed is taken from
-      system time.
+      The class uses a Gsl_Compatible_Rng, the Mersenne twister with the
+      numbers of the one of [GSL - GNU Scientific
+      Library](\https://www.gnu.org/software/gsl/), which it used before.
+      By default, the seed is taken from system time.
 
       @ingroup Trees
       @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree

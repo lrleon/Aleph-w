@@ -36,7 +36,7 @@
  * @brief Tests for Dynskiplist
  */
 #include <gtest/gtest.h>
-#include <gsl/gsl_rng.h>
+#include <ah-random.H>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -88,13 +88,22 @@ TEST_F(DynSkipListTest, ConstructorWithSeed)
 TEST_F(DynSkipListTest, SetSeed)
 {
   sl.set_seed(123);
-  EXPECT_NE(sl.gsl_rng_object(), nullptr);
+  EXPECT_EQ(sl.rng(), Gsl_Compatible_Rng(123));
 }
 
-TEST_F(DynSkipListTest, GslRngObject)
+TEST_F(DynSkipListTest, TheGeneratorDrawsTheLevels)
 {
-  gsl_rng* rng = sl.gsl_rng_object();
-  EXPECT_NE(rng, nullptr);
+  // inserting draws from the generator, and the same seed draws the same
+  sl.set_seed(5);
+  DynSkipList<int> other(5UL);
+  EXPECT_EQ(sl.rng(), other.rng());
+  for (int i = 0; i < 50; ++i)
+    {
+      sl.insert(i);
+      other.insert(i);
+    }
+  EXPECT_EQ(sl.rng(), other.rng());
+  EXPECT_FALSE(sl.rng() == Gsl_Compatible_Rng(5));
 }
 
 TEST_F(DynSkipListTest, CopyConstruction)

@@ -1123,12 +1123,11 @@ TEST(RandTree, KeyCompAndGetCompare)
   EXPECT_FALSE(cmp2(2, 1));
 }
 
-TEST(RandTree, GslRngObjectNotNull)
+TEST(RandTree, TheConstructorSeedsTheGenerator)
 {
   Tree tree(42);
 
-  auto *rng = tree.gsl_rng_object();
-  EXPECT_NE(rng, nullptr);
+  EXPECT_EQ(tree.rng(), Gsl_Compatible_Rng(42));
 }
 
 TEST(RandTree, SetSeedChangesSequence)

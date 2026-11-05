@@ -36,7 +36,7 @@
  * @brief Tests for Skiplist
  */
 #include <gtest/gtest.h>
-#include <gsl/gsl_rng.h>
+#include <ah-random.H>
 #include <climits>
 #include <vector>
 #include <algorithm>
@@ -155,10 +155,10 @@ TEST_F(SkipListTest, SetSeed)
   EXPECT_EQ(level1, level2);  // Same seed should give same result
 }
 
-TEST_F(SkipListTest, GslRngObject)
+TEST_F(SkipListTest, SetSeedSeedsTheGenerator)
 {
-  gsl_rng* rng = skiplist->gsl_rng_object();
-  EXPECT_NE(rng, nullptr);
+  skiplist->set_seed(123);
+  EXPECT_EQ(skiplist->rng(), Gsl_Compatible_Rng(123));
 }
 
 // ============================================================================

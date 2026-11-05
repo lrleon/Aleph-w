@@ -51,10 +51,11 @@
  *  - Both provide O(log n) operations (expected vs worst-case)
  *  - Skip lists are easier to make concurrent (not implemented here)
  *
- *  The class internally uses the gsl random number generator of
- *  [GSL - GNU Scientific Library](https://www.gnu.org/software/gsl/).
- *  By default, the Mersenne twister is used and the seed is taken from
- *  system time.
+ *  The class uses a Gsl_Compatible_Rng, the Mersenne twister with the
+ *  numbers of the one of [GSL - GNU Scientific
+ *  Library](https://www.gnu.org/software/gsl/), which it used before: for a
+ *  seed, the levels are the same. By default, the seed is taken from system
+ *  time.
  *
  *  @see DynSetTree DynSetHash
  *  @see Pugh, W. "Skip Lists: A Probabilistic Alternative to Balanced Trees" (1990)
@@ -71,7 +72,7 @@
 # include <ctime>
 # include <utility>
 # include <initializer_list>
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <ah-errors.H>
 # include <ah-args-ctor.H>
 # include <ahDry.H>
@@ -89,10 +90,11 @@ namespace Aleph {
  *  structure, providing expected O(log n) time for search, insert, and
  *  delete operations.
  *
- *  The class internally uses the gsl random number generator of
- *  [GSL - GNU Scientific Library](https://www.gnu.org/software/gsl/).
- *  By default, the Mersenne twister is used and the seed is taken from
- *  system time.
+ *  The class uses a Gsl_Compatible_Rng, the Mersenne twister with the
+ *  numbers of the one of [GSL - GNU Scientific
+ *  Library](https://www.gnu.org/software/gsl/), which it used before: for a
+ *  seed, the levels are the same. By default, the seed is taken from system
+ *  time.
  *
  *  @tparam Key Type of elements stored in the set.
  *  @tparam Compare Comparison functor (default: std::less<Key>).
@@ -171,23 +173,22 @@ private:
   };
 
   Node * header;
-  gsl_rng * r;  // GSL random number generator
+  Gsl_Compatible_Rng_Owner r;  // random number generator
   size_t num_nodes = 0;
   int current_level = 1;
   double probability;
   Compare cmp;
 
-  void init(unsigned long seed)
+  // The seed of the generator, modulo 2^32 - 1, as it was taken for GSL
+  static unsigned long generator_seed(const unsigned long seed) noexcept
   {
-    r = gsl_rng_alloc(gsl_rng_mt19937);
-    ah_bad_alloc_if(r == nullptr);
-    gsl_rng_set(r, seed % gsl_rng_max(r));
+    return seed % static_cast<unsigned long>(Gsl_Compatible_Rng::max());
   }
 
   int random_level() const noexcept
   {
     int lvl = 1;
-    while (gsl_rng_uniform(r) < probability and lvl < maxLevel)
+    while (r->uniform() < probability and lvl < maxLevel)
       ++lvl;
     return lvl;
   }
@@ -200,11 +201,23 @@ private:
 
 public:
 
-  /// Set the random number generator seed
-  void set_seed(unsigned long seed) noexcept { gsl_rng_set(r, seed); }
+  /// Set the random number generator seed, as `gsl_rng_set()` did
+  void set_seed(unsigned long seed) noexcept { r->seed(seed); }
 
-  /// Get a pointer to the GSL random number generator
-  gsl_rng * gsl_rng_object() noexcept { return r; }
+  /// The random number generator, which draws the levels
+  [[nodiscard]] Gsl_Compatible_Rng & rng() noexcept { return *r; }
+
+# if ALEPH_WITH_GSL
+  /** @brief A `gsl_rng` whose numbers come from rng().
+
+      @deprecated The generator is no longer of GSL; use rng(). It goes in
+      8.0.0.
+      @return The `gsl_rng`, which the list frees.
+      @throw std::bad_alloc If there is not enough memory, the first time.
+  */
+  [[deprecated("the generator is no longer of GSL: use rng(); it goes in 8.0.0")]]
+  gsl_rng * gsl_rng_object() { return r.gsl(); }
+# endif
 
   /** @brief Construct a DynSkipList with given seed and probability.
    *  @param[in] seed Random seed for level generation.
@@ -216,12 +229,11 @@ public:
    *  @throw bad_alloc if there is not enough memory.
    */
   DynSkipList(unsigned long seed, double p = defaultProbability)
-    : r(nullptr), probability(p)
+    : r(generator_seed(seed)), probability(p)
   {
     ah_domain_error_if(not (p > 0.0 and p < 1.0))
       << "DynSkipList: probability " << p << " is not in (0, 1)";
     header = new Node(maxLevel);
-    init(seed);
   }
 
   /** @brief Construct a DynSkipList with time-based seed.
@@ -243,10 +255,10 @@ public:
       FunctionalMethods<DynSkipList<Key, Compare>, Key>(),
       GenericItems<DynSkipList<Key, Compare>, Key>(),
       StlAlephIterator<DynSkipList<Key, Compare>>(),
-      r(nullptr), probability(other.probability), cmp(other.cmp)
+      r(generator_seed(time(nullptr))), // a new generator for the copy
+      probability(other.probability), cmp(other.cmp)
   {
     header = new Node(maxLevel);
-    init(time(nullptr));  // New GSL RNG for the copy
     for (auto it = other.begin(); it.has_curr(); it.next())
       insert(it.get_curr());
   }
@@ -254,25 +266,22 @@ public:
   /// Move constructor
   DynSkipList(DynSkipList && other) noexcept
     : header(other.header),
-      r(other.r),
+      r(std::move(other.r)),
       num_nodes(other.num_nodes),
       current_level(other.current_level),
       probability(other.probability),
       cmp(std::move(other.cmp))
   {
     other.header = new Node(maxLevel);
-    other.r = nullptr;
     other.num_nodes = 0;
     other.current_level = 1;
   }
 
-  /// Destructor - frees all nodes and GSL random number generator
+  /// Destructor - frees all nodes and the random number generator
   ~DynSkipList()
   {
     empty();
     delete header;
-    if (r != nullptr)
-      gsl_rng_free(r);
   }
 
   /// Copy assignment operator
@@ -284,7 +293,7 @@ public:
     empty();
     probability = other.probability;
     cmp = other.cmp;
-    // Keep our own GSL RNG
+    // Keep our own random number generator
     
     for (auto it = other.begin(); it.has_curr(); it.next())
       insert(it.get_curr());
@@ -300,18 +309,15 @@ public:
 
     empty();
     delete header;
-    if (r != nullptr)
-      gsl_rng_free(r);
-    
+
     header = other.header;
-    r = other.r;
+    r = std::move(other.r); // ours is freed
     num_nodes = other.num_nodes;
     current_level = other.current_level;
     probability = other.probability;
     cmp = std::move(other.cmp);
     
     other.header = new Node(maxLevel);
-    other.r = nullptr;
     other.num_nodes = 0;
     other.current_level = 1;
     
@@ -322,7 +328,7 @@ public:
   void swap(DynSkipList & other) noexcept
   {
     std::swap(header, other.header);
-    std::swap(r, other.r);
+    r.swap(other.r);
     std::swap(num_nodes, other.num_nodes);
     std::swap(current_level, other.current_level);
     std::swap(probability, other.probability);
