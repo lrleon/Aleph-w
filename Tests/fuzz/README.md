@@ -47,7 +47,8 @@ failure; the script prints the artifact directory for a failed target. The
 newer targets have bounded input lengths to keep each iteration practical.
 
 Prerequisites: Ruby, CMake, Ninja, Clang with libFuzzer/ASan/UBSan runtimes,
-and the repository's normal GMP, MPFR and GSL development packages. GoogleTest
+and the repository's normal GMP, MPFR and GSL development packages (GSL while
+the build links it, `ALEPH_WITH_GSL`, the default until 8.0.0). GoogleTest
 is not needed: the local runner disables GoogleTest downloads, and when
 GoogleTest is absent CMake warns and configures only the fuzz targets. On
 Ubuntu/Debian, install missing packages with:

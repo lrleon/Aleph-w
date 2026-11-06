@@ -8,7 +8,6 @@
   "dependencies": [
     "gmp",
     "mpfr",
-    "gsl",
     {
       "name": "vcpkg-cmake",
       "host": true
@@ -19,6 +18,12 @@
     }
   ],
   "features": {
+    "gsl": {
+      "description": "Link GSL and pass it to the consumers (ALEPH_WITH_GSL), for the code that uses GSL through Aleph-w.",
+      "dependencies": [
+        "gsl"
+      ]
+    },
     "x11": {
       "description": "Build the X11 live viewer (ca-x11-viewer.H); requires system libX11.",
       "supports": "linux"

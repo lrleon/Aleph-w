@@ -31,7 +31,7 @@
 */
 
 # include <iostream>
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <tpl_dynarray_set.H>
 # include <tpl_splay_tree.H>
 # include <string>
@@ -74,8 +74,7 @@ int main(int argc, char * argv[])
       catch (...) { seed = 0; }
     }
 
-  gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);;
-  gsl_rng_set(r, seed % gsl_rng_max(r));
+  Gsl_Compatible_Rng r(seed % Gsl_Compatible_Rng::max());
 
   cout << "test_Splay_Tree " << n << " " << seed << endl;
 
@@ -91,7 +90,7 @@ int main(int argc, char * argv[])
       int value;
       do
 	{
-	  value = gsl_rng_uniform_int(r, 100*n);
+	  value = r.uniform_int(100*n);
 	  p = tree.search(value);
 	}
       while (p != NULL);
@@ -113,7 +112,7 @@ int main(int argc, char * argv[])
   cout << "Testing for random searches" << endl;
   for (int i = 0; i < n; ++i)
     {
-      int idx = gsl_rng_uniform_int(r, values.size());
+      int idx = r.uniform_int(values.size());
       int value = values(idx);
       cout << value << " ";
       if (tree.search(value) == NULL)
@@ -125,7 +124,7 @@ int main(int argc, char * argv[])
 
   for (int i = 0; i < n/7; i++)
     {       
-      int & value = values(gsl_rng_uniform_int(r, values.size()));
+      int & value = values(r.uniform_int(values.size()));
       p = tree.remove(value);
       cout << value << " ";
       assert(p != NULL);
@@ -150,7 +149,6 @@ int main(int argc, char * argv[])
   preOrderRec(tree.getRoot(), print_node);
 
   destroyRec(tree.getRoot());
-  gsl_rng_free(r);
 
   cout << endl;
 }

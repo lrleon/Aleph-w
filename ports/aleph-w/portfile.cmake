@@ -24,6 +24,13 @@ if("x11" IN_LIST FEATURES)
     set(ALEPH_X11 ON)
 endif()
 
+# GSL, which Aleph-w no longer needs, is opt-in via the `gsl` feature
+# (ALEPH_WITH_GSL): without it, the library neither links nor passes GSL.
+set(ALEPH_GSL OFF)
+if("gsl" IN_LIST FEATURES)
+    set(ALEPH_GSL ON)
+endif()
+
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
@@ -32,6 +39,7 @@ vcpkg_cmake_configure(
         -DBUILD_REPRODUCTIONS=OFF
         -DBUILD_BENCHMARKS=OFF
         -DALEPH_BUILD_X11_VIEWER=${ALEPH_X11}
+        -DALEPH_WITH_GSL=${ALEPH_GSL}
 )
 
 vcpkg_cmake_install()

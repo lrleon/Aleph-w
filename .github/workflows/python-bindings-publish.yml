@@ -52,11 +52,12 @@ jobs:
           CIBW_SKIP: "*-musllinux* *-win* pp*"
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_MACOS: "arm64"
+          # No GSL: python/pyproject.toml builds the module without it
           CIBW_BEFORE_BUILD_LINUX: >-
-            yum install -y gmp-devel mpfr-devel gsl-devel ||
-            apt-get update && apt-get install -y libgmp-dev libmpfr-dev libgsl-dev
+            yum install -y gmp-devel mpfr-devel ||
+            apt-get update && apt-get install -y libgmp-dev libmpfr-dev
           CIBW_BEFORE_BUILD_MACOS: >-
-            brew install gmp mpfr gsl
+            brew install gmp mpfr
           CIBW_TEST_REQUIRES: "pytest pytest-timeout numpy"
           CIBW_TEST_COMMAND: "pytest {project}/tests"
         run: |

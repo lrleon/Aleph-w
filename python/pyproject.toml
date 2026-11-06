@@ -65,6 +65,9 @@ Issues = "https://github.com/lrleon/Aleph-w/issues"
 # We point the source tree one level up so the top-level CMakeLists drives
 # everything. ALEPH_BUILD_PYTHON=ON tells the parent to descend into
 # python/. Tests and examples are skipped to keep the wheel build fast.
+# GSL is left out (ALEPH_WITH_GSL=OFF): the module needs nothing of it,
+# and auditwheel and delocate, which copy into the wheel the libraries
+# that the module links, then copy none of GSL.
 # ---------------------------------------------------------------------------
 
 [tool.scikit-build]
@@ -79,4 +82,5 @@ ALEPH_BUILD_PYTHON = "ON"
 BUILD_TESTS = "OFF"
 BUILD_EXAMPLES = "OFF"
 ALEPH_BUILD_X11_VIEWER = "OFF"
+ALEPH_WITH_GSL = "OFF"
 CMAKE_POSITION_INDEPENDENT_CODE = "ON"

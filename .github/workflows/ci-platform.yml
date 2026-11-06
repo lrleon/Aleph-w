@@ -249,7 +249,7 @@ jobs:
             build/CMakeCache.txt
 
   build-windows:
-    name: build-windows (${{ matrix.toolchain }}, ${{ matrix.build_type }})
+    name: build-windows (${{ matrix.toolchain }}, ${{ matrix.build_type }}${{ matrix.gsl == 'OFF' && ', without GSL' || '' }})
     # Costly job: only on master push, dispatch, or the weekly cron.
     if: >-
       github.event_name == 'schedule' ||
@@ -262,10 +262,21 @@ jobs:
       fail-fast: false
       matrix:
         # The roadmap calls for the windows-2022 x {msvc, clang-cl} matrix.
-        # Both toolchains consume the MSYS2 mingw64 toolchain's gmp/mpfr/gsl
-        # build (vcpkg is also wired in case MSYS2 vendoring drifts).
+        # Both toolchains consume the MSYS2 mingw64 toolchain's gmp/mpfr
+        # build (vcpkg is also wired in case MSYS2 vendoring drifts). MSVC
+        # takes its GSL too (ALEPH_WITH_GSL=ON, the default of 7.x), whose
+        # import libraries are the hardest to link; clang-cl builds without
+        # GSL (OFF, the default from 8.0.0), which MSYS2 then does not
+        # install.
         toolchain: [msvc, clang-cl]
         build_type: [Release]
+        include:
+          - toolchain: msvc
+            gsl: 'ON'
+            msys2_gsl: mingw-w64-x86_64-gsl
+          - toolchain: clang-cl
+            gsl: 'OFF'
+            msys2_gsl: ''
 
     env:
       VCPKG_DEFAULT_TRIPLET: x64-windows
@@ -282,7 +293,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up MSYS2 (for gmp / mpfr / gsl headers + libs)
+      - name: Set up MSYS2 (for gmp / mpfr headers + libs, and gsl with ALEPH_WITH_GSL)
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -290,7 +301,7 @@ jobs:
           install: >-
             mingw-w64-x86_64-gmp
             mingw-w64-x86_64-mpfr
-            mingw-w64-x86_64-gsl
+            ${{ matrix.msys2_gsl }}
             mingw-w64-x86_64-pkg-config
 
       - name: Install ninja
@@ -327,6 +338,7 @@ jobs:
             -DCMAKE_PREFIX_PATH=%RUNNER_TEMP%\msys64\mingw64 ^
             -DBUILD_EXAMPLES=OFF ^
             -DBUILD_TESTS=ON ^
+            -DALEPH_WITH_GSL=${{ matrix.gsl }} ^
             -DALEPH_BUILD_X11_VIEWER=OFF
 
       - name: Configure (clang-cl)
@@ -342,6 +354,7 @@ jobs:
             -DCMAKE_PREFIX_PATH=%RUNNER_TEMP%\msys64\mingw64 ^
             -DBUILD_EXAMPLES=OFF ^
             -DBUILD_TESTS=ON ^
+            -DALEPH_WITH_GSL=${{ matrix.gsl }} ^
             -DALEPH_BUILD_X11_VIEWER=OFF
 
       - name: Build

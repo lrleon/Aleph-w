@@ -39,8 +39,6 @@
 // Created by lrleon on 1/6/25.
 //
 
-# include <gsl/gsl_rng.h>
-
 # include <chrono>
 # include <vector>
 # include <sstream>
@@ -53,6 +51,7 @@
 # include <stdexcept>
 # include <gtest/gtest.h>
 
+# include <ah-random.H>
 # include <ah-string-utils.H>
 # include <ah-stl-utils.H>
 # include <ahSort.H>
@@ -71,15 +70,15 @@ struct SimpleArray : public Test
 
 struct TenVectors : public Test
 {
-  static vector <int> rand_vec(int n, const gsl_rng *rng)
+  static vector <int> rand_vec(int n, Gsl_Compatible_Rng & rng)
   {
     vector <int> v(n);
     for (int i = 0; i < n; i++)
-      v[i] = gsl_rng_uniform_int(rng, n);
+      v[i] = rng.uniform_int(n);
     return v;
   }
 
-  gsl_rng *rng = gsl_rng_alloc(gsl_rng_mt19937);
+  Gsl_Compatible_Rng rng; // the seed 0, as that of gsl_rng_alloc()
 
   vector <int> a = rand_vec(1000000, rng);
   vector <int> b = rand_vec(1000000, rng);
@@ -91,11 +90,6 @@ struct TenVectors : public Test
   vector <int> h = rand_vec(1000000, rng);
   vector <int> i = rand_vec(1000000, rng);
   vector <int> j = rand_vec(1000000, rng);
-
-  ~TenVectors()
-  {
-    gsl_rng_free(rng);
-  }
 };
 
 TEST_F(SimpleArray, sort)

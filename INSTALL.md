@@ -11,6 +11,7 @@ This guide covers the installation of Aleph-w from source using CMake.
   - [Compiler Requirements](#install-compiler-requirements)
   - [Build Tools](#install-build-tools)
   - [Required Libraries](#install-required-libraries)
+  - [Building without GSL](#install-without-gsl)
   - [Optional Libraries](#install-optional-libraries)
 - [Installation on Linux](#install-installation-on-linux)
   - [Ubuntu/Debian](#install-ubuntudebian)
@@ -51,10 +52,31 @@ The following libraries are **required** to build Aleph-w:
 | **GMP** | `libgmp-dev` | Arbitrary precision arithmetic |
 | **GMP C++** | `libgmp-dev` (includes C++ bindings) | C++ interface for GMP |
 | **MPFR** | `libmpfr-dev` | Multiple precision floating-point |
-| **GSL** | `libgsl-dev` | GNU Scientific Library (random numbers, statistics) |
+| **GSL** | `libgsl-dev` | GNU Scientific Library: not used by Aleph since 7.4.0, but linked while `ALEPH_WITH_GSL` is ON, the default until 8.0.0 (see [Building without GSL](#install-without-gsl)) |
 | **X11** | `libx11-dev` | X Window System (for visualization) |
 
 Threads (pthreads) are required and typically provided by the OS C library (no separate package needed on most Linux distros).
+
+### Building without GSL {#install-without-gsl}
+
+Since 7.4.0 Aleph does not use GSL: the random numbers of its randomized
+structures and generators come from `Gsl_Compatible_Rng` (`ah-random.H`),
+which gives, for each seed, the numbers of `gsl_rng_mt19937` of GSL. While
+the CMake option `ALEPH_WITH_GSL` is ON, the default until 8.0.0, Aleph
+still links GSL and passes it to the programs that link `Aleph::Aleph`, as
+before, for those that use GSL through Aleph. To build without GSL, which
+then need not be installed:
+
+```bash
+cmake -S . -B build -G Ninja -DALEPH_WITH_GSL=OFF
+```
+
+Aleph then neither links nor passes GSL, its packages do not depend on it,
+and it defines `ALEPH_WITH_GSL=0` for its consumers: the deprecated
+`gsl_rng_object()` of the randomized structures is left out, and `rng()`
+gives their generator. The link commands of this guide then need no
+`-lgsl -lgslcblas`. `find_package(Aleph)` sets `Aleph_WITH_GSL` to what
+the package was built with.
 
 ### Optional Libraries {#install-optional-libraries}
 

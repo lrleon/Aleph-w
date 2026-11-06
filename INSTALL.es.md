@@ -12,6 +12,7 @@ Esta guía cubre la instalación de Aleph-w desde el código fuente usando CMake
   - [Requisitos de compilador](#install-es-requisitos-de-compilador)
   - [Herramientas de build](#install-es-herramientas-de-build)
   - [Librerías requeridas](#install-es-librerias-requeridas)
+  - [Compilar sin GSL](#install-es-sin-gsl)
   - [Librerías opcionales](#install-es-librerias-opcionales)
 - [Instalación en Linux](#install-es-instalacion-en-linux)
   - [Ubuntu/Debian](#install-es-ubuntudebian)
@@ -56,10 +57,32 @@ Esta rama enlaza contra:
 |---------|--------------------------|-----------|
 | **GMP + gmpxx** | `libgmp-dev` | enteros/racionales multiprecisión (incluye bindings C++) |
 | **MPFR** | `libmpfr-dev` | punto flotante multiprecisión |
-| **GSL (+ gslcblas)** | `libgsl-dev` | RNG/estadística usada por estructuras/algoritmos aleatorizados |
+| **GSL (+ gslcblas)** | `libgsl-dev` | Aleph no la usa desde 7.4.0, pero la enlaza mientras `ALEPH_WITH_GSL` esté en ON, lo predeterminado hasta 8.0.0 (ver [Compilar sin GSL](#install-es-sin-gsl)) |
 | **X11** | `libx11-dev` | dependencia de enlace |
 
 Threads (pthreads) son requeridos y normalmente vienen con la libc del sistema (no suele hacer falta un paquete aparte).
+
+<a id="install-es-sin-gsl"></a>
+### Compilar sin GSL
+
+Desde 7.4.0, Aleph no usa GSL: los números aleatorios de sus estructuras y
+generadores aleatorizados salen de `Gsl_Compatible_Rng` (`ah-random.H`), que
+da, para cada semilla, los números de `gsl_rng_mt19937` de GSL. Mientras la
+opción de CMake `ALEPH_WITH_GSL` esté en ON, lo predeterminado hasta 8.0.0,
+Aleph sigue enlazando GSL y pasándola a los programas que enlazan
+`Aleph::Aleph`, como antes, para los que usan GSL a través de Aleph. Para
+compilar sin GSL, que entonces no hace falta instalar:
+
+```bash
+cmake -S . -B build -G Ninja -DALEPH_WITH_GSL=OFF
+```
+
+Así, Aleph ni enlaza ni pasa GSL, sus paquetes no dependen de ella, y define
+`ALEPH_WITH_GSL=0` para sus consumidores: queda fuera el `gsl_rng_object()`
+desaprobado de las estructuras aleatorizadas, cuyo generador da `rng()`. Los
+comandos de enlace de esta guía no necesitan entonces `-lgsl -lgslcblas`.
+`find_package(Aleph)` pone en `Aleph_WITH_GSL` con qué se compiló el
+paquete.
 
 <a id="install-es-librerias-opcionales"></a>
 ### Librerías opcionales
@@ -429,7 +452,8 @@ Si tu distro trae CMake < 3.18, actualiza CMake (p.ej. Kitware, backports, etc.)
 
 ### 2) GMP/MPFR/GSL no encontrados
 
-Instala los paquetes *-dev/*-devel correspondientes (según la distro).
+Instala los paquetes *-dev/*-devel correspondientes (según la distro). GSL no
+hace falta con `-DALEPH_WITH_GSL=OFF` (ver [Compilar sin GSL](#install-es-sin-gsl)).
 
 ### 3) X11 no encontrado
 

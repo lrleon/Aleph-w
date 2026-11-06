@@ -30,7 +30,7 @@
   SOFTWARE.
 */
 # include <ctime>
-# include <gsl/gsl_rng.h> 
+# include <ah-random.H>
 # include <cassert>
 # include <iostream>
 # include <ahFunctional.H>
@@ -44,7 +44,7 @@
 
 using namespace std;
 
-gsl_rng * r = NULL;
+Gsl_Compatible_Rng r;
 
 template <template <typename, class> class SetType> unsigned long 
 insert_n_random_items_in_set
@@ -58,7 +58,7 @@ insert_n_random_items_in_set
 
   for (int i = 0; i < n; i++)
     {
-      keys[i] = gsl_rng_get(r);
+      keys[i] = r.get();
       if (not table.has(keys(i)))
         table.insert(keys(i));
       else
@@ -171,9 +171,9 @@ void test_DynSetLinHash(size_t n)
     SetType aux;
     for (size_t i = 0; i < n/2; ++i)
       {
-        unsigned long key = gsl_rng_get(r);
+        unsigned long key = r.get();
         while (aux.has(key))
-          key = gsl_rng_get(r);
+          key = r.get();
         aux.insert(key);
       }
 
@@ -269,7 +269,7 @@ unsigned long insert_n_random_items_in_map(HashTable & table,
   cout << "Testing simple insertions and searches ...." << endl;
   for (long i = 0; i < n; i++)
     {
-      keys[i] = gsl_rng_get(r);
+      keys[i] = r.get();
       if (not table.has(keys(i)))
         {
           // Keep the insertion out of assert(): NDEBUG would remove it.
@@ -436,8 +436,7 @@ int main(int argc, char * argv[])
 
   cout << argv[0] << " " << n << " " << t << endl;
 
-  r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, t % gsl_rng_max(r));
+  r.seed(t % Gsl_Compatible_Rng::max());
 
   test_DynSetLinHash<DynSetLhash>(n);
   test_DynMapLinHash<DynMapHash>(n);
@@ -471,5 +470,4 @@ int main(int argc, char * argv[])
   // cout << "Done all tests of OL hash based map" << endl
   //      << endl
   //      << endl;
-  gsl_rng_free(r);
 }

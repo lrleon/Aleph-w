@@ -33,7 +33,7 @@
 # include <ctime>
 # include <cerrno>
 # include <climits>
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <cassert>
 # include <iostream>
 # include <ahFunctional.H>
@@ -45,7 +45,7 @@
 
 using namespace std;
 
-gsl_rng * r = nullptr;
+Gsl_Compatible_Rng r;
 
 unsigned long insert_n_random_items_in_set(DynSetTree<unsigned long> & table,
 					   DynArray<unsigned long> & keys,
@@ -57,7 +57,7 @@ unsigned long insert_n_random_items_in_set(DynSetTree<unsigned long> & table,
 
   for (unsigned long i = 0; i < n; i++)
     {
-      keys[i] = gsl_rng_get(r);
+      keys[i] = r.get();
       if (not table.has(keys(i)))
 	table.insert(keys(i));
       else
@@ -146,9 +146,9 @@ void test_DynSet(size_t n)
     DynSetTree<unsigned long> aux;
     for (size_t i = 0; i < n/2; ++i)
       {
-        unsigned long key = gsl_rng_get(r);
+        unsigned long key = r.get();
         while (aux.has(key))
-          key = gsl_rng_get(r);
+          key = r.get();
         aux.insert(key);
       }
 
@@ -240,7 +240,7 @@ insert_n_random_items_in_map(DynMapTree<unsigned long, long> & table,
   cout << "Testing simple insertions and searches ...." << endl;
   for (unsigned long i = 0; i < n; i++)
     {
-      keys[i] = gsl_rng_get(r);
+      keys[i] = r.get();
       if (not table.has(keys(i)))
         {
           // Keep the insertion out of assert(): NDEBUG would remove it.
@@ -364,12 +364,10 @@ int main(int argc, char *argv[])
 
   cout << argv[0] << " " << n << " " << t << endl;
 
-  r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, t % gsl_rng_max(r));
+  r.seed(t % Gsl_Compatible_Rng::max());
 
   test_DynSet(n);
 
   test_DynMap(n);
 
-  gsl_rng_free(r);
 }

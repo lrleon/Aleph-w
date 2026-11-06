@@ -448,6 +448,35 @@ TEST(RandomStructures, TheDeprecatedGslRngIsMadeOnceFromSeveralThreads)
 #  elif defined(_MSC_VER)
 #    pragma warning(pop)
 #  endif
+#else
+// Without GSL (ALEPH_WITH_GSL is 0), the cases that compare with it
+// report SKIPPED instead of disappearing from the run, as
+// docs/ci_sanitizer_policy.md asks of a case that a configuration
+// cannot run; the hashes of the other cases stand for GSL
+TEST(RandomStructures, TheTreapPrioritiesAreTheNumbersOfGsl)
+{
+  GTEST_SKIP() << "without GSL (ALEPH_WITH_GSL is 0)";
+}
+
+TEST(RandomStructures, TheDeprecatedGslRngActsOnTheGenerator)
+{
+  GTEST_SKIP() << "without GSL (ALEPH_WITH_GSL is 0)";
+}
+
+TEST(RandomStructures, TheDeprecatedGslRngFollowsItsGenerator)
+{
+  GTEST_SKIP() << "without GSL (ALEPH_WITH_GSL is 0)";
+}
+
+TEST(RandomStructures, TheDeprecatedGslRngCopiesSavesAndRestoresTheGenerator)
+{
+  GTEST_SKIP() << "without GSL (ALEPH_WITH_GSL is 0)";
+}
+
+TEST(RandomStructures, TheDeprecatedGslRngIsMadeOnceFromSeveralThreads)
+{
+  GTEST_SKIP() << "without GSL (ALEPH_WITH_GSL is 0)";
+}
 #endif // ALEPH_WITH_GSL
 
 TEST(RandomStructures, MovesAndSwapsKeepTheGenerators)

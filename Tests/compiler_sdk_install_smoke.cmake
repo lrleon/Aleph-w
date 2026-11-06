@@ -37,8 +37,9 @@ set(SMOKE_COMPILE_FLAGS
 # On macOS, Homebrew installs GMP/MPFR/GSL outside the default compiler
 # search path (e.g. /opt/homebrew/include on Apple Silicon, /usr/local on
 # Intel). The installed SDK headers transitively #include <gsl/gsl_rng.h>
-# (via ah-zip.H → tpl_dynSkipList.H), so the smoke compile fails unless we
-# also add the Homebrew include prefix. Mirrors the logic in the top-level
+# where they find it (via ah-zip.H → tpl_dynSkipList.H → ah-random.H), so
+# the smoke compile adds the Homebrew include prefix too, to compile the
+# headers that Aleph compiles there. Mirrors the logic in the top-level
 # CMakeLists.txt that adds the same path to the Aleph target.
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
   execute_process(

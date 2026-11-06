@@ -30,11 +30,16 @@ class AlephWConan(ConanFile):
         # for forward compatibility and currently does not change the build.
         "use_ffmpeg": [True, False],
         "build_examples": [True, False],
+        # GSL, which Aleph no longer needs: True links it and passes it to
+        # the consumers (ALEPH_WITH_GSL), for the code that uses GSL through
+        # Aleph, as the deprecated gsl_rng_object()
+        "with_gsl": [True, False],
     }
     default_options = {
         "use_x11": False,
         "use_ffmpeg": False,
         "build_examples": False,
+        "with_gsl": False,
     }
 
     exports_sources = (
@@ -48,7 +53,8 @@ class AlephWConan(ConanFile):
     def requirements(self):
         self.requires("gmp/6.3.0")
         self.requires("mpfr/4.2.1")
-        self.requires("gsl/2.7.1")
+        if self.options.with_gsl:
+            self.requires("gsl/2.7.1")
 
     def layout(self):
         cmake_layout(self)
@@ -60,6 +66,7 @@ class AlephWConan(ConanFile):
         tc.variables["BUILD_REPRODUCTIONS"] = False
         tc.variables["BUILD_BENCHMARKS"] = False
         tc.variables["ALEPH_BUILD_X11_VIEWER"] = self.options.use_x11
+        tc.variables["ALEPH_WITH_GSL"] = self.options.with_gsl
         tc.generate()
         CMakeDeps(self).generate()
 
@@ -85,3 +92,7 @@ class AlephWConan(ConanFile):
             self.cpp_info.system_libs = ["pthread", "m"]
         if self.options.use_x11:
             self.cpp_info.system_libs.append("X11")
+        # What Aleph::Aleph defines without GSL, so that ah-random.H
+        # includes no header of GSL that the consumer finds
+        if not self.options.with_gsl:
+            self.cpp_info.defines.append("ALEPH_WITH_GSL=0")

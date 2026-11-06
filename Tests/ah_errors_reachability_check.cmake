@@ -24,9 +24,10 @@ endif()
 set(FLAGS "-std=c++20" "-Wall" "-Wextra" "-Werror" "-c" "-I${SOURCE_DIR}")
 
 # On macOS, Homebrew installs GSL outside the default search path of the
-# compiler, and parse_utils.H includes <gsl/gsl_rng.h> (through
-# ah-string-utils.H, ah-zip.H and tpl_dynSkipList.H). As
-# ah_errors_else_check.cmake, add the include directory of Homebrew.
+# compiler, and parse_utils.H includes <gsl/gsl_rng.h> where it finds it
+# (through ah-string-utils.H, ah-zip.H, tpl_dynSkipList.H and
+# ah-random.H). As ah_errors_else_check.cmake, add the include directory
+# of Homebrew, so that the check sees the headers that Aleph sees there.
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
   execute_process(
     COMMAND brew --prefix

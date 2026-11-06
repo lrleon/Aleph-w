@@ -116,13 +116,17 @@ if(NOT DEFINED ALEPH_SYSTEM_LIBS)
             set(_ALEPH_X11_LIBS ${X11_LIBRARIES})
         endif()
     endif()
+    # GSL, as ALEPH_WITH_GSL of the root CMakeLists, ON by default
+    set(_ALEPH_GSL_LIBS "")
+    if(NOT DEFINED ALEPH_WITH_GSL OR ALEPH_WITH_GSL)
+        set(_ALEPH_GSL_LIBS gsl gslcblas)
+    endif()
     set(ALEPH_SYSTEM_LIBS
         gmpxx
         gmp
         ${_ALEPH_PTHREAD}
         mpfr
-        gsl
-        gslcblas
+        ${_ALEPH_GSL_LIBS}
         ${_ALEPH_LIBM}
         ${_ALEPH_X11_LIBS}
         Threads::Threads)
@@ -292,6 +296,7 @@ set(TEST_PROGRAMS
     ah_random_test
     random_structures_test
     random_generators_test
+    ran_array_test
     tpl_binNodeGenerators_test
     graph_traverse_generators_test
     ah_comb_generators_test
@@ -702,62 +707,6 @@ foreach(test_program ${TEST_PROGRAMS})
     endif()
 endforeach()
 
-# Create executable for each exhaustive test program (files ending in _test.cc)
-# These tests are for header-only classes and need minimal dependencies
-foreach(test_program ${EXHAUSTIVE_TESTS})
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_program}.cc")
-        add_executable(${test_program} ${test_program}.cc)
-        list(APPEND _ALEPH_TEST_EXECUTABLE_TARGETS ${test_program})
-
-        # Most exhaustive tests are header-only and need minimal dependencies.
-        # Some (like tpl_graph_utils_test and test_al_vector) exercise algorithms
-        # that depend on symbols provided by libAleph.
-        if(test_program STREQUAL "ah_iterator_test")
-            target_link_libraries(${test_program} PRIVATE
-                Aleph
-                GTest::gtest_main
-                GTest::gtest
-                ${ALEPH_SYSTEM_LIBS}
-            )
-        elseif(test_program STREQUAL "ah_random_test" OR test_program STREQUAL "random_structures_test")
-            # Gsl_Compatible_Rng is header-only; the tests compare it, and the
-            # structures that use it, with GSL, whose headers and, on
-            # Windows, GSL_DLL come with Aleph
-            target_link_libraries(${test_program} PRIVATE
-                Aleph
-                GTest::gtest_main
-                GTest::gtest
-                gsl
-                gslcblas
-                ${ALEPH_SYSTEM_LIBS}
-            )
-        elseif(test_program STREQUAL "bipartite_test" OR test_program STREQUAL "tpl_graph_utils_test" OR test_program STREQUAL "tpl_test_cycle" OR test_program STREQUAL "tpl_spanning_tree_test" OR test_program STREQUAL "tpl_components_test" OR test_program STREQUAL "ah-zip-utils_test" OR test_program STREQUAL "ah-uni-functional_test" OR test_program STREQUAL "ah_date_test" OR test_program STREQUAL "ah_mem_test" OR test_program STREQUAL "ah_msg_test" OR test_program STREQUAL "test_al_vector" OR test_program STREQUAL "archeap_test" OR test_program STREQUAL "al_matrix_test" OR test_program STREQUAL "cut_nodes_test" OR test_program STREQUAL "graph_indexes_test" OR test_program STREQUAL "graph_scenarios_test" OR test_program STREQUAL "tpl_net_test" OR test_program STREQUAL "net_sup_dem_test" OR test_program STREQUAL "tpl_netcost_test" OR test_program STREQUAL "tpl_multicommodity_test" OR test_program STREQUAL "tpl_kgraph_test" OR test_program STREQUAL "tpl_agraph_test" OR test_program STREQUAL "test_kruskal" OR test_program STREQUAL "prim_test" OR test_program STREQUAL "tpl_sgraph_test" OR test_program STREQUAL "tpl_graph_test" OR test_program STREQUAL "load_digraph_test" OR test_program STREQUAL "Simplex_test" OR test_program STREQUAL "prefix_tree_test" OR test_program STREQUAL "skiplist_test" OR test_program STREQUAL "dynskiplist_test" OR test_program STREQUAL "dynmat_test" OR test_program STREQUAL "dynmapohash_test" OR test_program STREQUAL "ah-map-arena_test" OR test_program STREQUAL "tpl_dynMapTree_test" OR test_program STREQUAL "euclidian_graph_common_test" OR test_program STREQUAL "future_utils_test" OR test_program STREQUAL "quadtree_test" OR test_program STREQUAL "k2tree_test" OR test_program STREQUAL "container_edge_cases_test" OR test_program STREQUAL "netcapgraph_test" OR test_program STREQUAL "tdrbtree_test" OR test_program STREQUAL "tdrbtreerk_test" OR test_program STREQUAL "htdrbtreerk_test" OR test_program STREQUAL "hash_fct_test" OR test_program STREQUAL "point_test" OR test_program STREQUAL "segment_test" OR test_program STREQUAL "hash_cache_test" OR test_program STREQUAL "cache_test" OR test_program STREQUAL "ranges_iterator_test" OR test_program STREQUAL "ah_ranges_test" OR test_program STREQUAL "eepicgeom_test" OR test_program STREQUAL "pointer_table_test" OR test_program STREQUAL "graph_functional_test" OR test_program STREQUAL "cookie_guard_test" OR test_program STREQUAL "graph_stress_test" OR test_program STREQUAL "fibonacci_heap_test" OR test_program STREQUAL "ahSingleton_test" OR test_program STREQUAL "johnson_test" OR test_program STREQUAL "graph_copy_test" OR test_program STREQUAL "graph_traverse_test" OR test_program STREQUAL "test_ah_errors" OR test_program STREQUAL "dynliststack_test" OR test_program STREQUAL "tpl_dynListQueue" OR test_program STREQUAL "tpl_dynListStack" OR test_program STREQUAL "ahSort_test" OR test_program STREQUAL "astar_test" OR test_program STREQUAL "tpl_maxflow_test" OR test_program STREQUAL "net_utils_test" OR test_program STREQUAL "tpl_mincost_test" OR test_program STREQUAL "net_apps_test" OR test_program STREQUAL "random_network_generator_test" OR test_program STREQUAL "eulerian_test" OR test_program STREQUAL "hamiltonian_test" OR test_program STREQUAL "tpl_dynLhash_test" OR test_program STREQUAL "tpl_random_queue_test" OR test_program STREQUAL "rb_tree_test" OR test_program STREQUAL "treap_test" OR test_program STREQUAL "random_tree_test" OR test_program STREQUAL "random_net_test" OR test_program STREQUAL "euclidian_graph_test" OR test_program STREQUAL "find_path_test" OR test_program STREQUAL "index_graph_test" OR test_program STREQUAL "test_acyclique_test" OR test_program STREQUAL "test_connectivity_test" OR test_program STREQUAL "test_path_test" OR test_program STREQUAL "lfit_test" OR test_program STREQUAL "ah_mapping_test" OR test_program STREQUAL "dyn_treap_test" OR test_program STREQUAL "geom_algorithms_test" OR test_program STREQUAL "robust_predicates_test" OR test_program STREQUAL "generate_df_tree_test" OR test_program STREQUAL "index_graph_intensive_test" OR test_program STREQUAL "driven_table_test" OR test_program STREQUAL "uid_test")
-            target_link_libraries(${test_program} PRIVATE
-                Aleph
-                GTest::gtest_main
-                GTest::gtest
-                gsl
-                gslcblas
-                ${ALEPH_SYSTEM_LIBS}
-            )
-        else()
-            target_link_libraries(${test_program} PRIVATE
-                GTest::gtest_main
-                GTest::gtest
-                Threads::Threads
-            )
-        endif()
-
-        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-            target_compile_options(${test_program} PRIVATE -Wno-unused-result)
-        endif()
-
-        gtest_discover_tests(${test_program} DISCOVERY_MODE PRE_TEST)
-    else()
-        message(WARNING "Source file not found for exhaustive test: ${test_program}.cc")
-    endif()
-endforeach()
-
 # -----------------------------------------------------------------------------
 # Auto-register any remaining test sources in this directory.
 #
@@ -770,7 +719,7 @@ endforeach()
 # handled.
 # -----------------------------------------------------------------------------
 
-set(_ALEPH_KNOWN_TEST_TARGETS "${TEST_PROGRAMS};${EXHAUSTIVE_TESTS}")
+set(_ALEPH_KNOWN_TEST_TARGETS "${TEST_PROGRAMS}")
 list(APPEND _ALEPH_KNOWN_TEST_TARGETS regular_polygon_msan_probe)
 
 # Not a program: the second translation unit of ah_convert_composition_test.
@@ -1111,6 +1060,5 @@ endif()
 
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
 message(STATUS "  Standard test programs: ${TEST_PROGRAMS}")
-message(STATUS "  Exhaustive test programs: ${EXHAUSTIVE_TESTS}")
 message(STATUS "  Use 'make test' or 'ctest' to run all tests")
 message(STATUS "  Use 'ctest -R _test' to run only exhaustive tests")

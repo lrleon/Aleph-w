@@ -32,7 +32,7 @@
 
 # include <ctime>
 
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 
 # include <tclap/CmdLine.h>
 
@@ -55,15 +55,14 @@ ValueArg<size_t> seed = { "s", "seed", "seed", false, (size_t) time(nullptr),
 
 void test(size_t n, unsigned long seed)
 {
-  gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
-  gsl_rng_set(r, seed % gsl_rng_max(r));
+  Gsl_Compatible_Rng r(seed % Gsl_Compatible_Rng::max());
 
   DynMapHash<size_t, string> tbl;
   DynArray<pair<size_t, string>> a;
 
   for (size_t i = 0; i < n; ++i)
     {
-      unsigned long val = gsl_rng_get(r);
+      unsigned long val = r.get();
       const string sval = to_string(val);
       a.append(make_pair(i, sval));
       tbl.insert(i, sval);
@@ -90,7 +89,6 @@ void test(size_t n, unsigned long seed)
       assert(p1.second == ptr->second);
     }
 
-  gsl_rng_free(r);
 }
 
 int main(int argc, char *argv[])

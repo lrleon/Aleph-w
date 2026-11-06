@@ -461,6 +461,100 @@ jobs:
             build/Testing/Temporary/LastTest.log
             build/CMakeCache.txt
 
+  # Aleph without GSL (ALEPH_WITH_GSL=OFF, the default from 8.0.0), where
+  # GSL is not installed: a header or a library of GSL that the library, a
+  # test or an example still needed would fail the build
+  without-gsl:
+    name: without-gsl (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      CC: gcc
+      CXX: g++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install system dependencies (no libgsl-dev)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache \
+            g++ \
+            libgmp-dev libmpfr-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libtclap-dev \
+            libgtest-dev
+          if [ -e /usr/include/gsl/gsl_rng.h ]; then
+            echo "The headers of GSL are installed"; exit 1
+          fi
+
+      - name: Cache ccache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-without-gsl-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-without-gsl-ccache-
+
+      - name: Build and install GoogleTest
+        run: |
+          set -euo pipefail
+          if pkg-config --exists gtest gtest_main; then
+            echo "gtest found via pkg-config"; exit 0
+          fi
+          if [ -d /usr/src/googletest ]; then
+            sudo cmake -S /usr/src/googletest -B /usr/src/googletest/build -G Ninja
+            sudo cmake --build /usr/src/googletest/build
+            sudo cmake --install /usr/src/googletest/build
+            exit 0
+          fi
+          echo "No googletest sources found"; exit 1
+
+      - name: Configure (without GSL)
+        run: |
+          rm -rf build
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DALEPH_WITH_GSL=OFF \
+            -DBUILD_EXAMPLES=ON \
+            -DBUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: |
+          mkdir -p build/test_artifacts/golden_svg
+          export ALEPH_TEST_GOLDEN_DIR="$PWD/build/test_artifacts/golden_svg"
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600
+
+      # The package passes no GSL to its consumers, and says so
+      - name: Check the installed package
+        run: |
+          set -euo pipefail
+          cmake --install build --prefix "$PWD/install"
+          cfg=install/lib/cmake/Aleph
+          grep -q 'ALEPH_WITH_GSL=0' "$cfg/AlephTargets.cmake"
+          if grep -E -q '(^|[;"])gsl(cblas)?([;"]|$)' "$cfg/AlephTargets.cmake"; then
+            echo "Aleph::Aleph still passes GSL"; exit 1
+          fi
+          grep -q 'set(Aleph_WITH_GSL FALSE)' "$cfg/AlephConfig.cmake"
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ctest-logs-without-gsl
+          if-no-files-found: ignore
+          path: |
+            build/Testing/Temporary/LastTest.log
+            build/CMakeCache.txt
+
   fft-simd-validation:
     name: fft-simd-validation (ubuntu-24.04, gcc, Release)
     runs-on: ubuntu-24.04
@@ -1449,6 +1543,7 @@ jobs:
       - tsan
       - ubsan
       - check-examples
+      - without-gsl
     if: always() && github.event_name != 'pull_request'
     steps:
       - name: Check results
@@ -1464,6 +1559,7 @@ jobs:
           echo "tsan result: ${{ needs.tsan.result }}"
           echo "ubsan result: ${{ needs.ubsan.result }}"
           echo "check-examples result: ${{ needs.check-examples.result }}"
+          echo "without-gsl result: ${{ needs.without-gsl.result }}"
 
           is_ok() {
             [ "$1" = "success" ] || [ "$1" = "skipped" ]
@@ -1491,6 +1587,7 @@ jobs:
           check_job "tsan" "${{ needs.tsan.result }}"
           check_job "ubsan" "${{ needs.ubsan.result }}"
           check_job "check-examples" "${{ needs.check-examples.result }}"
+          check_job "without-gsl" "${{ needs.without-gsl.result }}"
 
           if [ "$all_ok" -ne 1 ]; then
             echo "CI failed"
@@ -1513,6 +1610,7 @@ jobs:
       - tsan
       - ubsan
       - check-examples
+      - without-gsl
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Check results
@@ -1529,6 +1627,7 @@ jobs:
           echo "tsan result: ${{ needs.tsan.result }}"
           echo "ubsan result: ${{ needs.ubsan.result }}"
           echo "check-examples result: ${{ needs.check-examples.result }}"
+          echo "without-gsl result: ${{ needs.without-gsl.result }}"
 
           is_ok() {
             [ "$1" = "success" ] || [ "$1" = "skipped" ]
@@ -1557,6 +1656,7 @@ jobs:
           check_job "tsan" "${{ needs.tsan.result }}"
           check_job "ubsan" "${{ needs.ubsan.result }}"
           check_job "check-examples" "${{ needs.check-examples.result }}"
+          check_job "without-gsl" "${{ needs.without-gsl.result }}"
 
           if [ "$all_ok" -ne 1 ]; then
             echo "CI failed"

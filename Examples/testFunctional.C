@@ -30,7 +30,7 @@
   SOFTWARE.
 */
 
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <cstdlib>
 # include <cassert>
 # include <iostream>
@@ -44,7 +44,7 @@
 # include <ctime>
 using namespace std;
 
-gsl_rng * r;
+Gsl_Compatible_Rng r;
 
 template <template <class> class C, typename T>
 void print_seq(const C<T> & c)
@@ -62,8 +62,7 @@ int main(int argc, char *argv[])
 
   cout << argv[0] << " " << n << " " << seed << endl;
 
-  r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, seed);
+  r.seed(seed);
 
   DynList<int> l1({1,2,3,4,5,6,7,8,9});
 
@@ -98,7 +97,7 @@ int main(int argc, char *argv[])
     cout << "Building random list" << endl;
     DynList<long> l;
     for (long i = 0; i < n; ++i)
-      l.append(gsl_rng_get(r));
+      l.append(r.get());
 
     cout << endl
 	 << "building array copy of previous list" << endl;
@@ -147,6 +146,5 @@ int main(int argc, char *argv[])
   range(10).drop(3).for_each([] (long i) { cout << " " << i; }); 
   cout << endl;
 
-  gsl_rng_free(r);
   return 0;
 }

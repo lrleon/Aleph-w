@@ -19,9 +19,10 @@ pip install --editable python/
 python -m build python/
 ```
 
-System dependencies (matching the C++ library):
+System dependencies (matching the C++ library, which the wheel builds
+without GSL):
 
-- `libgmp-dev libmpfr-dev libgsl-dev`
+- `libgmp-dev libmpfr-dev`
 - A modern C++ compiler with C++20 support
 - Python 3.10+ with development headers
 

@@ -157,7 +157,9 @@ builds, which with Clang and libc++ leaves out `k2tree_test` and
 
 ### `build-windows` (`windows-2022` × `msvc`, `clang-cl`)
 
-The Aleph-w Windows port is restricted to the headless subset.
+The Aleph-w Windows port is restricted to the headless subset. The
+`msvc` job builds with GSL (`ALEPH_WITH_GSL=ON`), and the `clang-cl` job
+without it (see [Builds without GSL](#builds-without-gsl)).
 
 Two skip levels exist on Windows:
 
@@ -204,6 +206,9 @@ GoogleTest) can stay on Windows by asserting a `bool` instead, as
 | `random_structures_test` | With MSVC, leaves out the `SkipList`, for the reason of `skiplist_test`. With MSVC and clang-cl, does not save and restore a generator with `gsl_rng_fwrite()` and `gsl_rng_fread()`: the `FILE` of their programs is one of the UCRT, which the GSL of MSYS2, of another C runtime, cannot write. |
 | `ah_random_test` | With MSVC and clang-cl, compares the draws of `gaussian()` and `exponential()` with those of GSL within `1e-9 * max(1, abs(x))`, where `x` is the draw of GSL, instead of bit by bit: they take the logarithm of the UCRT, and the GSL of MSYS2 that of its own C runtime, which may differ from it in the last bits. |
 
+These comparisons with GSL run in the `msvc` job: the `clang-cl` job,
+without GSL, skips them.
+
 The Windows job sets `-DALEPH_BUILD_X11_VIEWER=OFF` so the library does
 not pull `libX11`. `ca-x11-viewer.H` is then compiled as a no-op stub
 guarded by `__has_include(<X11/Xlib.h>)`.
@@ -218,6 +223,23 @@ therefore leaves out:
 |------|-----------|
 | `k2tree_test`  | Built only with GCC: no Clang, AppleClang or Windows job builds it. |
 | `gmpfrxx_test` | Skipped when Clang uses libc++ (`ALEPH_USE_LIBCXX`, or `-stdlib=libc++` in `CMAKE_CXX_FLAGS` or in the flags of the active build type) on a non-Apple host: the Clang jobs of `build-and-test` in `ci.yml` and of `build-arm64-linux`. Homebrew's GMP on macOS is built with libc++, so the test runs there. |
+
+## Builds without GSL
+
+The `without-gsl` job of `ci.yml` (Linux, GCC, Release, where GSL is not
+installed), which builds the tests and the examples, and the `clang-cl`
+job of `build-windows`, which builds the tests, configure Aleph-w with
+`ALEPH_WITH_GSL=OFF`, its default from 8.0.0: a header or a library of
+GSL that they still needed would fail them. There, the cases that
+compare with GSL report `SKIPPED`, and the fixed hashes of the draws of
+GSL, which the other cases check, stand for it.
+
+| Test | Cases skipped without GSL |
+|------|---------------------------|
+| `ah_random_test` | `EveryDrawIsTheOneOfGsl`; `TheDrawsOfGslByTheirHashes` checks the hashes of its draws. |
+| `random_structures_test` | `TheTreapPrioritiesAreTheNumbersOfGsl`, and the four `TheDeprecatedGslRng*`, which need the deprecated `gsl_rng_object()`. |
+| `random_generators_test` | `TheSeedsOfABloomFilterAreTheNumbersOfGsl`, `TheTableOfJswHashHasTheNumbersOfGsl` and `TheSampleOfAReservoirIsThatOfGsl`. |
+| `lfit_test` | `TheFitIsThatOfGsl`. |
 
 ## Re-enabling a skipped test
 

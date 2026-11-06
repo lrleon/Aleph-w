@@ -31,7 +31,7 @@
 # include <iostream>
 # include <ctime>
 # include <string>
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <aleph.H>
 # include <tpl_dynarray_set.H>
 # include <tpl_splay_treeRk.H>
@@ -69,8 +69,7 @@ int main(int argc, char *argv[])
       try { seed = stoul(argv[2]); } catch (...) { seed = 0; }
     }
 
-  gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, seed % gsl_rng_max(r));
+  Gsl_Compatible_Rng r(seed % Gsl_Compatible_Rng::max());
 
   if (argc > 1)
     cout << argv[0] << " " << n << " " << seed << endl;
@@ -86,7 +85,7 @@ int main(int argc, char *argv[])
       int value;
       do
 	{
-	  value = gsl_rng_uniform_int(r, 100*n);
+	  value = r.uniform_int(100*n);
 	  node = tree.search(value);
 	  assert(tree.verify());
 	}
@@ -129,7 +128,7 @@ int main(int argc, char *argv[])
   cout << "testing random positions" << endl;
   for (int i = 0; i < n; ++i)
     {
-      int idx = gsl_rng_uniform_int(r, keys.size());
+      int idx = r.uniform_int(keys.size());
       std::pair<int, Splay_Tree_Rk<int>::Node*> pos = 
 	tree.position(keys(idx));
       assert(check_rank_tree(tree.getRoot()));
@@ -142,7 +141,7 @@ int main(int argc, char *argv[])
 
   for (int i = 0; i < n/2; i++)
     { 
-      int idx = gsl_rng_uniform_int(r, keys.size());
+      int idx = r.uniform_int(keys.size());
       int & value = keys(idx);
       cout << value << " ";
       node = tree.remove(value);
@@ -170,7 +169,6 @@ int main(int argc, char *argv[])
   if (argc > 1)
     cout << endl << argv[0] << " " << n << " " << seed << endl;
  
-  gsl_rng_free(r);
 }
 
 
