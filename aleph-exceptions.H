@@ -70,6 +70,14 @@
  *  ah_domain_error_if(x < 0, "x must be positive");
  *  ```
  *
+ *  @deprecated Nothing of Aleph but `LFit` uses it, which throws
+ *  SizeMismatch until 8.0.0: `aleph-exceptions.H` goes in 8.0.0, and
+ *  `LFit` throws then `std::invalid_argument`, as the macros of
+ *  `ah-errors.H` do. Its classes are `[[deprecated]]`, and
+ *  DEFINE_ALEPH_EXCEPTION, which derives from AlephException, warns where
+ *  it is used. To catch the errors of `LFit` both before and after 8.0.0,
+ *  catch `std::exception`.
+ *
  *  @see ah-errors.H Modern error handling macros
  *  @see ahUtils.H Utility functions used by exceptions
  *
@@ -85,14 +93,30 @@
 
 # include <ahUtils.H>
 
+// The classes are deprecated, and so are their uses here: they warn only
+// where the programs use them. The public macros are defined outside of
+// the regions without the warning, which, for GCC, cover what they spell
+# if defined(_MSC_VER) && !defined(__clang__)
+#   pragma warning(push)
+#   pragma warning(disable : 4996)
+# else
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+# endif
+
+# define ALEPH_EXCEPTIONS_DEPRECATED \
+  [[deprecated("aleph-exceptions.H goes in 8.0.0; use the macros of ah-errors.H instead")]]
+
 /** Aleph exception class
 
    @author Leandro Rabindranath Leon 
    @ingroup Exceptions
    @note This class is not intended for public use. Instead use the
    macro DEFINE_ALEPH_EXCEPTION 
+   @deprecated `aleph-exceptions.H` goes in 8.0.0: use the macros of
+   `ah-errors.H`, which throw the exceptions of the standard library.
  */
-struct AlephException : public std::runtime_error
+struct ALEPH_EXCEPTIONS_DEPRECATED AlephException : public std::runtime_error
 {
   /// Line number of source file where the exception was thrown
   const size_t line_number = 0;
@@ -134,6 +158,12 @@ public:
       line_number(line_number), file_name(file_name), type(type) {}
 };
 
+# if defined(_MSC_VER) && !defined(__clang__)
+#   pragma warning(pop)
+# else
+#   pragma GCC diagnostic pop
+# endif
+
 /** Define a new exception
 
     @param[in] name of the exception
@@ -141,6 +171,9 @@ public:
 
     @ingroup Exceptions
     @author Leandro Rabindranath Leon 
+    @deprecated `aleph-exceptions.H` goes in 8.0.0: the class that it
+    defines derives from the deprecated AlephException, and the macro
+    warns where it is used.
  */
 # define DEFINE_ALEPH_EXCEPTION(name, category_msg)			\
   struct name : public AlephException					\
@@ -150,6 +183,10 @@ public:
 	 const std::string & type,					\
 	 const std::string & msg)					\
       : AlephException(#category_msg, line_number, file_name, type, msg) {} \
+									\
+  private:								\
+    /* GCC does not warn of a deprecated base class: of this, it does */ \
+    using aleph_deprecated_base_ = AlephException;			\
   };
 
 /** Macro for throwing an aleph exception
@@ -158,29 +195,59 @@ public:
    @param[in] msg message describing the error
    @ingroup Exceptions
  *  @author Leandro Rabindranath León
+ *  @deprecated `aleph-exceptions.H` goes in 8.0.0: use the macros of
+ *  `ah-errors.H`. The classes that it throws are deprecated.
  */
 # define ALEPHTHROW(type, msg) throw type(__LINE__, __FILE__, #type, msg)
 
-DEFINE_ALEPH_EXCEPTION(MinMaxReversed,
-		     "minimum value is greater than maximum value");
-DEFINE_ALEPH_EXCEPTION(InvalidCsvHeader, "Invalid csv header");
-DEFINE_ALEPH_EXCEPTION(InvalidCsvRow, "Invalid csv row");
-DEFINE_ALEPH_EXCEPTION(InvalidValue, "Invalid value");
-DEFINE_ALEPH_EXCEPTION(OutOfMemory, "No memory");
-DEFINE_ALEPH_EXCEPTION(OutOfRange, "Value is out of allowed range");
-DEFINE_ALEPH_EXCEPTION(ValueNotFound, "Value not found");
-DEFINE_ALEPH_EXCEPTION(CommandLineError, "error parsing command line");
-DEFINE_ALEPH_EXCEPTION(InvariantError, "A bug has been detected. "
-		     "Please send a bug report to leandro.r.leon@gmail.com");
-DEFINE_ALEPH_EXCEPTION(SizeMismatch, "Sequences have different sizes");
-DEFINE_ALEPH_EXCEPTION(InvalidConversion, "failure in numeric conversion");
-DEFINE_ALEPH_EXCEPTION(NameNotFound, "name not found");
-DEFINE_ALEPH_EXCEPTION(InvalidSize, "invalid size");
-DEFINE_ALEPH_EXCEPTION(InvalidRange, "invalid range");
-DEFINE_ALEPH_EXCEPTION(InvalidUnit, "invalid unit");
-DEFINE_ALEPH_EXCEPTION(DuplicatedOperation, "duplicated operation");
-DEFINE_ALEPH_EXCEPTION(DuplicatedName, "Duplicated name");
-DEFINE_ALEPH_EXCEPTION(InvalidRead, "Error while reading input stream");
-DEFINE_ALEPH_EXCEPTION(FileNotFound, "file not found");
+# if defined(_MSC_VER) && !defined(__clang__)
+#   pragma warning(push)
+#   pragma warning(disable : 4996)
+# else
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+# endif
+
+// The exceptions of Aleph, deprecated as AlephException
+# define ALEPH_DEFINE_DEPRECATED_EXCEPTION(name, category_msg)		\
+  struct ALEPH_EXCEPTIONS_DEPRECATED name : public AlephException	\
+  {									\
+    name(const size_t line_number,					\
+	 const std::string & file_name,					\
+	 const std::string & type,					\
+	 const std::string & msg)					\
+      : AlephException(#category_msg, line_number, file_name, type, msg) {} \
+  };
+
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(MinMaxReversed,
+                                  "minimum value is greater than maximum value");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(InvalidCsvHeader, "Invalid csv header");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(InvalidCsvRow, "Invalid csv row");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(InvalidValue, "Invalid value");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(OutOfMemory, "No memory");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(OutOfRange, "Value is out of allowed range");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(ValueNotFound, "Value not found");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(CommandLineError, "error parsing command line");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(InvariantError, "A bug has been detected. "
+                                  "Please send a bug report to leandro.r.leon@gmail.com");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(SizeMismatch, "Sequences have different sizes");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(InvalidConversion, "failure in numeric conversion");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(NameNotFound, "name not found");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(InvalidSize, "invalid size");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(InvalidRange, "invalid range");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(InvalidUnit, "invalid unit");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(DuplicatedOperation, "duplicated operation");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(DuplicatedName, "Duplicated name");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(InvalidRead, "Error while reading input stream");
+ALEPH_DEFINE_DEPRECATED_EXCEPTION(FileNotFound, "file not found");
+
+# undef ALEPH_DEFINE_DEPRECATED_EXCEPTION
+# undef ALEPH_EXCEPTIONS_DEPRECATED
+
+# if defined(_MSC_VER) && !defined(__clang__)
+#   pragma warning(pop)
+# else
+#   pragma GCC diagnostic pop
+# endif
 
 # endif

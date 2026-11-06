@@ -83,6 +83,16 @@
 
 # include <aleph-exceptions.H>
 
+// LFit throws SizeMismatch, deprecated, until 8.0.0: it warns only where
+// the programs name it
+# if defined(_MSC_VER) && !defined(__clang__)
+#   pragma warning(push)
+#   pragma warning(disable : 4996)
+# else
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+# endif
+
 /**
  * @brief Linear regression calculator using least squares method.
  *
@@ -150,6 +160,10 @@ struct LFit
    *
    * @throw SizeMismatch if x and y have different sizes
    * @throw SizeMismatch if the arrays are empty or have only 1 element
+   *
+   * SizeMismatch, of the deprecated `aleph-exceptions.H`, is a
+   * `std::runtime_error`; from 8.0.0, LFit throws `std::invalid_argument`
+   * instead. Catching `std::exception` catches both.
    *
    * @par Example
    * @code
@@ -280,5 +294,11 @@ private:
   }
 };
 
+
+# if defined(_MSC_VER) && !defined(__clang__)
+#   pragma warning(pop)
+# else
+#   pragma GCC diagnostic pop
+# endif
 
 # endif
