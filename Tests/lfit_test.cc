@@ -411,6 +411,15 @@ TEST_F(LFitTest, TwoPointsGiveNoStandardDeviationOfTheErrors)
   EXPECT_TRUE(std::isnan(fit.sigma));
 }
 
+// LFit throws SizeMismatch until 8.0.0, of aleph-exceptions.H, deprecated
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(push)
+#  pragma warning(disable : 4996)
+#else
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 TEST_F(LFitTest, EmptyArraysThrow)
 {
   // Before, the correlation read the first element of the empty arrays
@@ -419,6 +428,31 @@ TEST_F(LFitTest, EmptyArraysThrow)
 
   Array<double> one = {1};
   EXPECT_THROW((void) LFit(one, one), SizeMismatch);
+}
+
+TEST_F(LFitTest, ArraysOfDifferentSizesThrow)
+{
+  Array<double> x = {1, 2, 3};
+  Array<double> y = {1, 2};
+  EXPECT_THROW((void) LFit(x, y), SizeMismatch);
+  EXPECT_THROW((void) LFit(y, x), SizeMismatch);
+}
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(pop)
+#else
+#  pragma GCC diagnostic pop
+#endif
+
+// SizeMismatch is a std::runtime_error: a program that catches that, or
+// std::exception, which LFit throws also from 8.0.0, does not name it
+TEST_F(LFitTest, ItsErrorsAreRuntimeErrors)
+{
+  Array<double> x = {1, 2, 3};
+  Array<double> y = {1, 2};
+  Array<double> e;
+  EXPECT_THROW((void) LFit(x, y), std::runtime_error);
+  EXPECT_THROW((void) LFit(e, e), std::exception);
 }
 
 #if ALEPH_WITH_GSL
