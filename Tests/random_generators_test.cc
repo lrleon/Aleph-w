@@ -299,7 +299,10 @@ namespace
       size = karger.fast(g, vs, vt, cut, 2);
       out += " fast:" + describe_cut(g, size, vs, vt, cut);
       num(out, karger.compute_min_cut_size(g, 4));
-      karger.reseed(s + 1);
+      // s + 1 modulo the maximum of the generator, as reseed() takes it, so
+      // that it is the same where unsigned long has 32 bits, and s + 1 would
+      // wrap to 0
+      karger.reseed(static_cast<unsigned long>((s + 1ULL) % Gsl_Compatible_Rng::max()));
       num(out, karger.compute_min_cut_size(g, 1));
       lines.push_back(out);
     }
@@ -419,14 +422,26 @@ TEST(RandomGenerators, WhatTheyMadeWithGsl)
     0xcd587691155ba501ULL, 0x7b22f892cc2c2d90ULL,
   };
 
+  // The table of jsw_hash() is of long: where long has 32 bits and size_t
+  // 64, as on Windows, its numbers above 2^31 - 1 are negative, and the
+  // hashes of the line of the table, for the seeds below 2^32, are these,
+  // which GSL gave there too. Where size_t has 32 bits too, jsw_hash()
+  // gives other hashes, which the test does not have: it does not compare
+  // the line there
+  static const std::uint64_t golden_jsw_long32[] = {
+    0x3ff9424109e6654dULL, 0x49f945dd5ec91e54ULL, 0x3521995e48d2e088ULL,
+    0x575c8e62a68e5ce6ULL, 0x3ff9424109e6654dULL,
+  };
+
   // The last seed, above 32 bits, exists only where unsigned long has 64:
   // where it has 32, its lines are skipped
   const unsigned long long seeds[] = {0, 1, 12345, 0xfffffffeULL, 0xffffffffULL,
                                       0x100000005ULL};
   const size_t lines_per_seed = 23;
   size_t i = 0;
-  for (const unsigned long long s : seeds)
+  for (size_t k = 0; k < std::size(seeds); ++k)
     {
+      const unsigned long long s = seeds[k];
       if (s > std::numeric_limits<unsigned long>::max())
         {
           i += lines_per_seed;
@@ -435,11 +450,18 @@ TEST(RandomGenerators, WhatTheyMadeWithGsl)
 
       const std::vector<std::string> lines = lines_for(static_cast<unsigned long>(s));
       ASSERT_EQ(lines.size(), lines_per_seed);
-      for (const std::string & line : lines)
+      for (size_t j = 0; j < lines_per_seed; ++j, ++i)
         {
           ASSERT_LT(i, std::size(golden));
-          EXPECT_EQ(fnv1a(line), golden[i]) << line;
-          ++i;
+          std::uint64_t expected = golden[i];
+          if (sizeof(long) == 4 and j == lines_per_seed - 1) // the table of jsw_hash()
+            {
+              if (sizeof(std::size_t) != 8)
+                continue;
+              ASSERT_LT(k, std::size(golden_jsw_long32));
+              expected = golden_jsw_long32[k];
+            }
+          EXPECT_EQ(fnv1a(lines[j]), expected) << lines[j];
         }
     }
   EXPECT_EQ(i, std::size(golden));

@@ -54,7 +54,10 @@
  *  built. On a platform, they are those of GSL where GSL rounds them too,
  *  as in the builds of the distributions for x86-64; where GSL is built
  *  with fused multiply-adds, as for arm64, a draw of flat() or gaussian()
- *  may differ from that of GSL in its last bits.
+ *  may differ from that of GSL in its last bits. So may a draw of
+ *  gaussian() or exponential() where the program and GSL take the
+ *  logarithm of different C libraries, as a program of MSVC, which takes
+ *  that of the UCRT, and the GSL of MSYS2.
  *
  *  @ingroup Utilities
  */
