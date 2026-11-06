@@ -24,8 +24,9 @@ if("x11" IN_LIST FEATURES)
     set(ALEPH_X11 ON)
 endif()
 
-# GSL, which Aleph-w no longer needs, is opt-in via the `gsl` feature
-# (ALEPH_WITH_GSL): without it, the library neither links nor passes GSL.
+# GSL, which Aleph-w no longer needs, comes with the `gsl` feature
+# (ALEPH_WITH_GSL), a default feature until 8.0.0: without it
+# (`aleph-w[core]`), the library neither links nor passes GSL.
 set(ALEPH_GSL OFF)
 if("gsl" IN_LIST FEATURES)
     set(ALEPH_GSL ON)

@@ -32,14 +32,15 @@ class AlephWConan(ConanFile):
         "build_examples": [True, False],
         # GSL, which Aleph no longer needs: True links it and passes it to
         # the consumers (ALEPH_WITH_GSL), for the code that uses GSL through
-        # Aleph, as the deprecated gsl_rng_object()
+        # Aleph, as the deprecated gsl_rng_object(). True until 8.0.0, as
+        # the default of ALEPH_WITH_GSL
         "with_gsl": [True, False],
     }
     default_options = {
         "use_x11": False,
         "use_ffmpeg": False,
         "build_examples": False,
-        "with_gsl": False,
+        "with_gsl": True,
     }
 
     exports_sources = (

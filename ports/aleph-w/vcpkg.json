@@ -5,6 +5,9 @@
   "homepage": "https://github.com/lrleon/Aleph-w",
   "license": "MIT",
   "supports": "!windows",
+  "default-features": [
+    "gsl"
+  ],
   "dependencies": [
     "gmp",
     "mpfr",
@@ -19,7 +22,7 @@
   ],
   "features": {
     "gsl": {
-      "description": "Link GSL and pass it to the consumers (ALEPH_WITH_GSL), for the code that uses GSL through Aleph-w.",
+      "description": "Link GSL and pass it to the consumers (ALEPH_WITH_GSL), for the code that uses GSL through Aleph-w. A default feature until 8.0.0, as ALEPH_WITH_GSL is ON.",
       "dependencies": [
         "gsl"
       ]

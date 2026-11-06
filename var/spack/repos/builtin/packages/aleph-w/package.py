@@ -32,8 +32,9 @@ class AlephW(CMakePackage):
     variant("x11", default=False, description="Build the X11 live viewer")
     variant(
         "gsl",
-        default=False,
-        description="Link GSL and pass it to the consumers (ALEPH_WITH_GSL)",
+        default=True,
+        description="Link GSL and pass it to the consumers (ALEPH_WITH_GSL); "
+        "on until 8.0.0, as ALEPH_WITH_GSL",
     )
 
     depends_on("cxx", type="build")

@@ -52,7 +52,9 @@ jobs:
           CIBW_SKIP: "*-musllinux* *-win* pp*"
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_MACOS: "arm64"
-          # No GSL: python/pyproject.toml builds the module without it
+          # No GSL: python/pyproject.toml builds the module without it, and
+          # no wheel can take it. A ref before 7.4.0 links GSL: run the
+          # workflow of that ref (gh workflow run --ref <tag> -f ref=<tag>)
           CIBW_BEFORE_BUILD_LINUX: >-
             yum install -y gmp-devel mpfr-devel ||
             apt-get update && apt-get install -y libgmp-dev libmpfr-dev
