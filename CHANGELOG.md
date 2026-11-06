@@ -5,6 +5,20 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.4.0](https://github.com/lrleon/Aleph-w/compare/v7.3.6...v7.4.0) (2026-11-06)
+
+
+### Features
+
+* **build:** Make GSL optional with ALEPH_WITH_GSL ([#169](https://github.com/lrleon/Aleph-w/issues/169)) ([e6c6b4d](https://github.com/lrleon/Aleph-w/commit/e6c6b4d5e8eac4bdb8b584a0d877c68e28fe448f))
+* **random:** Replace GSL in the random generators ([#166](https://github.com/lrleon/Aleph-w/issues/166)) ([0a4884d](https://github.com/lrleon/Aleph-w/commit/0a4884d46f0b2da1f4c47ff23ff44a222ad2d395))
+* **random:** Replace GSL in the randomized structures ([#164](https://github.com/lrleon/Aleph-w/issues/164)) ([700e98a](https://github.com/lrleon/Aleph-w/commit/700e98a829d2d0b5f84e2a2188d58615ee11b73e))
+
+
+### Bug Fixes
+
+* **lfit:** Take the errors from the residuals, and fit without GSL ([#167](https://github.com/lrleon/Aleph-w/issues/167)) ([d899edd](https://github.com/lrleon/Aleph-w/commit/d899edd2600bc49ed7d353eba9259c9689db337f))
+
 ## [7.3.6](https://github.com/lrleon/Aleph-w/compare/v7.3.5...v7.3.6) (2026-11-04)
 
 
