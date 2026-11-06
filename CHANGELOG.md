@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fixes
 
 * **lfit:** Take the errors from the residuals, and fit without GSL ([#167](https://github.com/lrleon/Aleph-w/issues/167)) ([d899edd](https://github.com/lrleon/Aleph-w/commit/d899edd2600bc49ed7d353eba9259c9689db337f))
+* **random:** Clear rand_gen when gen_random_euclidian_graph() throws ([#166](https://github.com/lrleon/Aleph-w/issues/166)) ([0a4884d](https://github.com/lrleon/Aleph-w/commit/0a4884d46f0b2da1f4c47ff23ff44a222ad2d395))
+* **random:** Make RandTree not copyable, since a copy freed its generator twice ([#166](https://github.com/lrleon/Aleph-w/issues/166)) ([0a4884d](https://github.com/lrleon/Aleph-w/commit/0a4884d46f0b2da1f4c47ff23ff44a222ad2d395))
+* **random:** Throw on the element of Reservoir_Sampler after 2^32 - 1 ones, which made GSL end the program ([#166](https://github.com/lrleon/Aleph-w/issues/166)) ([0a4884d](https://github.com/lrleon/Aleph-w/commit/0a4884d46f0b2da1f4c47ff23ff44a222ad2d395))
+* **treap:** Take the nodes and the generator in a move of Treap and Treap_Rk, which kept the head of the moved one ([#164](https://github.com/lrleon/Aleph-w/issues/164)) ([700e98a](https://github.com/lrleon/Aleph-w/commit/700e98a829d2d0b5f84e2a2188d58615ee11b73e))
+
+
+### Deprecated
+
+* `gsl_rng_object()` of `Treap`, `Rand_Tree`, `SkipList`, `DynSkipList` and `Interval_Tree`, and `Random_Set::get_rng()`: use `rng()`, which gives their `Gsl_Compatible_Rng`. They exist only while `ALEPH_WITH_GSL` is 1. Removal in 8.0.0; see `docs/release-notes/7.4.0.md`.
+* `ran_array.h` (`ran_start()`, `ran_arr_next()`, `ran_arr_ptr` and `ran_arr_cycle()`), Knuth's generator, which nothing of Aleph uses: use the engines of `<random>`. Removal in 8.0.0, with `ran_array.c`.
+* `aleph-exceptions.H` (`AlephException`, its exceptions, `DEFINE_ALEPH_EXCEPTION` and `ALEPHTHROW`): use the macros of `ah-errors.H`. Removal in 8.0.0; `LFit`, which throws `SizeMismatch` until then, throws `std::invalid_argument` from 8.0.0.
 
 ## [7.3.6](https://github.com/lrleon/Aleph-w/compare/v7.3.5...v7.3.6) (2026-11-04)
 
