@@ -627,4 +627,23 @@ TEST(RandomGenerators, TheSampleOfAReservoirIsThatOfGsl)
       EXPECT_EQ(got, expected) << "seed " << s;
     }
 }
-#endif
+#else
+// Without GSL (ALEPH_WITH_GSL is 0), the cases that compare with it
+// report SKIPPED instead of disappearing from the run, as
+// docs/ci_sanitizer_policy.md asks of a case that a configuration
+// cannot run; the hashes of the other cases stand for GSL
+TEST(RandomGenerators, TheSeedsOfABloomFilterAreTheNumbersOfGsl)
+{
+  GTEST_SKIP() << "without GSL (ALEPH_WITH_GSL is 0)";
+}
+
+TEST(RandomGenerators, TheTableOfJswHashHasTheNumbersOfGsl)
+{
+  GTEST_SKIP() << "without GSL (ALEPH_WITH_GSL is 0)";
+}
+
+TEST(RandomGenerators, TheSampleOfAReservoirIsThatOfGsl)
+{
+  GTEST_SKIP() << "without GSL (ALEPH_WITH_GSL is 0)";
+}
+#endif // ALEPH_WITH_GSL

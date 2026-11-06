@@ -30,7 +30,7 @@
   SOFTWARE.
 */
 
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <cassert>
 # include <cerrno>
 # include <climits>
@@ -42,7 +42,7 @@
 # include <ctime>
 using namespace std;
 
-gsl_rng * r = NULL;
+Gsl_Compatible_Rng r;
 
 template <template <typename T> class List,
 	  typename T = long>
@@ -50,7 +50,7 @@ List<T> build_int_list(int n)
 {
   List<T> ret_val;
   for (int i = 0; i < n; ++i)
-    ret_val.append(gsl_rng_get(r));
+    ret_val.append(r.get());
   
   return ret_val;
 }
@@ -74,7 +74,7 @@ List<T*> build_ptr_list(int n)
 {
   List<T*> ret_val;
   for (int i = 0; i < n; ++i)
-    ret_val.append(new T(gsl_rng_get(r)));
+    ret_val.append(new T(r.get()));
   
   return ret_val;
 }
@@ -136,8 +136,7 @@ int main(int argc, char *argv[])
 
   cout << argv[0] << " " << n << " " << t << endl;
 
-  r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, t % gsl_rng_max(r));
+  r.seed(t % Gsl_Compatible_Rng::max());
 
   {
     cout << "Testing quicksort on single lists" << endl
@@ -217,6 +216,5 @@ int main(int argc, char *argv[])
 	<< endl;
  }
 
-  gsl_rng_free(r); 
   return 0;
 }

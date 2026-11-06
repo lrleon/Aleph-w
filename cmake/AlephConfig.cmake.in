@@ -59,13 +59,23 @@ if(EXISTS "${_aleph_version_header}")
 endif()
 unset(_aleph_version_header)
 
+# Aleph_WITH_GSL is TRUE if the package was built with ALEPH_WITH_GSL:
+# Aleph::Aleph then passes GSL to its consumers and, where they find the
+# headers of GSL, ah-random.H offers the deprecated gsl_rng_object(). If
+# FALSE, Aleph::Aleph neither needs nor passes GSL, and defines
+# ALEPH_WITH_GSL=0 for its consumers. Also the property ALEPH_WITH_GSL of
+# Aleph::Aleph.
+set(Aleph_WITH_GSL @ALEPH_BUILT_WITH_GSL@)
+
 set_target_properties(Aleph::Aleph PROPERTIES
     ALEPH_SOURCE_REVISION "${Aleph_SOURCE_REVISION}"
     ALEPH_SANITIZERS "${Aleph_SANITIZERS}"
-    ALEPH_CONTAINER_ANNOTATIONS "${Aleph_CONTAINER_ANNOTATIONS}")
+    ALEPH_CONTAINER_ANNOTATIONS "${Aleph_CONTAINER_ANNOTATIONS}"
+    ALEPH_WITH_GSL "${Aleph_WITH_GSL}")
 
-# GMP, MPFR and GSL are consumed as plain `-l` link flags in the exported
-# interface; they must be present on the system at link time. They have no
-# canonical CMake config packages, so they are deliberately not resolved here.
+# GMP, MPFR and, with Aleph_WITH_GSL, GSL are consumed as plain `-l` link
+# flags in the exported interface; they must be present on the system at
+# link time. They have no canonical CMake config packages, so they are
+# deliberately not resolved here.
 
 check_required_components(Aleph)

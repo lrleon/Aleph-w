@@ -38,9 +38,8 @@
 # include <tpl_rb_tree.H>
 # include <tpl_rand_tree.H>
 # include <tpl_dynMapTree.H>
-# include <ran_array.h>
 # include <ctime>
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <argp.h>
 
 using namespace std;
@@ -55,7 +54,7 @@ static void printNode(Node* node, int, int)
     template <
       template <typename /* key */, class /* Compare */>
     class TreeType>
-void test(unsigned long n, gsl_rng * r)
+void test(unsigned long n, Gsl_Compatible_Rng & r)
 {
   unsigned long max = 100*n;
   size_t i;
@@ -64,7 +63,7 @@ void test(unsigned long n, gsl_rng * r)
 
   for (i = 0; i < n; i++)
     {
-      value = gsl_rng_uniform_int(r, max);
+      value = r.uniform_int(max);
       tree.insert(value, i);
     }
 
@@ -74,7 +73,7 @@ void test(unsigned long n, gsl_rng * r)
 
   for (i = 0; i < n; i++)
     {
-      value = gsl_rng_uniform_int(r, max);
+      value = r.uniform_int(max);
       try
 	{
 	  content = tree.find(value);
@@ -92,7 +91,7 @@ void test(unsigned long n, gsl_rng * r)
 
   for (i = 0; i < n; i++)
     {
-      value = gsl_rng_uniform_int(r, max);
+      value = r.uniform_int(max);
       auto val = tree.insert(value, i);
       cout << "(" << val << "," << i << ")";
     }
@@ -108,7 +107,7 @@ void test(unsigned long n, gsl_rng * r)
 
   for (i = 0; i < n; i++)
     {
-      value = gsl_rng_uniform_int(r, max);
+      value = r.uniform_int(max);
       tree.remove(value);
     }
 
@@ -257,8 +256,7 @@ int main(int argc, char *argv[])
 
   unsigned long n = pars.n;
 
-  gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, pars.seed % gsl_rng_max(r));
+  Gsl_Compatible_Rng r(pars.seed % Gsl_Compatible_Rng::max());
 
   cout << "testAllTree<" << pars.str << "> " << n << " " << pars.seed
        << endl; 
@@ -297,5 +295,4 @@ int main(int argc, char *argv[])
       cout << "**** Exception: " << e.what() << endl;
     }
   
-  gsl_rng_free(r);
 }

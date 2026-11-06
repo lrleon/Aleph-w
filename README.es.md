@@ -299,7 +299,7 @@ Esta rama construye una biblioteca estática (`libAleph.a`) más los headers.
 |---------|--------------------------|---------|----------|
 | GMP + gmpxx | `libgmp-dev` | Enteros/racionales multiprecisión (y bindings C++) | Sí |
 | MPFR | `libmpfr-dev` | Punto flotante multiprecisión | Sí |
-| GSL (+ gslcblas) | `libgsl-dev` | RNG/estadística usada por estructuras/algoritmos aleatorizados | Sí |
+| GSL (+ gslcblas) | `libgsl-dev` | Aleph no la usa desde 7.4.0: sus números aleatorios, los de GSL, salen de `Gsl_Compatible_Rng` (`ah-random.H`); se enlaza y se pasa a los consumidores mientras `ALEPH_WITH_GSL` esté en ON | Hasta 8.0.0, salvo con `-DALEPH_WITH_GSL=OFF` |
 | X11 | `libx11-dev` | Dependencia de enlace | Sí |
 | GoogleTest | `libgtest-dev` | Unit tests | Solo para `BUILD_TESTS` (auto-fetch soportado) |
 
@@ -319,7 +319,7 @@ sudo apt-get install -y build-essential cmake ninja-build
 # Compilers
 sudo apt-get install -y g++ clang
 
-# Required libraries (this branch)
+# Required libraries (this branch; libgsl-dev not with -DALEPH_WITH_GSL=OFF)
 sudo apt-get install -y libgmp-dev libmpfr-dev libgsl-dev libx11-dev
 
 # Optional (only needed if you want to build tests without auto-fetch)
@@ -367,7 +367,8 @@ Si prefieres no instalar, puedes compilar Aleph una vez y luego enlazar directam
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
 cmake --build build --parallel
 
-# Compile and link against the static library
+# Compile and link against the static library (-lgsl -lgslcblas only while
+# Aleph is built with ALEPH_WITH_GSL, the default until 8.0.0)
 g++ -std=c++20 -I/path/to/Aleph-w your_code.cpp /path/to/Aleph-w/build/libAleph.a \
   -lgmpxx -lgmp -lmpfr -lgsl -lgslcblas -lpthread -lX11 -lm \
   -o your_program
@@ -397,6 +398,7 @@ target_link_libraries(your_target PRIVATE Aleph)
 | `BUILD_OPTIMIZED` | OFF | Si está en ON y `CMAKE_BUILD_TYPE` no se define, default a `Release` |
 | `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest si falta |
 | `ALEPH_USE_SANITIZERS` | OFF | Habilitar ASan/UBSan para la biblioteca y los tests (solo GCC y Clang) |
+| `ALEPH_WITH_GSL` | ON (OFF desde 8.0.0) | Enlazar GSL y pasarla a los consumidores de `Aleph::Aleph`, para el código que usa GSL a través de Aleph, como el `gsl_rng_object()` desaprobado de las estructuras aleatorizadas. En OFF, GSL queda fuera: Aleph ni la necesita ni la pasa, y define `ALEPH_WITH_GSL=0` para sus consumidores, sin `gsl_rng_object()`. |
 
 ### CMake Presets (opcional)
 

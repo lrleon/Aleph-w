@@ -30,7 +30,7 @@
   SOFTWARE.
 */
 
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 # include <iostream>
 # include <memory>
 # include <tpl_dynBinHeap.H>
@@ -38,25 +38,17 @@
 
 using namespace std;
 
-struct GslRngDeleter
-{
-  void operator()(gsl_rng * r) const { gsl_rng_free(r); }
-};
-
-using GslRngHandle = std::unique_ptr<gsl_rng, GslRngDeleter>;
-
 template <class Tree>
 void test(size_t n, unsigned long seed)
 {
   cout << "Testing for " << typeid(Tree).name() << endl
        << endl;
-  GslRngHandle r(gsl_rng_alloc (gsl_rng_mt19937));
-  gsl_rng_set(r.get(), seed % gsl_rng_max(r.get()));
+  Gsl_Compatible_Rng r(seed % Gsl_Compatible_Rng::max());
 
   Tree tree;
   for (size_t i = 0; i < n; ++i)
     {
-      auto val = gsl_rng_get(r.get());
+      auto val = r.get();
       auto node = new typename Tree::Node(val);
       auto p = tree.insert(node);
       if (p == nullptr)

@@ -28,7 +28,10 @@ sudo apt-get install -y libgmp-dev libmpfr-dev libgsl-dev libx11-dev \
   libtclap-dev libgtest-dev
 ```
 
-GoogleTest is auto-fetched if not installed.
+GoogleTest is auto-fetched if not installed. With `ALEPH_WITH_GSL` ON, its
+default until 8.0.0, Aleph links GSL and the tests compare with it; without
+`libgsl-dev`, configure with `-DALEPH_WITH_GSL=OFF`, and those comparisons
+are skipped.
 
 ## Build & Test
 

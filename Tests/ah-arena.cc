@@ -36,10 +36,10 @@
  * @brief Tests for Ah Arena
  */
 # include <cstdlib>
-# include <gsl/gsl_rng.h>
 # include <gtest/gtest.h>
 
 # include <ah-arena.H>
+# include <ah-random.H>
 # include <tpl_dynSetTree.H>
 
 using namespace std;
@@ -96,12 +96,11 @@ static unsigned long get_seed()
 TEST_F(StaticArenaFixture, random_allocs)
 {
   DynList<pair<const char*, size_t>> blocks;
-  gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
-  gsl_rng_set(r, get_seed());
+  Gsl_Compatible_Rng r(get_seed());
   size_t size = 0;
   while (true)
     {
-      size = 1 + gsl_rng_uniform_int(r, sz - 2);
+      size = 1 + r.uniform_int(sz - 2);
       const char * addr = static_cast<const char *>(arena.alloc(size));
       if (addr == nullptr)
         break;
@@ -111,8 +110,6 @@ TEST_F(StaticArenaFixture, random_allocs)
        << "Last requested size = " << size << endl;
 
   ASSERT_EQ(arena.alloc(arena.available_size() + 1), nullptr);
-
-  gsl_rng_free(r);
 }
 
 struct Foo
@@ -168,9 +165,6 @@ TEST_F(StaticArenaFixture, object_alloc)
 
 TEST(Tree, tree)
 {
-  gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
-  gsl_rng_set(r, get_seed());
-
   constexpr size_t n = 1024;
   char buf[n];
   DynSetTree<int> tree(buf, n);
@@ -195,8 +189,6 @@ TEST(Tree, tree)
     }
 
   cout << "Inserted " << tree.size() << " entries" << endl;
-
-  gsl_rng_free(r);
 }
 
 int main(int argc, char **argv)

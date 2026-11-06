@@ -511,4 +511,13 @@ TEST_F(LFitTest, TheFitIsThatOfGsl)
         }
   EXPECT_GT(compared, exact ? 800u : 500u);
 }
-#endif
+#else
+// Without GSL (ALEPH_WITH_GSL is 0), the cases that compare with it
+// report SKIPPED instead of disappearing from the run, as
+// docs/ci_sanitizer_policy.md asks of a case that a configuration
+// cannot run; the other cases check the fit by themselves
+TEST_F(LFitTest, TheFitIsThatOfGsl)
+{
+  GTEST_SKIP() << "without GSL (ALEPH_WITH_GSL is 0)";
+}
+#endif // ALEPH_WITH_GSL

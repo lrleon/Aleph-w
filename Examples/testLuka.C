@@ -32,7 +32,7 @@
 # include <ctime>
 # include <cstdlib>
 # include <cassert>
-# include <gsl/gsl_rng.h> 
+# include <ah-random.H>
 # include <cstring>
 # include <iostream>
 # include <ah-errors.H>
@@ -41,23 +41,18 @@
 
 using namespace std;
 
-gsl_rng * r = NULL;
+Gsl_Compatible_Rng r;
 
 
 void init_random(int seed)
 {
-  r = gsl_rng_alloc (gsl_rng_mt19937);
-
-  if (r == NULL)
-    ah_bad_alloc();
-
-  gsl_rng_set(r, seed % gsl_rng_max(r));
+  r.seed(seed % Gsl_Compatible_Rng::max());
 }
 
 
 size_t get_rand(const size_t & n)
 {
-  return gsl_rng_uniform_int(r, n) + 1;
+  return r.uniform_int(n) + 1;
 }
 
 
@@ -133,5 +128,4 @@ int main(int argc, char *argv[])
   destroyRec(aux);
   destroyRec(tree_root);
   free(cod_orig);
-  gsl_rng_free(r);
 }

@@ -68,6 +68,17 @@ option(ALEPH_BUILD_PYTHON
        "Build the aleph_ca Python module (requires Python3 + pybind11)."
        OFF)
 
+# GSL, which is GPL, is no longer needed by Aleph: since 7.4.0, the random
+# number generator of its structures and generators is Gsl_Compatible_Rng
+# (ah-random.H), which gives the numbers of GSL. ON, the default until
+# 8.0.0, keeps linking GSL and passing it to the consumers of Aleph, as
+# before, for the code that calls GSL through the deprecated
+# gsl_rng_object() or by itself; OFF neither links nor passes it, and
+# leaves gsl_rng_object() out.
+option(ALEPH_WITH_GSL
+       "Link GSL and pass it to the consumers of Aleph (OFF from 8.0.0)."
+       ON)
+
 # Set build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
     if(BUILD_OPTIMIZED)
@@ -784,12 +795,21 @@ configure_file(
 target_include_directories(Aleph PUBLIC
     $<BUILD_INTERFACE:${ALEPH_GENERATED_INCLUDE_DIR}>)
 
+# ALEPH_WITH_GSL as TRUE or FALSE, however the option was spelled; the
+# installed package publishes it as Aleph_WITH_GSL.
+if(ALEPH_WITH_GSL)
+    set(ALEPH_BUILT_WITH_GSL TRUE)
+else()
+    set(ALEPH_BUILT_WITH_GSL FALSE)
+endif()
+
 # The installed package sets the same properties on Aleph::Aleph (see
 # cmake/AlephConfig.cmake.in); these serve the consumers of the build tree.
 set_target_properties(Aleph PROPERTIES
     ALEPH_SOURCE_REVISION "${ALEPH_RESOLVED_SOURCE_REVISION}"
     ALEPH_SANITIZERS "${ALEPH_BUILT_WITH_SANITIZERS}"
-    ALEPH_CONTAINER_ANNOTATIONS "${ALEPH_BUILT_WITH_CONTAINER_ANNOTATIONS}")
+    ALEPH_CONTAINER_ANNOTATIONS "${ALEPH_BUILT_WITH_CONTAINER_ANNOTATIONS}"
+    ALEPH_WITH_GSL "${ALEPH_BUILT_WITH_GSL}")
 
 # Homebrew lives outside the default compiler search path on macOS — and on
 # Apple Silicon it lives at `/opt/homebrew`, not `/usr/local`. The gmp /
@@ -847,6 +867,19 @@ else()
     target_compile_definitions(Aleph PUBLIC ALEPH_DISABLE_X11_VIEWER=1)
 endif()
 
+# Without GSL, ah-random.H must not find the headers of GSL by itself
+# (`__has_include`), which, as those of XQuartz above, can be on the
+# include path without GSL being linked (on macOS, `brew --prefix` brings
+# those of Homebrew). Pass `ALEPH_WITH_GSL=0` to Aleph and its consumers,
+# so that the option wins over the detection: no header of GSL is
+# included, and gsl_rng_object() is left out.
+set(_ALEPH_GSL_LIBS "")
+if(ALEPH_WITH_GSL)
+    set(_ALEPH_GSL_LIBS gsl gslcblas)
+else()
+    target_compile_definitions(Aleph PUBLIC ALEPH_WITH_GSL=0)
+endif()
+
 # pthread and libm are POSIX-only conventions; on Windows the
 # Threads::Threads target already pulls the correct synchronization
 # runtime and the math functions live in the CRT.
@@ -854,7 +887,9 @@ if(WIN32)
     # GSL_DLL tells GSL headers to emit __declspec(dllimport) on global
     # data variables (e.g. gsl_rng_mt19937). Without it, lld-link fails
     # to resolve imported data symbols from the GNU import library (.dll.a).
-    target_compile_definitions(Aleph PUBLIC GSL_DLL)
+    if(ALEPH_WITH_GSL)
+        target_compile_definitions(Aleph PUBLIC GSL_DLL)
+    endif()
     set(_ALEPH_PTHREAD "")
     set(_ALEPH_LIBM "")
 else()
@@ -870,7 +905,7 @@ if(WIN32)
     set(_aleph_win_math_libs "")
     set(_aleph_win_found "")
     foreach(_aleph_prefix IN LISTS CMAKE_PREFIX_PATH)
-        foreach(_lname gmpxx gmp mpfr gsl gslcblas)
+        foreach(_lname gmpxx gmp mpfr ${_ALEPH_GSL_LIBS})
             if(NOT "${_lname}" IN_LIST _aleph_win_found)
                 # GMP and MPFR static archives (.a) contain standard COFF x64
                 # objects and link cleanly with both link.exe and lld-link.
@@ -910,8 +945,7 @@ else()
         gmp
         ${_ALEPH_PTHREAD}
         mpfr
-        gsl
-        gslcblas
+        ${_ALEPH_GSL_LIBS}
         ${_ALEPH_LIBM}
         ${_ALEPH_X11_LIBS}
         Threads::Threads
@@ -1094,6 +1128,7 @@ message(STATUS "  Sanitizers: ${ALEPH_USE_SANITIZERS}")
 message(STATUS "  MemorySanitizer: ${ALEPH_USE_MEMORY_SANITIZER}")
 message(STATUS "  Disable ranges: ${ALEPH_DISABLE_RANGES}")
 message(STATUS "  X11 viewer: ${ALEPH_BUILD_X11_VIEWER}")
+message(STATUS "  GSL: ${ALEPH_WITH_GSL}")
 message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")
 
 # ------------------------------------------------------------------------------
@@ -1113,15 +1148,21 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "aleph-w")
 
     # Binary generators and their dependencies. A consumer of Aleph::Aleph
-    # links GMP, MPFR, GSL and X11 itself, so the .deb needs their
-    # development packages, whose names, unlike those of the run-time ones,
-    # do not change with the version (libgsl27 in Ubuntu 24.04, libgsl28 in
-    # Debian 13). SHLIBDEPS adds what libalephca_c needs at run time.
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS
-        "libgmp-dev, libmpfr-dev, libgsl-dev, libx11-dev")
+    # links GMP, MPFR, X11 and, with ALEPH_WITH_GSL, GSL itself, so the .deb
+    # needs their development packages, whose names, unlike those of the
+    # run-time ones, do not change with the version (libgsl27 in Ubuntu
+    # 24.04, libgsl28 in Debian 13). SHLIBDEPS adds what libalephca_c needs
+    # at run time.
+    if(ALEPH_WITH_GSL)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS
+            "libgmp-dev, libmpfr-dev, libgsl-dev, libx11-dev")
+        set(CPACK_RPM_PACKAGE_REQUIRES "gmp, gmp-c++, mpfr, gsl, libX11")
+    else()
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "libgmp-dev, libmpfr-dev, libx11-dev")
+        set(CPACK_RPM_PACKAGE_REQUIRES "gmp, gmp-c++, mpfr, libX11")
+    endif()
     set(CPACK_DEBIAN_PACKAGE_SECTION "libdevel")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-    set(CPACK_RPM_PACKAGE_REQUIRES "gmp, gmp-c++, mpfr, gsl, libX11")
     set(CPACK_RPM_PACKAGE_LICENSE "MIT")
     set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
 

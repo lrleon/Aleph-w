@@ -319,7 +319,7 @@ This branch builds a static library (`libAleph.a`) plus headers.
 |---------|--------------------------|---------|----------|
 | GMP + gmpxx | `libgmp-dev` | Multi-precision integers/rationals (and C++ bindings) | Yes |
 | MPFR | `libmpfr-dev` | Multi-precision floating point | Yes |
-| GSL (+ gslcblas) | `libgsl-dev` | RNG/statistics used by randomized structures/algorithms | Yes |
+| GSL (+ gslcblas) | `libgsl-dev` | Not used by Aleph since 7.4.0, whose random numbers, those of GSL, come from `Gsl_Compatible_Rng` (`ah-random.H`); linked and passed to the consumers while `ALEPH_WITH_GSL` is ON | Until 8.0.0, unless `-DALEPH_WITH_GSL=OFF` |
 | X11 | `libx11-dev` | Link dependency | Yes |
 | GoogleTest | `libgtest-dev` | Unit tests | Only for `BUILD_TESTS` (auto-fetch supported) |
 
@@ -339,7 +339,7 @@ sudo apt-get install -y build-essential cmake ninja-build
 # Compilers
 sudo apt-get install -y g++ clang
 
-# Required libraries (this branch)
+# Required libraries (this branch; libgsl-dev not with -DALEPH_WITH_GSL=OFF)
 sudo apt-get install -y libgmp-dev libmpfr-dev libgsl-dev libx11-dev
 
 # Optional (only needed if you want to build tests without auto-fetch)
@@ -387,7 +387,8 @@ If you prefer not to install, you can build Aleph once and then link directly:
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
 cmake --build build --parallel
 
-# Compile and link against the static library
+# Compile and link against the static library (-lgsl -lgslcblas only while
+# Aleph is built with ALEPH_WITH_GSL, the default until 8.0.0)
 g++ -std=c++20 -I/path/to/Aleph-w your_code.cpp /path/to/Aleph-w/build/libAleph.a \
   -lgmpxx -lgmp -lmpfr -lgsl -lgslcblas -lpthread -lX11 -lm \
   -o your_program
@@ -429,7 +430,8 @@ The `.deb` and `.rpm` also ship the flat C ABI library `libalephca_c` and
 its header `ca-c-api.h`, without an imported target: a C program builds with
 `-I/usr/include/aleph -lalephca_c`. The `.deb` is built on Ubuntu 22.04 and
 tested installed on Ubuntu 22.04, 24.04 and 26.04 and Debian 12 and 13; apt
-brings the development packages of GMP, MPFR, GSL and X11 that it needs.
+brings the development packages of GMP, MPFR, GSL and X11 that it needs
+(GSL only for a package built with `ALEPH_WITH_GSL`, as those of 7.x).
 
 ### CMake Options
 
@@ -445,6 +447,7 @@ brings the development packages of GMP, MPFR, GSL and X11 that it needs.
 | `ALEPH_USE_SANITIZERS` | OFF | Enable ASan/UBSan for the library and tests (GCC and Clang only) |
 | `ALEPH_USE_MEMORY_SANITIZER` | OFF | Enable the targeted Clang MemorySanitizer probe (Linux only) |
 | `ALEPH_BUILD_X11_VIEWER` | ON (Unix), OFF (Windows) | Build the X11 live viewer (`ca-x11-viewer.H`). Requires `libX11`. Turn OFF to drop the X11 dependency on non-POSIX targets. |
+| `ALEPH_WITH_GSL` | ON (OFF from 8.0.0) | Link GSL and pass it to the consumers of `Aleph::Aleph`, for the code that uses GSL through Aleph, as the deprecated `gsl_rng_object()` of the randomized structures. OFF leaves GSL out: Aleph neither needs nor passes it, and defines `ALEPH_WITH_GSL=0` for its consumers, without `gsl_rng_object()`. |
 
 ### Cross-platform CI
 
@@ -452,11 +455,11 @@ The repository ships two complementary workflows:
 
 * `.github/workflows/ci.yml` — the gating Linux matrix (`ubuntu-22.04`,
   `ubuntu-24.04` × `gcc`, `clang` × `Debug`, `Release`) plus the
-  `coverage`, `sanitizers`, `tsan` and `ubsan` jobs.
+  `coverage`, `sanitizers`, `tsan`, `ubsan` and `without-gsl` jobs.
 * `.github/workflows/ci-platform.yml` — Phase 16's multi-platform fan-out:
   `build-macos` (`macos-13`/`macos-14`), `build-arm64-linux`
-  (`ubuntu-24.04-arm`) and `build-windows` (`windows-2022` × `msvc`,
-  `clang-cl`). The Windows leg runs on `workflow_dispatch`, the weekly
+  (`ubuntu-24.04-arm`) and `build-windows` (`windows-2022` × `msvc` with
+  GSL, `clang-cl` without it). The Windows leg runs on `workflow_dispatch`, the weekly
   cron and `master` pushes; the others gate every PR.
 
 Per-platform test exclusions and the rationale for each sanitizer

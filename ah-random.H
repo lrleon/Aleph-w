@@ -83,7 +83,10 @@
  *  It is 1 if the headers of GSL can be included, unless it is defined
  *  before, as 0 to leave the accessors out. While it is 1, a structure
  *  whose `gsl_rng_object()` is called gives a `gsl_rng` whose numbers
- *  come from its Gsl_Compatible_Rng.
+ *  come from its Gsl_Compatible_Rng. Aleph built without GSL (the CMake
+ *  option `ALEPH_WITH_GSL` set to OFF, its default from 8.0.0) defines
+ *  it as 0 for itself and for the programs that link `Aleph::Aleph`, so
+ *  that they neither include nor need GSL.
  */
 # ifndef ALEPH_WITH_GSL
 #   if __has_include(<gsl/gsl_rng.h>)

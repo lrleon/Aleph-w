@@ -5,10 +5,12 @@
   "homepage": "https://github.com/lrleon/Aleph-w",
   "license": "MIT",
   "supports": "!windows",
+  "default-features": [
+    "gsl"
+  ],
   "dependencies": [
     "gmp",
     "mpfr",
-    "gsl",
     {
       "name": "vcpkg-cmake",
       "host": true
@@ -19,6 +21,12 @@
     }
   ],
   "features": {
+    "gsl": {
+      "description": "Link GSL and pass it to the consumers (ALEPH_WITH_GSL), for the code that uses GSL through Aleph-w. A default feature until 8.0.0, as ALEPH_WITH_GSL is ON.",
+      "dependencies": [
+        "gsl"
+      ]
+    },
     "x11": {
       "description": "Build the X11 live viewer (ca-x11-viewer.H); requires system libX11.",
       "supports": "linux"

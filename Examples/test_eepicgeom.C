@@ -30,8 +30,7 @@
   SOFTWARE.
 */
 
-# include <gsl/gsl_rng.h>
-# include <gsl/gsl_randist.h>
+# include <ah-random.H>
 # include <iostream>
 # include <limits>
 # include <eepicgeom.H>
@@ -47,8 +46,7 @@ Polygon make_random_polygon(const size_t & n,
 			    double min_x, double max_x, 
 			    double min_y, double max_y)
 {
-  gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, std::time(NULL) % gsl_rng_max(r));
+  Gsl_Compatible_Rng r(std::time(NULL) % Gsl_Compatible_Rng::max());
 
  again:
 
@@ -64,8 +62,8 @@ Polygon make_random_polygon(const size_t & n,
 	  {
 	    cout << "Generating point " << i << endl;
 
-	    const Geom_Number x = gsl_ran_flat(r, min_x, max_x);
-	    const Geom_Number y = gsl_ran_flat(r, min_y, max_y);
+	    const Geom_Number x = r.flat(min_x, max_x);
+	    const Geom_Number y = r.flat(min_y, max_y);
 
 	    cout << Point(x, y).to_string() << " triying ..." << endl;
 
@@ -88,7 +86,6 @@ Polygon make_random_polygon(const size_t & n,
 
 	cout << "Finished polygon generation" << endl;
   
-	gsl_rng_free(r);
 
 	return poly;
       }

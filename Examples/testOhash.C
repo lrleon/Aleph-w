@@ -30,7 +30,7 @@
   SOFTWARE.
 */
 
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 
 # include <cassert>
 # include <iostream>
@@ -45,18 +45,6 @@
 using namespace std;
 
 static unsigned long tbl_size = 0;
-
-struct gsl_rng_holder 
-{
-  gsl_rng * r;
-  gsl_rng_holder(unsigned int seed) 
-  {
-    r = gsl_rng_alloc(gsl_rng_mt19937);
-    gsl_rng_set(r, seed % gsl_rng_max(r));
-  }
-  ~gsl_rng_holder() { gsl_rng_free(r); }
-  operator gsl_rng*() { return r; }
-};
 
 constexpr int DEFAULT_N = 100;
 
@@ -74,7 +62,7 @@ HashTable<Key, Cmp> create_table(const HashTable<Key, Cmp> & s)
 
 template <template <typename, class> class HashTable, typename Key,
           class Cmp = Aleph::equal_to<Key>>
-void test_hash_table(size_t n, gsl_rng * r)
+void test_hash_table(size_t n, Gsl_Compatible_Rng & r)
 {
   typedef HashTable<Key, Cmp> Hset;
   DynArray<Key> keys(n);
@@ -92,7 +80,7 @@ void test_hash_table(size_t n, gsl_rng * r)
         {
           while (true)
             {
-              keys[i] = gsl_rng_get(r);
+              keys[i] = r.get();
               if (table.search(keys(i)) == nullptr)
                 break;
             }
@@ -135,7 +123,7 @@ void test_hash_table(size_t n, gsl_rng * r)
         {
           while (true)
             {
-              keys[i] = gsl_rng_get(r);
+              keys[i] = r.get();
               if (table.search(keys(i)) == nullptr)
                 break;
             }
@@ -223,7 +211,7 @@ void test_hash_table(size_t n, gsl_rng * r)
        << endl;
   for (int i = 0; i < n/10; ++i)
     {
-      unsigned long idx = gsl_rng_uniform_int(r, keys.size());
+      unsigned long idx = r.uniform_int(keys.size());
       const Key & key = keys(idx);
       
       Key * ptr = table.search(key);
@@ -289,7 +277,7 @@ int main(int argc, char *argv[])
 
   cout << "testOhash " << n << " " << t << endl;
 
-  gsl_rng_holder r(t);
+  Gsl_Compatible_Rng r(t % Gsl_Compatible_Rng::max());
 
   test_hash_table<ODhashTable, unsigned int>(n, r);
 

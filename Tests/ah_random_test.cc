@@ -33,7 +33,8 @@
  * @brief Gsl_Compatible_Rng against GSL, bit by bit, but for the reals of
  * flat() and gaussian() where GSL fuses multiply-adds, and for those of
  * gaussian() and exponential() where the logarithm of the tests is not
- * that of GSL, as with MSVC and clang-cl.
+ * that of GSL, as with MSVC and clang-cl; and against hashes of the draws
+ * of GSL, which stand for it where it is not (ALEPH_WITH_GSL is 0).
  *
  * Each test seeds a Gsl_Compatible_Rng and a gsl_rng_mt19937 alike, and
  * draws from both, in an order that another generator picks, so that a
@@ -43,13 +44,16 @@
 
 #include <gtest/gtest.h>
 #include <ah-random.H>
-#include <gsl/gsl_randist.h>
-#include <gsl/gsl_rng.h>
+#if ALEPH_WITH_GSL
+#  include <gsl/gsl_randist.h>
+#  include <gsl/gsl_rng.h>
+#endif
 
 #include <algorithm>
 #include <climits>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <iomanip>
 #include <memory>
 #include <numeric>
@@ -60,6 +64,7 @@ using namespace Aleph;
 
 namespace
 {
+#if ALEPH_WITH_GSL
   struct Gsl_Free
   {
     void operator () (gsl_rng * r) const noexcept { gsl_rng_free(r); }
@@ -110,16 +115,28 @@ namespace
     return same_or_close(ours, gsl, same_log_as_gsl);
   }
 
+  using Gsl_Ptr = std::unique_ptr<gsl_rng, Gsl_Free>;
+
+  Gsl_Ptr make_gsl() { return Gsl_Ptr(gsl_rng_alloc(gsl_rng_mt19937)); }
+
+  // gsl_rng_mt19937, through the names of Gsl_Compatible_Rng
+  struct Gsl_Draws
+  {
+    gsl_rng * r;
+
+    unsigned long get() { return gsl_rng_get(r); }
+    unsigned long uniform_int(const unsigned long n) { return gsl_rng_uniform_int(r, n); }
+    double uniform() { return gsl_rng_uniform(r); }
+    double uniform_pos() { return gsl_rng_uniform_pos(r); }
+  };
+#endif // ALEPH_WITH_GSL
+
   // A product rounded to double, as gaussian() and flat() round theirs
   double rounded(const double product)
   {
     volatile double v = product;
     return v;
   }
-
-  using Gsl_Ptr = std::unique_ptr<gsl_rng, Gsl_Free>;
-
-  Gsl_Ptr make_gsl() { return Gsl_Ptr(gsl_rng_alloc(gsl_rng_mt19937)); }
 
   // Seeds of every kind: 0, which GSL takes as 4357, small ones, the
   // limits of 32 bits, and above them where unsigned long has 64 bits
@@ -145,19 +162,110 @@ namespace
                                     0x80000001UL, 0xfffffffeUL, 0xffffffffUL};
     return b;
   }
+
+  // FNV-1a of 64 bits over the bytes of each number, from the lowest one,
+  // so that it is the same on every platform
+  struct Fnv1a
+  {
+    std::uint64_t value = 0xcbf29ce484222325ULL;
+
+    void add_number(const std::uint64_t x)
+    {
+      for (int i = 0; i < 8; ++i)
+        {
+          value ^= (x >> (8 * i)) & 0xff;
+          value *= 0x100000001b3ULL;
+        }
+    }
+
+    void add_real(const double x)
+    {
+      std::uint64_t bits;
+      std::memcpy(&bits, &x, sizeof bits);
+      add_number(bits);
+    }
+  };
+
+  // The hash of 20000 draws of get(), uniform_int(), uniform() and
+  // uniform_pos() from g, seeded with s, in an order that another
+  // generator picks: the draws that are the same on every platform, as
+  // those of GSL
+  template <class Rng>
+  std::uint64_t hash_of_draws(const unsigned long s, Rng && g)
+  {
+    const auto bs = bounds();
+    std::mt19937 order(static_cast<std::uint32_t>(s ^ 0x5a5a5a5aUL));
+    Fnv1a h;
+    for (int i = 0; i < 20000; ++i)
+      switch (order() % 4)
+        {
+        case 0:
+          h.add_number(g.get());
+          break;
+        case 1:
+          h.add_number(g.uniform_int(bs[order() % bs.size()]));
+          break;
+        case 2:
+          h.add_real(g.uniform());
+          break;
+        default:
+          h.add_real(g.uniform_pos());
+          break;
+        }
+    return h.value;
+  }
 }
 
 TEST(GslCompatibleRng, TheDefaultSeedIsTheOneOfGsl)
 {
-  Gsl_Ptr r = make_gsl(); // no gsl_rng_set(): the seed 0, so 4357
   Gsl_Compatible_Rng g;
+#if ALEPH_WITH_GSL
+  Gsl_Ptr r = make_gsl(); // no gsl_rng_set(): the seed 0, so 4357
   for (int i = 0; i < 10000; ++i)
     ASSERT_EQ(g.get(), gsl_rng_get(r.get())) << "at " << i;
 
   EXPECT_EQ(Gsl_Compatible_Rng::min(), gsl_rng_min(r.get()));
   EXPECT_EQ(Gsl_Compatible_Rng::max(), gsl_rng_max(r.get()));
+#else
+  // the seed 0, which GSL takes as 4357, and the range of gsl_rng_mt19937
+  EXPECT_EQ(g, Gsl_Compatible_Rng(4357));
+  EXPECT_EQ(Gsl_Compatible_Rng::min(), 0u);
+  EXPECT_EQ(Gsl_Compatible_Rng::max(), 0xffffffffu);
+#endif
 }
 
+TEST(GslCompatibleRng, TheDrawsOfGslByTheirHashes)
+{
+  // The hashes of the draws of GSL, which stand for it where it is not;
+  // where it is, they are checked against its own draws. Seeds that are
+  // the same where unsigned long has 32 bits
+  struct Golden
+  {
+    unsigned long seed;
+    std::uint64_t hash;
+  };
+  static const Golden golden[] = {
+    {0, 0x80a0475ca47c87a1ULL},
+    {1, 0x8f821e7e47e0b40bULL},
+    {4357, 0xc469a8ec8a18cd94ULL},
+    {12345, 0x6573fc224e03760dULL},
+    {0x7fffffffUL, 0x4d91b79879b89001ULL},
+    {0xffffffffUL, 0xc72e010949ebff2bULL},
+  };
+  for (const Golden & x : golden)
+    {
+      EXPECT_EQ(hash_of_draws(x.seed, Gsl_Compatible_Rng(x.seed)), x.hash)
+        << "seed " << x.seed;
+#if ALEPH_WITH_GSL
+      Gsl_Ptr r = make_gsl();
+      gsl_rng_set(r.get(), x.seed);
+      EXPECT_EQ(hash_of_draws(x.seed, Gsl_Draws{r.get()}), x.hash)
+        << "seed " << x.seed << ", of GSL";
+#endif
+    }
+}
+
+#if ALEPH_WITH_GSL
 TEST(GslCompatibleRng, EveryDrawIsTheOneOfGsl)
 {
   Gsl_Ptr r = make_gsl();
@@ -208,6 +316,16 @@ TEST(GslCompatibleRng, EveryDrawIsTheOneOfGsl)
     }
   EXPECT_EQ(draws, 20000 * seeds().size());
 }
+#else
+// Without GSL (ALEPH_WITH_GSL is 0), the cases that compare with it
+// report SKIPPED instead of disappearing from the run, as
+// docs/ci_sanitizer_policy.md asks of a case that a configuration
+// cannot run; TheDrawsOfGslByTheirHashes stands for GSL
+TEST(GslCompatibleRng, EveryDrawIsTheOneOfGsl)
+{
+  GTEST_SKIP() << "without GSL (ALEPH_WITH_GSL is 0)";
+}
+#endif // ALEPH_WITH_GSL
 
 TEST(GslCompatibleRng, TheRealDrawsRoundEachProduct)
 {
@@ -241,15 +359,20 @@ TEST(GslCompatibleRng, TheRealDrawsRoundEachProduct)
 
 TEST(GslCompatibleRng, SeedingAgainIsAsGslRngSet)
 {
+#if ALEPH_WITH_GSL
   Gsl_Ptr r = make_gsl();
+#endif
   Gsl_Compatible_Rng g(99);
   for (unsigned long s : seeds())
     {
       (void) g.get(); // a state that the seed must forget
       g.seed(s);
+      EXPECT_EQ(g, Gsl_Compatible_Rng(s)) << "seed " << s;
+#if ALEPH_WITH_GSL
       gsl_rng_set(r.get(), s);
       for (int i = 0; i < 1000; ++i)
         ASSERT_EQ(g.get(), gsl_rng_get(r.get())) << "seed " << s << " at " << i;
+#endif
     }
 
   // 0 is 4357, and else only the low 32 bits count: 2^32 seeds with 0

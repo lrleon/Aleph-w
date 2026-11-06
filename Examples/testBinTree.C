@@ -43,17 +43,10 @@
 # include <tpl_tree_node.H>
 # include <generate_tree.H>
 
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 
 using namespace std;
 using namespace Aleph;
-
-struct GslRngDeleter
-{
-  void operator()(gsl_rng * r) const { gsl_rng_free(r); }
-};
-
-using GslRngHandle = std::unique_ptr<gsl_rng, GslRngDeleter>;
 
 static void printNode(BinTree<int>::Node* node, int, int)
 {
@@ -96,8 +89,7 @@ int main(int argc, char *argv[])
   if (argc > 2)
     t = stoi(argv[2]);
 
-  GslRngHandle rng(gsl_rng_alloc(gsl_rng_mt19937));
-  gsl_rng_set(rng.get(), t);
+  Gsl_Compatible_Rng rng(t);
 
   cout << argv[0] << " " << n << " " << t << endl;
 
@@ -120,7 +112,7 @@ int main(int argc, char *argv[])
       BinTree<int>::Node *node;
       do 
 	{
-	  value = gsl_rng_uniform_int(rng.get(), 1000);
+	  value = rng.uniform_int(1000);
 	  node = tree.search(value);
 	}
       while (node not_eq nullptr);

@@ -52,32 +52,54 @@
 
 /* the old C calling conventions are used here, for reasons of portability */
 
+/** @file ran_array.h
+    @brief Knuth's random number generator, from his `rng.c` (The Art of
+    Computer Programming, Volume 2, Section 3.6), which `ran_array.c`
+    compiles into Aleph.
+
+    After `ran_start(seed)`, `ran_arr_next()` gives the numbers, in
+    [0, 2^30).
+
+    @deprecated Nothing of Aleph uses it: `ran_array.h` and `ran_array.c`
+    go in 8.0.0. Use the engines of `<random>` instead.
+*/
+
 # ifdef  __cplusplus
+#   define ALEPH_RAN_ARRAY_DEPRECATED \
+      [[deprecated("ran_array.h goes in 8.0.0; use the engines of <random> instead")]]
 extern "C" {
+# else
+#   define ALEPH_RAN_ARRAY_DEPRECATED
 # endif
 
+/** Starts the generator with `seed`: do this before using it.
 
-
-/* 
-   do this before using ran_array 
-*/
-extern void ran_start(long seed);
-
+    @deprecated `ran_array.h` goes in 8.0.0. */
+ALEPH_RAN_ARRAY_DEPRECATED extern void ran_start(long seed);
 
 /* the following routines are from exercise 3.6--15 */
 /* after calling ran_start, get new randoms by, e.g., "x=ran_arr_next()" */
 
-extern long *ran_arr_ptr; /* the next random number, or -1 */
+/** Points to the next number of the batch, or to -1 when the batch has
+    run out.
 
-extern long ran_arr_cycle(void);
-       
+    @deprecated `ran_array.h` goes in 8.0.0. */
+ALEPH_RAN_ARRAY_DEPRECATED extern long *ran_arr_ptr;
+
+/** Makes a new batch of numbers and returns its first one:
+    `ran_arr_next()` calls it when the batch runs out. Without
+    `ran_start()`, it first starts the generator as `ran_start(314159)`.
+
+    @deprecated `ran_array.h` goes in 8.0.0. */
+ALEPH_RAN_ARRAY_DEPRECATED extern long ran_arr_cycle(void);
+
+/** The next random number.
+
+    @deprecated `ran_array.h` goes in 8.0.0. */
 #define ran_arr_next() (*ran_arr_ptr >=0 ? *ran_arr_ptr++ : ran_arr_cycle())
 
 # ifdef  __cplusplus
 }
 # endif
 
-
-
-
-
+# undef ALEPH_RAN_ARRAY_DEPRECATED

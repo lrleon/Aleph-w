@@ -30,12 +30,18 @@ class AlephW(CMakePackage):
     version("4.0.0", sha256="0000000000000000000000000000000000000000000000000000000000000000")
 
     variant("x11", default=False, description="Build the X11 live viewer")
+    variant(
+        "gsl",
+        default=True,
+        description="Link GSL and pass it to the consumers (ALEPH_WITH_GSL); "
+        "on until 8.0.0, as ALEPH_WITH_GSL",
+    )
 
     depends_on("cxx", type="build")
     depends_on("cmake@3.18:", type="build")
     depends_on("gmp")
     depends_on("mpfr")
-    depends_on("gsl")
+    depends_on("gsl", when="+gsl")
     depends_on("libx11", when="+x11")
 
     def cmake_args(self):
@@ -45,4 +51,5 @@ class AlephW(CMakePackage):
             self.define("BUILD_REPRODUCTIONS", False),
             self.define("BUILD_BENCHMARKS", False),
             self.define_from_variant("ALEPH_BUILD_X11_VIEWER", "x11"),
+            self.define_from_variant("ALEPH_WITH_GSL", "gsl"),
         ]

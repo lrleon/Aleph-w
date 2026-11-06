@@ -31,7 +31,7 @@
 */
 # include <iostream>
 
-# include <gsl/gsl_rng.h>
+# include <ah-random.H>
 
 # include <geom_algorithms.H>
 # include <ahNow.H>
@@ -40,12 +40,12 @@ using namespace std;
 
 using Points = DynList<Point>;
 
-Points generate_points(size_t n, gsl_rng *& rng)
+Points generate_points(size_t n, Gsl_Compatible_Rng & rng)
 {
   Points ret;
   
   for (size_t i = 0; i < n; ++i)
-    ret.append(Point(gsl_rng_get(rng), gsl_rng_get(rng)));
+    ret.append(Point(rng.get(), rng.get()));
 
   return ret;
 }
@@ -56,8 +56,7 @@ int main()
   constexpr size_t num_test = 12;
   size_t sample_size = 128;
 
-  gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
-  gsl_rng_set(rng, time(nullptr));
+  Gsl_Compatible_Rng rng(time(nullptr));
 
   double sz[num_exp];
   double bf[num_exp];
@@ -100,7 +99,6 @@ int main()
     cout << sz[i] << '\t' << qh[i]/num_test << '\t' << gw[i]/num_test
 	 << '\t' << bf[i]/num_test << endl;
 
-  gsl_rng_free(rng);
   
   return 0;
 }
