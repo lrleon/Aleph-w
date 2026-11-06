@@ -31,7 +31,9 @@
 /**
  * @file ah_random_test.cc
  * @brief Gsl_Compatible_Rng against GSL, bit by bit, but for the reals of
- * flat() and gaussian() where GSL fuses multiply-adds.
+ * flat() and gaussian() where GSL fuses multiply-adds, and for those of
+ * gaussian() and exponential() where the logarithm of the tests is not
+ * that of GSL, as with MSVC and clang-cl.
  *
  * Each test seeds a Gsl_Compatible_Rng and a gsl_rng_mt19937 alike, and
  * draws from both, in an order that another generator picks, so that a
@@ -63,22 +65,49 @@ namespace
     void operator () (gsl_rng * r) const noexcept { gsl_rng_free(r); }
   };
 
-  // Whether a draw of flat() or gaussian() is the one of GSL: bit by bit
-  // where GSL rounds each product, as the distributions build it for
-  // x86-64; elsewhere, where GSL may fuse multiply-adds, as for arm64, up
-  // to its last bits, which the logarithm of a Gaussian near the edge of
-  // the circle amplifies (6.6e-13 at most in the draws of these tests)
-  ::testing::AssertionResult same_real(const double ours, const double gsl)
-  {
-#if defined(__x86_64__) || defined(_M_X64)
-    const bool same = ours == gsl;
+  // Whether the tests take the logarithm of GSL, that of the same C
+  // library: not with MSVC or clang-cl, whose programs take that of the
+  // UCRT, while the GSL of MSYS2 takes that of its own C runtime, which
+  // may differ in the last bit
+#if defined(_MSC_VER)
+  constexpr bool same_log_as_gsl = false;
 #else
-    const bool same = std::abs(ours - gsl) <= 1e-9 * std::max(1.0, std::abs(gsl));
+  constexpr bool same_log_as_gsl = true;
 #endif
-    if (same)
+
+  ::testing::AssertionResult same_or_close(const double ours, const double gsl,
+                                           const bool exactly)
+  {
+    if (exactly ? ours == gsl
+                : std::abs(ours - gsl) <= 1e-9 * std::max(1.0, std::abs(gsl)))
       return ::testing::AssertionSuccess();
     return ::testing::AssertionFailure() << std::setprecision(17) << ours << " is not "
                                          << gsl;
+  }
+
+  // Whether a draw of flat() or gaussian() is the one of GSL: bit by bit
+  // where GSL rounds each product, as the distributions build it for
+  // x86-64, and the logarithm of gaussian() is that of GSL; elsewhere,
+  // where GSL may fuse multiply-adds, as for arm64, or the logarithm
+  // differs, up to its last bits, which the logarithm of a Gaussian near
+  // the edge of the circle amplifies (6.6e-13 at most in the draws of
+  // these tests where GSL fuses them)
+  ::testing::AssertionResult same_real(const double ours, const double gsl,
+                                       const bool takes_log = false)
+  {
+#if defined(__x86_64__) || defined(_M_X64)
+    return same_or_close(ours, gsl, same_log_as_gsl or not takes_log);
+#else
+    return same_or_close(ours, gsl, false);
+#endif
+  }
+
+  // Whether a draw of exponential(), a product of its logarithm, which no
+  // multiply-add fuses, is the one of GSL: bit by bit where the
+  // logarithm is that of GSL; elsewhere, up to its last bits
+  ::testing::AssertionResult same_exponential(const double ours, const double gsl)
+  {
+    return same_or_close(ours, gsl, same_log_as_gsl);
   }
 
   // A product rounded to double, as gaussian() and flat() round theirs
@@ -167,11 +196,12 @@ TEST(GslCompatibleRng, EveryDrawIsTheOneOfGsl)
               << "seed " << s << " at " << i;
             break;
           case 6:
-            ASSERT_TRUE(same_real(g.gaussian(2.5), gsl_ran_gaussian(r.get(), 2.5)))
+            ASSERT_TRUE(same_real(g.gaussian(2.5), gsl_ran_gaussian(r.get(), 2.5), true))
               << "seed " << s << " at " << i;
             break;
           default:
-            ASSERT_EQ(g.exponential(0.75), gsl_ran_exponential(r.get(), 0.75))
+            ASSERT_TRUE(same_exponential(g.exponential(0.75),
+                                         gsl_ran_exponential(r.get(), 0.75)))
               << "seed " << s << " at " << i;
             break;
           }

@@ -39,6 +39,10 @@
  * the next number of each generator after the operations must be those of
  * before: each line of output is compared, by its FNV-1a hash, with the one
  * of GSL. The deprecated accessors to a `gsl_rng` are checked too.
+ *
+ * tpl_skipList.H makes the header node of a SkipList with a zero-sized array
+ * in a base class, which MSVC rejects, as it rejects skiplist_test, which is
+ * not built on Windows: with MSVC, the SkipList is left out.
  */
 
 #include <gtest/gtest.h>
@@ -47,9 +51,15 @@
 #include <tpl_interval_tree.H>
 #include <tpl_rand_tree.H>
 #include <tpl_random_queue.H>
-#include <tpl_skipList.H>
 #include <tpl_treap.H>
 #include <tpl_treapRk.H>
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#  define TEST_SKIP_LIST 0
+#else
+#  define TEST_SKIP_LIST 1
+#  include <tpl_skipList.H>
+#endif
 
 #include <cstdint>
 #include <cstdio>
@@ -61,12 +71,14 @@
 
 using namespace Aleph;
 
+#if TEST_SKIP_LIST
 // The sentinel key of a skip list of int, which its user gives
 template <>
 int SkipList<int, int>::Node::computeMaxKey() noexcept
 {
   return std::numeric_limits<int>::max();
 }
+#endif
 
 namespace
 {
@@ -91,7 +103,7 @@ namespace
   {
     if (p == Node::NullPtr)
       return;
-    add(out, " %d", static_cast<unsigned long>(KEY(p)));
+    add(out, " %lu", static_cast<unsigned long>(KEY(p)));
     if constexpr (Prio)
       add(out, "/%lu", static_cast<unsigned long>(PRIO(p)));
     pre<Prio>(LLINK(p), out);
@@ -161,13 +173,17 @@ namespace
       destroyRec(t.getRoot());
     }
     {
+#if TEST_SKIP_LIST
       SkipList<int, int> l(s);
       out = "skiplist:";
       for (int i = 0; i < 64; ++i)
-        add(out, " %d", static_cast<unsigned long>(l.generateRandomLevel()));
+        add(out, " %lu", static_cast<unsigned long>(l.generateRandomLevel()));
       l.set_seed(s + 777);
       for (int i = 0; i < 64; ++i)
-        add(out, " %d", static_cast<unsigned long>(l.generateRandomLevel()));
+        add(out, " %lu", static_cast<unsigned long>(l.generateRandomLevel()));
+#else
+      out.clear(); // no SkipList: an empty line, which is not compared
+#endif
       lines.push_back(out);
     }
     {
@@ -189,11 +205,11 @@ namespace
         q.append(k);
       out = "random_set:";
       for (int k = 0; k < 20; ++k)
-        add(out, " %d", static_cast<unsigned long>(q.get()));
+        add(out, " %lu", static_cast<unsigned long>(q.get()));
       for (int k = 50; k < 60; ++k)
         q.put(k);
       while (not q.is_empty())
-        add(out, " %d", static_cast<unsigned long>(q.get()));
+        add(out, " %lu", static_cast<unsigned long>(q.get()));
       add(out, " next %lu", q.rng().get());
       lines.push_back(out);
     }
@@ -266,7 +282,8 @@ TEST(RandomStructures, WhatTheyMadeWithGsl)
       for (const std::string & line : lines)
         {
           ASSERT_LT(i, std::size(golden));
-          EXPECT_EQ(fnv1a(line), golden[i]) << line;
+          if (not line.empty()) // that of a structure that is not built
+            EXPECT_EQ(fnv1a(line), golden[i]) << line;
           ++i;
         }
     }
@@ -336,8 +353,10 @@ TEST(RandomStructures, TheDeprecatedGslRngActsOnTheGenerator)
   Rand_Tree<int> rand_tree(1);
   check_adapter(rand_tree, rand_tree.gsl_rng_object());
 
+#  if TEST_SKIP_LIST
   SkipList<int, int> skip_list(1UL);
   check_adapter(skip_list, skip_list.gsl_rng_object());
+#  endif
 
   DynSkipList<int> dyn_skip_list(1UL);
   check_adapter(dyn_skip_list, dyn_skip_list.gsl_rng_object());
@@ -381,7 +400,9 @@ TEST(RandomStructures, TheDeprecatedGslRngCopiesSavesAndRestoresTheGenerator)
   gsl_rng_free(c);
 
   // saved, advanced and restored, the generator of the treap gives the
-  // same numbers again
+  // same numbers again. Not with MSVC or clang-cl: their FILE is one of
+  // the UCRT, which the GSL of MSYS2, of another C runtime, cannot write
+#  if !defined(_MSC_VER)
   std::FILE * f = std::tmpfile();
   ASSERT_NE(f, nullptr);
   ASSERT_EQ(gsl_rng_fwrite(f, r), 0);
@@ -395,6 +416,7 @@ TEST(RandomStructures, TheDeprecatedGslRngCopiesSavesAndRestoresTheGenerator)
   EXPECT_EQ(t.rng(), saved);
   for (const auto x : next)
     EXPECT_EQ(gsl_rng_get(r), x);
+#  endif
 
   // gsl_rng_memcpy() copies the generator of a treap into that of another
   Treap<int> u(8);
@@ -545,8 +567,10 @@ TEST(RandomStructures, TheSeedsAreTakenAsForGsl)
   rt.set_seed(0xffffffffUL);
   EXPECT_EQ(rt.rng(), Gsl_Compatible_Rng(0));
 
+#if TEST_SKIP_LIST
   SkipList<int, int> sl(0xffffffffUL);
   EXPECT_EQ(sl.rng(), Gsl_Compatible_Rng(0));
   sl.set_seed(0xffffffffUL);
   EXPECT_EQ(sl.rng(), Gsl_Compatible_Rng(0xffffffffUL));
+#endif
 }

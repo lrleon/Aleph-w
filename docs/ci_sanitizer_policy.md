@@ -196,6 +196,14 @@ GoogleTest) can stay on Windows by asserting a `bool` instead, as
 | `CompilerSdk\.InstallHeadersSmoke`              | Compiles a program against the installed headers with GCC-style options (`-std=c++20`, `-I`). |
 | `ThreadPoolTest\.BenchmarkVsStdAsync`           | Benchmark against `std::async`; left out with the Windows port (#58), with no recorded reason. |
 
+3. **Inside a test**: parts that a test leaves out, or compares up to
+   the last bits, on Windows.
+
+| Test | On Windows |
+|------|------------|
+| `random_structures_test` | With MSVC, leaves out the `SkipList`, for the reason of `skiplist_test`. With MSVC and clang-cl, does not save and restore a generator with `gsl_rng_fwrite()` and `gsl_rng_fread()`: the `FILE` of their programs is one of the UCRT, which the GSL of MSYS2, of another C runtime, cannot write. |
+| `ah_random_test` | With MSVC and clang-cl, compares the draws of `gaussian()` and `exponential()` with those of GSL up to their last bits: they take the logarithm of the UCRT, and the GSL of MSYS2 that of its own C runtime. |
+
 The Windows job sets `-DALEPH_BUILD_X11_VIEWER=OFF` so the library does
 not pull `libX11`. `ca-x11-viewer.H` is then compiled as a no-op stub
 guarded by `__has_include(<X11/Xlib.h>)`.
