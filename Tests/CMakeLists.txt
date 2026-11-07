@@ -502,6 +502,7 @@ set(TEST_PROGRAMS
     test_path_test
     ah_mapping_test
     lfit_test
+    aleph_exceptions_test
     dyn_treap_test
     geom_algorithms_test
     generate_df_tree_test
@@ -1029,6 +1030,17 @@ if(ALEPH_COMPILE_CHECKS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND
                 -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/..
                 -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/graph_contract_compile_check
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/graph_contract_compile_check.cmake
+    )
+
+    # aleph-exceptions.H, deprecated, warns where a program uses it, and
+    # not where it uses LFit, which throws SizeMismatch until 8.0.0
+    add_test(
+        NAME AlephExceptions.DeprecationWarnsOnlyWhereTheyAreUsed
+        COMMAND ${CMAKE_COMMAND}
+                -DCXX_COMPILER=${CMAKE_CXX_COMPILER}
+                -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/..
+                -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/aleph_exceptions_deprecation_check
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/aleph_exceptions_deprecation_check.cmake
     )
 endif()
 
