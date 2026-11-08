@@ -2279,7 +2279,8 @@ TEST_F(GeomAlgorithmsTest, VoronoiFortuneGivesTheVerticesOfVoronoiDiagram)
 {
   // It ran Bowyer-Watson, quadratic, and a sweep of Fortune; it computes as
   // VoronoiDiagram now, whose order of insertion is random: the vertices
-  // are the same, as sets
+  // are the same, as sets. VoronoiDiagramFromDelaunay, which triangulates
+  // with Bowyer-Watson, gives them apart from VoronoiDiagram
   std::mt19937 gen(99);
   std::uniform_int_distribution<int> coord(0, 100000);
   DynList<Point> pts;
@@ -2288,6 +2289,7 @@ TEST_F(GeomAlgorithmsTest, VoronoiFortuneGivesTheVerticesOfVoronoiDiagram)
 
   const auto fortune = VoronoiDiagramFortune()(pts);
   const auto dual = VoronoiDiagram()(pts);
+  const auto bowyer_watson = VoronoiDiagramFromDelaunay()(pts);
   auto sorted_vertices = [] (const auto & r)
     {
       std::vector<std::pair<Geom_Number, Geom_Number>> v;
@@ -2297,6 +2299,8 @@ TEST_F(GeomAlgorithmsTest, VoronoiFortuneGivesTheVerticesOfVoronoiDiagram)
       return v;
     };
   EXPECT_EQ(sorted_vertices(fortune), sorted_vertices(dual));
+  EXPECT_EQ(sorted_vertices(fortune), sorted_vertices(bowyer_watson));
+  EXPECT_FALSE(sorted_vertices(fortune).empty());
   EXPECT_EQ(fortune.sites.size(), 300u);
 }
 
