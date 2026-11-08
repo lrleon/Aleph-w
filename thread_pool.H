@@ -99,7 +99,7 @@
  *  - `enqueue()` and `enqueue_detached()` are thread-safe
  *  - `resize()` and `shutdown()` should not be called concurrently with each other
  *
- *  @see worker_pool.H Alternative with different API
+ *  @see worker_pool.H Alternative with different API, deprecated: it goes in 8.0.0
  *  @see future_utils.H Utilities for working with futures
  *  @ingroup Utilities
  *  @ingroup ThreadsAndConcurrency

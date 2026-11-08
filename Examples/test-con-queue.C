@@ -34,6 +34,13 @@
 # include <cerrno>
 # include <chrono>
 # include <thread>
+// QueueTheadsPool is deprecated: it goes in 8.0.0, and ThreadPool
+// (thread_pool.H) replaces it. This example shows it until then.
+# if defined(_MSC_VER) && !defined(__clang__)
+#   pragma warning(disable : 4996)
+# else
+#   pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+# endif
 # include <q-consumer-threads.H>
 
 using namespace std;

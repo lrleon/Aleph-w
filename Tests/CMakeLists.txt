@@ -460,6 +460,8 @@ set(TEST_PROGRAMS
     planarity_test
     graph_copy_test
     thread_pool_test
+    worker_pool_test
+    q_consumer_threads_test
     concurrency_test_utils_test
     mpsc_queue_test
     concurrent_hash_map_test

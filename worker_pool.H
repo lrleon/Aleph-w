@@ -55,14 +55,19 @@
  *
  *  WorkersSet<decltype(&my_worker)> pool(&my_worker, 100, 4);
  *
- *  // Schedule work items
+ *  // Schedule work items; the pool frees them with free(), so that they
+ *  // are allocated with malloc() and trivially destructible
+ *  pool.prepare_num_workers(items.size());
  *  for (auto& item : items) {
- *    auto* data = new MyData(item);
+ *    auto* data = static_cast<MyData*>(std::malloc(sizeof(MyData)));
+ *    *data = MyData{item};
  *    pool.schedule_call(data);
  *  }
  *
  *  pool.wait_until_all_workers_finished_or_job_is_done();
  *  ```
+ *
+ *  @deprecated WorkersSet goes in 8.0.0: use ThreadPool (thread_pool.H).
  *
  *  @see q-consumer-threads.H Queue-based variant
  *  @ingroup Utilities
@@ -73,6 +78,8 @@
 # ifndef WORKER_POOL_H
 # define WORKER_POOL_H
 
+# include <atomic>
+# include <cstdlib>
 # include <thread>
 # include <mutex>
 # include <condition_variable>
@@ -98,19 +105,26 @@ using namespace Aleph;
  * - Return `false`: Continue processing more items
  * - Return `true`: Signal "job done", stop all workers
  *
- * @note The pool takes ownership of scheduled `void*` pointers and frees them.
+ * @note The pool takes ownership of scheduled `void*` pointers and frees
+ * them with `free()`: they are allocated with `malloc()`, also those that
+ * the pool does not pass to the worker function, because a call already
+ * returned true or the pool shut down.
+ *
+ * @deprecated WorkersSet goes in 8.0.0: use ThreadPool (thread_pool.H).
  *
  * @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 template <class WorkerFct>
-class WorkersSet
+class [[deprecated("WorkersSet goes in 8.0.0: use ThreadPool (thread_pool.H)")]]
+WorkersSet
 {
 private:
 
   WorkerFct worker_fct = nullptr;
   size_t num_threads = 0;
-  std::mutex m;
+  size_t queue_capacity = 0;
+  mutable std::mutex m;  // all the state below; mutable, for is_jobs_done()
   std::condition_variable cond;
 
   std::atomic<size_t> num_workers = 0;
@@ -120,8 +134,9 @@ private:
   bool shut_down = false;
   bool job_done = false;
 
+  // Notified, with m, when the scheduled items are done or a worker
+  // returned true
   std::condition_variable job_done_cond;
-  std::mutex job_done_mutex;
 
   void worker_handler()
   {
@@ -148,26 +163,36 @@ private:
 
                  if (not job_done)
                    {
+                     // The function runs without the lock; job_done is
+                     // read and written only with it
                      lock.unlock();
+                     bool done = false;
                      try
                        {
-                         job_done = (*worker_fct)(pars_ptr);
+                         done = (*worker_fct)(pars_ptr);
                        }
-                    catch (std::exception & e)
-                      {
-                        std::cout << "Warning: workers exception "
-                                  << e.what() << std::endl;
+                     catch (std::exception & e)
+                       {
+                         std::cout << "Warning: workers exception "
+                                   << e.what() << std::endl;
+                       }
+                     catch (...)
+                       {
+                         std::cout << "Warning: workers exception" << std::endl;
                        }
                      lock.lock();
-                     free(pars_ptr);
+                     if (done)
+                       {
+                         job_done = true;
+                         job_done_cond.notify_all();
+                       }
                    }
+                 free(pars_ptr);  // also an item that the function did not take
                  --num_workers;
                }
            }
 
-         assert(q.is_empty());
-         job_done_cond.notify_one();
-         continue;
+         job_done_cond.notify_all();
       }
   }
   
@@ -182,7 +207,7 @@ public:
    */
   WorkersSet(WorkerFct worker_fct,
              const size_t qsize, const size_t n = 16)
-    : worker_fct(worker_fct), num_threads(n), q(qsize)
+    : worker_fct(worker_fct), num_threads(n), queue_capacity(qsize), q(qsize)
   {
     for (size_t i = 0; i < n; ++i)
       threads.append(std::thread(&WorkersSet::worker_handler, this));
@@ -200,11 +225,14 @@ public:
     cond.notify_all();
   }
 
-  /// Destructor shuts down and joins all worker threads
+  /// Destructor shuts down and joins all worker threads, and frees the
+  /// items that are still queued
   ~WorkersSet()
   {
     shutdown();
     threads.mutable_for_each([] (std::thread & th) { th.join(); });
+    while (not q.is_empty())
+      free(q.get());
   }
 
   /**
@@ -216,6 +244,8 @@ public:
   {
     std::unique_lock<std::mutex> lock(m);
     num_workers = n;
+    // The items scheduled before wait for it: wake the workers
+    cond.notify_all();
   }
 
   /**
@@ -226,11 +256,18 @@ public:
    *
    * @param pars_ptr Pointer to parameters (freed after worker returns)
    *
-   * @note Caller allocates pars_ptr; pool takes ownership and frees it.
+   * @throw std::overflow_error if the queue already holds `qsize` items;
+   *        the pool does not take pars_ptr then
+   *
+   * @note Caller allocates pars_ptr with malloc(); pool takes ownership and
+   *       frees it with free().
    */
   void schedule_call(void * pars_ptr)
   {
     std::unique_lock<std::mutex> lock(m);
+    ah_overflow_error_if(q.size() >= queue_capacity)
+      << "WorkersSet::schedule_call(): the queue holds " << queue_capacity
+      << " items";
     q.put(pars_ptr);
     cond.notify_one();
   }
@@ -255,8 +292,10 @@ public:
    */
   void wait_until_all_workers_finished_or_job_is_done()
   {
-    std::unique_lock<std::mutex> lock(job_done_mutex);
-    job_done_cond.wait(lock);
+    // With a predicate: the items may be done before the wait starts, and
+    // a wakeup may be spurious
+    std::unique_lock<std::mutex> lock(m);
+    job_done_cond.wait(lock, [this] { return num_workers == 0 or job_done; });
   }
 };
 
