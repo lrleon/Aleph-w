@@ -360,10 +360,53 @@ private:
     return nullptr;
   }
 
+  /// Whether `p` lies outside the region [pmin_, pmax_].
+  [[nodiscard]] bool is_outside_region(const Point & p) const noexcept
+  {
+    return p.get_x() < pmin_.get_x() or p.get_x() > pmax_.get_x() or
+           p.get_y() < pmin_.get_y() or p.get_y() > pmax_.get_y();
+  }
+
+  /** @brief Extend the region so that it contains `p`, and the rectangles
+   *  of the nodes, which bound range() and nearest(), with it.
+   */
+  void extend_region(const Point & p)
+  {
+    pmin_ = Point(std::min(pmin_.get_x(), p.get_x()), std::min(pmin_.get_y(), p.get_y()));
+    pmax_ = Point(std::max(pmax_.get_x(), p.get_x()), std::max(pmax_.get_y(), p.get_y()));
+    set_rects(root_, pmin_, pmax_, true);
+  }
+
+  /** @brief Give `node` the rectangle [rmin, rmax], and its subtrees the
+   *  halves that its point splits, by X if `split_x` and by Y otherwise, as
+   *  lr_insert(), bu_insert() and build_balanced() give them.
+   */
+  static void set_rects(Node *node, const Point & rmin, const Point & rmax,
+                        const bool split_x)
+  {
+    if (node == nullptr)
+      return;
+
+    node->set_rect(rmin, rmax);
+    if (split_x)
+      {
+        set_rects(node->lb_, rmin, Point(node->x(), rmax.get_y()), false);
+        set_rects(node->rt_, Point(node->x(), rmin.get_y()), rmax, false);
+      }
+    else
+      {
+        set_rects(node->lb_, rmin, Point(rmax.get_x(), node->y()), true);
+        set_rects(node->rt_, Point(rmin.get_x(), node->y()), rmax, true);
+      }
+  }
+
 public:
   /** @brief Insert a point into the tree.
    *
    *  The point is inserted only if it's not already present (no duplicates).
+   *  A point outside the region of the tree extends the region: the
+   *  rectangles of the nodes, which range() and nearest() search by, are
+   *  computed again, which takes O(n) for that insertion.
    *
    *  @param p Point to insert.
    *  @return true if the point was inserted, false if it was a duplicate.
@@ -372,11 +415,18 @@ public:
   {
     if (root_ == nullptr)
       {
+        if (is_outside_region(p))
+          extend_region(p);
         root_ = new Node(p);
         root_->set_rect(pmin_, pmax_);
         ++N_;
         return true;
       }
+
+    // A point already in the tree is inside the region, which contains
+    // every point inserted
+    if (is_outside_region(p))
+      extend_region(p);
 
     Node *ret = lr_insert(root_, p);
     if (ret == nullptr)
@@ -585,7 +635,8 @@ public:
    *  alternating between X and Y coordinates.  This avoids the
    *  degeneration to O(n) height that occurs with sorted insertions.
    *
-   *  Duplicate points are removed internally.
+   *  Duplicate points are removed internally. The region is extended to
+   *  the points outside [pmin, pmax], as insert() extends it.
    *
    *  @param points Array of points (copied internally).
    *  @param pmin Lower-left corner of the bounding region.
@@ -623,8 +674,12 @@ public:
     if (points.is_empty())
       return tree;
 
+    for (size_t i = 0; i < points.size(); ++i)
+      if (tree.is_outside_region(points(i)))
+        tree.extend_region(points(i));   // no nodes yet: only the region
+
     tree.root_ = build_balanced(points, 0, points.size(), true,
-                                pmin, pmax);
+                                tree.pmin_, tree.pmax_);
     tree.N_ = points.size();
     return tree;
   }

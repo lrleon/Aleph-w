@@ -969,6 +969,133 @@ TEST(K2TreeForEach, BalancedTreeVisitsAll)
 // Main
 // ============================================================================
 
+// ============================================================================
+// Points outside the region of the tree
+// ============================================================================
+
+namespace
+{
+  // The points of pts inside rect, and the squared distance of the
+  // nearest of pts to q, by brute force
+  size_t count_inside(const std::vector<Point> & pts, const Rectangle & rect)
+  {
+    return std::count_if(pts.begin(), pts.end(),
+                         [&rect] (const Point & p) { return rect.contains(p); });
+  }
+
+  Geom_Number nearest_distance2(const std::vector<Point> & pts, const Point & q)
+  {
+    Geom_Number best = pts.front().distance_squared_to(q);
+    for (const Point & p : pts)
+      best = std::min(best, p.distance_squared_to(q));
+    return best;
+  }
+}
+
+TEST(K2TreeRegion, RangeFindsPointsOutsideTheRegion)
+{
+  // The rectangles of the nodes were those of the region, which does not
+  // contain the points outside it, and range() left them out
+  K2TreeInt tree(0, 0, 10, 10);
+  tree.insert(Point(5, 5));
+  EXPECT_TRUE(tree.insert(Point(20, 3)));
+  EXPECT_TRUE(tree.insert(Point(15, 8)));
+
+  DynList<Point> l;
+  tree.range(Rectangle(11, 0, 30, 10), &l);
+  EXPECT_EQ(l.size(), 2u);
+  EXPECT_TRUE(tree.contains(Point(20, 3)));
+}
+
+TEST(K2TreeRegion, NearestFindsPointsOutsideTheRegion)
+{
+  // nearest() discarded the node of (11, 100) by the rectangle of the
+  // region, farther from (4, 100) than (4, 10)
+  K2TreeInt tree(0, 0, 10, 10);
+  tree.insert(Point(5, 5));
+  tree.insert(Point(4, 10));
+  tree.insert(Point(11, 100));
+
+  const auto n = tree.nearest(Point(4, 100));
+  ASSERT_TRUE(n.has_value());
+  EXPECT_EQ(*n, Point(11, 100));
+}
+
+TEST(K2TreeRegion, PointsInsideAndOutsideMatchBruteForce)
+{
+  // Points of [-200, 300]^2 in a tree of the region [0, 100]^2, which
+  // they extend again and again: every range and nearest of brute force
+  std::mt19937 gen(2718);
+  std::uniform_int_distribution<int> coord(-200, 300);
+
+  K2TreeInt tree(0, 0, 100, 100);
+  std::vector<Point> pts;
+  for (int i = 0; i < 400; ++i)
+    {
+      const Point p(coord(gen), coord(gen));
+      if (tree.insert(p))
+        pts.push_back(p);
+    }
+  ASSERT_EQ(tree.size(), pts.size());
+
+  for (int i = 0; i < 200; ++i)
+    {
+      int x1 = coord(gen), x2 = coord(gen), y1 = coord(gen), y2 = coord(gen);
+      if (x1 > x2) std::swap(x1, x2);
+      if (y1 > y2) std::swap(y1, y2);
+      const Rectangle rect(x1, y1, x2, y2);
+      DynList<Point> l;
+      tree.range(rect, &l);
+      ASSERT_EQ(l.size(), count_inside(pts, rect))
+        << "[" << x1 << ", " << x2 << "] x [" << y1 << ", " << y2 << "]";
+
+      const Point q(coord(gen), coord(gen));
+      const auto n = tree.nearest(q);
+      ASSERT_TRUE(n.has_value());
+      ASSERT_EQ(n->distance_squared_to(q), nearest_distance2(pts, q));
+    }
+}
+
+TEST(K2TreeRegion, BuildExtendsTheRegion)
+{
+  Array<Point> arr;
+  arr.append(Point(5, 5));
+  arr.append(Point(-30, 2));
+  arr.append(Point(40, 60));
+  arr.append(Point(7, -9));
+  const K2TreeInt tree = K2TreeInt::build(arr, Point(0, 0), Point(10, 10));
+  EXPECT_EQ(tree.size(), 4u);
+
+  DynList<Point> l;
+  tree.range(Rectangle(-40, -10, 50, 70), &l);
+  EXPECT_EQ(l.size(), 4u);
+
+  DynList<Point> left;
+  tree.range(Rectangle(-40, 0, -20, 5), &left);
+  EXPECT_EQ(left.size(), 1u);
+
+  const auto n = tree.nearest(Point(39, 61));
+  ASSERT_TRUE(n.has_value());
+  EXPECT_EQ(*n, Point(40, 60));
+}
+
+TEST(K2TreeRegion, ADefaultTreeTakesItsRegionFromItsPoints)
+{
+  // The default constructor gives the region [0, 0]: the points extend it
+  K2TreeInt tree;
+  tree.insert(Point(3, 4));
+  tree.insert(Point(-2, 8));
+  tree.insert(Point(9, -1));
+
+  DynList<Point> l;
+  tree.range(Rectangle(-5, -5, 10, 10), &l);
+  EXPECT_EQ(l.size(), 3u);
+
+  const auto n = tree.nearest(Point(10, -2));
+  ASSERT_TRUE(n.has_value());
+  EXPECT_EQ(*n, Point(9, -1));
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
