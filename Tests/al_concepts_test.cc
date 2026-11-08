@@ -40,10 +40,21 @@
 
 #include <gmpxx.h>
 
+#include <ostream>
 #include <string>
 #include <type_traits>
 
 #include <al-matrix.H>
+
+// GoogleTest prints the values of a failed check, and it would print an
+// mpq_class with the operator << that libgmpxx compiles, which is not there
+// for libc++ on Linux, where libgmpxx is built with libstdc++, nor on
+// Windows, where gmpxx.h imports it from a DLL built by MinGW. get_str()
+// calls only the C library of GMP.
+void PrintTo(const mpq_class & q, std::ostream * os)
+{
+  *os << q.get_str();
+}
 
 using namespace Aleph;
 
