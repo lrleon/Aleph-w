@@ -95,9 +95,9 @@ TEST(QueueTheadsPool, TheDestructorShutsThePoolDown)
   // It threw when shutdown() had not been called, which ended the program
   std::atomic<int> sum{0};
   {
+    Adder e;                          // it outlives the pool, whose thread
+    e.sum = &sum;                     // writes its status after run()
     Pool pool;
-    Adder e;
-    e.sum = &sum;
     pool.create_thread(&e);
     EXPECT_TRUE(pool.put(7));
     pool.resume();
@@ -158,6 +158,59 @@ TEST(QueueTheadsPool, ASuspendedPoolShutsDown)
   pool.shutdown();
   EXPECT_TRUE(pool.is_shutdown());
   EXPECT_EQ(sum.load(), 2);           // the item put while suspended stays
+}
+
+TEST(QueueTheadsPool, AnEventShutsItsPoolDown)
+{
+  // An event that called shutdown() waited for its own thread, forever,
+  // also when another thread had started the shutdown
+  struct Stopper : Pool::Event
+  {
+    Pool * pool = nullptr;
+    std::atomic<bool> started{false};
+    std::atomic<bool> go{true};
+    std::atomic<int> runs{0};
+    void run() override
+    {
+      started = true;
+      while (not go)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      pool->shutdown();
+      ++runs;
+    }
+  };
+
+  // The event starts the shutdown
+  {
+    Stopper e;
+    Pool pool;
+    e.pool = &pool;
+    pool.create_thread(&e);
+    EXPECT_TRUE(pool.put(1));
+    pool.resume();
+    for (int k = 0; k < 1000 and e.runs.load() == 0; ++k)
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_EQ(e.runs.load(), 1);
+    pool.shutdown();
+    EXPECT_TRUE(pool.is_shutdown());
+  }
+
+  // Another thread starts it while the event runs, and waits for it
+  Stopper e;
+  e.go = false;
+  Pool pool;
+  e.pool = &pool;
+  pool.create_thread(&e);
+  EXPECT_TRUE(pool.put(1));
+  pool.resume();
+  for (int k = 0; k < 1000 and not e.started.load(); ++k)
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  std::thread other([&pool] { pool.shutdown(); });
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  e.go = true;
+  other.join();
+  EXPECT_EQ(e.runs.load(), 1);
+  EXPECT_TRUE(pool.is_shutdown());
 }
 
 TEST(ConsumerQueueEvent, ItsRunIsVirtual)
