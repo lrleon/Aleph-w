@@ -138,7 +138,8 @@ TEST(WorkersSet, ItemsScheduledBeforeTheirCountAreProcessed)
 TEST(WorkersSet, AnItemThatReturnsTrueEndsTheJob)
 {
   // job_done was written without the lock, and the items after it were
-  // not freed
+  // not freed, which LeakSanitizer reports: the job sanitizers of CI runs
+  // this test with it
   calls = 0;
   Pool pool(&stop_at_a_negative, 100, 1);
   pool.prepare_num_workers(20);
@@ -162,6 +163,26 @@ TEST(WorkersSet, AFullQueueThrows)
   EXPECT_THROW(pool.schedule_call(third), std::overflow_error);
   std::free(third);                   // the pool did not take it
   // The destructor frees the two items that are still queued
+}
+
+TEST(WorkersSet, AShutdownEndsTheWait)
+{
+  // The workers of a pool shut down leave the items that they did not
+  // take, and a wait for them waited forever
+  calls = 0;
+  item_sum = 0;
+  Pool pool(&add_item, 10, 1);
+  pool.prepare_num_workers(3);        // three items, of which one comes
+  pool.schedule_call(make_item(1));
+  std::thread other([&pool]
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      pool.shutdown();
+    });
+  pool.wait_until_all_workers_finished_or_job_is_done();
+  other.join();
+  EXPECT_FALSE(pool.is_jobs_done());
+  EXPECT_LE(item_sum.load(), 1);
 }
 
 #if defined(_MSC_VER) && !defined(__clang__)

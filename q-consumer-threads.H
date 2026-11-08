@@ -256,8 +256,9 @@ public:
     return shutdown_done;
   }
 
-  /// Make the threads finish, and wait for them; again, it waits for
-  /// the shutdown that another call started.
+  /// Make the threads finish, also those of a suspended pool, and wait
+  /// for them; again, it waits for the shutdown that another call started.
+  /// The items still queued are not consumed.
   void shutdown()
   {
     std::unique_lock<std::mutex> critical_section(lck);
@@ -280,9 +281,11 @@ void QueueTheadsPool<T>::run_event(ConsumerQueueEvent * event)
 
   while (true)
     {
+      // The shutdown ends the wait also while suspended: shutdown() waited
+      // forever for the threads of a suspended pool, as one never resumed
       cond.wait(critical_section,
-                [this] { return not ((q.is_empty() and not shutting_down) or
-                                     suspended); });
+                [this] { return shutting_down or
+                                (not suspended and not q.is_empty()); });
 
       if (shutting_down)
         break;

@@ -131,6 +131,35 @@ TEST(QueueTheadsPool, PutWithoutThreadsFails)
   EXPECT_FALSE(pool.put(1));
 }
 
+TEST(QueueTheadsPool, ASuspendedPoolShutsDown)
+{
+  // Its threads did not leave their wait while it was suspended, as it is
+  // until resume(): shutdown(), and so the destructor, waited forever
+  std::atomic<int> sum{0};
+  {
+    Adder e;                          // it outlives the pool
+    e.sum = &sum;
+    Pool pool;
+    pool.create_thread(&e);
+    EXPECT_TRUE(pool.put(1));
+  }
+  EXPECT_EQ(sum.load(), 0);           // never resumed: nothing consumed
+
+  Adder e1, e2;
+  e1.sum = e2.sum = &sum;
+  Pool pool;
+  pool.create_thread(&e1);
+  pool.create_thread(&e2);
+  pool.resume();
+  EXPECT_TRUE(pool.put(2));
+  wait_for(sum, 2);
+  pool.suspend();
+  EXPECT_TRUE(pool.put(3));
+  pool.shutdown();
+  EXPECT_TRUE(pool.is_shutdown());
+  EXPECT_EQ(sum.load(), 2);           // the item put while suspended stays
+}
+
 TEST(ConsumerQueueEvent, ItsRunIsVirtual)
 {
   // run() was pure but not virtual: an event of it did not compile

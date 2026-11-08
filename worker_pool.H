@@ -216,13 +216,15 @@ public:
   /**
    * @brief Signal all workers to shut down.
    *
-   * Workers will complete their current task and exit.
+   * Workers will complete their current task and exit, and a wait for the
+   * items returns.
    */
   void shutdown()
   {
     std::unique_lock<std::mutex> lock(m);
     shut_down = true;
     cond.notify_all();
+    job_done_cond.notify_all();
   }
 
   /// Destructor shuts down and joins all worker threads, and frees the
@@ -287,15 +289,18 @@ public:
    * @brief Block until all work items processed or job done signaled.
    *
    * Returns when either:
-   * - All scheduled work items have been processed, or
-   * - A worker function returned true (job done)
+   * - All scheduled work items have been processed,
+   * - A worker function returned true (job done), or
+   * - The pool was shut down, whose workers leave the items
    */
   void wait_until_all_workers_finished_or_job_is_done()
   {
     // With a predicate: the items may be done before the wait starts, and
-    // a wakeup may be spurious
+    // a wakeup may be spurious. A shutdown ends it: the workers leave
+    // without the items, and it waited forever for them
     std::unique_lock<std::mutex> lock(m);
-    job_done_cond.wait(lock, [this] { return num_workers == 0 or job_done; });
+    job_done_cond.wait(lock, [this]
+      { return num_workers == 0 or job_done or shut_down; });
   }
 };
 
