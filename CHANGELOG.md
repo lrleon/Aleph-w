@@ -11,6 +11,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 * Harden al-*.H, K2Tree, the thread pools, IO_Graph, Eppstein and Johnson ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+* **numeric:** Constrain the keys and the numbers of al-*.H by concepts ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+
+
+### Bug Fixes
+
+* **geometry:** Extend the snapshot of KDTreePointSearch to its points ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+* **graph:** Keep the queries of Johnson when a potential is below lowest() ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+* **graph:** Leave out of the index of Eppstein the nodes beyond max() ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+* **io_graph:** Check the loaded streams, and undo a failed load ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+* **k2tree:** Extend the region to the points inserted outside it ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+* **numeric:** Fix the domains, the vectors and the matrices of al-*.H ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+* **threads:** Fix WorkersSet and QueueTheadsPool, and deprecate them ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+* **threads:** Let an event shut its QueueTheadsPool down ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+* **threads:** Shut down the pools also while they wait ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+
+
+### Performance Improvements
+
+* **geometry:** Compute VoronoiDiagramFortune as VoronoiDiagram does ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+
+
+### Deprecated
+
+* `VoronoiDiagramFortune`: use `VoronoiDiagram`, which it calls now, and which gives the same diagram. Removal in 8.0.0; see `docs/release-notes/7.5.0.md`.
+* `WorkersSet` (`worker_pool.H`), `QueueTheadsPool` and the global `ConsumerQueueEvent` (`q-consumer-threads.H`), which nothing of Aleph uses: use `ThreadPool` (`thread_pool.H`). Removal in 8.0.0.
 
 ## [7.4.0](https://github.com/lrleon/Aleph-w/compare/v7.3.6...v7.4.0) (2026-11-06)
 
