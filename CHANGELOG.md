@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.5.0](https://github.com/lrleon/Aleph-w/compare/v7.4.0...v7.5.0) (2026-11-08)
+
+
+### Features
+
+* Harden al-*.H, K2Tree, the thread pools, IO_Graph, Eppstein and Johnson ([#171](https://github.com/lrleon/Aleph-w/issues/171)) ([395efc4](https://github.com/lrleon/Aleph-w/commit/395efc4a3e355706892236c4815bebaf5e6d8a2e))
+
 ## [7.4.0](https://github.com/lrleon/Aleph-w/compare/v7.3.6...v7.4.0) (2026-11-06)
 
 
