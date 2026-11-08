@@ -1,6 +1,9 @@
 #include "geom_algorithms_test_common.h"
+#include <algorithm>
 #include <random>
 #include <cmath>
+#include <utility>
+#include <vector>
 
 
 // ---------- Edge cases: ClosestPair ----------
@@ -2138,6 +2141,16 @@ TEST_F(GeomAlgorithmsTest, DelaunayIncrementalGrid)
 
 // ---------- VoronoiDiagramFortune ----------
 
+// VoronoiDiagramFortune is deprecated, but supported until 8.0.0: these
+// tests are its coverage
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(push)
+#  pragma warning(disable : 4996)
+#else
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 TEST_F(GeomAlgorithmsTest, VoronoiFortuneFourPoints)
 {
   VoronoiDiagramFortune voronoi;
@@ -2216,6 +2229,37 @@ TEST_F(GeomAlgorithmsTest, VoronoiFortuneKeepsDualImplementationAvailable)
   EXPECT_EQ(fortune.edges.size(), dual.edges.size());
   EXPECT_EQ(fortune.cells.size(), dual.cells.size());
 }
+
+TEST_F(GeomAlgorithmsTest, VoronoiFortuneGivesTheVerticesOfVoronoiDiagram)
+{
+  // It ran Bowyer-Watson, quadratic, and a sweep of Fortune; it computes as
+  // VoronoiDiagram now, whose order of insertion is random: the vertices
+  // are the same, as sets
+  std::mt19937 gen(99);
+  std::uniform_int_distribution<int> coord(0, 100000);
+  DynList<Point> pts;
+  for (int i = 0; i < 300; ++i)
+    pts.append(Point(coord(gen), coord(gen)));
+
+  const auto fortune = VoronoiDiagramFortune()(pts);
+  const auto dual = VoronoiDiagram()(pts);
+  auto sorted_vertices = [] (const auto & r)
+    {
+      std::vector<std::pair<Geom_Number, Geom_Number>> v;
+      for (size_t i = 0; i < r.vertices.size(); ++i)
+        v.emplace_back(r.vertices(i).get_x(), r.vertices(i).get_y());
+      std::sort(v.begin(), v.end());
+      return v;
+    };
+  EXPECT_EQ(sorted_vertices(fortune), sorted_vertices(dual));
+  EXPECT_EQ(fortune.sites.size(), 300u);
+}
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(pop)
+#else
+#  pragma GCC diagnostic pop
+#endif
 
 
 // ---------- ConvexPolygonDecomposition ----------
