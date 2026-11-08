@@ -2135,6 +2135,29 @@ namespace
             Check * check = first.of(i, 0);
             b.net.reset();
             check->run();
+            // The successive shortest paths refuse a network with a cycle of
+            // negative cost, which the cheapest maximum flow saturates
+            if (is_ssp(i) and negative_residual_cycle(b))
+              {
+                const auto before = b.flows();
+                try
+                  {
+                    solvers[i].run(b.net);
+                    check->fail(s, where(b, a, z) + costs_text(cost)
+                                + "a cycle of negative cost: does not throw");
+                  }
+                catch (const std::domain_error &)
+                  {
+                    if (b.flows() != before)
+                      check->fail(s, where(b, a, z) + costs_text(cost)
+                                  + "throws, and the flows changed");
+                  }
+                catch (const std::exception & e)
+                  {
+                    check->fail(s, where(b, a, z) + costs_text(cost) + "throws " + e.what());
+                  }
+                continue;
+              }
             try
               {
                 const auto got = solvers[i].run(b.net);
@@ -2260,6 +2283,27 @@ TYPED_TEST(ExhaustiveMinCost, CheapestMaxFlowsTakeEveryCost)
     {
       const Spec unit = with_w(s, std::vector<long long>(s.arcs.size(), 1));
       for_each_assignment(s, {0, 2}, [&] (const Spec & c)
+        {
+          check_min_costs<Net>(unit, c.w, brute_min_cost, checks.first, checks.second, false,
+                               -1, false);
+        });
+    });
+  checks.expect();
+}
+
+TYPED_TEST(ExhaustiveMinCost, CheapestMaxFlowsTakeNegativeCosts)
+{
+  // Unit capacities, and every assignment of the costs -1 and 2, once: the
+  // cheapest maximum flow saturates the cycles of negative cost, also
+  // those apart from the source, which the cycle canceling cancels and the
+  // network simplex takes as pivots; the successive shortest paths refuse
+  // a network with one
+  using Net = TypeParam;
+  Cost_Checks<Net> checks;
+  for_each_spec(class_domain(), true, [&] (const Spec & s)
+    {
+      const Spec unit = with_w(s, std::vector<long long>(s.arcs.size(), 1));
+      for_each_assignment(s, {-1, 2}, [&] (const Spec & c)
         {
           check_min_costs<Net>(unit, c.w, brute_min_cost, checks.first, checks.second, false,
                                -1, false);
@@ -2613,6 +2657,183 @@ TEST(ExhaustiveFloatingFlow, RealsStayNearTheExactMaximum)
       for (size_t i = 0; i < s.arcs.size(); ++i)
         cap.push_back(real(rng));
       check_network(s, cap, s, ends_of(s));
+    }
+  checks.expect();
+}
+
+TEST(ExhaustiveFloatingFlow, TenthsOnRandomNetworksStayNearTheExactMaximum)
+{
+  const auto solvers = floating_solvers();
+  Family_Checks checks(solvers);
+  auto tenths_of = [] (const std::vector<long long> & w)
+    {
+      std::vector<double> cap;
+      for (long long k : w)
+        cap.push_back(double(k) / 10);
+      return cap;
+    };
+
+  // The smallest networks found where Ford-Fulkerson broke the balance of
+  // the nodes: from 4 to 2, by a path through a residue of 2.8e-16 below
+  // the capacity 2.9 of 0->2; and from 1 to 14, by one through a residue of
+  // 3.6e-16 below the capacity 0.1 of 6->20, which a slack of the arcs of
+  // capacity 2 left there
+  Spec small;
+  small.n = 6;
+  small.arcs = {{1, 3}, {3, 5}, {5, 2}, {4, 3}, {0, 2}, {4, 0}, {0, 1}, {5, 0}, {4, 0}, {0, 1},
+                {4, 5}};
+  small.w = {20, 20, 30, 20, 29, 2, 1, 10, 27, 19, 10};
+  check_floating(solvers, checks, small, tenths_of(small.w), small, {{4, 2}});
+  Spec big;
+  big.n = 21;
+  big.arcs = {{0, 18}, {7, 10}, {20, 4}, {7, 16}, {19, 16}, {16, 17}, {4, 3}, {10, 4}, {18, 0},
+              {9, 6}, {11, 20}, {5, 14}, {6, 20}, {12, 13}, {2, 14}, {3, 14}, {15, 19}, {3, 15},
+              {4, 20}, {1, 20}, {5, 7}, {6, 12}, {12, 19}, {1, 6}, {17, 3}, {16, 5}, {16, 13},
+              {2, 14}, {6, 8}, {17, 8}, {16, 6}, {3, 17}, {12, 11}, {19, 20}, {1, 5}, {11, 19},
+              {1, 16}, {16, 12}, {15, 9}, {8, 2}, {13, 9}};
+  big.w = {0, 3, 7, 0, 1, 2, 7, 3, 0, 2, 6, 20, 1, 0, 10, 8, 1, 2, 0, 0, 3, 5, 0, 16, 1, 11, 1, 1,
+           10, 5, 9, 5, 7, 1, 9, 1, 14, 7, 2, 11, 1};
+  check_floating(solvers, checks, big, tenths_of(big.w), big, {{1, 14}});
+
+  // Random networks, with capacities from 0.1 to 4, in tenths
+  std::mt19937 rng(seed(32));
+  for (int k = 0; k < (heavy() ? 400 : 40); ++k)
+    {
+      Spec s = random_spec(rng, 6 + int(rng() % 3), 8 + int(rng() % 9), true);
+      random_weights(rng, s, 1, 40);
+      check_floating(solvers, checks, s, tenths_of(s.w), s, ends_of(s));
+    }
+  checks.expect();
+}
+
+namespace
+{
+  using Double_Cost_Net = Net_Cost_Graph<Net_Cost_Node<int>, Net_Cost_Arc<Empty_Class, double>>;
+  using Double_Cost_Built = Built_Net<Double_Cost_Net>;
+
+  /// x / d, exactly
+  mpq_class ratio(long long x, long d)
+  {
+    mpq_class q(long{x});
+    q /= d;
+    return q;
+  }
+
+  /** Runs the cost solvers on the network of s whose capacities and
+      costs are the tenths cap and cost, between the ends given, against
+      the cheapest maximum flow of the integer data, by ten, that min_cost
+      gives, in tenths and hundredths: within 1e-9, relative, with each arc
+      in [0, cap] exactly and each node keeping its flow within the
+      tolerance of check_network(). The successive shortest paths refuse
+      a network with a cycle of negative cost; a failure shows the spec
+      with the capacities in tenths. */
+  template <class Oracle>
+  void check_tenths_min_costs(const std::vector<Cost_Solver<Double_Cost_Net>> & solvers,
+                              Family_Checks & checks, const Spec & s,
+                              const std::vector<long long> & cap,
+                              const std::vector<long long> & cost,
+                              const std::vector<std::pair<int, int>> & ends, Oracle min_cost)
+  {
+    const Spec tenths = with_w(s, cap);
+    std::vector<double> amounts;
+    for (long long c : cap)
+      amounts.push_back(double(c) / 10);
+    for (auto [a, z] : ends)
+      {
+        if (a == z)
+          continue;
+        Double_Cost_Built b(s, amounts, Double_Cost_Built::Amounts{});
+        for (size_t i = 0; i < cost.size(); ++i)
+          b.arcs[i]->cost = double(cost[i]) / 10;
+        b.pin(a, z);
+        const auto [value, total] = min_cost(tenths, cost, a, z);
+        for (size_t i = 0; i < solvers.size(); ++i)
+          {
+            if (i == 1 or i == 3)
+              continue;
+            Check * check = checks.of(i, 0);
+            b.net.reset();
+            check->run();
+            const bool refused = is_ssp(i) and negative_residual_cycle(b);
+            std::string e;
+            try
+              {
+                const auto got = solvers[i].run(b.net);
+                if (refused)
+                  e = "a cycle of negative cost: does not throw";
+                else if (e = flow_error(b, true); not e.empty())
+                  ;
+                else if (not near(b.value(), ratio(value, 10)))
+                  e = "the flow is " + text(b.value()) + ", not near "
+                    + text(ratio(value, 10).get_d());
+                else if (not near(b.net.flow_cost(), ratio(total, 100)))
+                  e = "the cost is " + text(b.net.flow_cost()) + ", not near "
+                    + text(ratio(total, 100).get_d());
+                else if (solvers[i].returns
+                         and (got.first != b.value() or got.second != b.net.flow_cost()))
+                  e = "returns " + text(got.first) + " and " + text(got.second)
+                    + " for a flow of " + text(b.value()) + " and cost "
+                    + text(b.net.flow_cost());
+              }
+            catch (const std::domain_error & x)
+              {
+                if (not refused)
+                  e = std::string("throws ") + x.what();
+              }
+            catch (const std::exception & x)
+              {
+                e = std::string("throws ") + x.what();
+              }
+            if (not e.empty())
+              check->fail(tenths, where(b, a, z) + costs_text(cost) + e);
+          }
+      }
+  }
+}
+
+TEST(ExhaustiveFloatingFlow, CheapestMaxFlowsOfTenths)
+{
+  const auto solvers = cost_solvers<Double_Cost_Net>();
+  Family_Checks checks(solvers);
+
+  // The smallest network found where the network simplex left an arc of
+  // capacity 2.9 with 2.9000000000000004, and then the cost -0.1, for the
+  // least -0.8 of a flow of 1: from 0 to 3; the costs, in tenths, are
+  // integers
+  Spec ulp;
+  ulp.n = 5;
+  ulp.arcs = {{1, 4}, {2, 3}, {4, 2}, {2, 4}, {0, 1}, {0, 2}, {0, 1}};
+  check_tenths_min_costs(solvers, checks, ulp, {9, 10, 29, 22, 26, 5, 7},
+                         {20, 30, -20, 0, 0, 20, 10}, {{0, 3}},
+                         [] (const Spec &, const std::vector<long long> &, int, int)
+                           {
+                             return std::pair<long long, long long>(10, -80);
+                           });
+
+  // Small random networks, with loops, of capacities from 0.1 to 0.3 and
+  // the costs -1 and 2, by brute force: their cycles of negative cost,
+  // which the cheapest maximum flow saturates; integer costs, so that no
+  // sum of a cycle is negative by rounding only
+  std::mt19937 rng(seed(33));
+  for (int k = 0; k < (heavy() ? 2000 : 200); ++k)
+    {
+      Spec s = random_spec(rng, 3 + int(rng() % 2), 3 + int(rng() % 3), true);
+      Spec c = s, w = s;
+      random_weights(rng, c, 1, 3);
+      random_weights(rng, w, 0, 1);
+      for (long long & x : w.w)
+        x = x == 0 ? -10 : 20;
+      check_tenths_min_costs(solvers, checks, s, c.w, w.w, ends_of(s), brute_min_cost);
+    }
+
+  // Random networks, with capacities from 0.1 to 4 and costs from 0 to 0.9
+  for (int k = 0; k < (heavy() ? 200 : 20); ++k)
+    {
+      Spec s = random_spec(rng, 6 + int(rng() % 3), 8 + int(rng() % 9), true);
+      Spec c = s, w = s;
+      random_weights(rng, c, 1, 40);
+      random_weights(rng, w, 0, 9);
+      check_tenths_min_costs(solvers, checks, s, c.w, w.w, ends_of(s), ssp_min_cost);
     }
   checks.expect();
 }
