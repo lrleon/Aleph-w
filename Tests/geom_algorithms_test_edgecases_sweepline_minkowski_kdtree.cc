@@ -1,6 +1,9 @@
 #include "geom_algorithms_test_common.h"
+#include <algorithm>
 #include <random>
 #include <cmath>
+#include <utility>
+#include <vector>
 
 
 // ---------- Edge cases: ClosestPair ----------
@@ -1189,6 +1192,51 @@ TEST_F(GeomAlgorithmsTest, KDTreeDebugSnapshotHasPartitions)
   EXPECT_EQ(leaves, kd.size());
 }
 
+TEST_F(GeomAlgorithmsTest, KDTreeDebugSnapshotCoversThePointsOutsideItsBounds)
+{
+  // The tree takes the points outside its bounds, and extends its region
+  // to them; the snapshot split its partitions from the bounds given, and
+  // such a point made one whose corners were swapped, which threw
+  auto check = [] (const KDTreePointSearch & kd)
+    {
+      const auto snap = kd.debug_snapshot();
+      EXPECT_EQ(snap.points.size(), kd.size());
+      for (size_t i = 0; i < snap.points.size(); ++i)
+        EXPECT_TRUE(snap.bounds.contains(snap.points(i)));
+      size_t leaves = 0;
+      for (size_t i = 0; i < snap.partitions.size(); ++i)
+        {
+          const auto & part = snap.partitions(i);
+          EXPECT_TRUE(part.region.contains(part.representative));
+          if (part.is_leaf)
+            ++leaves;
+        }
+      EXPECT_EQ(leaves, kd.size());
+      return snap.bounds;
+    };
+
+  KDTreePointSearch kd(0, 0, 10, 10);
+  kd.insert(Point(5, 5));
+  kd.insert(Point(20, 5));
+  kd.insert(Point(-4, 12));
+  const Rectangle b = check(kd);
+  EXPECT_EQ(b.get_xmin(), Geom_Number(-4));
+  EXPECT_EQ(b.get_ymin(), Geom_Number(0));
+  EXPECT_EQ(b.get_xmax(), Geom_Number(20));
+  EXPECT_EQ(b.get_ymax(), Geom_Number(12));
+
+  Array<Point> points;
+  points.append(Point(5, 5));
+  points.append(Point(-3, 2));
+  points.append(Point(8, 30));
+  points.append(Point(1, 1));
+  const Rectangle c = check(KDTreePointSearch::build(points, 0, 0, 10, 10));
+  EXPECT_EQ(c.get_xmin(), Geom_Number(-3));
+  EXPECT_EQ(c.get_ymin(), Geom_Number(0));
+  EXPECT_EQ(c.get_xmax(), Geom_Number(10));
+  EXPECT_EQ(c.get_ymax(), Geom_Number(30));
+}
+
 
 // ============================================================================
 // Phase 5 — Rigorous Tests
@@ -2138,6 +2186,16 @@ TEST_F(GeomAlgorithmsTest, DelaunayIncrementalGrid)
 
 // ---------- VoronoiDiagramFortune ----------
 
+// VoronoiDiagramFortune is deprecated, but supported until 8.0.0: these
+// tests are its coverage
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(push)
+#  pragma warning(disable : 4996)
+#else
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 TEST_F(GeomAlgorithmsTest, VoronoiFortuneFourPoints)
 {
   VoronoiDiagramFortune voronoi;
@@ -2216,6 +2274,41 @@ TEST_F(GeomAlgorithmsTest, VoronoiFortuneKeepsDualImplementationAvailable)
   EXPECT_EQ(fortune.edges.size(), dual.edges.size());
   EXPECT_EQ(fortune.cells.size(), dual.cells.size());
 }
+
+TEST_F(GeomAlgorithmsTest, VoronoiFortuneGivesTheVerticesOfVoronoiDiagram)
+{
+  // It ran Bowyer-Watson, quadratic, and a sweep of Fortune; it computes as
+  // VoronoiDiagram now, whose order of insertion is random: the vertices
+  // are the same, as sets. VoronoiDiagramFromDelaunay, which triangulates
+  // with Bowyer-Watson, gives them apart from VoronoiDiagram
+  std::mt19937 gen(99);
+  std::uniform_int_distribution<int> coord(0, 100000);
+  DynList<Point> pts;
+  for (int i = 0; i < 300; ++i)
+    pts.append(Point(coord(gen), coord(gen)));
+
+  const auto fortune = VoronoiDiagramFortune()(pts);
+  const auto dual = VoronoiDiagram()(pts);
+  const auto bowyer_watson = VoronoiDiagramFromDelaunay()(pts);
+  auto sorted_vertices = [] (const auto & r)
+    {
+      std::vector<std::pair<Geom_Number, Geom_Number>> v;
+      for (size_t i = 0; i < r.vertices.size(); ++i)
+        v.emplace_back(r.vertices(i).get_x(), r.vertices(i).get_y());
+      std::sort(v.begin(), v.end());
+      return v;
+    };
+  EXPECT_EQ(sorted_vertices(fortune), sorted_vertices(dual));
+  EXPECT_EQ(sorted_vertices(fortune), sorted_vertices(bowyer_watson));
+  EXPECT_FALSE(sorted_vertices(fortune).empty());
+  EXPECT_EQ(fortune.sites.size(), 300u);
+}
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(pop)
+#else
+#  pragma GCC diagnostic pop
+#endif
 
 
 // ---------- ConvexPolygonDecomposition ----------

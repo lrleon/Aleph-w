@@ -39,6 +39,8 @@
 #include <cstdio>
 #include <algorithm>
 #include <filesystem>
+#include <limits>
+#include <string>
 #include <io_graph.H>
 #include <tpl_graph.H>
 #if defined(_WIN32)
@@ -683,6 +685,156 @@ TEST_F(IOGraphTest, MultipleRoundTripsText)
 //============================================================================
 // Main
 //============================================================================
+
+//============================================================================
+// Corrupted streams: the load validates the indices and undoes itself
+//============================================================================
+
+namespace
+{
+  // A binary stream of the nodes `infos` and of one arc from `src` to `tgt`
+  void write_binary_graph(const std::string & file, const std::vector<int> & infos,
+                          int src, int tgt, bool with_arc_info = true)
+  {
+    std::ofstream out(file, std::ios::binary);
+    const size_t num_nodes = infos.size();
+    out.write(reinterpret_cast<const char *>(&num_nodes), sizeof(num_nodes));
+    for (int info : infos)
+      out.write(reinterpret_cast<const char *>(&info), sizeof(info));
+    const size_t num_arcs = 1;
+    out.write(reinterpret_cast<const char *>(&num_arcs), sizeof(num_arcs));
+    out.write(reinterpret_cast<const char *>(&src), sizeof(src));
+    out.write(reinterpret_cast<const char *>(&tgt), sizeof(tgt));
+    if (with_arc_info)
+      {
+        const double w = 2.5;
+        out.write(reinterpret_cast<const char *>(&w), sizeof(w));
+      }
+  }
+}
+
+TEST_F(IOGraphTest, LoadRejectsAnArcToANodeThatIsNotThere)
+{
+  // The indices of the arcs were not validated: an index beyond the nodes
+  // of the stream read an entry of the table that holds no node
+  for (int tgt : {7, 3, -1})
+    {
+      write_binary_graph(binary_file, {10, 20, 30}, 0, tgt);
+      Graph g2;
+      g2.insert_node(99);
+      IO_Graph<Graph> io(g2);
+      std::ifstream in(binary_file, std::ios::binary);
+      EXPECT_THROW(io.load(in), std::runtime_error) << tgt;
+      // The load undid itself: the graph is as it was
+      EXPECT_EQ(g2.vsize(), 1u) << tgt;
+      EXPECT_EQ(g2.esize(), 0u) << tgt;
+      EXPECT_EQ(g2.get_first_node()->get_info(), 99) << tgt;
+    }
+}
+
+TEST_F(IOGraphTest, LoadInTextModeRejectsAnArcToANodeThatIsNotThere)
+{
+  for (const char * text : {"3\n1\n10\n20\n30\n0 5 2.5\n", "2\n1\n10\n20\n-1 0 1.0\n"})
+    {
+      std::istringstream in(text);
+      Graph g2;
+      g2.insert_node(99);
+      IO_Graph<Graph> io(g2);
+      EXPECT_THROW(io.load_in_text_mode(in), std::runtime_error) << text;
+      EXPECT_EQ(g2.vsize(), 1u) << text;
+      EXPECT_EQ(g2.esize(), 0u) << text;
+    }
+}
+
+TEST_F(IOGraphTest, AFailedLoadLeavesTheGraphAsItWas)
+{
+  // The nodes and arcs read before the failure stayed in the graph
+  write_binary_graph(binary_file, {10, 20, 30}, 0, 2, false);  // no arc info
+  Graph g2;
+  g2.insert_node(99);
+  IO_Graph<Graph> io(g2);
+  std::ifstream in(binary_file, std::ios::binary);
+  EXPECT_THROW(io.load(in), std::runtime_error);
+  EXPECT_EQ(g2.vsize(), 1u);
+  EXPECT_EQ(g2.esize(), 0u);
+
+  std::istringstream text("3\n2\n10\n20\n30\n0 1 1.0\n1 2\n");  // the second arc has no info
+  EXPECT_THROW(io.load_in_text_mode(text), std::runtime_error);
+  EXPECT_EQ(g2.vsize(), 1u);
+  EXPECT_EQ(g2.esize(), 0u);
+}
+
+TEST_F(IOGraphTest, ALoadAddsToTheGraph)
+{
+  // The documentation said that the load cleared the graph, which it does not
+  {
+    std::ofstream out(binary_file, std::ios::binary);
+    IO_Graph<Graph>(g).save(out);
+  }
+  Graph g2;
+  g2.insert_node(99);
+  IO_Graph<Graph> io(g2);
+  std::ifstream in(binary_file, std::ios::binary);
+  io.load(in);
+  EXPECT_EQ(g2.vsize(), 5u);
+  EXPECT_EQ(g2.esize(), 3u);
+}
+
+TEST_F(IOGraphTest, ALoadDoesNotTrustTheCountOfTheStream)
+{
+  // The count of nodes of the stream reserved the table of the load: a
+  // corrupted one, huge, asked for more memory than there is
+  const size_t huge = std::numeric_limits<size_t>::max();
+  {
+    std::ofstream out(binary_file, std::ios::binary);
+    out.write(reinterpret_cast<const char *>(&huge), sizeof(huge));
+  }
+  Graph g2;
+  g2.insert_node(99);
+  IO_Graph<Graph> io(g2);
+  std::ifstream in(binary_file, std::ios::binary);
+  EXPECT_THROW(io.load(in), std::runtime_error);
+  EXPECT_EQ(g2.vsize(), 1u);
+  EXPECT_EQ(g2.esize(), 0u);
+
+  std::istringstream text(std::to_string(huge) + "\n0\n");
+  EXPECT_THROW(io.load_in_text_mode(text), std::runtime_error);
+  EXPECT_EQ(g2.vsize(), 1u);
+  EXPECT_EQ(g2.esize(), 0u);
+}
+
+TEST_F(IOGraphTest, ALoadGrowsBeyondWhatItReserves)
+{
+  // A load reserves for 2^20 nodes at most, and grows as it reads more:
+  // an arc from a node beyond that limit
+  const size_t n = (size_t(1) << 20) + 2;
+  {
+    std::ofstream out(binary_file, std::ios::binary);
+    out.write(reinterpret_cast<const char *>(&n), sizeof(n));
+    for (size_t i = 0; i < n; ++i)
+      {
+        const int info = static_cast<int>(i);
+        out.write(reinterpret_cast<const char *>(&info), sizeof(info));
+      }
+    const size_t num_arcs = 1;
+    out.write(reinterpret_cast<const char *>(&num_arcs), sizeof(num_arcs));
+    const int src = static_cast<int>(n - 1), tgt = 0;
+    out.write(reinterpret_cast<const char *>(&src), sizeof(src));
+    out.write(reinterpret_cast<const char *>(&tgt), sizeof(tgt));
+    const double w = 2.5;
+    out.write(reinterpret_cast<const char *>(&w), sizeof(w));
+  }
+  Graph g2;
+  IO_Graph<Graph> io(g2);
+  std::ifstream in(binary_file, std::ios::binary);
+  io.load(in);
+  EXPECT_EQ(g2.vsize(), n);
+  ASSERT_EQ(g2.esize(), 1u);
+  auto * a = g2.get_first_arc();
+  EXPECT_EQ(g2.get_src_node(a)->get_info(), static_cast<int>(n - 1));
+  EXPECT_EQ(g2.get_tgt_node(a)->get_info(), 0);
+  EXPECT_DOUBLE_EQ(a->get_info(), 2.5);
+}
 
 int main(int argc, char **argv)
 {

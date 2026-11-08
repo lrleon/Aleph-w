@@ -43,6 +43,9 @@
 # ifndef AH_MATRIX_H
 # define AH_MATRIX_H
 
+# include <memory>
+# include <type_traits>
+# include <utility>
 # include <al-vector.H>
 # include <ah-errors.H>
 
@@ -62,6 +65,7 @@ namespace Aleph
       @tparam NumType Numeric type for matrix entries (default: double)
   */
   template <typename Trow = int, typename Tcol = int, typename NumType = double>
+    requires AlDomainKey<Trow> and AlDomainKey<Tcol> and AlNumber<NumType>
   class Matrix
   {
   public:
@@ -90,6 +94,21 @@ namespace Aleph
     {
       assert(epsilon >= 0);
       return val >= -epsilon and val <= epsilon;
+    }
+
+    // A pointer to a domain that the matrix does not own: the caller keeps
+    // it alive
+    template <class D>
+    static std::shared_ptr<D> borrow(const D & d)
+    {
+      return std::shared_ptr<D>(&const_cast<D &>(d), [](D *) {});
+    }
+
+    // A pointer to a copy of a temporary domain, which the matrix owns
+    template <class D>
+    static std::shared_ptr<D> own(D && d)
+    {
+      return std::make_shared<D>(std::move(d));
     }
 
   public:
@@ -145,13 +164,49 @@ namespace Aleph
     */
     Matrix(const RDomain & rdomain, const CDomain & cdomain,
            const NumType & e = default_epsilon)
-      : rdomain_ptr(RDomainPtr(&const_cast<RDomain &>(rdomain), [](RDomain *) {})),
-        cdomain_ptr(CDomainPtr(&const_cast<CDomain &>(cdomain), [](CDomain *) {})),
-        entries(10, Aleph::pair_dft_hash_ptr_fct<Trow, Tcol>,
-                Aleph::pair_snd_hash_ptr_fct<Trow, Tcol>)
+      : Matrix(borrow(rdomain), borrow(cdomain), e)
     {
-      set_epsilon(e);
+      // empty
     }
+
+    /** @brief Construct an empty sparse matrix over domains of which one,
+        or both, are temporary: the matrix keeps a copy of each temporary
+        one, which lives as long as the matrix and those that share it.
+
+        @param rdomain Row domain
+        @param cdomain Column domain
+        @param e Epsilon for zero comparisons (default: 1e-7)
+    */
+    Matrix(RDomain && rdomain, CDomain && cdomain,
+           const NumType & e = default_epsilon)
+      : Matrix(own(std::move(rdomain)), own(std::move(cdomain)), e)
+    {
+      // empty
+    }
+
+    /// \overload
+    Matrix(RDomain && rdomain, const CDomain & cdomain,
+           const NumType & e = default_epsilon)
+      : Matrix(own(std::move(rdomain)), borrow(cdomain), e)
+    {
+      // empty
+    }
+
+    /// \overload
+    Matrix(const RDomain & rdomain, CDomain && cdomain,
+           const NumType & e = default_epsilon)
+      : Matrix(borrow(rdomain), own(std::move(cdomain)), e)
+    {
+      // empty
+    }
+
+    /** A matrix needs domains: `Matrix(IntRange(n), IntRange(m))`, not
+        `Matrix(n, m)`, which would turn the numbers into empty domains.
+    */
+    template <typename R, typename C, typename... Rest>
+      requires (std::is_integral_v<std::remove_cvref_t<R>> or
+                std::is_integral_v<std::remove_cvref_t<C>>)
+    Matrix(R &&, C &&, Rest &&...) = delete;
 
     /** @brief Construct a matrix from a 2D initializer list (shared_ptr version).
         @param rdomain Shared pointer to row domain
@@ -163,13 +218,14 @@ namespace Aleph
     Matrix(RDomainPtr rdomain, CDomainPtr cdomain,
            std::initializer_list<std::initializer_list<NumType>> l,
            const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
       : Matrix(std::move(rdomain), std::move(cdomain), e)
     {
       ah_range_error_if(l.size() != rdomain_ptr->size()) << "mismatch with number of rows";
 
       auto itr = l.begin();
-      const DynList<Tcol> clist = sort(cdomain_ptr->keys());
-      sort(rdomain_ptr->keys()).
+      const DynList<Tcol> & clist = cdomain_ptr->keys();
+      rdomain_ptr->keys().
           for_each([this, &itr, &clist](const Trow & row)
                      {
                        ah_range_error_if(itr->size() != cdomain_ptr->size())
@@ -197,8 +253,40 @@ namespace Aleph
     Matrix(const RDomain & rdomain, const CDomain & cdomain,
            std::initializer_list<std::initializer_list<NumType>> l,
            const NumType & e = default_epsilon)
-      : Matrix(RDomainPtr(&const_cast<RDomain &>(rdomain), [](RDomain *) {}),
-               CDomainPtr(&const_cast<CDomain &>(cdomain), [](CDomain *) {}), l, e)
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
+      : Matrix(borrow(rdomain), borrow(cdomain), l, e)
+    {}
+
+    /** @brief Construct a matrix from a 2D initializer list over domains
+        of which one, or both, are temporary: the matrix keeps a copy of
+        each temporary one.
+        @param rdomain Row domain
+        @param cdomain Column domain
+        @param l Initializer list of rows
+        @param e Epsilon for zero comparisons
+        @throw ah_range_error if dimensions don't match domain sizes
+    */
+    Matrix(RDomain && rdomain, CDomain && cdomain,
+           std::initializer_list<std::initializer_list<NumType>> l,
+           const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
+      : Matrix(own(std::move(rdomain)), own(std::move(cdomain)), l, e)
+    {}
+
+    /// \overload
+    Matrix(RDomain && rdomain, const CDomain & cdomain,
+           std::initializer_list<std::initializer_list<NumType>> l,
+           const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
+      : Matrix(own(std::move(rdomain)), borrow(cdomain), l, e)
+    {}
+
+    /// \overload
+    Matrix(const RDomain & rdomain, CDomain && cdomain,
+           std::initializer_list<std::initializer_list<NumType>> l,
+           const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
+      : Matrix(borrow(rdomain), own(std::move(cdomain)), l, e)
     {}
 
     /** @brief Construct a matrix from a list of lists (shared_ptr version).
@@ -211,6 +299,7 @@ namespace Aleph
     Matrix(RDomainPtr rdomain, CDomainPtr cdomain,
            const DynList<DynList<NumType>> & l,
            const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
       : Matrix(std::move(rdomain), std::move(cdomain), e)
     {
       ah_range_error_if(l.size() != rdomain_ptr->size()) << "mismatch with number of rows";
@@ -220,6 +309,8 @@ namespace Aleph
           auto t = it.get_curr();
           const Trow & row_idx = get<0>(t);
           const DynList<NumType> & row = get<1>(t);
+          ah_range_error_if(row.size() != cdomain_ptr->size())
+            << "mismatch with number of columns";
           for (auto it = zip_it(cdomain_ptr->keys(), row); it.has_curr(); it.next())
             {
               auto t = it.get_curr();
@@ -242,8 +333,40 @@ namespace Aleph
     Matrix(const RDomain & rdomain, const CDomain & cdomain,
            const DynList<DynList<NumType>> & l,
            const NumType & e = default_epsilon)
-      : Matrix(RDomainPtr(&const_cast<RDomain &>(rdomain), [](RDomain *) {}),
-               CDomainPtr(&const_cast<CDomain &>(cdomain), [](CDomain *) {}), l, e)
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
+      : Matrix(borrow(rdomain), borrow(cdomain), l, e)
+    {}
+
+    /** @brief Construct a matrix from a list of lists over domains of which
+        one, or both, are temporary: the matrix keeps a copy of each
+        temporary one.
+        @param rdomain Row domain
+        @param cdomain Column domain
+        @param l List of rows
+        @param e Epsilon for zero comparisons
+        @throw ah_range_error if dimensions don't match domain sizes
+    */
+    Matrix(RDomain && rdomain, CDomain && cdomain,
+           const DynList<DynList<NumType>> & l,
+           const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
+      : Matrix(own(std::move(rdomain)), own(std::move(cdomain)), l, e)
+    {}
+
+    /// \overload
+    Matrix(RDomain && rdomain, const CDomain & cdomain,
+           const DynList<DynList<NumType>> & l,
+           const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
+      : Matrix(own(std::move(rdomain)), borrow(cdomain), l, e)
+    {}
+
+    /// \overload
+    Matrix(const RDomain & rdomain, CDomain && cdomain,
+           const DynList<DynList<NumType>> & l,
+           const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
+      : Matrix(borrow(rdomain), own(std::move(cdomain)), l, e)
     {}
 
     /// Copy constructor.
@@ -292,19 +415,33 @@ namespace Aleph
       return *this;
     }
 
-    /** @brief Create a matrix from a list of row vectors.
-        @param rdomain Row domain
-        @param rows List of vectors, one per row
-        @param e Epsilon for zero comparisons
-        @return New matrix constructed from the row vectors
-    */
-    static Matrix create_by_rows(const RDomain & rdomain,
-                                 const DynList<Vector<Tcol, NumType>> & rows,
-                                 const NumType & e = default_epsilon)
+  private:
+    // The vectors of a matrix built by rows or by columns: one per element
+    // of the domain, all over the same domain, which the matrix shares
+    template <class Vec, class D>
+    static void check_vectors(const D & domain, const DynList<Vec> & vectors,
+                              const char * name)
     {
-      Matrix ret(rdomain, rows.get_first().get_domain(), e);
+      ah_range_error_if(vectors.size() != domain.size())
+        << name << "(): " << vectors.size() << " vectors for "
+        << domain.size() << " elements of the domain";
+      const auto & first = vectors.get_first().get_domain_ptr();
+      ah_domain_error_if(not vectors.all([&first] (const Vec & v)
+                                           {
+                                             return v.get_domain_ptr() == first;
+                                           }))
+        << name << "(): the vectors have different domains";
+    }
 
-      for (auto it = zip_it(rdomain.keys(), rows); it.has_curr(); it.next())
+    static Matrix create_by_rows_impl(RDomainPtr rdomain,
+                                      const DynList<Vector<Tcol, NumType>> & rows,
+                                      const NumType & e)
+      requires AlOrderedDomainKey<Trow>
+    {
+      check_vectors(*rdomain, rows, "create_by_rows");
+      Matrix ret(rdomain, rows.get_first().get_domain_ptr(), e);
+
+      for (auto it = zip_it(rdomain->keys(), rows); it.has_curr(); it.next())
         {
           auto t = it.get_curr();
           const Trow & row_idx = get<0>(t);
@@ -323,19 +460,15 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Create a matrix from a list of column vectors.
-        @param cdomain Column domain
-        @param cols List of vectors, one per column
-        @param e Epsilon for zero comparisons
-        @return New matrix constructed from the column vectors
-    */
-    static Matrix create_by_columns(const CDomain & cdomain,
-                                    const DynList<Vector<Trow, NumType>> & cols,
-                                    const NumType & e = default_epsilon)
+    static Matrix create_by_columns_impl(CDomainPtr cdomain,
+                                         const DynList<Vector<Trow, NumType>> & cols,
+                                         const NumType & e)
+      requires AlOrderedDomainKey<Tcol>
     {
-      Matrix ret(cols.get_first().get_domain(), cdomain, e);
+      check_vectors(*cdomain, cols, "create_by_columns");
+      Matrix ret(cols.get_first().get_domain_ptr(), cdomain, e);
 
-      for (auto it = zip_it(cdomain.keys(), cols); it.has_curr(); it.next())
+      for (auto it = zip_it(cdomain->keys(), cols); it.has_curr(); it.next())
         {
           auto t = it.get_curr();
           const Tcol & col_idx = get<0>(t);
@@ -352,6 +485,69 @@ namespace Aleph
         }
 
       return ret;
+    }
+
+  public:
+    /** @brief Create a matrix from a list of row vectors.
+
+        The matrix shares the column domain of the vectors, which must be
+        the same for all of them.
+
+        @param rdomain Row domain
+        @param rows List of vectors, one per row, in the order of the sorted
+               keys of `rdomain`
+        @param e Epsilon for zero comparisons
+        @return New matrix constructed from the row vectors
+        @throw ah_range_error if there is not one vector per row
+        @throw ah_domain_error if the vectors have different domains
+    */
+    static Matrix create_by_rows(const RDomain & rdomain,
+                                 const DynList<Vector<Tcol, NumType>> & rows,
+                                 const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Trow>
+    {
+      return create_by_rows_impl(borrow(rdomain), rows, e);
+    }
+
+    /// \overload
+    /// The matrix keeps a copy of the temporary row domain.
+    static Matrix create_by_rows(RDomain && rdomain,
+                                 const DynList<Vector<Tcol, NumType>> & rows,
+                                 const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Trow>
+    {
+      return create_by_rows_impl(own(std::move(rdomain)), rows, e);
+    }
+
+    /** @brief Create a matrix from a list of column vectors.
+
+        The matrix shares the row domain of the vectors, which must be the
+        same for all of them.
+
+        @param cdomain Column domain
+        @param cols List of vectors, one per column, in the order of the
+               sorted keys of `cdomain`
+        @param e Epsilon for zero comparisons
+        @return New matrix constructed from the column vectors
+        @throw ah_range_error if there is not one vector per column
+        @throw ah_domain_error if the vectors have different domains
+    */
+    static Matrix create_by_columns(const CDomain & cdomain,
+                                    const DynList<Vector<Trow, NumType>> & cols,
+                                    const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Tcol>
+    {
+      return create_by_columns_impl(borrow(cdomain), cols, e);
+    }
+
+    /// \overload
+    /// The matrix keeps a copy of the temporary column domain.
+    static Matrix create_by_columns(CDomain && cdomain,
+                                    const DynList<Vector<Trow, NumType>> & cols,
+                                    const NumType & e = default_epsilon)
+      requires AlOrderedDomainKey<Tcol>
+    {
+      return create_by_columns_impl(own(std::move(cdomain)), cols, e);
     }
 
     /** @brief Get an entry value (non-const version with lazy cleanup).
@@ -417,11 +613,12 @@ namespace Aleph
     }
 
     /** @brief Compute the transpose of this matrix.
-        @return New matrix with rows and columns swapped
+        @return New matrix with rows and columns swapped, which shares the
+                domains of this one
     */
-    Matrix transpose() const
+    Matrix<Tcol, Trow, NumType> transpose() const
     {
-      Matrix ret_val(*cdomain_ptr, *rdomain_ptr);
+      Matrix<Tcol, Trow, NumType> ret_val(cdomain_ptr, rdomain_ptr);
       entries.for_each([&ret_val](const Pair & p)
                          {
                            const RCPair & rc = p.first;
@@ -433,14 +630,16 @@ namespace Aleph
 
     /// Return a sorted list of row domain keys.
     DynList<Trow> row_domain_list() const
+      requires AlOrderedDomainKey<Trow>
     {
-      return sort(rdomain_ptr->keys());
+      return rdomain_ptr->keys();
     }
 
     /// Return a sorted list of column domain keys.
     DynList<Tcol> col_domain_list() const
+      requires AlOrderedDomainKey<Tcol>
     {
-      return sort(cdomain_ptr->keys());
+      return cdomain_ptr->keys();
     }
 
     /** @brief Get a row as a list of values (in column order).
@@ -449,6 +648,7 @@ namespace Aleph
         @throw ah_domain_error if row not in domain
     */
     DynList<NumType> get_row_as_list(const Trow & row) const
+      requires AlOrderedDomainKey<Tcol>
     {
       ah_domain_error_if(not rdomain_ptr->has(row)) << "row is not inside the row domain";
       return col_domain_list().
@@ -464,6 +664,7 @@ namespace Aleph
         @throw ah_domain_error if col not in domain
     */
     DynList<NumType> get_col_as_list(const Tcol & col) const
+      requires AlOrderedDomainKey<Trow>
     {
       ah_domain_error_if(not cdomain_ptr->has(col)) << "col is not inside the column domain";
       return row_domain_list().template maps<NumType>
@@ -472,13 +673,14 @@ namespace Aleph
 
     /// Return a list of vectors corresponding to the rows
     DynList<Vector<Tcol, NumType>> to_rowlist() const
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
     {
       DynList<Vector<Tcol, NumType>> ret_val;
       DynList<Tcol> cols = col_domain_list();
       row_domain_list().
           for_each([this, &ret_val, cols](const Trow & row)
                      {
-                       Vector<Tcol, NumType> vec(*cdomain_ptr, epsilon);
+                       Vector<Tcol, NumType> vec(cdomain_ptr, epsilon);
                        cols.for_each([this, &vec, &row](const Tcol & col)
                                        {
                                          auto *val_ptr =
@@ -493,13 +695,14 @@ namespace Aleph
 
     /// Return a list of vectors corresponding to the columns
     DynList<ColVector> to_collist() const
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol>
     {
       DynList<ColVector> ret_val;
       DynList<Trow> rows = row_domain_list();
       col_domain_list().
           for_each([this, &ret_val, &rows](const Tcol & col)
                      {
-                       ColVector vec(*rdomain_ptr, epsilon);
+                       ColVector vec(rdomain_ptr, epsilon);
                        rows.for_each([this, &vec, &col](const Trow & row)
                                        {
                                          auto *ptr = entries.search(RCPair(row, col));
@@ -516,7 +719,7 @@ namespace Aleph
     {
       ah_domain_error_if(not rdomain_ptr->has(row))
         << "get_row_vector(): invalid row";
-      Vector<Tcol, NumType> ret_val(*cdomain_ptr);
+      Vector<Tcol, NumType> ret_val(cdomain_ptr);
       cdomain_ptr->for_each([&](const Tcol & col)
                               {
                                 auto *ptr = entries.search(RCPair(row, col));
@@ -531,7 +734,7 @@ namespace Aleph
     {
       ah_domain_error_if(not cdomain_ptr->has(col))
         << "get_col_vector(): invalid col";
-      Vector<Trow, NumType> ret_val(*rdomain_ptr);
+      Vector<Trow, NumType> ret_val(rdomain_ptr);
       rdomain_ptr->for_each([&](const Trow & row)
                               {
                                 auto *ptr = entries.search(RCPair(row, col));
@@ -551,10 +754,11 @@ namespace Aleph
     */
     Vector<Trow, NumType>
     mult_matrix_vector_linear_comb(const Vector<Tcol, NumType> & vec) const
+      requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
     {
       ah_domain_error_if(&vec.get_domain() != &get_col_domain())
         << "mult_matrix_vector_linear_comb: domain mismatch";
-      Vector<Trow, NumType> ret_val(*rdomain_ptr);
+      Vector<Trow, NumType> ret_val(rdomain_ptr);
       vec.for_each([this, &ret_val](const std::pair<Tcol, NumType> & p)
                      {
                        const Tcol & col = p.first;
@@ -574,10 +778,11 @@ namespace Aleph
     */
     Vector<Trow, NumType>
     mult_matrix_vector_sparse(const Vector<Tcol, NumType> & vec) const
+      requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
     {
       ah_domain_error_if(&vec.get_domain() != &get_col_domain())
         << "mult_matrix_vector_sparse: domain mismatch";
-      Vector<Trow, NumType> ret_val(*rdomain_ptr);
+      Vector<Trow, NumType> ret_val(rdomain_ptr);
       entries.for_each([&ret_val, &vec](const Pair & p)
                          {
                            const Trow & row = p.first.first;
@@ -602,10 +807,11 @@ namespace Aleph
     */
     Vector<Tcol, NumType>
     mult_vector_matrix_linear_comb(const Vector<Trow, NumType> & vec) const
+      requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
     {
       ah_domain_error_if(&vec.get_domain() != &get_row_domain())
         << "mult_vector_matrix_linear_comb: domain mismatch";
-      Vector<Tcol, NumType> ret_val(*cdomain_ptr);
+      Vector<Tcol, NumType> ret_val(cdomain_ptr);
       vec.for_each([this, &ret_val](const std::pair<Trow, NumType> & p)
                      {
                        const Trow & row = p.first;
@@ -625,10 +831,11 @@ namespace Aleph
     */
     Vector<Trow, NumType>
     mult_matrix_vector_dot_product(const Vector<Tcol, NumType> & vec) const
+      requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
     {
       ah_domain_error_if(&vec.get_domain() != &get_col_domain())
         << "mult_matrix_vector_dot_product: domain mismatch";
-      Vector<Trow, NumType> ret_val(*rdomain_ptr);
+      Vector<Trow, NumType> ret_val(rdomain_ptr);
       rdomain_ptr->for_each([&](const Trow & row)
                               {
                                 ret_val.set_entry(row, vec * get_row_vector(row));
@@ -646,10 +853,11 @@ namespace Aleph
     */
     Vector<Tcol, NumType>
     mult_vector_matrix_dot_product(const Vector<Trow, NumType> & vec) const
+      requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
     {
       ah_domain_error_if(&vec.get_domain() != &get_row_domain())
         << "mult_vector_matrix_dot_product: domain mismatch";
-      Vector<Tcol, NumType> ret_val(*cdomain_ptr);
+      Vector<Tcol, NumType> ret_val(cdomain_ptr);
       cdomain_ptr->for_each([&](const Tcol & col)
                               {
                                 ret_val.set_entry(col, vec * get_col_vector(col));
@@ -660,6 +868,7 @@ namespace Aleph
     /// Matrix-vector multiplication operator (uses linear combination method).
     Vector<Trow, NumType>
     operator *(const Vector<Tcol, NumType> & vec) const
+      requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
     {
       return mult_matrix_vector_linear_comb(vec);
     }
@@ -677,7 +886,9 @@ namespace Aleph
     void validate_domains_for_mult(const Matrix<T2row, T2col, NumType> & m)
     const
     {
-      ah_domain_error_if(cdomain_ptr != m.rdomain_ptr)
+      static_assert(std::is_same_v<T2row, Tcol>,
+                    "AxB: the rows of B must be of the type of the columns of A");
+      ah_domain_error_if(cdomain_ptr != m.get_row_domain_ptr())
         << "AxB: Column domain of A must be identical to row domain of B";
     }
 
@@ -731,7 +942,7 @@ namespace Aleph
       static_assert(std::is_same_v<Trow, Tcol>,
                     "Row domain is not equal to column domain");
 
-      Matrix<Trow, Tcol, NumType> i(*rdomain_ptr, *rdomain_ptr);
+      Matrix<Trow, Tcol, NumType> i(rdomain_ptr, rdomain_ptr);
       rdomain_ptr->for_each([&i](const Trow & row)
                               {
                                 i.set_entry(row, row, 1);
@@ -745,6 +956,7 @@ namespace Aleph
         @throw ah_domain_error if domains don't match
     */
     Matrix &operator +=(const Matrix & m)
+      requires AlAdditiveNumber<NumType>
     {
       ah_domain_error_if(rdomain_ptr != m.rdomain_ptr or cdomain_ptr != m.cdomain_ptr)
         << "Matrix addition domain mismatch";
@@ -764,6 +976,7 @@ namespace Aleph
 
     /// Matrix addition operator.
     Matrix operator +(const Matrix & m) const
+      requires AlAdditiveNumber<NumType>
     {
       Matrix ret_val = *this;
       ret_val += m;
@@ -776,6 +989,7 @@ namespace Aleph
         @throw ah_domain_error if domains don't match
     */
     Matrix &operator -=(const Matrix & m)
+      requires AlAdditiveNumber<NumType>
     {
       ah_domain_error_if(rdomain_ptr != m.rdomain_ptr or cdomain_ptr != m.cdomain_ptr)
         << "Matrix subtraction domain mismatch";
@@ -795,6 +1009,7 @@ namespace Aleph
 
     /// Matrix subtraction operator.
     Matrix operator -(const Matrix & m) const
+      requires AlAdditiveNumber<NumType>
     {
       Matrix ret_val = *this;
       ret_val -= m;
@@ -806,6 +1021,7 @@ namespace Aleph
         @return Reference to this matrix
     */
     Matrix &mult_by_scalar(const NumType & scalar)
+      requires AlMultiplicativeNumber<NumType>
     {
       entries.for_each([&scalar](const Pair & p)
                          {
@@ -823,11 +1039,12 @@ namespace Aleph
         @throw ah_domain_error if column domain size != row domain size of m
     */
     template <typename T2row, typename T2col>
-    Matrix<Trow, T2col>
+    Matrix<Trow, T2col, NumType>
     vector_matrix_mult(const Matrix<T2row, T2col, NumType> & m) const
+      requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
     {
       validate_domains_for_mult(m);
-      Matrix<Trow, T2col> ret_val(*rdomain_ptr, m.get_col_domain());
+      Matrix<Trow, T2col, NumType> ret_val(rdomain_ptr, m.get_col_domain_ptr());
       rdomain_ptr->
           for_each([this, &m, &ret_val](const Trow & row)
                      {
@@ -844,13 +1061,14 @@ namespace Aleph
         @throw ah_domain_error if column domain size != row domain size of m
     */
     template <typename T2row, typename T2col>
-    Matrix<Trow, T2col>
+    Matrix<Trow, T2col, NumType>
     matrix_vector_mult(const Matrix<T2row, T2col, NumType> & m) const
+      requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
     {
       validate_domains_for_mult(m);
-      Matrix<Trow, T2col> ret_val(*rdomain_ptr, m.get_col_domain());
+      Matrix<Trow, T2col, NumType> ret_val(rdomain_ptr, m.get_col_domain_ptr());
       m.get_col_domain().
-        for_each([this, &m, &ret_val](const Tcol & col)
+        for_each([this, &m, &ret_val](const T2col & col)
                    {
                      ret_val.set_vector_as_col(col,
                                                *this * m.get_col_vector(col));
@@ -860,6 +1078,7 @@ namespace Aleph
 
     /// Print non-zero entries to stdout.
     void print() const
+      requires AlStreamable<Trow> and AlStreamable<Tcol> and AlStreamable<NumType>
     {
       std::cout << "Non zero entries = " << '\n';
       entries.for_each([](const Pair & p)
@@ -873,6 +1092,8 @@ namespace Aleph
 
     /// Convert matrix to a formatted string representation.
     [[nodiscard]] std::string to_str() const
+      requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol> and
+               AlStreamable<Trow> and AlStreamable<Tcol> and AlStreamable<NumType>
     {
       typedef std::pair<std::string, std::string> StrPair;
       DynList<ColVector> cols = to_collist();
@@ -889,11 +1110,12 @@ namespace Aleph
                                                        });
                                        });
 
+      // The labels in the order of the keys, which is that of the values
       const DynList<std::string> col_labels =
-          sort(cdomain_ptr->template maps<std::string>([](const Tcol & col)
-                                                         {
-                                                           return Aleph::to_str(col);
-                                                         }));
+          cdomain_ptr->keys().template maps<std::string>([](const Tcol & col)
+                                                           {
+                                                             return Aleph::to_str(col);
+                                                           });
 
       DynList<std::string> longers = zip(collens, col_labels).
           template maps<std::string>([](const StrPair & p)
@@ -904,10 +1126,10 @@ namespace Aleph
                                        });
 
       DynList<std::string> row_labels =
-          sort(rdomain_ptr->template maps<std::string>([](const Trow & row)
-                                                         {
-                                                           return Aleph::to_str(row);
-                                                         }));
+          rdomain_ptr->keys().template maps<std::string>([](const Trow & row)
+                                                           {
+                                                             return Aleph::to_str(row);
+                                                           });
 
       const std::string longer_row_label = row_labels.template foldl<std::string>
           (std::string(), [](const std::string & s,
@@ -955,6 +1177,7 @@ namespace Aleph
 
     /// Check if two values are equal within epsilon tolerance.
     bool are_equal(const NumType & n1, const NumType & n2) const
+      requires AlAdditiveNumber<NumType>
     {
       return is_zero(n1 - n2);
     }
@@ -965,6 +1188,7 @@ namespace Aleph
         @throw ah_domain_error if domains don't match
     */
     bool equal_to(const Matrix & m) const
+      requires AlAdditiveNumber<NumType>
     {
       ah_domain_error_if(not (rdomain_ptr == m.rdomain_ptr and cdomain_ptr == m.cdomain_ptr))
         << "invalid matrix's domains";
@@ -983,14 +1207,23 @@ namespace Aleph
     }
 
     /// Equality operator (uses equal_to).
-    bool operator ==(const Matrix & m) const { return equal_to(m); }
+    bool operator ==(const Matrix & m) const
+      requires AlAdditiveNumber<NumType>
+    {
+      return equal_to(m);
+    }
 
     /// Inequality operator.
-    bool operator !=(const Matrix & m) const { return not equal_to(m); }
+    bool operator !=(const Matrix & m) const
+      requires AlAdditiveNumber<NumType>
+    {
+      return not equal_to(m);
+    }
   };
 
   /// Scalar-matrix multiplication (scalar * matrix).
   template <typename Trow, typename Tcol, typename NumType>
+    requires AlMultiplicativeNumber<NumType>
   inline
   Matrix<Trow, Tcol, NumType> operator *(const NumType & scalar,
                                          const Matrix<Trow, Tcol, NumType> & m)
@@ -1001,6 +1234,7 @@ namespace Aleph
 
   /// Vector-matrix multiplication (vector * matrix).
   template <typename Trow, typename Tcol, typename NumType>
+    requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
   inline
   Vector<Tcol, NumType> operator *(const Vector<Trow, NumType> & vec,
                                    const Matrix<Trow, Tcol, NumType> & m)
@@ -1009,10 +1243,13 @@ namespace Aleph
   }
 
   template <typename Trow, typename Tcol, typename NumType>
+    requires AlDomainKey<Trow> and AlDomainKey<Tcol> and AlNumber<NumType>
   const NumType Matrix<Trow, Tcol, NumType>::default_epsilon = 1e-7;
 
   /// Stream output operator for Matrix.
   template <typename Trow, typename Tcol, typename NumType>
+    requires AlOrderedDomainKey<Trow> and AlOrderedDomainKey<Tcol> and
+             AlStreamable<Trow> and AlStreamable<Tcol> and AlStreamable<NumType>
   inline
   std::ostream &operator <<(std::ostream & s, const Matrix<Trow, Tcol, NumType> & m)
   {
@@ -1028,11 +1265,12 @@ namespace Aleph
       @return Matrix where entry (i,j) = v1[i] * v2[j]
   */
   template <typename Trow, typename Tcol, typename NumType = double>
+    requires AlMultiplicativeNumber<NumType>
   inline
   Matrix<Trow, Tcol, NumType> outer_product(const Vector<Trow, NumType> & v1,
                                             const Vector<Tcol, NumType> & v2)
   {
-    Matrix<Trow, Tcol, NumType> ret_val(v1.get_domain(), v2.get_domain());
+    Matrix<Trow, Tcol, NumType> ret_val(v1.get_domain_ptr(), v2.get_domain_ptr());
 
     v1.for_each([&ret_val, &v2](const std::pair<Trow, NumType> & p1)
                   {

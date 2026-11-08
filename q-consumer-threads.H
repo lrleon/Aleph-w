@@ -41,6 +41,8 @@
  *  - Configurable pool size
  *  - Graceful shutdown
  *
+ *  @deprecated QueueTheadsPool goes in 8.0.0: use ThreadPool (thread_pool.H).
+ *
  *  @see worker_pool.H Alternative thread pool
  *  @ingroup Utilities
  *  @author Leandro Rabindranath León
@@ -56,8 +58,16 @@
 # include <tpl_dynListQueue.H>
 # include <ah-errors.H>
 
+/** An event of a queue: what its derived classes do with each item.
+
+    `run()` was pure but not virtual, so that the class did not compile;
+    QueueTheadsPool uses its own nested event, QueueTheadsPool::Event.
+
+    @deprecated It goes in 8.0.0, with QueueTheadsPool.
+*/
 template <typename T>
-class ConsumerQueueEvent
+class [[deprecated("ConsumerQueueEvent goes in 8.0.0: use ThreadPool (thread_pool.H)")]]
+ConsumerQueueEvent
 {
   enum class Status { Ready, Executing };
 
@@ -75,15 +85,21 @@ public:
       items form the queue. At the contrary, a `false` return value
       indicates that the thread must finish
   */
-  bool run() = 0;
+  virtual bool run() = 0;
+
+  /// Virtual, so that a derived event is destroyed through this class.
+  virtual ~ConsumerQueueEvent() = default;
 };
 
 /** Pool of consumer threads form a queue.
 
+    @deprecated It goes in 8.0.0: use ThreadPool (thread_pool.H).
+
     @ingroup Utilities
  */
 template <typename T>
-class QueueTheadsPool
+class [[deprecated("QueueTheadsPool goes in 8.0.0: use ThreadPool (thread_pool.H)")]]
+QueueTheadsPool
 {
 public:
 
@@ -134,15 +150,20 @@ private:
   bool shutdown_done = false;
   std::condition_variable shutdown_cv;
 
+  // The pool whose event the calling thread runs, if it runs one: its
+  // shutdown() cannot wait for the threads, its own among them
+  static inline thread_local const QueueTheadsPool * running_pool = nullptr;
+
   DynListQueue<T> q;
 
 public:
 
+  /// Shut the pool down, as shutdown() does, if it was not, and wait for
+  /// the events that are running: it threw, which ended the program, and
+  /// left its threads running on it. An event must not destroy its pool.
   ~QueueTheadsPool()
   {
-    std::unique_lock<std::mutex> cs(lck);
-    ah_domain_error_if(not shutdown_done)
-      << "~QueueTheadsPool: shutdown not done";
+    shutdown();
   }
 
 private:
@@ -157,19 +178,34 @@ private:
 
 public:
 
+  /** Create a thread that consumes the items of the queue with `event`.
+
+      @throw std::domain_error if another thread owns `event`; no thread is
+             created then
+  */
   void create_thread(ConsumerQueueEvent * event)
   {
     std::unique_lock<std::mutex> critical_section(lck);
 
-    auto th = std::thread(handler, this, event);
-    th.detach();
-
-    // check if event is already owned by another thread
+    // The event is checked before the thread starts: a thread that started
+    // with an event owned by another, which the pool did not count, left
+    // shutdown() waiting forever
     ah_domain_error_if(event_list.exists([event] (auto e) { return e == event; }))
       << "Thread creation with an event owned by another";
 
     event_list.append(event);
     ++num_threads;
+    try
+      {
+        // It waits for lck, held here, before it takes an item
+        std::thread(handler, this, event).detach();
+      }
+    catch (...)
+      {
+        --num_threads;
+        event_list.remove_ne([event] (auto e) { return e == event; });
+        throw;
+      }
   }
 
   bool put(T && item)
@@ -225,14 +261,23 @@ public:
     return shutdown_done;
   }
 
+  /// Make the threads finish, also those of a suspended pool, and wait
+  /// for them; again, it waits for the shutdown that another call started.
+  /// Called from an event of the pool, it does not wait, as it would for
+  /// its own thread: the threads finish as their events return. The items
+  /// still queued are not consumed.
   void shutdown()
   {
     std::unique_lock<std::mutex> critical_section(lck);
-    if (shutting_down)
-      return;
+    if (not shutting_down)
+      {
+        shutting_down = true;
+        cond.notify_all();
+      }
 
-    shutting_down = true;
-    cond.notify_all();
+    // An event that shut its pool down waited for its own thread, forever
+    if (running_pool == this)
+      return;
 
     shutdown_cv.wait(critical_section, [this] { return num_threads == 0; } );
     shutdown_done = true;
@@ -243,13 +288,16 @@ public:
 template <typename T>
 void QueueTheadsPool<T>::run_event(ConsumerQueueEvent * event)
 {
+  running_pool = this;
   std::unique_lock<std::mutex> critical_section(lck);
 
   while (true)
     {
+      // The shutdown ends the wait also while suspended: shutdown() waited
+      // forever for the threads of a suspended pool, as one never resumed
       cond.wait(critical_section,
-                [this] { return not ((q.is_empty() and not shutting_down) or
-                                     suspended); });
+                [this] { return shutting_down or
+                                (not suspended and not q.is_empty()); });
 
       if (shutting_down)
         break;
@@ -278,8 +326,9 @@ void QueueTheadsPool<T>::run_event(ConsumerQueueEvent * event)
         }
     }
 
+  running_pool = nullptr;
   --num_threads;
-  shutdown_cv.notify_one();
+  shutdown_cv.notify_all();
 }
 
 

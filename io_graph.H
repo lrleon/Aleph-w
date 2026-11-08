@@ -75,7 +75,7 @@
  *  #include <io_graph.H>
  *  #include <tpl_graph.H>
  *
- *  using Graph = List_Graph<Graph_Node<std::string>, Graph_Arc<double>>;
+ *  using Graph = List_Graph<Graph_Node<int>, Graph_Arc<double>>;
  *
  *  // Save graph to binary file
  *  Graph g;
@@ -100,7 +100,9 @@
  *
  *  ## Custom Serializers
  *
- *  For complex node/arc types, define custom load/store functors:
+ *  The default functors of the binary mode copy the bytes of the infos, so
+ *  that they take only infos that are trivially copyable: for other ones,
+ *  as `std::string`, define custom load/store functors:
  *
  *  @code{.cpp}
  *  struct MyStoreNode {
@@ -120,6 +122,14 @@
  *  IO_Graph<Graph, MyLoadNode, MyStoreNode, MyLoadArc, MyStoreArc> io(g);
  *  @endcode
  *
+ *  ## Portability of the binary format
+ *
+ *  The counts are written as `size_t` and the indices as `int`, and the
+ *  default functors write the bytes of the infos, all in the order of the
+ *  bytes of the machine: a binary file is read back on a machine with the
+ *  same sizes and the same endianness. The text mode does not depend on
+ *  them.
+ *
  *  @see tpl_graph.H Graph class definitions
  *  @see load_digraph.H Alternative digraph loading utilities
  *
@@ -130,6 +140,7 @@
 #ifndef IO_GRAPH_H
 #define IO_GRAPH_H
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -160,6 +171,9 @@ struct Dft_Store_Node
   void operator()(std::ofstream & output, GT & g, typename GT::Node * p)
   {
     (void)g;
+    static_assert(std::is_trivially_copyable_v<typename GT::Node_Type>,
+                  "Dft_Store_Node writes the bytes of the info: for an info that is "
+                  "not trivially copyable, as std::string, give IO_Graph a functor of your own");
     output.write(reinterpret_cast<const char*>(&p->get_info()), 
                  sizeof(typename GT::Node_Type));
   }
@@ -195,6 +209,9 @@ struct Dft_Store_Arc
   void operator()(std::ofstream & output, GT & g, typename GT::Arc * a)
   {
     (void)g;
+    static_assert(std::is_trivially_copyable_v<typename GT::Arc_Type>,
+                  "Dft_Store_Arc writes the bytes of the info: for an info that is "
+                  "not trivially copyable, as std::string, give IO_Graph a functor of your own");
     output.write(reinterpret_cast<const char*>(&a->get_info()), 
                  sizeof(typename GT::Arc_Type));
   }
@@ -230,6 +247,9 @@ struct Dft_Load_Node
   void operator()(std::ifstream & input, GT & g, typename GT::Node * p)
   {
     (void)g;
+    static_assert(std::is_trivially_copyable_v<typename GT::Node_Type>,
+                  "Dft_Load_Node reads the bytes of the info: for an info that is "
+                  "not trivially copyable, as std::string, give IO_Graph a functor of your own");
     input.read(reinterpret_cast<char*>(&p->get_info()), 
                sizeof(typename GT::Node_Type));
   }
@@ -265,6 +285,9 @@ struct Dft_Load_Arc
   void operator()(std::ifstream & input, GT & g, typename GT::Arc * a)
   {
     (void)g;
+    static_assert(std::is_trivially_copyable_v<typename GT::Arc_Type>,
+                  "Dft_Load_Arc reads the bytes of the info: for an info that is "
+                  "not trivially copyable, as std::string, give IO_Graph a functor of your own");
     input.read(reinterpret_cast<char*>(&a->get_info()), 
                sizeof(typename GT::Arc_Type));
   }
@@ -515,13 +538,16 @@ public:
 
   /** @brief Load graph from binary stream.
    *
-   *  Reads a graph from binary format. The graph is cleared and
-   *  rebuilt with the loaded nodes and arcs.
+   *  Reads a graph in binary format and adds its nodes and arcs to the
+   *  graph, which it does not clear. If the stream fails or is corrupted,
+   *  as with an arc whose end is not a node of the stream, the nodes and
+   *  arcs that the load added are removed: the graph is as it was.
    *
    *  @param input Binary input stream (must be opened with std::ios::binary)
    *  @throw std::runtime_error If read operations fail or stream is corrupted
    *
-   *  @note The target graph should be empty before loading.
+   *  @note The count of nodes of the stream reserves memory for 2^20 nodes
+   *        at most: beyond, the nodes are kept as they are read.
    */
   void load(std::ifstream & input)
   {
@@ -533,60 +559,63 @@ public:
     if (verbose_mode)
       std::cout << "Loading " << num_nodes << " nodes ...";
 
-    DynArray<typename GT::Node*> nodes_table(num_nodes);
-    if (num_nodes > 0)
-      nodes_table.reserve(0, num_nodes - 1);
-
-    for (size_t i = 0; i < num_nodes; ++i)
+    Loaded_Nodes nodes_table(num_nodes);
+    try
       {
-        std::unique_ptr<typename GT::Node> p(new typename GT::Node);
+        for (size_t i = 0; i < num_nodes; ++i)
+          {
+            std::unique_ptr<typename GT::Node> p(new typename GT::Node);
+
+            if (verbose_mode)
+              std::cout << " " << i;
+
+            load_node(input, g, p.get());
+            ah_runtime_error_if(not input.good())
+              << "Failed to load node " << i << " from binary stream";
+
+            nodes_table.add(g, std::move(p));
+          }
+
+        size_t num_arcs;
+        input.read(reinterpret_cast<char*>(&num_arcs), sizeof(num_arcs));
+        ah_runtime_error_if(not input.good())
+          << "Failed to read arc count from binary stream";
 
         if (verbose_mode)
-          std::cout << " " << i;
+          std::cout << " done " << std::endl
+                    << "Loading " << num_arcs << " arcs ... " << std::endl;
 
-        load_node(input, g, p.get());
-        ah_runtime_error_if(not input.good())
-          << "Failed to load node " << i << " from binary stream";
+        for (size_t i = 0; i < num_arcs; ++i)
+          {
+            int src_idx;
+            input.read(reinterpret_cast<char*>(&src_idx), sizeof(int));
+            ah_runtime_error_if(not input.good())
+              << "Failed to read source index for arc " << i;
 
-        typename GT::Node * inserted = g.insert_node(p.release());
-        nodes_table.access(i) = inserted;
+            int tgt_idx;
+            input.read(reinterpret_cast<char*>(&tgt_idx), sizeof(int));
+            ah_runtime_error_if(not input.good())
+              << "Failed to read target index for arc " << i;
+
+            auto src = nodes_table.node(src_idx, i, "source");
+            auto tgt = nodes_table.node(tgt_idx, i, "target");
+            auto a = g.insert_arc(src, tgt);
+
+            if (verbose_mode)
+              std::cout << " " << src_idx << "--" << tgt_idx << " ";
+
+            load_arc(input, g, a);
+            ah_runtime_error_if(not input.good())
+              << "Failed to load arc " << i << " data";
+
+            if (verbose_mode)
+              std::cout << std::endl;
+          }
       }
-
-    size_t num_arcs;
-    input.read(reinterpret_cast<char*>(&num_arcs), sizeof(num_arcs));
-    ah_runtime_error_if(not input.good())
-      << "Failed to read arc count from binary stream";
-
-    if (verbose_mode)
-      std::cout << " done " << std::endl
-                << "Loading " << num_arcs << " arcs ... " << std::endl;
-
-    for (size_t i = 0; i < num_arcs; ++i)
+    catch (...)
       {
-        int src_idx;
-        input.read(reinterpret_cast<char*>(&src_idx), sizeof(int));
-        ah_runtime_error_if(not input.good())
-          << "Failed to read source index for arc " << i;
-
-        auto src = nodes_table.access(src_idx);
-
-        int tgt_idx;
-        input.read(reinterpret_cast<char*>(&tgt_idx), sizeof(int));
-        ah_runtime_error_if(not input.good())
-          << "Failed to read target index for arc " << i;
-
-        auto tgt = nodes_table.access(tgt_idx);
-        auto a = g.insert_arc(src, tgt);
-
-        if (verbose_mode)
-          std::cout << " " << src_idx << "--" << tgt_idx << " ";
-
-        load_arc(input, g, a);
-        ah_runtime_error_if(not input.good())
-          << "Failed to load arc " << i << " data";
-
-        if (verbose_mode)
-          std::cout << std::endl;
+        nodes_table.remove_from(g);
+        throw;
       }
 
     if (verbose_mode)
@@ -669,13 +698,16 @@ public:
 
   /** @brief Load graph from text stream.
    *
-   *  Reads a graph from text format. The graph is cleared and
-   *  rebuilt with the loaded nodes and arcs.
+   *  Reads a graph in text format and adds its nodes and arcs to the graph,
+   *  which it does not clear. If the stream fails or is corrupted, as with
+   *  an arc whose end is not a node of the stream, the nodes and arcs that
+   *  the load added are removed: the graph is as it was.
    *
    *  @param input Text input stream
    *  @throw std::runtime_error If read operations fail or stream is corrupted
    *
-   *  @note The target graph should be empty before loading.
+   *  @note The count of nodes of the stream reserves memory for 2^20 nodes
+   *        at most: beyond, the nodes are kept as they are read.
    */
   void load_in_text_mode(std::istream & input)
   {
@@ -691,56 +723,129 @@ public:
     if (verbose_mode)
       std::cout << "Loading " << num_nodes << " nodes ...";
 
-    DynArray<typename GT::Node*> nodes_table(num_nodes);
-    if (num_nodes > 0)
-      nodes_table.reserve(0, num_nodes - 1);
-
-    for (size_t i = 0; i < num_nodes; ++i)
+    Loaded_Nodes nodes_table(num_nodes);
+    try
       {
-        std::unique_ptr<typename GT::Node> p(new typename GT::Node);
+        for (size_t i = 0; i < num_nodes; ++i)
+          {
+            std::unique_ptr<typename GT::Node> p(new typename GT::Node);
+
+            if (verbose_mode)
+              std::cout << " " << i;
+
+            load_node(input, g, p.get());
+            ah_runtime_error_if(not input.good())
+              << "Failed to load node " << i << " from text stream";
+
+            nodes_table.add(g, std::move(p));
+          }
 
         if (verbose_mode)
-          std::cout << " " << i;
+          std::cout << " done " << std::endl
+                    << "Loading " << num_arcs << " arcs ... " << std::endl;
 
-        load_node(input, g, p.get());
-        ah_runtime_error_if(not input.good())
-          << "Failed to load node " << i << " from text stream";
+        for (size_t i = 0; i < num_arcs; ++i)
+          {
+            int src_idx;
+            int tgt_idx;
 
-        typename GT::Node * inserted = g.insert_node(p.release());
-        nodes_table.access(i) = inserted;
+            input >> src_idx >> tgt_idx;
+            ah_runtime_error_if(not input.good())
+              << "Failed to read arc " << i << " indices from text stream";
+
+            auto src = nodes_table.node(src_idx, i, "source");
+            auto tgt = nodes_table.node(tgt_idx, i, "target");
+            auto a = g.insert_arc(src, tgt);
+
+            if (verbose_mode)
+              std::cout << " " << src_idx << "--" << tgt_idx << " ";
+
+            load_arc(input, g, a);
+            ah_runtime_error_if(not input.good())
+              << "Failed to load arc " << i << " data from text stream";
+
+            if (verbose_mode)
+              std::cout << std::endl;
+          }
       }
-
-    if (verbose_mode)
-      std::cout << " done " << std::endl
-                << "Loading " << num_arcs << " arcs ... " << std::endl;
-
-    for (size_t i = 0; i < num_arcs; ++i)
+    catch (...)
       {
-        int src_idx;
-        int tgt_idx;
-
-        input >> src_idx >> tgt_idx;
-        ah_runtime_error_if(not input.good())
-          << "Failed to read arc " << i << " indices from text stream";
-
-        auto src = nodes_table.access(src_idx);
-        auto tgt = nodes_table.access(tgt_idx);
-        auto a = g.insert_arc(src, tgt);
-
-        if (verbose_mode)
-          std::cout << " " << src_idx << "--" << tgt_idx << " ";
-
-        load_arc(input, g, a);
-        ah_runtime_error_if(not input.good())
-          << "Failed to load arc " << i << " data from text stream";
-
-        if (verbose_mode)
-          std::cout << std::endl;
+        nodes_table.remove_from(g);
+        throw;
       }
 
     if (verbose_mode)
       std::cout << " done " << std::endl << std::endl;
   }
+
+private:
+
+  /** @brief The nodes that a load has read, by their index in the stream.
+
+      The count of the stream is not trusted to reserve memory: it reserves
+      for Max_Reserved nodes at most, and grows beyond as the nodes are
+      read; the indices of the arcs are checked against the nodes read.
+  */
+  class Loaded_Nodes
+  {
+    static constexpr size_t Max_Reserved = size_t(1) << 20;
+
+    DynArray<typename GT::Node*> table;
+    size_t reserved = 0;
+    size_t num_loaded = 0;
+
+  public:
+
+    /// Reserve for `num_nodes` nodes, the count of the stream, or
+    /// Max_Reserved if it is greater.
+    explicit Loaded_Nodes(const size_t num_nodes)
+      : reserved(std::min(num_nodes, Max_Reserved))
+    {
+      if (reserved > 0)
+        table.reserve(0, reserved - 1);
+    }
+
+    /// Insert the node `p`, loaded, into `g`, as the node of the next index.
+    void add(GT & g, std::unique_ptr<typename GT::Node> p)
+    {
+      // The entry first: a node of the graph is always in the table
+      typename GT::Node * & slot =
+        num_loaded < reserved ? table.access(num_loaded) : table.touch(num_loaded);
+      slot = g.insert_node(p.release());
+      ++num_loaded;
+    }
+
+    /// The node of index `idx` of the stream, an end of the arc `i`.
+    /// @throw std::runtime_error if `idx` is not the index of a node read
+    typename GT::Node * node(const int idx, const size_t i, const char * end) const
+    {
+      // A negative idx is a size_t beyond num_loaded too
+      if (static_cast<size_t>(idx) >= num_loaded) [[unlikely]]
+        throw_invalid_index(idx, i, end);
+      return table(idx);
+    }
+
+  private:
+
+    // Apart, so that node() stays small enough to be inlined in the loads
+    [[noreturn, gnu::noinline, gnu::cold]]
+    void throw_invalid_index(const int idx, const size_t i, const char * end) const
+    {
+      ah_runtime_error() << "Invalid " << end << " index " << idx << " of arc "
+                         << i << ": the stream has " << num_loaded << " nodes";
+    }
+
+  public:
+
+    /// Remove from `g` the nodes read, with their arcs: a load failed.
+    void remove_from(GT & g)
+    {
+      for (size_t i = 0; i < num_loaded; ++i)
+        g.remove_node(table(i));
+    }
+  };
+
+public:
 };
 
 } // namespace Aleph

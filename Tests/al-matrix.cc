@@ -73,11 +73,14 @@ struct SmallDomains : testing::Test
   Mat1 m1_odd = Mat1::create_by_rows(rd, rep<V2>(rd.size(), v2_odd));
   Mat1 m1_even = Mat1::create_by_rows(rd, rep<V2>(rd.size(), v2_even));
 
+  // A row of m2 has a value per column, an element of rd, and a matrix by
+  // columns a vector per column: with fewer, the constructor and
+  // create_by_columns() throw range_error
   Mat2 m2_zero = { cd, rd };
   Mat2 m2_one = { cd, rd, cd.maps<DynList<int>>([&] (auto)
-    { return range<int>(cd.size()); }) };
-  Mat2 m2_odd = Mat2::create_by_columns(rd, rep<V2>(cd.size(), v2_odd));
-  Mat2 m2_even = Mat2::create_by_columns(rd, rep<V2>(cd.size(), v2_even));
+    { return range<int>(rd.size()); }) };
+  Mat2 m2_odd = Mat2::create_by_columns(rd, rep<V2>(rd.size(), v2_odd));
+  Mat2 m2_even = Mat2::create_by_columns(rd, rep<V2>(rd.size(), v2_even));
 };
 
 TEST_F(SmallDomains, basic)

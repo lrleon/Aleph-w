@@ -632,6 +632,42 @@ void h(GT & g)
 }
 ]=])
 
+# The default binary functors of IO_Graph copy the bytes of the infos: an
+# info that is not trivially copyable, as std::string, does not compile in
+# binary mode, where it wrote and read the bytes of its pointers; in text
+# mode it does, with << and >>
+must_not_compile(io_graph_binary_needs_a_trivially_copyable_info
+  "IO_Graph::save() and load() with the default functors and std::string infos"
+  "is_trivially_copyable|Dft_Store_Node writes the bytes"
+  [=[
+#include <fstream>
+#include <string>
+#include <io_graph.H>
+using GT = Aleph::List_Graph<Aleph::Graph_Node<std::string>, Aleph::Graph_Arc<int>>;
+void f(GT & g, std::ofstream & out)
+{
+  Aleph::IO_Graph<GT> io(g);
+  io.save(out);
+}
+]=])
+
+must_compile(io_graph_text_takes_any_streamable_info
+  "IO_Graph in text mode with std::string infos, the control of the one above"
+  [=[
+#include <sstream>
+#include <string>
+#include <io_graph.H>
+using GT = Aleph::List_Graph<Aleph::Graph_Node<std::string>, Aleph::Graph_Arc<int>>;
+void f(GT & g)
+{
+  Aleph::IO_Graph<GT> io(g);
+  std::ostringstream out;
+  io.save_in_text_mode(out);
+  std::istringstream in(out.str());
+  io.load_in_text_mode(in);
+}
+]=])
+
 # ---- graph_to_tree.H
 
 # ---- warshall.H

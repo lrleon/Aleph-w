@@ -396,6 +396,7 @@ set(TEST_PROGRAMS
     test_al_vector
     archeap_test
     al_matrix_test
+    al_concepts_test
     cut_nodes_test
     graph_indexes_test
     graph_scenarios_test
@@ -459,6 +460,8 @@ set(TEST_PROGRAMS
     planarity_test
     graph_copy_test
     thread_pool_test
+    worker_pool_test
+    q_consumer_threads_test
     concurrency_test_utils_test
     mpsc_queue_test
     concurrent_hash_map_test
