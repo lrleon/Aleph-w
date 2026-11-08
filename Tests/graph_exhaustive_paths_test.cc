@@ -2376,14 +2376,13 @@ namespace
   /** Runs Yen and Eppstein, with weights near the limits of int, from
       every node to every other, for k of 1, 2 and 3: they give the first
       k costs when they fit, and overflow_error when one of them does not.
-      Eppstein also throws when the distance to the end of a node that
-      reaches it does not fit, since its index of the suffixes holds it.
       Both took a path of cost exactly max() for none; Yen threw when the
       search from a spur node reached the end only beyond max(); and
-      Eppstein threw on a heavy parallel arc, and when a candidate that was
-      not asked, or that came after a cheaper one, did not fit: a walk that
-      goes on from the end by a loop near max() made a query of one walk
-      throw. */
+      Eppstein threw on a heavy parallel arc, when a candidate that was not
+      asked, or that came after a cheaper one, did not fit, as a walk that
+      goes on from the end by a loop near max(), and when the distance to
+      the end of a node that no walk that is asked goes through did not
+      fit, since its index of the suffixes held it. */
   template <class GT>
   void check_k_near_int_limits()
   {
@@ -2393,8 +2392,8 @@ namespace
     Check yen("yen_k_shortest_paths(), near the limits of int");
     Check yen_beyond("yen_k_shortest_paths(), near the limits of int, a path beyond max()");
     Check epp("eppstein_k_shortest_paths(), near the limits of int");
-    Check epp_beyond("eppstein_k_shortest_paths(), near the limits of int, a walk or a "
-                     "distance to the end beyond max()");
+    Check epp_beyond("eppstein_k_shortest_paths(), near the limits of int, a walk beyond "
+                     "max()");
 
     // Three weights on each arc, and every pair and k: up to 3 nodes and 3
     // arcs also in the heavy mode, whose node and arc more would make more
@@ -2411,7 +2410,6 @@ namespace
           {
             Built<GT> b(s);
             w = weights_as<T>(s);
-            const Matrix d = distances(s, directed);
             for (int u = 0; u < s.n; ++u)
               for (int v = 0; v < s.n; ++v)
                 {
@@ -2419,11 +2417,6 @@ namespace
                     continue;
                   auto * nu = b.nodes[size_t(u)];
                   auto * nv = b.nodes[size_t(v)];
-                  bool index_beyond = false;
-                  for (int x = 0; x < s.n; ++x)
-                    if (d[size_t(x)][size_t(v)] != Inf and d[size_t(x)][size_t(v)] > M)
-                      index_beyond = true;
-
                   const auto simple = simple_path_costs(s, u, v, directed);
                   for (size_t k : {size_t(1), size_t(2), size_t(3)})
                     for (bool by_yen : {true, false})
@@ -2434,9 +2427,9 @@ namespace
                                       simple.begin() + long(std::min(k, simple.size())));
                         else
                           want = walk_costs(s, u, v, directed, k);
-                        const bool beyond = (not by_yen and index_beyond)
-                          or std::any_of(want.begin(), want.end(), [] (long long c)
-                                         { return c > Int_Max; });
+                        const bool beyond = std::any_of(want.begin(), want.end(),
+                                                        [] (long long c)
+                                                        { return c > Int_Max; });
                         Check & c = by_yen ? (beyond ? yen_beyond : yen)
                           : (beyond ? epp_beyond : epp);
                         c.run();

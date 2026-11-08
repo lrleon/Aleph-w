@@ -709,6 +709,60 @@ TEST(KShortestPathsTest, EppsteinTakesAHeavyParallelArcOfTheTree)
 }
 
 
+// The index of the suffixes of Eppstein, a painting of Dijkstra from the
+// target, threw when the distance to the target of a node did not fit,
+// though no walk that is asked goes through it. It leaves out such a node,
+// and a walk through it that is asked throws, as its cost does not fit.
+TEST(KShortestPathsTest, EppsteinLeavesOutOfItsIndexANodeBeyondMax)
+{
+  using Int_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  using Int_Undigraph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+  constexpr int M = std::numeric_limits<int>::max();
+
+  // x reaches t only through y, at 2 M - 2, and no walk from s goes
+  // through x
+  Int_Graph g;
+  auto * s = g.insert_node(0);
+  auto * t = g.insert_node(1);
+  auto * x = g.insert_node(2);
+  auto * y = g.insert_node(3);
+  g.insert_arc(s, t, 1);
+  g.insert_arc(x, y, M - 1);
+  g.insert_arc(y, t, M - 1);
+
+  const auto walks = eppstein_k_shortest_paths<Int_Graph>(g, s, t, 2);
+  ASSERT_EQ(walks.size(), 1u);
+  EXPECT_EQ(walks.get_first().total_cost, 1);
+  const auto from_y = eppstein_k_shortest_paths<Int_Graph>(g, y, t, 1);
+  ASSERT_EQ(from_y.size(), 1u);
+  EXPECT_EQ(from_y.get_first().total_cost, M - 1);
+  // From x, the first walk does not fit
+  EXPECT_THROW(eppstein_k_shortest_paths<Int_Graph>(g, x, t, 1), std::overflow_error);
+
+  // The second walk, s->x->y->t, goes through x, and does not fit
+  g.insert_arc(s, x, 1);
+  const auto one = eppstein_k_shortest_paths<Int_Graph>(g, s, t, 1);
+  ASSERT_EQ(one.size(), 1u);
+  EXPECT_EQ(one.get_first().total_cost, 1);
+  EXPECT_THROW(eppstein_k_shortest_paths<Int_Graph>(g, s, t, 2), std::overflow_error);
+
+  // Not directed: the second walk is s-t-s-t, and s-t-y-t does not fit
+  Int_Undigraph u;
+  auto * us = u.insert_node(0);
+  auto * ut = u.insert_node(1);
+  auto * ux = u.insert_node(2);
+  auto * uy = u.insert_node(3);
+  u.insert_arc(us, ut, 1);
+  u.insert_arc(ux, uy, M - 1);
+  u.insert_arc(uy, ut, M - 1);
+  const auto uwalks = eppstein_k_shortest_paths<Int_Undigraph>(u, us, ut, 2);
+  ASSERT_EQ(uwalks.size(), 2u);
+  EXPECT_EQ(uwalks.get_first().total_cost, 1);
+  EXPECT_EQ(uwalks.get_last().total_cost, 3);
+  EXPECT_THROW(eppstein_k_shortest_paths<Int_Undigraph>(u, ux, ut, 1), std::overflow_error);
+}
+
+
 // The search of Yen from each spur node takes a target that it reaches
 // only beyond max() for no path, but an overflow_error that the distance or
 // the filter throws, at whatever call, passes on, as in Eppstein.

@@ -436,6 +436,18 @@ protected:
   typename GT::Node* s = nullptr;  ///< Start node
   bool beyond_max = false;         ///< A sum of the painting went beyond max()
 
+  /** @brief Whether a painting leaves out without throwing the nodes
+   *  whose distance does not fit.
+   *
+   *  With it, check_beyond_max() throws nothing, so that a painting gives
+   *  the nodes whose distances fit, and takes the others as nodes that the
+   *  start does not reach; beyond_max says whether it may have left out
+   *  some. It is false, and only a class derived from a painting sets it,
+   *  for an algorithm that needs the nodes whose distances fit, as the
+   *  index of Eppstein.
+   */
+  bool leave_out_beyond_max = false;
+
   // =========================================================================
   // Protected Methods
   // =========================================================================
@@ -600,15 +612,23 @@ protected:
    *
    *  Every path to such a node has a sum beyond max(), so that its
    *  distance does not fit. The walk goes through the arcs that the
-   *  filter shows, without touching the painting.
+   *  filter shows, without touching the painting. With
+   *  leave_out_beyond_max, it throws nothing.
    *
    *  @throw shortest_path_detail::Beyond_Max_Error If such a node exists;
    *         it is a `std::overflow_error`.
    *  @throw std::bad_alloc If there is not enough memory.
+   *
+   *  It is rare, and out of line: copied into a painting, its check of
+   *  leave_out_beyond_max changed the code of the loop of the painting.
    */
+  [[gnu::noinline, gnu::cold]]
   void check_beyond_max(const GT& g, typename GT::Node* start,
                         typename GT::Node* end = nullptr) const
   {
+    if (leave_out_beyond_max)
+      return;
+
     using Node = typename GT::Node;
     DynSetTree<Node*> seen;
     DynListQueue<Node*> queue;

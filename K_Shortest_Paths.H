@@ -79,6 +79,7 @@
 # include <shortest_path_common.H>
 # include <htlist.H>
 # include <tpl_array.H>
+# include <tpl_dynListQueue.H>
 # include <tpl_dynMapTree.H>
 # include <tpl_dynSetTree.H>
 
@@ -115,10 +116,55 @@ namespace Aleph
       using Node = typename GT::Node;
       using Arc = typename GT::Arc;
 
-      DynMapTree<Node *, Cost_Type> dist_to_target; // of the nodes that reach it
+      DynMapTree<Node *, Cost_Type> dist_to_target; // of the nodes that reach it within max()
       DynMapTree<Node *, Node *> tree_next;
       DynMapTree<Node *, Arc *> tree_arc;
+      DynSetTree<Node *> beyond_max; // the nodes that reach it only beyond max()
     };
+
+
+    /// A painting of Dijkstra that leaves out the nodes whose distances do
+    /// not fit, as nodes that the start does not reach, instead of throwing
+    template <AlephGraph GT, ArcDistance<GT> Distance,
+              template <typename, class> class Itor, ArcFilter<GT> SA>
+    class Painting_Within_Max : public Dijkstra_Min_Paths<GT, Distance, Itor, SA>
+    {
+    public:
+      /// A painting with the distance and the filter sa
+      Painting_Within_Max(Distance distance, SA sa)
+        : Dijkstra_Min_Paths<GT, Distance, Itor, SA>(distance, sa)
+      {
+        this->leave_out_beyond_max = true;
+      }
+
+      /// Whether a sum of the last painting went beyond max(), so that it
+      /// may have left out some node
+      [[nodiscard]] bool went_beyond_max() const noexcept { return this->beyond_max; }
+    };
+
+
+    /// Calls op on each node that start reaches through the arcs that sa
+    /// shows, but that a painting from start did not reach: those whose
+    /// distances from it do not fit
+    template <template <typename, class> class Itor, AlephGraph GT, ArcFilter<GT> SA,
+              class Op>
+    void for_each_left_out(typename GT::Node * start, SA sa, Op op)
+    {
+      using Node = typename GT::Node;
+      DynSetTree<Node *> seen;
+      DynListQueue<Node *> queue;
+      seen.insert(start);
+      queue.put(start);
+      while (not queue.is_empty())
+        {
+          Node * p = queue.get();
+          if (not IS_NODE_VISITED(p, Aleph::Spanning_Tree))
+            op(p);
+          for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+            if (Node * q = it.get_tgt_node(); seen.insert(q) != nullptr)
+              queue.put(q);
+        }
+    }
 
 
     template <AlephGraph GT, ArcFilter<GT> SA>
@@ -398,8 +444,13 @@ namespace Aleph
       mg.reset_nodes();
       mg.reset_arcs();
 
-      Dijkstra_Min_Paths<GT, Distance, Itor, SA> reverse_dijkstra(distance, sa);
+      Painting_Within_Max<GT, Distance, Itor, SA> reverse_dijkstra(distance, sa);
       reverse_dijkstra.paint_min_paths_tree(g, target);
+      if (reverse_dijkstra.went_beyond_max())
+        for_each_left_out<Itor, GT, SA>(target, sa, [&index] (Node * p)
+          {
+            index.beyond_max.insert(p);
+          });
 
       for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
         {
@@ -520,11 +571,17 @@ namespace Aleph
       reverse_graph.reset_nodes();
       reverse_graph.reset_arcs();
 
-      Dijkstra_Min_Paths<GT, Reverse_Distance, Node_Arc_Iterator, Rev_Show_Arc>
+      Painting_Within_Max<GT, Reverse_Distance, Node_Arc_Iterator, Rev_Show_Arc>
           reverse_dijkstra{Reverse_Distance(), Rev_Show_Arc()};
 
       Node * rev_target = orig_to_rev.find(target);
       reverse_dijkstra.paint_min_paths_tree(reverse_graph, rev_target);
+      if (reverse_dijkstra.went_beyond_max())
+        for_each_left_out<Node_Arc_Iterator, GT, Rev_Show_Arc>(
+            rev_target, Rev_Show_Arc(), [&index, &rev_to_orig] (Node * p)
+              {
+                index.beyond_max.insert(rev_to_orig.find(p));
+              });
 
       // Every distance first: the arc toward the next node is chosen with
       // the distance of that node, which may come later
@@ -610,7 +667,7 @@ namespace Aleph
       out_suffix = Path_State<GT, Cost_Type>();
       out_suffix.nodes.append(start);
       auto * dist = index.dist_to_target.search(start);
-      if (dist == nullptr) // start does not reach target
+      if (dist == nullptr) // start does not reach target, or only beyond max()
         return false;
       out_suffix.total_cost = dist->second;
 
@@ -821,8 +878,13 @@ namespace Aleph
 
               Node * deviation_next_node = it.get_tgt_node();
               auto * dist_of_next = suffix_index.dist_to_target.search(deviation_next_node);
-              if (dist_of_next == nullptr) // it does not reach target
-                continue;
+              if (dist_of_next == nullptr) // it does not reach target, or only beyond max()
+                {
+                  if (not suffix_index.beyond_max.is_empty()
+                      and suffix_index.beyond_max.contains(deviation_next_node))
+                    beyond = true;
+                  continue;
+                }
               const Cost_Type suffix_dist = dist_of_next->second;
 
               Path_State<GT, Cost_Type> suffix_state;
@@ -1080,9 +1142,10 @@ namespace Aleph
    *  @throws std::domain_error If `source` or `target` is null.
    *  @throws std::domain_error If negative arc weights are detected.
    *  @throws std::overflow_error If the cost of one of the first k walks
-   *          does not fit in `Distance_Type`, or the distance to `target`
-   *          of a node that reaches it does not fit. A walk beyond the
-   *          first k whose cost does not fit throws nothing.
+   *          does not fit in `Distance_Type`. A walk beyond the first k
+   *          whose cost does not fit throws nothing, and so a node whose
+   *          distance to `target` does not fit, if no walk that is asked
+   *          goes through it.
    *
    *  @par Complexity
    *  O(E + V log V + k * log k) typically, depending on the number of
@@ -1147,7 +1210,12 @@ namespace Aleph
     State first;
     if (not k_shortest_paths_detail::build_suffix_state<GT, Cost_Type>(
             g, suffix_index, source, target, first))
-      return result;
+      {
+        // source reaches target only beyond max(): no walk fits
+        ah_overflow_error_if(suffix_index.beyond_max.contains(source))
+          << "eppstein_k_shortest_paths(): the cost of the walk 1 does not fit in its type";
+        return result;
+      }
 
     // A walk whose cost does not fit was left out; the deviations are
     // made only while more walks are asked, so that a walk that was not
