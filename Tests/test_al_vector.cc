@@ -56,6 +56,9 @@
 #include <al-domain.H>
 #include <ah-errors.H>
 #include <cmath>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 using namespace Aleph;
 using namespace testing;
@@ -846,6 +849,170 @@ TEST_F(VectorTest, ComprehensiveIntegrationTest) {
     EXPECT_DOUBLE_EQ(neg.get_entry(0), -1.0);
     EXPECT_DOUBLE_EQ(neg.get_entry(1), -2.0);
     EXPECT_DOUBLE_EQ(neg.get_entry(2), -3.0);
+}
+
+// ============================================================================
+// The proxy of v[k], to_list(), constant vectors and temporary domains
+// ============================================================================
+
+namespace
+{
+  // The values of v, as to_list() gives them
+  std::vector<double> values_of(const Vector<int, double> & v)
+  {
+    std::vector<double> ret;
+    v.to_list().for_each([&ret] (double x) { ret.push_back(x); });
+    return ret;
+  }
+}
+
+TEST(VectorProxy, AssigningAZeroEntryClearsTheTarget)
+{
+  // The assignment of a proxy of a zero entry did nothing
+  const IntRange d(3);
+  Vector<int, double> v(d);
+  v.set_entry(0, 5);
+  v[0] = v[1];
+  EXPECT_EQ(v.get_entry(0), 0.0);
+  EXPECT_EQ(v.search_entry(0), nullptr);
+
+  v.set_entry(2, 4);
+  v[1] = v[2];
+  EXPECT_EQ(v.get_entry(1), 4.0);
+}
+
+TEST(VectorProxy, AssignsAnLvalue)
+{
+  // The assignment of an lvalue did not compile
+  const IntRange d(3);
+  Vector<int, double> v(d);
+  double x = 3;
+  v[1] = x;
+  EXPECT_EQ(v.get_entry(1), 3.0);
+
+  const double zero = 0;
+  v[1] = zero;
+  EXPECT_EQ(v.search_entry(1), nullptr);
+
+  const double tiny = 1e-9; // within the epsilon of the vector
+  v[2] = tiny;
+  EXPECT_EQ(v.search_entry(2), nullptr);
+}
+
+TEST(VectorProxy, KeepsItsOwnKey)
+{
+  // The proxy pointed to the key, here a temporary that is gone when the
+  // proxy is assigned
+  const IntRange d(3);
+  Vector<int, double> v(d);
+  auto p = v[2];
+  p = 7.0;
+  EXPECT_EQ(v.get_entry(2), 7.0);
+
+  const AlDomain<std::string> words = {"one", "two"};
+  Vector<std::string, double> w(words);
+  auto q = w[std::string("two")];
+  q = 2.0;
+  EXPECT_EQ(w.get_entry("two"), 2.0);
+}
+
+TEST(VectorProxy, ReadsWhatItWasAssigned)
+{
+  // The proxy kept the entry that it found when it was made
+  const IntRange d(10);
+  Vector<int, double> v(d);
+  auto p = v[5];
+  p = 9.0;
+  EXPECT_EQ(static_cast<double>(p), 9.0);
+
+  v[6] = v[7] = 4.0;
+  EXPECT_EQ(v.get_entry(6), 4.0);
+  EXPECT_EQ(v.get_entry(7), 4.0);
+}
+
+TEST(VectorProxy, SurvivesTheGrowthOfTheTable)
+{
+  // The proxy pointed to the entry, which an insertion that grows the
+  // table moves
+  const IntRange d(100000);
+  Vector<int, double> v(d);
+  v.set_entry(0, 1);
+  auto p = v[0];
+  for (int i = 1; i < 5000; ++i)
+    v.set_entry(i, i);
+  p = 2.0;
+  EXPECT_EQ(v.get_entry(0), 2.0);
+  EXPECT_EQ(static_cast<double>(p), 2.0);
+
+  for (int i = 5000; i < 10000; ++i)
+    v[i] = v[0];
+  for (int i = 5000; i < 10000; ++i)
+    ASSERT_EQ(v.get_entry(i), 2.0) << i;
+}
+
+TEST(Vector, IndexesAConstantVector)
+{
+  // v[k] and v(k) of a constant vector did not compile
+  const IntRange d(3);
+  Vector<int, double> v(d);
+  v.set_entry(1, 2);
+  const Vector<int, double> & cv = v;
+  EXPECT_EQ(cv[1], 2.0);
+  EXPECT_EQ(cv(1), 2.0);
+  EXPECT_EQ(cv[0], 0.0);
+  static_assert(std::is_same_v<decltype(cv[1]), double>);
+}
+
+TEST(Vector, ToListFollowsTheKeys)
+{
+  // to_list() sorted the values
+  const IntRange d(3);
+  const Vector<int, double> v(d, DynList<double>({3, 1, 2}));
+  EXPECT_EQ(values_of(v), (std::vector<double>{3, 1, 2}));
+
+  const IntRange e(5);
+  Vector<int, double> w(e);
+  w.set_entry(3, -1);
+  w.set_entry(0, 8);
+  EXPECT_EQ(values_of(w), (std::vector<double>{8, 0, 0, -1, 0}));
+}
+
+TEST(Vector, KeepsATemporaryDomain)
+{
+  // The vector pointed to the temporary domain, gone after the declaration
+  Vector<int, double> v(IntRange(10));
+  v.set_entry(3, 1.5);
+  EXPECT_EQ(v.get_entry(3), 1.5);
+  EXPECT_EQ(v.get_domain().size(), 10u);
+  EXPECT_EQ(v.get_domain_ptr().use_count(), 1);
+
+  const Vector<int, double> c = v;
+  EXPECT_EQ(c.get_domain_ptr(), v.get_domain_ptr());
+  EXPECT_EQ(v.get_domain_ptr().use_count(), 2);
+  EXPECT_EQ((v + c).get_entry(3), 3.0);
+
+  const Vector<int, double> w(IntRange(3), DynList<double>({1, 2, 3}));
+  EXPECT_EQ(values_of(w), (std::vector<double>{1, 2, 3}));
+
+  // A domain that the program keeps stays its own: the vector points to it
+  const IntRange d(4);
+  const Vector<int, double> u(d);
+  EXPECT_EQ(&u.get_domain(), static_cast<const AlDomain<int> *>(&d));
+}
+
+TEST(Vector, NeedsADomain)
+{
+  // Vector(10) turned 10 into an empty temporary domain
+  static_assert(not std::is_constructible_v<Vector<int, double>, int>);
+  static_assert(not std::is_constructible_v<Vector<int, double>, size_t>);
+  static_assert(not std::is_constructible_v<Vector<int, double>, int, double>);
+  static_assert(not std::is_constructible_v<Vector<int, double>, int,
+                                            const DynList<double> &>);
+  static_assert(std::is_constructible_v<Vector<int, double>, IntRange>);
+  static_assert(std::is_constructible_v<Vector<int, double>, const IntRange &>);
+  static_assert(std::is_constructible_v<Vector<int, double>,
+                                        std::shared_ptr<AlDomain<int>>>);
+  SUCCEED();
 }
 
 // ============================================================================

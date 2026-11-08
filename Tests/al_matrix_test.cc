@@ -51,7 +51,10 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <memory>
+#include <sstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include <al-domain.H>
@@ -1325,4 +1328,267 @@ TEST(MatrixMultDomainIdentity, ChainedMultiplicationWithSharedDomain)
   EXPECT_DOUBLE_EQ(C.get_entry(0, 1), 28.0);  // 1*2 + 2*4 + 3*6
   EXPECT_DOUBLE_EQ(C.get_entry(1, 0), 49.0);  // 4*1 + 5*3 + 6*5
   EXPECT_DOUBLE_EQ(C.get_entry(1, 1), 64.0);  // 4*2 + 5*4 + 6*6
+}
+
+// =============================================================================
+// Transposes and products of other types, labels, domains and sizes
+// =============================================================================
+
+namespace
+{
+  // A matrix that owns its domains, as ca-kernels.H makes one: the
+  // temporary that returns it goes at the end of the expression
+  Mat owning_matrix()
+  {
+    Mat m(make_shared_domain(3), make_shared_domain(3));
+    m.set_entry(0, 1, 2.0);
+    m.set_entry(2, 0, 5.0);
+    return m;
+  }
+
+  // The words of the line of s that starts with prefix (after the blanks),
+  // or the first line when prefix is empty
+  std::vector<std::string> words_of_line(const std::string & s,
+                                         const std::string & prefix)
+  {
+    std::istringstream in(s);
+    std::string line;
+    while (std::getline(in, line))
+      {
+        std::istringstream words(line);
+        std::vector<std::string> ret;
+        for (std::string w; words >> w; )
+          ret.push_back(w);
+        if (prefix.empty() or (not ret.empty() and ret[0] == prefix))
+          return ret;
+      }
+    return {};
+  }
+}
+
+TEST(MatrixTranspose, OfRowsAndColumnsOfDifferentTypes)
+{
+  // transpose() returned the type of the matrix, which did not compile
+  // when the rows and the columns differ
+  auto rows = make_shared_domain(2);
+  auto cols = std::make_shared<StrDomain>();
+  (void) cols->insert("a");
+  (void) cols->insert("b");
+  Matrix<int, std::string, double> m(rows, cols);
+  m.set_entry(1, "a", 2.0);
+  m.set_entry(0, "b", 3.0);
+
+  const Matrix<std::string, int, double> t = m.transpose();
+  EXPECT_EQ(t.get_entry("a", 1), 2.0);
+  EXPECT_EQ(t.get_entry("b", 0), 3.0);
+  EXPECT_EQ(t.get_entry("a", 0), 0.0);
+  EXPECT_EQ(t.get_row_domain_ptr(), m.get_col_domain_ptr());
+  EXPECT_EQ(t.get_col_domain_ptr(), m.get_row_domain_ptr());
+}
+
+TEST(MatrixMult, WithAnotherTypeOfColumns)
+{
+  // The products read a private member of the other specialization and
+  // took its columns as of the type of these
+  auto rows = make_shared_domain(2);
+  auto middle = make_shared_domain(2);
+  auto words = std::make_shared<StrDomain>();
+  (void) words->insert("x");
+  (void) words->insert("y");
+
+  Mat a(rows, middle, {{1.0, 2.0}, {3.0, 4.0}});
+  Matrix<int, std::string, double> b(middle, words);
+  b.set_entry(0, "x", 2.0);
+  b.set_entry(1, "y", 5.0);
+
+  const auto c = a.matrix_vector_mult(b);
+  const auto e = a.vector_matrix_mult(b);
+  static_assert(std::is_same_v<std::remove_const_t<decltype(c)>,
+                               Matrix<int, std::string, double>>);
+  for (const auto * r : {&c, &e})
+    {
+      EXPECT_EQ(r->get_entry(0, "x"), 2.0);   // 1*2
+      EXPECT_EQ(r->get_entry(0, "y"), 10.0);  // 2*5
+      EXPECT_EQ(r->get_entry(1, "x"), 6.0);   // 3*2
+      EXPECT_EQ(r->get_entry(1, "y"), 20.0);  // 4*5
+    }
+}
+
+TEST(MatrixMult, OfFloats)
+{
+  // The products returned matrices of double, which did not compile with
+  // other numbers
+  auto d = std::make_shared<AlDomain<int>>();
+  (void) d->insert(0);
+  (void) d->insert(1);
+  Matrix<int, int, float> a(d, d), b(d, d);
+  a.set_entry(0, 0, 1.5f);
+  b.set_entry(0, 1, 2.0f);
+
+  const auto c = a.matrix_vector_mult(b);
+  const auto e = a.vector_matrix_mult(b);
+  static_assert(std::is_same_v<std::remove_const_t<decltype(c)>,
+                               Matrix<int, int, float>>);
+  EXPECT_EQ(c.get_entry(0, 1), 3.0f);
+  EXPECT_EQ(e.get_entry(0, 1), 3.0f);
+}
+
+TEST(MatrixToStr, LabelsInTheOrderOfTheKeys)
+{
+  // The labels were sorted as strings, "10" before "2", and the values as
+  // numbers
+  auto d = make_shared_domain(11);
+  Mat m(d, d);
+  m.set_entry(2, 2, 7.0);
+  m.set_entry(10, 0, 1.0);
+  const std::string s = m.to_str();
+
+  const auto header = words_of_line(s, "");
+  ASSERT_EQ(header.size(), 12u) << s;   // "|" and the 11 labels
+  for (int i = 0; i <= 10; ++i)
+    EXPECT_EQ(header[i + 1], std::to_string(i)) << s;
+
+  const auto row2 = words_of_line(s, "2");
+  ASSERT_EQ(row2.size(), 13u) << s;     // the label, "|" and the 11 values
+  EXPECT_EQ(row2[2 + 2], "7") << s;
+
+  const auto row10 = words_of_line(s, "10");
+  ASSERT_EQ(row10.size(), 13u) << s;
+  EXPECT_EQ(row10[2], "1") << s;
+}
+
+TEST(MatrixDomains, ResultsOutliveAMatrixThatOwnsItsDomains)
+{
+  // The results pointed to the domains of the matrix without owning them
+  const Mat t = owning_matrix().transpose();
+  EXPECT_EQ(t.get_entry(1, 0), 2.0);
+  EXPECT_EQ(t.get_entry(0, 2), 5.0);
+
+  const Vec r = owning_matrix().get_row_vector(0);
+  EXPECT_EQ(r.get_entry(1), 2.0);
+
+  const Vec c = owning_matrix().get_col_vector(0);
+  EXPECT_EQ(c.get_entry(2), 5.0);
+
+  const DynList<Vec> rows = owning_matrix().to_rowlist();
+  EXPECT_EQ(rows.get_first().get_entry(1), 2.0);
+
+  const DynList<Vec> cols = owning_matrix().to_collist();
+  EXPECT_EQ(cols.get_first().get_entry(2), 5.0);
+
+  const Mat i = owning_matrix().identity();
+  EXPECT_EQ(i.get_entry(2, 2), 1.0);
+
+  const Vec p = []
+    {
+      const Mat m = owning_matrix();
+      Vec x(m.get_col_domain_ptr());
+      x.set_entry(1, 1.0);
+      return m.mult_matrix_vector_sparse(x);
+    }();
+  EXPECT_EQ(p.get_entry(0), 2.0);   // m(0, 1) * x(1)
+  EXPECT_EQ(p.get_entry(2), 0.0);
+
+  const Mat o = outer_product(Vec(make_shared_domain(2), DynList<double>({1, 2})),
+                              Vec(make_shared_domain(2), DynList<double>({3, 4})));
+  EXPECT_EQ(o.get_entry(1, 1), 8.0);
+}
+
+TEST(MatrixDomains, KeepsTemporaryDomains)
+{
+  // The matrix pointed to the temporary domains, gone after the declaration
+  Mat m(IntRange(2), IntRange(3));
+  m.set_entry(1, 2, 5.0);
+  EXPECT_EQ(m.get_entry(1, 2), 5.0);
+  EXPECT_EQ(m.get_row_domain().size(), 2u);
+  EXPECT_EQ(m.get_col_domain().size(), 3u);
+
+  const IntRange cols(3);
+  const Mat a(IntRange(2), cols);
+  EXPECT_EQ(&a.get_col_domain(), static_cast<const AlDomain<int> *>(&cols));
+  EXPECT_EQ(a.get_row_domain().size(), 2u);
+
+  const IntRange rows(2);
+  const Mat b(rows, IntRange(3), {{1, 2, 3}, {4, 5, 6}});
+  EXPECT_EQ(b.get_entry(1, 2), 6.0);
+  EXPECT_EQ(&b.get_row_domain(), static_cast<const AlDomain<int> *>(&rows));
+
+  const Mat c(IntRange(2), IntRange(2),
+              DynList<DynList<double>>({DynList<double>({1, 0}),
+                                        DynList<double>({0, 1})}));
+  EXPECT_EQ(c.get_entry(1, 1), 1.0);
+
+  DynList<Vec> by_rows;
+  by_rows.append(Vec(c.get_col_domain_ptr(), DynList<double>({7, 8})));
+  by_rows.append(Vec(c.get_col_domain_ptr(), DynList<double>({9, 1})));
+  const Mat d = Mat::create_by_rows(IntRange(2), by_rows);
+  EXPECT_EQ(d.get_entry(1, 0), 9.0);
+  EXPECT_EQ(d.get_col_domain_ptr(), c.get_col_domain_ptr());
+}
+
+TEST(MatrixDomains, NeedsDomains)
+{
+  // Matrix(2, 3) turned the numbers into empty temporary domains
+  static_assert(not std::is_constructible_v<Mat, int, int>);
+  static_assert(not std::is_constructible_v<Mat, int, IntRange>);
+  static_assert(not std::is_constructible_v<Mat, IntRange, size_t, double>);
+  static_assert(std::is_constructible_v<Mat, IntRange, IntRange>);
+  static_assert(std::is_constructible_v<Mat, const IntRange &, IntRange, double>);
+  static_assert(std::is_constructible_v<Mat, DomainPtr, DomainPtr, int>);
+  SUCCEED();
+}
+
+TEST(MatrixConstruction, ListOfListsRowLengthMismatchThrows)
+{
+  // The rows were cut to the columns, or filled with zeros, silently
+  auto rows = make_shared_domain(2);
+  auto cols = make_shared_domain(3);
+
+  DynList<DynList<double>> shorter;
+  shorter.append(DynList<double>({1, 2}));
+  shorter.append(DynList<double>({3, 4, 5}));
+  EXPECT_THROW(Mat(rows, cols, shorter), std::range_error);
+
+  DynList<DynList<double>> longer;
+  longer.append(DynList<double>({1, 2, 3}));
+  longer.append(DynList<double>({3, 4, 5, 6}));
+  EXPECT_THROW(Mat(rows, cols, longer), std::range_error);
+
+  DynList<DynList<double>> right;
+  right.append(DynList<double>({1, 2, 3}));
+  right.append(DynList<double>({4, 5, 6}));
+  EXPECT_EQ(Mat(rows, cols, right).get_entry(1, 2), 6.0);
+}
+
+TEST(MatrixConstruction, ByRowsOrColumnsNeedsAVectorPerElement)
+{
+  // create_by_rows() and create_by_columns() built from fewer vectors,
+  // or from vectors over other domains, silently
+  auto rows = make_shared_domain(3);
+  auto cols = make_shared_domain(2);
+
+  DynList<Vec> one;
+  one.append(Vec(cols, DynList<double>({1, 2})));
+  EXPECT_THROW(Mat::create_by_rows(*rows, one), std::range_error);
+  EXPECT_THROW(Mat::create_by_columns(*cols, one), std::range_error);
+
+  DynList<Vec> mixed;
+  mixed.append(Vec(cols, DynList<double>({1, 2})));
+  mixed.append(Vec(make_shared_domain(2), DynList<double>({3, 4})));
+  mixed.append(Vec(cols, DynList<double>({5, 6})));
+  EXPECT_THROW(Mat::create_by_rows(*rows, mixed), std::domain_error);
+
+  DynList<Vec> three;
+  for (int i = 0; i < 3; ++i)
+    three.append(Vec(cols, DynList<double>({double(i), 1})));
+  const Mat m = Mat::create_by_rows(*rows, three);
+  EXPECT_EQ(m.get_entry(2, 0), 2.0);
+  EXPECT_EQ(m.get_col_domain_ptr(), cols);
+
+  DynList<Vec> two;
+  for (int i = 0; i < 2; ++i)
+    two.append(Vec(rows, DynList<double>({double(i), 1, 2})));
+  const Mat n = Mat::create_by_columns(*cols, two);
+  EXPECT_EQ(n.get_entry(0, 1), 1.0);
+  EXPECT_EQ(n.get_row_domain_ptr(), rows);
 }

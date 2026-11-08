@@ -64,7 +64,9 @@
 # ifndef AL_DOMAIN_H
 # define AL_DOMAIN_H
 
+# include <limits>
 # include <tpl_hash.H>
+# include <ahSort.H>
 # include <ah-errors.H>
 
 namespace Aleph
@@ -75,6 +77,11 @@ namespace Aleph
  *
  * Stores a set of unique elements with O(1) lookup. Provides
  * sorted iteration via the keys() method.
+ *
+ * keys() keeps the sorted elements until the domain changes: the members
+ * of AlDomain that insert or remove forget them, and keys() sorts them
+ * again also when the number of elements changed by other means, as the
+ * removal through an iterator.
  *
  * @tparam T Element type (default: int)
  *
@@ -95,18 +102,118 @@ public:
   /**
    * @brief Get sorted list of all elements in the domain.
    *
-   * Lazily builds and caches the sorted key list.
+   * Lazily builds and caches the sorted key list, which a later change
+   * of the domain rebuilds.
    *
-   * @return Const reference to sorted DynList of elements
+   * @return Const reference to sorted DynList of elements, valid until
+   *         the domain changes
    */
   const DynList<T> & keys() const
   {
-    if (not keys_build)
+    if (not keys_build or domain.size() != this->size())
       {
         domain = sort(this->Base::keys());
         keys_build = true;
       }
     return domain;
+  }
+
+  /// Insert `key`, as HashSet::insert(), and forget the sorted keys.
+  [[nodiscard]] T * insert(const T & key)
+  {
+    keys_build = false;
+    return Base::insert(key);
+  }
+
+  /// \overload
+  [[nodiscard]] T * insert(T && key)
+  {
+    keys_build = false;
+    return Base::insert(std::move(key));
+  }
+
+  /// Search or insert `key`, as HashSet::search_or_insert(), and forget
+  /// the sorted keys.
+  [[nodiscard]] T * search_or_insert(const T & key)
+  {
+    keys_build = false;
+    return Base::search_or_insert(key);
+  }
+
+  /// \overload
+  [[nodiscard]] T * search_or_insert(T && key)
+  {
+    keys_build = false;
+    return Base::search_or_insert(std::move(key));
+  }
+
+  /// Search or insert `key`, as HashSet::contains_or_insert(), and forget
+  /// the sorted keys.
+  [[nodiscard]] std::pair<T *, bool> contains_or_insert(const T & key)
+  {
+    keys_build = false;
+    return Base::contains_or_insert(key);
+  }
+
+  /// \overload
+  [[nodiscard]] std::pair<T *, bool> contains_or_insert(T && key)
+  {
+    keys_build = false;
+    return Base::contains_or_insert(std::move(key));
+  }
+
+  /// Insert `key`, as HashSet::append(), and forget the sorted keys.
+  [[nodiscard]] T * append(const T & key)
+  {
+    keys_build = false;
+    return Base::append(key);
+  }
+
+  /// \overload
+  [[nodiscard]] T * append(T && key)
+  {
+    keys_build = false;
+    return Base::append(std::move(key));
+  }
+
+  /// Insert the keys of `l`, as HashSet::add(), and forget the sorted keys.
+  void add(const DynList<T> & l)
+  {
+    keys_build = false;
+    Base::add(l);
+  }
+
+  /// Remove `key`, as HashSet::remove(), and forget the sorted keys.
+  void remove(const T & key)
+  {
+    keys_build = false;
+    Base::remove(key);
+  }
+
+  /// Remove the key that `key` points to, as HashSet::remove_ptr(), and
+  /// forget the sorted keys.
+  void remove_ptr(T * key)
+  {
+    keys_build = false;
+    Base::remove_ptr(key);
+  }
+
+  /// Remove every key, as HashSet::empty(), and forget the sorted keys.
+  void empty()
+  {
+    keys_build = false;
+    Base::empty();
+  }
+
+  /// Remove every key, as HashSet::clear(), and forget the sorted keys.
+  void clear() { empty(); }
+
+  /// Swap the keys, and the sorted keys, with `other`.
+  void swap(AlDomain & other) noexcept
+  {
+    Base::swap(other);
+    std::swap(keys_build, other.keys_build);
+    domain.swap(other.domain);
   }
 
   /**
@@ -171,7 +278,7 @@ public:
      * @param end Last value in range (inclusive)
      * @param step Increment between values (default 1)
      *
-     * @throw std::domain_error if step is negative
+     * @throw std::domain_error if step is not positive
      *
      * @par Example
      * @code
@@ -180,16 +287,21 @@ public:
      */
     IntRange(const int start, const int end, const int step = 1)
     {
-      ah_domain_error_if(step < 0) << "negative step";
+      ah_domain_error_if(step <= 0) << "the step must be positive";
 
-      for (long i = start; i <= end; i += step)
-        (void)insert(i);
+      // long long, so that i + step does not overflow where long has 32
+      // bits, as on Windows, when end is near the maximum of int
+      for (long long i = start; i <= end; i += step)
+        (void)insert(static_cast<int>(i));
     }
 
     /**
      * @brief Construct range [0, n-1].
      *
      * @param n Number of elements (0 to n-1)
+     *
+     * @throw std::domain_error if n - 1 does not fit in an int, as for a
+     *        negative int converted to `size_t`
      *
      * @par Example
      * @code
@@ -198,8 +310,11 @@ public:
      */
     IntRange(const size_t n)
     {
+      ah_domain_error_if(n > static_cast<size_t>(std::numeric_limits<int>::max()) + 1)
+        << "IntRange(n): n - 1 is above the maximum of int";
+
       for (size_t i = 0; i < n; ++i)
-        (void)insert(i);
+        (void)insert(static_cast<int>(i));
     }
 
   };

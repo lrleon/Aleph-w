@@ -47,6 +47,8 @@
 # include <sstream>
 # include <iostream>
 # include <string>
+# include <type_traits>
+# include <utility>
 # include <ah-errors.H>
 # include <ahFunctional.H>
 # include <ahDry.H>
@@ -163,6 +165,29 @@ namespace Aleph
     }
 
     /**
+       @brief Construct a vector over a temporary domain, which it keeps.
+
+       The vector takes `d`, as `Vector(IntRange(10))` gives it, so that
+       the domain lives as long as the vector and those that share it.
+       Another vector over an equal domain has another one: operations
+       between them need the same domain, as get_domain_ptr() gives it.
+
+       @param d Temporary domain for the vector indices
+       @param zero Epsilon value for zero comparisons (default: 1e-7)
+    */
+    Vector(Domain && d, const NumType & zero = default_epsilon)
+      : domain_ptr(std::make_shared<Domain>(std::move(d))), epsilon(zero)
+    {
+      //Empty
+    }
+
+    /** A vector needs a domain: `Vector(IntRange(n))`, not `Vector(n)`,
+        which would turn `n` into an empty domain.
+    */
+    template <typename I> requires std::is_integral_v<I>
+    Vector(I, const NumType & = default_epsilon) = delete;
+
+    /**
        @brief Copy constructor
        @param v Vector to copy from
     */
@@ -216,6 +241,25 @@ namespace Aleph
            const NumType & zero = default_epsilon)
       : Vector(DomainPtr(&const_cast<Domain &>(d), [](Domain *) {}), l, zero)
     {}
+
+    /**
+       @brief Construct vector from a temporary domain, which it keeps, and
+       a list of values
+       @param d Temporary domain for the vector indices
+       @param l List of values (must match domain size)
+       @param zero Epsilon value for zero comparisons (default: 1e-7)
+       @throw ah_length_error if list size doesn't match domain size
+    */
+    Vector(Domain && d, const DynList<NumType> & l,
+           const NumType & zero = default_epsilon)
+      : Vector(std::make_shared<Domain>(std::move(d)), l, zero)
+    {}
+
+    /** A vector needs a domain: `Vector(IntRange(n), l)`, not
+        `Vector(n, l)`, which would turn `n` into an empty domain.
+    */
+    template <typename I> requires std::is_integral_v<I>
+    Vector(I, const DynList<NumType> &, const NumType & = default_epsilon) = delete;
 
     /**
        @brief Copy assignment operator
@@ -282,6 +326,27 @@ namespace Aleph
       else
         ptr->second = value;
     }
+
+  private:
+    // For Proxy, which assigns an entry that is there itself, so that the
+    // assignment through v[i], the frequent case, stays small enough to be
+    // inlined: insert the entry of i, which is not there, or remove the one
+    // that ptr points to, as set_entry() does
+    [[gnu::noinline]] void insert_or_remove_entry(const T & i, const NumType & value,
+                                                  Pair * ptr)
+    {
+      if (not is_zero(value))
+        {
+          if (ptr == nullptr)
+            entries.insert(i, value);
+          else
+            ptr->second = value;
+        }
+      else if (ptr != nullptr)
+        entries.remove_ptr(ptr);
+    }
+
+  public:
 
     /**
        @brief Set multiple entries using initializer lists
@@ -548,21 +613,28 @@ namespace Aleph
       return scalar_product(v);
     }
 
+    /** @brief The values of the vector, in the order of the sorted keys of
+        its domain.
+
+        It is the list that the constructor from a domain and a list takes:
+        `Vector(d, l).to_list()` gives `l`.
+    */
     DynList<NumType> to_list() const
     {
-      return sort(domain_ptr->template maps<NumType>([this](const T & i)
-                                                       {
-                                                         return get_entry(i);
-                                                       }));
+      return domain_ptr->keys().template maps<NumType>([this](const T & i)
+                                                         {
+                                                           return get_entry(i);
+                                                         });
     }
 
+    /// Print the nonzero entries, in the order of the sorted keys.
     void print() const
     {
-      domain_ptr->for_each([&](const T & k)
-                             {
-                               if (entries.has(k) != 0)
-                                 std::cout << "(" << k << "," << entries(k) << ") ";
-                             });
+      domain_ptr->keys().for_each([&](const T & k)
+                                    {
+                                      if (entries.has(k) != 0)
+                                        std::cout << "(" << k << "," << entries(k) << ") ";
+                                    });
       std::cout << '\n';
     }
 
@@ -611,95 +683,80 @@ namespace Aleph
       return dstr + "\n" + std::string(dstr.size(), '-') + "\n" + estr;
     }
 
+    /** @brief The entry of a key, as `v[k]` gives it: reads and assigns it.
+
+        It keeps its own copy of the key and finds the entry each time it
+        is read or assigned, so that it outlives a temporary key, and an
+        insertion that moves the entries, as when the table grows. A value
+        within epsilon of zero removes the entry, as set_entry() does.
+    */
     class Proxy
     {
       Vector *v_ptr = nullptr;
-      T *key_ptr = nullptr;
-      NumType *entry_ptr = nullptr;
+      T key;
 
     public:
-      Proxy(Vector & v, const T & k) noexcept
-        : v_ptr(&v), key_ptr(&const_cast<T &>(k))
+      /// The entry of `k` in `v`.
+      Proxy(Vector & v, const T & k)
+        : v_ptr(&v), key(k)
       {
-        auto *ptr = v_ptr->entries.search(k);
-        entry_ptr = ptr ? &ptr->second : nullptr;
+        // empty
       }
 
+      /// Another proxy of the same entry.
+      Proxy(const Proxy &) = default;
+
+      /// Assign the value of the entry of `proxy`, zero included.
       Proxy &operator =(const Proxy & proxy)
       {
-        if (this == &proxy)
-          return *this; // self-assignment
-
-        if (proxy.entry_ptr == nullptr)
-          return *this; // zero assigment
-
-        if (entry_ptr == nullptr)
-          v_ptr->entries.insert(*key_ptr, *proxy.entry_ptr);
-        else
-          *entry_ptr = *proxy.entry_ptr;
-
+        // Read first: the assignment may move the entries
+        const NumType value = proxy;
+        v_ptr->set_entry(key, value);
         return *this;
       }
 
+      /// Assign `item`; a value within epsilon of zero removes the entry.
       Proxy &operator =(const NumType & item)
       {
-        if (v_ptr->is_zero(item))
-          {
-            try { v_ptr->entries.remove(key_ptr); }
-            catch (...) { /* Key not found, already zero */ }
-            return *this;
-          }
-
-        if (entry_ptr == nullptr)
-          v_ptr->entries.insert(*key_ptr, item);
+        // As set_entry(), with the assignment of an entry that is there
+        // here, small enough to be inlined, and the rest apart
+        assert(v_ptr->domain_ptr->has(key));
+        auto *ptr = const_cast<Pair *>(v_ptr->entries.search(key));
+        if (ptr != nullptr and not v_ptr->is_zero(item))
+          ptr->second = item;
         else
-          *entry_ptr = item;
-
+          v_ptr->insert_or_remove_entry(key, item, ptr);
         return *this;
       }
 
-      Proxy &operator =(NumType && item)
+      /// The value of the entry: 0 if it has none.
+      operator NumType() const noexcept
       {
-        if (v_ptr->is_zero(item))
-          {
-            try { v_ptr->entries.remove(*key_ptr); }
-            catch (...) { /* Key not found, already zero */ }
-            return *this;
-          }
-
-        if (entry_ptr == nullptr)
-          v_ptr->entries.insert(*key_ptr, std::forward<NumType>(item));
-        else
-          std::swap(*entry_ptr, item);
-
-        return *this;
-      }
-
-      operator NumType() noexcept
-      {
-        if (entry_ptr == nullptr)
-          return 0;
-
-        return *entry_ptr;
+        const NumType *ptr = std::as_const(*v_ptr).search_entry(key);
+        return ptr == nullptr ? NumType(0) : *ptr;
       }
     };
 
-    Proxy operator [](const T & k) const noexcept
+    /// The value of the entry of `k`, read-only: 0 if it has none.
+    NumType operator [](const T & k) const noexcept
+    {
+      return get_entry(k);
+    }
+
+    /// The entry of `k`, which a Proxy reads and assigns.
+    Proxy operator [](const T & k)
     {
       return Proxy(*this, k);
     }
 
-    Proxy operator [](const T & k) noexcept
+    /// The value of the entry of `k`, read-only: 0 if it has none.
+    NumType operator ()(const T & k) const noexcept
     {
-      return Proxy(*this, k);
+      return get_entry(k);
     }
 
-    Proxy operator ()(const T & k) const noexcept
-    {
-      return Proxy(*this, k);
-    }
-
-    Proxy operator ()(const T & k) noexcept
+    /// The entry of `k`, which a Proxy reads and assigns.
+    Proxy operator ()(const T & k)
     {
       return Proxy(*this, k);
     }
