@@ -1532,6 +1532,44 @@ TEST(BellmanFordTest, ANegativeCycleBeyondMaxThrowsFromTheStart) {
   EXPECT_FALSE(Bellman_Ford<GT>(g).search_negative_cycle().is_empty());
 }
 
+// ========== A distance with a tolerance ==========
+
+using DGT = List_Digraph<Graph_Node<int>, Graph_Arc<double>>;
+
+// The weight of an arc, with a tolerance that a relaxation must beat
+struct Tolerant_Dist : Dft_Dist<DGT>
+{
+  double tol = 0;
+
+  Tolerant_Dist() = default;
+  explicit Tolerant_Dist(double t) : tol(t) {}
+
+  double tolerance() const noexcept { return tol; }
+};
+
+// A cycle that weighs less than zero by less than the tolerance, as the
+// rounding of the sums of weights that are not exact in binary may make
+// one of weight zero, is no negative cycle for a distance with a tolerance
+TEST(BellmanFordTest, ATolerantDistanceTakesNoCycleWithinItsTolerance)
+{
+  DGT g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  g.insert_arc(a, b, 1.0);
+  auto ba = g.insert_arc(b, a, -1.0 - 1e-14);
+  using Tolerant_BF = Bellman_Ford<DGT, Tolerant_Dist>;
+
+  EXPECT_TRUE(Bellman_Ford<DGT>(g).has_negative_cycle(a));
+  EXPECT_FALSE(Tolerant_BF(g, Tolerant_Dist(1e-12)).has_negative_cycle(a));
+  EXPECT_TRUE(Tolerant_BF(g, Tolerant_Dist(1e-12)).search_negative_cycle(a).is_empty());
+  EXPECT_FALSE(Tolerant_BF(g, Tolerant_Dist(1e-12)).has_negative_cycle());
+
+  // Beyond the tolerance, the cycle is negative
+  ba->get_info() = -1.1;
+  EXPECT_TRUE(Tolerant_BF(g, Tolerant_Dist(1e-12)).has_negative_cycle(a));
+  EXPECT_FALSE(Tolerant_BF(g, Tolerant_Dist(1e-12)).search_negative_cycle(a).is_empty());
+}
+
 // ========== GoogleTest main ==========
 int main(int argc, char **argv)
 {

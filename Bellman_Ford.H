@@ -75,6 +75,7 @@
 # include <ah-graph-concepts.H>
 
 #include <cmath>
+#include <concepts>
 #include <type_traits>
 #include <limits>
 #include <vector>
@@ -105,7 +106,11 @@ namespace Aleph {
     - `Distance`: Arc weight accessor. Must define `Distance_Type` and provide
       `Distance_Type operator()(typename GT::Arc *a)`. It should have no side
       effects: how many times it is called per arc is unspecified (the
-      relaxation passes stop as soon as one relaxes nothing).
+      relaxation passes stop as soon as one relaxes nothing). It may give
+      `Distance_Type tolerance() const`: a relaxation must then improve a
+      distance by more than it, so that the rounding of floating sums does
+      not make a cycle of weight zero negative, as an arc and its residual,
+      of opposite weights, in a residual network.
     - `Ait`: Arc iterator template for traversing all arcs.
     - `NAit`: Node arc iterator template for traversing arcs from a node.
     - `SA`: Arc filter for the internal iterators.
@@ -286,6 +291,17 @@ class Bellman_Ford
   {
     ah_domain_error() << "Bellman_Ford: a distance is -inf or NaN, "
                       << "from a weight or from an overflow";
+  }
+
+  /// Whether sum relaxes the distance accum: it is below it, by more than
+  /// the tolerance of the distance, if it gives one (see the class)
+  [[gnu::always_inline]] bool relaxes(const Distance_Type &sum, const Distance_Type &accum) const
+  {
+    if constexpr (requires (const Distance &d)
+                    { { d.tolerance() } -> std::convertible_to<Distance_Type>; })
+      return sum < accum - dist_.tolerance();
+    else
+      return sum < accum;
   }
 
   /// Throw domain_error if a floating sum of the last pass is -inf or NaN,
@@ -538,7 +554,7 @@ private:
             if (not add_if_fits(accum_src, w, sum))
               continue; // no distance that fits goes through arc
             auto &accum_tgt = accum(tgt);
-            if (sum < accum_tgt)  // Relax Arc
+            if (relaxes(sum, accum_tgt))  // Relax Arc
               {
                 const auto &index = idx(tgt);
                 arcs_(index) = arc;
@@ -588,7 +604,7 @@ private:
         if (not add_if_fits(accum_src, w, sum))
           continue; // no distance that fits goes through arc
         auto &accum_tgt = accum(tgt);
-        if (sum < accum_tgt)  // Relax Arc
+        if (relaxes(sum, accum_tgt))  // Relax Arc
           {
             const auto &index = idx(tgt);
             arcs_(index) = arc;
@@ -640,7 +656,7 @@ private:
         if (not add_if_fits(accum_src, d, sum))
           continue; // no distance that fits goes through arc
         check_finite(sum);
-        if (sum < accum_tgt)
+        if (relaxes(sum, accum_tgt))
           {
             negative_cycle = true;
             const auto &index = idx(tgt);
@@ -670,7 +686,7 @@ private:
         if (not add_if_fits(accum_src, d, sum))
           continue; // no distance that fits goes through arc
         check_finite(sum);
-        if (sum < accum_tgt)
+        if (relaxes(sum, accum_tgt))
           return true;
       }
     return false;

@@ -37,6 +37,7 @@
  */
 #include <gtest/gtest.h>
 #include <sstream>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -2666,6 +2667,77 @@ TEST(CycleCancelingTest, AnUnboundedProgramThrows)
   net.insert_arc(b, a, std::numeric_limits<long>::max(), 0);
 
   EXPECT_THROW(max_flow_min_cost_by_cycle_canceling(net), std::domain_error);
+}
+
+// The network of a case of decimal data: u, v, and the capacity and the
+// cost in tenths
+void build_tenths_case(Net & net, int n, const std::vector<std::array<int, 4>> & spec)
+{
+  std::vector<Net::Node *> nodes;
+  for (int i = 0; i < n; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, a[3] / 10.0);
+}
+
+// With costs that are not exact in binary, as tenths, the rounding of the
+// sums of Bellman-Ford made a cycle of cost zero negative, an arc with a
+// partial flow and its residual, at c and -c: cancelling it moved no flow,
+// and the canceling did not end
+TEST(CycleCancelingTest, DecimalCostsEnd)
+{
+  // 1 is the source and 0 the sink
+  Net net;
+  build_tenths_case(net, 3, {{1, 2, 33, 4}, {2, 2, 20, 6}, {2, 2, 28, 3}, {2, 0, 7, 8},
+                             {2, 2, 9, 9}, {1, 0, 3, 4}, {1, 2, 16, 6}, {2, 2, 15, 1}});
+
+  max_flow_min_cost_by_cycle_canceling(net);
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(net.flow_value(), 1.0, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), 0.96, 1e-12);  // the exact optimum
+}
+
+// A residue of rounding of a capacity, of an ulp, was the slack of negative
+// cycles, each of which left such a residue for another: the canceling did
+// not end
+TEST(CycleCancelingTest, AResidueOfRoundingIsNoSlack)
+{
+  // 4 is the source and 5 the sink
+  Net net;
+  build_tenths_case(net, 10, {{8, 6, 30, 39}, {8, 7, 11, 57}, {4, 8, 7, 4}, {9, 7, 29, -17},
+                              {0, 2, 25, -28}, {8, 0, 8, 29}, {2, 0, 29, 41}, {7, 3, 8, 24},
+                              {0, 2, 7, 5}, {8, 8, 20, 52}, {0, 9, 4, -15}, {4, 5, 3, 53},
+                              {6, 7, 21, 40}, {4, 9, 11, 18}, {0, 1, 5, 8}, {9, 5, 1, -2},
+                              {9, 1, 12, 19}, {7, 1, 20, 55}, {4, 1, 12, 45}, {4, 8, 2, 22},
+                              {4, 5, 30, 10}, {7, 1, 20, -13}, {6, 1, 7, -17}, {9, 8, 40, 36},
+                              {0, 0, 21, -20}, {0, 5, 20, -15}, {2, 8, 20, -21}, {7, 5, 3, 10},
+                              {1, 5, 30, -27}, {3, 9, 40, 47}});
+
+  max_flow_min_cost_by_cycle_canceling(net);
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(net.flow_value(), 6.5, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), -3.01, 1e-12);  // the exact optimum
+}
+
+// By rounding, the arc that bounds a cycle went beyond its capacity, or its
+// mirror below zero, and an arc of the network carried less than nothing
+TEST(CycleCancelingTest, DecimalFlowsStayWithinTheCapacities)
+{
+  // 0 is the source and 1 the sink
+  Net net;
+  build_tenths_case(net, 3, {{2, 2, 6, -18}, {0, 2, 2, 50}, {2, 1, 38, 16}, {0, 1, 32, 31},
+                             {0, 1, 4, 0}, {2, 1, 38, 3}, {0, 1, 23, -30}});
+
+  max_flow_min_cost_by_cycle_canceling<Net, Edmonds_Karp_Maximum_Flow>(net);
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(net.flow_value(), 6.1, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), 3.0, 1e-12);  // the exact optimum
 }
 
 

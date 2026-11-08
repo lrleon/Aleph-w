@@ -370,6 +370,43 @@ namespace Aleph
   };
 
 
+  /** Arc filter for the residual networks of a floating flow, which the
+      cycle canceling takes: an arc has residual capacity if it has more
+      than a tolerance left. A residue of rounding of a capacity, of the
+      order of an ulp, was the slack of negative cycles that the canceling
+      took, each leaving such a residue for another, so that it did not
+      end.
+
+      @tparam Net Residual network type.
+      @ingroup Networks
+  */
+  template <class Net>
+  struct Res_Filt_With_Tolerance
+  {
+    /// An arc with no more than it left has no residual capacity.
+    typename Net::Flow_Type tol{0};
+
+    /// Constructor (node parameter ignored).
+    Res_Filt_With_Tolerance(typename Net::Node *) noexcept {}
+
+    /// Default constructor.
+    Res_Filt_With_Tolerance() noexcept = default;
+
+    /// A filter of tolerance t.
+    explicit Res_Filt_With_Tolerance(const typename Net::Flow_Type & t) noexcept : tol(t) {}
+
+    /** Check if arc has residual capacity beyond the tolerance.
+
+        @param[in] a Arc to check.
+        @return true if cap - flow > tol, false otherwise.
+    */
+    bool operator ()(typename Net::Arc *a) const noexcept
+    {
+      return a->cap - a->flow > tol;
+    }
+  };
+
+
   /** Cost distance functor for Bellman-Ford on residual networks.
 
       Provides the cost of an arc as its "distance" for shortest path
@@ -407,6 +444,33 @@ namespace Aleph
       a->flow = 0;
       a->cost = 0;
     }
+  };
+
+
+  /** Cost of a residual arc, with a tolerance for the relaxations of
+      Bellman-Ford (see the parameter Distance of Bellman_Ford), which the
+      cycle canceling takes for a floating flow. With costs that are not
+      exact in binary, as tenths, the rounding of the sums made a cycle of
+      cost zero negative, as an arc with a partial flow and its residual,
+      at c and -c; cancelling it moved no flow, and the canceling did not
+      end.
+
+      @tparam Net Residual network type.
+      @ingroup Networks
+  */
+  template <class Net>
+  struct Rcost_With_Tolerance : public Rcost<Net>
+  {
+    /// A relaxation must improve a distance by more than it.
+    typename Net::Flow_Type tol{0};
+
+    Rcost_With_Tolerance() noexcept = default;
+
+    /// A cost of tolerance t.
+    explicit Rcost_With_Tolerance(const typename Net::Flow_Type & t) noexcept : tol(t) {}
+
+    /// Return the tolerance.
+    typename Net::Flow_Type tolerance() const noexcept { return tol; }
   };
 
 
@@ -610,14 +674,28 @@ namespace Aleph
     ah_domain_error_if(not bounded)
       << "cancel_cycle(): the cycle has no bound: its arcs have no capacity";
 
-    // Cancel the cycle by augmenting flow
+    // Cancel the cycle by augmenting flow. With a floating slack, an arc
+    // takes it within its capacity, and its capacity, exactly, if the slack
+    // covers what it has left, and its mirror takes the rest: by rounding,
+    // the arc that bounds the cycle went beyond, or the mirror below zero,
+    // and an arc of the network carried more than its capacity, or less
+    // than nothing
     path.for_each_arc([slack](typename Res_Net::Arc *a)
                         {
                           auto img = a->img;
                           assert(img->img == a);
                           assert(a->cap == img->cap);
-                          a->flow += slack;
-                          img->flow -= slack;
+                          if constexpr (std::is_floating_point_v<Ftype>)
+                            {
+                              a->flow = a->cap - a->flow <= slack
+                                ? a->cap : std::min(a->flow + slack, a->cap);
+                              img->flow = a->cap - a->flow;
+                            }
+                          else
+                            {
+                              a->flow += slack;
+                              img->flow -= slack;
+                            }
                         });
   }
 
@@ -702,14 +780,42 @@ namespace Aleph
   {
     Max_Flow_Algo<Net>()(net); // First compute maximum flow
 
-    using Rnet = Residual_Net<typename Net::Flow_Type>;
-    using BF = Bellman_Ford<Rnet, Rcost<Rnet>, Arc_Iterator,
-                            Out_Iterator, Res_Filt<Rnet>>;
+    using Ftype = typename Net::Flow_Type;
+    using Rnet = Residual_Net<Ftype>;
+    constexpr bool floating = std::is_floating_point_v<Ftype>;
+    using Cost = std::conditional_t<floating, Rcost_With_Tolerance<Rnet>, Rcost<Rnet>>;
+    using Filt = std::conditional_t<floating, Res_Filt_With_Tolerance<Rnet>, Res_Filt<Rnet>>;
+    using BF = Bellman_Ford<Rnet, Cost, Arc_Iterator, Out_Iterator, Filt>;
 
     // Build residual network
     Rnet rnet;
     DynMapTree<void *, void *> arcs_map;
     typename Rnet::Node *source = build_residual_net(net, rnet, arcs_map);
+
+    // With a floating flow, a relaxation must improve a distance by more
+    // than 4 n^2 epsilons of the largest cost, as a distance is a sum of
+    // up to n - 1 costs; and an arc has residual capacity if it has more
+    // than 1000 epsilons of the largest finite capacity or flow left, the
+    // tolerance of Network_Simplex
+    Cost cost;
+    Filt filt;
+    if constexpr (floating)
+      {
+        Ftype largest_cost{0}, largest_flow{0};
+        for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+          {
+            auto a = it.get_curr();
+            if (const Ftype c = std::abs(a->cost); c < std::numeric_limits<Ftype>::max())
+              largest_cost = std::max(largest_cost, c);
+            if (not net_detail::without_capacity(a->cap))
+              largest_flow = std::max(largest_flow, std::abs(a->cap));
+            if (std::isfinite(a->flow))
+              largest_flow = std::max(largest_flow, std::abs(a->flow));
+          }
+        const Ftype n = Ftype(net.vsize()), e = std::numeric_limits<Ftype>::epsilon();
+        cost = Cost(4 * n * n * e * largest_cost);
+        filt = Filt(1000 * e * largest_flow);
+      }
 
     size_t count = 0;
     bool found_cycle = true;
@@ -719,13 +825,13 @@ namespace Aleph
       {
         // Search for negative cycle from source
         auto [cycle, iterations] =
-            BF(rnet).search_negative_cycle(source, it_factor, step);
+            BF(rnet, cost, filt).search_negative_cycle(source, it_factor, step);
 
         if (cycle.is_empty())
           {
             // No cycle found from source, try global search
             auto [global_cycle, global_iter] =
-                BF(rnet).search_negative_cycle(it_factor, step);
+                BF(rnet, cost, filt).search_negative_cycle(it_factor, step);
 
             if (global_cycle.is_empty())
               found_cycle = false;
@@ -745,6 +851,11 @@ namespace Aleph
 
     // Transfer results back to original network
     residual_to_net<Net>(arcs_map);
+
+    // The residues of rounding that the cycles leave go back, as those of
+    // the maximum flows: a slack of the arcs of larger flows left them on
+    // arcs of smaller ones, and a node of such residues lost its balance
+    net_detail::return_dust(net, net.get_source(), net.get_sink());
 
     return std::make_tuple(count, it_factor);
   }
