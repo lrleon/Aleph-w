@@ -64,13 +64,52 @@
 # ifndef AL_DOMAIN_H
 # define AL_DOMAIN_H
 
+# include <concepts>
 # include <limits>
+# include <ostream>
 # include <tpl_hash.H>
 # include <ahSort.H>
 # include <ah-errors.H>
 
 namespace Aleph
 {
+
+/** @brief A key of a domain: of an AlDomain, and so an index of a Vector
+    or of a Matrix.
+
+    It is what every domain does with its keys: the hash table that keeps
+    them makes its buckets with the default constructor, copies the keys
+    into them, and compares them with `==`. Aleph_Hash checks that a key
+    can be hashed, and says what a key that cannot needs.
+
+    @see AlOrderedDomainKey, for the members that sort the keys
+    @ingroup Utilities
+*/
+template <typename T>
+concept AlDomainKey = std::default_initializable<T> and std::copyable<T>
+                      and std::equality_comparable<T>;
+
+/** @brief A key of a domain that `<` orders: what AlDomain::keys(), and
+    the members that take the keys in their order, need.
+
+    @ingroup Utilities
+*/
+template <typename T>
+concept AlOrderedDomainKey = AlDomainKey<T> and requires (const T & a, const T & b)
+{
+  { a < b } -> std::convertible_to<bool>;
+};
+
+/** @brief A value that `<<` writes to a stream: what the members that
+    print keys or numbers need.
+
+    @ingroup Utilities
+*/
+template <typename T>
+concept AlStreamable = requires (std::ostream & s, const T & x)
+{
+  s << x;
+};
 
 /**
  * @brief Generic domain class based on hash set.
@@ -88,6 +127,7 @@ namespace Aleph
  * @ingroup Utilities
  */
   template <typename T = int>
+    requires AlDomainKey<T>
 class AlDomain : public Aleph::HashSet<T, SetODhash>
 {
   mutable bool keys_build = false;   ///< Lazy cache flag
@@ -108,7 +148,7 @@ public:
    * @return Const reference to sorted DynList of elements, valid until
    *         the domain changes
    */
-  const DynList<T> & keys() const
+  const DynList<T> & keys() const requires AlOrderedDomainKey<T>
   {
     if (not keys_build or domain.size() != this->size())
       {
@@ -220,13 +260,13 @@ public:
    * @brief Convert domain to sorted list.
    * @return Sorted DynList of all elements
    */
-  DynList<T> to_list() const { return this->keys(); }
+  DynList<T> to_list() const requires AlOrderedDomainKey<T> { return this->keys(); }
 
   /**
    * @brief Convert domain to string representation.
    * @return Space-separated string of sorted elements
    */
-  std::string to_str() const
+  std::string to_str() const requires AlOrderedDomainKey<T> and AlStreamable<T>
   {
     return sort(to_list()).template foldl<std::string>
       ("", [] (const std::string & s, const T & item)
@@ -244,8 +284,9 @@ public:
    * @param dom Domain to output
    * @return Reference to output stream
    */
-  template <typename T> inline
-  std::ostream & operator << (std::ostream & s, const AlDomain<T> & dom)
+  template <typename T>
+    requires AlOrderedDomainKey<T> and AlStreamable<T>
+  inline std::ostream & operator << (std::ostream & s, const AlDomain<T> & dom)
   {
     return s << dom.to_str();
   }

@@ -396,6 +396,7 @@ set(TEST_PROGRAMS
     test_al_vector
     archeap_test
     al_matrix_test
+    al_concepts_test
     cut_nodes_test
     graph_indexes_test
     graph_scenarios_test

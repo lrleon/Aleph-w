@@ -43,6 +43,7 @@
 # ifndef AL_VECTOR
 # define AL_VECTOR
 
+# include <concepts>
 # include <memory>
 # include <sstream>
 # include <iostream>
@@ -61,7 +62,70 @@
 
 namespace Aleph
 {
+  /** @brief A number of the entries of a Vector or of a Matrix.
+
+      It is what every vector and every matrix does with its numbers: 0 is
+      a number, the value of an entry that is not there; the default
+      epsilon, 1e-7, is one too; and a number is zero when its absolute
+      value, which `<` and the unary `-` give, is at most the epsilon, by
+      `<=` and `>=`. The members that compute with the numbers ask for
+      more: AlAdditiveNumber, AlMultiplicativeNumber and AlDivisibleNumber.
+
+      @ingroup Utilities
+  */
+  template <typename N>
+  concept AlNumber = std::copyable<N> and std::convertible_to<int, N>
+                     and std::convertible_to<double, N>
+                     and requires (const N & a, const N & b)
+  {
+    { -a } -> std::convertible_to<N>;
+    { a < 0 } -> std::convertible_to<bool>;
+    { a < b } -> std::convertible_to<bool>;
+    { a <= b } -> std::convertible_to<bool>;
+    { a >= b } -> std::convertible_to<bool>;
+  };
+
+  /** @brief A number that adds and subtracts: what the sums, the
+      differences and the comparisons of vectors and matrices need.
+
+      @ingroup Utilities
+  */
+  template <typename N>
+  concept AlAdditiveNumber = AlNumber<N> and requires (N & x, const N & a, const N & b)
+  {
+    { a + b } -> std::convertible_to<N>;
+    { a - b } -> std::convertible_to<N>;
+    x += b;
+    x -= b;
+  };
+
+  /** @brief A number that multiplies: what the products by a scalar, and
+      the products of vectors and matrices, need.
+
+      @ingroup Utilities
+  */
+  template <typename N>
+  concept AlMultiplicativeNumber = AlNumber<N> and requires (N & x, const N & a, const N & b)
+  {
+    { a * b } -> std::convertible_to<N>;
+    x *= b;
+    { a == 1 } -> std::convertible_to<bool>;
+  };
+
+  /** @brief A number that divides: what the division of a vector by a
+      scalar needs.
+
+      @ingroup Utilities
+  */
+  template <typename N>
+  concept AlDivisibleNumber = AlNumber<N> and requires (N & x, const N & a)
+  {
+    x /= a;
+    { a == 1 } -> std::convertible_to<bool>;
+  };
+
   template <typename Trow, typename Tcol, typename NumType>
+    requires AlDomainKey<Trow> and AlDomainKey<Tcol> and AlNumber<NumType>
   class Matrix;
 
   /**
@@ -80,9 +144,11 @@ namespace Aleph
      @author Leandro Rabindranath Leon
   */
   template <typename T = int, typename NumType = double>
+    requires AlDomainKey<T> and AlNumber<NumType>
   class Vector; // Forward declaration for CRTP
 
   template <typename T, typename NumType>
+    requires AlDomainKey<T> and AlNumber<NumType>
   class Vector : public TraverseMixin<Vector<T, NumType>, std::pair<T, NumType>>,
                  public LocateMixin<Vector<T, NumType>, std::pair<T, NumType>>,
                  public FunctionalMixin<Vector<T, NumType>, std::pair<T, NumType>>
@@ -217,6 +283,7 @@ namespace Aleph
     */
     Vector(DomainPtr d, const DynList<NumType> & l,
            const NumType & zero = default_epsilon)
+      requires AlOrderedDomainKey<T>
       : domain_ptr(std::move(d)), epsilon(zero)
     {
       ah_length_error_if(l.size() != domain_ptr->size())
@@ -239,6 +306,7 @@ namespace Aleph
     */
     Vector(const Domain & d, const DynList<NumType> & l,
            const NumType & zero = default_epsilon)
+      requires AlOrderedDomainKey<T>
       : Vector(DomainPtr(&const_cast<Domain &>(d), [](Domain *) {}), l, zero)
     {}
 
@@ -252,6 +320,7 @@ namespace Aleph
     */
     Vector(Domain && d, const DynList<NumType> & l,
            const NumType & zero = default_epsilon)
+      requires AlOrderedDomainKey<T>
       : Vector(std::make_shared<Domain>(std::move(d)), l, zero)
     {}
 
@@ -471,6 +540,7 @@ namespace Aleph
        @return true if |n1 - n2| <= epsilon
     */
     bool are_equal(const NumType & n1, const NumType & n2) const noexcept
+      requires AlAdditiveNumber<NumType>
     {
       return is_zero(n1 - n2);
     }
@@ -481,6 +551,7 @@ namespace Aleph
        @return true if all corresponding entries are within epsilon
     */
     bool equal_to(const Vector & other) const noexcept
+      requires AlAdditiveNumber<NumType>
     {
       assert(domain_ptr == other.domain_ptr);
 
@@ -494,14 +565,22 @@ namespace Aleph
                                  });
     }
 
-    bool operator ==(const Vector & v) const noexcept { return equal_to(v); }
+    /// Whether the entries of `v` are equal to these, within epsilon.
+    bool operator ==(const Vector & v) const noexcept
+      requires AlAdditiveNumber<NumType>
+    {
+      return equal_to(v);
+    }
 
+    /// Whether some entry of `v` differs from this one, beyond epsilon.
     bool operator !=(const Vector & v) const noexcept
+      requires AlAdditiveNumber<NumType>
     {
       return not equal_to(v);
     }
 
-    Vector &operator +=(const Vector & v)
+    /// Add `v`, over the same domain, to this vector.
+    Vector &operator +=(const Vector & v) requires AlAdditiveNumber<NumType>
     {
       assert(domain_ptr == v.domain_ptr);
 
@@ -512,7 +591,8 @@ namespace Aleph
       return *this;
     }
 
-    Vector &operator -=(const Vector & v)
+    /// Subtract `v`, over the same domain, from this vector.
+    Vector &operator -=(const Vector & v) requires AlAdditiveNumber<NumType>
     {
       assert(domain_ptr == v.domain_ptr);
 
@@ -523,21 +603,25 @@ namespace Aleph
       return *this;
     }
 
-    Vector operator +(const Vector & r) const
+    /// The sum of this vector and `r`, over the same domain.
+    Vector operator +(const Vector & r) const requires AlAdditiveNumber<NumType>
     {
       Vector ret_val = *this;
       ret_val += r;
       return ret_val;
     }
 
-    Vector operator -(const Vector & r) const
+    /// The difference of this vector and `r`, over the same domain.
+    Vector operator -(const Vector & r) const requires AlAdditiveNumber<NumType>
     {
       Vector ret_val = *this;
       ret_val -= r;
       return ret_val;
     }
 
+    /// Multiply every entry by `scalar`.
     Vector &product_by_scalar(const NumType & scalar) noexcept
+      requires AlMultiplicativeNumber<NumType>
     {
       if (is_zero(scalar))
         {
@@ -555,13 +639,17 @@ namespace Aleph
       return *this;
     }
 
+    /// This vector multiplied by `scalar`.
     Vector operator *(const NumType & scalar) const
+      requires AlMultiplicativeNumber<NumType>
     {
       Vector ret_val = *this;
       return ret_val.product_by_scalar(scalar);
     }
 
+    /// Divide every entry by `scalar`, which must not be zero.
     Vector &divide_by_scalar(const NumType & scalar)
+      requires AlDivisibleNumber<NumType>
     {
       ah_domain_error_if(is_zero(scalar))
         << "Zero division";
@@ -576,39 +664,48 @@ namespace Aleph
       return *this;
     }
 
+    /// This vector divided by `scalar`, which must not be zero.
     Vector operator /(const NumType & scalar) const
+      requires AlDivisibleNumber<NumType>
     {
       Vector ret_val = *this;
       return ret_val.divide_by_scalar(scalar);
     }
 
-    // negation
-    Vector operator -() const
+    /// The negation of this vector.
+    Vector operator -() const requires AlMultiplicativeNumber<NumType>
     {
       Vector ret_val = *this;
       return ret_val.product_by_scalar(-1.0);
     }
 
+    /// The scalar product of this vector and `v`, over the same domain.
     NumType scalar_product(const Vector & v) const
+      requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
     {
       ah_domain_error_if(domain_ptr != v.domain_ptr)
         << "scalar_product: different domains";
 
+      // The lambdas return NumType: with numbers of expression templates,
+      // as mpq_class, a deduced type would keep a reference to the
+      // temporary that get_entry() returns, gone at the end of the lambda
       if (entries.size() < v.entries.size())
         return entries.
-            template foldl<NumType>(0, [&v](const NumType & acc, const Pair & p)
+            template foldl<NumType>(0, [&v](const NumType & acc, const Pair & p) -> NumType
                                       {
                                         return acc + p.second * v.get_entry(p.first);
                                       });
 
       return v.entries.
-               template foldl<NumType>(0, [this](const NumType & acc, const Pair & p)
+               template foldl<NumType>(0, [this](const NumType & acc, const Pair & p) -> NumType
                                          {
                                            return acc + get_entry(p.first) * p.second;
                                          });
     }
 
+    /// The scalar product of this vector and `v`, over the same domain.
     NumType operator *(const Vector & v) const
+      requires AlAdditiveNumber<NumType> and AlMultiplicativeNumber<NumType>
     {
       return scalar_product(v);
     }
@@ -619,7 +716,7 @@ namespace Aleph
         It is the list that the constructor from a domain and a list takes:
         `Vector(d, l).to_list()` gives `l`.
     */
-    DynList<NumType> to_list() const
+    DynList<NumType> to_list() const requires AlOrderedDomainKey<T>
     {
       return domain_ptr->keys().template maps<NumType>([this](const T & i)
                                                          {
@@ -629,6 +726,7 @@ namespace Aleph
 
     /// Print the nonzero entries, in the order of the sorted keys.
     void print() const
+      requires AlOrderedDomainKey<T> and AlStreamable<T> and AlStreamable<NumType>
     {
       domain_ptr->keys().for_each([&](const T & k)
                                     {
@@ -638,7 +736,10 @@ namespace Aleph
       std::cout << '\n';
     }
 
+    /// The keys over their values, in the order of the keys.
     [[nodiscard]] std::string to_str() const
+      requires AlOrderedDomainKey<T> and AlStreamable<T> and
+               requires (const NumType & n) { { std::to_string(n) } -> std::convertible_to<std::string>; }
     {
       // Convert domain elements to strings
       const DynList<std::string> keys_str =
@@ -791,10 +892,13 @@ namespace Aleph
   };
 
   template <typename T, typename NumType>
+    requires AlDomainKey<T> and AlNumber<NumType>
   const NumType Vector<T, NumType>::default_epsilon = 1e-7;
 
 
+  /// The vector `v` multiplied by `scalar`.
   template <typename T, typename NumType>
+    requires AlMultiplicativeNumber<NumType>
   inline
   Vector<T, NumType> operator *(const NumType & scalar,
                                 const Vector<T, NumType> & v)
@@ -803,7 +907,10 @@ namespace Aleph
     return ret_val.product_by_scalar(scalar);
   }
 
+  /// Write `vec`, as Vector::to_str() gives it, to `s`.
   template <typename T, typename NumType>
+    requires AlOrderedDomainKey<T> and AlStreamable<T> and
+             requires (const NumType & n) { { std::to_string(n) } -> std::convertible_to<std::string>; }
   inline
   std::ostream &operator <<(std::ostream & s, const Vector<T, NumType> & vec)
   {
