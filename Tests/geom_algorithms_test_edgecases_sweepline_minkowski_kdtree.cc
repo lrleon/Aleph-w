@@ -1192,6 +1192,51 @@ TEST_F(GeomAlgorithmsTest, KDTreeDebugSnapshotHasPartitions)
   EXPECT_EQ(leaves, kd.size());
 }
 
+TEST_F(GeomAlgorithmsTest, KDTreeDebugSnapshotCoversThePointsOutsideItsBounds)
+{
+  // The tree takes the points outside its bounds, and extends its region
+  // to them; the snapshot split its partitions from the bounds given, and
+  // such a point made one whose corners were swapped, which threw
+  auto check = [] (const KDTreePointSearch & kd)
+    {
+      const auto snap = kd.debug_snapshot();
+      EXPECT_EQ(snap.points.size(), kd.size());
+      for (size_t i = 0; i < snap.points.size(); ++i)
+        EXPECT_TRUE(snap.bounds.contains(snap.points(i)));
+      size_t leaves = 0;
+      for (size_t i = 0; i < snap.partitions.size(); ++i)
+        {
+          const auto & part = snap.partitions(i);
+          EXPECT_TRUE(part.region.contains(part.representative));
+          if (part.is_leaf)
+            ++leaves;
+        }
+      EXPECT_EQ(leaves, kd.size());
+      return snap.bounds;
+    };
+
+  KDTreePointSearch kd(0, 0, 10, 10);
+  kd.insert(Point(5, 5));
+  kd.insert(Point(20, 5));
+  kd.insert(Point(-4, 12));
+  const Rectangle b = check(kd);
+  EXPECT_EQ(b.get_xmin(), Geom_Number(-4));
+  EXPECT_EQ(b.get_ymin(), Geom_Number(0));
+  EXPECT_EQ(b.get_xmax(), Geom_Number(20));
+  EXPECT_EQ(b.get_ymax(), Geom_Number(12));
+
+  Array<Point> points;
+  points.append(Point(5, 5));
+  points.append(Point(-3, 2));
+  points.append(Point(8, 30));
+  points.append(Point(1, 1));
+  const Rectangle c = check(KDTreePointSearch::build(points, 0, 0, 10, 10));
+  EXPECT_EQ(c.get_xmin(), Geom_Number(-3));
+  EXPECT_EQ(c.get_ymin(), Geom_Number(0));
+  EXPECT_EQ(c.get_xmax(), Geom_Number(10));
+  EXPECT_EQ(c.get_ymax(), Geom_Number(30));
+}
+
 
 // ============================================================================
 // Phase 5 — Rigorous Tests

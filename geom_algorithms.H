@@ -7670,6 +7670,27 @@ class KDTreePointSearch
     return uniq;
   }
 
+  /// The bounds, extended to the points outside them, as the tree extends
+  /// its region to them.
+  [[nodiscard]] Rectangle extended_bounds() const
+  {
+    Geom_Number xmin = bounds_.get_xmin(), ymin = bounds_.get_ymin();
+    Geom_Number xmax = bounds_.get_xmax(), ymax = bounds_.get_ymax();
+    for (size_t i = 0; i < points_.size(); ++i)
+      {
+        const Point & p = points_(i);
+        if (p.get_x() < xmin)
+          xmin = p.get_x();
+        if (p.get_x() > xmax)
+          xmax = p.get_x();
+        if (p.get_y() < ymin)
+          ymin = p.get_y();
+        if (p.get_y() > ymax)
+          ymax = p.get_y();
+      }
+    return {xmin, ymin, xmax, ymax};
+  }
+
 public:
   /**
    * @brief Represents a spatial partition or leaf in the KD-tree.
@@ -7689,7 +7710,7 @@ public:
    */
   struct DebugSnapshot
   {
-    Rectangle bounds;                  ///< Global bounding box of the tree.
+    Rectangle bounds;                  ///< Bounds of the tree, extended to the points outside them.
     Array<Point> points;               ///< All points stored in the tree.
     Array<DebugPartition> partitions;  ///< List of all internal and leaf partitions.
   };
@@ -7786,12 +7807,15 @@ public:
    *
    * The snapshot uses the current point set and alternates split axis by
    * depth (x/y), producing a balanced partition tree suitable for didactic
-   * rendering.
+   * rendering. Its bounds are those of the tree, extended to the points
+   * inserted outside them, as the tree extends its region.
    */
   [[nodiscard]] DebugSnapshot debug_snapshot() const
   {
     DebugSnapshot snap;
-    snap.bounds = bounds_;
+    // Split from the bounds given, a point outside them made a partition
+    // whose corners were swapped, which threw range_error
+    snap.bounds = extended_bounds();
     snap.points = points_;
     if (points_.is_empty())
       return snap;
@@ -7860,7 +7884,7 @@ public:
           }
       };
 
-    recurse(recurse, points_, bounds_, 0, true);
+    recurse(recurse, points_, snap.bounds, 0, true);
     return snap;
   }
 };
