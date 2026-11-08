@@ -410,6 +410,17 @@ namespace Aleph
   };
 
 
+  namespace net_detail
+  {
+    /// Whether an arc of capacity cap has none: infinite, or max()
+    template <typename Flow_Type>
+    inline bool without_capacity(const Flow_Type & cap) noexcept
+    {
+      return not (cap < std::numeric_limits<Flow_Type>::max());
+    }
+  } // namespace net_detail
+
+
   /** Residual arc type with mirror pointer.
 
       Extends Net_Cost_Arc with a flag indicating if this is a residual
@@ -456,7 +467,7 @@ namespace Aleph
       @param[in] cost Cost per unit of flow.
       @return Pointer to the forward arc.
 
-      @pre flow <= cap and cost >= 0
+      @pre flow <= cap; the cost may be negative
       @ingroup Networks
   */
   template <class Res_Net>
@@ -468,7 +479,7 @@ namespace Aleph
                       const typename Res_Net::Flow_Type flow,
                       const typename Res_Net::Flow_Type cost)
   {
-    assert(flow <= cap and cost >= 0);
+    assert(flow <= cap);
 
     auto arc = residual_net.insert_arc(src, tgt, cap, cost);
     auto rarc = residual_net.insert_arc(tgt, src, cap, -cost);
@@ -571,6 +582,9 @@ namespace Aleph
 
       @pre path must be a non-empty cycle with positive residual capacity
            on all arcs.
+      @throw domain_error If the path is empty or not a cycle, or if it has
+             no bound: each of its arcs goes forward, through an arc
+             without capacity (infinite or max()).
       @ingroup Networks
   */
   template <class Res_Net>
@@ -581,13 +595,20 @@ namespace Aleph
 
     using Ftype = typename Res_Net::Flow_Type;
 
-    // Determine minimum slack (bottleneck capacity) of the cycle
+    // Determine minimum slack (bottleneck capacity) of the cycle; a cycle
+    // that only arcs without capacity make has none, and its flow would
+    // grow without bound: by infinity, of cost NaN, or by max()
     Ftype slack = std::numeric_limits<Ftype>::max();
-    path.for_each_arc([&slack](typename Res_Net::Arc *a)
+    bool bounded = false;
+    path.for_each_arc([&slack, &bounded](typename Res_Net::Arc *a)
                         {
                           assert(a->cap - a->flow > 0);
                           slack = std::min(slack, a->cap - a->flow);
+                          bounded = bounded or a->is_residual
+                            or not net_detail::without_capacity(a->cap);
                         });
+    ah_domain_error_if(not bounded)
+      << "cancel_cycle(): the cycle has no bound: its arcs have no capacity";
 
     // Cancel the cycle by augmenting flow
     path.for_each_arc([slack](typename Res_Net::Arc *a)
@@ -634,6 +655,9 @@ namespace Aleph
       1. A maximum flow (same value as produced by the max-flow algorithm)
       2. Has minimum total cost among all maximum flows
 
+      The costs may be negative: the cheapest maximum flow saturates the
+      cycles of negative cost, also those apart from the source.
+
       @tparam Net Network type (must be Net_Cost_Graph or compatible).
       @tparam Max_Flow_Algo Maximum flow algorithm template (default: Ford_Fulkerson_Maximum_Flow).
 
@@ -648,7 +672,10 @@ namespace Aleph
               - Final iteration factor used
 
       @throw bad_alloc If there is not enough memory.
-      @throw domain_error If network is not single source and single sink.
+      @throw domain_error If network is not single source and single sink,
+             or if the program is unbounded: a cycle of negative cost
+             through arcs without capacity. The network keeps then the
+             maximum flow.
 
       @par Complexity
       O(V * E^2 * C * U) where V is vertices, E is edges, C is max cost,
@@ -1100,10 +1127,7 @@ namespace Aleph
     /// Whether an arc has no capacity: its capacity is infinite or max().
     static bool without_capacity(const Arc *a) noexcept
     {
-      if constexpr (std::is_floating_point_v<Flow_Type>)
-        if (std::isinf(a->cap))
-          return true;
-      return a->cap >= Inf;
+      return net_detail::without_capacity(a->cap);
     }
 
     /// Compute the tolerances from the capacities, flows and costs.

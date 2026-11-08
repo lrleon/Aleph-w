@@ -2583,6 +2583,91 @@ TEST(NetworkSimplexIntegerTest, TheLowerBoundsNeedNoRun)
 #  pragma GCC diagnostic pop
 #endif
 
+// =============================================================================
+// CYCLE CANCELING WITH NEGATIVE COSTS
+// =============================================================================
+
+// The networks of the cases of negative costs, with their least cost: a
+// negative arc that the cheapest maximum flow, of value 4, takes, at cost
+// 6 (10 without it), and a cycle of cost -2 apart from the path s->t
+template <class N>
+void build_negative_costs_case(N & net, const bool apart)
+{
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  if (apart)
+    {
+      net.insert_arc(s, t, 1, 0);
+      net.insert_arc(a, b, 1, -1);
+      net.insert_arc(b, a, 1, -1);
+      return;
+    }
+  net.insert_arc(s, a, 2, 1);
+  net.insert_arc(s, b, 2, 1);
+  net.insert_arc(a, b, 1, -3);
+  net.insert_arc(a, t, 2, 2);
+  net.insert_arc(b, t, 3, 1);
+}
+
+// create_residual_arc() asserted that the costs were not negative, which
+// ended the program in a debug build, though the canceling takes them
+TEST(CycleCancelingTest, NegativeCostsReachTheOptimum)
+{
+  for (const bool apart : {false, true})
+    {
+      Net net;
+      build_negative_costs_case(net, apart);
+      max_flow_min_cost_by_cycle_canceling(net);
+      EXPECT_TRUE(flows_within_capacities(net));
+      EXPECT_DOUBLE_EQ(net.flow_value(), apart ? 1.0 : 4.0);
+      EXPECT_DOUBLE_EQ(net.flow_cost(), apart ? -2.0 : 6.0);
+
+      LNet lnet;
+      build_negative_costs_case(lnet, apart);
+      max_flow_min_cost_by_cycle_canceling<LNet, Edmonds_Karp_Maximum_Flow>(lnet);
+      EXPECT_TRUE(flows_within_capacities(lnet));
+      EXPECT_EQ(lnet.flow_value(), apart ? 1 : 4);
+      EXPECT_EQ(lnet.flow_cost(), apart ? -2 : 6);
+    }
+}
+
+// A cycle of negative cost through arcs without capacity has no bound: the
+// canceling pushed around it an infinite flow, of cost NaN, or one of max()
+TEST(CycleCancelingTest, AnUnboundedProgramThrows)
+{
+  for (const double cap : {std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::max()})
+    {
+      Net net;
+      auto s = net.insert_node();
+      auto a = net.insert_node();
+      auto b = net.insert_node();
+      auto t = net.insert_node();
+      auto st = net.insert_arc(s, t, 1.0, 0.0);
+      auto ab = net.insert_arc(a, b, cap, -1.0);
+      auto ba = net.insert_arc(b, a, cap, 0.0);
+
+      EXPECT_THROW(max_flow_min_cost_by_cycle_canceling(net), std::domain_error)
+        << "capacity " << cap;
+      EXPECT_EQ(st->flow, 1.0);  // the maximum flow stays
+      EXPECT_EQ(ab->flow, 0.0);
+      EXPECT_EQ(ba->flow, 0.0);
+    }
+
+  LNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  net.insert_arc(s, t, 1, 0);
+  net.insert_arc(a, b, std::numeric_limits<long>::max(), -1);
+  net.insert_arc(b, a, std::numeric_limits<long>::max(), 0);
+
+  EXPECT_THROW(max_flow_min_cost_by_cycle_canceling(net), std::domain_error);
+}
+
 
 } // anonymous namespace
 
