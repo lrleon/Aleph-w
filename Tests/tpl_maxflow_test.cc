@@ -14,6 +14,7 @@
 #include <chrono>
 #include <random>
 #include <stdexcept>
+#include <vector>
 
 using namespace Aleph;
 
@@ -1724,6 +1725,78 @@ TEST(IntegerFlowTest, MinCutVerification)
     }
   // Total saturated capacity >= max flow (some saturated arcs may not be cut arcs)
   EXPECT_GE(cut_cap, flow);
+}
+
+// Ford-Fulkerson took a path through what rounding left of the capacity
+// of an arc, whose flows summed to a little less than it, and augmented
+// by that residue: the small flows that it spread broke the balance of
+// the nodes, so that its assertion failed in a debug build, and
+// check_network() after it in a release one
+TEST(FordFulkersonTest, DecimalCapacitiesKeepTheBalance)
+{
+  // u, v and the capacity in tenths; 4 is the source and 2 the sink
+  const int spec[][3] = {{1, 3, 20}, {3, 5, 20}, {5, 2, 30}, {4, 3, 20},
+                         {0, 2, 29}, {4, 0, 2}, {0, 1, 1}, {5, 0, 10},
+                         {4, 0, 27}, {0, 1, 19}, {4, 5, 10}};
+  auto build = [&spec] (TestNet & net)
+    {
+      std::vector<Node *> nodes;
+      for (int i = 0; i < 6; ++i)
+        nodes.push_back(net.insert_node(i));
+      for (const auto & a : spec)
+        net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0);
+    };
+
+  TestNet ff, ek;
+  build(ff);
+  build(ek);
+  const double ff_value = Ford_Fulkerson_Maximum_Flow<TestNet>()(ff);
+  const double ek_value = Edmonds_Karp_Maximum_Flow<TestNet>()(ek);
+
+  EXPECT_TRUE(ff.check_network());
+  EXPECT_TRUE(ek.check_network());
+  // The arcs out of the source, 2 + 0.2 + 2.7 + 1, are saturated
+  EXPECT_NEAR(ff_value, 5.9, 1e-12);
+  EXPECT_NEAR(ek_value, 5.9, 1e-12);
+}
+
+// A slack that rounding left on an arc of capacity 2, of 0.09999999999999964
+// for 0.1, filled arcs of capacity 0.1 and left them a residue of 3.6e-16,
+// which a path took; later paths took the flows of a node to zero, but that
+// residue, and the node lost its balance. The residues go back at the end,
+// as those of the preflows
+TEST(FordFulkersonTest, ResiduesOfLargerArcsKeepTheBalance)
+{
+  // u, v and the capacity in tenths; 1 is the source and 14 the sink
+  const int spec[][3] = {{0, 18, 0}, {7, 10, 3}, {20, 4, 7}, {7, 16, 0}, {19, 16, 1},
+                         {16, 17, 2}, {4, 3, 7}, {10, 4, 3}, {18, 0, 0}, {9, 6, 2},
+                         {11, 20, 6}, {5, 14, 20}, {6, 20, 1}, {12, 13, 0}, {2, 14, 10},
+                         {3, 14, 8}, {15, 19, 1}, {3, 15, 2}, {4, 20, 0}, {1, 20, 0},
+                         {5, 7, 3}, {6, 12, 5}, {12, 19, 0}, {1, 6, 16}, {17, 3, 1},
+                         {16, 5, 11}, {16, 13, 1}, {2, 14, 1}, {6, 8, 10}, {17, 8, 5},
+                         {16, 6, 9}, {3, 17, 5}, {12, 11, 7}, {19, 20, 1}, {1, 5, 9},
+                         {11, 19, 1}, {1, 16, 14}, {16, 12, 7}, {15, 9, 2}, {8, 2, 11},
+                         {13, 9, 1}};
+  auto build = [&spec] (TestNet & net)
+    {
+      std::vector<Node *> nodes;
+      for (int i = 0; i < 21; ++i)
+        nodes.push_back(net.insert_node(i));
+      for (const auto & a : spec)
+        net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0);
+    };
+
+  TestNet ff, ek;
+  build(ff);
+  build(ek);
+  ASSERT_EQ(ff.get_source()->get_info(), 1);
+  ASSERT_EQ(ff.get_sink()->get_info(), 14);
+  const double ff_value = Ford_Fulkerson_Maximum_Flow<TestNet>()(ff);
+  const double ek_value = Edmonds_Karp_Maximum_Flow<TestNet>()(ek);
+
+  EXPECT_TRUE(ff.check_network());
+  EXPECT_TRUE(ek.check_network());
+  EXPECT_NEAR(ff_value, ek_value, 1e-12);
 }
 
 

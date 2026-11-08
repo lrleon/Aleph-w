@@ -1276,7 +1276,7 @@ inline void push_excess(Arc *arc, bool forward, Flow_Sum<Flow_Type> &in,
     O((b + 1)(V + E) + d log d), where b, the number of searches, is
     about that of the nodes that the first moves leave beyond their
     tolerance, at most V + E, and d is the degree of the source or the
-    sink. */
+    sink. The augmenting paths return theirs too. */
 template <class Net>
 void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
 {
@@ -1294,7 +1294,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
         Flow_Type sent{0}, received{0};
         for (Node_Iterator<Net> it(net); balanced and it.has_curr(); it.next_ne())
           {
-            Node *p = it.get_curr();
+            Node *p = it.get_curr_ne();
             Flow_Sum<Flow_Type> in, out;
             node_flows(net, p, in, out);
             if (p == source)
@@ -1329,7 +1329,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
       {
         size_t i = 0;
         for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++i)
-          NODE_COOKIE(it.get_curr()) = &info[i];
+          NODE_COOKIE(it.get_curr_ne()) = &info[i];
       }
       auto at = [](Node *p) -> Info &
         {
@@ -1337,7 +1337,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
         };
       for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
         {
-          Arc *a = it.get_curr();
+          Arc *a = it.get_curr_ne();
           at(net.get_src_node(a)).out.add(a->flow);
           at(net.get_tgt_node(a)).in.add(a->flow);
         }
@@ -1373,7 +1373,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
                 continue;
               for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
                 {
-                  Arc *a = it.get_curr();
+                  Arc *a = it.get_curr_ne();
                   Node *from = forward ? net.get_src_node(a) : net.get_tgt_node(a);
                   Node *v = forward ? net.get_tgt_node(a) : net.get_src_node(a);
                   if (from == u and a->flow > Flow_Type{0} and at(v).*depth < 0)
@@ -1393,7 +1393,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
           for (typename Net::Node_Arc_Iterator it(v); it.has_curr() and excess(v) > Flow_Type{0};
                it.next_ne())
             {
-              Arc *a = it.get_curr();
+              Arc *a = it.get_curr_ne();
               Node *u = net.get_src_node(a);
               if (net.get_tgt_node(a) == v and u != v and a->flow > Flow_Type{0} and
                   at(u).from_source >= 0 and at(u).from_source < at(v).from_source)
@@ -1407,7 +1407,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
           for (typename Net::Node_Arc_Iterator it(v); it.has_curr() and excess(v) < Flow_Type{0};
                it.next_ne())
             {
-              Arc *a = it.get_curr();
+              Arc *a = it.get_curr_ne();
               Node *w = net.get_tgt_node(a);
               if (net.get_src_node(a) == v and w != v and a->flow > Flow_Type{0} and
                   at(w).to_sink >= 0 and at(w).to_sink < at(v).to_sink)
@@ -1440,7 +1440,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
         {
           size_t budget = net.vsize() + net.esize();
           for (Node_Iterator<Net> nt(net); nt.has_curr() and budget > 0; nt.next_ne())
-            for (Node *v = nt.get_curr(); between(v) and off(v) and budget > 0; --budget)
+            for (Node *v = nt.get_curr_ne(); between(v) and off(v) and budget > 0; --budget)
               {
                 const bool keeps = excess(v) > Flow_Type{0};
                 const Flow_Type d = std::abs(excess(v));
@@ -1465,7 +1465,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
                 for (size_t k = 0; k < queue.size() and w == nullptr; ++k)
                   for (typename Net::Node_Arc_Iterator it(queue[k]); it.has_curr(); it.next_ne())
                     {
-                      Arc *a = it.get_curr();
+                      Arc *a = it.get_curr_ne();
                       Node *near = keeps ? net.get_tgt_node(a) : net.get_src_node(a);
                       Node *x = keeps ? net.get_src_node(a) : net.get_tgt_node(a);
                       if (near != queue[k] or x == near or not (a->flow > Flow_Type{0}) or
@@ -1525,7 +1525,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
         {
           Node *end = apart > Flow_Type{0} ? source : sink;
           for (typename Net::Node_Arc_Iterator it(end); it.has_curr(); it.next_ne())
-            if (Arc *a = it.get_curr(); a->flow > Flow_Type{0} and
+            if (Arc *a = it.get_curr_ne(); a->flow > Flow_Type{0} and
                 (end == source ? net.get_src_node(a) : net.get_tgt_node(a)) == end and
                 net.get_src_node(a) != net.get_tgt_node(a))
               end_arcs.push_back(a);
@@ -1603,7 +1603,10 @@ typename Net::Flow_Type increase_flow(Net &net, const Path<Net> &path)
 /** @brief Increase flow along a semi-path by a given slack.
  *
  * With a floating type of flow, a flow that rounding leaves next to the
- * capacity of its arc, or next to zero, is set to it.
+ * capacity of its arc, or next to zero, is set to it. A node may then
+ * keep or lack a residue of rounding beyond the tolerance of
+ * check_node(), when its flows are such residues, which came from arcs of
+ * larger flows: aumenting_path_maximum_flow() returns them at its end.
  *
  * @param[in,out] net Flow network to update.
  * @param[in] semi_path Semi-path arc list.
@@ -1628,7 +1631,8 @@ void increase_flow(Net &net, const DynList<Parc<Net>> &semi_path, const typename
 
       assert(arc->check_arc());
     }
-  assert(net.check_network());
+  if constexpr (not std::is_floating_point_v<typename Net::Flow_Type>)
+    assert(net.check_network());
 }
 
 /** @brief Decrease flow along a semi-path by a given slack.
@@ -2080,6 +2084,11 @@ inline void update_flow(const Rnet &rnet)
 
 /** @brief Maximize flow using repeated augmenting-path searches.
  *
+ * With a floating type of flow, the residues of rounding that the paths
+ * leave go back at the end, as those of the preflows (see
+ * net_detail::return_dust()): every node keeps its flow within the
+ * tolerance of check_node().
+ *
  * @param[in,out] net Flow network (must have a single source and sink).
  * @return Maximized flow value.
  *
@@ -2106,6 +2115,12 @@ typename Net::Flow_Type aumenting_path_maximum_flow(Net &net)
 
       increase_flow<Net>(net, get<2>(semi_path), slack);
     }
+
+  // A slack that rounding left on an arc of larger flows, next to one of
+  // smaller capacity, may go along a path as a residue, whose nodes then
+  // lose their balance when other paths take their flows to zero
+  net_detail::return_dust(net, net.get_source(), net.get_sink());
+  assert(net.get_source() == net.get_sink() or net.check_network());
 
   return net.get_out_flow(net.get_source());
 }
