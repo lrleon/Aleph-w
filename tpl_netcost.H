@@ -57,6 +57,7 @@
 # include <tpl_find_path.H>
 # include <tpl_cut_nodes.H>
 # include <Bellman_Ford.H>
+# include <tpl_dfs_stack.H>  // ALEPH_FLATTEN
 # include <generate_graph.H>
 # include <ah-errors.H>
 
@@ -1063,13 +1064,120 @@ namespace Aleph
 
     static constexpr Flow_Type Inf = std::numeric_limits<Flow_Type>::max();
 
-    /// Epsilon for floating-point comparisons.
-    static Flow_Type eps()
+    // The tolerances of the comparisons of a floating flow, relative to the
+    // data of the network: of the flows, 1000 epsilons of the largest
+    // finite capacity or flow, and of the reduced costs, 1000 epsilons of
+    // the largest cost. An absolute tolerance of 1000 epsilons left
+    // unoptimized the costs and the capacities below 2.2e-13. An integer
+    // flow compares exactly.
+    Flow_Type flow_tol = Flow_Type{0};
+    Flow_Type cost_tol = Flow_Type{0};
+
+    bool ran = false;  // whether run() made the structures of the arcs
+    bool unbounded = false;  // whether the last cycle had no bound
+
+    /// Add d to the flow of a, if up, or take it away. A floating flow
+    /// stays within [0, cap]: rounding left it an ulp beyond, and then
+    /// every later cycle through the arc had a negative ratio, so that
+    /// its pivot failed and run() ended as if it were optimal.
+    static void move_flow(Arc *a, const Flow_Type d, const bool up) noexcept
+    {
+      if (up)
+        a->flow += d;
+      else
+        a->flow -= d;
+
+      if constexpr (std::is_floating_point_v<Flow_Type>)
+        {
+          if (a->flow > a->cap)
+            a->flow = a->cap;
+          else if (a->flow < Flow_Type{0})
+            a->flow = Flow_Type{0};
+        }
+    }
+
+    /// Whether an arc has no capacity: its capacity is infinite or max().
+    static bool without_capacity(const Arc *a) noexcept
     {
       if constexpr (std::is_floating_point_v<Flow_Type>)
-        return std::numeric_limits<Flow_Type>::epsilon() * 1000;
-      else
+        if (std::isinf(a->cap))
+          return true;
+      return a->cap >= Inf;
+    }
+
+    /// Compute the tolerances from the capacities, flows and costs.
+    void set_tolerances()
+    {
+      if constexpr (std::is_floating_point_v<Flow_Type>)
+        {
+          Flow_Type largest_flow = 0, largest_cost = 0;
+          for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+            {
+              auto a = it.get_curr();
+              if (not without_capacity(a))
+                largest_flow = std::max(largest_flow, std::abs(a->cap));
+              if (std::isfinite(a->flow))
+                largest_flow = std::max(largest_flow, std::abs(a->flow));
+              if (std::isfinite(a->cost))
+                largest_cost = std::max(largest_cost, std::abs(a->cost));
+            }
+          const Flow_Type e = std::numeric_limits<Flow_Type>::epsilon() * 1000;
+          flow_tol = e * largest_flow;
+          cost_tol = e * largest_cost;
+        }
+    }
+
+    /// Throw domain_error, naming member, if run() has not made the
+    /// structures of the arcs that it reads.
+    void ensure_ran(const char *member) const
+    {
+      ah_domain_error_if(not ran)
+        << "Network_Simplex::" << member << "(): run() has not been called";
+    }
+
+    /// Whether the flow of the network is feasible: finite and within the
+    /// bounds of each arc, and kept by each node but the source and the
+    /// sink, within the tolerance of check_node(). check_network() also
+    /// asks that each node be connected, as the source of a network whose
+    /// source is its sink, isolated, is not.
+    bool feasible_flow() const
+    {
+      for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+        {
+          auto a = it.get_curr();
+          if (not a->check_arc())
+            return false;
+          if constexpr (std::is_floating_point_v<Flow_Type>)
+            if (not std::isfinite(a->flow))
+              return false;
+        }
+
+      const auto source = net.get_source(), sink = net.get_sink();
+      for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
+        {
+          auto p = it.get_curr();
+          if (p == source or p == sink)
+            continue;
+          const auto in = net.get_in_flow(p), out = net.get_out_flow(p);
+          if (not (std::abs(in - out) <= Net::node_tolerance(in, out)))
+            return false;
+        }
+      return true;
+    }
+
+    /// The arcs of the trees of a basic solution, one by node but the root
+    /// of the tree of each component of the network; zero before run().
+    /// vsize() - 1 counted those of a single tree.
+    size_t expected_tree_arcs() const
+    {
+      if (not ran)
         return 0;
+
+      size_t roots = 0;
+      for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
+        if (ninfo(it.get_curr()).depth == 0)
+          ++roots;
+      return net.vsize() - roots;
     }
 
     /// Get node info reference.
@@ -1095,15 +1203,6 @@ namespace Aleph
 
     /// Get potential.
     Flow_Type potential(Node *p) const { return ninfo(p).potential; }
-
-    /// Check if value is effectively zero.
-    bool is_zero(Flow_Type x) const
-    {
-      if constexpr (std::is_floating_point_v<Flow_Type>)
-        return std::abs(x) <= eps();
-      else
-        return x == 0;
-    }
 
     /// Compute reduced cost of an arc.
     /// Reduced cost = c_ij - pi_i + pi_j
@@ -1150,7 +1249,7 @@ namespace Aleph
     /// Check if arc has partial flow (strictly between bounds).
     bool is_partial_flow(Arc *a) const
     {
-      return a->flow > eps() and a->flow < a->cap - eps();
+      return a->flow > flow_tol and a->flow < a->cap - flow_tol;
     }
 
     /** Build initial spanning tree from source.
@@ -1245,7 +1344,7 @@ namespace Aleph
                   int prio;
                   if (is_partial_flow(a))
                     prio = 0;  // Highest priority
-                  else if (a->flow > eps())
+                  else if (a->flow > flow_tol)
                     prio = 1;  // Medium priority
                   else
                     prio = 2;  // Lowest priority
@@ -1289,15 +1388,15 @@ namespace Aleph
           if (ainfo(a).state == Simplex_Arc_State::Tree)
             continue;
 
-          if (a->flow <= eps())
+          if (a->flow <= flow_tol)
             ainfo(a).state = Simplex_Arc_State::Lower;
-          else if (a->flow >= a->cap - eps())
+          else if (a->flow >= a->cap - flow_tol)
             ainfo(a).state = Simplex_Arc_State::Upper;
           else
             {
               // Partial flow arc NOT in tree - classify based on reduced cost
               auto rc = reduced_cost(a);
-              ainfo(a).state = (rc < -eps()) ?
+              ainfo(a).state = (rc < -cost_tol) ?
                   Simplex_Arc_State::Upper : Simplex_Arc_State::Lower;
             }
         }
@@ -1322,7 +1421,7 @@ namespace Aleph
     Arc *find_entering_arc()
     {
       Arc *best = nullptr;
-      Flow_Type best_violation = eps();  // Threshold to avoid tiny violations
+      Flow_Type best_violation = cost_tol;  // Threshold to avoid tiny violations
       bool best_is_increase = true;
 
       for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
@@ -1337,8 +1436,8 @@ namespace Aleph
             continue;
 
           const auto rc = reduced_cost(a);
-          const bool can_increase = (a->flow < a->cap - eps());
-          const bool can_decrease = (a->flow > eps());
+          const bool can_increase = (a->flow < a->cap - flow_tol);
+          const bool can_decrease = (a->flow > flow_tol);
 
           // Check FORWARD direction: increase flow (rc < 0 is good)
           if (can_increase and rc < -best_violation)
@@ -1507,16 +1606,25 @@ namespace Aleph
           p = parent(p);
         }
 
+      // Whether the leaving arc goes to its capacity: the entering arc
+      // that leaves goes to the bound to which it moves, which
+      // leaving_goes_lower does not tell for it
+      const bool to_cap = leaving == entering ? increase_on_entering : not leaving_goes_lower;
+
+      // A cycle that no arc bounds, of arcs without capacity, has no
+      // pivot; in Phase II, where it lowers the cost, the program is
+      // unbounded, and run() throws
+      unbounded = to_cap and without_capacity(leaving);
+      if (unbounded)
+        return false;
+
       // Allow degenerate pivots (delta=0) if we found a valid leaving arc
       // This restructures the tree without changing flow, potentially enabling
       // future pivots that were previously blocked.
       if (delta >= 0 and leaving != nullptr)
         {
           // Update entering arc
-          if (increase_on_entering)
-            entering->flow += delta;
-          else
-            entering->flow -= delta;
+          move_flow(entering, delta, increase_on_entering);
 
           // Update u-side (same logic as above)
           p = u;
@@ -1524,13 +1632,7 @@ namespace Aleph
             {
               Arc *pa = parent_arc(p);
               bool from_parent = ninfo(p).arc_from_parent;
-              bool flow_increases = (increase_on_entering == from_parent);
-
-              if (flow_increases)
-                pa->flow += delta;
-              else
-                pa->flow -= delta;
-
+              move_flow(pa, delta, increase_on_entering == from_parent);
               p = parent(p);
             }
 
@@ -1540,15 +1642,13 @@ namespace Aleph
             {
               Arc *pa = parent_arc(p);
               bool from_parent = ninfo(p).arc_from_parent;
-              bool flow_increases = (increase_on_entering != from_parent);
-
-              if (flow_increases)
-                pa->flow += delta;
-              else
-                pa->flow -= delta;
-
+              move_flow(pa, delta, increase_on_entering != from_parent);
               p = parent(p);
             }
+
+          // The leaving arc reaches its bound, exactly
+          if constexpr (std::is_floating_point_v<Flow_Type>)
+            leaving->flow = to_cap ? leaving->cap : Flow_Type{0};
 
           return true;  // Successful pivot (including degenerate with delta=0)
         }
@@ -1565,7 +1665,7 @@ namespace Aleph
         @param[in] leaving The leaving arc.
         @param[in] leaving_goes_lower True if leaving goes to lower bound.
     */
-    void pivot_tree(Arc *entering, Arc *leaving, bool leaving_goes_lower)
+    ALEPH_FLATTEN void pivot_tree(Arc *entering, Arc *leaving, bool leaving_goes_lower)
     {
       // Handle degenerate pivot where entering = leaving
       if (entering == leaving)
@@ -1763,7 +1863,7 @@ namespace Aleph
     */
     [[nodiscard]] bool is_at_lower_bound(Arc *a) const
     {
-      return std::abs(a->flow - ainfo(a).lower_bound) < eps();
+      return std::abs(a->flow - ainfo(a).lower_bound) <= flow_tol;
     }
 
     /** Check if arc flow is at upper bound (capacity).
@@ -1773,7 +1873,7 @@ namespace Aleph
     */
     [[nodiscard]] bool is_at_upper_bound(Arc *a) const
     {
-      return std::abs(a->flow - a->cap) < eps();
+      return std::abs(a->flow - a->cap) <= flow_tol;
     }
 
     /** Get residual capacity (room to increase flow).
@@ -1800,22 +1900,39 @@ namespace Aleph
   public:
     /** Execute Network Simplex algorithm.
 
-        Computes minimum cost flow. If the network already has a feasible
-        flow (e.g., from Ford-Fulkerson), it optimizes starting from there.
+        Computes minimum cost flow. It optimizes the cost of the flow that
+        the network has, as one of Ford-Fulkerson, keeping its value.
+
+        With a floating flow, its comparisons are within tolerances
+        relative to the data: 1000 epsilons of the largest capacity or flow,
+        and of the largest cost.
 
         @param[in] unused Kept for API compatibility.
         @return Number of pivots performed.
+        @throw std::domain_error if the network is not of a single source
+               and a single sink, if its flow is not feasible (beyond
+               the capacity of an arc, negative, infinite, or not kept by
+               a node but the source and the sink), or if the program is
+               unbounded: a cycle of negative cost through arcs
+               without capacity
+        @throw std::runtime_error if the pivots reach their bound before
+               the optimum; the network keeps a feasible flow of the same
+               value
     */
     size_t run([[maybe_unused]] Flow_Type unused = 0)
     {
       ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
           << "Network is not single source and single sink";
+      ah_domain_error_if(not feasible_flow())
+          << "Network_Simplex::run(): the flow of the network is not feasible";
 
       stats.reset();
       auto total_start = std::chrono::high_resolution_clock::now();
 
+      set_tolerances();
       init_structures();
       build_spanning_tree();
+      ran = true;
 
       // Count initial partial-flow arcs
       stats.initial_partial_arcs = count_non_tree_partial_arcs();
@@ -1836,12 +1953,17 @@ namespace Aleph
       const size_t max_pivots = net.vsize() * net.esize() * 10 + 1000;
       const size_t max_failures = net.esize() + 1;
 
+      bool optimal = false;
       while (num_pivots < max_pivots and failed_attempts < max_failures)
         {
           Arc *entering = find_entering_arc();
 
           if (entering == nullptr)
-            break;  // Optimal!
+            {
+              // Without an arc that failed its pivot, which no arc takes
+              optimal = failed_attempts == 0;
+              break;
+            }
 
           Flow_Type delta;
           Arc *leaving;
@@ -1849,9 +1971,13 @@ namespace Aleph
 
           bool success = augment_and_find_leaving(entering, delta, leaving, leaving_goes_lower);
 
+          ah_domain_error_if(unbounded)
+            << "Network_Simplex::run(): the program is unbounded: a cycle of "
+            << "negative cost through arcs without capacity";
+
           if (success)
             {
-              if (std::abs(delta) < eps())
+              if (delta <= flow_tol)  // zero, for an integer flow
                 ++stats.degenerate_pivots;
 
               pivot_tree(entering, leaving, leaving_goes_lower);
@@ -1885,6 +2011,12 @@ namespace Aleph
         if (ainfo(it.get_curr()).state == Simplex_Arc_State::Tree)
           ++stats.tree_arcs;
 
+      // The bounds of the pivots ended the loop without the optimum, which
+      // it hid
+      ah_runtime_error_if(not optimal)
+        << "Network_Simplex::run(): the cost is not optimal after "
+        << num_pivots << " pivots";
+
       return num_pivots;
     }
 
@@ -1902,7 +2034,7 @@ namespace Aleph
                 << "  Phase I pivots: " << stats.phase1_pivots << "\n"
                 << "  Phase II pivots: " << stats.phase2_pivots << "\n"
                 << "  Degenerate pivots: " << stats.degenerate_pivots << "\n"
-                << "Tree arcs: " << stats.tree_arcs << " (expected " << (net.vsize() - 1) << ")\n"
+                << "Tree arcs: " << stats.tree_arcs << " (expected " << expected_tree_arcs() << ")\n"
                 << "Initial partial-flow arcs: " << stats.initial_partial_arcs << "\n"
                 << "Arcs forced into tree: " << stats.forced_into_tree << "\n"
                 << "Timing:\n"
@@ -1925,6 +2057,7 @@ namespace Aleph
     */
     size_t force_partial_arcs_into_tree()
     {
+      ensure_ran("force_partial_arcs_into_tree");
       size_t forced_pivots = 0;
       bool made_progress = true;
 
@@ -1983,9 +2116,9 @@ namespace Aleph
                   else
                     {
                       // Cannot add this arc - restore to appropriate bound
-                      if (a->flow <= eps())
+                      if (a->flow <= flow_tol)
                         ainfo(a).state = Simplex_Arc_State::Lower;
-                      else if (a->flow >= a->cap - eps())
+                      else if (a->flow >= a->cap - flow_tol)
                         ainfo(a).state = Simplex_Arc_State::Upper;
                       else
                         ainfo(a).state = Simplex_Arc_State::Lower;  // Should not happen
@@ -2007,6 +2140,7 @@ namespace Aleph
     */
     bool is_valid_basic_solution() const
     {
+      ensure_ran("is_valid_basic_solution");
       for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
         {
           auto a = it.get_curr();
@@ -2023,6 +2157,7 @@ namespace Aleph
     /** Count arcs with partial flow not in tree. */
     size_t count_non_tree_partial_arcs() const
     {
+      ensure_ran("count_non_tree_partial_arcs");
       size_t count = 0;
       for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
         {
@@ -2042,6 +2177,7 @@ namespace Aleph
     */
     bool verify_tree_reduced_costs() const
     {
+      ensure_ran("verify_tree_reduced_costs");
       for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
         {
           auto a = it.get_curr();
@@ -2049,7 +2185,7 @@ namespace Aleph
             continue;
 
           auto rc = reduced_cost(a);
-          if (std::abs(rc) > eps() * 100)  // Allow small tolerance
+          if (std::abs(rc) > 100 * cost_tol)  // Allow small tolerance
             return false;
         }
       return true;
@@ -2061,6 +2197,7 @@ namespace Aleph
     */
     [[nodiscard]] bool verify_tree_integrity() const
     {
+      ensure_ran("verify_tree_integrity");
       for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
         {
           auto p = it.get_curr();
@@ -2080,6 +2217,7 @@ namespace Aleph
     /** Print diagnostic information about current state. */
     void print_diagnostics() const
     {
+      ensure_ran("print_diagnostics");
       std::cout << "\n=== Network Simplex Diagnostics ===\n";
 
       // Count arc types
@@ -2096,7 +2234,7 @@ namespace Aleph
 
       std::cout << "Arcs: Tree=" << tree_arcs << " Lower=" << lower_arcs
                 << " Upper=" << upper_arcs << " Total=" << net.esize() << "\n";
-      std::cout << "Expected tree arcs: " << (net.vsize() - 1) << "\n";
+      std::cout << "Expected tree arcs: " << expected_tree_arcs() << "\n";
 
       // Verify tree reduced costs
       bool tree_rc_ok = verify_tree_reduced_costs();
@@ -2113,7 +2251,7 @@ namespace Aleph
           if (state == Simplex_Arc_State::Lower)
             {
               // Lower: flow=0, can increase. Optimal if rc >= 0
-              if (rc < -eps() and a->flow < a->cap - eps())
+              if (rc < -cost_tol and a->flow < a->cap - flow_tol)
                 {
                   ++violations;
                   std::cout << "  VIOLATION: Lower arc with rc=" << rc
@@ -2123,7 +2261,7 @@ namespace Aleph
           else if (state == Simplex_Arc_State::Upper)
             {
               // Upper: flow=cap, can decrease. Optimal if rc <= 0
-              if (rc > eps() and a->flow > eps())
+              if (rc > cost_tol and a->flow > flow_tol)
                 {
                   ++violations;
                   std::cout << "  VIOLATION: Upper arc with rc=" << rc
@@ -2158,7 +2296,11 @@ namespace Aleph
       @return Number of simplex pivots performed (Phase I + Phase II).
 
       @throw bad_alloc If there is not enough memory.
-      @throw domain_error If network is not single source and single sink.
+      @throw domain_error If network is not single source and single sink,
+             or if the program is unbounded: a cycle of negative cost
+             through arcs without capacity.
+      @throw runtime_error If the pivots reach their bound before the
+             optimum (see Network_Simplex::run()).
 
       @par Complexity
       Expected O(n * m * log(n * C)) with good pivot rules, where n=nodes,

@@ -38,6 +38,10 @@
 #include <gtest/gtest.h>
 #include <sstream>
 #include <cmath>
+#include <limits>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #include <tpl_netcost.H>
 
@@ -1103,9 +1107,8 @@ TEST_F(NetworkSimplexTest, TextbookNetwork)
 
   EXPECT_TRUE(verify_flow_conservation(net));
   EXPECT_TRUE(verify_capacity_constraints(net));
-  EXPECT_GT(max_flow, 0);
-  EXPECT_LE(max_flow, 5.0);
-  EXPECT_GE(total_cost, 0);
+  EXPECT_DOUBLE_EQ(max_flow, 5.0);
+  EXPECT_DOUBLE_EQ(total_cost, 18.0);  // the exact optimum
 
   std::cout << "Network Simplex textbook: max_flow=" << max_flow
             << ", total_cost=" << total_cost
@@ -1123,8 +1126,8 @@ TEST_F(NetworkSimplexTest, LargerNetwork)
 
   EXPECT_TRUE(verify_flow_conservation(net));
   EXPECT_TRUE(verify_capacity_constraints(net));
-  EXPECT_GT(max_flow, 0);
-  EXPECT_GE(total_cost, 0);
+  EXPECT_DOUBLE_EQ(max_flow, 8.0);
+  EXPECT_DOUBLE_EQ(total_cost, 36.0);  // the exact optimum
 
   std::cout << "Network Simplex larger: max_flow=" << max_flow
             << ", total_cost=" << total_cost
@@ -2188,6 +2191,333 @@ TEST_F(NetworkSimplexBugInvestigation, NegativeCostsTest)
   
   // Should find lower or equal cost
   EXPECT_LE(cost_after, cost_before + 1e-6);
+}
+
+// =============================================================================
+// NETWORK SIMPLEX WITH FLOATING AND INTEGER FLOWS
+// =============================================================================
+
+using LNet = Net_Cost_Graph<Net_Cost_Node<Empty_Class>, Net_Cost_Arc<Empty_Class, long>>;
+
+// Whether the flow of each arc of net is within [0, cap]
+template <class N>
+bool flows_within_capacities(const N & net)
+{
+  for (auto a : net.arcs())
+    if (a->flow < 0 or a->flow > a->cap)
+      return false;
+  return true;
+}
+
+// A pivot left an arc an ulp above its capacity; every later cycle through
+// it then had a negative ratio, so that its pivot failed, and run() ended as
+// if the flow were optimal, at cost 4 instead of 3.6
+TEST(NetworkSimplexFloatingTest, APivotKeepsTheFlowsWithinTheCapacities)
+{
+  Net net;
+  auto s = net.insert_node();
+  auto t = net.insert_node();
+  auto dear = net.insert_arc(s, t, 0.2, 3.0);
+  auto a1 = net.insert_arc(s, t, 3.4, 1.0);
+  auto a2 = net.insert_arc(s, t, 2.3, 1.0);
+  dear->flow = 0.2;
+  a1->flow = 2.7;
+  a2->flow = 0.7;
+
+  Network_Simplex<Net> simplex(net);
+  simplex.run();
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_EQ(dear->flow, 0.0);
+  EXPECT_NEAR(net.flow_value(), 3.6, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), 3.6, 1e-12);
+}
+
+// Capacities in tenths: a pivot left an arc of capacity 2.9 with a flow of
+// 2.9000000000000004, and run() ended at cost -0.1; the exact problem, of
+// capacities by ten, has the least cost -8
+TEST(NetworkSimplexFloatingTest, DecimalCapacitiesReachTheOptimum)
+{
+  // u, v, the capacity in tenths and the cost; 0 is the source and 3 the sink
+  const int spec[][4] = {{1, 4, 9, 2}, {2, 3, 10, 3}, {4, 2, 29, -2}, {2, 4, 22, 0},
+                         {0, 1, 26, 0}, {0, 2, 5, 2}, {0, 1, 7, 1}};
+  Net net;
+  std::vector<Net::Node *> nodes;
+  for (int i = 0; i < 5; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, double(a[3]));
+
+  max_flow_min_cost_by_network_simplex(net);
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(net.flow_value(), 1.0, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), -0.8, 1e-12);
+}
+
+// The tolerance of the reduced costs was 1000 epsilons, 2.2e-13: run() did
+// not lower costs below it, and left the flow on the dearer arc
+TEST(NetworkSimplexFloatingTest, TinyCostsAreOptimized)
+{
+  for (const double unit : {1e-13, std::ldexp(1.0, -44)})
+    {
+      Net net;
+      auto s = net.insert_node();
+      auto a = net.insert_node();
+      auto t = net.insert_node();
+      auto sa = net.insert_arc(s, a, 1.0, 0.0);
+      auto cheap = net.insert_arc(a, t, 1.0, unit);
+      auto dear = net.insert_arc(a, t, 1.0, 2 * unit);
+      sa->flow = 1;
+      dear->flow = 1;
+
+      Network_Simplex<Net> simplex(net);
+      simplex.run();
+
+      EXPECT_EQ(cheap->flow, 1.0) << "unit " << unit;
+      EXPECT_EQ(dear->flow, 0.0) << "unit " << unit;
+      EXPECT_DOUBLE_EQ(net.flow_cost(), unit) << "unit " << unit;
+    }
+}
+
+// So was that of the flows: capacities below it were taken as empty, and the
+// flow went through the dearer arc
+TEST(NetworkSimplexFloatingTest, TinyCapacitiesAreOptimized)
+{
+  for (const double unit : {1e-12, 1e-13})
+    {
+      Net net;
+      auto s = net.insert_node();
+      auto a = net.insert_node();
+      auto t = net.insert_node();
+      net.insert_arc(s, a, unit, 0.0);
+      auto cheap = net.insert_arc(a, t, unit, 1.0);
+      auto dear = net.insert_arc(a, t, unit, 2.0);
+
+      max_flow_min_cost_by_network_simplex(net);
+
+      EXPECT_EQ(cheap->flow, unit) << "unit " << unit;
+      EXPECT_EQ(dear->flow, 0.0) << "unit " << unit;
+      EXPECT_DOUBLE_EQ(net.flow_cost(), unit) << "unit " << unit;
+    }
+}
+
+// From the zero flow, run() left empty a cycle of cost -2e-13
+TEST(NetworkSimplexFloatingTest, ATinyNegativeCycleIsSaturated)
+{
+  Net net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  net.insert_arc(s, t, 1.0, 0.0);
+  auto ab = net.insert_arc(a, b, 1.0, -1e-13);
+  auto ba = net.insert_arc(b, a, 1.0, -1e-13);
+
+  Network_Simplex<Net> simplex(net);
+  simplex.run();
+
+  EXPECT_EQ(ab->flow, 1.0);
+  EXPECT_EQ(ba->flow, 1.0);
+  EXPECT_DOUBLE_EQ(net.flow_cost(), -2e-13);
+}
+
+// A cycle of negative cost through arcs without capacity has no bound: run()
+// pushed around it an infinite flow, of cost NaN, or one of max(), and
+// returned as if it had found the optimum
+TEST(NetworkSimplexFloatingTest, AnUnboundedProgramThrows)
+{
+  for (const double cap : {std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::max()})
+    {
+      Net net;
+      auto s = net.insert_node();
+      auto a = net.insert_node();
+      auto b = net.insert_node();
+      auto t = net.insert_node();
+      net.insert_arc(s, t, 1.0, 0.0);
+      net.insert_arc(a, b, cap, -1.0);
+      net.insert_arc(b, a, cap, 0.0);
+
+      EXPECT_THROW(max_flow_min_cost_by_network_simplex(net), std::domain_error)
+        << "capacity " << cap;
+    }
+
+  LNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  net.insert_arc(s, t, 1, 0);
+  net.insert_arc(a, b, std::numeric_limits<long>::max(), -1);
+  net.insert_arc(b, a, std::numeric_limits<long>::max(), 0);
+
+  EXPECT_THROW(max_flow_min_cost_by_network_simplex(net), std::domain_error);
+}
+
+// The network of AnInfeasibleFlowThrows: s = 0, a = 1, b = 2, t = 3
+std::vector<LNet::Arc *> build_infeasible_case(LNet & net)
+{
+  std::vector<LNet::Node *> p;
+  for (int i = 0; i < 4; ++i)
+    p.push_back(net.insert_node());
+  return {net.insert_arc(p[0], p[1], 2, 1), net.insert_arc(p[0], p[2], 2, 2),
+          net.insert_arc(p[1], p[3], 2, 1), net.insert_arc(p[2], p[3], 2, 1),
+          net.insert_arc(p[1], p[2], 1, -3)};
+}
+
+// run() optimizes the flow that the network has, and did so from flows that
+// a node did not keep or that broke the bounds of an arc
+TEST(NetworkSimplexIntegerTest, AnInfeasibleFlowThrows)
+{
+  {
+    LNet net;
+    auto arcs = build_infeasible_case(net);
+    arcs[0]->flow = 2;  // into a, and nothing out of it
+    Network_Simplex<LNet> simplex(net);
+    EXPECT_THROW(simplex.run(), std::domain_error);
+  }
+  {
+    LNet net;
+    auto arcs = build_infeasible_case(net);
+    arcs[0]->flow = arcs[2]->flow = 3;  // above their capacity 2
+    Network_Simplex<LNet> simplex(net);
+    EXPECT_THROW(simplex.run(), std::domain_error);
+  }
+  {
+    LNet net;
+    auto arcs = build_infeasible_case(net);
+    arcs[0]->flow = arcs[2]->flow = -1;
+    Network_Simplex<LNet> simplex(net);
+    EXPECT_THROW(simplex.run(), std::domain_error);
+  }
+}
+
+// An infinite flow, on an arc of infinite capacity, is within its bounds
+TEST(NetworkSimplexFloatingTest, AnInfiniteFlowThrows)
+{
+  Net net;
+  auto s = net.insert_node();
+  auto t = net.insert_node();
+  auto st = net.insert_arc(s, t, std::numeric_limits<double>::infinity(), 1.0);
+  st->flow = std::numeric_limits<double>::infinity();
+
+  Network_Simplex<Net> simplex(net);
+  EXPECT_THROW(simplex.run(), std::domain_error);
+}
+
+// With an integer flow the tolerance was zero, and the predicates compared
+// with <: is_at_lower_bound() and is_at_upper_bound() were always false
+TEST(NetworkSimplexIntegerTest, ThePredicatesOfTheBoundsCompareExactly)
+{
+  LNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto t = net.insert_node();
+  auto sa = net.insert_arc(s, a, 1, 0);
+  auto cheap = net.insert_arc(a, t, 1, 1);
+  auto dear = net.insert_arc(a, t, 1, 2);
+  sa->flow = 1;
+  dear->flow = 1;
+
+  Network_Simplex<LNet> simplex(net);
+  simplex.run();
+
+  ASSERT_EQ(cheap->flow, 1);
+  ASSERT_EQ(dear->flow, 0);
+  EXPECT_TRUE(simplex.is_at_upper_bound(sa));
+  EXPECT_TRUE(simplex.is_at_upper_bound(cheap));
+  EXPECT_FALSE(simplex.is_at_lower_bound(cheap));
+  EXPECT_TRUE(simplex.is_at_lower_bound(dear));
+  EXPECT_FALSE(simplex.is_at_upper_bound(dear));
+}
+
+// And no pivot of an integer flow was counted as degenerate
+TEST(NetworkSimplexIntegerTest, DegeneratePivotsAreCounted)
+{
+  // The maximum flow saturates s->a, s->b, a->t and b->t, and is of least
+  // cost: no pivot of run() moves flow
+  LNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  net.insert_arc(s, a, 2, 1);
+  net.insert_arc(s, b, 2, 2);
+  net.insert_arc(a, t, 2, 1);
+  net.insert_arc(b, t, 2, 1);
+  net.insert_arc(a, b, 1, 0);
+  Ford_Fulkerson_Maximum_Flow<LNet>()(net);
+  const long cost = net.flow_cost();
+
+  Network_Simplex<LNet> simplex(net);
+  const size_t pivots = simplex.run();
+
+  ASSERT_EQ(net.flow_cost(), cost);
+  ASSERT_GT(pivots, 0u);
+  EXPECT_EQ(simplex.get_stats().degenerate_pivots, pivots);
+}
+
+// The diagnostics read the structures that run() makes; before it they
+// threw "key not found"
+TEST_F(NetworkSimplexTest, TheDiagnosticsAskForRunFirst)
+{
+  auto net = build_diamond_network();
+  Network_Simplex<Net> simplex(net);
+
+  auto expect_run_first = [] (auto diagnostic, const char * name)
+    {
+      try
+        {
+          diagnostic();
+          ADD_FAILURE() << name << "() did not throw";
+        }
+      catch (const std::domain_error & e)
+        {
+          EXPECT_NE(std::string(e.what()).find("run() has not been called"),
+                    std::string::npos) << name << "(): " << e.what();
+        }
+    };
+  expect_run_first([&] { (void) simplex.count_non_tree_partial_arcs(); },
+                   "count_non_tree_partial_arcs");
+  expect_run_first([&] { (void) simplex.is_valid_basic_solution(); },
+                   "is_valid_basic_solution");
+  expect_run_first([&] { (void) simplex.verify_tree_reduced_costs(); },
+                   "verify_tree_reduced_costs");
+  expect_run_first([&] { (void) simplex.verify_tree_integrity(); },
+                   "verify_tree_integrity");
+  expect_run_first([&] { (void) simplex.force_partial_arcs_into_tree(); },
+                   "force_partial_arcs_into_tree");
+  expect_run_first([&] { simplex.print_diagnostics(); }, "print_diagnostics");
+
+  simplex.run();
+  EXPECT_TRUE(simplex.is_valid_basic_solution());
+  EXPECT_TRUE(simplex.verify_tree_integrity());
+}
+
+// A network whose source is its sink, isolated, has a tree for each of its
+// components, and the statistics expected vsize() - 1 arcs in them
+TEST(NetworkSimplexIntegerTest, TheStatisticsExpectATreeByComponent)
+{
+  LNet net;
+  net.insert_node();  // the source and the sink
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  net.insert_arc(a, b, 1, -1);
+  net.insert_arc(b, a, 1, -1);
+
+  Network_Simplex<LNet> simplex(net);
+  simplex.run();
+  ASSERT_EQ(net.flow_cost(), -2);
+
+  testing::internal::CaptureStdout();
+  simplex.print_stats();
+  simplex.print_diagnostics();
+  const std::string out = testing::internal::GetCapturedStdout();
+  EXPECT_NE(out.find("Tree arcs: 1 (expected 1)"), std::string::npos) << out;
+  EXPECT_NE(out.find("Expected tree arcs: 1\n"), std::string::npos) << out;
 }
 
 
