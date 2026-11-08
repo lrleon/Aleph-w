@@ -39,6 +39,8 @@
 #include <cstdio>
 #include <algorithm>
 #include <filesystem>
+#include <limits>
+#include <string>
 #include <io_graph.H>
 #include <tpl_graph.H>
 #if defined(_WIN32)
@@ -776,6 +778,62 @@ TEST_F(IOGraphTest, ALoadAddsToTheGraph)
   io.load(in);
   EXPECT_EQ(g2.vsize(), 5u);
   EXPECT_EQ(g2.esize(), 3u);
+}
+
+TEST_F(IOGraphTest, ALoadDoesNotTrustTheCountOfTheStream)
+{
+  // The count of nodes of the stream reserved the table of the load: a
+  // corrupted one, huge, asked for more memory than there is
+  const size_t huge = std::numeric_limits<size_t>::max();
+  {
+    std::ofstream out(binary_file, std::ios::binary);
+    out.write(reinterpret_cast<const char *>(&huge), sizeof(huge));
+  }
+  Graph g2;
+  g2.insert_node(99);
+  IO_Graph<Graph> io(g2);
+  std::ifstream in(binary_file, std::ios::binary);
+  EXPECT_THROW(io.load(in), std::runtime_error);
+  EXPECT_EQ(g2.vsize(), 1u);
+  EXPECT_EQ(g2.esize(), 0u);
+
+  std::istringstream text(std::to_string(huge) + "\n0\n");
+  EXPECT_THROW(io.load_in_text_mode(text), std::runtime_error);
+  EXPECT_EQ(g2.vsize(), 1u);
+  EXPECT_EQ(g2.esize(), 0u);
+}
+
+TEST_F(IOGraphTest, ALoadGrowsBeyondWhatItReserves)
+{
+  // A load reserves for 2^20 nodes at most, and grows as it reads more:
+  // an arc from a node beyond that limit
+  const size_t n = (size_t(1) << 20) + 2;
+  {
+    std::ofstream out(binary_file, std::ios::binary);
+    out.write(reinterpret_cast<const char *>(&n), sizeof(n));
+    for (size_t i = 0; i < n; ++i)
+      {
+        const int info = static_cast<int>(i);
+        out.write(reinterpret_cast<const char *>(&info), sizeof(info));
+      }
+    const size_t num_arcs = 1;
+    out.write(reinterpret_cast<const char *>(&num_arcs), sizeof(num_arcs));
+    const int src = static_cast<int>(n - 1), tgt = 0;
+    out.write(reinterpret_cast<const char *>(&src), sizeof(src));
+    out.write(reinterpret_cast<const char *>(&tgt), sizeof(tgt));
+    const double w = 2.5;
+    out.write(reinterpret_cast<const char *>(&w), sizeof(w));
+  }
+  Graph g2;
+  IO_Graph<Graph> io(g2);
+  std::ifstream in(binary_file, std::ios::binary);
+  io.load(in);
+  EXPECT_EQ(g2.vsize(), n);
+  ASSERT_EQ(g2.esize(), 1u);
+  auto * a = g2.get_first_arc();
+  EXPECT_EQ(g2.get_src_node(a)->get_info(), static_cast<int>(n - 1));
+  EXPECT_EQ(g2.get_tgt_node(a)->get_info(), 0);
+  EXPECT_DOUBLE_EQ(a->get_info(), 2.5);
 }
 
 int main(int argc, char **argv)
