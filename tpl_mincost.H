@@ -264,8 +264,9 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
  *          network had: on a second run, the same.
  *
  *  @throws std::domain_error If the network does not have a single source and
- *          single sink, or if a reachable negative-cost cycle is detected in
- *          the initial residual graph (via ssp_init_potentials).
+ *          single sink, or if the initial residual graph has a negative-cost
+ *          cycle, wherever it is (via ssp_init_potentials): no path from the
+ *          source cancels it, and the flow would not be of least cost.
  *
  *  @note **Exception safety:** strong guarantee — if the function throws,
  *        the network's flow values are not modified.
@@ -286,17 +287,20 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
 
 /** @brief Initialize potentials using Bellman-Ford.
  *
- *  Computes shortest path distances from source to all nodes, which
- *  serve as initial potentials to ensure reduced costs are non-negative.
+ *  Computes the shortest path distances in the residual graph of the flow
+ *  of the network from a virtual node joined to every node by an arc of
+ *  cost 0, which serve as initial potentials to ensure reduced costs are
+ *  non-negative. From the source, it did not see the negative cycles that
+ *  the source does not reach.
  *
  *  @tparam Net Network type (must be Net_Cost_Graph or compatible).
  *  @param[in,out] net Flow network with costs.
- *  @param[in] source Source node for shortest path computation.
+ *  @param[in] source Kept for compatibility: the distances are not from it.
  *  @return true if no negative cycle detected, false otherwise.
  *  @ingroup Networks
  */
 template <class Net>
-bool ssp_init_potentials(Net &net, typename Net::Node *source)
+bool ssp_init_potentials(Net &net, [[maybe_unused]] typename Net::Node *source)
 {
   using Flow_Type = typename Net::Flow_Type;
 
@@ -320,10 +324,9 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
     return a - b;
   };
 
-  // Initialize distances
+  // Initialize distances: 0, through the arc from the virtual node
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    ssp_info<Net>(it.get_curr()).potential = INF;
-  ssp_info<Net>(source).potential = 0;
+    ssp_info<Net>(it.get_curr()).potential = 0;
 
   // Bellman-Ford: relax all edges n-1 times
   for (size_t i = 0; i < n - 1; ++i)
@@ -370,7 +373,7 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
     }
 
   // Negative-cycle detection: one extra relaxation pass.
-  // If any edge can still be relaxed, a negative cycle is reachable.
+  // If any edge can still be relaxed, the residual graph has a negative cycle.
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
       auto arc = it.get_curr();
@@ -391,11 +394,6 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
             return false;
         }
     }
-
-  // Set unreachable nodes to 0 (they won't affect anything)
-  for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    if (ssp_info<Net>(it.get_curr()).potential >= INF)
-      ssp_info<Net>(it.get_curr()).potential = 0;
 
   return true;
 }
@@ -457,8 +455,10 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
       flows_back.saved[i] = it.get_curr()->flow;
   }
 
-  // Main loop: find shortest augmenting paths
-  while (ssp_shortest_path(net, source, sink))
+  // Main loop: find shortest augmenting paths. A source that is the sink
+  // has none: the empty path from it to itself, which it took, augmented
+  // nothing, and the loop did not end
+  while (source != sink and ssp_shortest_path(net, source, sink))
     {
       // Find minimum residual capacity on path
       Flow_Type path_flow = std::numeric_limits<Flow_Type>::max();

@@ -482,8 +482,8 @@ TEST(TransportationTest, Larger3x4)
 
 // The negative-cycle path in ssp_init_potentials fires when Bellman-Ford's
 // extra (n-th) relaxation pass can still reduce some node's distance.
-// That requires a true directed cycle reachable from source whose arc-costs
-// sum to a negative value.
+// That requires a true directed cycle of the residual graph whose arc-costs
+// sum to a negative value, which the source reaches or not.
 //
 // Topology:  s --0--> m1 --1--> m2
 //                      ^         |
@@ -492,8 +492,8 @@ TEST(TransportationTest, Larger3x4)
 //            m1 --0--> t
 //
 // s is the unique source (in-degree 0), t is the unique sink (out-degree 0).
-// Bellman-Ford from s will keep decreasing d[m1] and d[m2] on every pass,
-// and the extra detection pass catches this.
+// Bellman-Ford will keep decreasing d[m1] and d[m2] on every pass, and the
+// extra detection pass catches this.
 TEST(NegCycleTest, RejectsNegativeCycle)
 {
   TestNet net;
@@ -527,13 +527,54 @@ TEST(NegCycleTest, AcceptsNonNegativeCostNetwork)
   EXPECT_NO_THROW(successive_shortest_paths(net));
 }
 
+// Bellman-Ford went from the source, and did not see a negative cycle that
+// the source does not reach: the flow came back of cost 0, while the
+// cheapest maximum flow saturates the cycle, at cost -2
+TEST(NegCycleTest, RejectsANegativeCycleApartFromTheSource)
+{
+  TestNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  auto st = net.insert_arc(s, t, 1.0, 0.0);
+  auto ab = net.insert_arc(a, b, 1.0, -1.0);
+  net.insert_arc(b, a, 1.0, -1.0);
+
+  EXPECT_THROW(successive_shortest_paths(net), std::domain_error);
+  EXPECT_EQ(st->flow, 0.0);
+  EXPECT_EQ(ab->flow, 0.0);
+}
+
+// A source that is the sink, isolated, has no path to augment: the loop took
+// the empty one from it to itself, and did not end
+TEST(SSPTest, ASourceThatIsTheSinkEnds)
+{
+  TestNet net;
+  net.insert_node();  // the source and the sink
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto ab = net.insert_arc(a, b, 1.0, 1.0);
+  auto ba = net.insert_arc(b, a, 1.0, 2.0);
+
+  const auto [flow, cost] = successive_shortest_paths(net);
+  EXPECT_EQ(flow, 0.0);
+  EXPECT_EQ(cost, 0.0);
+
+  // With a circulation of cost 3, whose cancellation is cheaper, the
+  // residual graph has a negative cycle
+  ab->flow = ba->flow = 1.0;
+  EXPECT_THROW(successive_shortest_paths(net), std::domain_error);
+  EXPECT_EQ(ab->flow, 1.0);
+  EXPECT_EQ(ba->flow, 1.0);
+}
+
 // --- Unreachable-node handling (indirect) --------------------------------
 
-// ssp_init_potentials sets potential to 0 for nodes unreachable from source
-// (they remain at INF after Bellman-Ford and are clamped).  In a valid
-// single-source/sink network every forward-reachable node is reached, but
-// zero-demand nodes in the transshipment wrapper are not connected to the
-// super-source/super-sink and end up with potential 0 rather than INF.
+// ssp_init_potentials starts the potential of every node at 0, from a
+// virtual node joined to all of them, so that the nodes that the source does
+// not reach have one too: zero-demand nodes in the transshipment wrapper are
+// not connected to the super-source/super-sink.
 // We verify indirectly: a transshipment instance where two nodes carry zero
 // demand must still solve correctly with total_flow == total non-zero supply.
 TEST(SSPTest, ZeroDemandNodesHandledGracefully)

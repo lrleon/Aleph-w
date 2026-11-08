@@ -2052,11 +2052,11 @@ namespace
   }
 
   /** Whether the residual network of the flow in b has a cycle of
-      negative cost that its source reaches, and whether it has one at
-      all, by Bellman-Ford: an arc goes forward, at its cost, if it has
-      capacity left, and backward, at minus its cost, if it has flow. */
+      negative cost, by Bellman-Ford from every node: an arc goes forward,
+      at its cost, if it has capacity left, and backward, at minus its
+      cost, if it has flow. */
   template <class Net>
-  std::pair<bool, bool> negative_residual_cycles(const Built_Net<Net> & b)
+  bool negative_residual_cycle(const Built_Net<Net> & b)
   {
     using F = typename Net::Flow_Type;
     std::map<typename Net::Node *, size_t> index;
@@ -2077,31 +2077,23 @@ namespace
         if (a->flow > F{0})
           r.push_back({v, u, -a->cost});
       }
-    // Whether the distances from the source, or from every node, still
-    // change after as many passes as nodes
-    auto negative = [&] (bool from_source)
+    // Whether the distances from every node still change after as many
+    // passes as nodes
+    const size_t n = index.size();
+    std::vector<F> d(n, F{0});
+    for (size_t pass = 0; pass < n; ++pass)
       {
-        const size_t n = index.size();
-        std::vector<bool> reached(n, not from_source);
-        std::vector<F> d(n, F{0});
-        if (from_source)
-          reached[index[b.src]] = true;
-        for (size_t pass = 0; pass < n; ++pass)
-          {
-            bool changed = false;
-            for (const auto & e : r)
-              if (reached[e.u] and (not reached[e.v] or d[e.u] + e.cost < d[e.v]))
-                {
-                  d[e.v] = d[e.u] + e.cost;
-                  reached[e.v] = true;
-                  changed = true;
-                }
-            if (not changed)
-              return false;
-          }
-        return true;
-      };
-    return {negative(true), negative(false)};
+        bool changed = false;
+        for (const auto & e : r)
+          if (d[e.u] + e.cost < d[e.v])
+            {
+              d[e.v] = d[e.u] + e.cost;
+              changed = true;
+            }
+        if (not changed)
+          return false;
+      }
+    return true;
   }
 
   /// The costs of the structural tests: arc i costs 2, 0 or 1 units, by i
@@ -2301,11 +2293,10 @@ TYPED_TEST(ExhaustiveMinCost, CheapestMaxFlowsFromAFlowAlreadyThere)
   using Net = TypeParam;
   // Every solver starts from the flow in the network; the successive
   // shortest paths need a residual network without cycles of negative
-  // cost, and refuse it if the source reaches one: when one is apart from
-  // the source, what they do is not defined, and it is not checked. The
-  // cycle canceling and the network simplex run with their first maximum
-  // flow only, as the others start from a flow in the tests of the
-  // maximum flows
+  // cost, and refuse it if it has one, wherever it is. The cycle
+  // canceling and the network simplex run with their first maximum flow
+  // only, as the others start from a flow in the tests of the maximum
+  // flows
   const auto solvers = cost_solvers<Net>();
   Family_Checks checks(solvers);
   small_structural_specs<Net>()([&] (const Spec & s)
@@ -2323,14 +2314,7 @@ TYPED_TEST(ExhaustiveMinCost, CheapestMaxFlowsFromAFlowAlreadyThere)
               if (i == 1 or i == 3)
                 continue;
               put_initial_flow(b);
-              bool refused = false;
-              if (is_ssp(i))
-                {
-                  const auto [reached, anywhere] = negative_residual_cycles(b);
-                  if (anywhere and not reached)
-                    continue;
-                  refused = reached;
-                }
+              const bool refused = is_ssp(i) and negative_residual_cycle(b);
               Check * check = checks.of(i, 0);
               check->run();
               if (refused)
