@@ -961,7 +961,8 @@ namespace Aleph
     Simplex_Arc_State state = Simplex_Arc_State::Lower;
     /// Skip this arc temporarily (failed pivot, will retry later).
     bool skip = false;
-    /// Lower bound on flow (default 0).
+    /// Lower bound on flow: always 0, as Network_Simplex supports no other.
+    /// @deprecated It goes in 8.0.0.
     Ftype lower_bound = Ftype{0};
   };
 
@@ -1032,7 +1033,8 @@ namespace Aleph
 
       The algorithm assumes the network already has a feasible flow (typically
       from a max-flow algorithm like Ford-Fulkerson). It then optimizes the
-      cost while maintaining the same flow value.
+      cost while maintaining the same flow value. The lower bound of every
+      arc is 0: it supports no other.
 
       @tparam Net Network type (must be Net_Cost_Graph or compatible).
 
@@ -1060,7 +1062,6 @@ namespace Aleph
     size_t num_pivots = 0;
     long lca_mark = 0;  // Counter for LCA marking
     mutable NetworkSimplexStats stats;
-    bool support_lower_bounds = false;
 
     static constexpr Flow_Type Inf = std::numeric_limits<Flow_Type>::max();
 
@@ -1832,41 +1833,53 @@ namespace Aleph
 
     /** Set lower bound for an arc.
 
-        Sets the minimum flow that must pass through an arc.
-        Default lower bound is 0.
+        Network_Simplex supports no lower bound but 0, that of every arc.
+        It stored another one, which no part of the algorithm read, and
+        which the next run() set to 0.
 
         @param[in] a Arc to set lower bound for.
-        @param[in] lower_bound Minimum flow value.
+        @param[in] lower_bound Minimum flow value; only 0.
+        @throw std::domain_error if `lower_bound` is not 0.
 
-        @note Must be called before run().
+        @deprecated It goes in 8.0.0.
     */
-    void set_lower_bound(Arc *a, Flow_Type lower_bound)
+    [[deprecated("Network_Simplex supports no lower bound but 0: it goes in 8.0.0")]]
+    void set_lower_bound([[maybe_unused]] Arc *a, Flow_Type lower_bound)
     {
-      support_lower_bounds = true;
-      ainfo(a).lower_bound = lower_bound;
+      ah_domain_error_if(lower_bound != Flow_Type{0})
+        << "Network_Simplex::set_lower_bound(): no lower bound but 0 is supported";
     }
 
     /** Get lower bound for an arc.
 
         @param[in] a Arc to query.
-        @return Lower bound value (0 if not set).
+        @return 0, the lower bound of every arc.
+
+        @deprecated It goes in 8.0.0.
     */
-    [[nodiscard]] Flow_Type get_lower_bound(Arc *a) const
+    [[deprecated("Network_Simplex supports no lower bound but 0: it goes in 8.0.0")]]
+    [[nodiscard]] Flow_Type get_lower_bound([[maybe_unused]] Arc *a) const
     {
-      return ainfo(a).lower_bound;
+      return Flow_Type{0};
     }
 
-    /** Check if arc flow is at lower bound.
+    /** Check if arc flow is at lower bound, 0.
+
+        With a floating flow, within the tolerance of the flows of the last
+        run(); exactly before it.
 
         @param[in] a Arc to check.
         @return true if flow equals lower bound.
     */
     [[nodiscard]] bool is_at_lower_bound(Arc *a) const
     {
-      return std::abs(a->flow - ainfo(a).lower_bound) <= flow_tol;
+      return std::abs(a->flow) <= flow_tol;
     }
 
     /** Check if arc flow is at upper bound (capacity).
+
+        With a floating flow, within the tolerance of the flows of the last
+        run(); exactly before it.
 
         @param[in] a Arc to check.
         @return true if flow equals capacity.
@@ -1889,11 +1902,15 @@ namespace Aleph
     /** Get residual lower (room to decrease flow).
 
         @param[in] a Arc to query.
-        @return Available decrease to lower bound.
+        @return Available decrease to lower bound: the flow of the arc, as
+                every lower bound is 0.
+
+        @deprecated It goes in 8.0.0: it is `a->flow`.
     */
+    [[deprecated("every lower bound of Network_Simplex is 0: use the flow; it goes in 8.0.0")]]
     [[nodiscard]] Flow_Type residual_lower(Arc *a) const
     {
-      return a->flow - ainfo(a).lower_bound;
+      return a->flow;
     }
 
 

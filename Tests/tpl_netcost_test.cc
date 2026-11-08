@@ -2520,6 +2520,69 @@ TEST(NetworkSimplexIntegerTest, TheStatisticsExpectATreeByComponent)
   EXPECT_NE(out.find("Expected tree arcs: 1\n"), std::string::npos) << out;
 }
 
+// set_lower_bound(), get_lower_bound() and residual_lower() are deprecated
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(push)
+#  pragma warning(disable : 4996)
+#else
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+// The network of the cases of the lower bounds: a->b costs 5, and the
+// optimum leaves it empty
+std::vector<LNet::Arc *> build_lower_bound_case(LNet & net)
+{
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  std::vector<LNet::Arc *> arcs = {net.insert_arc(s, a, 2, 0), net.insert_arc(s, b, 2, 0),
+                                   net.insert_arc(a, t, 2, 0), net.insert_arc(b, t, 2, 0),
+                                   net.insert_arc(a, b, 1, 5)};
+  Ford_Fulkerson_Maximum_Flow<LNet>()(net);
+  return arcs;
+}
+
+// set_lower_bound() stored a bound that no part of the algorithm read, and
+// that the next run() set to 0
+TEST(NetworkSimplexIntegerTest, ANonzeroLowerBoundThrows)
+{
+  LNet net;
+  auto ab = build_lower_bound_case(net)[4];
+
+  Network_Simplex<LNet> simplex(net);
+  simplex.run();
+
+  EXPECT_THROW(simplex.set_lower_bound(ab, 1), std::domain_error);
+  EXPECT_NO_THROW(simplex.set_lower_bound(ab, 0));
+  EXPECT_EQ(simplex.get_lower_bound(ab), 0);
+  simplex.run();
+  EXPECT_EQ(ab->flow, 0);
+}
+
+// Before run(), the members of the lower bounds threw "key not found"
+TEST(NetworkSimplexIntegerTest, TheLowerBoundsNeedNoRun)
+{
+  LNet net;
+  auto arcs = build_lower_bound_case(net);
+  auto sa = arcs[0], ab = arcs[4];
+
+  Network_Simplex<LNet> simplex(net);
+  EXPECT_THROW(simplex.set_lower_bound(ab, 1), std::domain_error);
+  EXPECT_NO_THROW(simplex.set_lower_bound(ab, 0));
+  EXPECT_NO_THROW(EXPECT_EQ(simplex.get_lower_bound(ab), 0));
+  EXPECT_NO_THROW(EXPECT_TRUE(simplex.is_at_lower_bound(ab)));
+  EXPECT_NO_THROW(EXPECT_FALSE(simplex.is_at_lower_bound(sa)));
+  EXPECT_NO_THROW(EXPECT_EQ(simplex.residual_lower(sa), sa->flow));
+}
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(pop)
+#else
+#  pragma GCC diagnostic pop
+#endif
+
 
 } // anonymous namespace
 
