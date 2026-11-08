@@ -7,6 +7,10 @@
  * - Transportation problem solver
  */
 
+#include <array>
+#include <utility>
+#include <vector>
+
 #include <gtest/gtest.h>
 #include <tpl_mincost.H>
 #include <tpl_netcost.H>
@@ -567,6 +571,55 @@ TEST(SSPTest, ASourceThatIsTheSinkEnds)
   EXPECT_THROW(successive_shortest_paths(net), std::domain_error);
   EXPECT_EQ(ab->flow, 1.0);
   EXPECT_EQ(ba->flow, 1.0);
+}
+
+// The networks of the cases of decimal costs: u, v, and the capacity and
+// the cost in tenths
+TestNet build_tenths_network(const std::vector<std::array<int, 4>> & spec, int n)
+{
+  TestNet net;
+  std::vector<Node *> nodes;
+  for (int i = 0; i < n; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, a[3] / 10.0);
+  return net;
+}
+
+// With costs in tenths, not exact in binary, a reduced cost of zero came
+// out of the order of -1e-17, and Dijkstra took a distance down by an ulp
+// around a cycle forever: the first run did not end
+TEST(SSPTest, DecimalCostsEnd)
+{
+  // 3 is the source and 5 the sink
+  auto net = build_tenths_network({{2, 1, 17, 5}, {3, 5, 27, 9}, {1, 5, 2, 6}, {0, 2, 37, 9},
+                                   {2, 4, 23, 6}, {3, 2, 14, 0}, {0, 4, 26, 8}, {3, 0, 2, 6},
+                                   {4, 5, 37, 7}, {3, 5, 22, 6}}, 6);
+
+  const auto [flow, cost] = successive_shortest_paths(net);
+
+  EXPECT_NEAR(flow, 6.5, 1e-12);
+  EXPECT_NEAR(cost, 5.95, 1e-12);  // the exact optimum
+  EXPECT_TRUE(net.check_network());
+}
+
+// The second run starts from the cheapest flow, where the two arcs 2->0 of
+// cost 0.4, one full and one not, make a cycle of cost zero, which the
+// rounding of Bellman-Ford made negative: the second run threw for it
+TEST(SSPTest, ASecondRunOfDecimalCostsFindsNoNegativeCycle)
+{
+  // 1 is the source and 0 the sink
+  auto net = build_tenths_network({{1, 2, 9, 8}, {2, 0, 34, 4}, {1, 2, 24, 0}, {1, 2, 37, 1},
+                                   {2, 0, 33, 4}}, 3);
+
+  const auto [flow, cost] = successive_shortest_paths(net);
+  EXPECT_NEAR(flow, 6.7, 1e-12);
+  EXPECT_NEAR(cost, 3.53, 1e-12);  // the exact optimum
+
+  std::pair<double, double> again;
+  ASSERT_NO_THROW(again = successive_shortest_paths(net));
+  EXPECT_NEAR(again.first, flow, 1e-12);
+  EXPECT_NEAR(again.second, cost, 1e-12);
 }
 
 // --- Unreachable-node handling (indirect) --------------------------------

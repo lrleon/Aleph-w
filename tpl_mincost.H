@@ -71,6 +71,7 @@
 
 # include <ah-graph-concepts.H>
 
+#include <cmath>
 #include <limits>
 #include <queue>
 #include <functional>
@@ -212,8 +213,14 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
           if (residual <= Flow_Type{0})
             continue;
 
-          // Compute reduced cost
+          // Compute reduced cost. The potentials keep it from being
+          // negative but for rounding, which, with costs that are not
+          // exact in binary, as tenths, could take a distance down by an
+          // ulp around a cycle forever
           Flow_Type rc = reduced_cost<Net>(net, arc, forward);
+          if constexpr (std::is_floating_point_v<Flow_Type>)
+            if (rc < Flow_Type{0})
+              rc = Flow_Type{0};
 
           // Relaxation (saturate to avoid integer overflow)
           const Flow_Type INF_D = std::numeric_limits<Flow_Type>::max();
@@ -291,7 +298,10 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
  *  of the network from a virtual node joined to every node by an arc of
  *  cost 0, which serve as initial potentials to ensure reduced costs are
  *  non-negative. From the source, it did not see the negative cycles that
- *  the source does not reach.
+ *  the source does not reach. With floating costs, a relaxation must
+ *  improve a distance by more than 4 n^2 epsilons of the largest cost, so
+ *  that the rounding of the sums does not make a cycle of cost zero, as
+ *  an arc with a partial flow and its residual, negative.
  *
  *  @tparam Net Network type (must be Net_Cost_Graph or compatible).
  *  @param[in,out] net Flow network with costs.
@@ -324,6 +334,30 @@ bool ssp_init_potentials(Net &net, [[maybe_unused]] typename Net::Node *source)
     return a - b;
   };
 
+  // With floating costs, a relaxation must win more than the rounding of
+  // the sums: a cycle of cost zero, as an arc with a partial flow and its
+  // residual, at c and -c, came out negative, d + c - c < d, and the
+  // check threw for it. A potential is a sum of up to n - 1 costs
+  Flow_Type tol{0};
+  if constexpr (std::is_floating_point_v<Flow_Type>)
+    {
+      Flow_Type largest{0};
+      for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        if (const Flow_Type c = std::abs(it.get_curr()->cost); c < INF)
+          largest = std::max(largest, c);
+      tol = 4 * Flow_Type(n) * Flow_Type(n) * std::numeric_limits<Flow_Type>::epsilon() * largest;
+    }
+  auto improves = [tol](const Flow_Type & d, const Flow_Type & potential) noexcept
+    {
+      if constexpr (std::is_floating_point_v<Flow_Type>)
+        return d < potential - tol;
+      else
+        {
+          (void) tol;  // exact for an integer flow
+          return d < potential;
+        }
+    };
+
   // Initialize distances: 0, through the arc from the virtual node
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     ssp_info<Net>(it.get_curr()).potential = 0;
@@ -345,7 +379,7 @@ bool ssp_init_potentials(Net &net, [[maybe_unused]] typename Net::Node *source)
               if (d < INF)
                 {
                   Flow_Type new_d = sat_add(d, arc->cost);
-                  if (new_d < ssp_info<Net>(tgt).potential)
+                  if (improves(new_d, ssp_info<Net>(tgt).potential))
                     {
                       ssp_info<Net>(tgt).potential = new_d;
                       changed = true;
@@ -360,7 +394,7 @@ bool ssp_init_potentials(Net &net, [[maybe_unused]] typename Net::Node *source)
               if (d < INF)
                 {
                   Flow_Type new_d = sat_sub(d, arc->cost);  // backward: cost is negated
-                  if (new_d < ssp_info<Net>(src).potential)
+                  if (improves(new_d, ssp_info<Net>(src).potential))
                     {
                       ssp_info<Net>(src).potential = new_d;
                       changed = true;
@@ -383,14 +417,14 @@ bool ssp_init_potentials(Net &net, [[maybe_unused]] typename Net::Node *source)
       if (arc->cap > arc->flow)
         {
           Flow_Type d = ssp_info<Net>(src).potential;
-          if (d < INF and sat_add(d, arc->cost) < ssp_info<Net>(tgt).potential)
+          if (d < INF and improves(sat_add(d, arc->cost), ssp_info<Net>(tgt).potential))
             return false;
         }
 
       if (arc->flow > 0)
         {
           Flow_Type d = ssp_info<Net>(tgt).potential;
-          if (d < INF and sat_sub(d, arc->cost) < ssp_info<Net>(src).potential)
+          if (d < INF and improves(sat_sub(d, arc->cost), ssp_info<Net>(src).potential))
             return false;
         }
     }
