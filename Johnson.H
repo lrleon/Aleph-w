@@ -50,9 +50,11 @@
  *
  *  With an integer distance type, w' and the sums of Dijkstra are kept in
  *  the unsigned type of the same width: as lowest() <= h <= 0, w' is at
- *  most max() + max() + 1, and d'(s,t) fits whenever d(s,t) fits. So
- *  every distance that fits in the type is given, and only one that does
- *  not makes a query throw.
+ *  most max() + max() + 1, and d'(s,t) fits whenever d(s,t) fits. If a
+ *  potential is below lowest(), the potentials, w' and the sums are kept
+ *  in an integer of 128 bits instead, where they fit too. So every
+ *  distance that fits in the type is given, and only one that does not
+ *  makes a query throw.
  *
  *  ## Complexity
  *
@@ -81,13 +83,74 @@
 #include <tpl_dynMapTree.H>
 #include <ah-errors.H>
 #include <algorithm>
+#include <concepts>
+#include <cstdint>
 #include <limits>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace Aleph
 {
+
+namespace johnson_detail
+{
+/** @brief An integer of 128 bits, in two words of 64.
+
+    Johnson keeps in it the potentials, the new weights and the sums of
+    Dijkstra when a potential is below `lowest()`, which only a signed
+    integer type of up to 64 bits has: they fit in it. Its operations are
+    those of the unsigned integers modulo 2^128, and signed_less() compares
+    two of them as integers in two's complement, as the potentials are.
+*/
+struct Wide
+{
+  std::uint64_t hi = 0; ///< The high word
+  std::uint64_t lo = 0; ///< The low word
+
+  /// The integer x, in two's complement
+  template <std::integral T>
+  [[nodiscard]] static constexpr Wide of(const T x) noexcept
+  {
+    if constexpr (std::is_signed_v<T>)
+      return Wide{x < 0 ? ~std::uint64_t(0) : std::uint64_t(0),
+                  static_cast<std::uint64_t>(static_cast<std::int64_t>(x))};
+    else
+      return Wide{0, static_cast<std::uint64_t>(x)};
+  }
+
+  /// a + b, modulo 2^128
+  [[nodiscard]] friend constexpr Wide operator + (const Wide & a, const Wide & b) noexcept
+  {
+    const std::uint64_t lo = a.lo + b.lo;
+    return Wide{a.hi + b.hi + (lo < a.lo ? 1 : 0), lo};
+  }
+
+  /// a - b, modulo 2^128
+  [[nodiscard]] friend constexpr Wide operator - (const Wide & a, const Wide & b) noexcept
+  {
+    return Wide{a.hi - b.hi - (a.lo < b.lo ? 1 : 0), a.lo - b.lo};
+  }
+
+  /// Whether a and b are the same integer
+  [[nodiscard]] friend constexpr bool operator == (const Wide & a, const Wide & b) noexcept
+    = default;
+
+  /// Whether a < b, as unsigned integers
+  [[nodiscard]] friend constexpr bool operator < (const Wide & a, const Wide & b) noexcept
+  {
+    return a.hi < b.hi or (a.hi == b.hi and a.lo < b.lo);
+  }
+
+  /// Whether a < b, as integers in two's complement
+  [[nodiscard]] static constexpr bool signed_less(const Wide & a, const Wide & b) noexcept
+  {
+    constexpr std::uint64_t sign = std::uint64_t(1) << 63;
+    return Wide{a.hi ^ sign, a.lo} < Wide{b.hi ^ sign, b.lo};
+  }
+};
+} // namespace johnson_detail
 
 /** Johnson's algorithm for all-pairs shortest paths.
 
@@ -170,6 +233,14 @@ private:
                                 std::make_unsigned<std::remove_cv_t<Distance_Type>>,
                                 std::type_identity<Distance_Type>>::type;
 
+  // A signed integer type of up to 64 bits may have a potential below
+  // lowest(): then the potentials, the new weights and the sums of
+  // Dijkstra are kept in an integer of 128 bits, where they fit
+  static constexpr bool Signed_Integer = Integer and std::is_signed_v<Distance_Type>
+    and sizeof(Distance_Type) <= sizeof(std::int64_t);
+
+  using Wide = johnson_detail::Wide;
+
   static constexpr size_t None = std::numeric_limits<size_t>::max();
 
   // A way in which an arc that the filter shows is taken: from the node
@@ -206,7 +277,16 @@ private:
   std::vector<Weight> out_weight;
   std::vector<Arc*> out_arc;
 
-  bool initialized = false;
+  // Whether the solver has a graph, and the type of its potentials: that
+  // of the distances, or, when one is below lowest(), 128 bits (wide_h). A
+  // query checks it once, as it checked whether the solver had a graph.
+  enum Mode : unsigned char
+  {
+    No_Graph = 0,
+    Narrow_Potentials,
+    Wide_Potentials
+  };
+  Mode mode = No_Graph;
 
   // What Dijkstra knows of a node
   enum : unsigned char
@@ -214,7 +294,8 @@ private:
     Unreached = 0, // no path from the source
     Labeled,       // a path from the source, maybe not a shortest one
     Settled,       // its distance from the source
-    Too_Far        // the sums of its paths leave the range of Weight
+    Too_Far,       // the sums of its paths leave the range of Weight
+    Settled_Wide   // as Settled, on the wide weights
   };
 
   // The tree of the shortest paths from the last source from which a
@@ -231,6 +312,45 @@ private:
   // may have several pairs in it: the first one out is that of its
   // distance, and the others are left aside.
   std::vector<std::pair<Weight, size_t>> heap;
+
+  // With the mode Wide_Potentials, the potentials, the new weights, the
+  // distances of Dijkstra on them and its heap are these, in an integer of
+  // 128 bits, instead of out_weight, reach and heap, which are left empty;
+  // h keeps the potentials that fit, and 1, which no potential is, for
+  // those below lowest()
+  std::vector<Wide> wide_h;
+  std::vector<Wide> wide_weight;
+  std::vector<Wide> wide_reach;
+  std::vector<std::pair<Wide, size_t>> wide_heap;
+
+  // The new weights, the distances of Dijkstra and its heap: the wide ones
+  // if W
+  template <bool W>
+  auto & weights_of() noexcept
+  {
+    if constexpr (W)
+      return wide_weight;
+    else
+      return out_weight;
+  }
+
+  template <bool W>
+  auto & reach_of() noexcept
+  {
+    if constexpr (W)
+      return wide_reach;
+    else
+      return reach;
+  }
+
+  template <bool W>
+  auto & heap_of() noexcept
+  {
+    if constexpr (W)
+      return wide_heap;
+    else
+      return heap;
+  }
 
   // The number of the source of the tree that is kept, or None. A move of
   // the solver gives it to the new one and leaves the old one without it.
@@ -285,6 +405,13 @@ private:
     return true;
   }
 
+  // As add(), for unsigned integers of 128 bits
+  static bool add(const Wide & a, const Wide & b, Wide & sum)
+  {
+    sum = a + b;
+    return not (sum < a);
+  }
+
   // The new weight of an arc, in the info of its copy, if the info can take
   // a distance: max() if, with an integer type, it is beyond max()
   static void write_info(Arc * copy, const Weight & w)
@@ -299,6 +426,18 @@ private:
           }
         else
           copy->get_info() = w;
+      }
+  }
+
+  // As write_info(), for a new weight of 128 bits
+  static void write_info(Arc * copy, const Wide & w)
+  {
+    if constexpr (std::is_assignable_v<typename GT::Arc_Type &, const Distance_Type &>)
+      {
+        constexpr Distance_Type max = std::numeric_limits<Distance_Type>::max();
+        const Distance_Type value = w.hi != 0 or w.lo > static_cast<std::uint64_t>(max)
+          ? max : static_cast<Distance_Type>(w.lo);
+        copy->get_info() = value;
       }
   }
 
@@ -336,6 +475,19 @@ private:
       return d_prime - hs + ht;
   }
 
+  // As unweighted(), on the wide weights: d(s, t) = d'(s, t) - h(s) +
+  // h(t), exact in 128 bits, if it fits in the type
+  static Distance_Type wide_unweighted(const Wide & d_prime, const Wide & hs, const Wide & ht)
+  {
+    const Wide d = d_prime - hs + ht;
+    ah_overflow_error_if(Wide::signed_less(Wide::of(std::numeric_limits<Distance_Type>::max()), d))
+      << "Integer overflow: a distance is above max()";
+    ah_overflow_error_if(Wide::signed_less(d, Wide::of(std::numeric_limits<Distance_Type>::lowest())))
+      << "Integer overflow: a distance is below lowest()";
+
+    return static_cast<Distance_Type>(static_cast<std::int64_t>(d.lo));
+  }
+
   // The distance from the node number s, the source of the tree that is
   // kept, to the node number t
   Distance_Type distance_to(size_t s, size_t t) const
@@ -343,76 +495,98 @@ private:
     if (state[t] == Unreached)
       return unreachable();
 
-    ah_overflow_error_if(state[t] == Too_Far)
-      << "Integer overflow: a distance is above max()";
+    if (state[t] != Settled) [[unlikely]]
+      return distance_apart(s, t);
 
     return unweighted(reach[t], h[s], h[t]);
   }
 
+  // As distance_to(), for a node too far, which throws, or settled on the
+  // wide weights
+  [[gnu::noinline]] Distance_Type distance_apart(size_t s, size_t t) const
+  {
+    if constexpr (Signed_Integer)
+      if (state[t] == Settled_Wide)
+        return wide_unweighted(wide_reach[t], wide_h[s], wide_h[t]);
+
+    ah_overflow_error() << "Integer overflow: a distance is above max()";
+  }
+
   // Gives the state Too_Far to the nodes that the nodes too far reach and
-  // Dijkstra did not, whose distances, as theirs, are beyond max()
+  // Dijkstra did not, whose distances, as theirs, are beyond max(); with
+  // the heap of the wide weights if W
+  template <bool W>
   void spread_too_far()
   {
+    auto & stack = heap_of<W>();
+    using Key = typename std::remove_reference_t<decltype(stack)>::value_type::first_type;
+    // Key{} is 0; Clang 14 does not take Key(0) for an aggregate
+
     for (size_t v = 0; v < state.size(); ++v)
       if (state[v] == Too_Far)
-        heap.emplace_back(Weight(0), v);
+        stack.emplace_back(Key{}, v);
 
-    while (not heap.empty())
+    while (not stack.empty())
       {
-        const size_t u = heap.back().second;
-        heap.pop_back();
+        const size_t u = stack.back().second;
+        stack.pop_back();
         for (size_t e = out_first[u], end = out_first[u + 1]; e < end; ++e)
           if (const size_t v = out_target[e]; state[v] == Unreached)
             {
               state[v] = Too_Far;
-              heap.emplace_back(Weight(0), v);
+              stack.emplace_back(Key{}, v);
             }
       }
   }
 
-  // Runs Dijkstra from the node number s on the new weights, unless the
-  // tree that is kept is that of s. A sum that leaves the range of Weight,
-  // which only an integer type has, is no path: a node that is reached
-  // only through such sums is too far, as its distance is beyond max(),
-  // and so are the nodes that only it reaches. It does not allocate.
-  void paint_from(size_t s)
+  // Runs Dijkstra from the node number s on the new weights, the wide ones
+  // if W, which leaves the nodes that it reaches as Settled, or
+  // Settled_Wide. A sum that leaves the range of the weights, which only
+  // an integer type has, is no path: a node that is reached only through
+  // such sums is too far, as its distance is beyond max(), and so are the
+  // nodes that only it reaches. It does not allocate.
+  template <bool W>
+  [[gnu::always_inline]] inline void paint(size_t s)
   {
-    if (kept.node == s)
-      return;
+    using Key = typename std::remove_reference_t<decltype(weights_of<W>())>::value_type;
+    constexpr unsigned char Done = W ? Settled_Wide : Settled;
+    const auto & weight = weights_of<W>();
+    auto & dist = reach_of<W>();
+    auto & pairs = heap_of<W>();
 
-    const auto later = [] (const std::pair<Weight, size_t> & a,
-                           const std::pair<Weight, size_t> & b)
+    const auto later = [] (const std::pair<Key, size_t> & a,
+                           const std::pair<Key, size_t> & b)
       {
         return b.first < a.first;
       };
 
     kept.node = None; // until the tree is whole
     std::fill(state.begin(), state.end(), Unreached);
-    heap.clear();
+    pairs.clear();
     bool too_far = false;
 
     state[s] = Labeled;
-    reach[s] = Weight(0);
+    dist[s] = Key{};
     parent[s] = via[s] = None;
-    heap.emplace_back(Weight(0), s);
-    while (not heap.empty())
+    pairs.emplace_back(Key{}, s);
+    while (not pairs.empty())
       {
-        std::pop_heap(heap.begin(), heap.end(), later);
-        const size_t u = heap.back().second;
-        heap.pop_back();
-        if (state[u] == Settled)
+        std::pop_heap(pairs.begin(), pairs.end(), later);
+        const size_t u = pairs.back().second;
+        pairs.pop_back();
+        if (state[u] == Done)
           continue; // a pair left aside
 
-        state[u] = Settled;
-        const Weight du = reach[u];
+        state[u] = Done;
+        const Key du = dist[u];
         for (size_t e = out_first[u], end = out_first[u + 1]; e < end; ++e)
           {
             const size_t v = out_target[e];
-            if (state[v] == Settled)
+            if (state[v] == Done)
               continue;
 
-            Weight dv{};
-            if (not add(du, out_weight[e], dv))
+            Key dv{};
+            if (not add(du, weight[e], dv))
               {
                 if (state[v] == Unreached)
                   {
@@ -422,22 +596,42 @@ private:
                 continue;
               }
 
-            if (state[v] == Labeled and not (dv < reach[v]))
+            if (state[v] == Labeled and not (dv < dist[v]))
               continue;
 
             state[v] = Labeled;
-            reach[v] = dv;
+            dist[v] = dv;
             parent[v] = u;
             via[v] = e;
-            heap.emplace_back(dv, v);
-            std::push_heap(heap.begin(), heap.end(), later);
+            pairs.emplace_back(dv, v);
+            std::push_heap(pairs.begin(), pairs.end(), later);
           }
       }
 
     if (too_far)
-      spread_too_far();
+      spread_too_far<W>();
 
     kept.node = s;
+  }
+
+  // As paint(), on the wide weights
+  [[gnu::noinline]] void paint_wide(size_t s) { paint<true>(s); }
+
+  // Runs Dijkstra from the node number s, unless the tree that is kept is
+  // that of s
+  void paint_from(size_t s)
+  {
+    if (kept.node == s)
+      return;
+
+    if constexpr (Signed_Integer)
+      if (mode == Wide_Potentials) [[unlikely]]
+        {
+          paint_wide(s);
+          return;
+        }
+
+    paint<false>(s);
   }
 
 public:
@@ -449,15 +643,17 @@ public:
       2. Runs Bellman-Ford to compute node potentials
       3. Reweights all edges to be non-negative
 
+      With an integer type, a potential below `lowest()` throws nothing:
+      the potentials, the new weights and the sums of Dijkstra are kept in
+      an integer of 128 bits, so that only the queries whose distances do
+      not fit throw.
+
       @param[in] g The graph to operate on. It is not changed.
       @param[in] d Arc-weight accessor (default constructed).
       @param[in] __sa Arc filter (default constructed).
       @throw std::bad_alloc if there is not enough memory.
       @throw std::domain_error if a negative cycle is detected, or, with
       a floating type, a weight is -inf or NaN, as Bellman-Ford throws.
-      @throw std::overflow_error if, with an integer type, a sum of
-      Bellman-Ford leaves the type, as when a potential is below
-      `lowest()`.
       @throw anything that the filter or the distance throws.
    */
   explicit Johnson(const GT& g, Distance d = Distance(), SA __sa = SA())
@@ -498,16 +694,29 @@ public:
           shown.push_back(Shown_Arc{v, u, w, a, nullptr});
       }
 
-    // The potentials; this throws with a negative cycle
+    // The potentials; this throws with a negative cycle. With a signed
+    // integer type, Bellman-Ford throws overflow_error when a sum goes
+    // below lowest(), as when a potential is below it, or on a negative
+    // cycle of large weights: the potentials are computed again in 128
+    // bits, which also tells the negative cycle
     for (const Shown_Arc & x : shown)
       pg.insert_arc(pnodes[x.u], pnodes[x.v], x.w);
-    {
-      Bellman_Ford<Potential_Graph, Dft_Dist<Potential_Graph>, Ait, NAit> bf(pg);
-      const auto potentials = bf.compute_nodes_weights();
-      h.reserve(n);
-      for (size_t i = 0; i < n; ++i)
-        h.push_back(potentials.find(pnodes[i]));
-    }
+    bool wide = false;
+    if constexpr (Signed_Integer)
+      {
+        try
+          {
+            narrow_potentials(pg, pnodes);
+          }
+        catch (const std::overflow_error &)
+          {
+            h.clear();
+            wide_potentials(shown);
+            wide = true;
+          }
+      }
+    else
+      narrow_potentials(pg, pnodes);
 
     // The arcs of Dijkstra, grouped by their sources in the order of the
     // arcs of the graph, with their new weights, which the copies of the
@@ -518,6 +727,13 @@ public:
         ++out_first[x.u + 1];
     for (size_t i = 0; i < n; ++i)
       out_first[i + 1] += out_first[i];
+
+    if constexpr (Signed_Integer)
+      if (wide) [[unlikely]]
+        {
+          wide_arcs(shown);
+          return;
+        }
 
     const size_t m = out_first[n];
     out_target.resize(m);
@@ -544,8 +760,89 @@ public:
     via.assign(n, None);
     heap.reserve(m + 1);
 
-    initialized = true;
+    mode = Narrow_Potentials;
   }
+
+private:
+  // The potentials in h, from Bellman-Ford on pg, whose node number i is
+  // pnodes[i]. In line, as when it was in the constructor: out of line, its
+  // loop runs more instructions.
+  [[gnu::always_inline]] inline void narrow_potentials(Potential_Graph & pg,
+                         const std::vector<typename Potential_Graph::Node *> & pnodes)
+  {
+    Bellman_Ford<Potential_Graph, Dft_Dist<Potential_Graph>, Ait, NAit> bf(pg);
+    const auto potentials = bf.compute_nodes_weights();
+    h.reserve(pnodes.size());
+    for (size_t i = 0; i < pnodes.size(); ++i)
+      h.push_back(potentials.find(pnodes[i]));
+  }
+
+  // The potentials in wide_h, in 128 bits: a Bellman-Ford
+  // from a virtual source that reaches every node by an arc of weight 0,
+  // on the arcs shown. Without a negative cycle a potential is at least
+  // (n - 1) lowest(), and the pass n changes none; with one, after n
+  // passes a potential is at least n m lowest(): they fit in 128 bits.
+  void wide_potentials(const std::vector<Shown_Arc> & shown)
+  {
+    const size_t n = nodes.size();
+    wide_h.assign(n, Wide{});
+    for (size_t pass = 1; ; ++pass)
+      {
+        bool changed = false;
+        for (const Shown_Arc & x : shown)
+          if (const Wide sum = wide_h[x.u] + Wide::of(x.w);
+              Wide::signed_less(sum, wide_h[x.v]))
+            {
+              wide_h[x.v] = sum;
+              changed = true;
+            }
+
+        if (not changed)
+          break;
+
+        ah_domain_error_if(pass >= n) << "negative cycles detected";
+      }
+  }
+
+  // As the end of the constructor, for the wide potentials: the arcs of
+  // Dijkstra, with their new weights in 128 bits
+  void wide_arcs(const std::vector<Shown_Arc> & shown)
+  {
+    const size_t n = nodes.size();
+    const size_t m = out_first[n];
+    out_target.resize(m);
+    wide_weight.resize(m);
+    out_arc.resize(m);
+    std::vector<size_t> next(out_first.begin(), out_first.end() - 1);
+    for (const Shown_Arc & x : shown)
+      {
+        const Wide w = Wide::of(x.w) + wide_h[x.u] - wide_h[x.v];
+        if (x.copy != nullptr)
+          write_info(x.copy, w);
+        if (x.u == x.v)
+          continue;
+
+        const size_t e = next[x.u]++;
+        out_target[e] = x.v;
+        wide_weight[e] = w;
+        out_arc[e] = x.arc;
+      }
+
+    state.assign(n, Unreached);
+    wide_reach.resize(n);
+    parent.assign(n, None);
+    via.assign(n, None);
+    wide_heap.reserve(m + 1);
+
+    h.resize(n);
+    for (size_t i = 0; i < n; ++i)
+      h[i] = Wide::signed_less(wide_h[i], Wide::of(std::numeric_limits<Distance_Type>::lowest()))
+        ? Distance_Type(1) : static_cast<Distance_Type>(static_cast<std::int64_t>(wide_h[i].lo));
+
+    mode = Wide_Potentials;
+  }
+
+public:
 
   /// Default constructor (uninitialized state)
   Johnson() = default;
@@ -567,7 +864,7 @@ public:
   /** Check if the algorithm has been initialized.
    *  @return true if ready for queries, false otherwise.
    */
-  [[nodiscard]] bool is_initialized() const noexcept { return initialized; }
+  [[nodiscard]] bool is_initialized() const noexcept { return mode != No_Graph; }
 
   /** Get the shortest distance from source to target.
 
@@ -581,13 +878,14 @@ public:
       for a type without infinity, as an integer type.
       @throw std::domain_error if not initialized or nodes not found.
       @throw std::overflow_error if, with an integer type, the distance
-      from src to tgt is above `max()`: only that one; the others are
-      given.
+      from src to tgt does not fit in it: it is above `max()`, or below
+      `lowest()`, which only a graph with a potential below `lowest()`
+      has. Only that one; the others are given.
    */
   Distance_Type get_distance(Node* src, Node* tgt)
     requires std::is_convertible_v<typename GT::Arc_Type, Distance_Type>
   {
-    ah_domain_error_if(!initialized) << "Johnson not initialized";
+    ah_domain_error_if(mode == No_Graph) << "Johnson not initialized";
     ah_domain_error_if(src == nullptr or tgt == nullptr) << "Source or target node is null";
 
     // Same node - distance is 0
@@ -610,12 +908,12 @@ public:
       @return Path in the original graph from src to tgt, or an empty path if unreachable.
       @throw std::domain_error if not initialized or nodes not found.
       @throw std::overflow_error if, with an integer type, the distance
-      from src to tgt is above `max()`, as get_distance() throws.
+      from src to tgt does not fit in it, as get_distance() throws.
    */
   Path<GT> find_path(Node* src, Node* tgt)
     requires std::is_convertible_v<typename GT::Arc_Type, Distance_Type>
   {
-    ah_domain_error_if(!initialized) << "Johnson not initialized";
+    ah_domain_error_if(mode == No_Graph) << "Johnson not initialized";
     ah_domain_error_if(src == nullptr or tgt == nullptr) << "Source or target node is null";
 
     const size_t s = number_of(src);
@@ -634,7 +932,7 @@ public:
     if (state[t] == Unreached)
       return path;
 
-    (void) distance_to(s, t); // overflow_error if it is above max()
+    (void) distance_to(s, t); // overflow_error if it does not fit
 
     std::vector<Arc*> arcs; // of the tree, from tgt back to src
     for (size_t v = t; v != s; v = parent[v])
@@ -653,14 +951,14 @@ public:
       distance, or, for a target that cannot be reached, the value that
       get_distance() gives.
       @throw std::domain_error if not initialized.
-      @throw std::overflow_error as get_distance(), if a distance is above
-      `max()`.
+      @throw std::overflow_error as get_distance(), if a distance does not
+      fit in the type.
    */
   DynMapTree<std::pair<Node*, Node*>, Distance_Type>
   compute_all_pairs_distances()
     requires std::is_convertible_v<typename GT::Arc_Type, Distance_Type>
   {
-    ah_domain_error_if(!initialized) << "Johnson not initialized";
+    ah_domain_error_if(mode == No_Graph) << "Johnson not initialized";
 
     DynMapTree<std::pair<Node*, Node*>, Distance_Type> result;
 
@@ -688,11 +986,17 @@ public:
       @param[in] node Node from the original graph.
       @return The potential h(node).
       @throw std::domain_error if not initialized or node not found.
+      @throw std::overflow_error if, with an integer type, the potential
+      is below `lowest()`.
    */
   Distance_Type get_potential(Node* node) const
   {
-    ah_domain_error_if(!initialized) << "Johnson not initialized";
-    return h[number_of(node)];
+    ah_domain_error_if(mode == No_Graph) << "Johnson not initialized";
+    const Distance_Type p = h[number_of(node)];
+    if constexpr (Signed_Integer)
+      ah_overflow_error_if(p > Distance_Type(0)) // 1, for one below lowest()
+        << "Integer overflow: a potential is below lowest()";
+    return p;
   }
 
   /** Get access to the internal reweighted graph.

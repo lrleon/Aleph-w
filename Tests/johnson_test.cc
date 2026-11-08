@@ -961,6 +961,120 @@ TEST(JohnsonIntegers, ADistanceNearMaxDoesNotOverflowOnTheWayBack)
   EXPECT_THROW(above.get_distance(x, z), std::overflow_error);
 }
 
+namespace
+{
+  // a->b->c->d->e, of weights lowest() + 1 = -max(), -max(), max() and
+  // max(): h(c) = -2 max() is below lowest(), d(a, c) too, and d(a, e) = 0
+  // goes through c. Each distance is a multiple of max(), by the sum of
+  // the factors of its arcs: it fits from -1 to 1.
+  template <typename T>
+  void check_a_potential_below_lowest()
+  {
+    using G = List_Digraph<Graph_Node<int>, Graph_Arc<T>>;
+    constexpr T max = std::numeric_limits<T>::max();
+    constexpr int factor[] = {-1, -1, 1, 1};
+
+    G g;
+    std::vector<typename G::Node *> v;
+    for (int i = 0; i < 5; ++i)
+      v.push_back(g.insert_node(i));
+    for (int i = 0; i < 4; ++i)
+      g.insert_arc(v[size_t(i)], v[size_t(i) + 1], T(factor[i] * max));
+
+    Johnson<G> johnson(g);
+
+    // Twice, from the sources in two orders, so that the trees are painted
+    // again
+    for (int round = 0; round < 2; ++round)
+      for (int i = 0; i < 5; ++i)
+        for (int k = 0; k < 5; ++k)
+          {
+            const int s = round == 0 ? i : 4 - i;
+            SCOPED_TRACE("from " + std::to_string(s) + " to " + std::to_string(k));
+            auto * src = v[size_t(s)];
+            auto * tgt = v[size_t(k)];
+            if (s >= k)
+              {
+                EXPECT_EQ(johnson.get_distance(src, tgt), s == k ? T(0) : max);
+                EXPECT_EQ(johnson.find_path(src, tgt).size(), s == k ? 1u : 0u);
+                continue;
+              }
+
+            int sum = 0;
+            for (int x = s; x < k; ++x)
+              sum += factor[x];
+            if (sum < -1 or sum > 1)
+              {
+                EXPECT_THROW(johnson.get_distance(src, tgt), std::overflow_error);
+                EXPECT_THROW(johnson.find_path(src, tgt), std::overflow_error);
+                continue;
+              }
+
+            EXPECT_EQ(johnson.get_distance(src, tgt), T(sum * max));
+            const auto path = johnson.find_path(src, tgt);
+            EXPECT_EQ(path.size(), size_t(k - s + 1));
+            EXPECT_EQ(path.get_first_node(), src);
+            EXPECT_EQ(path.get_last_node(), tgt);
+          }
+
+    EXPECT_THROW(johnson.compute_all_pairs_distances(), std::overflow_error);
+
+    EXPECT_EQ(johnson.get_potential(v[0]), T(0));
+    EXPECT_EQ(johnson.get_potential(v[1]), T(-max));
+    EXPECT_THROW(johnson.get_potential(v[2]), std::overflow_error);
+    EXPECT_EQ(johnson.get_potential(v[3]), T(-max));
+    EXPECT_EQ(johnson.get_potential(v[4]), T(0));
+
+    // w + h(u) - h(v) is 0 on every arc
+    const G & copy = johnson.get_reweighted_graph();
+    EXPECT_EQ(copy.get_num_arcs(), 4u);
+    for (auto it = copy.get_arc_it(); it.has_curr(); it.next_ne())
+      EXPECT_EQ(it.get_curr()->get_info(), T(0));
+
+    // A move keeps the wide potentials
+    Johnson<G> moved(std::move(johnson));
+    EXPECT_EQ(moved.get_distance(v[0], v[4]), T(0));
+    EXPECT_EQ(moved.get_distance(v[1], v[4]), max);
+    EXPECT_THROW(moved.get_distance(v[2], v[4]), std::overflow_error);
+  }
+}
+
+// Bellman-Ford threw overflow_error in the constructor when a potential was
+// below lowest(), and every query was lost. The potentials are computed in
+// 128 bits then, and only a query whose distance does not fit throws.
+TEST(JohnsonIntegers, APotentialBelowLowestThrowsOnlyForTheDistancesThatDoNotFit)
+{
+  check_a_potential_below_lowest<short>();
+  check_a_potential_below_lowest<int>();
+  check_a_potential_below_lowest<long long>();
+}
+
+// A negative cycle whose sums go below lowest() made Bellman-Ford throw
+// overflow_error before it found the cycle: it is a domain_error, as the
+// other negative cycles
+TEST(JohnsonIntegers, ANegativeCycleOfLargeWeightsThrowsDomainError)
+{
+  constexpr int max = std::numeric_limits<int>::max();
+  IntDigraph g;
+  auto a = g.insert_node(0);
+  auto b = g.insert_node(1);
+  auto c = g.insert_node(2);
+  g.insert_arc(a, b, -max);
+  g.insert_arc(b, c, -max);
+  g.insert_arc(c, a, max);
+  EXPECT_THROW(Johnson<IntDigraph> johnson(g), std::domain_error);
+
+  using LongDigraph = List_Digraph<Graph_Node<int>, Graph_Arc<long long>>;
+  constexpr long long lmax = std::numeric_limits<long long>::max();
+  LongDigraph h;
+  auto x = h.insert_node(0);
+  auto y = h.insert_node(1);
+  h.insert_arc(x, y, -lmax);
+  h.insert_arc(y, x, -lmax);
+  EXPECT_THROW(Johnson<LongDigraph> johnson(h), std::domain_error);
+}
+
+
 // ==================== Main ====================
 
 int main(int argc, char **argv)

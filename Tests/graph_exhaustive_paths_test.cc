@@ -3439,6 +3439,127 @@ TYPED_TEST(ExhaustiveJohnson, JohnsonNearTheLimitsOfInt)
   too_big.expect();
 }
 
+TYPED_TEST(ExhaustiveJohnson, JohnsonNearTheLowestOfInt)
+{
+  using GT = TypeParam;
+  using T = int;
+  constexpr long long M = Int_Max;
+  constexpr long long L = std::numeric_limits<T>::lowest();
+  // Classes of their own: a distance below lowest(), and so a potential,
+  // which is a distance from some node, which made the constructor throw
+  // overflow_error and lost every query, and throws as a distance above
+  // max() does; and a negative cycle whose sums go below lowest(), which
+  // threw overflow_error and is a domain_error
+  Check low("Johnson, near the lowest of int");
+  Check below("Johnson, near the lowest of int, a distance below lowest()");
+  Check cycle("Johnson, near the lowest of int, a negative cycle");
+  size_t runs_low = 0, runs_below = 0, runs_cycle = 0;
+  std::vector<T> w;
+  auto fits = [] (long long x) { return L <= x and x <= M; };
+  auto said = [] (const std::string & e) { return e.empty() ? std::string("nothing") : e; };
+
+  for_each_spec(domain(3, 3), true, [&] (const Spec & shape)
+    {
+      for_each_weighting(shape, {L, -1, 1, M}, [&] (const Spec & s)
+        {
+          bool neg = false;
+          const Matrix d = distances(s, true, 0, neg);
+          Built<GT> b(s);
+          w = weights_as<T>(s);
+          using Solver = Johnson<GT, Johnson_Weight<GT, T>>;
+          std::unique_ptr<Solver> j;
+          const auto e = what_throws([&]
+            { j = std::make_unique<Solver>(b.g, Johnson_Weight<GT, T>{&w}); });
+          if (neg)
+            {
+              cycle.run();
+              ++runs_cycle;
+              if (not is(e, "domain_error"))
+                cycle.fail(s, "the constructor throws " + said(e));
+              return;
+            }
+
+          const auto h = potentials(d);
+          bool low_d = false, all_fit = true;
+          for (const auto & row : d)
+            for (long long x : row)
+              if (x != Inf)
+                {
+                  low_d = low_d or x < L;
+                  all_fit = all_fit and fits(x);
+                }
+          Check & c = low_d ? below : low;
+          ++(low_d ? runs_below : runs_low);
+          c.run();
+          if (not e.empty())
+            {
+              c.fail(s, "the constructor " + e);
+              return;
+            }
+
+          for (int u = 0; u < s.n; ++u)
+            for (int v = 0; v < s.n; ++v)
+              {
+                auto * nu = b.nodes[size_t(u)];
+                auto * nv = b.nodes[size_t(v)];
+                const long long want = d[size_t(u)][size_t(v)];
+                const bool throws = want != Inf and not fits(want);
+
+                T got{};
+                const auto de = what_throws([&] { got = j->get_distance(nu, nv); });
+                if (throws ? not is(de, "overflow_error")
+                    : not de.empty() or got != (want == Inf ? johnson_none<T>() : T(want)))
+                  {
+                    c.fail(s, route(u, v) + (de.empty() ? "gives " + text_of(got) : de));
+                    return;
+                  }
+
+                Path<GT> path(b.g);
+                const auto pe = what_throws([&] { path = j->find_path(nu, nv); });
+                std::string why;
+                if (throws)
+                  why = is(pe, "overflow_error") ? "" : "find_path() throws " + said(pe);
+                else if (not pe.empty())
+                  why = "find_path() " + pe;
+                else if (want == Inf)
+                  why = path.is_empty() ? "" : "a path to a node not reached";
+                else
+                  why = path_error(b.g, s, path, u, v, 0, want, T(want));
+                if (not why.empty())
+                  {
+                    c.fail(s, route(u, v) + why);
+                    return;
+                  }
+              }
+
+          for (int v = 0; v < s.n; ++v)
+            {
+              T got{};
+              const auto pe = what_throws([&] { got = j->get_potential(b.nodes[size_t(v)]); });
+              const long long want = h[size_t(v)];
+              if (want < L ? not is(pe, "overflow_error") : not pe.empty() or got != T(want))
+                {
+                  c.fail(s, "the potential of " + std::to_string(v) + ": "
+                         + (pe.empty() ? "gives " + text_of(got) : pe));
+                  return;
+                }
+            }
+
+          const auto ae = what_throws([&] { (void) j->compute_all_pairs_distances(); });
+          if (all_fit ? not ae.empty() : not is(ae, "overflow_error"))
+            c.fail(s, "compute_all_pairs_distances() throws " + said(ae));
+        });
+    });
+
+  // Each class has cases
+  EXPECT_GT(runs_low, 0u);
+  EXPECT_GT(runs_below, 0u);
+  EXPECT_GT(runs_cycle, 0u);
+  low.expect();
+  below.expect();
+  cycle.expect();
+}
+
 TYPED_TEST(ExhaustiveJohnson, JohnsonTakesIntAndDouble)
 {
   Johnson_Checks with_int(", int");
