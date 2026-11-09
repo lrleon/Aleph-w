@@ -2258,6 +2258,34 @@ TEST(NetworkSimplexFloatingTest, DecimalCapacitiesReachTheOptimum)
   EXPECT_NEAR(net.flow_cost(), -0.8, 1e-12);
 }
 
+// The pivots of a floating flow left a residue of rounding, of 2.8e-17, on a
+// path that ended in a node, as the arc that leaves the tree takes its
+// bound exactly: check_network() took it as a loss of the balance of the
+// node. run() returns the residues at its end, as the maximum flows do. The
+// capacities are k * 0.1, as the probe that found the case built them; k /
+// 10.0 rounds them otherwise and does not leave the residue
+TEST(NetworkSimplexFloatingTest, ResiduesOfRoundingGoBack)
+{
+  // u, v, the capacity in tenths and the cost; 1 is the source and 5 the sink
+  const int spec[][4] = {{2, 5, 4, -1}, {1, 5, 0, -2}, {6, 2, 4, 1}, {0, 4, 2, 4}, {1, 3, 3, -2},
+                         {0, 2, 1, 3}, {3, 0, 4, 3}, {4, 5, 3, 0}, {3, 6, 3, -1}};
+  Net net;
+  std::vector<Net::Node *> nodes;
+  for (int i = 0; i < 7; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] * 0.1, double(a[3]));
+
+  Edmonds_Karp_Maximum_Flow<Net>()(net);
+  Network_Simplex<Net> simplex(net);
+  simplex.run();
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(net.flow_value(), 0.3, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), -0.9, 1e-12);  // the exact optimum
+}
+
 // The tolerance of the reduced costs was 1000 epsilons, 2.2e-13: run() did
 // not lower costs below it, and left the flow on the dearer arc
 TEST(NetworkSimplexFloatingTest, TinyCostsAreOptimized)

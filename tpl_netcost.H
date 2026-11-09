@@ -2057,7 +2057,11 @@ namespace Aleph
 
         With a floating flow, its comparisons are within tolerances
         relative to the data: 1000 epsilons of the largest capacity or flow,
-        and of the largest cost.
+        and of the largest cost; and the residues of rounding that the
+        pivots leave, as the arc that leaves the tree takes its bound
+        exactly, go back at the end, as those of the maximum flows (see
+        net_detail::return_dust()): every node keeps its flow within the
+        tolerance of check_node().
 
         @param[in] unused Kept for API compatibility.
         @return Number of pivots performed.
@@ -2146,6 +2150,11 @@ namespace Aleph
               ++failed_attempts;
             }
         }
+
+      // The pivots of a floating flow leave residues of rounding, as the
+      // arc that leaves the tree takes its bound exactly: dust that ends
+      // in a node, which check_node() takes as a loss of its balance
+      net_detail::return_dust(net, net.get_source(), net.get_sink());
 
       auto phase2_end = std::chrono::high_resolution_clock::now();
       stats.phase2_time_ms = std::chrono::duration<double, std::milli>(
