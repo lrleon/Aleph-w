@@ -278,6 +278,21 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
  *  @note **Exception safety:** strong guarantee — if the function throws,
  *        the network's flow values are not modified.
  *
+ *  @warning With a floating flow, a relaxation of the potentials must
+ *  improve a distance by more than 4 n^2 epsilons of the largest finite
+ *  cost of the whole network, where n is the number of nodes, and
+ *  Dijkstra takes a negative reduced cost as zero. They keep the residues
+ *  of rounding from making a run loop, or a second run throw, at any
+ *  scale of the costs; but a difference below that tolerance counts as
+ *  zero. So a cost of a far larger magnitude, even on an arc without
+ *  flow, as a large penalty, can hide the cheaper paths among the other
+ *  arcs, and the flow is not of least cost, without notice: with 100
+ *  nodes, a cost of 5e11 can hide the differences of cost 1. Keep the
+ *  largest cost below the smallest difference of cost that matters over
+ *  4 n^2 epsilons, as by scaling the costs, or take an integer flow,
+ *  which compares exactly. solve_transshipment(), solve_assignment()
+ *  and solve_transportation() run it.
+ *
  *  @par Example
  *  ```cpp
  *  Net_Cost_Graph<> net;
@@ -633,6 +648,10 @@ struct TransshipmentResult
  *  optimal transshipment flow. `NODE_COOKIE` on all nodes is overwritten
  *  during computation and should not be relied upon after the call.
  *
+ *  @warning With floating costs, a cost of a far larger magnitude than
+ *  the others, as a large penalty, can hide cheaper flows: see the
+ *  warning of successive_shortest_paths().
+ *
  *  @par Example
  *  ```cpp
  *  Net_Cost_Graph<> net;
@@ -797,6 +816,10 @@ struct AssignmentResult
  *  @throws std::invalid_argument if @p costs is not a square matrix
  *          (any row has a different size than costs.size()).
  *
+ *  @warning With floating costs, a cost of a far larger magnitude than
+ *  the others, as a large penalty that forbids an assignment, can hide
+ *  cheaper assignments: see the warning of successive_shortest_paths().
+ *
  *  @par Example
  *  ```cpp
  *  std::vector<std::vector<double>> costs = {
@@ -922,6 +945,10 @@ struct TransportationResult
  *
  *  @throws std::invalid_argument if costs.size() != supplies.size(), any
  *          costs[i].size() != demands.size(), or any supply/demand is negative.
+ *
+ *  @warning With floating costs, a cost of a far larger magnitude than
+ *  the others, as a large penalty that forbids a route, can hide cheaper
+ *  shipments: see the warning of successive_shortest_paths().
  *
  *  @par Example
  *  ```cpp

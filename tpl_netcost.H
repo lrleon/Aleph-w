@@ -736,6 +736,26 @@ namespace Aleph
       The costs may be negative: the cheapest maximum flow saturates the
       cycles of negative cost, also those apart from the source.
 
+      @warning With a floating flow, the comparisons are within tolerances
+      relative to the whole network: a relaxation of Bellman-Ford must
+      improve a distance by more than 4 n^2 epsilons of the largest
+      finite cost, where n is the number of nodes, and an arc has residual
+      capacity if it has more than 1000 epsilons, some 2.2e-13, of the
+      largest finite capacity or flow left. They keep the residues of
+      rounding from being taken for negative cycles, at any scale of the
+      data; but a difference below them counts as zero. So an arc of a
+      far larger magnitude, even one without flow, as a large penalty
+      cost or a large finite capacity, can hide the negative cycles of the
+      other arcs, and the flow is not of least cost, without notice: with
+      100 nodes, a cost of 2e11 can hide the cycles of cost -1, and a
+      capacity of 1e13 keeps an arc of capacity 1 out of the residual
+      network. Keep the largest cost below the smallest difference of
+      cost that matters over 4 n^2 epsilons, and the largest capacity
+      below some 4.5e12 times the smallest one, as by scaling them; give
+      an arc without a bound the capacity max() or infinity, which the
+      tolerances leave out; or take an integer flow, which compares
+      exactly.
+
       @tparam Net Network type (must be Net_Cost_Graph or compatible).
       @tparam Max_Flow_Algo Maximum flow algorithm template (default: Ford_Fulkerson_Maximum_Flow).
 
@@ -1173,6 +1193,23 @@ namespace Aleph
       from a max-flow algorithm like Ford-Fulkerson). It then optimizes the
       cost while maintaining the same flow value. The lower bound of every
       arc is 0: it supports no other.
+
+      @warning With a floating flow, the comparisons are within tolerances
+      relative to the whole network (see run()): 1000 epsilons, some
+      2.2e-13, of the largest finite capacity or flow, and of the largest
+      finite cost. They keep the residues of rounding from being taken
+      for improvements, at any scale of the data; but a difference below
+      them counts as zero. So an arc of a far larger magnitude, even one
+      without flow, as a large penalty cost or a large finite capacity,
+      hides the improvements of the other arcs that are below 2.2e-13 of
+      it, and the flow is not of least cost, without notice: a cost of
+      1e13 hides the differences of cost 1, and a capacity of 1e13 keeps
+      an arc of capacity 1 from taking flow. Keep the largest cost below
+      some 4.5e12 times the smallest difference of cost that matters, and
+      the largest capacity below some 4.5e12 times the smallest one, as
+      by scaling them; give an arc without a bound the capacity max() or
+      infinity, which the tolerances leave out; or take an integer flow,
+      which compares exactly.
 
       @tparam Net Network type (must be Net_Cost_Graph or compatible).
 
