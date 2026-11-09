@@ -158,6 +158,15 @@ mapfile -t SELECTED < <(for j in "${SELECTED[@]}"; do echo "${MINUTES[$j]} $j"; 
 [[ "${CPUS}" =~ ^[1-9][0-9]*$ ]] || die "--cpus takes a positive number"
 (( JOBS > ${#SELECTED[@]} )) && JOBS=${#SELECTED[@]}
 NCPU=$(( CPUS / JOBS )); (( NCPU < 2 )) && NCPU=2
+# A build under the sanitizers takes up to some 2 GB by core: no more
+# cores by job than the available memory gives, where Linux tells it
+mem_gb=$(awk '/^MemAvailable:/ {print int($2 / 1048576)}' \
+         /proc/meminfo 2>/dev/null || true)
+if [[ "${mem_gb}" =~ ^[1-9][0-9]*$ ]]; then
+  max_ncpu=$(( mem_gb / (JOBS * 2) ))
+  (( max_ncpu < 2 )) && max_ncpu=2
+  if (( NCPU > max_ncpu )); then NCPU=${max_ncpu}; fi
+fi
 
 command -v git >/dev/null || die "git is missing"
 needs_docker=0
@@ -238,9 +247,13 @@ prepare_source() {
     BUILD_ROOT="${WORK}/build"
     mkdir -p "${SRC}"
     local list="${WORK}/src.list"
+    # a tracked file deleted from the working tree stays out; an if, so that
+    # it does not leave the status of the loop, and of the pipe, at 1
     { git -C "${ROOT_DIR}" ls-files -z -c; untracked_sources; } |
       while IFS= read -r -d '' f; do
-        [ -e "${ROOT_DIR}/$f" ] || [ -L "${ROOT_DIR}/$f" ] && printf '%s\0' "$f"
+        if [ -e "${ROOT_DIR}/$f" ] || [ -L "${ROOT_DIR}/$f" ]; then
+          printf '%s\0' "$f"
+        fi
       done | sort -zu > "${list}"
     rsync -a --checksum --from0 --files-from="${list}" "${ROOT_DIR}/" "${SRC}/"
     # what the working tree no longer has goes from the copy too
