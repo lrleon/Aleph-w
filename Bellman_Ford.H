@@ -80,6 +80,7 @@
 #include <limits>
 #include <vector>
 
+#include <tpl_array.H>
 #include <tpl_dynListQueue.H>
 #include <tpl_dynSetTree.H>
 #include <tpl_graph_utils.H>
@@ -276,7 +277,9 @@ class Bellman_Ford
       }
   }
 
-  DynArray<typename GT::Arc *> arcs_;
+  // The arc that reached each node, by its index: contiguous, as every
+  // relaxation reads or writes it
+  Array<typename GT::Arc *> arcs_;
   GT &g_;  // Non-const: algorithm modifies node/arc bits and cookies
   const Distance_Type Inf;
   bool painted_ = false;
@@ -323,18 +326,17 @@ class Bellman_Ford
     Init_Guard guard([this]()
     {
       uninit<Ni>();
-      arcs_.cut();
+      arcs_.empty();
     });
 
     const size_t n = g_.get_num_nodes();
-    arcs_.cut();  // Clear any previous data
+    arcs_.empty();  // Clear any previous data
     arcs_.reserve(n);
 
     typename GT::Node_Iterator it(g_);
     for (size_t i = 0; it.has_curr(); ++i, it.next())
       {
-        // Use touch() to ensure memory is allocated for index i
-        arcs_.touch(i) = nullptr;
+        arcs_.append(nullptr);  // the entry of index i
         auto p = it.get_curr();
         g_.reset_bit(p, Aleph::Spanning_Tree);  // set bit to zero
         NODE_COOKIE(p) = nullptr;  // clear stale pointer before allocating
@@ -365,7 +367,7 @@ class Bellman_Ford
   void abandon() noexcept
   {
     uninit<Ni>();
-    arcs_.cut();
+    arcs_.empty();
     painted_ = false;
     parents_ = false;
     s_ = nullptr;
@@ -491,7 +493,7 @@ public:
           ARC_BITS(it.get_curr()).set_bit(Aleph::Spanning_Tree, false);
       }
 
-    arcs_.cut();
+    arcs_.empty();
     painted_ = false;
     parents_ = false;
     s_ = nullptr;
@@ -1182,7 +1184,11 @@ public:
   {
     ah_domain_error_if(not painted_) << "Spanning tree has not been painted";
 
-    return arcs_;
+    DynArray<Arc *> ret;
+    ret.reserve(arcs_.size());
+    for (size_t i = 0; i < arcs_.size(); ++i)
+      ret.touch(i) = arcs_(i);
+    return ret;
   }
 
   /** Get the accumulated distance to a node from a previously painted tree.
