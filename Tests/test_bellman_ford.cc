@@ -1570,6 +1570,93 @@ TEST(BellmanFordTest, ATolerantDistanceTakesNoCycleWithinItsTolerance)
   EXPECT_FALSE(Tolerant_BF(g, Tolerant_Dist(1e-12)).search_negative_cycle(a).is_empty());
 }
 
+// The weight of an arc of a graph of integer weights, with a tolerance
+template <class G>
+struct Tolerant_Int_Dist : Dft_Dist<G>
+{
+  using Distance_Type = typename Dft_Dist<G>::Distance_Type;
+
+  Distance_Type tol = 0;
+
+  Tolerant_Int_Dist() = default;
+  explicit Tolerant_Int_Dist(Distance_Type t) : tol(t) {}
+
+  Distance_Type tolerance() const noexcept { return tol; }
+};
+
+using UGT = List_Digraph<Graph_Node<int>, Graph_Arc<unsigned>>;
+
+// With an unsigned distance, accum - tolerance() went around below 0: any
+// sum relaxed a distance below the tolerance, as the one of the start, and
+// a cycle of weight zero, or a positive one, was taken for a negative one
+TEST(BellmanFordTest, AnUnsignedToleranceDoesNotWrapAround)
+{
+  using UBF = Bellman_Ford<UGT, Tolerant_Int_Dist<UGT>>;
+  for (const unsigned w : {0u, 1u})  // a cycle of weight zero, and a positive one
+    for (const unsigned tol : {1u, 5u})
+      for (const bool faster : {false, true})
+        {
+          UGT g;
+          auto a = g.insert_node(0);
+          auto b = g.insert_node(1);
+          g.insert_arc(a, b, w);
+          g.insert_arc(b, a, w);
+          const Tolerant_Int_Dist<UGT> d(tol);
+
+          EXPECT_FALSE(UBF(g, d).has_negative_cycle(a));
+          EXPECT_FALSE(UBF(g, d).has_negative_cycle());
+          UBF bf(g, d);
+          ASSERT_FALSE(faster ? bf.faster_paint_spanning_tree(a) : bf.paint_spanning_tree(a));
+          EXPECT_EQ(bf.get_distance(b), w);
+        }
+}
+
+// A node without a distance, at max(), did not take a sum that fits within
+// the tolerance of max(): it was left without one
+TEST(BellmanFordTest, AnIntegerToleranceLeavesNoNodeWithoutADistance)
+{
+  using IBF = Bellman_Ford<GT, Tolerant_Int_Dist<GT>>;
+  const Tolerant_Int_Dist<GT> d(2);
+  constexpr int max = std::numeric_limits<int>::max();
+  for (const bool faster : {false, true})
+    {
+      GT g;
+      auto a = g.insert_node(0);
+      auto b = g.insert_node(1);
+      g.insert_arc(a, b, max - 1);
+
+      IBF bf(g, d);
+      ASSERT_FALSE(faster ? bf.faster_paint_spanning_tree(a) : bf.paint_spanning_tree(a));
+      EXPECT_EQ(bf.get_distance(b), max - 1);
+    }
+}
+
+// With a signed distance, accum - tolerance() overflowed below lowest(): a
+// sum that did not improve a distance relaxed it, and there was a negative
+// cycle where there is no cycle
+TEST(BellmanFordTest, ASignedToleranceDoesNotOverflow)
+{
+  using IBF = Bellman_Ford<GT, Tolerant_Int_Dist<GT>>;
+  const Tolerant_Int_Dist<GT> d(2);
+  constexpr int lowest = std::numeric_limits<int>::lowest();
+
+  // b gets lowest() + 1, and then 0, by a parallel arc, does not relax it
+  for (const bool faster : {false, true})
+    {
+      GT g;
+      auto a = g.insert_node(0);
+      auto b = g.insert_node(1);
+      g.insert_arc(a, b, lowest + 1);
+      g.insert_arc(a, b, 0);
+
+      EXPECT_FALSE(IBF(g, d).has_negative_cycle(a));
+      EXPECT_FALSE(IBF(g, d).has_negative_cycle());
+      IBF bf(g, d);
+      ASSERT_FALSE(faster ? bf.faster_paint_spanning_tree(a) : bf.paint_spanning_tree(a));
+      EXPECT_EQ(bf.get_distance(b), lowest + 1);
+    }
+}
+
 // ========== GoogleTest main ==========
 int main(int argc, char **argv)
 {

@@ -108,10 +108,12 @@ namespace Aleph {
       `Distance_Type operator()(typename GT::Arc *a)`. It should have no side
       effects: how many times it is called per arc is unspecified (the
       relaxation passes stop as soon as one relaxes nothing). It may give
-      `Distance_Type tolerance() const`: a relaxation must then improve a
-      distance by more than it, so that the rounding of floating sums does
-      not make a cycle of weight zero negative, as an arc and its residual,
-      of opposite weights, in a residual network.
+      `Distance_Type tolerance() const`, which must not be negative: a
+      relaxation must then improve a distance by more than it, so that the
+      rounding of floating sums does not make a cycle of weight zero
+      negative, as an arc and its residual, of opposite weights, in a
+      residual network. A node without a distance takes any sum that is
+      below max(), as without a tolerance.
     - `Ait`: Arc iterator template for traversing all arcs.
     - `NAit`: Node arc iterator template for traversing arcs from a node.
     - `SA`: Arc filter for the internal iterators.
@@ -297,12 +299,26 @@ class Bellman_Ford
   }
 
   /// Whether sum relaxes the distance accum: it is below it, by more than
-  /// the tolerance of the distance, if it gives one (see the class)
+  /// the tolerance of the distance, if it gives one (see the class). With
+  /// an integer distance, accum - tolerance() is not computed below
+  /// lowest(), where no sum is, and a node without a distance, at Inf,
+  /// takes any sum below Inf, as without a tolerance
   [[gnu::always_inline]] bool relaxes(const Distance_Type &sum, const Distance_Type &accum) const
   {
     if constexpr (requires (const Distance &d)
                     { { d.tolerance() } -> std::convertible_to<Distance_Type>; })
-      return sum < accum - dist_.tolerance();
+      {
+        if constexpr (std::is_integral_v<Distance_Type>)
+          {
+            const Distance_Type tol = dist_.tolerance();
+            if (accum == Inf)
+              return sum < accum;
+            return accum >= std::numeric_limits<Distance_Type>::lowest() + tol
+                   and sum < accum - tol;
+          }
+        else
+          return sum < accum - dist_.tolerance();
+      }
     else
       return sum < accum;
   }
