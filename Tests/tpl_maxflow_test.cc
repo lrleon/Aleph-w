@@ -1747,17 +1747,24 @@ TEST(FordFulkersonTest, DecimalCapacitiesKeepTheBalance)
         net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0);
     };
 
-  TestNet ff, ek;
+  // ff and ek, and the depth-first paths, which Ford-Fulkerson took with
+  // a floating flow before it took the shortest ones, and where the case
+  // was found
+  TestNet ff, ek, dfs;
   build(ff);
   build(ek);
+  build(dfs);
   const double ff_value = Ford_Fulkerson_Maximum_Flow<TestNet>()(ff);
   const double ek_value = Edmonds_Karp_Maximum_Flow<TestNet>()(ek);
+  const double dfs_value = aumenting_path_maximum_flow<TestNet, Find_Aumenting_Path_DFS>(dfs);
 
   EXPECT_TRUE(ff.check_network());
   EXPECT_TRUE(ek.check_network());
+  EXPECT_TRUE(dfs.check_network());
   // The arcs out of the source, 2 + 0.2 + 2.7 + 1, are saturated
   EXPECT_NEAR(ff_value, 5.9, 1e-12);
   EXPECT_NEAR(ek_value, 5.9, 1e-12);
+  EXPECT_NEAR(dfs_value, 5.9, 1e-12);
 }
 
 // A slack that rounding left on an arc of capacity 2, of 0.09999999999999964
@@ -1786,17 +1793,64 @@ TEST(FordFulkersonTest, ResiduesOfLargerArcsKeepTheBalance)
         net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0);
     };
 
-  TestNet ff, ek;
+  // ff and ek, and the depth-first paths, which Ford-Fulkerson took with
+  // a floating flow before it took the shortest ones, and where the case
+  // was found
+  TestNet ff, ek, dfs;
   build(ff);
   build(ek);
+  build(dfs);
   ASSERT_EQ(ff.get_source()->get_info(), 1);
   ASSERT_EQ(ff.get_sink()->get_info(), 14);
   const double ff_value = Ford_Fulkerson_Maximum_Flow<TestNet>()(ff);
   const double ek_value = Edmonds_Karp_Maximum_Flow<TestNet>()(ek);
+  const double dfs_value = aumenting_path_maximum_flow<TestNet, Find_Aumenting_Path_DFS>(dfs);
 
   EXPECT_TRUE(ff.check_network());
   EXPECT_TRUE(ek.check_network());
+  EXPECT_TRUE(dfs.check_network());
   EXPECT_NEAR(ff_value, ek_value, 1e-12);
+  EXPECT_NEAR(dfs_value, ek_value, 1e-12);
+}
+
+// The paths of a depth-first search took the residues of rounding that
+// capacities in tenths leave, of an ulp, and spread them, so that the flows
+// left the multiples of 0.1 and the slacks of the paths went down to 1e-17:
+// Ford-Fulkerson did not end on this network of 400 nodes. With a floating
+// flow it takes the shortest paths, as Edmonds-Karp
+TEST(FordFulkersonTest, DecimalCapacitiesEndOnAMidSizeNetwork)
+{
+  // n nodes; 0 is the source and n - 1 the sink; every other node has an
+  // arc from an earlier one and one to a later one; then 10 n arcs at
+  // random, none into the source nor out of the sink
+  const int n = 400;
+  TestNet net;
+  std::mt19937 gen(1);
+  std::vector<Node *> nodes;
+  for (int i = 0; i < n; ++i)
+    nodes.push_back(net.insert_node(i));
+  auto arc = [&] (int a, int b)
+    {
+      const double cap = double(1 + gen() % 40) * 0.1;
+      net.insert_arc(nodes[size_t(a)], nodes[size_t(b)], cap);
+    };
+  for (int i = 1; i < n - 1; ++i)
+    {
+      arc(int(gen() % unsigned(i)), i);
+      arc(i, i + 1 + int(gen() % unsigned(n - 1 - i)));
+    }
+  for (int k = 0; k < 10 * n; ++k)
+    {
+      const int a = int(gen() % unsigned(n - 1));
+      const int b = 1 + int(gen() % unsigned(n - 1));
+      if (a != b)
+        arc(a, b);
+    }
+
+  const double value = Ford_Fulkerson_Maximum_Flow<TestNet>()(net);
+
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(value, 33.6, 1e-9);  // 336 with the capacities by ten
 }
 
 

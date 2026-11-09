@@ -2127,6 +2127,16 @@ typename Net::Flow_Type aumenting_path_maximum_flow(Net &net)
 
 /** @brief Maximize flow using the Ford-Fulkerson algorithm.
  *
+ * With an integer flow, it takes the augmenting paths of a depth-first
+ * search. With a floating flow, it takes the shortest ones, those of
+ * edmonds_karp_maximum_flow(): rounding leaves residues of the order of
+ * an ulp on the arcs, which the paths of a depth-first search take and
+ * spread, taking the flows off the multiples of the data, so that the
+ * augmentations, bounded only by the value of the flow over the least of
+ * its units, did not end on networks of some hundreds of nodes with
+ * capacities in tenths. The number of shortest augmentations is O(V E),
+ * whatever the capacities.
+ *
  * @param[in,out] net Flow network (must have a single source and sink).
  * @return Maximized flow value.
  *
@@ -2135,7 +2145,10 @@ typename Net::Flow_Type aumenting_path_maximum_flow(Net &net)
 template <class Net>
 typename Net::Flow_Type ford_fulkerson_maximum_flow(Net &net)
 {
-  return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_DFS>(net);
+  if constexpr (std::is_floating_point_v<typename Net::Flow_Type>)
+    return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_BFS>(net);
+  else
+    return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_DFS>(net);
 }
 
 /** @brief Functor wrapper for ford_fulkerson_maximum_flow().

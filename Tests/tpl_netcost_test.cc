@@ -40,6 +40,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -2235,6 +2236,18 @@ TEST(NetworkSimplexFloatingTest, APivotKeepsTheFlowsWithinTheCapacities)
   EXPECT_NEAR(net.flow_cost(), 3.6, 1e-12);
 }
 
+// The maximum flow of the paths of a depth-first search, which
+// Ford-Fulkerson took with a floating flow before it took the shortest
+// ones: the starting flow of the cases below that it found
+template <class N>
+struct Dfs_Maximum_Flow
+{
+  typename N::Flow_Type operator () (N & net) const
+  {
+    return aumenting_path_maximum_flow<N, Find_Aumenting_Path_DFS>(net);
+  }
+};
+
 // Capacities in tenths: a pivot left an arc of capacity 2.9 with a flow of
 // 2.9000000000000004, and run() ended at cost -0.1; the exact problem, of
 // capacities by ten, has the least cost -8
@@ -2243,19 +2256,27 @@ TEST(NetworkSimplexFloatingTest, DecimalCapacitiesReachTheOptimum)
   // u, v, the capacity in tenths and the cost; 0 is the source and 3 the sink
   const int spec[][4] = {{1, 4, 9, 2}, {2, 3, 10, 3}, {4, 2, 29, -2}, {2, 4, 22, 0},
                          {0, 1, 26, 0}, {0, 2, 5, 2}, {0, 1, 7, 1}};
-  Net net;
-  std::vector<Net::Node *> nodes;
-  for (int i = 0; i < 5; ++i)
-    nodes.push_back(net.insert_node());
-  for (const auto & a : spec)
-    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, double(a[3]));
+  // From the flow of Ford-Fulkerson, and from that of the depth-first
+  // paths, which the pivots took to the ulp
+  for (const bool dfs : {false, true})
+    {
+      Net net;
+      std::vector<Net::Node *> nodes;
+      for (int i = 0; i < 5; ++i)
+        nodes.push_back(net.insert_node());
+      for (const auto & a : spec)
+        net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, double(a[3]));
 
-  max_flow_min_cost_by_network_simplex(net);
+      if (dfs)
+        max_flow_min_cost_by_network_simplex<Net, Dfs_Maximum_Flow>(net);
+      else
+        max_flow_min_cost_by_network_simplex(net);
 
-  EXPECT_TRUE(flows_within_capacities(net));
-  EXPECT_TRUE(net.check_network());
-  EXPECT_NEAR(net.flow_value(), 1.0, 1e-12);
-  EXPECT_NEAR(net.flow_cost(), -0.8, 1e-12);
+      EXPECT_TRUE(flows_within_capacities(net)) << "dfs " << dfs;
+      EXPECT_TRUE(net.check_network()) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_value(), 1.0, 1e-12) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_cost(), -0.8, 1e-12) << "dfs " << dfs;
+    }
 }
 
 // The pivots of a floating flow left a residue of rounding, of 2.8e-17, on a
@@ -2284,6 +2305,61 @@ TEST(NetworkSimplexFloatingTest, ResiduesOfRoundingGoBack)
   EXPECT_TRUE(net.check_network());
   EXPECT_NEAR(net.flow_value(), 0.3, 1e-12);
   EXPECT_NEAR(net.flow_cost(), -0.9, 1e-12);  // the exact optimum
+}
+
+// Ford-Fulkerson, the maximum flow of max_flow_min_cost_by_network_simplex()
+// and of max_flow_min_cost_by_cycle_canceling() by default, took the paths
+// of a depth-first search, which took the residues of rounding that
+// capacities in tenths leave and spread them: on this network of 400 nodes
+// it did not end. With a floating flow it takes the shortest paths
+TEST(NetworkSimplexFloatingTest, DecimalCapacitiesEndOnAMidSizeNetwork)
+{
+  // n nodes; 0 is the source and n - 1 the sink; every other node has an
+  // arc from an earlier one and one to a later one; then 10 n arcs at
+  // random, none into the source nor out of the sink; capacities of 0.1
+  // to 4 and costs of 1 to 20
+  auto build = [] (Net & net)
+    {
+      const int n = 400;
+      std::mt19937 gen(1);
+      std::vector<Net::Node *> nodes;
+      for (int i = 0; i < n; ++i)
+        nodes.push_back(net.insert_node());
+      auto arc = [&] (int a, int b)
+        {
+          const double cap = double(1 + gen() % 40) * 0.1;
+          const double cost = double(1 + gen() % 20);
+          net.insert_arc(nodes[size_t(a)], nodes[size_t(b)], cap, cost);
+        };
+      for (int i = 1; i < n - 1; ++i)
+        {
+          arc(int(gen() % unsigned(i)), i);
+          arc(i, i + 1 + int(gen() % unsigned(n - 1 - i)));
+        }
+      for (int k = 0; k < 10 * n; ++k)
+        {
+          const int a = int(gen() % unsigned(n - 1));
+          const int b = 1 + int(gen() % unsigned(n - 1));
+          if (a != b)
+            arc(a, b);
+        }
+    };
+
+  Net simplex, canceling;
+  build(simplex);
+  build(canceling);
+  max_flow_min_cost_by_network_simplex(simplex);
+  max_flow_min_cost_by_cycle_canceling(canceling);
+
+  // With the capacities by ten, the maximum flow is 281 and its least
+  // cost 8111
+  for (const Net * net : {&simplex, &canceling})
+    {
+      EXPECT_TRUE(flows_within_capacities(*net));
+      EXPECT_TRUE(net->check_network());
+      EXPECT_NEAR(net->flow_value(), 28.1, 1e-9);
+      EXPECT_NEAR(net->flow_cost(), 811.1, 1e-9);
+    }
 }
 
 // The tolerance of the reduced costs was 1000 epsilons, 2.2e-13: run() did
@@ -2714,17 +2790,24 @@ void build_tenths_case(Net & net, int n, const std::vector<std::array<int, 4>> &
 // and the canceling did not end
 TEST(CycleCancelingTest, DecimalCostsEnd)
 {
-  // 1 is the source and 0 the sink
-  Net net;
-  build_tenths_case(net, 3, {{1, 2, 33, 4}, {2, 2, 20, 6}, {2, 2, 28, 3}, {2, 0, 7, 8},
-                             {2, 2, 9, 9}, {1, 0, 3, 4}, {1, 2, 16, 6}, {2, 2, 15, 1}});
+  // 1 is the source and 0 the sink; from the flow of Ford-Fulkerson, and
+  // from that of the depth-first paths, where the case was found
+  for (const bool dfs : {false, true})
+    {
+      Net net;
+      build_tenths_case(net, 3, {{1, 2, 33, 4}, {2, 2, 20, 6}, {2, 2, 28, 3}, {2, 0, 7, 8},
+                                 {2, 2, 9, 9}, {1, 0, 3, 4}, {1, 2, 16, 6}, {2, 2, 15, 1}});
 
-  max_flow_min_cost_by_cycle_canceling(net);
+      if (dfs)
+        max_flow_min_cost_by_cycle_canceling<Net, Dfs_Maximum_Flow>(net);
+      else
+        max_flow_min_cost_by_cycle_canceling(net);
 
-  EXPECT_TRUE(flows_within_capacities(net));
-  EXPECT_TRUE(net.check_network());
-  EXPECT_NEAR(net.flow_value(), 1.0, 1e-12);
-  EXPECT_NEAR(net.flow_cost(), 0.96, 1e-12);  // the exact optimum
+      EXPECT_TRUE(flows_within_capacities(net)) << "dfs " << dfs;
+      EXPECT_TRUE(net.check_network()) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_value(), 1.0, 1e-12) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_cost(), 0.96, 1e-12) << "dfs " << dfs;  // the exact optimum
+    }
 }
 
 // A residue of rounding of a capacity, of an ulp, was the slack of negative
@@ -2732,23 +2815,30 @@ TEST(CycleCancelingTest, DecimalCostsEnd)
 // not end
 TEST(CycleCancelingTest, AResidueOfRoundingIsNoSlack)
 {
-  // 4 is the source and 5 the sink
-  Net net;
-  build_tenths_case(net, 10, {{8, 6, 30, 39}, {8, 7, 11, 57}, {4, 8, 7, 4}, {9, 7, 29, -17},
-                              {0, 2, 25, -28}, {8, 0, 8, 29}, {2, 0, 29, 41}, {7, 3, 8, 24},
-                              {0, 2, 7, 5}, {8, 8, 20, 52}, {0, 9, 4, -15}, {4, 5, 3, 53},
-                              {6, 7, 21, 40}, {4, 9, 11, 18}, {0, 1, 5, 8}, {9, 5, 1, -2},
-                              {9, 1, 12, 19}, {7, 1, 20, 55}, {4, 1, 12, 45}, {4, 8, 2, 22},
-                              {4, 5, 30, 10}, {7, 1, 20, -13}, {6, 1, 7, -17}, {9, 8, 40, 36},
-                              {0, 0, 21, -20}, {0, 5, 20, -15}, {2, 8, 20, -21}, {7, 5, 3, 10},
-                              {1, 5, 30, -27}, {3, 9, 40, 47}});
+  // 4 is the source and 5 the sink; from the flow of Ford-Fulkerson, and
+  // from that of the depth-first paths, where the case was found
+  for (const bool dfs : {false, true})
+    {
+      Net net;
+      build_tenths_case(net, 10, {{8, 6, 30, 39}, {8, 7, 11, 57}, {4, 8, 7, 4}, {9, 7, 29, -17},
+                                  {0, 2, 25, -28}, {8, 0, 8, 29}, {2, 0, 29, 41}, {7, 3, 8, 24},
+                                  {0, 2, 7, 5}, {8, 8, 20, 52}, {0, 9, 4, -15}, {4, 5, 3, 53},
+                                  {6, 7, 21, 40}, {4, 9, 11, 18}, {0, 1, 5, 8}, {9, 5, 1, -2},
+                                  {9, 1, 12, 19}, {7, 1, 20, 55}, {4, 1, 12, 45}, {4, 8, 2, 22},
+                                  {4, 5, 30, 10}, {7, 1, 20, -13}, {6, 1, 7, -17}, {9, 8, 40, 36},
+                                  {0, 0, 21, -20}, {0, 5, 20, -15}, {2, 8, 20, -21}, {7, 5, 3, 10},
+                                  {1, 5, 30, -27}, {3, 9, 40, 47}});
 
-  max_flow_min_cost_by_cycle_canceling(net);
+      if (dfs)
+        max_flow_min_cost_by_cycle_canceling<Net, Dfs_Maximum_Flow>(net);
+      else
+        max_flow_min_cost_by_cycle_canceling(net);
 
-  EXPECT_TRUE(flows_within_capacities(net));
-  EXPECT_TRUE(net.check_network());
-  EXPECT_NEAR(net.flow_value(), 6.5, 1e-12);
-  EXPECT_NEAR(net.flow_cost(), -3.01, 1e-12);  // the exact optimum
+      EXPECT_TRUE(flows_within_capacities(net)) << "dfs " << dfs;
+      EXPECT_TRUE(net.check_network()) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_value(), 6.5, 1e-12) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_cost(), -3.01, 1e-12) << "dfs " << dfs;  // the exact optimum
+    }
 }
 
 // By rounding, the arc that bounds a cycle went beyond its capacity, or its
