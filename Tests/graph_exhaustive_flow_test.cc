@@ -2749,8 +2749,6 @@ namespace
         const auto [value, total] = min_cost(tenths, cost, a, z);
         for (size_t i = 0; i < solvers.size(); ++i)
           {
-            if (i == 1 or i == 3)
-              continue;
             Check * check = checks.of(i, 0);
             b.net.reset();
             check->run();

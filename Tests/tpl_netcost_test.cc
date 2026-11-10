@@ -45,6 +45,7 @@
 #include <string>
 #include <vector>
 
+#include <tpl_maxflow.H>
 #include <tpl_netcost.H>
 
 using namespace Aleph;
@@ -2495,6 +2496,50 @@ TEST(NetworkSimplexFloatingTest, AnUnboundedProgramReturnsTheResidues)
       EXPECT_TRUE(flows_within_capacities(net)) << "capacity " << cap;
       EXPECT_NEAR(net.flow_value(), value, 1e-12) << "capacity " << cap;
     }
+}
+
+// Dinic and the capacity scaling left a node that received 5.6e-17 and
+// sent nothing, a residue of rounding beyond the tolerance of check_node(),
+// and the network simplex refused their maximum flow as not feasible. They
+// return the residues at their end, as the augmenting paths
+TEST(NetworkSimplexFloatingTest, TakesTheMaximumFlowsOfDinicAndOfTheScaling)
+{
+  // u, v and k, for a capacity of k * 0.1; the costs are 0; 0 is the
+  // source and 19 the sink
+  const int spec[][3] = {{0, 1, 12}, {1, 18, 5}, {1, 2, 8}, {0, 3, 4}, {3, 7, 19},
+                          {0, 5, 0}, {5, 8, 5}, {4, 6, 9}, {7, 11, 8}, {4, 8, 6},
+                          {8, 13, 19}, {0, 10, 11}, {11, 19, 8}, {10, 12, 8}, {12, 18, 8},
+                          {13, 19, 20}, {3, 15, 8}, {15, 18, 15}, {14, 16, 5}, {10, 17, 1},
+                          {17, 19, 14}, {9, 18, 7}, {18, 19, 6}, {10, 16, 13}, {0, 9, 2},
+                          {16, 11, 19}, {3, 4, 8}, {6, 14, 4}, {2, 13, 14}, {9, 7, 20}};
+  auto build = [&spec] (Net & net)
+    {
+      std::vector<Net::Node *> nodes;
+      for (int i = 0; i < 20; ++i)
+        nodes.push_back(net.insert_node());
+      for (const auto & a : spec)
+        net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] * 0.1, 0.0);
+    };
+
+  Net dinic, scaling;
+  build(dinic);
+  build(scaling);
+  dinic_maximum_flow(dinic);
+  capacity_scaling_maximum_flow(scaling);
+  EXPECT_TRUE(dinic.check_network());
+  EXPECT_TRUE(scaling.check_network());
+
+  Net net;
+  build(net);
+  ASSERT_NO_THROW((max_flow_min_cost_by_network_simplex<Net, Dinic_Maximum_Flow>(net)));
+  EXPECT_NEAR(net.flow_value(), 2.7, 1e-12);
+  EXPECT_TRUE(net.check_network());
+
+  Net other;
+  build(other);
+  ASSERT_NO_THROW((max_flow_min_cost_by_network_simplex<Net, Capacity_Scaling_Maximum_Flow>(other)));
+  EXPECT_NEAR(other.flow_value(), 2.7, 1e-12);
+  EXPECT_TRUE(other.check_network());
 }
 
 // The network of AnInfeasibleFlowThrows: s = 0, a = 1, b = 2, t = 3

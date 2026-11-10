@@ -2536,8 +2536,10 @@ namespace Aleph
 
       @throw bad_alloc If there is not enough memory.
       @throw domain_error If network is not single source and single sink,
-             or if the program is unbounded: a cycle of negative cost
-             through arcs without capacity.
+             if the flow that Max_Flow_Algo leaves is not feasible (see
+             Network_Simplex::run()), which the maximum flows of the
+             library do not leave, or if the program is unbounded: a cycle
+             of negative cost through arcs without capacity.
       @throw runtime_error If the pivots reach their bound before the
              optimum (see Network_Simplex::run()).
 

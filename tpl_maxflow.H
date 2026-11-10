@@ -413,6 +413,11 @@ typename Net::Flow_Type dinic_blocking_flow(Net &net, typename Net::Node *source
  *
  *  This is more efficient than Ford-Fulkerson for dense graphs.
  *
+ *  With a floating flow, the residues of rounding that the blocking
+ *  flows leave go back at the end, as those of the augmenting paths (see
+ *  net_detail::return_dust()): every node keeps its flow within the
+ *  tolerance of check_node(), so that the network simplex takes the flow.
+ *
  *  ## Complexity
  *  - General graphs: O(V²E)
  *  - Unit capacity graphs: O(E√V)
@@ -474,6 +479,11 @@ typename Net::Flow_Type dinic_maximum_flow(Net &net)
   while (build_level_graph(net, source, sink))
     (void) dinic_blocking_flow(net, source, sink);
 
+  // The residues of rounding that the blocking flows leave go back, as
+  // those of the augmenting paths, as a node that received 5.6e-17 and
+  // sent nothing
+  net_detail::return_dust(net, source, sink);
+
   // Cookie_Saver destructor will restore original NODE_COOKIE values
   return net.flow_value();  // with the flow that the network had
 }
@@ -513,6 +523,11 @@ struct Dinic_Maximum_Flow
  *  Capacity scaling improves augmenting path algorithms by only considering
  *  edges with "significant" residual capacity in each phase. This reduces
  *  the number of augmenting paths found.
+ *
+ *  With a floating flow, the residues of rounding that the paths leave go
+ *  back at the end (see net_detail::return_dust()): every node keeps its
+ *  flow within the tolerance of check_node(), so that the network simplex
+ *  takes the flow.
  *
  *  ## Algorithm
  *  1. Start with Δ = largest power of 2 ≤ max capacity
@@ -657,6 +672,10 @@ typename Net::Flow_Type capacity_scaling_maximum_flow(Net &net)
   // For integer capacities the scaling phases already found all flow,
   // so this is a single O(V+E) no-op BFS.
   (void) bfs_augment(Flow_Type{0});
+
+  // The residues of rounding that the paths leave go back, as those of
+  // the augmenting paths, as a node that received 5.6e-17 and sent nothing
+  net_detail::return_dust(net, source, sink);
 
   return net.flow_value();  // with the flow that the network had
 }
