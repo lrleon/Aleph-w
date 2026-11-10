@@ -670,6 +670,25 @@ TEST(SSPTest, DecimalCapacitiesStayWithinTheArcs)
   EXPECT_NEAR(net.flow_cost(), 2.71, 1e-12);
 }
 
+// From the flow through the dearer of two arcs from m to the sink, of costs
+// 1 and 1 - 1e-7, the residual network has a cycle of cost -1e-7, far above
+// the tolerance of the potentials with costs of 1, 4 n^2 epsilons: the
+// flow is not of least cost, and successive_shortest_paths() refuses it,
+// with the flows as they were
+TEST(SSPTest, RefusesACycleOfCost1e7)
+{
+  TestNet net;
+  auto s = net.insert_node(), m = net.insert_node(), t = net.insert_node();
+  Arc * sm = net.insert_arc(s, m, 1, 0);
+  Arc * dear = net.insert_arc(m, t, 1, 1);
+  net.insert_arc(m, t, 1, 1 - 1e-7);
+  sm->flow = dear->flow = 1;
+
+  EXPECT_THROW(successive_shortest_paths(net), std::domain_error);
+  EXPECT_EQ(sm->flow, 1);
+  EXPECT_EQ(dear->flow, 1);
+}
+
 // With the arcs that bound the paths filled exactly, and the flows that a
 // path takes next to zero taken to zero, a path took a residue of rounding,
 // of 2.2e-16, and a later one took the flow out of its node to zero: the

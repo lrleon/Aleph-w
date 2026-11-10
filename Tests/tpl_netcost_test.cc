@@ -2990,6 +2990,67 @@ TEST(CycleCancelingTest, TheFlowOfAnArcWithoutCapacityGoesBack)
         }
 }
 
+// A cycle took what 3->4 had left, and flow + (0.6 - flow) came out an ulp
+// above 0.6, 0.60000000000000009 of 0.59999999999999998: the arc that
+// bounds a cycle takes its capacity, exactly
+TEST(CycleCancelingTest, TheArcThatBoundsACycleStaysWithinItsCapacity)
+{
+  // u, v, the capacity and the cost in tenths; 0 is the source and 8 the sink
+  const std::vector<std::array<int, 4>> spec = {
+    {0, 1, 33, -8}, {0, 2, 38, 26}, {3, 4, 6, 9},   {4, 5, 29, -2}, {0, 5, 11, 17},
+    {6, 7, 37, 8},  {7, 8, 4, 15},  {5, 8, 22, -8}, {1, 6, 27, 12}, {6, 3, 17, 22},
+    {1, 8, 9, -9},  {7, 5, 23, -4}, {0, 6, 3, 5},   {1, 4, 20, 27}, {1, 3, 39, -9},
+    {1, 7, 15, 28}, {7, 9, 35, 20}, {9, 8, 11, 13}, {2, 8, 37, 10}};
+  Net net;
+  std::vector<Net::Node *> nodes;
+  for (int i = 0; i < 10; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, a[3] / 10.0);
+
+  max_flow_min_cost_by_cycle_canceling(net);
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(net.flow_value(), 8.3, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), 17.67, 1e-12);  // the exact optimum
+}
+
+// From m, two arcs to the sink, of costs 1 and 1 - 1e-7, beside an arc
+// of capacity 1 from the source: the first maximum flow takes the first,
+// and the second is cheaper by 1e-7, far above the tolerances of the costs
+// with costs of 1, 4 n^2 epsilons for the canceling and 1000 for the
+// simplex, so that both take it
+void build_cheaper_by_1e7(Net & net, Net::Arc *& dear, Net::Arc *& cheap)
+{
+  auto s = net.insert_node(), m = net.insert_node(), t = net.insert_node();
+  net.insert_arc(s, m, 1, 0);
+  dear = net.insert_arc(m, t, 1, 1);
+  cheap = net.insert_arc(m, t, 1, 1 - 1e-7);
+}
+
+TEST(CycleCancelingTest, TakesAnImprovementOf1e7)
+{
+  Net net;
+  Net::Arc * dear = nullptr, * cheap = nullptr;
+  build_cheaper_by_1e7(net, dear, cheap);
+  max_flow_min_cost_by_cycle_canceling(net);
+  EXPECT_EQ(dear->flow, 0);
+  EXPECT_EQ(cheap->flow, 1);
+  EXPECT_DOUBLE_EQ(net.flow_cost(), 1 - 1e-7);
+}
+
+TEST(NetworkSimplexFloatingTest, TakesAnImprovementOf1e7)
+{
+  Net net;
+  Net::Arc * dear = nullptr, * cheap = nullptr;
+  build_cheaper_by_1e7(net, dear, cheap);
+  max_flow_min_cost_by_network_simplex(net);
+  EXPECT_EQ(dear->flow, 0);
+  EXPECT_EQ(cheap->flow, 1);
+  EXPECT_DOUBLE_EQ(net.flow_cost(), 1 - 1e-7);
+}
+
 
 } // anonymous namespace
 
