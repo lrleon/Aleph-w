@@ -253,6 +253,13 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
  *
  *  This is equivalent to primal-dual method for min-cost flow.
  *
+ *  With a floating flow, the arc that bounds a path is filled to its
+ *  capacity exactly, and the residues of rounding that the paths leave
+ *  go back at the end, as those of the maximum flows (see
+ *  net_detail::return_dust()): every arc keeps its flow within [0, cap],
+ *  and every node within the tolerance of check_node(), so that the
+ *  network simplex takes the flow.
+ *
  *  ## Complexity
  *  O(V * U * (E + V log V)) where U is the max flow value.
  *  Best when flow value is small.
@@ -522,15 +529,18 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
           v = static_cast<Node *>(ssp_info<Net>(v).parent_node);
         }
 
-      // Augment flow
+      // Augment flow. With a floating flow, flow + (cap - flow) may come
+      // out an ulp above cap: the arc that bounds the path is filled to
+      // its capacity, exactly, and a flow that goes down next to zero is
+      // zero, as along the augmenting paths of the maximum flows
       for (Node *v = sink; v != source;)
         {
           Arc *arc = static_cast<Arc *>(ssp_info<Net>(v).parent_arc);
 
           if (ssp_info<Net>(v).forward)
-            arc->flow += path_flow;
+            net_detail::add_flow(arc, path_flow);
           else
-            arc->flow -= path_flow;
+            net_detail::subtract_flow(arc, path_flow);
 
           v = static_cast<Node *>(ssp_info<Net>(v).parent_node);
         }
@@ -569,6 +579,11 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
             ssp_info<Net>(p).distance >= std::numeric_limits<Flow_Type>::max())
           ssp_info<Net>(p).potential = unreachable_potential;
     }
+
+  // The residues of rounding that the paths leave go back, as those of
+  // the maximum flows; before the flows are done, so that an allocation
+  // that throws in it takes them back to those of the entry
+  net_detail::return_dust(net, source, sink);
   flows_back.done = true;
 
   // The value and the cost of the whole flow, with what the network had

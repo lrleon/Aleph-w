@@ -644,6 +644,65 @@ TEST(SSPTest, RunsOnTheCheapestFlowOfTheNetworkSimplex)
   EXPECT_TRUE(net.check_network());
 }
 
+// The second path, 0->2->3, takes what 2->3 has left, 3.4 - 0.7, and
+// 0.7 + (3.4 - 0.7) came out an ulp above 3.4: 2->3 carried
+// 3.4000000000000004 of 3.3999999999999999, out of its capacity, and the
+// network simplex refused the flow. The arc that bounds a path is filled
+// exactly, and the residues of rounding go back at the end
+TEST(SSPTest, DecimalCapacitiesStayWithinTheArcs)
+{
+  // 0 is the source and 3 the sink
+  auto net = build_tenths_network({{0, 1, 7, 2}, {1, 2, 8, 1}, {0, 2, 27, 8}, {2, 3, 34, 1}}, 4);
+
+  const auto [flow, cost] = successive_shortest_paths(net);
+
+  EXPECT_NEAR(flow, 3.4, 1e-12);
+  EXPECT_NEAR(cost, 2.71, 1e-12);  // the exact optimum
+  for (Arc_Iterator<TestNet> it(net); it.has_curr(); it.next_ne())
+    {
+      EXPECT_GE(it.get_curr()->flow, 0);
+      EXPECT_LE(it.get_curr()->flow, it.get_curr()->cap);
+    }
+  EXPECT_TRUE(net.check_network());
+
+  ASSERT_NO_THROW(Network_Simplex<TestNet>(net).run());
+  EXPECT_NEAR(net.flow_value(), 3.4, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), 2.71, 1e-12);
+}
+
+// With the arcs that bound the paths filled exactly, and the flows that a
+// path takes next to zero taken to zero, a path took a residue of rounding,
+// of 2.2e-16, and a later one took the flow out of its node to zero: the
+// node kept it, far beyond its tolerance, as it sent nothing. The residues
+// of the paths go back at the end, as those of the maximum flows
+TEST(SSPTest, ReturnsTheResiduesOfItsPaths)
+{
+  // u, v and k for the capacity and the cost, k * 0.1; 0 is the source and
+  // 21 the sink
+  const std::vector<std::array<int, 4>> spec = {
+    {0, 1, 29, 32},   {1, 2, 37, 32},   {3, 4, 34, 5},    {5, 6, 26, 11},   {1, 7, 28, 48},
+    {8, 9, 39, 15},   {10, 11, 39, 44}, {0, 12, 33, 94},  {0, 13, 6, 18},   {9, 14, 20, 6},
+    {1, 15, 34, 14},  {15, 16, 35, 87}, {17, 18, 31, 49}, {12, 6, 8, 77},   {6, 14, 12, 31},
+    {5, 14, 33, 76},  {14, 16, 18, 17}, {16, 19, 27, 21}, {4, 20, 37, 93},  {20, 21, 23, 89},
+    {19, 21, 39, 34}, {1, 8, 12, 24},   {19, 22, 21, 59}, {23, 14, 9, 2},   {3, 7, 20, 5},
+    {13, 9, 25, 51},  {22, 24, 38, 9},  {11, 15, 39, 27}, {24, 21, 24, 95}, {0, 5, 28, 99},
+    {7, 24, 35, 14},  {16, 25, 20, 86}, {25, 17, 1, 14},  {5, 13, 14, 9},   {26, 13, 32, 76},
+    {2, 27, 15, 80},  {28, 10, 12, 37}, {27, 9, 4, 15},   {20, 26, 21, 50}, {13, 28, 7, 91},
+    {13, 3, 20, 40},  {18, 23, 10, 16}};
+  TestNet net;
+  std::vector<Node *> nodes;
+  for (int i = 0; i < 29; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] * 0.1, a[3] * 0.1);
+
+  const auto [flow, cost] = successive_shortest_paths(net);
+
+  EXPECT_NEAR(flow, 6.7, 1e-12);
+  EXPECT_NEAR(cost, 156.22, 1e-9);  // the exact optimum
+  EXPECT_TRUE(net.check_network());
+}
+
 // --- Unreachable-node handling (indirect) --------------------------------
 
 // ssp_init_potentials starts the potential of every node at 0, from a
