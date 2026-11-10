@@ -288,17 +288,22 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
  *  @warning With a floating flow, a relaxation of the potentials must
  *  improve a distance by more than 4 n^2 epsilons of the largest finite
  *  cost of the whole network, where n is the number of nodes, and
- *  Dijkstra takes a negative reduced cost as zero. They keep the residues
- *  of rounding from making a run loop, or a second run throw, at any
- *  scale of the costs; but a difference below that tolerance counts as
- *  zero. So a cost of a far larger magnitude, even on an arc without
- *  flow, as a large penalty, can hide the cheaper paths among the other
- *  arcs, and the flow is not of least cost, without notice: with 100
- *  nodes, a cost of 5e11 can hide the differences of cost 1. Keep the
- *  largest cost below the smallest difference of cost that matters over
- *  4 n^2 epsilons, as by scaling the costs, or take an integer flow,
- *  which compares exactly. solve_transshipment(), solve_assignment()
- *  and solve_transportation() run it.
+ *  Dijkstra takes a negative reduced cost, of at most that tolerance, as
+ *  zero. They keep the residues of rounding from making a run loop, or a
+ *  second run throw, at any scale of the costs; but a difference below
+ *  that tolerance counts as zero, and it holds for each arc, not for a
+ *  whole path: a path or a cycle of m arcs can come out up to m times it
+ *  off, and only a path cheaper by more than n times it is sure to be
+ *  taken first. So a cost of a far larger magnitude, even on an arc
+ *  without flow, as a large penalty, can hide the cheaper paths among the
+ *  other arcs, and the flow is not of least cost, without notice: with
+ *  100 nodes, a cost of 5e11 can hide the differences of cost 1; with 7
+ *  nodes, a cost of 1e13 makes it take an arc of cost -0.6 instead of a
+ *  path of 5 arcs of -0.4, of cost -2. Keep the largest cost below the
+ *  smallest difference of cost that matters over 4 n^3 epsilons, as by
+ *  scaling the costs, or take an integer flow, which compares exactly.
+ *  solve_transshipment(), solve_assignment() and solve_transportation()
+ *  run it.
  *
  *  @par Example
  *  ```cpp

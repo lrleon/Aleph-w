@@ -776,14 +776,19 @@ namespace Aleph
       capacity if it has more than 1000 epsilons, some 2.2e-13, of the
       largest finite capacity or flow left. They keep the residues of
       rounding from being taken for negative cycles, at any scale of the
-      data; but a difference below them counts as zero. So an arc of a
-      far larger magnitude, even one without flow, as a large penalty
-      cost or a large finite capacity, can hide the negative cycles of the
-      other arcs, and the flow is not of least cost, without notice: with
-      100 nodes, a cost of 2e11 can hide the cycles of cost -1, and a
+      data; but a difference below them counts as zero, and the tolerance
+      of the costs holds for each relaxation, not for a whole cycle: a
+      cycle of m arcs, each of which improves a distance by less than it,
+      goes unseen with a cost of up to m times it, and only a cycle of
+      cost below -n times it is sure to be found. So an arc of a far
+      larger magnitude, even one without flow, as a large penalty cost or
+      a large finite capacity, can hide the negative cycles of the other
+      arcs, and the flow is not of least cost, without notice: with 100
+      nodes, a cost of 2e11 can hide the cycles of cost -1; with 10 nodes,
+      a cost of 1e13 hides a cycle of 8 arcs of -0.8, of cost -6.4; and a
       capacity of 1e13 keeps an arc of capacity 1 out of the residual
       network. Keep the largest cost below the smallest difference of
-      cost that matters over 4 n^2 epsilons, and the largest capacity
+      cost that matters over 4 n^3 epsilons, and the largest capacity
       below some 4.5e12 times the smallest one, as by scaling them; give
       an arc without a bound the capacity max() or infinity, which the
       tolerances leave out; or take an integer flow, which compares
