@@ -622,6 +622,28 @@ TEST(SSPTest, ASecondRunOfDecimalCostsFindsNoNegativeCycle)
   EXPECT_NEAR(again.second, cost, 1e-12);
 }
 
+// Into 2 come 0.1 + 0.8, and out goes their rounded sum, 2.8e-17 less,
+// within the tolerance of check_node(); the network simplex, and the
+// maximum flow before it, returned it from 0->2, which then had residual
+// capacity: with the residual of 1->0, of cost -1, through 2 and 1, a
+// cycle of negative cost, for which successive_shortest_paths(), which
+// starts from the flow that the network has, threw. What a node keeps
+// within its tolerance stays
+TEST(SSPTest, RunsOnTheCheapestFlowOfTheNetworkSimplex)
+{
+  // 0 is the source and 3 the sink
+  auto net = build_tenths_network({{0, 1, 31, 10}, {0, 2, 1, 0}, {1, 2, 8, 0}, {2, 3, 29, 0}}, 4);
+  max_flow_min_cost_by_network_simplex(net);
+  ASSERT_NEAR(net.flow_value(), 0.9, 1e-12);
+  ASSERT_NEAR(net.flow_cost(), 0.8, 1e-12);
+
+  std::pair<double, double> again;
+  ASSERT_NO_THROW(again = successive_shortest_paths(net));
+  EXPECT_NEAR(again.first, 0.9, 1e-12);
+  EXPECT_NEAR(again.second, 0.8, 1e-12);
+  EXPECT_TRUE(net.check_network());
+}
+
 // --- Unreachable-node handling (indirect) --------------------------------
 
 // ssp_init_potentials starts the potential of every node at 0, from a
