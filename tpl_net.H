@@ -1869,7 +1869,12 @@ public:
   }
 };
 
-/// Augmenting-path finder using DFS (stack).
+/** @brief Augmenting-path finder using DFS (stack).
+
+    @warning With a floating flow, its paths may not end on networks of
+    some hundreds of nodes with capacities not exact in binary, as tenths:
+    see aumenting_path_maximum_flow().
+*/
 template <class Net>
 using Find_Aumenting_Path_DFS = Find_Aumenting_Path<Net, DynListStack>;
 
@@ -2110,6 +2115,14 @@ inline void update_flow(const Rnet &rnet)
  * tolerance of check_node(). What a node keeps within it stays, as the
  * rounding of the sums of its flows: returning it lowered by an ulp arcs
  * that the paths had filled, and min_cut() put the sink with the source.
+ *
+ * @warning With a floating flow, the paths of a depth-first search, as
+ * those of Find_Aumenting_Path_DFS, take the residues of rounding that
+ * capacities not exact in binary, as tenths, leave on the arcs, of the
+ * order of an ulp, and spread them, so that the slacks of the paths go
+ * down to 1e-17: they may not end, as on a network of 400 nodes in
+ * tenths. ford_fulkerson_maximum_flow() takes the shortest paths then,
+ * those of Find_Aumenting_Path_BFS, which end after O(V E) of them.
  *
  * @param[in,out] net Flow network (must have a single source and sink).
  * @return Maximized flow value.
