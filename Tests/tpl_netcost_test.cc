@@ -2858,6 +2858,58 @@ TEST(CycleCancelingTest, DecimalFlowsStayWithinTheCapacities)
   EXPECT_NEAR(net.flow_cost(), 3.0, 1e-12);  // the exact optimum
 }
 
+// The flow that the network has, as the maximum flow of the canceling
+template <class N>
+struct Given_Maximum_Flow
+{
+  typename N::Flow_Type operator () (N & net) const
+  {
+    return net.flow_value();
+  }
+};
+
+// The mirror of an arc without capacity, of capacity infinity or max(), had
+// the slack cap - (cap - flow), NaN or 0, which the residual filter left
+// out: the canceling could not take back the flow of a dear path through
+// that arc, and the cost stayed above the least one
+TEST(CycleCancelingTest, TheFlowOfAnArcWithoutCapacityGoesBack)
+{
+  for (const double cap : {std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::max()})
+    for (const int units : {1, 2})
+      for (const bool given : {false, true})
+        {
+          // The maximum flow takes the dear arc x, the shortest path; the
+          // optimum sends one unit through b, at cost 2, and the second
+          // one, if any, through x, at cost 10
+          Net net;
+          auto s = net.insert_node();
+          auto a = net.insert_node();
+          auto b = net.insert_node();
+          auto t = net.insert_node();
+          auto sa = net.insert_arc(s, a, double(units), 0.0);
+          auto x = net.insert_arc(a, t, cap, 10.0);
+          net.insert_arc(a, b, 1.0, 1.0);
+          net.insert_arc(b, t, 1.0, 1.0);
+
+          if (given)
+            {
+              sa->flow = x->flow = double(units);
+              max_flow_min_cost_by_cycle_canceling<Net, Given_Maximum_Flow>(net);
+            }
+          else
+            max_flow_min_cost_by_cycle_canceling(net);
+
+          SCOPED_TRACE("capacity " + std::to_string(cap) + ", units " + std::to_string(units)
+                       + ", given " + std::to_string(given));
+          EXPECT_TRUE(std::isfinite(x->flow));
+          EXPECT_TRUE(flows_within_capacities(net));
+          EXPECT_TRUE(net.check_network());
+          EXPECT_EQ(x->flow, units - 1.0);
+          EXPECT_DOUBLE_EQ(net.flow_cost(), 2.0 + 10.0 * (units - 1));
+        }
+}
+
 
 } // anonymous namespace
 

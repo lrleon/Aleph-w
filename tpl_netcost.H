@@ -370,12 +370,28 @@ namespace Aleph
   };
 
 
+  namespace net_detail
+  {
+    /// What a residual arc of a floating flow has left: if it is a mirror,
+    /// the flow of its image, exactly; else its capacity less its flow. A
+    /// mirror keeps cap - flow as its flow, and cap - (cap - flow) is NaN
+    /// for an infinite capacity, and 0 for max() with a small flow
+    template <class Arc>
+    inline auto residual_room(const Arc *a) noexcept
+    {
+      return a->is_residual ? a->img->flow : a->cap - a->flow;
+    }
+  } // namespace net_detail
+
   /** Arc filter for the residual networks of a floating flow, which the
       cycle canceling takes: an arc has residual capacity if it has more
       than a tolerance left. A residue of rounding of a capacity, of the
       order of an ulp, was the slack of negative cycles that the canceling
       took, each leaving such a residue for another, so that it did not
-      end.
+      end. What a mirror has left is the flow of its image (see
+      net_detail::residual_room()): for an arc of capacity infinity or
+      max(), cap - (cap - flow) was NaN or 0, and the canceling could not
+      take back its flow.
 
       @tparam Net Residual network type.
       @ingroup Networks
@@ -398,11 +414,12 @@ namespace Aleph
     /** Check if arc has residual capacity beyond the tolerance.
 
         @param[in] a Arc to check.
-        @return true if cap - flow > tol, false otherwise.
+        @return true if what a has left, net_detail::residual_room(a), is
+                above tol, false otherwise.
     */
     bool operator ()(typename Net::Arc *a) const noexcept
     {
-      return a->cap - a->flow > tol;
+      return net_detail::residual_room(a) > tol;
     }
   };
 
@@ -666,8 +683,13 @@ namespace Aleph
     bool bounded = false;
     path.for_each_arc([&slack, &bounded](typename Res_Net::Arc *a)
                         {
-                          assert(a->cap - a->flow > 0);
-                          slack = std::min(slack, a->cap - a->flow);
+                          Ftype room;
+                          if constexpr (std::is_floating_point_v<Ftype>)
+                            room = net_detail::residual_room(a);
+                          else
+                            room = a->cap - a->flow;
+                          assert(room > 0);
+                          slack = std::min(slack, room);
                           bounded = bounded or a->is_residual
                             or not net_detail::without_capacity(a->cap);
                         });
@@ -679,7 +701,10 @@ namespace Aleph
     // covers what it has left, and its mirror takes the rest: by rounding,
     // the arc that bounds the cycle went beyond, or the mirror below zero,
     // and an arc of the network carried more than its capacity, or less
-    // than nothing
+    // than nothing. A mirror takes the slack from the flow of its image,
+    // which the slack does not exceed, as it is what the mirror has left:
+    // the flow goes to zero, exactly, if the mirror bounds the cycle.
+    // cap - flow lost that flow for an arc of capacity infinity or max()
     path.for_each_arc([slack](typename Res_Net::Arc *a)
                         {
                           auto img = a->img;
@@ -687,9 +712,17 @@ namespace Aleph
                           assert(a->cap == img->cap);
                           if constexpr (std::is_floating_point_v<Ftype>)
                             {
-                              a->flow = a->cap - a->flow <= slack
-                                ? a->cap : std::min(a->flow + slack, a->cap);
-                              img->flow = a->cap - a->flow;
+                              if (a->is_residual)
+                                {
+                                  img->flow -= slack;
+                                  a->flow = a->cap - img->flow;
+                                }
+                              else
+                                {
+                                  a->flow = a->cap - a->flow <= slack
+                                    ? a->cap : std::min(a->flow + slack, a->cap);
+                                  img->flow = a->cap - a->flow;
+                                }
                             }
                           else
                             {
