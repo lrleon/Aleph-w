@@ -2130,8 +2130,9 @@ namespace Aleph
         and of the largest cost; and the residues of rounding that the
         pivots leave, as the arc that leaves the tree takes its bound
         exactly, go back at the end, as those of the maximum flows (see
-        net_detail::return_dust()): every node keeps its flow within the
-        tolerance of check_node().
+        net_detail::return_dust()), also before the exception of an
+        unbounded program: every node keeps its flow within the tolerance
+        of check_node().
 
         @param[in] unused Kept for API compatibility.
         @return Number of pivots performed.
@@ -2140,7 +2141,8 @@ namespace Aleph
                the capacity of an arc, negative, infinite, or not kept by
                a node but the source and the sink), or if the program is
                unbounded: a cycle of negative cost through arcs
-               without capacity
+               without capacity; the network keeps then a feasible flow
+               of the same value, that of the pivots made
         @throw std::runtime_error if the pivots reach their bound before
                the optimum; the network keeps a feasible flow of the same
                value
@@ -2197,9 +2199,15 @@ namespace Aleph
 
           bool success = augment_and_find_leaving(entering, delta, leaving, leaving_goes_lower);
 
-          ah_domain_error_if(unbounded)
-            << "Network_Simplex::run(): the program is unbounded: a cycle of "
-            << "negative cost through arcs without capacity";
+          // The residues of rounding of the pivots made go back before
+          // the exception, as at the end: they stayed in the nodes
+          if (unbounded)
+            {
+              net_detail::return_dust(net, net.get_source(), net.get_sink());
+              ah_domain_error()
+                << "Network_Simplex::run(): the program is unbounded: a cycle of "
+                << "negative cost through arcs without capacity";
+            }
 
           if (success)
             {

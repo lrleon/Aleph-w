@@ -2462,6 +2462,41 @@ TEST(NetworkSimplexFloatingTest, AnUnboundedProgramThrows)
   EXPECT_THROW(max_flow_min_cost_by_network_simplex(net), std::domain_error);
 }
 
+// The pivots of a floating flow leave residues of rounding, which run()
+// returns at its end: the domain_error of an unbounded program left before,
+// after some pivots, and the network kept the residues, so that
+// check_network() was false after it
+TEST(NetworkSimplexFloatingTest, AnUnboundedProgramReturnsTheResidues)
+{
+  for (const double cap : {std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::max()})
+    {
+      // u, v, the capacity and the cost in tenths; 0 is the source and 5
+      // the sink; 2 and 1 make a cycle of cost -0.1 through two arcs
+      // without capacity, which no flow bounds
+      Net net;
+      std::vector<Net::Node *> nodes;
+      for (int i = 0; i < 6; ++i)
+        nodes.push_back(net.insert_node());
+      const std::vector<std::array<int, 4>> spec = {{0, 2, 35, -6}, {2, 3, 14, 9},
+                                                     {2, 3, 8, 23},  {4, 5, 37, 0},
+                                                     {3, 4, 39, 23}, {1, 4, 39, 8}};
+      for (const auto & a : spec)
+        net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, a[3] / 10.0);
+      net.insert_arc(nodes[2], nodes[1], cap, -0.3);
+      net.insert_arc(nodes[1], nodes[2], cap, 0.2);
+
+      Edmonds_Karp_Maximum_Flow<Net>()(net);
+      ASSERT_TRUE(net.check_network()) << "capacity " << cap;
+      const double value = net.flow_value();
+
+      EXPECT_THROW(Network_Simplex<Net>(net).run(), std::domain_error) << "capacity " << cap;
+      EXPECT_TRUE(net.check_network()) << "capacity " << cap;
+      EXPECT_TRUE(flows_within_capacities(net)) << "capacity " << cap;
+      EXPECT_NEAR(net.flow_value(), value, 1e-12) << "capacity " << cap;
+    }
+}
+
 // The network of AnInfeasibleFlowThrows: s = 0, a = 1, b = 2, t = 3
 std::vector<LNet::Arc *> build_infeasible_case(LNet & net)
 {
