@@ -82,7 +82,10 @@ HEAD_SHA=""
 BASE=""
 TREE=""
 FP=""
-WEEK="$(date +%G-W%V)"
+# The ISO week in UTC, as the job local-ci of the CI takes it: a local week
+# runs ahead of it east of Greenwich, where a Sunday night of UTC is already
+# a Monday, and local-ci would refuse the status
+WEEK="$(date -u +%G-W%V)"
 
 say() { echo "[${TAG}] $*"; }
 die() { echo "[${TAG}] $*" >&2; exit 1; }
@@ -605,17 +608,31 @@ declare -A RELEASES=()
 for j in "${SELECTED[@]}"; do
   if [ "${KIND[$j]}" != policy ]; then RELEASES[${REL[$j]}]=1; fi
 done
+# The architecture of the images, which the runners need to be amd64: that
+# of the daemon does not fix it, as an image may be of another one, and the
+# record of a result names it
+IMG_ARCH=""
 for rel in "${!RELEASES[@]}"; do
   ensure_image "${rel}"
-  say "image ${IMAGE[$rel]}: ${TOOLS[$rel]}"
+  a=$(docker image inspect --format '{{.Architecture}}' "${IMAGE[$rel]}" 2>/dev/null || true)
+  say "image ${IMAGE[$rel]} (${a:-unknown}): ${TOOLS[$rel]}"
+  if [ -z "${IMG_ARCH}" ]; then IMG_ARCH=${a:-unknown}; fi
+  if [ "${a:-unknown}" != "${IMG_ARCH}" ]; then IMG_ARCH=mixed; fi
 done
+if (( PUBLISH )) && [ "${IMG_ARCH}" != amd64 ]; then
+  if (( DRY_RUN )); then
+    say "warning: the images are of ${IMG_ARCH:-no architecture}, not amd64: --publish would refuse"
+  else
+    die "--publish needs images of amd64, as the runners of the CI (these: ${IMG_ARCH:-none})"
+  fi
+fi
 if (( PUBLISH && ! DRY_RUN )); then find_on_github; fi
 
-# A merge that passed is recorded by commit, master, fingerprint and week
-# of the images, so that --publish after the push posts it without running
-# the jobs again
+# A merge that passed is recorded by commit, master, fingerprint, week and
+# architecture of the images, so that --publish after the push posts it
+# without running the jobs again, and never a result of another machine
 RECORD=""
-(( MERGE )) && RECORD="${WORK}/passed/${HEAD_SHA}-${BASE}-${FP}-${WEEK}"
+(( MERGE )) && RECORD="${WORK}/passed/${HEAD_SHA}-${BASE}-${FP}-${WEEK}-${IMG_ARCH:-none}"
 recorded=0
 if (( PUBLISH )) && [ -f "${RECORD}" ]; then
   recorded=1

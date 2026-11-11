@@ -26,7 +26,8 @@ already passed on the machine of a maintainer: the hybrid CI.
    - `base=`, the `master` of the merge;
    - `img=`, the week of the images, and the versions of their compilers.
 
-   It needs Docker on x86_64, as the runners of the CI.
+   It needs Docker and images on x86_64 (amd64), as the runners of the
+   CI, and a result is recorded with the architecture of its images.
 3. In the CI, the job `local-ci` looks for that status, and accepts it only
    - on a pull request of this repository, never on one from a fork;
    - with the label `ci-local`;
@@ -97,7 +98,8 @@ drift, and what keeps it in step:
 - **The packages.** The CI installs the latest ones in every run. The
   images are built anew every week, without the cache of Docker, from the
   latest base image and packages; the first run of a week builds them,
-  and a status names the week of its images.
+  and a status names the week of its images, in UTC, as `local-ci`
+  takes it.
 - **The definition of the jobs.** `scripts/ci-local.sh` copies the jobs of
   `ci.yml` by hand. The fingerprint covers both files, so that a change to
   either needs a new local run, and the jobs in `ci.yml` and in the script
