@@ -1280,16 +1280,18 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
   const size_t n_nodes = net.vsize();
   const long n = static_cast<long>(n_nodes);
 
-  // A path of arcs of infinite capacity makes the maximum flow infinite
-  // (see net_detail::fill_infinite_path())
-  if (net_detail::fill_infinite_path(net))
-    return net.flow_value();
-
   // Allocate node info first so it outlives cookie_saver.
   // C++ destroys locals in reverse order: cookie_saver restores
   // original cookies before node_info storage is freed.
   auto node_info = Array<HLPP_Node_Info<Flow_Type>>::create(n_nodes);
   Cookie_Saver<Net> cookie_saver(net, true, false);  // save nodes only
+
+  // A path of arcs of infinite capacity makes the maximum flow infinite
+  // (see net_detail::fill_infinite_path()). Its search writes in the
+  // cookies of the nodes, after cookie_saver has saved them
+  if (net_detail::fill_infinite_path(net))
+    return net.flow_value();
+
   {
     size_t idx = 0;
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)

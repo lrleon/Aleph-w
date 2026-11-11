@@ -2171,6 +2171,40 @@ TEST(InfiniteCapacityTest, AnInfinitePathBesideAnInfiniteArcToAFinitePart)
     check(f);
 }
 
+// Dinic and HLPP keep the cookies that the caller left in the nodes, also
+// with an arc of infinite capacity out of the source: on s -> a of
+// infinity and a -> t of 2.5, and on a path of arcs of infinite capacity.
+// HLPP searched for such a path, whose search writes in the cookies,
+// before saving them, and the nodes lost theirs
+TEST(InfiniteCapacityTest, DinicAndHlppKeepTheCookiesOfTheNodes)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  const Named_Maximum_Flow keepers[] = {
+    {"dinic", [] (TestNet & net) { return dinic_maximum_flow(net); }},
+    {"hlpp", [] (TestNet & net) { return hlpp_maximum_flow(net); }}};
+  for (const auto & f : keepers)
+    for (const double cap : {2.5, inf})
+      {
+        TestNet net;
+        auto s = net.insert_node(0);
+        auto a = net.insert_node(1);
+        auto t = net.insert_node(2);
+        net.insert_arc(s, a, inf);
+        net.insert_arc(a, t, cap);
+        int tags[3] = {0, 1, 2};
+        NODE_COOKIE(s) = &tags[0];
+        NODE_COOKIE(a) = &tags[1];
+        NODE_COOKIE(t) = &tags[2];
+        EXPECT_EQ(f.run(net), cap) << f.name << " with a -> t of " << cap;
+        EXPECT_EQ(NODE_COOKIE(s), static_cast<void *>(&tags[0]))
+          << f.name << " with a -> t of " << cap;
+        EXPECT_EQ(NODE_COOKIE(a), static_cast<void *>(&tags[1]))
+          << f.name << " with a -> t of " << cap;
+        EXPECT_EQ(NODE_COOKIE(t), static_cast<void *>(&tags[2]))
+          << f.name << " with a -> t of " << cap;
+      }
+}
+
 
 int main(int argc, char** argv)
 {
