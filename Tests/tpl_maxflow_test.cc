@@ -2030,6 +2030,13 @@ namespace
     {"edmonds_karp", [] (TestNet & net) { return edmonds_karp_maximum_flow(net); }},
     {"dinic", [] (TestNet & net) { return dinic_maximum_flow(net); }},
     {"capacity_scaling", [] (TestNet & net) { return capacity_scaling_maximum_flow(net); }}};
+
+  // And the preflows
+  const Named_Maximum_Flow preflow_maximum_flows[] = {
+    {"fifo_preflow", [] (TestNet & net) { return fifo_preflow_maximum_flow(net); }},
+    {"heap_preflow", [] (TestNet & net) { return heap_preflow_maximum_flow(net); }},
+    {"random_preflow", [] (TestNet & net) { return random_preflow_maximum_flow(net); }},
+    {"hlpp", [] (TestNet & net) { return hlpp_maximum_flow(net); }}};
 } // anonymous namespace
 
 // A network of arcs of infinite capacity alone: its maximum flow is
@@ -2051,6 +2058,8 @@ TEST(InfiniteCapacityTest, ArcsOfInfiniteCapacityAloneGiveAnInfiniteMaximumFlow)
     };
   for (const auto & f : path_maximum_flows)
     check(f);
+  for (const auto & f : preflow_maximum_flows)
+    check(f);
 }
 
 // An arc of infinite capacity, which the notes of the cost tolerances give
@@ -2058,11 +2067,12 @@ TEST(InfiniteCapacityTest, ArcsOfInfiniteCapacityAloneGiveAnInfiniteMaximumFlow)
 // infinity and a -> t of 2.5, s -> b of 1.5 and b -> t of infinity. The
 // capacity scaling doubled its first delta up to the largest capacity, and
 // with an infinite one it did not end, also on this network, whose maximum
-// flow is 4
+// flow is 4; the preflows filled s -> a with infinity, which a could not
+// send back, and gave an infinite flow
 TEST(InfiniteCapacityTest, AFinitePathThroughAnInfiniteArcCarriesItsBottleneck)
 {
   const double inf = std::numeric_limits<double>::infinity();
-  for (const auto & [name, maximum_flow] : path_maximum_flows)
+  auto check = [inf] (const Named_Maximum_Flow & f)
     {
       TestNet net;
       auto s = net.insert_node(0);
@@ -2073,8 +2083,36 @@ TEST(InfiniteCapacityTest, AFinitePathThroughAnInfiniteArcCarriesItsBottleneck)
       net.insert_arc(a, t, 2.5);
       net.insert_arc(s, b, 1.5);
       net.insert_arc(b, t, inf);
-      EXPECT_EQ(maximum_flow(net), 4.0) << name;
-      EXPECT_TRUE(net.check_network()) << name;
+      EXPECT_EQ(f.run(net), 4.0) << f.name;
+      EXPECT_TRUE(net.check_network()) << f.name;
+    };
+  // s -> a of infinity, a -> t of 1, a -> b of 5 and b -> t of infinity:
+  // with an arc of infinite capacity into the sink, the arcs into it do
+  // not bound the flow out of s -> a, 6, and the sum of the finite
+  // capacities does
+  auto check_bound = [inf] (const Named_Maximum_Flow & f)
+    {
+      TestNet net;
+      auto s = net.insert_node(0);
+      auto a = net.insert_node(1);
+      auto b = net.insert_node(2);
+      auto t = net.insert_node(3);
+      net.insert_arc(s, a, inf);
+      net.insert_arc(a, t, 1.0);
+      net.insert_arc(a, b, 5.0);
+      net.insert_arc(b, t, inf);
+      EXPECT_EQ(f.run(net), 6.0) << f.name;
+      EXPECT_TRUE(net.check_network()) << f.name;
+    };
+  for (const auto & f : path_maximum_flows)
+    {
+      check(f);
+      check_bound(f);
+    }
+  for (const auto & f : preflow_maximum_flows)
+    {
+      check(f);
+      check_bound(f);
     }
 }
 
@@ -2102,7 +2140,35 @@ TEST(InfiniteCapacityTest, APathOfInfiniteArcsMakesTheMaximumFlowInfinite)
     {
       for (const auto & f : path_maximum_flows)
         check(f, cap);
+      for (const auto & f : preflow_maximum_flows)
+        check(f, cap);
     }
+}
+
+// A path of arcs of infinite capacity beside an arc of infinite capacity
+// that leads where only finite arcs go on: the maximum flow is infinite,
+// which every maximum flow returns with a flow that every node keeps
+TEST(InfiniteCapacityTest, AnInfinitePathBesideAnInfiniteArcToAFinitePart)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  auto check = [inf] (const Named_Maximum_Flow & f)
+    {
+      TestNet net;
+      auto s = net.insert_node(0);
+      auto a = net.insert_node(1);
+      auto b = net.insert_node(2);
+      auto t = net.insert_node(3);
+      net.insert_arc(s, b, inf);  // b sends on only 1.5
+      net.insert_arc(b, t, 1.5);
+      net.insert_arc(s, a, inf);
+      net.insert_arc(a, t, inf);
+      EXPECT_EQ(f.run(net), inf) << f.name;
+      EXPECT_TRUE(net.check_network()) << f.name;
+    };
+  for (const auto & f : path_maximum_flows)
+    check(f);
+  for (const auto & f : preflow_maximum_flows)
+    check(f);
 }
 
 

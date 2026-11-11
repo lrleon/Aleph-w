@@ -1252,6 +1252,13 @@ inline typename Net::Flow_Type &hlpp_excess(typename Net::Node *p) noexcept
  *  within the tolerance of check_node(), as check_network() takes it,
  *  and a network whose maximum flow is 0 gives 0.
  *
+ *  An arc of infinite capacity out of the source starts with a bound of
+ *  the maximum flow, as in generic_preflow_vertex_push_maximum_flow():
+ *  filled with infinity, the flow came out infinite on networks whose
+ *  maximum flow is finite; and a path of arcs of infinite capacity from
+ *  the source to the sink makes the maximum flow infinite, which the
+ *  function returns.
+ *
  *  @tparam Net Network type.
  *  @param net Flow network.
  *  @return Maximum flow value.
@@ -1272,6 +1279,11 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
   Node *sink = net.get_sink();
   const size_t n_nodes = net.vsize();
   const long n = static_cast<long>(n_nodes);
+
+  // A path of arcs of infinite capacity makes the maximum flow infinite
+  // (see net_detail::fill_infinite_path())
+  if (net_detail::fill_infinite_path(net))
+    return net.flow_value();
 
   // Allocate node info first so it outlives cookie_saver.
   // C++ destroys locals in reverse order: cookie_saver restores
@@ -1337,16 +1349,31 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
       }
 
   // --- Saturate all arcs from source ---
+  // An arc of infinite capacity takes a bound of the maximum flow instead
+  // (see net_detail::infinite_arc_preflow()), computed once if one needs it
+  [[maybe_unused]] Flow_Type bound{0};
+  [[maybe_unused]] bool bounded = false;
   for (typename Net::Node_Arc_Iterator it(source); it.has_curr(); it.next_ne())
     if (Arc *arc = it.get_curr(); net.get_src_node(arc) == source)
       {
-        Flow_Type delta = arc->cap - arc->flow;
+        Flow_Type full = arc->cap;
+        if constexpr (std::numeric_limits<Flow_Type>::has_infinity)
+          if (full == std::numeric_limits<Flow_Type>::infinity())
+            {
+              if (not bounded)
+                {
+                  bound = net_detail::infinite_arc_preflow(net);
+                  bounded = true;
+                }
+              full = std::max(bound, arc->flow);
+            }
+        Flow_Type delta = full - arc->flow;
         if constexpr (floating)
           {
-            info(source)->out.replace(arc->flow, arc->cap);
-            info(net.get_tgt_node(arc))->in.replace(arc->flow, arc->cap);
+            info(source)->out.replace(arc->flow, full);
+            info(net.get_tgt_node(arc))->in.replace(arc->flow, full);
           }
-        arc->flow = arc->cap;
+        arc->flow = full;
         hlpp_excess<Net>(net.get_tgt_node(arc)) += delta;
         hlpp_excess<Net>(source) -= delta;
       }

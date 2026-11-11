@@ -2314,6 +2314,76 @@ static inline void remove_from_active_queue(Q_Type &q, typename Q_Type::Item_Typ
   q.remove(p);
 }
 
+namespace net_detail {
+// For a floating flow, a path from the source to the sink of arcs of
+// infinite capacity makes the maximum flow infinite. If there is one, it
+// takes an infinite flow, and the function returns true: the preflows
+// end then, as their initial preflow would fill an arc of infinite
+// capacity out of the source with infinity, which a node that cannot
+// send it on cannot send back either, inf - inf being NaN. Only arcs of
+// infinite capacity are searched, and only if one leaves the source:
+// otherwise, the cost is that of a pass over the arcs of the source
+template <class Net>
+bool fill_infinite_path(Net &net)
+{
+  using Flow_Type = typename Net::Flow_Type;
+  if constexpr (std::numeric_limits<Flow_Type>::has_infinity)
+    {
+      constexpr Flow_Type inf = std::numeric_limits<Flow_Type>::infinity();
+      auto source = net.get_source();
+      bool leaves = false;
+      for (typename Net::Node_Arc_Iterator it(source); it.has_curr() and not leaves; it.next_ne())
+        if (auto a = it.get_curr(); net.get_src_node(a) == source and a->cap == inf)
+          leaves = true;
+      if (not leaves)
+        return false;
+
+      SemiPath<Net> semi_path = Find_Aumenting_Path_BFS<Net>(net)(inf);
+      if (not get<0>(semi_path))
+        return false;
+      increase_flow<Net>(net, get<2>(semi_path), inf);
+      return true;
+    }
+  else
+    {
+      (void) net;
+      return false;
+    }
+}
+
+// The flow that the initial preflow gives an arc of infinite capacity
+// out of the source, when no path of such arcs goes to the sink: a bound
+// of the maximum flow, the capacity of a cut: that of the arcs into the
+// sink, if all of them are finite, or else the sum of all the finite
+// capacities, as the nodes that arcs of infinite capacity reach from the
+// source make a cut without them. max() if the sum goes beyond it
+template <class Net>
+typename Net::Flow_Type infinite_arc_preflow(const Net &net)
+{
+  using Flow_Type = typename Net::Flow_Type;
+  constexpr Flow_Type inf = std::numeric_limits<Flow_Type>::infinity();
+  auto sink = net.get_sink();
+  Flow_Type bound{0};
+  bool finite = true;
+  for (typename Net::Node_Arc_Iterator it(sink); it.has_curr() and finite; it.next_ne())
+    if (auto a = it.get_curr(); net.get_tgt_node(a) == sink)
+      {
+        if (a->cap == inf)
+          finite = false;
+        else
+          bound += a->cap;
+      }
+  if (not finite)
+    {
+      bound = Flow_Type{0};
+      for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        if (auto a = it.get_curr(); a->cap != inf)
+          bound += a->cap;
+    }
+  return std::min(bound, std::numeric_limits<Flow_Type>::max());
+}
+}  // namespace net_detail
+
 /** @brief Generic preflow-push maximum flow (vertex-oriented).
  *
  * Q_Type is the active-node container and must support:
@@ -2332,6 +2402,16 @@ static inline void remove_from_active_queue(Q_Type &q, typename Q_Type::Item_Typ
  * within the tolerance of check_node(), as check_network() takes it,
  * and a network whose maximum flow is 0 gives 0.
  *
+ * An arc of infinite capacity out of the source starts with a bound of
+ * the maximum flow, the capacity of the arcs into the sink, if they are
+ * finite, or else the sum of the finite capacities: filled with
+ * infinity, a node that could not send it on could not send it back
+ * either, as inf - inf is NaN, and the flow came out infinite on networks
+ * whose maximum flow is finite. A path of arcs of infinite capacity from
+ * the source to the sink makes the maximum flow infinite: its arcs take
+ * an infinite flow, and the function returns it, as the augmenting paths
+ * do.
+ *
  * @param[in,out] net Flow network (must have a single source and sink).
  * @param[in] q the queue of the active nodes, empty, which the push takes;
  *            by default Q_Type(), and with a seed for the random order of
@@ -2347,6 +2427,10 @@ typename Net::Flow_Type generic_preflow_vertex_push_maximum_flow(Net &net, Q_Typ
   ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
     << "Network is not single source and single sink";
 
+  // A path of arcs of infinite capacity makes the maximum flow infinite
+  if (net_detail::fill_infinite_path(net))
+    return net.flow_value();
+
   net.reset_nodes();          // especially assures that counters are in zero
   init_height_in_nodes(net);  // set height to minimum distance in nodes to sink
 
@@ -2357,10 +2441,24 @@ typename Net::Flow_Type generic_preflow_vertex_push_maximum_flow(Net &net, Q_Typ
 
   using Itor = __Net_Iterator<Net>;
   using Flow_Type = typename Net::Flow_Type;
+  // An arc of infinite capacity out of the source takes a bound of the
+  // maximum flow, computed once if one needs it
+  [[maybe_unused]] Flow_Type bound{0};
+  [[maybe_unused]] bool bounded = false;
   for (Itor it(source); it.has_curr(); it.next_ne())  // initial preflow
     {
       auto arc = it.get_curr();
       arc->flow = arc->cap;                               // saturate arc
+      if constexpr (std::numeric_limits<Flow_Type>::has_infinity)
+        if (arc->cap == std::numeric_limits<Flow_Type>::infinity())
+          {
+            if (not bounded)
+              {
+                bound = net_detail::infinite_arc_preflow(net);
+                bounded = true;
+              }
+            arc->flow = bound;
+          }
       if (auto tgt = net.get_tgt_node(arc); tgt != sink)  // never active
         put_in_active_queue(q, tgt);
     }
