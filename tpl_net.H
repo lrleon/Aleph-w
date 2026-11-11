@@ -100,10 +100,52 @@ struct Net_Arc_Info : public Arc_Info
   }
 };
 
+namespace net_detail {
+/** @brief Whether `float` can be the type of a flow: it can, but it is
+    deprecated, and this overload, which a static assertion of Net_Arc
+    calls, warns it.
+
+    The tolerances of the floating flows are relative to the data and to
+    the epsilon of the type, which for `float`, 1.2e-7, is 2^29 times that
+    of `double`: so the far magnitude that hides the real improvements
+    comes with ordinary data, as an arc of cost 500 hides from the cycle
+    canceling the cycles of cost -1 among the others on a network of 100
+    nodes, without notice; the tolerance of check_node(), 1e-9, is below
+    its epsilon; and its integers stay exact only up to 2^24. Use `double`:
+    `float` is rejected in 8.0.0. The warning comes from this header, so
+    that a pragma around the code that uses the network does not silence
+    it; including the headers between `#pragma GCC diagnostic push`,
+    `#pragma GCC diagnostic ignored "-Wdeprecated-declarations"` and
+    `#pragma GCC diagnostic pop` does, while moving to `double`.
+
+    @return true.
+*/
+[[deprecated("float as the type of a flow is deprecated: its precision is below what the "
+             "tolerances of the floating flows need; use double. It is rejected in 8.0.0")]]
+constexpr bool flow_type_ok(const float *) noexcept
+{
+  return true;
+}
+
+/** @brief Whether any type but `float` can be the type of a flow, as a
+    static assertion of Net_Arc asks: it can (see flow_type_ok(const float *)).
+
+    @return true.
+*/
+constexpr bool flow_type_ok(const void *) noexcept
+{
+  return true;
+}
+}  // namespace net_detail
+
 /** @brief Arc of a flow network implemented with adjacency lists.
  *
  * Net_Arc models a capacitated network arc with Arc_Info and a numeric
- * Flow_Type for capacity and flow.
+ * Flow_Type for capacity and flow: an integer type, which compares
+ * exactly, or `double`. `float` is deprecated, and warns when the arc is
+ * instantiated: its precision is below what the tolerances of the
+ * floating flows need (see net_detail::flow_type_ok()); it is rejected in
+ * 8.0.0.
  *
  * This class is only intended as the arc type for Net_Graph; do not
  * instantiate it directly. Use Net_Graph::insert_arc() instead.
@@ -115,6 +157,9 @@ template <typename Arc_Info, typename F_Type = double>
 struct Net_Arc : public Graph_Aarc<Arc_Info>  // Arc type for flow networks.
 {
   using Base = Graph_Aarc<Arc_Info>;
+
+  // A float flow warns that it is deprecated
+  static_assert(net_detail::flow_type_ok(static_cast<const F_Type *>(nullptr)));
 
   using Flow_Type = F_Type;
 
