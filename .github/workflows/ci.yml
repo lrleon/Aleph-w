@@ -60,10 +60,11 @@ jobs:
   # build-and-test jobs and sanitizers skip their steps and pass, which
   # keeps the required checks of master. Only on a pull request of this
   # repository with the label ci-local, for a status that a trusted user
-  # posted (CI_LOCAL_TRUSTED, by default the owner of the repository) and
-  # that matches this merge. The job waits for it up to
-  # CI_LOCAL_WAIT_MINUTES (default 20); otherwise, or on any error, those
-  # jobs run here.
+  # posted (CI_LOCAL_TRUSTED, by default the owner of the repository), that
+  # matches this merge, and whose images are of this week or of the last.
+  # The job waits for it up to CI_LOCAL_WAIT_MINUTES (default 20, at most
+  # 25, within its timeout), as long as the label is there; otherwise, or
+  # on any error, those jobs run here.
   local-ci:
     name: local-ci
     runs-on: ubuntu-24.04
@@ -109,24 +110,37 @@ jobs:
             echo "A pull request from another repository: the required Linux jobs run here."
             finish
           fi
-          if ! gh api "repos/${REPO}/pulls/${PR}" > "${tmp}/pr.json" 2> /dev/null ||
-             ! jq -e '.labels | map(.name) | index("ci-local")' "${tmp}/pr.json" > /dev/null; then
+          has_label() {
+            gh api "repos/${REPO}/pulls/${PR}" > "${tmp}/pr.json" 2> /dev/null &&
+              jq -e '.labels | map(.name) | index("ci-local")' "${tmp}/pr.json" > /dev/null
+          }
+          if ! has_label; then
             echo "No label ci-local: the required Linux jobs run here."
             finish
           fi
-          # The fingerprint that scripts/ci-local.sh computes on the merge
+          # The wait ends within the timeout of the job
+          [[ "${WAIT_MINUTES}" =~ ^[0-9]+$ ]] || WAIT_MINUTES=20
+          if (( WAIT_MINUTES > 25 )); then WAIT_MINUTES=25; fi
+          # The fingerprint that scripts/ci-local.sh computes on the merge,
+          # and the weeks whose images a status may name
           fp=$(cat .github/workflows/ci.yml scripts/ci-local.sh | sha256sum | cut -c1-12)
-          want="fp=${fp} base=${BASE_SHA:0:12} "
-          echo "Waiting up to ${WAIT_MINUTES} minutes for ci-local/required \"${want}...\" on ${HEAD_SHA}"
+          want="fp=${fp} base=${BASE_SHA:0:12}"
+          week=$(date -u +%G-W%V)
+          last_week=$(date -u -d '7 days ago' +%G-W%V)
+          echo "Waiting up to ${WAIT_MINUTES} minutes for ci-local/required \"${want} img=${week} or ${last_week}\" on ${HEAD_SHA}"
           deadline=$(( $(date +%s) + WAIT_MINUTES * 60 ))
           while :; do
+            if ! has_label; then
+              echo "No label ci-local now: the required Linux jobs run here."
+              finish
+            fi
             if gh api "repos/${REPO}/commits/${HEAD_SHA}/statuses?per_page=100" > "${tmp}/statuses.json" 2> /dev/null; then
               state="" creator="" desc=""
               IFS=$'\t' read -r state creator desc < <(jq -r '
                 [.[] | select(.context == "ci-local/required")][0]
                 | if . == null then "" else [.state, .creator.login, .description] | join("\t") end' "${tmp}/statuses.json") || true
               if [ "${state}" = success ] && [[ ",${TRUSTED}," == *",${creator},"* ]] &&
-                 [[ "${desc} " == "${want}"* ]]; then
+                 { [[ "${desc}" == "${want} img=${week};"* ]] || [[ "${desc}" == "${want} img=${last_week};"* ]]; }; then
                 echo "The local CI of ${creator} passed on this merge: ${desc}"
                 verified=true
                 finish

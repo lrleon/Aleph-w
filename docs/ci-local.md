@@ -15,23 +15,30 @@ already passed on the machine of a maintainer: the hybrid CI.
 ## How it works
 
 1. `scripts/ci-local.sh --merge` tests what the CI tests for a pull
-   request: the merge of the commit into the `master` of GitHub.
+   request: the merge of the commit into the `master` of GitHub. It runs
+   only as the `scripts/ci-local.sh` of that merge, whose jobs the
+   fingerprint names: commit the changes to the script, and bring
+   `master` into the branch if `master` changed it.
 2. With `--publish`, when the required jobs pass, it posts on the commit
    the status `ci-local/required`, whose description carries:
    - `fp=`, the fingerprint of `ci.yml` and of `scripts/ci-local.sh` in the
      merge;
    - `base=`, the `master` of the merge;
    - `img=`, the week of the images, and the versions of their compilers.
+
+   It needs Docker on x86_64, as the runners of the CI.
 3. In the CI, the job `local-ci` looks for that status, and accepts it only
    - on a pull request of this repository, never on one from a fork;
    - with the label `ci-local`;
    - posted by a trusted user: the repository variable `CI_LOCAL_TRUSTED`,
      a list of logins separated by commas, by default the owner of the
      repository;
-   - with the fingerprint and the `master` of the merge that the CI tests.
+   - with the fingerprint and the `master` of the merge that the CI tests;
+   - from images of this week or of the last.
 
    It waits for the status up to `CI_LOCAL_WAIT_MINUTES` (a repository
-   variable, 20 by default).
+   variable, 20 by default and at most 25, within the timeout of the
+   job), as long as the pull request keeps the label.
 4. If it accepts it, the `build-and-test` jobs and `sanitizers` skip their
    steps and pass, so that the required checks of `master` report as
    always. Otherwise, or on any error of `local-ci`, they run in GitHub.
@@ -67,7 +74,9 @@ matches: run `scripts/ci-local.sh --merge --publish` again.
 - The pull request has no label `ci-local`, or comes from a fork.
 - No status of a trusted user arrives within the wait.
 - The status is of another merge: `master` moved, or the merge changes
-  `ci.yml` or `scripts/ci-local.sh` (the fingerprint).
+  `ci.yml` or `scripts/ci-local.sh` (the fingerprint); or its images are
+  older than last week.
+- The label is taken off while `local-ci` waits.
 - `local-ci` fails, or GitHub does not answer it.
 
 ## Keeping the local CI in step with GitHub
@@ -77,20 +86,22 @@ distribution and the compilers of the machine do not enter. What can
 drift, and what keeps it in step:
 
 - **The packages.** The CI installs the latest ones in every run. The
-  images are built anew every week, from the latest base image and
-  packages; the first run of a week builds them.
+  images are built anew every week, without the cache of Docker, from the
+  latest base image and packages; the first run of a week builds them,
+  and a status names the week of its images.
 - **The definition of the jobs.** `scripts/ci-local.sh` copies the jobs of
   `ci.yml` by hand. The fingerprint covers both files, so that a change to
   either needs a new local run, and the jobs in `ci.yml` and in the script
   must change together.
 - **The machine.** Docker, the kernel, which the containers share (it
   changes the behaviour of the sanitizers), and the architecture, which
-  must be x86_64. After changing the machine, Docker or the kernel, run a
+  must be x86_64: `--publish` refuses another one. After changing the
+  machine, Docker or the kernel, run a
   commit both in the local CI and in GitHub, and compare, before trusting
   the local CI again.
 - **The policy job** of `scripts/ci-local.sh all` runs on the machine,
-  with its Ruby and its Doxygen (the CI uses Doxygen 1.9.8); it always
-  runs in GitHub too.
+  with its Ruby and its Doxygen (the CI uses Doxygen 1.9.8), on the merge
+  with `--merge`; it always runs in GitHub too.
 
 A push to `master` runs every job in GitHub, so that a drift shows up at
 the first merge.

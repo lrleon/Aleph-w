@@ -58,6 +58,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+SELF="${SCRIPT_DIR}/$(basename "${BASH_SOURCE[0]}")"
 ROOT_DIR="$(cd -P "${SCRIPT_DIR}/.." && pwd -P)"
 WORK="${ALEPH_CI_LOCAL_DIR:-${HOME}/.cache/aleph-ci-local}"
 TAG="ci-local"
@@ -212,6 +213,20 @@ if (( needs_docker )); then
   command -v docker >/dev/null || die "docker is missing"
   docker info >/dev/null 2>&1 || die "cannot use docker (is this user in the group docker?)"
 fi
+# The runners of the CI are x86_64: on another machine Docker takes the
+# images and the compilers of its architecture, which the status of
+# --publish would not certify
+if (( PUBLISH )); then
+  arch=$(docker info --format '{{.Architecture}}' 2>/dev/null || true)
+  case "${arch}" in
+    x86_64|amd64) ;;
+    *) if (( DRY_RUN )); then
+         say "warning: Docker runs on ${arch:-an unknown architecture}, not x86_64: --publish would refuse"
+       else
+         die "--publish needs Docker on x86_64, as the runners of the CI (this one: ${arch:-unknown})"
+       fi;;
+  esac
+fi
 command -v rsync >/dev/null || die "rsync is missing"
 
 # The Dockerfile of the images: the packages of the jobs in the CI, with
@@ -248,7 +263,9 @@ ensure_image() {  # release
     say "building the image ${tag} (once a week)"
     ctx=$(mktemp -d)
     dockerfile "$rel" > "${ctx}/Dockerfile"
-    docker build --pull -q -t "$tag" "$ctx" > "${LOGS}/image-${rel}.log" 2>&1 ||
+    # without the cache of the layers, which would keep the packages of the
+    # image before: --pull refreshes only the base image
+    docker build --pull --no-cache -q -t "$tag" "$ctx" > "${LOGS}/image-${rel}.log" 2>&1 ||
       { rm -rf "$ctx"; die "the image ${tag} did not build: ${LOGS}/image-${rel}.log"; }
     rm -rf "$ctx"
     # the images of the release of a Dockerfile, or of a week, before this one
@@ -295,6 +312,11 @@ prepare_source() {
       # merge: the bytes of the workflow and of this script
       FP=$( { git -C "${ROOT_DIR}" show "${TREE}:.github/workflows/ci.yml"
               git -C "${ROOT_DIR}" show "${TREE}:scripts/ci-local.sh"; } | sha256sum | cut -c1-12)
+      # the jobs that run are those of this script, and the fingerprint
+      # names those of the merge: they must be the same script
+      if ! git -C "${ROOT_DIR}" show "${TREE}:scripts/ci-local.sh" | cmp -s - "${SELF}"; then
+        die "this script is not the scripts/ci-local.sh of the merge into origin/master ${BASE:0:12}: commit its changes, or bring master into the branch if master changed it"
+      fi
     fi
     SRC="${WORK}/src-rev"
     rm -rf "${SRC}"; mkdir -p "${SRC}"
@@ -435,7 +457,14 @@ policy_job() {
   done
   rm -rf "${clone}"
   git clone -q --shared --no-checkout "${ROOT_DIR}" "${clone}" || return 1
-  if [ -n "${REV}" ]; then
+  if (( MERGE )); then
+    # the merge that the other jobs test, as a commit of the two parents,
+    # as the CI checks it out
+    sha=$(git -C "${clone}" -c user.name="${TAG}" -c user.email="${TAG}@localhost" \
+            commit-tree "${TREE}" -p "${BASE}" -p "${HEAD_SHA}" -m "${TAG}: the merge") || return 1
+    git -C "${clone}" checkout -q --detach "${sha}" || return 1
+    echo "policy on the merge of ${HEAD_SHA:0:12} into ${BASE:0:12}"
+  elif [ -n "${REV}" ]; then
     sha=$(git -C "${ROOT_DIR}" rev-parse --verify "${REV}^{commit}")
     git -C "${clone}" checkout -q --detach "${sha}" || return 1
   else
@@ -568,6 +597,8 @@ fi
 if (( recorded )); then
   say "these jobs passed on this merge on $(date -r "${RECORD}" '+%Y-%m-%d %H:%M'): ${RECORD}"
 else
+  # a run of the same merge that fails must not leave the success before
+  if (( MERGE )); then rm -f "${RECORD}"; fi
   running=0
   for j in "${SELECTED[@]}"; do
     while (( running >= JOBS )); do wait -n || true; running=$(( running - 1 )); done
