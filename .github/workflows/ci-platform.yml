@@ -36,7 +36,9 @@ jobs:
   build-macos:
     name: build-macos (${{ matrix.os }}, AppleClang, ${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    # The Intel jobs build without ccache (see below), on runners whose speed
+    # varies about twofold; the Release one has run past 60 minutes.
+    timeout-minutes: 90
 
     strategy:
       fail-fast: false
@@ -57,7 +59,7 @@ jobs:
       - name: Install dependencies (Homebrew)
         # Bounded on purpose: a formula without a bottle makes Homebrew compile
         # it, and its build tools, from source. That once ran until the job
-        # timeout (60 min) and was reported as "cancelled".
+        # timeout (then 60 min) and was reported as "cancelled".
         timeout-minutes: 20
         env:
           # Homebrew no longer builds Intel macOS bottles, so upgrading a
