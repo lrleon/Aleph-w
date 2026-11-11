@@ -52,8 +52,102 @@ jobs:
           ruby scripts/ci_header_doc_coverage.rb \
             --min "${HEADER_DOC_COVERAGE_MIN}"
 
+  # Whether the local CI already passed the required Linux jobs on what
+  # this pull request merges (docs/ci-local.md). scripts/ci-local.sh
+  # --merge --publish posts on the head of the pull request the status
+  # ci-local/required, with the fingerprint of this workflow and of the
+  # script, the master of the merge and the week of its images; then the
+  # build-and-test jobs and sanitizers skip their steps and pass, which
+  # keeps the required checks of master. Only on a pull request of this
+  # repository with the label ci-local, for a status that a trusted user
+  # posted (CI_LOCAL_TRUSTED, by default the owner of the repository) and
+  # that matches this merge. The job waits for it up to
+  # CI_LOCAL_WAIT_MINUTES (default 20); otherwise, or on any error, those
+  # jobs run here.
+  local-ci:
+    name: local-ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+    outputs:
+      verified: ${{ steps.gate.outputs.verified }}
+
+    steps:
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+
+      - name: Look for the status of the local CI
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          TRUSTED: ${{ vars.CI_LOCAL_TRUSTED || github.repository_owner }}
+          WAIT_MINUTES: ${{ vars.CI_LOCAL_WAIT_MINUTES || '20' }}
+        run: |
+          # It never fails: on any doubt the required Linux jobs run here
+          set -u
+          verified=false
+          tmp="${RUNNER_TEMP:-/tmp}"
+          finish() {
+            echo "verified=${verified}" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          if [ "${EVENT}" != pull_request ]; then
+            echo "Not a pull request: the required Linux jobs run here."
+            finish
+          fi
+          if [ "${HEAD_REPO}" != "${REPO}" ]; then
+            echo "A pull request from another repository: the required Linux jobs run here."
+            finish
+          fi
+          if ! gh api "repos/${REPO}/pulls/${PR}" > "${tmp}/pr.json" 2> /dev/null ||
+             ! jq -e '.labels | map(.name) | index("ci-local")' "${tmp}/pr.json" > /dev/null; then
+            echo "No label ci-local: the required Linux jobs run here."
+            finish
+          fi
+          # The fingerprint that scripts/ci-local.sh computes on the merge
+          fp=$(cat .github/workflows/ci.yml scripts/ci-local.sh | sha256sum | cut -c1-12)
+          want="fp=${fp} base=${BASE_SHA:0:12} "
+          echo "Waiting up to ${WAIT_MINUTES} minutes for ci-local/required \"${want}...\" on ${HEAD_SHA}"
+          deadline=$(( $(date +%s) + WAIT_MINUTES * 60 ))
+          while :; do
+            if gh api "repos/${REPO}/commits/${HEAD_SHA}/statuses?per_page=100" > "${tmp}/statuses.json" 2> /dev/null; then
+              state="" creator="" desc=""
+              IFS=$'\t' read -r state creator desc < <(jq -r '
+                [.[] | select(.context == "ci-local/required")][0]
+                | if . == null then "" else [.state, .creator.login, .description] | join("\t") end' "${tmp}/statuses.json") || true
+              if [ "${state}" = success ] && [[ ",${TRUSTED}," == *",${creator},"* ]] &&
+                 [[ "${desc} " == "${want}"* ]]; then
+                echo "The local CI of ${creator} passed on this merge: ${desc}"
+                verified=true
+                finish
+              fi
+              if [ -n "${state}" ]; then
+                echo "Not for this merge yet: ${state} by ${creator}: ${desc}"
+              fi
+            fi
+            if [ "$(date +%s)" -ge "${deadline}" ]; then
+              echo "No status of the local CI for this merge: the required Linux jobs run here."
+              finish
+            fi
+            sleep 30
+          done
+
   build-and-test:
     name: build-and-test (${{ matrix.os }}, ${{ matrix.compiler }}, ${{ matrix.build_type }})
+    needs: local-ci
+    # Also when local-ci failed: its output is then empty, and the
+    # steps run
+    if: ${{ !cancelled() }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 
@@ -68,10 +162,18 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
+      - name: Passed in the local CI
+        if: needs.local-ci.outputs.verified == 'true'
+        run: |
+          echo "scripts/ci-local.sh --merge --publish ran this job on this merge;"
+          echo "the job local-ci found its status (docs/ci-local.md)."
+
       - name: Checkout
+        if: needs.local-ci.outputs.verified != 'true'
         uses: actions/checkout@v7
 
       - name: Install base system dependencies
+        if: needs.local-ci.outputs.verified != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -83,15 +185,16 @@ jobs:
             ruby-full
 
       - name: Install GCC toolchain
-        if: matrix.compiler == 'gcc'
+        if: needs.local-ci.outputs.verified != 'true' && matrix.compiler == 'gcc'
         run: |
           sudo apt-get install -y g++
 
       - name: Install Clang toolchain and libc++
-        if: matrix.compiler == 'clang'
+        if: needs.local-ci.outputs.verified != 'true' && matrix.compiler == 'clang'
         run: |
           sudo apt-get install -y clang libc++-dev libc++abi-dev
       - name: Configure compiler
+        if: needs.local-ci.outputs.verified != 'true'
         run: |
           if [ "${{ matrix.compiler }}" = "clang" ]; then
             echo "CC=clang" >> "$GITHUB_ENV"
@@ -106,6 +209,7 @@ jobs:
           fi
 
       - name: Cache ccache
+        if: needs.local-ci.outputs.verified != 'true'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -116,6 +220,7 @@ jobs:
             ${{ runner.os }}-${{ matrix.os }}-ccache-
 
       - name: Build and install GoogleTest
+        if: needs.local-ci.outputs.verified != 'true'
         run: |
           set -euo pipefail
 
@@ -170,6 +275,7 @@ jobs:
           exit 1
 
       - name: Configure
+        if: needs.local-ci.outputs.verified != 'true'
         run: |
           rm -rf build
           # For Clang, add libc++abi to linker flags and stdlib to CXX flags
@@ -192,10 +298,12 @@ jobs:
             -DALEPH_COMPILE_CHECKS=${{ (matrix.os == 'ubuntu-24.04' && matrix.build_type == 'Release') && 'ON' || 'OFF' }}
 
       - name: Build
+        if: needs.local-ci.outputs.verified != 'true'
         run: |
           cmake --build build --parallel
 
       - name: Test
+        if: needs.local-ci.outputs.verified != 'true'
         run: |
           mkdir -p build/test_artifacts/golden_svg
           export ALEPH_TEST_GOLDEN_DIR="$PWD/build/test_artifacts/golden_svg"
@@ -1023,6 +1131,10 @@ jobs:
 
   sanitizers:
     name: sanitizers (ubuntu-24.04, gcc, Debug)
+    needs: local-ci
+    # Also when local-ci failed: its output is then empty, and the
+    # steps run
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -1031,10 +1143,18 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
+      - name: Passed in the local CI
+        if: needs.local-ci.outputs.verified == 'true'
+        run: |
+          echo "scripts/ci-local.sh --merge --publish ran this job on this merge;"
+          echo "the job local-ci found its status (docs/ci-local.md)."
+
       - name: Checkout
+        if: needs.local-ci.outputs.verified != 'true'
         uses: actions/checkout@v7
 
       - name: Install system dependencies
+        if: needs.local-ci.outputs.verified != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -1046,6 +1166,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
+        if: needs.local-ci.outputs.verified != 'true'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -1054,6 +1175,7 @@ jobs:
             ${{ runner.os }}-sanitizers-ccache-
 
       - name: Configure
+        if: needs.local-ci.outputs.verified != 'true'
         run: |
           rm -rf build-asan
           cmake -S . -B build-asan -G Ninja \
@@ -1065,10 +1187,12 @@ jobs:
             -DALEPH_USE_SANITIZERS=ON
 
       - name: Build
+        if: needs.local-ci.outputs.verified != 'true'
         run: |
           cmake --build build-asan --parallel
 
       - name: Test
+        if: needs.local-ci.outputs.verified != 'true'
         env:
           ASAN_OPTIONS: detect_leaks=1
           ALEPH_TEST_GOLDEN_DIR: ${{ github.workspace }}/build-asan/test_artifacts/golden_svg

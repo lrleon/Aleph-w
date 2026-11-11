@@ -19,6 +19,16 @@
 #   --cpus N       cores for all the jobs (default: those of the machine
 #                  but 2); each job builds and tests with cpus / jobs
 #   --rev REV      the tree of the commit REV instead of the working tree
+#   --merge        the merge of the commit REV (default HEAD) into
+#                  origin/master, which the CI tests for a pull request,
+#                  after fetching origin master
+#   --publish      with --merge, when the required jobs pass, post on the
+#                  commit in GitHub the status ci-local/required, which
+#                  lets the CI of a pull request with the label ci-local
+#                  skip them (see docs/ci-local.md); a result that passed
+#                  before for the same commit, master, workflow and week
+#                  is posted without running the jobs again
+#   --dry-run      with --publish, print the status instead of posting it
 #   --clean        start the build directories of the jobs from scratch
 #   --list         list the jobs and the groups
 #   --show JOB     print the commands that JOB runs in its container
@@ -31,8 +41,10 @@
 # containers mount that copy read-only; their build directories and ccache
 # stay there between runs, so that a run after a change rebuilds what the
 # change touches. The images (aleph-ci-local:<release>-<hash>) are built
-# the first time from the Dockerfile below. The policy job runs on this
-# machine (git, ruby, doxygen and the remote of the repository), on a
+# from the Dockerfile below once a week, from the latest base image and
+# packages, as the CI installs the latest ones in every run; the first run
+# of a week builds them and compiles from scratch. The policy job runs on
+# this machine (git, ruby, doxygen and the remote of the repository), on a
 # temporary clone where the working tree is a commit.
 #
 # Exit status: 0 if every job passes. The log of each job, and a summary,
@@ -53,9 +65,21 @@ TAG="ci-local"
 JOBS=3
 CPUS=$(( $(nproc) > 4 ? $(nproc) - 2 : $(nproc) ))
 REV=""
+MERGE=0
+PUBLISH=0
+DRY_RUN=0
 CLEAN=0
 SHOW=""
 REQUESTED=()
+# The status that --publish posts, which the job local-ci of the CI looks
+# for; and what --merge tests: the commit, the master it merges into, the
+# tree of the merge and the fingerprint of the workflow and this script
+STATUS_CONTEXT="ci-local/required"
+HEAD_SHA=""
+BASE=""
+TREE=""
+FP=""
+WEEK="$(date +%G-W%V)"
 
 say() { echo "[${TAG}] $*"; }
 die() { echo "[${TAG}] $*" >&2; exit 1; }
@@ -129,6 +153,9 @@ while [ $# -gt 0 ]; do
     -j|--jobs) JOBS=${2:?}; shift 2;;
     --cpus) CPUS=${2:?}; shift 2;;
     --rev) REV=${2:?}; shift 2;;
+    --merge) MERGE=1; shift;;
+    --publish) PUBLISH=1; shift;;
+    --dry-run) DRY_RUN=1; shift;;
     --clean) CLEAN=1; shift;;
     --list) list_jobs; exit 0;;
     --show) SHOW=${2:?}; shift 2;;
@@ -153,6 +180,16 @@ for x in "${REQUESTED[@]}"; do
 done
 mapfile -t SELECTED < <(for j in "${SELECTED[@]}"; do echo "${MINUTES[$j]} $j"; done |
                         sort -u -k2,2 | sort -k1,1nr | awk '{print $2}')
+
+if (( PUBLISH )); then
+  (( MERGE )) || die "--publish needs --merge: the CI tests the merge into master"
+  for j in ${GROUP_required}; do
+    [[ " ${SELECTED[*]} " == *" ${j} "* ]] || die "--publish needs every job of the group required"
+  done
+  (( DRY_RUN )) || command -v gh >/dev/null || die "gh is missing: --publish posts the status with it"
+fi
+(( DRY_RUN && ! PUBLISH )) && die "--dry-run goes with --publish"
+(( MERGE )) && REV="${REV:-HEAD}"
 
 [[ "${JOBS}" =~ ^[1-9][0-9]*$ ]] || die "--jobs takes a positive number"
 [[ "${CPUS}" =~ ^[1-9][0-9]*$ ]] || die "--cpus takes a positive number"
@@ -199,23 +236,30 @@ RUN cmake -S /usr/src/googletest -B /tmp/gtest -G Ninja \\
 EOF
 }
 
-declare -A IMAGE
+declare -A IMAGE TOOLS
 ensure_image() {  # release
   local rel=$1 hash tag ctx
-  hash=$(dockerfile "$rel" | sha256sum | cut -c1-12)
+  # the week goes into the hash, so that a new week builds the image anew,
+  # from the latest base image and packages
+  hash=$( { dockerfile "$rel"; echo "week ${WEEK}"; } | sha256sum | cut -c1-12)
   tag="aleph-ci-local:${rel}-${hash}"
   IMAGE[$rel]=$tag
   if ! docker image inspect "$tag" >/dev/null 2>&1; then
-    say "building the image ${tag} (once)"
+    say "building the image ${tag} (once a week)"
     ctx=$(mktemp -d)
     dockerfile "$rel" > "${ctx}/Dockerfile"
-    docker build -q -t "$tag" "$ctx" > "${LOGS}/image-${rel}.log" 2>&1 ||
+    docker build --pull -q -t "$tag" "$ctx" > "${LOGS}/image-${rel}.log" 2>&1 ||
       { rm -rf "$ctx"; die "the image ${tag} did not build: ${LOGS}/image-${rel}.log"; }
     rm -rf "$ctx"
-    # the images of the release of a Dockerfile before this one
+    # the images of the release of a Dockerfile, or of a week, before this one
     docker image ls --format '{{.Repository}}:{{.Tag}}' aleph-ci-local |
       grep -E "^aleph-ci-local:${rel//./\\.}-" | grep -vx "${tag}" | xargs -r docker rmi >/dev/null 2>&1 || true
   fi
+  # the versions of the compilers and of CMake in it, for the summary and
+  # the status that --publish posts
+  TOOLS[$rel]=$(docker run --rm "$tag" bash -c \
+    'echo "gcc $(gcc -dumpfullversion) clang $(clang -dumpversion) cmake $(cmake --version | awk "NR == 1 {print \$3}")"' 2>/dev/null) ||
+    TOOLS[$rel]="unknown"
 }
 
 # The untracked files that are not ignored and that a commit would take:
@@ -232,16 +276,39 @@ SRC=""
 BUILD_ROOT=""
 prepare_source() {
   if [ -n "${REV}" ]; then
-    local sha
+    local sha what
     sha=$(git -C "${ROOT_DIR}" rev-parse --verify "${REV}^{commit}") || die "no commit ${REV}"
+    what=${sha}
+    if (( MERGE )); then
+      # what the CI tests for a pull request: the merge of the commit into
+      # the master of GitHub, which must have no conflicts
+      git -C "${ROOT_DIR}" fetch -q origin master || die "cannot fetch origin master"
+      BASE=$(git -C "${ROOT_DIR}" rev-parse --verify "origin/master^{commit}")
+      local out rc=0
+      out=$(git -C "${ROOT_DIR}" merge-tree --write-tree "${BASE}" "${sha}" 2>&1) || rc=$?
+      (( rc == 1 )) && die "${sha:0:12} does not merge into origin/master ${BASE:0:12} without conflicts"
+      (( rc == 0 )) || die "git merge-tree --write-tree failed (it needs git 2.38 or later): ${out%%$'\n'*}"
+      TREE=${out%%$'\n'*}
+      HEAD_SHA=${sha}
+      what=${TREE}
+      # the fingerprint that the job local-ci of the CI computes on the
+      # merge: the bytes of the workflow and of this script
+      FP=$( { git -C "${ROOT_DIR}" show "${TREE}:.github/workflows/ci.yml"
+              git -C "${ROOT_DIR}" show "${TREE}:scripts/ci-local.sh"; } | sha256sum | cut -c1-12)
+    fi
     SRC="${WORK}/src-rev"
     rm -rf "${SRC}"; mkdir -p "${SRC}"
-    git -C "${ROOT_DIR}" archive "${sha}" | tar -x -C "${SRC}"
-    # git archive gives the files the date of the commit: an object newer
-    # than a changed source would look up to date, so these build anew
+    git -C "${ROOT_DIR}" archive "${what}" | tar -x -C "${SRC}"
+    # git archive gives the files the date of the commit, or the current one
+    # for a tree: an object newer than a changed source would look up to
+    # date, so these build anew
     BUILD_ROOT="${WORK}/build-rev"
     rm -rf "${BUILD_ROOT}"
-    say "source: commit ${sha:0:12} ($(git -C "${ROOT_DIR}" log -1 --format=%s "${sha}"))"
+    if (( MERGE )); then
+      say "source: the merge of ${sha:0:12} ($(git -C "${ROOT_DIR}" log -1 --format=%s "${sha}")) into origin/master ${BASE:0:12}"
+    else
+      say "source: commit ${sha:0:12} ($(git -C "${ROOT_DIR}" log -1 --format=%s "${sha}"))"
+    fi
   else
     SRC="${WORK}/src"
     BUILD_ROOT="${WORK}/build"
@@ -422,6 +489,29 @@ run_job() {  # job; writes its status and its time to the logs
   say "$( (( rc == 0 )) && echo "PASS" || echo "FAIL") $j ($(( ($(date +%s) - t0) / 60 )) min)"
 }
 
+# Post on the commit in GitHub the status that the job local-ci of the CI
+# looks for: success, with the fingerprint, the master of the merge, the
+# week of the images and the versions of their compilers
+publish() {
+  local slug desc
+  desc="fp=${FP} base=${BASE:0:12} img=${WEEK}; 22.04: ${TOOLS[22.04]:-?}; 24.04: ${TOOLS[24.04]:-?}"
+  desc=${desc:0:140}
+  if (( DRY_RUN )); then
+    say "would post on ${HEAD_SHA:0:12} the status ${STATUS_CONTEXT} (success): ${desc}"
+    return 0
+  fi
+  slug=$(cd "${ROOT_DIR}" && gh repo view --json nameWithOwner --jq .nameWithOwner) ||
+    die "gh does not find the repository on GitHub (gh auth login?)"
+  if ! gh api "repos/${slug}/commits/${HEAD_SHA}" --silent >/dev/null 2>&1; then
+    say "${HEAD_SHA:0:12} is not on GitHub yet: push it and run again with --merge --publish, which posts this result without running the jobs"
+    return 0
+  fi
+  gh api -X POST "repos/${slug}/statuses/${HEAD_SHA}" -f state=success \
+    -f "context=${STATUS_CONTEXT}" -f "description=${desc}" --silent ||
+    die "could not post the status on ${HEAD_SHA:0:12}"
+  say "posted on ${HEAD_SHA:0:12} the status ${STATUS_CONTEXT}: ${desc}"
+}
+
 cleanup() {
   trap - INT TERM
   say "stopping"
@@ -453,33 +543,63 @@ ln -sfn "${STAMP}" "${WORK}/logs/latest"
 say "jobs: ${SELECTED[*]}"
 say "${JOBS} at a time, ${NCPU} cores each; logs in ${LOGS}"
 prepare_source
-for j in "${SELECTED[@]}"; do [ "${KIND[$j]}" != policy ] && ensure_image "${REL[$j]}"; done
-
-running=0
+declare -A RELEASES=()
 for j in "${SELECTED[@]}"; do
-  while (( running >= JOBS )); do wait -n || true; running=$(( running - 1 )); done
-  run_job "$j" &
-  running=$(( running + 1 ))
+  if [ "${KIND[$j]}" != policy ]; then RELEASES[${REL[$j]}]=1; fi
 done
-wait || true
+for rel in "${!RELEASES[@]}"; do
+  ensure_image "${rel}"
+  say "image ${IMAGE[$rel]}: ${TOOLS[$rel]}"
+done
 
-failed=0
-printf '%-28s %-6s %6s  %s\n' job result time log > "${LOGS}/summary.txt"
-for j in "${SELECTED[@]}"; do
-  read -r rc secs < "${LOGS}/$j.status" || { rc=1; secs=0; }
-  if (( rc == 0 )); then res=PASS; else res=FAIL; failed=$(( failed + 1 )); fi
-  printf '%-28s %-6s %3dm%02ds  %s\n' "$j" "$res" $(( secs / 60 )) $(( secs % 60 )) \
-    "${LOGS}/$j.log" >> "${LOGS}/summary.txt"
-done
-cat "${LOGS}/summary.txt"
-if (( failed )); then
-  say "${failed} of ${#SELECTED[@]} jobs failed; the failures:"
+# A merge that passed is recorded by commit, master, fingerprint and week
+# of the images, so that --publish after the push posts it without running
+# the jobs again
+RECORD=""
+(( MERGE )) && RECORD="${WORK}/passed/${HEAD_SHA}-${BASE}-${FP}-${WEEK}"
+recorded=0
+if (( PUBLISH )) && [ -f "${RECORD}" ]; then
+  recorded=1
   for j in "${SELECTED[@]}"; do
-    read -r rc _ < "${LOGS}/$j.status" || rc=1
-    (( rc == 0 )) && continue
-    echo "---- $j: $(describe "$j")"
-    grep -E -A25 'The following tests FAILED|^FAIL |error:|Errors while running CTest' "${LOGS}/$j.log" | head -40 || tail -20 "${LOGS}/$j.log"
+    if ! grep -qx "job ${j}" "${RECORD}"; then recorded=0; fi
   done
-  exit 1
 fi
-say "all ${#SELECTED[@]} jobs passed"
+
+if (( recorded )); then
+  say "these jobs passed on this merge on $(date -r "${RECORD}" '+%Y-%m-%d %H:%M'): ${RECORD}"
+else
+  running=0
+  for j in "${SELECTED[@]}"; do
+    while (( running >= JOBS )); do wait -n || true; running=$(( running - 1 )); done
+    run_job "$j" &
+    running=$(( running + 1 ))
+  done
+  wait || true
+
+  failed=0
+  printf '%-28s %-6s %6s  %s\n' job result time log > "${LOGS}/summary.txt"
+  for j in "${SELECTED[@]}"; do
+    read -r rc secs < "${LOGS}/$j.status" || { rc=1; secs=0; }
+    if (( rc == 0 )); then res=PASS; else res=FAIL; failed=$(( failed + 1 )); fi
+    printf '%-28s %-6s %3dm%02ds  %s\n' "$j" "$res" $(( secs / 60 )) $(( secs % 60 )) \
+      "${LOGS}/$j.log" >> "${LOGS}/summary.txt"
+  done
+  cat "${LOGS}/summary.txt"
+  if (( failed )); then
+    say "${failed} of ${#SELECTED[@]} jobs failed; the failures:"
+    for j in "${SELECTED[@]}"; do
+      read -r rc _ < "${LOGS}/$j.status" || rc=1
+      (( rc == 0 )) && continue
+      echo "---- $j: $(describe "$j")"
+      grep -E -A25 'The following tests FAILED|^FAIL |error:|Errors while running CTest' "${LOGS}/$j.log" | head -40 || tail -20 "${LOGS}/$j.log"
+    done
+    exit 1
+  fi
+  say "all ${#SELECTED[@]} jobs passed"
+  if (( MERGE )); then
+    mkdir -p "${WORK}/passed"
+    { for j in "${SELECTED[@]}"; do echo "job ${j}"; done; cat "${LOGS}/summary.txt"; } > "${RECORD}"
+  fi
+fi
+
+if (( PUBLISH )); then publish; fi
