@@ -39,6 +39,7 @@
 #include <tpl_net_sup_dem.H>
 #include <tpl_maxflow.H>
 #include <tpl_dynDlist.H>
+#include <limits>
 #include <random>
 #include <string>
 
@@ -888,6 +889,39 @@ TEST(FloatingFeasibilityTest, FeasibleInstancesInTenthsAreFeasible)
         }
     }
   EXPECT_GT(instances, 250u);
+}
+
+// A supply of infinity and a demand of infinity, which nodes of infinite
+// capacities admit, are met only by an infinite flow. The tolerance of
+// an arc of infinite capacity, infinite too, took a maximum flow of 2.5
+// between them as meeting both, and an infinite flow, inf - inf being
+// NaN, as meeting neither
+TEST(FloatingFeasibilityTest, AnInfiniteSupplyIsMetOnlyByAnInfiniteFlow)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  for (const auto & [name, maximum_flow] : maximum_flows)
+    for (const double cap : {2.5, inf})
+      {
+        Floating_Net net;
+        auto * a = net.insert_node(inf);
+        auto * b = net.insert_node(-inf);
+        a->out_cap = inf;
+        b->in_cap = inf;
+        net.insert_arc(a, b, cap);
+        net.compute_aux_net();
+        maximum_flow(net);
+        const bool met = cap == inf;
+        EXPECT_EQ(net.is_feasible(), met) << name << " with a -> b of " << cap;
+        DynDlist<Floating_Net::Node *> supply_list, demand_list;
+        net.non_feasible_nodes(supply_list, demand_list);
+        EXPECT_EQ(supply_list.size(), met ? 0u : 1u) << name << " with a -> b of " << cap;
+        EXPECT_EQ(demand_list.size(), met ? 0u : 1u) << name << " with a -> b of " << cap;
+        if (not met and supply_list.size() == 1u and demand_list.size() == 1u)
+          {
+            EXPECT_EQ(supply_list.get_first(), a) << name;
+            EXPECT_EQ(demand_list.get_first(), b) << name;
+          }
+      }
 }
 
 int main(int argc, char** argv)

@@ -256,7 +256,10 @@ private:
       2.4 - 1.1, an ulp below 1.3 in binary, so that a demand of 1.3 that
       a supply of 2.4 meets after one of 1.1 comes out an ulp short. The
       scale is the arc's own, so that a real deficit stays beyond it, also
-      that of a supply or a demand far smaller than the others.
+      that of a supply or a demand far smaller than the others. Only an
+      infinite flow fills an infinite capacity, that of an infinite supply
+      or demand of a node of infinite capacities: its tolerance, infinite
+      too, would take any flow, and inf - inf is NaN.
 
       @param[in] a Arc from the super-source or to the super-sink.
       @return true if the flow of `a` fills its capacity.
@@ -264,7 +267,9 @@ private:
   static bool filled(const Arc *a) noexcept
   {
     if constexpr (std::is_floating_point_v<Flow_Type>)
-      return std::abs(a->cap - a->flow) <= Net_Class::node_tolerance(a->cap, a->flow);
+      return a->flow == a->cap
+        or (std::isfinite(a->cap)
+            and std::abs(a->cap - a->flow) <= Net_Class::node_tolerance(a->cap, a->flow));
     else
       return a->flow == a->cap;
   }
