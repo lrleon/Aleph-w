@@ -1060,30 +1060,30 @@ TransportationResult<Cost_Type> solve_transportation(const std::vector<Cost_Type
   Node *sink = net.insert_node();
 
   // Create supply nodes
-  std::vector<Node *> supply_nodes(m);
+  auto supply_nodes = Array<Node *>::create(m);
   for (size_t i = 0; i < m; ++i)
     {
-      supply_nodes[i] = net.insert_node();
-      net.insert_arc(source, supply_nodes[i], supplies[i], Cost_Type{0});
+      supply_nodes(i) = net.insert_node();
+      net.insert_arc(source, supply_nodes(i), supplies[i], Cost_Type{0});
     }
 
   // Create demand nodes
-  std::vector<Node *> demand_nodes(n);
+  auto demand_nodes = Array<Node *>::create(n);
   for (size_t j = 0; j < n; ++j)
     {
-      demand_nodes[j] = net.insert_node();
-      net.insert_arc(demand_nodes[j], sink, demands[j], Cost_Type{0});
+      demand_nodes(j) = net.insert_node();
+      net.insert_arc(demand_nodes(j), sink, demands[j], Cost_Type{0});
     }
 
-  // Create arcs between supplies and demands
-  // Store arcs for extracting solution
-  std::vector<std::vector<Arc *>> arcs(m, std::vector<Arc *>(n));
+  // Create arcs between supplies and demands, kept by rows for extracting
+  // the solution: that from supply i to demand j is arcs[i * n + j]
+  auto arcs = Array<Arc *>::create(m * n);
   for (size_t i = 0; i < m; ++i)
     for (size_t j = 0; j < n; ++j)
-      arcs[i][j] = net.insert_arc(supply_nodes[i],
-                                  demand_nodes[j],
-                                  std::min(supplies[i], demands[j]),
-                                  costs[i][j]);
+      arcs(i * n + j) = net.insert_arc(supply_nodes(i),
+                                       demand_nodes(j),
+                                       std::min(supplies[i], demands[j]),
+                                       costs[i][j]);
 
   // Source and sink are detected automatically by network topology
 
@@ -1097,7 +1097,7 @@ TransportationResult<Cost_Type> solve_transportation(const std::vector<Cost_Type
   result.shipments.resize(m, std::vector<Cost_Type>(n, Cost_Type{0}));
   for (size_t i = 0; i < m; ++i)
     for (size_t j = 0; j < n; ++j)
-      result.shipments[i][j] = arcs[i][j]->flow;
+      result.shipments[i][j] = arcs(i * n + j)->flow;
 
   return result;
 }
