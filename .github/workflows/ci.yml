@@ -90,7 +90,6 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           TRUSTED: ${{ vars.CI_LOCAL_TRUSTED || github.repository_owner }}
           WAIT_MINUTES: ${{ vars.CI_LOCAL_WAIT_MINUTES || '20' }}
         run: |
@@ -121,10 +120,22 @@ jobs:
           # The wait ends within the timeout of the job
           [[ "${WAIT_MINUTES}" =~ ^[0-9]+$ ]] || WAIT_MINUTES=20
           if (( WAIT_MINUTES > 25 )); then WAIT_MINUTES=25; fi
+          # The master of the merge that this run checked out is its first
+          # parent, and the head its second. Not
+          # github.event.pull_request.base.sha, which stays at the commit
+          # that the branch started from when master moves. From the raw
+          # commit, since the checkout is shallow.
+          base="" head=""
+          read -r base head < <(git cat-file commit HEAD 2> /dev/null |
+            awk '$1 == "parent" { p = p " " $2 } $1 == "author" { exit } END { print p }') || true
+          if [ -z "${base}" ] || [ "${head}" != "${HEAD_SHA}" ]; then
+            echo "This checkout is not a merge of ${HEAD_SHA}: the required Linux jobs run here."
+            finish
+          fi
           # The fingerprint that scripts/ci-local.sh computes on the merge,
           # and the weeks whose images a status may name
           fp=$(cat .github/workflows/ci.yml scripts/ci-local.sh | sha256sum | cut -c1-12)
-          want="fp=${fp} base=${BASE_SHA:0:12}"
+          want="fp=${fp} base=${base:0:12}"
           week=$(date -u +%G-W%V)
           last_week=$(date -u -d '7 days ago' +%G-W%V)
           echo "Waiting up to ${WAIT_MINUTES} minutes for ci-local/required \"${want} img=${week} or ${last_week}\" on ${HEAD_SHA}"
