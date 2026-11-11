@@ -7,6 +7,10 @@
  * - Transportation problem solver
  */
 
+#include <array>
+#include <utility>
+#include <vector>
+
 #include <gtest/gtest.h>
 #include <tpl_mincost.H>
 #include <tpl_netcost.H>
@@ -482,8 +486,8 @@ TEST(TransportationTest, Larger3x4)
 
 // The negative-cycle path in ssp_init_potentials fires when Bellman-Ford's
 // extra (n-th) relaxation pass can still reduce some node's distance.
-// That requires a true directed cycle reachable from source whose arc-costs
-// sum to a negative value.
+// That requires a true directed cycle of the residual graph whose arc-costs
+// sum to a negative value, which the source reaches or not.
 //
 // Topology:  s --0--> m1 --1--> m2
 //                      ^         |
@@ -492,8 +496,8 @@ TEST(TransportationTest, Larger3x4)
 //            m1 --0--> t
 //
 // s is the unique source (in-degree 0), t is the unique sink (out-degree 0).
-// Bellman-Ford from s will keep decreasing d[m1] and d[m2] on every pass,
-// and the extra detection pass catches this.
+// Bellman-Ford will keep decreasing d[m1] and d[m2] on every pass, and the
+// extra detection pass catches this.
 TEST(NegCycleTest, RejectsNegativeCycle)
 {
   TestNet net;
@@ -527,13 +531,203 @@ TEST(NegCycleTest, AcceptsNonNegativeCostNetwork)
   EXPECT_NO_THROW(successive_shortest_paths(net));
 }
 
+// Bellman-Ford went from the source, and did not see a negative cycle that
+// the source does not reach: the flow came back of cost 0, while the
+// cheapest maximum flow saturates the cycle, at cost -2
+TEST(NegCycleTest, RejectsANegativeCycleApartFromTheSource)
+{
+  TestNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  auto st = net.insert_arc(s, t, 1.0, 0.0);
+  auto ab = net.insert_arc(a, b, 1.0, -1.0);
+  net.insert_arc(b, a, 1.0, -1.0);
+
+  EXPECT_THROW(successive_shortest_paths(net), std::domain_error);
+  EXPECT_EQ(st->flow, 0.0);
+  EXPECT_EQ(ab->flow, 0.0);
+}
+
+// A source that is the sink, isolated, has no path to augment: the loop took
+// the empty one from it to itself, and did not end
+TEST(SSPTest, ASourceThatIsTheSinkEnds)
+{
+  TestNet net;
+  net.insert_node();  // the source and the sink
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto ab = net.insert_arc(a, b, 1.0, 1.0);
+  auto ba = net.insert_arc(b, a, 1.0, 2.0);
+
+  const auto [flow, cost] = successive_shortest_paths(net);
+  EXPECT_EQ(flow, 0.0);
+  EXPECT_EQ(cost, 0.0);
+
+  // With a circulation of cost 3, whose cancellation is cheaper, the
+  // residual graph has a negative cycle
+  ab->flow = ba->flow = 1.0;
+  EXPECT_THROW(successive_shortest_paths(net), std::domain_error);
+  EXPECT_EQ(ab->flow, 1.0);
+  EXPECT_EQ(ba->flow, 1.0);
+}
+
+// The networks of the cases of decimal costs: u, v, and the capacity and
+// the cost in tenths
+TestNet build_tenths_network(const std::vector<std::array<int, 4>> & spec, int n)
+{
+  TestNet net;
+  std::vector<Node *> nodes;
+  for (int i = 0; i < n; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, a[3] / 10.0);
+  return net;
+}
+
+// With costs in tenths, not exact in binary, a reduced cost of zero came
+// out of the order of -1e-17, and Dijkstra took a distance down by an ulp
+// around a cycle forever: the first run did not end
+TEST(SSPTest, DecimalCostsEnd)
+{
+  // 3 is the source and 5 the sink
+  auto net = build_tenths_network({{2, 1, 17, 5}, {3, 5, 27, 9}, {1, 5, 2, 6}, {0, 2, 37, 9},
+                                   {2, 4, 23, 6}, {3, 2, 14, 0}, {0, 4, 26, 8}, {3, 0, 2, 6},
+                                   {4, 5, 37, 7}, {3, 5, 22, 6}}, 6);
+
+  const auto [flow, cost] = successive_shortest_paths(net);
+
+  EXPECT_NEAR(flow, 6.5, 1e-12);
+  EXPECT_NEAR(cost, 5.95, 1e-12);  // the exact optimum
+  EXPECT_TRUE(net.check_network());
+}
+
+// The second run starts from the cheapest flow, where the two arcs 2->0 of
+// cost 0.4, one full and one not, make a cycle of cost zero, which the
+// rounding of Bellman-Ford made negative: the second run threw for it
+TEST(SSPTest, ASecondRunOfDecimalCostsFindsNoNegativeCycle)
+{
+  // 1 is the source and 0 the sink
+  auto net = build_tenths_network({{1, 2, 9, 8}, {2, 0, 34, 4}, {1, 2, 24, 0}, {1, 2, 37, 1},
+                                   {2, 0, 33, 4}}, 3);
+
+  const auto [flow, cost] = successive_shortest_paths(net);
+  EXPECT_NEAR(flow, 6.7, 1e-12);
+  EXPECT_NEAR(cost, 3.53, 1e-12);  // the exact optimum
+
+  std::pair<double, double> again;
+  ASSERT_NO_THROW(again = successive_shortest_paths(net));
+  EXPECT_NEAR(again.first, flow, 1e-12);
+  EXPECT_NEAR(again.second, cost, 1e-12);
+}
+
+// Into 2 come 0.1 + 0.8, and out goes their rounded sum, 2.8e-17 less,
+// within the tolerance of check_node(); the network simplex, and the
+// maximum flow before it, returned it from 0->2, which then had residual
+// capacity: with the residual of 1->0, of cost -1, through 2 and 1, a
+// cycle of negative cost, for which successive_shortest_paths(), which
+// starts from the flow that the network has, threw. What a node keeps
+// within its tolerance stays
+TEST(SSPTest, RunsOnTheCheapestFlowOfTheNetworkSimplex)
+{
+  // 0 is the source and 3 the sink
+  auto net = build_tenths_network({{0, 1, 31, 10}, {0, 2, 1, 0}, {1, 2, 8, 0}, {2, 3, 29, 0}}, 4);
+  max_flow_min_cost_by_network_simplex(net);
+  ASSERT_NEAR(net.flow_value(), 0.9, 1e-12);
+  ASSERT_NEAR(net.flow_cost(), 0.8, 1e-12);
+
+  std::pair<double, double> again;
+  ASSERT_NO_THROW(again = successive_shortest_paths(net));
+  EXPECT_NEAR(again.first, 0.9, 1e-12);
+  EXPECT_NEAR(again.second, 0.8, 1e-12);
+  EXPECT_TRUE(net.check_network());
+}
+
+// The second path, 0->2->3, takes what 2->3 has left, 3.4 - 0.7, and
+// 0.7 + (3.4 - 0.7) came out an ulp above 3.4: 2->3 carried
+// 3.4000000000000004 of 3.3999999999999999, out of its capacity, and the
+// network simplex refused the flow. The arc that bounds a path is filled
+// exactly, and the residues of rounding go back at the end
+TEST(SSPTest, DecimalCapacitiesStayWithinTheArcs)
+{
+  // 0 is the source and 3 the sink
+  auto net = build_tenths_network({{0, 1, 7, 2}, {1, 2, 8, 1}, {0, 2, 27, 8}, {2, 3, 34, 1}}, 4);
+
+  const auto [flow, cost] = successive_shortest_paths(net);
+
+  EXPECT_NEAR(flow, 3.4, 1e-12);
+  EXPECT_NEAR(cost, 2.71, 1e-12);  // the exact optimum
+  for (Arc_Iterator<TestNet> it(net); it.has_curr(); it.next_ne())
+    {
+      EXPECT_GE(it.get_curr()->flow, 0);
+      EXPECT_LE(it.get_curr()->flow, it.get_curr()->cap);
+    }
+  EXPECT_TRUE(net.check_network());
+
+  ASSERT_NO_THROW(Network_Simplex<TestNet>(net).run());
+  EXPECT_NEAR(net.flow_value(), 3.4, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), 2.71, 1e-12);
+}
+
+// From the flow through the dearer of two arcs from m to the sink, of costs
+// 1 and 1 - 1e-7, the residual network has a cycle of cost -1e-7, far above
+// the tolerance of the potentials with costs of 1, 4 n^2 epsilons: the
+// flow is not of least cost, and successive_shortest_paths() refuses it,
+// with the flows as they were
+TEST(SSPTest, RefusesACycleOfCost1e7)
+{
+  TestNet net;
+  auto s = net.insert_node(), m = net.insert_node(), t = net.insert_node();
+  Arc * sm = net.insert_arc(s, m, 1, 0);
+  Arc * dear = net.insert_arc(m, t, 1, 1);
+  net.insert_arc(m, t, 1, 1 - 1e-7);
+  sm->flow = dear->flow = 1;
+
+  EXPECT_THROW(successive_shortest_paths(net), std::domain_error);
+  EXPECT_EQ(sm->flow, 1);
+  EXPECT_EQ(dear->flow, 1);
+}
+
+// With the arcs that bound the paths filled exactly, and the flows that a
+// path takes next to zero taken to zero, a path took a residue of rounding,
+// of 2.2e-16, and a later one took the flow out of its node to zero: the
+// node kept it, far beyond its tolerance, as it sent nothing. The residues
+// of the paths go back at the end, as those of the maximum flows
+TEST(SSPTest, ReturnsTheResiduesOfItsPaths)
+{
+  // u, v and k for the capacity and the cost, k * 0.1; 0 is the source and
+  // 21 the sink
+  const std::vector<std::array<int, 4>> spec = {
+    {0, 1, 29, 32},   {1, 2, 37, 32},   {3, 4, 34, 5},    {5, 6, 26, 11},   {1, 7, 28, 48},
+    {8, 9, 39, 15},   {10, 11, 39, 44}, {0, 12, 33, 94},  {0, 13, 6, 18},   {9, 14, 20, 6},
+    {1, 15, 34, 14},  {15, 16, 35, 87}, {17, 18, 31, 49}, {12, 6, 8, 77},   {6, 14, 12, 31},
+    {5, 14, 33, 76},  {14, 16, 18, 17}, {16, 19, 27, 21}, {4, 20, 37, 93},  {20, 21, 23, 89},
+    {19, 21, 39, 34}, {1, 8, 12, 24},   {19, 22, 21, 59}, {23, 14, 9, 2},   {3, 7, 20, 5},
+    {13, 9, 25, 51},  {22, 24, 38, 9},  {11, 15, 39, 27}, {24, 21, 24, 95}, {0, 5, 28, 99},
+    {7, 24, 35, 14},  {16, 25, 20, 86}, {25, 17, 1, 14},  {5, 13, 14, 9},   {26, 13, 32, 76},
+    {2, 27, 15, 80},  {28, 10, 12, 37}, {27, 9, 4, 15},   {20, 26, 21, 50}, {13, 28, 7, 91},
+    {13, 3, 20, 40},  {18, 23, 10, 16}};
+  TestNet net;
+  std::vector<Node *> nodes;
+  for (int i = 0; i < 29; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] * 0.1, a[3] * 0.1);
+
+  const auto [flow, cost] = successive_shortest_paths(net);
+
+  EXPECT_NEAR(flow, 6.7, 1e-12);
+  EXPECT_NEAR(cost, 156.22, 1e-9);  // the exact optimum
+  EXPECT_TRUE(net.check_network());
+}
+
 // --- Unreachable-node handling (indirect) --------------------------------
 
-// ssp_init_potentials sets potential to 0 for nodes unreachable from source
-// (they remain at INF after Bellman-Ford and are clamped).  In a valid
-// single-source/sink network every forward-reachable node is reached, but
-// zero-demand nodes in the transshipment wrapper are not connected to the
-// super-source/super-sink and end up with potential 0 rather than INF.
+// ssp_init_potentials starts the potential of every node at 0, from a
+// virtual node joined to all of them, so that the nodes that the source does
+// not reach have one too: zero-demand nodes in the transshipment wrapper are
+// not connected to the super-source/super-sink.
 // We verify indirectly: a transshipment instance where two nodes carry zero
 // demand must still solve correctly with total_flow == total non-zero supply.
 TEST(SSPTest, ZeroDemandNodesHandledGracefully)

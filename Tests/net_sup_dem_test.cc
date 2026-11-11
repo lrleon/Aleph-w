@@ -674,6 +674,33 @@ TEST(IntegrationTest, CompleteWorkflow)
   EXPECT_FALSE(net.exist_aux_net());
 }
 
+// A ships 0.7 to B, which wants 0.1, and through C to D, which wants 0.6:
+// it receives 0.7 and sends 0.1 + 0.6, whose exact sum is 2.8e-17 more
+// than 0.7 in binary, well within the tolerance of check_node(). The
+// return of the residues of rounding at the end of the augmenting paths
+// moved it toward the sink, and the arc of D, or of B, to the super-sink
+// lost an ulp of its demand: the network was not feasible
+TEST(FloatingFeasibilityTest, AFlowOfTenthsIsFeasible)
+{
+  using Net = Net_Sup_Dem_Graph<Net_Sup_Dem_Node<Empty_Class, double>, Net_Arc<Empty_Class, double>>;
+  auto feasible = [] (auto maximum_flow)
+    {
+      Net net;
+      auto * a = net.insert_node(0.7);
+      auto * b = net.insert_node(-0.1);
+      auto * c = net.insert_node(0.0);
+      auto * d = net.insert_node(-0.6);
+      net.insert_arc(a, b, 3.2);
+      net.insert_arc(a, c, 3.9);
+      net.insert_arc(c, d, 0.7);
+      net.compute_aux_net();
+      maximum_flow(net);
+      return net.is_feasible();
+    };
+  EXPECT_TRUE(feasible([] (Net & net) { edmonds_karp_maximum_flow(net); }));
+  EXPECT_TRUE(feasible([] (Net & net) { ford_fulkerson_maximum_flow(net); }));
+}
+
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

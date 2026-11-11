@@ -11,9 +11,12 @@
 #include <gtest/gtest.h>
 #include <tpl_maxflow.H>
 #include <tpl_net.H>
+#include <array>
 #include <chrono>
 #include <random>
+#include <set>
 #include <stdexcept>
+#include <vector>
 
 using namespace Aleph;
 
@@ -1724,6 +1727,291 @@ TEST(IntegerFlowTest, MinCutVerification)
     }
   // Total saturated capacity >= max flow (some saturated arcs may not be cut arcs)
   EXPECT_GE(cut_cap, flow);
+}
+
+// Ford-Fulkerson took a path through what rounding left of the capacity
+// of an arc, whose flows summed to a little less than it, and augmented
+// by that residue: the small flows that it spread broke the balance of
+// the nodes, so that its assertion failed in a debug build, and
+// check_network() after it in a release one
+TEST(FordFulkersonTest, DecimalCapacitiesKeepTheBalance)
+{
+  // u, v and the capacity in tenths; 4 is the source and 2 the sink
+  const int spec[][3] = {{1, 3, 20}, {3, 5, 20}, {5, 2, 30}, {4, 3, 20},
+                         {0, 2, 29}, {4, 0, 2}, {0, 1, 1}, {5, 0, 10},
+                         {4, 0, 27}, {0, 1, 19}, {4, 5, 10}};
+  auto build = [&spec] (TestNet & net)
+    {
+      std::vector<Node *> nodes;
+      for (int i = 0; i < 6; ++i)
+        nodes.push_back(net.insert_node(i));
+      for (const auto & a : spec)
+        net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0);
+    };
+
+  // ff and ek, and the depth-first paths, which Ford-Fulkerson took with
+  // a floating flow before it took the shortest ones, and where the case
+  // was found
+  TestNet ff, ek, dfs;
+  build(ff);
+  build(ek);
+  build(dfs);
+  const double ff_value = Ford_Fulkerson_Maximum_Flow<TestNet>()(ff);
+  const double ek_value = Edmonds_Karp_Maximum_Flow<TestNet>()(ek);
+  const double dfs_value = aumenting_path_maximum_flow<TestNet, Find_Aumenting_Path_DFS>(dfs);
+
+  EXPECT_TRUE(ff.check_network());
+  EXPECT_TRUE(ek.check_network());
+  EXPECT_TRUE(dfs.check_network());
+  // The arcs out of the source, 2 + 0.2 + 2.7 + 1, are saturated
+  EXPECT_NEAR(ff_value, 5.9, 1e-12);
+  EXPECT_NEAR(ek_value, 5.9, 1e-12);
+  EXPECT_NEAR(dfs_value, 5.9, 1e-12);
+}
+
+// A slack that rounding left on an arc of capacity 2, of 0.09999999999999964
+// for 0.1, filled arcs of capacity 0.1 and left them a residue of 3.6e-16,
+// which a path took; later paths took the flows of a node to zero, but that
+// residue, and the node lost its balance. The residues go back at the end,
+// as those of the preflows
+TEST(FordFulkersonTest, ResiduesOfLargerArcsKeepTheBalance)
+{
+  // u, v and the capacity in tenths; 1 is the source and 14 the sink
+  const int spec[][3] = {{0, 18, 0}, {7, 10, 3}, {20, 4, 7}, {7, 16, 0}, {19, 16, 1},
+                         {16, 17, 2}, {4, 3, 7}, {10, 4, 3}, {18, 0, 0}, {9, 6, 2},
+                         {11, 20, 6}, {5, 14, 20}, {6, 20, 1}, {12, 13, 0}, {2, 14, 10},
+                         {3, 14, 8}, {15, 19, 1}, {3, 15, 2}, {4, 20, 0}, {1, 20, 0},
+                         {5, 7, 3}, {6, 12, 5}, {12, 19, 0}, {1, 6, 16}, {17, 3, 1},
+                         {16, 5, 11}, {16, 13, 1}, {2, 14, 1}, {6, 8, 10}, {17, 8, 5},
+                         {16, 6, 9}, {3, 17, 5}, {12, 11, 7}, {19, 20, 1}, {1, 5, 9},
+                         {11, 19, 1}, {1, 16, 14}, {16, 12, 7}, {15, 9, 2}, {8, 2, 11},
+                         {13, 9, 1}};
+  auto build = [&spec] (TestNet & net)
+    {
+      std::vector<Node *> nodes;
+      for (int i = 0; i < 21; ++i)
+        nodes.push_back(net.insert_node(i));
+      for (const auto & a : spec)
+        net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0);
+    };
+
+  // ff and ek, and the depth-first paths, which Ford-Fulkerson took with
+  // a floating flow before it took the shortest ones, and where the case
+  // was found
+  TestNet ff, ek, dfs;
+  build(ff);
+  build(ek);
+  build(dfs);
+  ASSERT_EQ(ff.get_source()->get_info(), 1);
+  ASSERT_EQ(ff.get_sink()->get_info(), 14);
+  const double ff_value = Ford_Fulkerson_Maximum_Flow<TestNet>()(ff);
+  const double ek_value = Edmonds_Karp_Maximum_Flow<TestNet>()(ek);
+  const double dfs_value = aumenting_path_maximum_flow<TestNet, Find_Aumenting_Path_DFS>(dfs);
+
+  EXPECT_TRUE(ff.check_network());
+  EXPECT_TRUE(ek.check_network());
+  EXPECT_TRUE(dfs.check_network());
+  EXPECT_NEAR(ff_value, ek_value, 1e-12);
+  EXPECT_NEAR(dfs_value, ek_value, 1e-12);
+}
+
+// The paths of a depth-first search took the residues of rounding that
+// capacities in tenths leave, of an ulp, and spread them, so that the flows
+// left the multiples of 0.1 and the slacks of the paths went down to 1e-17:
+// Ford-Fulkerson did not end on this network of 400 nodes. With a floating
+// flow it takes the shortest paths, as Edmonds-Karp
+TEST(FordFulkersonTest, DecimalCapacitiesEndOnAMidSizeNetwork)
+{
+  // n nodes; 0 is the source and n - 1 the sink; every other node has an
+  // arc from an earlier one and one to a later one; then 10 n arcs at
+  // random, none into the source nor out of the sink
+  const int n = 400;
+  TestNet net;
+  std::mt19937 gen(1);
+  std::vector<Node *> nodes;
+  for (int i = 0; i < n; ++i)
+    nodes.push_back(net.insert_node(i));
+  auto arc = [&] (int a, int b)
+    {
+      const double cap = double(1 + gen() % 40) * 0.1;
+      net.insert_arc(nodes[size_t(a)], nodes[size_t(b)], cap);
+    };
+  for (int i = 1; i < n - 1; ++i)
+    {
+      arc(int(gen() % unsigned(i)), i);
+      arc(i, i + 1 + int(gen() % unsigned(n - 1 - i)));
+    }
+  for (int k = 0; k < 10 * n; ++k)
+    {
+      const int a = int(gen() % unsigned(n - 1));
+      const int b = 1 + int(gen() % unsigned(n - 1));
+      if (a != b)
+        arc(a, b);
+    }
+
+  const double value = Ford_Fulkerson_Maximum_Flow<TestNet>()(net);
+
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(value, 33.6, 1e-9);  // 336 with the capacities by ten
+}
+
+namespace
+{
+  // Whether a path of arcs of positive residual capacity, exactly, goes
+  // from the source to the sink of net
+  bool residual_path_to_sink(TestNet & net)
+  {
+    std::set<Node *> seen = {net.get_source()};
+    std::vector<Node *> queue = {net.get_source()};
+    for (size_t k = 0; k < queue.size(); ++k)
+      for (TestNet::Node_Arc_Iterator it(queue[k]); it.has_curr(); it.next_ne())
+        {
+          Arc * a = it.get_curr();
+          Node * v = nullptr;
+          if (net.get_src_node(a) == queue[k] and a->cap - a->flow > 0)
+            v = net.get_tgt_node(a);
+          else if (net.get_tgt_node(a) == queue[k] and a->flow > 0)
+            v = net.get_src_node(a);
+          if (v != nullptr and seen.insert(v).second)
+            queue.push_back(v);
+        }
+    return seen.count(net.get_sink()) > 0;
+  }
+
+  // A network of capacities in tenths: arcs {u, v, tenths}, with the
+  // nodes 0 to n - 1
+  void build_tenths(TestNet & net, int n, const std::vector<std::array<int, 3>> & arcs)
+  {
+    std::vector<Node *> nodes;
+    for (int i = 0; i < n; ++i)
+      nodes.push_back(net.insert_node(i));
+    for (const auto & a : arcs)
+      net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0);
+  }
+
+  // The cut that min_cut() gives with Maxflow on the network of n nodes
+  // and arcs in tenths: the source with its side and the sink with its,
+  // every arc from the side of the source to that of the sink full, every
+  // one back empty, a capacity of the cut that is the value of the flow,
+  // no path of residual capacity left, and a second return of the residues
+  // of rounding that changes nothing
+  template <template <class> class Maxflow>
+  void expect_a_minimum_cut(int n, const std::vector<std::array<int, 3>> & arcs,
+                            double value, const char * name)
+  {
+    SCOPED_TRACE(name);
+    TestNet net;
+    build_tenths(net, n, arcs);
+    DynSetTree<Node *> vs, vt;
+    DynList<Arc *> cuts, cutt;
+    EXPECT_NEAR((min_cut<TestNet, Maxflow>(net, vs, vt, cuts, cutt)), value, 1e-12);
+    EXPECT_TRUE(vs.contains(net.get_source()));
+    EXPECT_TRUE(vt.contains(net.get_sink()));
+    double capacity = 0;
+    for (Arc_Iterator<TestNet> it(net); it.has_curr(); it.next_ne())
+      {
+        Arc * a = it.get_curr();
+        const bool from = vs.contains(net.get_src_node(a)), to = vs.contains(net.get_tgt_node(a));
+        if (from and not to)
+          {
+            capacity += a->cap;
+            EXPECT_EQ(a->flow, a->cap);
+          }
+        else if (to and not from)
+          EXPECT_EQ(a->flow, 0);
+      }
+    EXPECT_NEAR(capacity, value, 1e-12);
+    EXPECT_FALSE(residual_path_to_sink(net));
+    EXPECT_TRUE(net.check_network());
+
+    std::vector<double> flows;
+    for (Arc_Iterator<TestNet> it(net); it.has_curr(); it.next_ne())
+      flows.push_back(it.get_curr()->flow);
+    net_detail::return_dust(net, net.get_source(), net.get_sink());
+    size_t i = 0;
+    for (Arc_Iterator<TestNet> it(net); it.has_curr(); it.next_ne(), ++i)
+      EXPECT_EQ(it.get_curr()->flow, flows[i]);
+  }
+
+  template <template <class> class Maxflow>
+  void expect_minimum_cuts_of_tenths(const char * name)
+  {
+    // Into node 2 come 0.1 + 0.8, and out goes their rounded sum, 2.8e-17
+    // less, well within the tolerance of check_node(); the return of the
+    // residues of the paths took it from 0->2, which then had residual
+    // capacity, and min_cut() put the sink with the source, with no arc
+    // in the cut. The cut is {0->2, 1->2}
+    expect_a_minimum_cut<Maxflow>(4, {{0, 1, 31}, {0, 2, 1}, {1, 2, 8}, {2, 3, 29}}, 0.9, name);
+
+    // Likewise for node 4, with 1.3 + 1.5, where the return of the
+    // residues of the preflows took it from 0->1 or 0->3, the cut, in
+    // 7.5.0 too
+    expect_a_minimum_cut<Maxflow>(6, {{0, 1, 13}, {1, 2, 25}, {0, 3, 15}, {2, 4, 25},
+                                      {4, 5, 30}, {3, 4, 19}}, 2.8, name);
+  }
+
+  template <class Net>
+  struct DFS_Augmenting_Paths
+  {
+    typename Net::Flow_Type operator () (Net & net) const
+    {
+      return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_DFS>(net);
+    }
+  };
+}
+
+// The residues of rounding that a node keeps within the tolerance of
+// check_node() stay where they are: returning them lowered by an ulp an
+// arc that the flow saturates, of the minimum cut, so that the flow was
+// no longer maximal
+TEST(MinCutTest, AFloatingFlowKeepsTheArcsOfTheCutFull)
+{
+  expect_minimum_cuts_of_tenths<Ford_Fulkerson_Maximum_Flow>("ford_fulkerson");
+  expect_minimum_cuts_of_tenths<Edmonds_Karp_Maximum_Flow>("edmonds_karp");
+  expect_minimum_cuts_of_tenths<DFS_Augmenting_Paths>("depth-first paths");
+  expect_minimum_cuts_of_tenths<Heap_Preflow_Maximum_Flow>("heap_preflow");
+  expect_minimum_cuts_of_tenths<Fifo_Preflow_Maximum_Flow>("fifo_preflow");
+  expect_minimum_cuts_of_tenths<Random_Preflow_Maximum_Flow>("random_preflow");
+  expect_minimum_cuts_of_tenths<HLPP_Maximum_Flow>("hlpp");
+  expect_minimum_cuts_of_tenths<Dinic_Maximum_Flow>("dinic");
+  expect_minimum_cuts_of_tenths<Capacity_Scaling_Maximum_Flow>("capacity_scaling");
+}
+
+// The return of the residues keeps what a node keeps or lacks within the
+// tolerance of check_node(), also when another node has dust to return:
+// 2 receives 0.1 + 0.8 and sends 0.9, 2.8e-17 less, and 5 sends 0.1 + 0.6
+// and receives 0.7, 2.8e-17 less, both within their tolerance; 4 receives
+// 5.6e-17 and sends nothing, far beyond its own. Only that dust goes back
+TEST(ReturnDustTest, KeepsTheResiduesWithinTheToleranceBesideDust)
+{
+  TestNet net;
+  std::vector<Node *> n;
+  for (int i = 0; i < 8; ++i)
+    n.push_back(net.insert_node(i));
+  // 0 is the source and 3 the sink
+  auto arc = [&] (int u, int v, double cap, double flow)
+    {
+      Arc * a = net.insert_arc(n[size_t(u)], n[size_t(v)], cap);
+      a->flow = flow;
+      return a;
+    };
+  Arc * kept[] = {arc(0, 1, 3.1, 0.8), arc(0, 2, 0.1, 0.1), arc(1, 2, 0.8, 0.8),
+                  arc(2, 3, 2.9, 0.9), arc(0, 5, 0.7, 0.7), arc(5, 6, 0.1, 0.1),
+                  arc(5, 7, 0.6, 0.6), arc(6, 3, 3.2, 0.1), arc(7, 3, 0.7, 0.6)};
+  Arc * dust = arc(0, 4, 1, 5.5511151231257827e-17);
+  arc(4, 3, 1, 0);
+  ASSERT_TRUE(net.is_single_source() and net.is_single_sink());
+  ASSERT_FALSE(net.check_node(n[4]));
+  std::vector<double> flows;
+  for (Arc * a : kept)
+    flows.push_back(a->flow);
+
+  net_detail::return_dust(net, n[0], n[3]);
+
+  for (size_t i = 0; i < flows.size(); ++i)
+    EXPECT_EQ(kept[i]->flow, flows[i]) << "arc " << i;
+  EXPECT_EQ(dust->flow, 0);
+  EXPECT_TRUE(net.check_network());
 }
 
 

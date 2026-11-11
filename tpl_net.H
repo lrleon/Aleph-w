@@ -1226,7 +1226,7 @@ void node_flows(const Net &net, typename Net::Node *p, Flow_Sum<typename Net::Fl
 {
   for (typename Net::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_curr();
+      auto arc = it.get_curr_ne();
       if (net.get_src_node(arc) == p)
         out.add(arc->flow);
       if (net.get_tgt_node(arc) == p)
@@ -1259,24 +1259,29 @@ inline void push_excess(Arc *arc, bool forward, Flow_Sum<Flow_Type> &in,
 }
 
 /** Returns the dust of a floating flow that a preflow algorithm left
-    in net, from source to sink: what each node but them keeps that
-    does not leave it goes back toward the source, along arcs with flow
-    from it, and what each sends that it does not receive goes forward
-    toward the sink, along arcs with flow to it; what a node still keeps
-    or lacks beyond the tolerance of check_node(), as on an island of
-    arcs with flow apart from both, goes along a shortest path of arcs
-    with flow to the first node that takes it; and when nothing reaches
-    the sink, what still leaves the source, which the rounding of the
-    sums of the nodes may hide, is taken from the arcs of the source
-    with the least flow, if it is within the tolerances of the nodes
-    (and the other way). Flows only go down. Afterwards every node keeps
-    its flow within the tolerance of check_node(), and a network whose
-    maximum flow is 0 gives 0. Nothing for an integer flow, and, but a
-    pass over the nodes, nothing if no node keeps or lacks any flow.
-    O((b + 1)(V + E) + d log d), where b, the number of searches, is
-    about that of the nodes that the first moves leave beyond their
-    tolerance, at most V + E, and d is the degree of the source or the
-    sink. */
+    in net, from source to sink: what each node but them keeps beyond
+    the tolerance of check_node() goes back toward the source, along
+    arcs with flow from it, and what each sends beyond it that it does
+    not receive goes forward toward the sink, along arcs with flow to
+    it; what a node still keeps or lacks beyond that tolerance, as on
+    an island of arcs with flow apart from both, goes along a shortest
+    path of arcs with flow to the first node that takes it; and when
+    nothing reaches the sink, what still leaves the source, which the
+    rounding of the sums of the nodes may hide, is taken from the arcs
+    of the source with the least flow, if it is within the tolerances
+    of the nodes (and the other way). What a node keeps or lacks within
+    its tolerance stays: it is the rounding of the sums of its flows,
+    as 0.1 + 0.8 in and their rounded sum out, and returning it lowered
+    by an ulp an arc that the flow saturates, as one of a minimum cut,
+    so that a path of residual capacity went from the source to the
+    sink. Flows only go down. Afterwards every node keeps its flow
+    within the tolerance of check_node(), and a network whose maximum
+    flow is 0 gives 0. Nothing for an
+    integer flow, and, but a pass over the nodes, nothing if no node
+    keeps or lacks any flow. O((b + 1)(V + E) + d log d), where b, the
+    number of searches, is about that of the nodes that the first moves
+    leave beyond their tolerance, at most V + E, and d is the degree of
+    the source or the sink. The augmenting paths return theirs too. */
 template <class Net>
 void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
 {
@@ -1287,24 +1292,33 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
       using Arc = typename Net::Arc;
 
       // Nothing to do, and nothing to allocate, if every node but the
-      // ends keeps its flow exactly and the totals agree, or both
-      // carry flow
+      // ends keeps its flow within the tolerance of check_node(), as it
+      // sums the flows, where it stays, and the totals agree, or both
+      // carry flow: a pass over the arcs, the least that the maximum
+      // flows of a floating flow pay for their residues
       {
-        bool balanced = true;
+        bool within = true;
         Flow_Type sent{0}, received{0};
-        for (Node_Iterator<Net> it(net); balanced and it.has_curr(); it.next_ne())
+        for (Node_Iterator<Net> it(net); within and it.has_curr(); it.next_ne())
           {
-            Node *p = it.get_curr();
-            Flow_Sum<Flow_Type> in, out;
-            node_flows(net, p, in, out);
+            Node *p = it.get_curr_ne();
+            Flow_Type in{0}, out{0};
+            for (typename Net::Node_Arc_Iterator a(p); a.has_curr(); a.next_ne())
+              {
+                Arc *arc = a.get_curr_ne();
+                if (net.get_src_node(arc) == p)
+                  out += arc->flow;
+                if (net.get_tgt_node(arc) == p)
+                  in += arc->flow;
+              }
             if (p == source)
-              sent = out.minus(in);
+              sent = out - in;
             else if (p == sink)
-              received = in.minus(out);
+              received = in - out;
             else
-              balanced = in.minus(out) == Flow_Type{0};
+              within = std::abs(in - out) <= Net::node_tolerance(in, out);
           }
-        if (balanced and (sent == received or (sent != Flow_Type{0} and received != Flow_Type{0})))
+        if (within and (sent == received or (sent != Flow_Type{0} and received != Flow_Type{0})))
           return;
       }
 
@@ -1329,7 +1343,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
       {
         size_t i = 0;
         for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++i)
-          NODE_COOKIE(it.get_curr()) = &info[i];
+          NODE_COOKIE(it.get_curr_ne()) = &info[i];
       }
       auto at = [](Node *p) -> Info &
         {
@@ -1337,7 +1351,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
         };
       for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
         {
-          Arc *a = it.get_curr();
+          Arc *a = it.get_curr_ne();
           at(net.get_src_node(a)).out.add(a->flow);
           at(net.get_tgt_node(a)).in.add(a->flow);
         }
@@ -1373,7 +1387,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
                 continue;
               for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
                 {
-                  Arc *a = it.get_curr();
+                  Arc *a = it.get_curr_ne();
                   Node *from = forward ? net.get_src_node(a) : net.get_tgt_node(a);
                   Node *v = forward ? net.get_tgt_node(a) : net.get_src_node(a);
                   if (from == u and a->flow > Flow_Type{0} and at(v).*depth < 0)
@@ -1385,29 +1399,43 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
             }
         };
 
-      // What each node keeps goes back, the deepest first, along arcs
-      // from nodes nearer to the source, which come later
+      // Whether p keeps or lacks more than the tolerance of check_node()
+      // of its flows: what it keeps or lacks within it stays, as the
+      // rounding of their sums
+      auto tolerance_of = [&](Node *p)
+        {
+          return Net::node_tolerance(at(p).in.value(), at(p).out.value());
+        };
+      auto off = [&](Node *p)
+        {
+          return std::abs(excess(p)) > tolerance_of(p);
+        };
+
+      // What each node keeps beyond its tolerance goes back, the
+      // deepest first, along arcs from nodes nearer to the source, which
+      // come later
       search(source, sink, true, &Info::from_source);
       for (size_t k = order.size(); k-- > 1;)
-        if (Node *v = order[k]; between(v))
+        if (Node *v = order[k]; between(v) and off(v))
           for (typename Net::Node_Arc_Iterator it(v); it.has_curr() and excess(v) > Flow_Type{0};
                it.next_ne())
             {
-              Arc *a = it.get_curr();
+              Arc *a = it.get_curr_ne();
               Node *u = net.get_src_node(a);
               if (net.get_tgt_node(a) == v and u != v and a->flow > Flow_Type{0} and
                   at(u).from_source >= 0 and at(u).from_source < at(v).from_source)
                 lower(a, excess(v));
             }
 
-      // What each node lacks goes forward likewise, toward the sink
+      // What each node lacks beyond it goes forward likewise, toward
+      // the sink
       search(sink, source, false, &Info::to_sink);
       for (size_t k = order.size(); k-- > 1;)
-        if (Node *v = order[k]; between(v))
+        if (Node *v = order[k]; between(v) and off(v))
           for (typename Net::Node_Arc_Iterator it(v); it.has_curr() and excess(v) < Flow_Type{0};
                it.next_ne())
             {
-              Arc *a = it.get_curr();
+              Arc *a = it.get_curr_ne();
               Node *w = net.get_tgt_node(a);
               if (net.get_src_node(a) == v and w != v and a->flow > Flow_Type{0} and
                   at(w).to_sink >= 0 and at(w).to_sink < at(v).to_sink)
@@ -1427,20 +1455,12 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
       // of its flows. Each search takes a path to zero at one of its
       // arcs, settles its node, or settles the node that takes it; the
       // searches are bounded all the same
-      auto tolerance_of = [&](Node *p)
-        {
-          return Net::node_tolerance(at(p).in.value(), at(p).out.value());
-        };
-      auto off = [&](Node *p)
-        {
-          return std::abs(excess(p)) > tolerance_of(p);
-        };
       size_t stamp = 0;
       auto settle = [&]
         {
           size_t budget = net.vsize() + net.esize();
           for (Node_Iterator<Net> nt(net); nt.has_curr() and budget > 0; nt.next_ne())
-            for (Node *v = nt.get_curr(); between(v) and off(v) and budget > 0; --budget)
+            for (Node *v = nt.get_curr_ne(); between(v) and off(v) and budget > 0; --budget)
               {
                 const bool keeps = excess(v) > Flow_Type{0};
                 const Flow_Type d = std::abs(excess(v));
@@ -1465,7 +1485,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
                 for (size_t k = 0; k < queue.size() and w == nullptr; ++k)
                   for (typename Net::Node_Arc_Iterator it(queue[k]); it.has_curr(); it.next_ne())
                     {
-                      Arc *a = it.get_curr();
+                      Arc *a = it.get_curr_ne();
                       Node *near = keeps ? net.get_tgt_node(a) : net.get_src_node(a);
                       Node *x = keeps ? net.get_src_node(a) : net.get_tgt_node(a);
                       if (near != queue[k] or x == near or not (a->flow > Flow_Type{0}) or
@@ -1525,7 +1545,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
         {
           Node *end = apart > Flow_Type{0} ? source : sink;
           for (typename Net::Node_Arc_Iterator it(end); it.has_curr(); it.next_ne())
-            if (Arc *a = it.get_curr(); a->flow > Flow_Type{0} and
+            if (Arc *a = it.get_curr_ne(); a->flow > Flow_Type{0} and
                 (end == source ? net.get_src_node(a) : net.get_tgt_node(a)) == end and
                 net.get_src_node(a) != net.get_tgt_node(a))
               end_arcs.push_back(a);
@@ -1603,7 +1623,10 @@ typename Net::Flow_Type increase_flow(Net &net, const Path<Net> &path)
 /** @brief Increase flow along a semi-path by a given slack.
  *
  * With a floating type of flow, a flow that rounding leaves next to the
- * capacity of its arc, or next to zero, is set to it.
+ * capacity of its arc, or next to zero, is set to it. A node may then
+ * keep or lack a residue of rounding beyond the tolerance of
+ * check_node(), when its flows are such residues, which came from arcs of
+ * larger flows: aumenting_path_maximum_flow() returns them at its end.
  *
  * @param[in,out] net Flow network to update.
  * @param[in] semi_path Semi-path arc list.
@@ -1628,7 +1651,8 @@ void increase_flow(Net &net, const DynList<Parc<Net>> &semi_path, const typename
 
       assert(arc->check_arc());
     }
-  assert(net.check_network());
+  if constexpr (not std::is_floating_point_v<typename Net::Flow_Type>)
+    assert(net.check_network());
 }
 
 /** @brief Decrease flow along a semi-path by a given slack.
@@ -1845,7 +1869,12 @@ public:
   }
 };
 
-/// Augmenting-path finder using DFS (stack).
+/** @brief Augmenting-path finder using DFS (stack).
+
+    @warning With a floating flow, its paths may not end on networks of
+    some hundreds of nodes with capacities not exact in binary, as tenths:
+    see aumenting_path_maximum_flow().
+*/
 template <class Net>
 using Find_Aumenting_Path_DFS = Find_Aumenting_Path<Net, DynListStack>;
 
@@ -2080,6 +2109,21 @@ inline void update_flow(const Rnet &rnet)
 
 /** @brief Maximize flow using repeated augmenting-path searches.
  *
+ * With a floating type of flow, the residues of rounding that the paths
+ * leave go back at the end, as those of the preflows (see
+ * net_detail::return_dust()): every node keeps its flow within the
+ * tolerance of check_node(). What a node keeps within it stays, as the
+ * rounding of the sums of its flows: returning it lowered by an ulp arcs
+ * that the paths had filled, and min_cut() put the sink with the source.
+ *
+ * @warning With a floating flow, the paths of a depth-first search, as
+ * those of Find_Aumenting_Path_DFS, take the residues of rounding that
+ * capacities not exact in binary, as tenths, leave on the arcs, of the
+ * order of an ulp, and spread them, so that the slacks of the paths go
+ * down to 1e-17: they may not end, as on a network of 400 nodes in
+ * tenths. ford_fulkerson_maximum_flow() takes the shortest paths then,
+ * those of Find_Aumenting_Path_BFS, which end after O(V E) of them.
+ *
  * @param[in,out] net Flow network (must have a single source and sink).
  * @return Maximized flow value.
  *
@@ -2107,10 +2151,26 @@ typename Net::Flow_Type aumenting_path_maximum_flow(Net &net)
       increase_flow<Net>(net, get<2>(semi_path), slack);
     }
 
+  // A slack that rounding left on an arc of larger flows, next to one of
+  // smaller capacity, may go along a path as a residue, whose nodes then
+  // lose their balance when other paths take their flows to zero
+  net_detail::return_dust(net, net.get_source(), net.get_sink());
+  assert(net.get_source() == net.get_sink() or net.check_network());
+
   return net.get_out_flow(net.get_source());
 }
 
 /** @brief Maximize flow using the Ford-Fulkerson algorithm.
+ *
+ * With an integer flow, it takes the augmenting paths of a depth-first
+ * search. With a floating flow, it takes the shortest ones, those of
+ * edmonds_karp_maximum_flow(): rounding leaves residues of the order of
+ * an ulp on the arcs, which the paths of a depth-first search take and
+ * spread, taking the flows off the multiples of the data, so that the
+ * augmentations, bounded only by the value of the flow over the least of
+ * its units, did not end on networks of some hundreds of nodes with
+ * capacities in tenths. The number of shortest augmentations is O(V E),
+ * whatever the capacities.
  *
  * @param[in,out] net Flow network (must have a single source and sink).
  * @return Maximized flow value.
@@ -2120,7 +2180,10 @@ typename Net::Flow_Type aumenting_path_maximum_flow(Net &net)
 template <class Net>
 typename Net::Flow_Type ford_fulkerson_maximum_flow(Net &net)
 {
-  return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_DFS>(net);
+  if constexpr (std::is_floating_point_v<typename Net::Flow_Type>)
+    return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_BFS>(net);
+  else
+    return aumenting_path_maximum_flow<Net, Find_Aumenting_Path_DFS>(net);
 }
 
 /** @brief Functor wrapper for ford_fulkerson_maximum_flow().

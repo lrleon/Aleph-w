@@ -75,10 +75,12 @@
 # include <ah-graph-concepts.H>
 
 #include <cmath>
+#include <concepts>
 #include <type_traits>
 #include <limits>
 #include <vector>
 
+#include <tpl_array.H>
 #include <tpl_dynListQueue.H>
 #include <tpl_dynSetTree.H>
 #include <tpl_graph_utils.H>
@@ -105,7 +107,13 @@ namespace Aleph {
     - `Distance`: Arc weight accessor. Must define `Distance_Type` and provide
       `Distance_Type operator()(typename GT::Arc *a)`. It should have no side
       effects: how many times it is called per arc is unspecified (the
-      relaxation passes stop as soon as one relaxes nothing).
+      relaxation passes stop as soon as one relaxes nothing). It may give
+      `Distance_Type tolerance() const`, which must not be negative: a
+      relaxation must then improve a distance by more than it, so that the
+      rounding of floating sums does not make a cycle of weight zero
+      negative, as an arc and its residual, of opposite weights, in a
+      residual network. A node without a distance takes any sum that is
+      below max(), as without a tolerance.
     - `Ait`: Arc iterator template for traversing all arcs.
     - `NAit`: Node arc iterator template for traversing arcs from a node.
     - `SA`: Arc filter for the internal iterators.
@@ -271,7 +279,9 @@ class Bellman_Ford
       }
   }
 
-  DynArray<typename GT::Arc *> arcs_;
+  // The arc that reached each node, by its index: contiguous, as every
+  // relaxation reads or writes it
+  Array<typename GT::Arc *> arcs_;
   GT &g_;  // Non-const: algorithm modifies node/arc bits and cookies
   const Distance_Type Inf;
   bool painted_ = false;
@@ -286,6 +296,31 @@ class Bellman_Ford
   {
     ah_domain_error() << "Bellman_Ford: a distance is -inf or NaN, "
                       << "from a weight or from an overflow";
+  }
+
+  /// Whether sum relaxes the distance accum: it is below it, by more than
+  /// the tolerance of the distance, if it gives one (see the class). With
+  /// an integer distance, accum - tolerance() is not computed below
+  /// lowest(), where no sum is, and a node without a distance, at Inf,
+  /// takes any sum below Inf, as without a tolerance
+  [[gnu::always_inline]] bool relaxes(const Distance_Type &sum, const Distance_Type &accum) const
+  {
+    if constexpr (requires (const Distance &d)
+                    { { d.tolerance() } -> std::convertible_to<Distance_Type>; })
+      {
+        if constexpr (std::is_integral_v<Distance_Type>)
+          {
+            const Distance_Type tol = dist_.tolerance();
+            if (accum == Inf)
+              return sum < accum;
+            return accum >= std::numeric_limits<Distance_Type>::lowest() + tol
+                   and sum < accum - tol;
+          }
+        else
+          return sum < accum - dist_.tolerance();
+      }
+    else
+      return sum < accum;
   }
 
   /// Throw domain_error if a floating sum of the last pass is -inf or NaN,
@@ -307,18 +342,17 @@ class Bellman_Ford
     Init_Guard guard([this]()
     {
       uninit<Ni>();
-      arcs_.cut();
+      arcs_.empty();
     });
 
     const size_t n = g_.get_num_nodes();
-    arcs_.cut();  // Clear any previous data
+    arcs_.empty();  // Clear any previous data
     arcs_.reserve(n);
 
     typename GT::Node_Iterator it(g_);
     for (size_t i = 0; it.has_curr(); ++i, it.next())
       {
-        // Use touch() to ensure memory is allocated for index i
-        arcs_.touch(i) = nullptr;
+        arcs_.append(nullptr);  // the entry of index i
         auto p = it.get_curr();
         g_.reset_bit(p, Aleph::Spanning_Tree);  // set bit to zero
         NODE_COOKIE(p) = nullptr;  // clear stale pointer before allocating
@@ -349,7 +383,7 @@ class Bellman_Ford
   void abandon() noexcept
   {
     uninit<Ni>();
-    arcs_.cut();
+    arcs_.empty();
     painted_ = false;
     parents_ = false;
     s_ = nullptr;
@@ -475,7 +509,7 @@ public:
           ARC_BITS(it.get_curr()).set_bit(Aleph::Spanning_Tree, false);
       }
 
-    arcs_.cut();
+    arcs_.empty();
     painted_ = false;
     parents_ = false;
     s_ = nullptr;
@@ -538,7 +572,7 @@ private:
             if (not add_if_fits(accum_src, w, sum))
               continue; // no distance that fits goes through arc
             auto &accum_tgt = accum(tgt);
-            if (sum < accum_tgt)  // Relax Arc
+            if (relaxes(sum, accum_tgt))  // Relax Arc
               {
                 const auto &index = idx(tgt);
                 arcs_(index) = arc;
@@ -588,7 +622,7 @@ private:
         if (not add_if_fits(accum_src, w, sum))
           continue; // no distance that fits goes through arc
         auto &accum_tgt = accum(tgt);
-        if (sum < accum_tgt)  // Relax Arc
+        if (relaxes(sum, accum_tgt))  // Relax Arc
           {
             const auto &index = idx(tgt);
             arcs_(index) = arc;
@@ -640,7 +674,7 @@ private:
         if (not add_if_fits(accum_src, d, sum))
           continue; // no distance that fits goes through arc
         check_finite(sum);
-        if (sum < accum_tgt)
+        if (relaxes(sum, accum_tgt))
           {
             negative_cycle = true;
             const auto &index = idx(tgt);
@@ -670,7 +704,7 @@ private:
         if (not add_if_fits(accum_src, d, sum))
           continue; // no distance that fits goes through arc
         check_finite(sum);
-        if (sum < accum_tgt)
+        if (relaxes(sum, accum_tgt))
           return true;
       }
     return false;
@@ -1166,7 +1200,11 @@ public:
   {
     ah_domain_error_if(not painted_) << "Spanning tree has not been painted";
 
-    return arcs_;
+    DynArray<Arc *> ret;
+    ret.reserve(arcs_.size());
+    for (size_t i = 0; i < arcs_.size(); ++i)
+      ret.touch(i) = arcs_(i);
+    return ret;
   }
 
   /** Get the accumulated distance to a node from a previously painted tree.

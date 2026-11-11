@@ -37,8 +37,15 @@
  */
 #include <gtest/gtest.h>
 #include <sstream>
+#include <array>
 #include <cmath>
+#include <limits>
+#include <random>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
+#include <tpl_maxflow.H>
 #include <tpl_netcost.H>
 
 using namespace Aleph;
@@ -1103,9 +1110,8 @@ TEST_F(NetworkSimplexTest, TextbookNetwork)
 
   EXPECT_TRUE(verify_flow_conservation(net));
   EXPECT_TRUE(verify_capacity_constraints(net));
-  EXPECT_GT(max_flow, 0);
-  EXPECT_LE(max_flow, 5.0);
-  EXPECT_GE(total_cost, 0);
+  EXPECT_DOUBLE_EQ(max_flow, 5.0);
+  EXPECT_DOUBLE_EQ(total_cost, 18.0);  // the exact optimum
 
   std::cout << "Network Simplex textbook: max_flow=" << max_flow
             << ", total_cost=" << total_cost
@@ -1123,8 +1129,8 @@ TEST_F(NetworkSimplexTest, LargerNetwork)
 
   EXPECT_TRUE(verify_flow_conservation(net));
   EXPECT_TRUE(verify_capacity_constraints(net));
-  EXPECT_GT(max_flow, 0);
-  EXPECT_GE(total_cost, 0);
+  EXPECT_DOUBLE_EQ(max_flow, 8.0);
+  EXPECT_DOUBLE_EQ(total_cost, 36.0);  // the exact optimum
 
   std::cout << "Network Simplex larger: max_flow=" << max_flow
             << ", total_cost=" << total_cost
@@ -2188,6 +2194,861 @@ TEST_F(NetworkSimplexBugInvestigation, NegativeCostsTest)
   
   // Should find lower or equal cost
   EXPECT_LE(cost_after, cost_before + 1e-6);
+}
+
+// =============================================================================
+// NETWORK SIMPLEX WITH FLOATING AND INTEGER FLOWS
+// =============================================================================
+
+using LNet = Net_Cost_Graph<Net_Cost_Node<Empty_Class>, Net_Cost_Arc<Empty_Class, long>>;
+
+// Whether the flow of each arc of net is within [0, cap]
+template <class N>
+bool flows_within_capacities(const N & net)
+{
+  for (auto a : net.arcs())
+    if (a->flow < 0 or a->flow > a->cap)
+      return false;
+  return true;
+}
+
+// A pivot left an arc an ulp above its capacity; every later cycle through
+// it then had a negative ratio, so that its pivot failed, and run() ended as
+// if the flow were optimal, at cost 4 instead of 3.6
+TEST(NetworkSimplexFloatingTest, APivotKeepsTheFlowsWithinTheCapacities)
+{
+  Net net;
+  auto s = net.insert_node();
+  auto t = net.insert_node();
+  auto dear = net.insert_arc(s, t, 0.2, 3.0);
+  auto a1 = net.insert_arc(s, t, 3.4, 1.0);
+  auto a2 = net.insert_arc(s, t, 2.3, 1.0);
+  dear->flow = 0.2;
+  a1->flow = 2.7;
+  a2->flow = 0.7;
+
+  Network_Simplex<Net> simplex(net);
+  simplex.run();
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_EQ(dear->flow, 0.0);
+  EXPECT_NEAR(net.flow_value(), 3.6, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), 3.6, 1e-12);
+}
+
+// The maximum flow of the paths of a depth-first search, which
+// Ford-Fulkerson took with a floating flow before it took the shortest
+// ones: the starting flow of the cases below that it found
+template <class N>
+struct Dfs_Maximum_Flow
+{
+  typename N::Flow_Type operator () (N & net) const
+  {
+    return aumenting_path_maximum_flow<N, Find_Aumenting_Path_DFS>(net);
+  }
+};
+
+// Capacities in tenths: a pivot left an arc of capacity 2.9 with a flow of
+// 2.9000000000000004, and run() ended at cost -0.1; the exact problem, of
+// capacities by ten, has the least cost -8
+TEST(NetworkSimplexFloatingTest, DecimalCapacitiesReachTheOptimum)
+{
+  // u, v, the capacity in tenths and the cost; 0 is the source and 3 the sink
+  const int spec[][4] = {{1, 4, 9, 2}, {2, 3, 10, 3}, {4, 2, 29, -2}, {2, 4, 22, 0},
+                         {0, 1, 26, 0}, {0, 2, 5, 2}, {0, 1, 7, 1}};
+  // From the flow of Ford-Fulkerson, and from that of the depth-first
+  // paths, which the pivots took to the ulp
+  for (const bool dfs : {false, true})
+    {
+      Net net;
+      std::vector<Net::Node *> nodes;
+      for (int i = 0; i < 5; ++i)
+        nodes.push_back(net.insert_node());
+      for (const auto & a : spec)
+        net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, double(a[3]));
+
+      if (dfs)
+        max_flow_min_cost_by_network_simplex<Net, Dfs_Maximum_Flow>(net);
+      else
+        max_flow_min_cost_by_network_simplex(net);
+
+      EXPECT_TRUE(flows_within_capacities(net)) << "dfs " << dfs;
+      EXPECT_TRUE(net.check_network()) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_value(), 1.0, 1e-12) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_cost(), -0.8, 1e-12) << "dfs " << dfs;
+    }
+}
+
+// The pivots of a floating flow left a residue of rounding, of 2.8e-17, on a
+// path that ended in a node, as the arc that leaves the tree takes its
+// bound exactly: check_network() took it as a loss of the balance of the
+// node. run() returns the residues at its end, as the maximum flows do. The
+// capacities are k * 0.1, as the probe that found the case built them; k /
+// 10.0 rounds them otherwise and does not leave the residue
+TEST(NetworkSimplexFloatingTest, ResiduesOfRoundingGoBack)
+{
+  // u, v, the capacity in tenths and the cost; 1 is the source and 5 the sink
+  const int spec[][4] = {{2, 5, 4, -1}, {1, 5, 0, -2}, {6, 2, 4, 1}, {0, 4, 2, 4}, {1, 3, 3, -2},
+                         {0, 2, 1, 3}, {3, 0, 4, 3}, {4, 5, 3, 0}, {3, 6, 3, -1}};
+  Net net;
+  std::vector<Net::Node *> nodes;
+  for (int i = 0; i < 7; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] * 0.1, double(a[3]));
+
+  Edmonds_Karp_Maximum_Flow<Net>()(net);
+  Network_Simplex<Net> simplex(net);
+  simplex.run();
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(net.flow_value(), 0.3, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), -0.9, 1e-12);  // the exact optimum
+}
+
+// Ford-Fulkerson, the maximum flow of max_flow_min_cost_by_network_simplex()
+// and of max_flow_min_cost_by_cycle_canceling() by default, took the paths
+// of a depth-first search, which took the residues of rounding that
+// capacities in tenths leave and spread them: on this network of 400 nodes
+// it did not end. With a floating flow it takes the shortest paths
+TEST(NetworkSimplexFloatingTest, DecimalCapacitiesEndOnAMidSizeNetwork)
+{
+  // n nodes; 0 is the source and n - 1 the sink; every other node has an
+  // arc from an earlier one and one to a later one; then 10 n arcs at
+  // random, none into the source nor out of the sink; capacities of 0.1
+  // to 4 and costs of 1 to 20
+  auto build = [] (Net & net)
+    {
+      const int n = 400;
+      std::mt19937 gen(1);
+      std::vector<Net::Node *> nodes;
+      for (int i = 0; i < n; ++i)
+        nodes.push_back(net.insert_node());
+      auto arc = [&] (int a, int b)
+        {
+          const double cap = double(1 + gen() % 40) * 0.1;
+          const double cost = double(1 + gen() % 20);
+          net.insert_arc(nodes[size_t(a)], nodes[size_t(b)], cap, cost);
+        };
+      for (int i = 1; i < n - 1; ++i)
+        {
+          arc(int(gen() % unsigned(i)), i);
+          arc(i, i + 1 + int(gen() % unsigned(n - 1 - i)));
+        }
+      for (int k = 0; k < 10 * n; ++k)
+        {
+          const int a = int(gen() % unsigned(n - 1));
+          const int b = 1 + int(gen() % unsigned(n - 1));
+          if (a != b)
+            arc(a, b);
+        }
+    };
+
+  Net simplex, canceling;
+  build(simplex);
+  build(canceling);
+  max_flow_min_cost_by_network_simplex(simplex);
+  max_flow_min_cost_by_cycle_canceling(canceling);
+
+  // With the capacities by ten, the maximum flow is 281 and its least
+  // cost 8111
+  for (const Net * net : {&simplex, &canceling})
+    {
+      EXPECT_TRUE(flows_within_capacities(*net));
+      EXPECT_TRUE(net->check_network());
+      EXPECT_NEAR(net->flow_value(), 28.1, 1e-9);
+      EXPECT_NEAR(net->flow_cost(), 811.1, 1e-9);
+    }
+}
+
+// The tolerance of the reduced costs was 1000 epsilons, 2.2e-13: run() did
+// not lower costs below it, and left the flow on the dearer arc
+TEST(NetworkSimplexFloatingTest, TinyCostsAreOptimized)
+{
+  for (const double unit : {1e-13, std::ldexp(1.0, -44)})
+    {
+      Net net;
+      auto s = net.insert_node();
+      auto a = net.insert_node();
+      auto t = net.insert_node();
+      auto sa = net.insert_arc(s, a, 1.0, 0.0);
+      auto cheap = net.insert_arc(a, t, 1.0, unit);
+      auto dear = net.insert_arc(a, t, 1.0, 2 * unit);
+      sa->flow = 1;
+      dear->flow = 1;
+
+      Network_Simplex<Net> simplex(net);
+      simplex.run();
+
+      EXPECT_EQ(cheap->flow, 1.0) << "unit " << unit;
+      EXPECT_EQ(dear->flow, 0.0) << "unit " << unit;
+      EXPECT_DOUBLE_EQ(net.flow_cost(), unit) << "unit " << unit;
+    }
+}
+
+// So was that of the flows: capacities below it were taken as empty, and the
+// flow went through the dearer arc
+TEST(NetworkSimplexFloatingTest, TinyCapacitiesAreOptimized)
+{
+  for (const double unit : {1e-12, 1e-13})
+    {
+      Net net;
+      auto s = net.insert_node();
+      auto a = net.insert_node();
+      auto t = net.insert_node();
+      net.insert_arc(s, a, unit, 0.0);
+      auto cheap = net.insert_arc(a, t, unit, 1.0);
+      auto dear = net.insert_arc(a, t, unit, 2.0);
+
+      max_flow_min_cost_by_network_simplex(net);
+
+      EXPECT_EQ(cheap->flow, unit) << "unit " << unit;
+      EXPECT_EQ(dear->flow, 0.0) << "unit " << unit;
+      EXPECT_DOUBLE_EQ(net.flow_cost(), unit) << "unit " << unit;
+    }
+}
+
+// From the zero flow, run() left empty a cycle of cost -2e-13
+TEST(NetworkSimplexFloatingTest, ATinyNegativeCycleIsSaturated)
+{
+  Net net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  net.insert_arc(s, t, 1.0, 0.0);
+  auto ab = net.insert_arc(a, b, 1.0, -1e-13);
+  auto ba = net.insert_arc(b, a, 1.0, -1e-13);
+
+  Network_Simplex<Net> simplex(net);
+  simplex.run();
+
+  EXPECT_EQ(ab->flow, 1.0);
+  EXPECT_EQ(ba->flow, 1.0);
+  EXPECT_DOUBLE_EQ(net.flow_cost(), -2e-13);
+}
+
+// A cycle of negative cost through arcs without capacity has no bound: run()
+// pushed around it an infinite flow, of cost NaN, or one of max(), and
+// returned as if it had found the optimum
+TEST(NetworkSimplexFloatingTest, AnUnboundedProgramThrows)
+{
+  for (const double cap : {std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::max()})
+    {
+      Net net;
+      auto s = net.insert_node();
+      auto a = net.insert_node();
+      auto b = net.insert_node();
+      auto t = net.insert_node();
+      net.insert_arc(s, t, 1.0, 0.0);
+      net.insert_arc(a, b, cap, -1.0);
+      net.insert_arc(b, a, cap, 0.0);
+
+      EXPECT_THROW(max_flow_min_cost_by_network_simplex(net), std::domain_error)
+        << "capacity " << cap;
+    }
+
+  LNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  net.insert_arc(s, t, 1, 0);
+  net.insert_arc(a, b, std::numeric_limits<long>::max(), -1);
+  net.insert_arc(b, a, std::numeric_limits<long>::max(), 0);
+
+  EXPECT_THROW(max_flow_min_cost_by_network_simplex(net), std::domain_error);
+}
+
+// The pivots of a floating flow leave residues of rounding, which run()
+// returns at its end: the domain_error of an unbounded program left before,
+// after some pivots, and the network kept the residues, so that
+// check_network() was false after it
+TEST(NetworkSimplexFloatingTest, AnUnboundedProgramReturnsTheResidues)
+{
+  for (const double cap : {std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::max()})
+    {
+      // u, v, the capacity and the cost in tenths; 0 is the source and 5
+      // the sink; 2 and 1 make a cycle of cost -0.1 through two arcs
+      // without capacity, which no flow bounds
+      Net net;
+      std::vector<Net::Node *> nodes;
+      for (int i = 0; i < 6; ++i)
+        nodes.push_back(net.insert_node());
+      const std::vector<std::array<int, 4>> spec = {{0, 2, 35, -6}, {2, 3, 14, 9},
+                                                     {2, 3, 8, 23},  {4, 5, 37, 0},
+                                                     {3, 4, 39, 23}, {1, 4, 39, 8}};
+      for (const auto & a : spec)
+        net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, a[3] / 10.0);
+      net.insert_arc(nodes[2], nodes[1], cap, -0.3);
+      net.insert_arc(nodes[1], nodes[2], cap, 0.2);
+
+      Edmonds_Karp_Maximum_Flow<Net>()(net);
+      ASSERT_TRUE(net.check_network()) << "capacity " << cap;
+      const double value = net.flow_value();
+
+      EXPECT_THROW(Network_Simplex<Net>(net).run(), std::domain_error) << "capacity " << cap;
+      EXPECT_TRUE(net.check_network()) << "capacity " << cap;
+      EXPECT_TRUE(flows_within_capacities(net)) << "capacity " << cap;
+      EXPECT_NEAR(net.flow_value(), value, 1e-12) << "capacity " << cap;
+    }
+}
+
+// Dinic and the capacity scaling left a node that received 5.6e-17 and
+// sent nothing, a residue of rounding beyond the tolerance of check_node(),
+// and the network simplex refused their maximum flow as not feasible. They
+// return the residues at their end, as the augmenting paths
+TEST(NetworkSimplexFloatingTest, TakesTheMaximumFlowsOfDinicAndOfTheScaling)
+{
+  // u, v and k, for a capacity of k * 0.1; the costs are 0; 0 is the
+  // source and 19 the sink
+  const int spec[][3] = {{0, 1, 12}, {1, 18, 5}, {1, 2, 8}, {0, 3, 4}, {3, 7, 19},
+                          {0, 5, 0}, {5, 8, 5}, {4, 6, 9}, {7, 11, 8}, {4, 8, 6},
+                          {8, 13, 19}, {0, 10, 11}, {11, 19, 8}, {10, 12, 8}, {12, 18, 8},
+                          {13, 19, 20}, {3, 15, 8}, {15, 18, 15}, {14, 16, 5}, {10, 17, 1},
+                          {17, 19, 14}, {9, 18, 7}, {18, 19, 6}, {10, 16, 13}, {0, 9, 2},
+                          {16, 11, 19}, {3, 4, 8}, {6, 14, 4}, {2, 13, 14}, {9, 7, 20}};
+  auto build = [&spec] (Net & net)
+    {
+      std::vector<Net::Node *> nodes;
+      for (int i = 0; i < 20; ++i)
+        nodes.push_back(net.insert_node());
+      for (const auto & a : spec)
+        net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] * 0.1, 0.0);
+    };
+
+  Net dinic, scaling;
+  build(dinic);
+  build(scaling);
+  dinic_maximum_flow(dinic);
+  capacity_scaling_maximum_flow(scaling);
+  EXPECT_TRUE(dinic.check_network());
+  EXPECT_TRUE(scaling.check_network());
+
+  Net net;
+  build(net);
+  ASSERT_NO_THROW((max_flow_min_cost_by_network_simplex<Net, Dinic_Maximum_Flow>(net)));
+  EXPECT_NEAR(net.flow_value(), 2.7, 1e-12);
+  EXPECT_TRUE(net.check_network());
+
+  Net other;
+  build(other);
+  ASSERT_NO_THROW((max_flow_min_cost_by_network_simplex<Net, Capacity_Scaling_Maximum_Flow>(other)));
+  EXPECT_NEAR(other.flow_value(), 2.7, 1e-12);
+  EXPECT_TRUE(other.check_network());
+}
+
+// The network of AnInfeasibleFlowThrows: s = 0, a = 1, b = 2, t = 3
+std::vector<LNet::Arc *> build_infeasible_case(LNet & net)
+{
+  std::vector<LNet::Node *> p;
+  for (int i = 0; i < 4; ++i)
+    p.push_back(net.insert_node());
+  return {net.insert_arc(p[0], p[1], 2, 1), net.insert_arc(p[0], p[2], 2, 2),
+          net.insert_arc(p[1], p[3], 2, 1), net.insert_arc(p[2], p[3], 2, 1),
+          net.insert_arc(p[1], p[2], 1, -3)};
+}
+
+// run() optimizes the flow that the network has, and did so from flows that
+// a node did not keep or that broke the bounds of an arc
+TEST(NetworkSimplexIntegerTest, AnInfeasibleFlowThrows)
+{
+  {
+    LNet net;
+    auto arcs = build_infeasible_case(net);
+    arcs[0]->flow = 2;  // into a, and nothing out of it
+    Network_Simplex<LNet> simplex(net);
+    EXPECT_THROW(simplex.run(), std::domain_error);
+  }
+  {
+    LNet net;
+    auto arcs = build_infeasible_case(net);
+    arcs[0]->flow = arcs[2]->flow = 3;  // above their capacity 2
+    Network_Simplex<LNet> simplex(net);
+    EXPECT_THROW(simplex.run(), std::domain_error);
+  }
+  {
+    LNet net;
+    auto arcs = build_infeasible_case(net);
+    arcs[0]->flow = arcs[2]->flow = -1;
+    Network_Simplex<LNet> simplex(net);
+    EXPECT_THROW(simplex.run(), std::domain_error);
+  }
+}
+
+// An infinite flow, on an arc of infinite capacity, is within its bounds
+TEST(NetworkSimplexFloatingTest, AnInfiniteFlowThrows)
+{
+  Net net;
+  auto s = net.insert_node();
+  auto t = net.insert_node();
+  auto st = net.insert_arc(s, t, std::numeric_limits<double>::infinity(), 1.0);
+  st->flow = std::numeric_limits<double>::infinity();
+
+  Network_Simplex<Net> simplex(net);
+  EXPECT_THROW(simplex.run(), std::domain_error);
+}
+
+// With an integer flow the tolerance was zero, and the predicates compared
+// with <: is_at_lower_bound() and is_at_upper_bound() were always false
+TEST(NetworkSimplexIntegerTest, ThePredicatesOfTheBoundsCompareExactly)
+{
+  LNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto t = net.insert_node();
+  auto sa = net.insert_arc(s, a, 1, 0);
+  auto cheap = net.insert_arc(a, t, 1, 1);
+  auto dear = net.insert_arc(a, t, 1, 2);
+  sa->flow = 1;
+  dear->flow = 1;
+
+  Network_Simplex<LNet> simplex(net);
+  simplex.run();
+
+  ASSERT_EQ(cheap->flow, 1);
+  ASSERT_EQ(dear->flow, 0);
+  EXPECT_TRUE(simplex.is_at_upper_bound(sa));
+  EXPECT_TRUE(simplex.is_at_upper_bound(cheap));
+  EXPECT_FALSE(simplex.is_at_lower_bound(cheap));
+  EXPECT_TRUE(simplex.is_at_lower_bound(dear));
+  EXPECT_FALSE(simplex.is_at_upper_bound(dear));
+}
+
+// And no pivot of an integer flow was counted as degenerate
+TEST(NetworkSimplexIntegerTest, DegeneratePivotsAreCounted)
+{
+  // The maximum flow saturates s->a, s->b, a->t and b->t, and is of least
+  // cost: no pivot of run() moves flow
+  LNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  net.insert_arc(s, a, 2, 1);
+  net.insert_arc(s, b, 2, 2);
+  net.insert_arc(a, t, 2, 1);
+  net.insert_arc(b, t, 2, 1);
+  net.insert_arc(a, b, 1, 0);
+  Ford_Fulkerson_Maximum_Flow<LNet>()(net);
+  const long cost = net.flow_cost();
+
+  Network_Simplex<LNet> simplex(net);
+  const size_t pivots = simplex.run();
+
+  ASSERT_EQ(net.flow_cost(), cost);
+  ASSERT_GT(pivots, 0u);
+  EXPECT_EQ(simplex.get_stats().degenerate_pivots, pivots);
+}
+
+// The diagnostics read the structures that run() makes; before it they
+// threw "key not found"
+TEST_F(NetworkSimplexTest, TheDiagnosticsAskForRunFirst)
+{
+  auto net = build_diamond_network();
+  Network_Simplex<Net> simplex(net);
+
+  auto expect_run_first = [] (auto diagnostic, const char * name)
+    {
+      try
+        {
+          diagnostic();
+          ADD_FAILURE() << name << "() did not throw";
+        }
+      catch (const std::domain_error & e)
+        {
+          EXPECT_NE(std::string(e.what()).find("run() has not been called"),
+                    std::string::npos) << name << "(): " << e.what();
+        }
+    };
+  expect_run_first([&] { (void) simplex.count_non_tree_partial_arcs(); },
+                   "count_non_tree_partial_arcs");
+  expect_run_first([&] { (void) simplex.is_valid_basic_solution(); },
+                   "is_valid_basic_solution");
+  expect_run_first([&] { (void) simplex.verify_tree_reduced_costs(); },
+                   "verify_tree_reduced_costs");
+  expect_run_first([&] { (void) simplex.verify_tree_integrity(); },
+                   "verify_tree_integrity");
+  expect_run_first([&] { (void) simplex.force_partial_arcs_into_tree(); },
+                   "force_partial_arcs_into_tree");
+  expect_run_first([&] { simplex.print_diagnostics(); }, "print_diagnostics");
+
+  simplex.run();
+  EXPECT_TRUE(simplex.is_valid_basic_solution());
+  EXPECT_TRUE(simplex.verify_tree_integrity());
+}
+
+// A network whose source is its sink, isolated, has a tree for each of its
+// components, and the statistics expected vsize() - 1 arcs in them
+TEST(NetworkSimplexIntegerTest, TheStatisticsExpectATreeByComponent)
+{
+  LNet net;
+  net.insert_node();  // the source and the sink
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  net.insert_arc(a, b, 1, -1);
+  net.insert_arc(b, a, 1, -1);
+
+  Network_Simplex<LNet> simplex(net);
+  simplex.run();
+  ASSERT_EQ(net.flow_cost(), -2);
+
+  testing::internal::CaptureStdout();
+  simplex.print_stats();
+  simplex.print_diagnostics();
+  const std::string out = testing::internal::GetCapturedStdout();
+  EXPECT_NE(out.find("Tree arcs: 1 (expected 1)"), std::string::npos) << out;
+  EXPECT_NE(out.find("Expected tree arcs: 1\n"), std::string::npos) << out;
+}
+
+// set_lower_bound(), get_lower_bound() and residual_lower() are deprecated
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(push)
+#  pragma warning(disable : 4996)
+#else
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+// The network of the cases of the lower bounds: a->b costs 5, and the
+// optimum leaves it empty
+std::vector<LNet::Arc *> build_lower_bound_case(LNet & net)
+{
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  std::vector<LNet::Arc *> arcs = {net.insert_arc(s, a, 2, 0), net.insert_arc(s, b, 2, 0),
+                                   net.insert_arc(a, t, 2, 0), net.insert_arc(b, t, 2, 0),
+                                   net.insert_arc(a, b, 1, 5)};
+  Ford_Fulkerson_Maximum_Flow<LNet>()(net);
+  return arcs;
+}
+
+// set_lower_bound() stored a bound that no part of the algorithm read, and
+// that the next run() set to 0
+TEST(NetworkSimplexIntegerTest, ANonzeroLowerBoundThrows)
+{
+  LNet net;
+  auto ab = build_lower_bound_case(net)[4];
+
+  Network_Simplex<LNet> simplex(net);
+  simplex.run();
+
+  EXPECT_THROW(simplex.set_lower_bound(ab, 1), std::domain_error);
+  EXPECT_NO_THROW(simplex.set_lower_bound(ab, 0));
+  EXPECT_EQ(simplex.get_lower_bound(ab), 0);
+  simplex.run();
+  EXPECT_EQ(ab->flow, 0);
+}
+
+// Before run(), the members of the lower bounds threw "key not found"
+TEST(NetworkSimplexIntegerTest, TheLowerBoundsNeedNoRun)
+{
+  LNet net;
+  auto arcs = build_lower_bound_case(net);
+  auto sa = arcs[0], ab = arcs[4];
+
+  Network_Simplex<LNet> simplex(net);
+  EXPECT_THROW(simplex.set_lower_bound(ab, 1), std::domain_error);
+  EXPECT_NO_THROW(simplex.set_lower_bound(ab, 0));
+  EXPECT_NO_THROW(EXPECT_EQ(simplex.get_lower_bound(ab), 0));
+  EXPECT_NO_THROW(EXPECT_TRUE(simplex.is_at_lower_bound(ab)));
+  EXPECT_NO_THROW(EXPECT_FALSE(simplex.is_at_lower_bound(sa)));
+  EXPECT_NO_THROW(EXPECT_EQ(simplex.residual_lower(sa), sa->flow));
+}
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#  pragma warning(pop)
+#else
+#  pragma GCC diagnostic pop
+#endif
+
+// =============================================================================
+// CYCLE CANCELING WITH NEGATIVE COSTS
+// =============================================================================
+
+// The networks of the cases of negative costs, with their least cost: a
+// negative arc that the cheapest maximum flow, of value 4, takes, at cost
+// 6 (10 without it), and a cycle of cost -2 apart from the path s->t
+template <class N>
+void build_negative_costs_case(N & net, const bool apart)
+{
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  if (apart)
+    {
+      net.insert_arc(s, t, 1, 0);
+      net.insert_arc(a, b, 1, -1);
+      net.insert_arc(b, a, 1, -1);
+      return;
+    }
+  net.insert_arc(s, a, 2, 1);
+  net.insert_arc(s, b, 2, 1);
+  net.insert_arc(a, b, 1, -3);
+  net.insert_arc(a, t, 2, 2);
+  net.insert_arc(b, t, 3, 1);
+}
+
+// create_residual_arc() asserted that the costs were not negative, which
+// ended the program in a debug build, though the canceling takes them
+TEST(CycleCancelingTest, NegativeCostsReachTheOptimum)
+{
+  for (const bool apart : {false, true})
+    {
+      Net net;
+      build_negative_costs_case(net, apart);
+      max_flow_min_cost_by_cycle_canceling(net);
+      EXPECT_TRUE(flows_within_capacities(net));
+      EXPECT_DOUBLE_EQ(net.flow_value(), apart ? 1.0 : 4.0);
+      EXPECT_DOUBLE_EQ(net.flow_cost(), apart ? -2.0 : 6.0);
+
+      LNet lnet;
+      build_negative_costs_case(lnet, apart);
+      max_flow_min_cost_by_cycle_canceling<LNet, Edmonds_Karp_Maximum_Flow>(lnet);
+      EXPECT_TRUE(flows_within_capacities(lnet));
+      EXPECT_EQ(lnet.flow_value(), apart ? 1 : 4);
+      EXPECT_EQ(lnet.flow_cost(), apart ? -2 : 6);
+    }
+}
+
+// A cycle of negative cost through arcs without capacity has no bound: the
+// canceling pushed around it an infinite flow, of cost NaN, or one of max()
+TEST(CycleCancelingTest, AnUnboundedProgramThrows)
+{
+  for (const double cap : {std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::max()})
+    {
+      Net net;
+      auto s = net.insert_node();
+      auto a = net.insert_node();
+      auto b = net.insert_node();
+      auto t = net.insert_node();
+      auto st = net.insert_arc(s, t, 1.0, 0.0);
+      auto ab = net.insert_arc(a, b, cap, -1.0);
+      auto ba = net.insert_arc(b, a, cap, 0.0);
+
+      EXPECT_THROW(max_flow_min_cost_by_cycle_canceling(net), std::domain_error)
+        << "capacity " << cap;
+      EXPECT_EQ(st->flow, 1.0);  // the maximum flow stays
+      EXPECT_EQ(ab->flow, 0.0);
+      EXPECT_EQ(ba->flow, 0.0);
+    }
+
+  LNet net;
+  auto s = net.insert_node();
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto t = net.insert_node();
+  net.insert_arc(s, t, 1, 0);
+  net.insert_arc(a, b, std::numeric_limits<long>::max(), -1);
+  net.insert_arc(b, a, std::numeric_limits<long>::max(), 0);
+
+  EXPECT_THROW(max_flow_min_cost_by_cycle_canceling(net), std::domain_error);
+}
+
+// The network of a case of decimal data: u, v, and the capacity and the
+// cost in tenths
+void build_tenths_case(Net & net, int n, const std::vector<std::array<int, 4>> & spec)
+{
+  std::vector<Net::Node *> nodes;
+  for (int i = 0; i < n; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, a[3] / 10.0);
+}
+
+// With costs that are not exact in binary, as tenths, the rounding of the
+// sums of Bellman-Ford made a cycle of cost zero negative, an arc with a
+// partial flow and its residual, at c and -c: cancelling it moved no flow,
+// and the canceling did not end
+TEST(CycleCancelingTest, DecimalCostsEnd)
+{
+  // 1 is the source and 0 the sink; from the flow of Ford-Fulkerson, and
+  // from that of the depth-first paths, where the case was found
+  for (const bool dfs : {false, true})
+    {
+      Net net;
+      build_tenths_case(net, 3, {{1, 2, 33, 4}, {2, 2, 20, 6}, {2, 2, 28, 3}, {2, 0, 7, 8},
+                                 {2, 2, 9, 9}, {1, 0, 3, 4}, {1, 2, 16, 6}, {2, 2, 15, 1}});
+
+      if (dfs)
+        max_flow_min_cost_by_cycle_canceling<Net, Dfs_Maximum_Flow>(net);
+      else
+        max_flow_min_cost_by_cycle_canceling(net);
+
+      EXPECT_TRUE(flows_within_capacities(net)) << "dfs " << dfs;
+      EXPECT_TRUE(net.check_network()) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_value(), 1.0, 1e-12) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_cost(), 0.96, 1e-12) << "dfs " << dfs;  // the exact optimum
+    }
+}
+
+// A residue of rounding of a capacity, of an ulp, was the slack of negative
+// cycles, each of which left such a residue for another: the canceling did
+// not end
+TEST(CycleCancelingTest, AResidueOfRoundingIsNoSlack)
+{
+  // 4 is the source and 5 the sink; from the flow of Ford-Fulkerson, and
+  // from that of the depth-first paths, where the case was found
+  for (const bool dfs : {false, true})
+    {
+      Net net;
+      build_tenths_case(net, 10, {{8, 6, 30, 39}, {8, 7, 11, 57}, {4, 8, 7, 4}, {9, 7, 29, -17},
+                                  {0, 2, 25, -28}, {8, 0, 8, 29}, {2, 0, 29, 41}, {7, 3, 8, 24},
+                                  {0, 2, 7, 5}, {8, 8, 20, 52}, {0, 9, 4, -15}, {4, 5, 3, 53},
+                                  {6, 7, 21, 40}, {4, 9, 11, 18}, {0, 1, 5, 8}, {9, 5, 1, -2},
+                                  {9, 1, 12, 19}, {7, 1, 20, 55}, {4, 1, 12, 45}, {4, 8, 2, 22},
+                                  {4, 5, 30, 10}, {7, 1, 20, -13}, {6, 1, 7, -17}, {9, 8, 40, 36},
+                                  {0, 0, 21, -20}, {0, 5, 20, -15}, {2, 8, 20, -21}, {7, 5, 3, 10},
+                                  {1, 5, 30, -27}, {3, 9, 40, 47}});
+
+      if (dfs)
+        max_flow_min_cost_by_cycle_canceling<Net, Dfs_Maximum_Flow>(net);
+      else
+        max_flow_min_cost_by_cycle_canceling(net);
+
+      EXPECT_TRUE(flows_within_capacities(net)) << "dfs " << dfs;
+      EXPECT_TRUE(net.check_network()) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_value(), 6.5, 1e-12) << "dfs " << dfs;
+      EXPECT_NEAR(net.flow_cost(), -3.01, 1e-12) << "dfs " << dfs;  // the exact optimum
+    }
+}
+
+// By rounding, the arc that bounds a cycle went beyond its capacity, or its
+// mirror below zero, and an arc of the network carried less than nothing
+TEST(CycleCancelingTest, DecimalFlowsStayWithinTheCapacities)
+{
+  // 0 is the source and 1 the sink
+  Net net;
+  build_tenths_case(net, 3, {{2, 2, 6, -18}, {0, 2, 2, 50}, {2, 1, 38, 16}, {0, 1, 32, 31},
+                             {0, 1, 4, 0}, {2, 1, 38, 3}, {0, 1, 23, -30}});
+
+  max_flow_min_cost_by_cycle_canceling<Net, Edmonds_Karp_Maximum_Flow>(net);
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(net.flow_value(), 6.1, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), 3.0, 1e-12);  // the exact optimum
+}
+
+// The flow that the network has, as the maximum flow of the canceling
+template <class N>
+struct Given_Maximum_Flow
+{
+  typename N::Flow_Type operator () (N & net) const
+  {
+    return net.flow_value();
+  }
+};
+
+// The mirror of an arc without capacity, of capacity infinity or max(), had
+// the slack cap - (cap - flow), NaN or 0, which the residual filter left
+// out: the canceling could not take back the flow of a dear path through
+// that arc, and the cost stayed above the least one
+TEST(CycleCancelingTest, TheFlowOfAnArcWithoutCapacityGoesBack)
+{
+  for (const double cap : {std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::max()})
+    for (const int units : {1, 2})
+      for (const bool given : {false, true})
+        {
+          // The maximum flow takes the dear arc x, the shortest path; the
+          // optimum sends one unit through b, at cost 2, and the second
+          // one, if any, through x, at cost 10
+          Net net;
+          auto s = net.insert_node();
+          auto a = net.insert_node();
+          auto b = net.insert_node();
+          auto t = net.insert_node();
+          auto sa = net.insert_arc(s, a, double(units), 0.0);
+          auto x = net.insert_arc(a, t, cap, 10.0);
+          net.insert_arc(a, b, 1.0, 1.0);
+          net.insert_arc(b, t, 1.0, 1.0);
+
+          if (given)
+            {
+              sa->flow = x->flow = double(units);
+              max_flow_min_cost_by_cycle_canceling<Net, Given_Maximum_Flow>(net);
+            }
+          else
+            max_flow_min_cost_by_cycle_canceling(net);
+
+          SCOPED_TRACE("capacity " + std::to_string(cap) + ", units " + std::to_string(units)
+                       + ", given " + std::to_string(given));
+          EXPECT_TRUE(std::isfinite(x->flow));
+          EXPECT_TRUE(flows_within_capacities(net));
+          EXPECT_TRUE(net.check_network());
+          EXPECT_EQ(x->flow, units - 1.0);
+          EXPECT_DOUBLE_EQ(net.flow_cost(), 2.0 + 10.0 * (units - 1));
+        }
+}
+
+// A cycle took what 3->4 had left, and flow + (0.6 - flow) came out an ulp
+// above 0.6, 0.60000000000000009 of 0.59999999999999998: the arc that
+// bounds a cycle takes its capacity, exactly
+TEST(CycleCancelingTest, TheArcThatBoundsACycleStaysWithinItsCapacity)
+{
+  // u, v, the capacity and the cost in tenths; 0 is the source and 8 the sink
+  const std::vector<std::array<int, 4>> spec = {
+    {0, 1, 33, -8}, {0, 2, 38, 26}, {3, 4, 6, 9},   {4, 5, 29, -2}, {0, 5, 11, 17},
+    {6, 7, 37, 8},  {7, 8, 4, 15},  {5, 8, 22, -8}, {1, 6, 27, 12}, {6, 3, 17, 22},
+    {1, 8, 9, -9},  {7, 5, 23, -4}, {0, 6, 3, 5},   {1, 4, 20, 27}, {1, 3, 39, -9},
+    {1, 7, 15, 28}, {7, 9, 35, 20}, {9, 8, 11, 13}, {2, 8, 37, 10}};
+  Net net;
+  std::vector<Net::Node *> nodes;
+  for (int i = 0; i < 10; ++i)
+    nodes.push_back(net.insert_node());
+  for (const auto & a : spec)
+    net.insert_arc(nodes[size_t(a[0])], nodes[size_t(a[1])], a[2] / 10.0, a[3] / 10.0);
+
+  max_flow_min_cost_by_cycle_canceling(net);
+
+  EXPECT_TRUE(flows_within_capacities(net));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_NEAR(net.flow_value(), 8.3, 1e-12);
+  EXPECT_NEAR(net.flow_cost(), 17.67, 1e-12);  // the exact optimum
+}
+
+// From m, two arcs to the sink, of costs 1 and 1 - 1e-7, beside an arc
+// of capacity 1 from the source: the first maximum flow takes the first,
+// and the second is cheaper by 1e-7, far above the tolerances of the costs
+// with costs of 1, 4 n^2 epsilons for the canceling and 1000 for the
+// simplex, so that both take it
+void build_cheaper_by_1e7(Net & net, Net::Arc *& dear, Net::Arc *& cheap)
+{
+  auto s = net.insert_node(), m = net.insert_node(), t = net.insert_node();
+  net.insert_arc(s, m, 1, 0);
+  dear = net.insert_arc(m, t, 1, 1);
+  cheap = net.insert_arc(m, t, 1, 1 - 1e-7);
+}
+
+TEST(CycleCancelingTest, TakesAnImprovementOf1e7)
+{
+  Net net;
+  Net::Arc * dear = nullptr, * cheap = nullptr;
+  build_cheaper_by_1e7(net, dear, cheap);
+  max_flow_min_cost_by_cycle_canceling(net);
+  EXPECT_EQ(dear->flow, 0);
+  EXPECT_EQ(cheap->flow, 1);
+  EXPECT_DOUBLE_EQ(net.flow_cost(), 1 - 1e-7);
+}
+
+TEST(NetworkSimplexFloatingTest, TakesAnImprovementOf1e7)
+{
+  Net net;
+  Net::Arc * dear = nullptr, * cheap = nullptr;
+  build_cheaper_by_1e7(net, dear, cheap);
+  max_flow_min_cost_by_network_simplex(net);
+  EXPECT_EQ(dear->flow, 0);
+  EXPECT_EQ(cheap->flow, 1);
+  EXPECT_DOUBLE_EQ(net.flow_cost(), 1 - 1e-7);
 }
 
 

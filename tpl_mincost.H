@@ -71,6 +71,7 @@
 
 # include <ah-graph-concepts.H>
 
+#include <cmath>
 #include <limits>
 #include <queue>
 #include <functional>
@@ -212,8 +213,14 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
           if (residual <= Flow_Type{0})
             continue;
 
-          // Compute reduced cost
+          // Compute reduced cost. The potentials keep it from being
+          // negative but for rounding, which, with costs that are not
+          // exact in binary, as tenths, could take a distance down by an
+          // ulp around a cycle forever
           Flow_Type rc = reduced_cost<Net>(net, arc, forward);
+          if constexpr (std::is_floating_point_v<Flow_Type>)
+            if (rc < Flow_Type{0})
+              rc = Flow_Type{0};
 
           // Relaxation (saturate to avoid integer overflow)
           const Flow_Type INF_D = std::numeric_limits<Flow_Type>::max();
@@ -246,6 +253,13 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
  *
  *  This is equivalent to primal-dual method for min-cost flow.
  *
+ *  With a floating flow, the arc that bounds a path is filled to its
+ *  capacity exactly, and the residues of rounding that the paths leave
+ *  go back at the end, as those of the maximum flows (see
+ *  net_detail::return_dust()): every arc keeps its flow within [0, cap],
+ *  and every node within the tolerance of check_node(), so that the
+ *  network simplex takes the flow.
+ *
  *  ## Complexity
  *  O(V * U * (E + V log V)) where U is the max flow value.
  *  Best when flow value is small.
@@ -264,11 +278,32 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
  *          network had: on a second run, the same.
  *
  *  @throws std::domain_error If the network does not have a single source and
- *          single sink, or if a reachable negative-cost cycle is detected in
- *          the initial residual graph (via ssp_init_potentials).
+ *          single sink, or if the initial residual graph has a negative-cost
+ *          cycle, wherever it is (via ssp_init_potentials): no path from the
+ *          source cancels it, and the flow would not be of least cost.
  *
  *  @note **Exception safety:** strong guarantee — if the function throws,
  *        the network's flow values are not modified.
+ *
+ *  @warning With a floating flow, a relaxation of the potentials must
+ *  improve a distance by more than 4 n^2 epsilons of the largest finite
+ *  cost of the whole network, where n is the number of nodes, and
+ *  Dijkstra takes a negative reduced cost, of at most that tolerance, as
+ *  zero. They keep the residues of rounding from making a run loop, or a
+ *  second run throw, at any scale of the costs; but a difference below
+ *  that tolerance counts as zero, and it holds for each arc, not for a
+ *  whole path: a path or a cycle of m arcs can come out up to m times it
+ *  off, and only a path cheaper by more than n times it is sure to be
+ *  taken first. So a cost of a far larger magnitude, even on an arc
+ *  without flow, as a large penalty, can hide the cheaper paths among the
+ *  other arcs, and the flow is not of least cost, without notice: with
+ *  100 nodes, a cost of 5e11 can hide the differences of cost 1; with 7
+ *  nodes, a cost of 1e13 makes it take an arc of cost -0.6 instead of a
+ *  path of 5 arcs of -0.4, of cost -2. Keep the largest cost below the
+ *  smallest difference of cost that matters over 4 n^3 epsilons, as by
+ *  scaling the costs, or take an integer flow, which compares exactly.
+ *  solve_transshipment(), solve_assignment() and solve_transportation()
+ *  run it.
  *
  *  @par Example
  *  ```cpp
@@ -286,17 +321,23 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
 
 /** @brief Initialize potentials using Bellman-Ford.
  *
- *  Computes shortest path distances from source to all nodes, which
- *  serve as initial potentials to ensure reduced costs are non-negative.
+ *  Computes the shortest path distances in the residual graph of the flow
+ *  of the network from a virtual node joined to every node by an arc of
+ *  cost 0, which serve as initial potentials to ensure reduced costs are
+ *  non-negative. From the source, it did not see the negative cycles that
+ *  the source does not reach. With floating costs, a relaxation must
+ *  improve a distance by more than 4 n^2 epsilons of the largest cost, so
+ *  that the rounding of the sums does not make a cycle of cost zero, as
+ *  an arc with a partial flow and its residual, negative.
  *
  *  @tparam Net Network type (must be Net_Cost_Graph or compatible).
  *  @param[in,out] net Flow network with costs.
- *  @param[in] source Source node for shortest path computation.
+ *  @param[in] source Kept for compatibility: the distances are not from it.
  *  @return true if no negative cycle detected, false otherwise.
  *  @ingroup Networks
  */
 template <class Net>
-bool ssp_init_potentials(Net &net, typename Net::Node *source)
+bool ssp_init_potentials(Net &net, [[maybe_unused]] typename Net::Node *source)
 {
   using Flow_Type = typename Net::Flow_Type;
 
@@ -320,10 +361,33 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
     return a - b;
   };
 
-  // Initialize distances
+  // With floating costs, a relaxation must win more than the rounding of
+  // the sums: a cycle of cost zero, as an arc with a partial flow and its
+  // residual, at c and -c, came out negative, d + c - c < d, and the
+  // check threw for it. A potential is a sum of up to n - 1 costs
+  Flow_Type tol{0};
+  if constexpr (std::is_floating_point_v<Flow_Type>)
+    {
+      Flow_Type largest{0};
+      for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        if (const Flow_Type c = std::abs(it.get_curr()->cost); c < INF)
+          largest = std::max(largest, c);
+      tol = 4 * Flow_Type(n) * Flow_Type(n) * std::numeric_limits<Flow_Type>::epsilon() * largest;
+    }
+  auto improves = [tol](const Flow_Type & d, const Flow_Type & potential) noexcept
+    {
+      if constexpr (std::is_floating_point_v<Flow_Type>)
+        return d < potential - tol;
+      else
+        {
+          (void) tol;  // exact for an integer flow
+          return d < potential;
+        }
+    };
+
+  // Initialize distances: 0, through the arc from the virtual node
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    ssp_info<Net>(it.get_curr()).potential = INF;
-  ssp_info<Net>(source).potential = 0;
+    ssp_info<Net>(it.get_curr()).potential = 0;
 
   // Bellman-Ford: relax all edges n-1 times
   for (size_t i = 0; i < n - 1; ++i)
@@ -342,7 +406,7 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
               if (d < INF)
                 {
                   Flow_Type new_d = sat_add(d, arc->cost);
-                  if (new_d < ssp_info<Net>(tgt).potential)
+                  if (improves(new_d, ssp_info<Net>(tgt).potential))
                     {
                       ssp_info<Net>(tgt).potential = new_d;
                       changed = true;
@@ -357,7 +421,7 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
               if (d < INF)
                 {
                   Flow_Type new_d = sat_sub(d, arc->cost);  // backward: cost is negated
-                  if (new_d < ssp_info<Net>(src).potential)
+                  if (improves(new_d, ssp_info<Net>(src).potential))
                     {
                       ssp_info<Net>(src).potential = new_d;
                       changed = true;
@@ -370,7 +434,7 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
     }
 
   // Negative-cycle detection: one extra relaxation pass.
-  // If any edge can still be relaxed, a negative cycle is reachable.
+  // If any edge can still be relaxed, the residual graph has a negative cycle.
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
       auto arc = it.get_curr();
@@ -380,22 +444,17 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
       if (arc->cap > arc->flow)
         {
           Flow_Type d = ssp_info<Net>(src).potential;
-          if (d < INF and sat_add(d, arc->cost) < ssp_info<Net>(tgt).potential)
+          if (d < INF and improves(sat_add(d, arc->cost), ssp_info<Net>(tgt).potential))
             return false;
         }
 
       if (arc->flow > 0)
         {
           Flow_Type d = ssp_info<Net>(tgt).potential;
-          if (d < INF and sat_sub(d, arc->cost) < ssp_info<Net>(src).potential)
+          if (d < INF and improves(sat_sub(d, arc->cost), ssp_info<Net>(src).potential))
             return false;
         }
     }
-
-  // Set unreachable nodes to 0 (they won't affect anything)
-  for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    if (ssp_info<Net>(it.get_curr()).potential >= INF)
-      ssp_info<Net>(it.get_curr()).potential = 0;
 
   return true;
 }
@@ -457,8 +516,10 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
       flows_back.saved[i] = it.get_curr()->flow;
   }
 
-  // Main loop: find shortest augmenting paths
-  while (ssp_shortest_path(net, source, sink))
+  // Main loop: find shortest augmenting paths. A source that is the sink
+  // has none: the empty path from it to itself, which it took, augmented
+  // nothing, and the loop did not end
+  while (source != sink and ssp_shortest_path(net, source, sink))
     {
       // Find minimum residual capacity on path
       Flow_Type path_flow = std::numeric_limits<Flow_Type>::max();
@@ -473,15 +534,18 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
           v = static_cast<Node *>(ssp_info<Net>(v).parent_node);
         }
 
-      // Augment flow
+      // Augment flow. With a floating flow, flow + (cap - flow) may come
+      // out an ulp above cap: the arc that bounds the path is filled to
+      // its capacity, exactly, and a flow that goes down next to zero is
+      // zero, as along the augmenting paths of the maximum flows
       for (Node *v = sink; v != source;)
         {
           Arc *arc = static_cast<Arc *>(ssp_info<Net>(v).parent_arc);
 
           if (ssp_info<Net>(v).forward)
-            arc->flow += path_flow;
+            net_detail::add_flow(arc, path_flow);
           else
-            arc->flow -= path_flow;
+            net_detail::subtract_flow(arc, path_flow);
 
           v = static_cast<Node *>(ssp_info<Net>(v).parent_node);
         }
@@ -520,6 +584,11 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
             ssp_info<Net>(p).distance >= std::numeric_limits<Flow_Type>::max())
           ssp_info<Net>(p).potential = unreachable_potential;
     }
+
+  // The residues of rounding that the paths leave go back, as those of
+  // the maximum flows; before the flows are done, so that an allocation
+  // that throws in it takes them back to those of the entry
+  net_detail::return_dust(net, source, sink);
   flows_back.done = true;
 
   // The value and the cost of the whole flow, with what the network had
@@ -598,6 +667,10 @@ struct TransshipmentResult
  *  `arc->flow` fields on **original** arcs are modified to reflect the
  *  optimal transshipment flow. `NODE_COOKIE` on all nodes is overwritten
  *  during computation and should not be relied upon after the call.
+ *
+ *  @warning With floating costs, a cost of a far larger magnitude than
+ *  the others, as a large penalty, can hide cheaper flows: see the
+ *  warning of successive_shortest_paths().
  *
  *  @par Example
  *  ```cpp
@@ -763,6 +836,10 @@ struct AssignmentResult
  *  @throws std::invalid_argument if @p costs is not a square matrix
  *          (any row has a different size than costs.size()).
  *
+ *  @warning With floating costs, a cost of a far larger magnitude than
+ *  the others, as a large penalty that forbids an assignment, can hide
+ *  cheaper assignments: see the warning of successive_shortest_paths().
+ *
  *  @par Example
  *  ```cpp
  *  std::vector<std::vector<double>> costs = {
@@ -888,6 +965,10 @@ struct TransportationResult
  *
  *  @throws std::invalid_argument if costs.size() != supplies.size(), any
  *          costs[i].size() != demands.size(), or any supply/demand is negative.
+ *
+ *  @warning With floating costs, a cost of a far larger magnitude than
+ *  the others, as a large penalty that forbids a route, can hide cheaper
+ *  shipments: see the warning of successive_shortest_paths().
  *
  *  @par Example
  *  ```cpp

@@ -49,6 +49,10 @@
 #include <gtest/gtest.h>
 #include <tpl_bipartite.H>
 #include <tpl_graph.H>
+#include <tpl_maxflow.H>
+
+#include <random>
+#include <vector>
 
 using namespace std;
 using namespace Aleph;
@@ -1191,6 +1195,40 @@ TEST(HopcroftKarp, StressPath200)
 
   EXPECT_EQ(matching.size(), 100u);
   EXPECT_TRUE(verify_matching(g, matching));
+}
+
+// The network of the matching has an integer flow, exact: on a sparse
+// random graph of 1000 + 1000 nodes the matching of the maximum flows is
+// one, and as large as that of Hopcroft-Karp, with each maximum flow
+TEST(MaxFlowMatching, ASparseRandomGraphMatchesAsHopcroftKarp)
+{
+  Graph g;
+  std::vector<Graph::Node *> l, r;
+  for (int i = 0; i < 1000; ++i)
+    l.push_back(g.insert_node(i));
+  for (int i = 0; i < 1000; ++i)
+    r.push_back(g.insert_node(1000 + i));
+  std::mt19937 gen(1);
+  for (int i = 0; i < 1000; ++i)
+    {
+      for (int k = 0; k < 2; ++k)
+        g.insert_arc(l[size_t(i)], r[gen() % 1000u]);
+      g.insert_arc(l[gen() % 1000u], r[size_t(i)]);
+    }
+
+  DynDlist<Graph::Arc *> hk;
+  hopcroft_karp_matching<Graph>(g, hk);
+  ASSERT_TRUE(verify_matching(g, hk));
+
+  DynDlist<Graph::Arc *> ff, ek, dinic;
+  compute_maximum_cardinality_bipartite_matching<Graph>(g, ff);
+  compute_maximum_cardinality_bipartite_matching<Graph, Edmonds_Karp_Maximum_Flow>(g, ek);
+  compute_maximum_cardinality_bipartite_matching<Graph, Dinic_Maximum_Flow>(g, dinic);
+  for (auto * m : {&ff, &ek, &dinic})
+    {
+      EXPECT_TRUE(verify_matching(g, *m));
+      EXPECT_EQ(m->size(), hk.size());
+    }
 }
 
 int main(int argc, char **argv)
