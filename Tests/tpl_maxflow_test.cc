@@ -13,6 +13,7 @@
 #include <tpl_net.H>
 #include <array>
 #include <chrono>
+#include <limits>
 #include <random>
 #include <set>
 #include <stdexcept>
@@ -2012,6 +2013,96 @@ TEST(ReturnDustTest, KeepsTheResiduesWithinTheToleranceBesideDust)
     EXPECT_EQ(kept[i]->flow, flows[i]) << "arc " << i;
   EXPECT_EQ(dust->flow, 0);
   EXPECT_TRUE(net.check_network());
+}
+
+namespace
+{
+  // A maximum flow of the library, with its name
+  struct Named_Maximum_Flow
+  {
+    const char * name;
+    double (*run)(TestNet &);
+  };
+
+  // Those that take augmenting paths or blocking flows
+  const Named_Maximum_Flow path_maximum_flows[] = {
+    {"ford_fulkerson", [] (TestNet & net) { return ford_fulkerson_maximum_flow(net); }},
+    {"edmonds_karp", [] (TestNet & net) { return edmonds_karp_maximum_flow(net); }},
+    {"dinic", [] (TestNet & net) { return dinic_maximum_flow(net); }},
+    {"capacity_scaling", [] (TestNet & net) { return capacity_scaling_maximum_flow(net); }}};
+} // anonymous namespace
+
+// A network of arcs of infinite capacity alone: its maximum flow is
+// infinite. The capacity scaling takes its first delta from the largest
+// finite capacity, and that there is none is no reason to return 0
+TEST(InfiniteCapacityTest, ArcsOfInfiniteCapacityAloneGiveAnInfiniteMaximumFlow)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  auto check = [inf] (const Named_Maximum_Flow & f)
+    {
+      TestNet net;
+      auto s = net.insert_node(0);
+      auto a = net.insert_node(1);
+      auto t = net.insert_node(2);
+      net.insert_arc(s, a, inf);
+      net.insert_arc(a, t, inf);
+      EXPECT_EQ(f.run(net), inf) << f.name;
+      EXPECT_TRUE(net.check_network()) << f.name;
+    };
+  for (const auto & f : path_maximum_flows)
+    check(f);
+}
+
+// An arc of infinite capacity, which the notes of the cost tolerances give
+// to an arc without a bound, takes flow as any other: s -> a of capacity
+// infinity and a -> t of 2.5, s -> b of 1.5 and b -> t of infinity. The
+// capacity scaling doubled its first delta up to the largest capacity, and
+// with an infinite one it did not end, also on this network, whose maximum
+// flow is 4
+TEST(InfiniteCapacityTest, AFinitePathThroughAnInfiniteArcCarriesItsBottleneck)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  for (const auto & [name, maximum_flow] : path_maximum_flows)
+    {
+      TestNet net;
+      auto s = net.insert_node(0);
+      auto a = net.insert_node(1);
+      auto b = net.insert_node(2);
+      auto t = net.insert_node(3);
+      net.insert_arc(s, a, inf);
+      net.insert_arc(a, t, 2.5);
+      net.insert_arc(s, b, 1.5);
+      net.insert_arc(b, t, inf);
+      EXPECT_EQ(maximum_flow(net), 4.0) << name;
+      EXPECT_TRUE(net.check_network()) << name;
+    }
+}
+
+// A path from the source to the sink of arcs of infinite capacity makes
+// the maximum flow infinite, which every maximum flow returns. Dinic took
+// the same path forever, as the residual of an arc of infinite capacity
+// and flow, inf - inf, is NaN, which it compared as residual <= 0; and
+// the capacity scaling did not end. A capacity of max() is finite, and
+// so is the flow, max()
+TEST(InfiniteCapacityTest, APathOfInfiniteArcsMakesTheMaximumFlowInfinite)
+{
+  auto check = [] (const Named_Maximum_Flow & f, double cap)
+    {
+      TestNet net;
+      auto s = net.insert_node(0);
+      auto a = net.insert_node(1);
+      auto t = net.insert_node(2);
+      net.insert_arc(s, a, cap);
+      net.insert_arc(a, t, cap);
+      net.insert_arc(s, t, 2.5);
+      EXPECT_EQ(f.run(net), cap) << f.name << " with a capacity of " << cap;
+    };
+  for (const double cap : {std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::max()})
+    {
+      for (const auto & f : path_maximum_flows)
+        check(f, cap);
+    }
 }
 
 
