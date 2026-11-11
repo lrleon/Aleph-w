@@ -278,9 +278,13 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
  *          network had: on a second run, the same.
  *
  *  @throws std::domain_error If the network does not have a single source and
- *          single sink, or if the initial residual graph has a negative-cost
+ *          single sink, if the initial residual graph has a negative-cost
  *          cycle, wherever it is (via ssp_init_potentials): no path from the
- *          source cancels it, and the flow would not be of least cost.
+ *          source cancels it, and the flow would not be of least cost; or
+ *          if the maximum flow is infinite, as through a path from the
+ *          source to the sink of arcs of infinite capacity, which has no
+ *          cost to minimize: the paths of less cost may have been taken
+ *          before it, and their flows go back.
  *
  *  @note **Exception safety:** strong guarantee — if the function throws,
  *        the network's flow values are not modified.
@@ -521,8 +525,12 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
   // nothing, and the loop did not end
   while (source != sink and ssp_shortest_path(net, source, sink))
     {
-      // Find minimum residual capacity on path
-      Flow_Type path_flow = std::numeric_limits<Flow_Type>::max();
+      // Find minimum residual capacity on path. One of arcs of infinite
+      // capacity has none: the maximum flow is infinite, and the flows go
+      // back to those of the entry. It took that path forever, as the
+      // residual of an arc of infinite capacity and flow, inf - inf, is NaN
+      using Limits = std::numeric_limits<Flow_Type>;
+      Flow_Type path_flow = Limits::has_infinity ? Limits::infinity() : Limits::max();
       for (Node *v = sink; v != source;)
         {
           Arc *arc = static_cast<Arc *>(ssp_info<Net>(v).parent_arc);
@@ -533,6 +541,10 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
 
           v = static_cast<Node *>(ssp_info<Net>(v).parent_node);
         }
+      if constexpr (Limits::has_infinity)
+        ah_domain_error_if(path_flow == Limits::infinity())
+          << "successive_shortest_paths: the maximum flow is infinite, through a "
+          << "path of arcs of infinite capacity from the source to the sink";
 
       // Augment flow. With a floating flow, flow + (cap - flow) may come
       // out an ulp above cap: the arc that bounds the path is filled to
