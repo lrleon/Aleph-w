@@ -96,6 +96,7 @@
 #ifndef TPL_NET_SUP_DEM_H
 #define TPL_NET_SUP_DEM_H
 
+#include <cmath>
 #include <limits>
 #include <type_traits>
 #include <utility>
@@ -244,6 +245,29 @@ public:
 private:
   Node* super_source = nullptr;  ///< Super-source for auxiliary network
   Node* super_sink = nullptr;    ///< Super-sink for auxiliary network
+
+  /** @brief Whether the flow fills an arc of the super-source or of the
+             super-sink: whether its node ships all its supply, or
+             receives all its demand.
+
+      Exactly for an integer flow. For a floating flow, within the
+      tolerance that check_node() gives the flows of the arc, 1e-9 of
+      its capacity: the sums that bring the flow to the arc round, as
+      2.4 - 1.1, an ulp below 1.3 in binary, so that a demand of 1.3 that
+      a supply of 2.4 meets after one of 1.1 comes out an ulp short. The
+      scale is the arc's own, so that a real deficit stays beyond it, also
+      that of a supply or a demand far smaller than the others.
+
+      @param[in] a Arc from the super-source or to the super-sink.
+      @return true if the flow of `a` fills its capacity.
+  */
+  static bool filled(const Arc *a) noexcept
+  {
+    if constexpr (std::is_floating_point_v<Flow_Type>)
+      return std::abs(a->cap - a->flow) <= Net_Class::node_tolerance(a->cap, a->flow);
+    else
+      return a->flow == a->cap;
+  }
 
 public:
   /// @name Constructors and Destructor
@@ -533,8 +557,13 @@ public:
    *
    * A flow is feasible if every supply node ships its supply and every
    * demand node receives its demand: if the flow fills the arcs from the
-   * super-source and those to the super-sink. Without a super-source or
-   * without a super-sink, nothing is shipped, and it is not.
+   * super-source and those to the super-sink, exactly for an integer
+   * flow, and within the tolerance of check_node() of each arc, 1e-9 of
+   * its capacity, for a floating one: the sums of a floating flow round,
+   * so that the demands of 1.1 and 1.3 that a supply of 2.4 meets come
+   * out an ulp short, while a real deficit, also of a supply or a demand
+   * far smaller than the others, stays beyond it. Without a super-source
+   * or without a super-sink, nothing is shipped, and it is not.
    *
    * @return true if flow is feasible, false otherwise
    * @throw std::domain_error if auxiliary network hasn't been computed
@@ -550,11 +579,11 @@ public:
       return false;
 
     for (typename Net_Class::Node_Arc_Iterator it(super_source); it.has_curr(); it.next_ne())
-      if (Arc* a = it.get_curr(); a->flow != a->cap)
+      if (not filled(it.get_curr()))
         return false;  // a supply node does not ship all its supply
 
     for (typename Net_Class::Node_Arc_Iterator it(super_sink); it.has_curr(); it.next_ne())
-      if (Arc* a = it.get_curr(); a->flow != a->cap)
+      if (not filled(it.get_curr()))
         return false;  // a demand node does not receive all its demand
 
     return true;
@@ -567,8 +596,10 @@ public:
    * supply node that does not ship all its supply is one whose arc from
    * the super-source the flow does not fill, and a demand node that does
    * not receive all its demand, one whose arc to the super-sink it does
-   * not fill. The fields `out_flow` and `in_flow` of the nodes, which the
-   * network does not write, do not count.
+   * not fill, with the same tolerance for a floating flow, so that the
+   * lists are empty if and only if is_feasible(). The fields `out_flow`
+   * and `in_flow` of the nodes, which the network does not write, do not
+   * count.
    *
    * @param[out] supply_list Nodes that do not ship all their supply
    * @param[out] demand_list Nodes that do not receive all their demand
@@ -585,12 +616,12 @@ public:
 
     if (super_source != nullptr)
       for (typename Net_Class::Node_Arc_Iterator it(super_source); it.has_curr(); it.next_ne())
-        if (Arc* a = it.get_curr(); a->flow != a->cap)
+        if (Arc* a = it.get_curr(); not filled(a))
           supply_list.append(this->get_tgt_node(a));
 
     if (super_sink != nullptr)
       for (typename Net_Class::Node_Arc_Iterator it(super_sink); it.has_curr(); it.next_ne())
-        if (Arc* a = it.get_curr(); a->flow != a->cap)
+        if (Arc* a = it.get_curr(); not filled(a))
           demand_list.append(this->get_src_node(a));
   }
 
