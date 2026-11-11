@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **flow:** Make the floating flows end and reach their optimum ([#173](https://github.com/lrleon/Aleph-w/issues/173)) ([b5e8522](https://github.com/lrleon/Aleph-w/commit/b5e8522de7489e0e149a4054fbce8797288579ad))
 * **flow:** Support infinite capacities in every flow algorithm ([#179](https://github.com/lrleon/Aleph-w/issues/179)) ([3996f1e](https://github.com/lrleon/Aleph-w/commit/3996f1e8a5979e80cdad8994951be2e5a30b26ae))
 
+
+### Deprecated
+
+* `float` as the type of a flow: `Net_Arc` warns when it is instantiated with it, as its precision is below what the tolerances of the floating flows need; use `double`. Rejected in 8.0.0; see `docs/release-notes/7.6.0.md`.
+* `Network_Simplex::set_lower_bound()`, `get_lower_bound()` and `residual_lower()`: `Network_Simplex` supports no lower bound but 0; use the flow of the arc instead of `residual_lower()`. Removal in 8.0.0.
+
 ## [7.5.0](https://github.com/lrleon/Aleph-w/compare/v7.4.0...v7.5.0) (2026-11-08)
 
 
