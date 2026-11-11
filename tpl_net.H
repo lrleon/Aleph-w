@@ -50,6 +50,7 @@
 #define TPL_NET_H
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <set>
 #include <tuple>
@@ -407,7 +408,9 @@ struct Net_Graph : public Array_Graph<NodeT, ArcT>
   /** @brief Return true if `node` satisfies flow conservation constraints.
 
       A floating flow keeps them but for rounding, within
-      node_tolerance() of the flows of the node.
+      node_tolerance() of the flows of the node. Flows that are equal
+      balance, also infinite ones, as those of a node of a path of arcs
+      of infinite capacity; an infinite flow and a finite one do not.
   */
   bool check_node(Node *node) const noexcept
   {
@@ -417,15 +420,16 @@ struct Net_Graph : public Array_Graph<NodeT, ArcT>
     auto out_flow = get_out_flow(node);
     auto in_flow = get_in_flow(node);
 
-    // Use tolerance for floating-point comparison
-    const auto eps = node_tolerance(in_flow, out_flow);
+    // Use tolerance for floating-point comparison. Equal flows balance,
+    // also infinite ones, whose difference, inf - inf, is NaN
+    const auto eps = check_tolerance(in_flow, out_flow);
     const auto nearly_zero = [eps](auto x)
       {
         return std::abs(x) <= eps;
       };
     const auto nearly_equal = [eps](auto a, auto b)
       {
-        return std::abs(a - b) <= eps;
+        return a == b or std::abs(a - b) <= eps;
       };
 
     if (is_sink(node))
@@ -447,6 +451,20 @@ private:
   Node *super_source_node = nullptr;
   Node *super_sink_node = nullptr;
 
+  // The tolerance of check_node() for a node whose flows into and out of
+  // it are in and out: node_tolerance(), but zero if one of them is
+  // infinite. That of an infinite flow, infinite too, took any imbalance,
+  // as an infinite flow into a node that sends 2.5; with zero, the flows
+  // balance only if they are equal, as the infinite flows into and out
+  // of a node of a path of arcs of infinite capacity
+  static Flow_Type check_tolerance(const Flow_Type &in, const Flow_Type &out) noexcept
+  {
+    if constexpr (std::is_floating_point_v<Flow_Type>)
+      if (std::isinf(in) or std::isinf(out))
+        return Flow_Type{0};
+    return node_tolerance(in, out);
+  }
+
   // The sum of the tolerances of check_node() of every node: as each
   // keeps its flow but for its own, the flow out of the sources and that
   // into the sinks differ, at most, by it. O(V + E)
@@ -454,20 +472,24 @@ private:
   {
     Flow_Type sum{0};
     for (Node_Iterator<Net_Graph> it(*this); it.has_curr(); it.next_ne())
-      sum += node_tolerance(get_in_flow(it.get_curr()), get_out_flow(it.get_curr()));
+      sum += check_tolerance(get_in_flow(it.get_curr()), get_out_flow(it.get_curr()));
     return sum;
   }
 
   // Whether the flow out of the sources and that into the sinks are the
   // same: exactly, or, for a floating type, but for rounding: within the
   // tolerance of check_node() of the totals, or within the sum of those
-  // of the nodes, which is computed only if the first does not hold
+  // of the nodes, which is computed only if the first does not hold.
+  // Equal totals are the same, also infinite ones, whose difference is
+  // NaN; an infinite total and a finite one are not
   bool same_totals(const Flow_Type &out, const Flow_Type &in) const
   {
     if constexpr (std::is_floating_point_v<Flow_Type>)
       {
+        if (out == in)
+          return true;
         const Flow_Type diff = std::abs(out - in);
-        return diff <= node_tolerance(out, in) or diff <= nodes_tolerance();
+        return diff <= check_tolerance(out, in) or diff <= nodes_tolerance();
       }
     else
       return out == in;
@@ -985,7 +1007,9 @@ public:
    * A floating flow is valid but for rounding: every node keeps its flow
    * within node_tolerance() of its own flows, and the flow out of the
    * sources and that into the sinks differ at most by the sum of those
-   * tolerances.
+   * tolerances. Equal flows, also infinite ones, as those of a path of
+   * arcs of infinite capacity, balance; an infinite flow and a finite one
+   * do not.
    *
    * @return true if the network is valid; false otherwise.
    */

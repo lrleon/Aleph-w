@@ -38,6 +38,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 #include <random>
 #include <set>
 #include <vector>
@@ -551,5 +552,56 @@ TEST(NetGraphAugmentingPaths, FloatingFlowsStayWithinTheirCapacities)
       EXPECT_TRUE(flows_within_capacities(ek_net));
       EXPECT_TRUE(ff_net.check_network());
       EXPECT_TRUE(ek_net.check_network());
+    }
+}
+
+// A path of arcs of infinite capacity carries an infinite flow, which its
+// nodes take in and send out: equal flows balance, also infinite ones,
+// whose difference, inf - inf, is NaN, which check_node() and the
+// comparison of the totals took as an imbalance, so that check_network()
+// was false and flow_value() failed its assertion. An infinite flow into
+// a node that sends 2.5 does not balance, which the tolerance of an
+// infinite flow, infinite too, took as balanced
+TEST(NetGraphInfiniteFlows, EqualInfiniteFlowsBalanceAndUnequalOnesDoNot)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  Double_Net net;
+  auto s = net.insert_node(0);
+  auto a = net.insert_node(1);
+  auto t = net.insert_node(2);
+  auto sa = net.insert_arc(s, a, inf);
+  auto at = net.insert_arc(a, t, inf);
+  auto st = net.insert_arc(s, t, 2.5);
+  sa->flow = inf;
+  at->flow = inf;
+  st->flow = 2.5;
+  EXPECT_TRUE(net.check_node(a));
+  EXPECT_TRUE(net.check_network());
+  EXPECT_EQ(net.flow_value(), inf);
+
+  at->flow = 2.5;  // a receives inf and sends 2.5
+  EXPECT_FALSE(net.check_node(a));
+  EXPECT_FALSE(net.check_network());
+}
+
+// Ford-Fulkerson and Edmonds-Karp take a path of arcs of infinite capacity
+// and return the infinite maximum flow, which check_network() takes; with
+// assertions, they aborted, as check_network() was false
+TEST(NetGraphInfiniteFlows, TheAugmentingPathsReturnAnInfiniteMaximumFlow)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  for (int algo = 0; algo < 2; ++algo)
+    {
+      Double_Net net;
+      auto s = net.insert_node(0);
+      auto a = net.insert_node(1);
+      auto t = net.insert_node(2);
+      net.insert_arc(s, a, inf);
+      net.insert_arc(a, t, inf);
+      net.insert_arc(s, t, 2.5);
+      const double value = algo == 0 ? ford_fulkerson_maximum_flow(net)
+                                     : edmonds_karp_maximum_flow(net);
+      EXPECT_EQ(value, inf) << (algo == 0 ? "ford_fulkerson" : "edmonds_karp");
+      EXPECT_TRUE(net.check_network()) << (algo == 0 ? "ford_fulkerson" : "edmonds_karp");
     }
 }
