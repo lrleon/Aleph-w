@@ -5,6 +5,14 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.6.0](https://github.com/lrleon/Aleph-w/compare/v7.5.0...v7.6.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **flow:** Make the floating flows end and reach their optimum ([#173](https://github.com/lrleon/Aleph-w/issues/173)) ([b5e8522](https://github.com/lrleon/Aleph-w/commit/b5e8522de7489e0e149a4054fbce8797288579ad))
+* **flow:** Support infinite capacities in every flow algorithm ([#179](https://github.com/lrleon/Aleph-w/issues/179)) ([3996f1e](https://github.com/lrleon/Aleph-w/commit/3996f1e8a5979e80cdad8994951be2e5a30b26ae))
+
 ## [7.5.0](https://github.com/lrleon/Aleph-w/compare/v7.4.0...v7.5.0) (2026-11-08)
 
 
