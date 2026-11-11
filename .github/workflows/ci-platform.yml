@@ -36,8 +36,8 @@ jobs:
   build-macos:
     name: build-macos (${{ matrix.os }}, AppleClang, ${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}
-    # The Intel jobs build without ccache (see below), on runners whose speed
-    # varies about twofold; the Release one has run past 60 minutes.
+    # The Intel runners vary about twofold in speed; without a warm ccache
+    # the Intel Release job has run past 60 minutes.
     timeout-minutes: 90
 
     strategy:
@@ -74,16 +74,30 @@ jobs:
             cmake ninja \
             gmp mpfr gsl googletest \
             tclap
-          # ccache only speeds builds up. Homebrew publishes no Intel macOS
-          # bottle for it, so `brew install ccache` on macos-15-intel compiles
-          # ccache plus LLVM, Rust and GCC from source. Install it only where a
-          # bottle exists (Apple Silicon); Intel builds run without a cache.
-          if [ "$(uname -m)" = "arm64" ]; then
-            brew install ccache
-          fi
+
+      - name: Install ccache
+        # Homebrew publishes no Intel macOS bottle for ccache, and building it
+        # from source takes LLVM, Rust and GCC. ccache releases a universal
+        # (x86_64 and arm64) macOS binary; the SHA-256 pins the archive whose
+        # minisign signature was checked with the key published on
+        # https://ccache.dev/download.html. To update ccache, check the
+        # signature of the new archive and change both values.
+        timeout-minutes: 5
+        env:
+          CCACHE_VERSION: 4.14.3
+          CCACHE_SHA256: 764dd2a8100ff83e6bbd7b9a1e2016cc401be34bee8a70ea99698186622c34d5
+        run: |
+          set -euo pipefail
+          name="ccache-${CCACHE_VERSION}-darwin"
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 3 -o "$name.tar.gz" \
+            "https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/$name.tar.gz"
+          echo "${CCACHE_SHA256}  $name.tar.gz" | shasum -a 256 -c
+          tar -xzf "$name.tar.gz"
+          echo "$RUNNER_TEMP/$name" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/$name/ccache" --version
 
       - name: Cache ccache
-        if: runner.arch == 'ARM64'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -99,12 +113,9 @@ jobs:
           rm -rf build
           # AppleClang + libc++ is the platform default; no -stdlib= override.
           # X11 viewer is disabled (no XQuartz on the GitHub-hosted runner).
-          CCACHE_ARGS=""
-          if command -v ccache >/dev/null 2>&1; then
-            CCACHE_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
-          fi
           cmake -S . -B build -G Ninja \
-            ${CCACHE_ARGS} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_TESTS=ON \
@@ -113,7 +124,10 @@ jobs:
 
       - name: Build
         run: |
+          set -euo pipefail
+          ccache --zero-stats
           cmake --build build --parallel
+          ccache --show-stats
 
       - name: Test (CA + core suite)
         run: |
