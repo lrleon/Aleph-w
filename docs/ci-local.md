@@ -55,7 +55,9 @@ Once, create the label (a maintainer):
 gh label create ci-local --description "The required Linux jobs run in the local CI"
 ```
 
-For a pull request, add the label `ci-local`, and then:
+Open the pull request with the label `ci-local` (`gh pr create --label
+ci-local`, or the labels of its form), so that its first run of the CI
+waits for the status, and then:
 
 ```bash
 scripts/ci-local.sh --merge             # before pushing: the required jobs on the merge
@@ -65,9 +67,16 @@ scripts/ci-local.sh --merge --publish   # after it: posts the result of the run 
 
 A result that passed for the same commit, `master`, workflow and week of
 the images is posted without running the jobs again; without the first
-run, `--publish` runs them. `--dry-run` prints the status instead of
-posting it. If `master` moves before the CI starts, the status no longer
+run, `--publish` runs them, and the status is `pending` while they run,
+and a `failure` if one fails, so that the success of an earlier run of the
+same merge does not stand. `--dry-run` prints the statuses instead of
+posting them. If `master` moves before the CI starts, the status no longer
 matches: run `scripts/ci-local.sh --merge --publish` again.
+
+The CI does not run again when a label is added or a status posted: if
+`local-ci` ended before them, re-run that job, which re-runs the required
+jobs with it: `gh run rerun --job <id>`, which `--publish` prints then, or
+the button of the job in GitHub.
 
 ## When the required jobs run in GitHub
 

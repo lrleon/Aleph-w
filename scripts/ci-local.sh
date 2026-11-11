@@ -25,9 +25,11 @@
 #   --publish      with --merge, when the required jobs pass, post on the
 #                  commit in GitHub the status ci-local/required, which
 #                  lets the CI of a pull request with the label ci-local
-#                  skip them (see docs/ci-local.md); a result that passed
-#                  before for the same commit, master, workflow and week
-#                  is posted without running the jobs again
+#                  skip them (see docs/ci-local.md); the status is pending
+#                  while the jobs run, and a failure if one fails; a
+#                  result that passed before for the same commit, master,
+#                  workflow and week is posted without running the jobs
+#                  again
 #   --dry-run      with --publish, print the status instead of posting it
 #   --clean        start the build directories of the jobs from scratch
 #   --list         list the jobs and the groups
@@ -518,27 +520,54 @@ run_job() {  # job; writes its status and its time to the logs
   say "$( (( rc == 0 )) && echo "PASS" || echo "FAIL") $j ($(( ($(date +%s) - t0) / 60 )) min)"
 }
 
-# Post on the commit in GitHub the status that the job local-ci of the CI
-# looks for: success, with the fingerprint, the master of the merge, the
-# week of the images and the versions of their compilers
-publish() {
-  local slug desc
-  desc="fp=${FP} base=${BASE:0:12} img=${WEEK}; 22.04: ${TOOLS[22.04]:-?}; 24.04: ${TOOLS[24.04]:-?}"
+# Where --publish posts: the repository in GitHub, and whether the commit
+# is there, as a status goes only on a commit that GitHub has
+SLUG=""
+ON_GITHUB=0
+find_on_github() {
+  SLUG=$(cd "${ROOT_DIR}" && gh repo view --json nameWithOwner --jq .nameWithOwner) ||
+    die "gh does not find the repository on GitHub (gh auth login?)"
+  if gh api "repos/${SLUG}/commits/${HEAD_SHA}" --silent >/dev/null 2>&1; then ON_GITHUB=1; fi
+}
+
+# Post on the commit the status ci-local/required in a state, success,
+# pending or failure, whose description carries the fingerprint, the
+# master of the merge and the week of the images, and then what the state
+# says; the job local-ci of the CI takes only a success
+post_status() {  # state, what follows the week
+  local desc="fp=${FP} base=${BASE:0:12} img=${WEEK}; $2"
   desc=${desc:0:140}
   if (( DRY_RUN )); then
-    say "would post on ${HEAD_SHA:0:12} the status ${STATUS_CONTEXT} (success): ${desc}"
+    say "would post on ${HEAD_SHA:0:12} the status ${STATUS_CONTEXT} ($1): ${desc}"
     return 0
   fi
-  slug=$(cd "${ROOT_DIR}" && gh repo view --json nameWithOwner --jq .nameWithOwner) ||
-    die "gh does not find the repository on GitHub (gh auth login?)"
-  if ! gh api "repos/${slug}/commits/${HEAD_SHA}" --silent >/dev/null 2>&1; then
+  (( ON_GITHUB )) || return 0
+  gh api -X POST "repos/${SLUG}/statuses/${HEAD_SHA}" -f "state=$1" \
+    -f "context=${STATUS_CONTEXT}" -f "description=${desc}" --silent ||
+    die "could not post the status on ${HEAD_SHA:0:12}"
+  say "posted on ${HEAD_SHA:0:12} the status ${STATUS_CONTEXT} ($1): ${desc}"
+}
+
+# Post the success, with the versions of the compilers. The CI does not run
+# again for a status: a local-ci that ended before it did not see it, and
+# re-running that job re-runs the required jobs with it
+publish() {
+  if (( ! DRY_RUN && ! ON_GITHUB )); then
     say "${HEAD_SHA:0:12} is not on GitHub yet: push it and run again with --merge --publish, which posts this result without running the jobs"
     return 0
   fi
-  gh api -X POST "repos/${slug}/statuses/${HEAD_SHA}" -f state=success \
-    -f "context=${STATUS_CONTEXT}" -f "description=${desc}" --silent ||
-    die "could not post the status on ${HEAD_SHA:0:12}"
-  say "posted on ${HEAD_SHA:0:12} the status ${STATUS_CONTEXT}: ${desc}"
+  post_status success "22.04: ${TOOLS[22.04]:-?}; 24.04: ${TOOLS[24.04]:-?}"
+  (( DRY_RUN )) && return 0
+  local run job
+  run=$(gh api "repos/${SLUG}/actions/runs?head_sha=${HEAD_SHA}&event=pull_request&per_page=20" \
+          --jq '[.workflow_runs[] | select(.name == "CI")][0].id // empty' 2>/dev/null) || run=""
+  if [ -n "${run}" ]; then
+    job=$(gh api "repos/${SLUG}/actions/runs/${run}/jobs?per_page=100" \
+            --jq '.jobs[] | select(.name == "local-ci" and .status == "completed") | .id' 2>/dev/null) || job=""
+    if [ -n "${job}" ]; then
+      say "local-ci of the CI run ${run} already ended; if it did not take this status, re-run it, and the required jobs with it: gh run rerun --job ${job}"
+    fi
+  fi
 }
 
 cleanup() {
@@ -580,6 +609,7 @@ for rel in "${!RELEASES[@]}"; do
   ensure_image "${rel}"
   say "image ${IMAGE[$rel]}: ${TOOLS[$rel]}"
 done
+if (( PUBLISH && ! DRY_RUN )); then find_on_github; fi
 
 # A merge that passed is recorded by commit, master, fingerprint and week
 # of the images, so that --publish after the push posts it without running
@@ -597,8 +627,11 @@ fi
 if (( recorded )); then
   say "these jobs passed on this merge on $(date -r "${RECORD}" '+%Y-%m-%d %H:%M'): ${RECORD}"
 else
-  # a run of the same merge that fails must not leave the success before
+  # a run of the same merge that fails must not leave the success before,
+  # neither here nor in GitHub, where the status is pending while the jobs
+  # run, and a failure if one fails
   if (( MERGE )); then rm -f "${RECORD}"; fi
+  if (( PUBLISH )); then post_status pending "running the jobs"; fi
   running=0
   for j in "${SELECTED[@]}"; do
     while (( running >= JOBS )); do wait -n || true; running=$(( running - 1 )); done
@@ -624,6 +657,7 @@ else
       echo "---- $j: $(describe "$j")"
       grep -E -A25 'The following tests FAILED|^FAIL |error:|Errors while running CTest' "${LOGS}/$j.log" | head -40 || tail -20 "${LOGS}/$j.log"
     done
+    if (( PUBLISH )); then post_status failure "${failed} of ${#SELECTED[@]} jobs failed"; fi
     exit 1
   fi
   say "all ${#SELECTED[@]} jobs passed"
