@@ -3051,6 +3051,80 @@ TEST(NetworkSimplexFloatingTest, TakesAnImprovementOf1e7)
   EXPECT_DOUBLE_EQ(net.flow_cost(), 1 - 1e-7);
 }
 
+// A path of arcs of infinite capacity from the source to the sink makes
+// the maximum flow infinite, which has no cost to minimize: the network
+// simplex took it as a flow that is not feasible, and the cycle canceling
+// returned it with an infinite cost. Both throw that the maximum flow is
+// infinite, and the network keeps it
+TEST(InfiniteMaximumFlowTest, TheSimplexAndTheCancelingRefuseIt)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  for (int algo = 0; algo < 2; ++algo)
+    {
+      Net net;
+      auto s = net.insert_node(), a = net.insert_node(), t = net.insert_node();
+      net.insert_arc(s, a, inf, 1);
+      net.insert_arc(a, t, inf, 1);
+      net.insert_arc(s, t, 2.5, 3);
+      const char * name = algo == 0 ? "network simplex" : "cycle canceling";
+      try
+        {
+          if (algo == 0)
+            max_flow_min_cost_by_network_simplex(net);
+          else
+            max_flow_min_cost_by_cycle_canceling(net);
+          ADD_FAILURE() << name << " did not throw";
+        }
+      catch (const std::domain_error & e)
+        {
+          EXPECT_NE(std::string(e.what()).find("infinite"), std::string::npos)
+            << name << ": " << e.what();
+        }
+      EXPECT_EQ(net.flow_value(), inf) << name;
+    }
+}
+
+// The network of the maximum flows of an arc of infinite capacity: s -> a
+// of infinity and a -> t of 2.5, s -> b of 1.5 and b -> t of infinity,
+// whose maximum flow, 4, costs 2.5 * 2 + 1.5 * 4 = 11
+template <template <class> class Max_Flow>
+void expect_the_cost_of_a_finite_flow_through_infinite_arcs(const char * name)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  for (int algo = 0; algo < 2; ++algo)
+    {
+      Net net;
+      auto s = net.insert_node(), a = net.insert_node(), b = net.insert_node(),
+           t = net.insert_node();
+      net.insert_arc(s, a, inf, 1);
+      net.insert_arc(a, t, 2.5, 1);
+      net.insert_arc(s, b, 1.5, 2);
+      net.insert_arc(b, t, inf, 2);
+      if (algo == 0)
+        EXPECT_NO_THROW((max_flow_min_cost_by_network_simplex<Net, Max_Flow>(net))) << name;
+      else
+        EXPECT_NO_THROW((max_flow_min_cost_by_cycle_canceling<Net, Max_Flow>(net))) << name;
+      EXPECT_EQ(net.flow_value(), 4.0) << name << (algo == 0 ? " and the simplex" : " and the canceling");
+      EXPECT_EQ(net.flow_cost(), 11.0) << name << (algo == 0 ? " and the simplex" : " and the canceling");
+    }
+}
+
+// An arc of infinite capacity on a network whose maximum flow is finite
+// does not make it infinite: the simplex and the canceling take it from
+// each maximum flow, also from those of the preflows, which came out
+// infinite there
+TEST(InfiniteMaximumFlowTest, AnInfiniteArcOfAFiniteMaximumFlowIsTaken)
+{
+  expect_the_cost_of_a_finite_flow_through_infinite_arcs<Ford_Fulkerson_Maximum_Flow>("ford_fulkerson");
+  expect_the_cost_of_a_finite_flow_through_infinite_arcs<Edmonds_Karp_Maximum_Flow>("edmonds_karp");
+  expect_the_cost_of_a_finite_flow_through_infinite_arcs<Dinic_Maximum_Flow>("dinic");
+  expect_the_cost_of_a_finite_flow_through_infinite_arcs<Capacity_Scaling_Maximum_Flow>("capacity_scaling");
+  expect_the_cost_of_a_finite_flow_through_infinite_arcs<Fifo_Preflow_Maximum_Flow>("fifo_preflow");
+  expect_the_cost_of_a_finite_flow_through_infinite_arcs<Heap_Preflow_Maximum_Flow>("heap_preflow");
+  expect_the_cost_of_a_finite_flow_through_infinite_arcs<Random_Preflow_Maximum_Flow>("random_preflow");
+  expect_the_cost_of_a_finite_flow_through_infinite_arcs<HLPP_Maximum_Flow>("hlpp");
+}
+
 
 } // anonymous namespace
 

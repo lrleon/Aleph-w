@@ -499,6 +499,33 @@ namespace Aleph
     {
       return not (cap < std::numeric_limits<Flow_Type>::max());
     }
+
+    /** Refuse an infinite maximum flow before minimizing its cost.
+
+        A path from the source to the sink of arcs of infinite capacity
+        makes the maximum flow infinite, which has no cost to minimize: the
+        network simplex took it as a flow that is not feasible, and the
+        cycle canceling returned it with an infinite cost. The network
+        keeps the flow.
+
+        @param[in] net Network with the maximum flow.
+        @param[in] algorithm Name of the algorithm, for the message.
+        @throw std::domain_error If the flow of `net` is infinite.
+    */
+    template <class Net>
+    void refuse_infinite_maximum_flow(const Net & net, const char * algorithm)
+    {
+      using Flow_Type = typename Net::Flow_Type;
+      if constexpr (std::numeric_limits<Flow_Type>::has_infinity)
+        ah_domain_error_if(net.flow_value() == std::numeric_limits<Flow_Type>::infinity())
+          << algorithm << ": the maximum flow is infinite, through a path of arcs of "
+          << "infinite capacity from the source to the sink";
+      else
+        {
+          (void) net;
+          (void) algorithm;
+        }
+    }
   } // namespace net_detail
 
 
@@ -809,9 +836,11 @@ namespace Aleph
 
       @throw bad_alloc If there is not enough memory.
       @throw domain_error If network is not single source and single sink,
-             or if the program is unbounded: a cycle of negative cost
-             through arcs without capacity. The network keeps then the
-             maximum flow.
+             if the maximum flow is infinite, as through a path from the
+             source to the sink of arcs of infinite capacity, which has no
+             cost to minimize, or if the program is unbounded: a cycle of
+             negative cost through arcs without capacity. The network keeps
+             then the maximum flow.
 
       @par Complexity
       O(V * E^2 * C * U) where V is vertices, E is edges, C is max cost,
@@ -837,6 +866,7 @@ namespace Aleph
                                        size_t step = 10)
   {
     Max_Flow_Algo<Net>()(net); // First compute maximum flow
+    net_detail::refuse_infinite_maximum_flow(net, "max_flow_min_cost_by_cycle_canceling()");
 
     using Ftype = typename Net::Flow_Type;
     using Rnet = Residual_Net<Ftype>;
@@ -2541,9 +2571,12 @@ namespace Aleph
 
       @throw bad_alloc If there is not enough memory.
       @throw domain_error If network is not single source and single sink,
-             if the flow that Max_Flow_Algo leaves is not feasible (see
+             if the maximum flow is infinite, as through a path from the
+             source to the sink of arcs of infinite capacity, which has no
+             cost to minimize, and which the network keeps; if the flow
+             that Max_Flow_Algo leaves is not feasible (see
              Network_Simplex::run()), which the maximum flows of the
-             library do not leave, or if the program is unbounded: a cycle
+             library do not leave; or if the program is unbounded: a cycle
              of negative cost through arcs without capacity.
       @throw runtime_error If the pivots reach their bound before the
              optimum (see Network_Simplex::run()).
@@ -2568,6 +2601,7 @@ namespace Aleph
   size_t max_flow_min_cost_by_network_simplex(Net & net)
   {
     Max_Flow_Algo<Net>()(net);  // First compute maximum flow
+    net_detail::refuse_infinite_maximum_flow(net, "max_flow_min_cost_by_network_simplex()");
     Network_Simplex<Net> simplex(net);
     return simplex.run();
   }
