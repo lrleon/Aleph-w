@@ -183,7 +183,7 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
 
   // Reset distances
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    ssp_info<Net>(it.get_curr()).reset();
+    ssp_info<Net>(it.get_curr_ne()).reset();
 
   ssp_info<Net>(source).distance = 0;
 
@@ -203,7 +203,7 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
       // Explore all adjacent arcs
       for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
         {
-          Arc *arc = it.get_curr();
+          Arc *arc = it.get_curr_ne();
           Node *v = net.get_connected_node(arc, u);
 
           // Determine direction and residual capacity
@@ -374,7 +374,7 @@ bool ssp_init_potentials(Net &net, [[maybe_unused]] typename Net::Node *source)
     {
       Flow_Type largest{0};
       for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-        if (const Flow_Type c = std::abs(it.get_curr()->cost); c < INF)
+        if (const Flow_Type c = std::abs(it.get_curr_ne()->cost); c < INF)
           largest = std::max(largest, c);
       tol = 4 * Flow_Type(n) * Flow_Type(n) * std::numeric_limits<Flow_Type>::epsilon() * largest;
     }
@@ -391,7 +391,7 @@ bool ssp_init_potentials(Net &net, [[maybe_unused]] typename Net::Node *source)
 
   // Initialize distances: 0, through the arc from the virtual node
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    ssp_info<Net>(it.get_curr()).potential = 0;
+    ssp_info<Net>(it.get_curr_ne()).potential = 0;
 
   // Bellman-Ford: relax all edges n-1 times
   for (size_t i = 0; i < n - 1; ++i)
@@ -399,7 +399,7 @@ bool ssp_init_potentials(Net &net, [[maybe_unused]] typename Net::Node *source)
       bool changed = false;
       for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
         {
-          auto arc = it.get_curr();
+          auto arc = it.get_curr_ne();
           auto src = net.get_src_node(arc);
           auto tgt = net.get_tgt_node(arc);
 
@@ -441,7 +441,7 @@ bool ssp_init_potentials(Net &net, [[maybe_unused]] typename Net::Node *source)
   // If any edge can still be relaxed, the residual graph has a negative cycle.
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_curr();
+      auto arc = it.get_curr_ne();
       auto src = net.get_src_node(arc);
       auto tgt = net.get_tgt_node(arc);
 
@@ -480,7 +480,7 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
   Array<SSP_Node_Info<Flow_Type>> node_info(net.vsize(), SSP_Node_Info<Flow_Type>{});
   size_t idx = 0;
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
-    NODE_COOKIE(it.get_curr()) = &node_info[idx];
+    NODE_COOKIE(it.get_curr_ne()) = &node_info(idx);
 
   // RAII: clear node cookies on every exit path so callers never see
   // dangling pointers into the local node_info vector.
@@ -490,7 +490,7 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
     ~CookieClearer()
     {
       for (Node_Iterator<Net> it(net_); it.has_curr(); it.next_ne())
-        NODE_COOKIE(it.get_curr()) = nullptr;
+        NODE_COOKIE(it.get_curr_ne()) = nullptr;
     }
   } cookie_clearer{net};
 
@@ -511,13 +511,13 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
         return;
       size_t i = 0;
       for (Arc_Iterator<Net> it(net_); it.has_curr(); it.next_ne(), ++i)
-        it.get_curr()->flow = saved[i];
+        it.get_curr_ne()->flow = saved(i);
     }
   } flows_back{net, Array<Flow_Type>(net.get_num_arcs(), Flow_Type{0})};
   {
     size_t i = 0;
     for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++i)
-      flows_back.saved[i] = it.get_curr()->flow;
+      flows_back.saved(i) = it.get_curr_ne()->flow;
   }
 
   // Main loop: find shortest augmenting paths. A source that is the sink
@@ -567,7 +567,8 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
       Flow_Type max_potential = std::numeric_limits<Flow_Type>::lowest();
       Flow_Type max_distance  = Flow_Type{0};
       for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-        if (auto p = it.get_curr(); ssp_info<Net>(p).distance < std::numeric_limits<Flow_Type>::max())
+        if (auto p = it.get_curr_ne();
+            ssp_info<Net>(p).distance < std::numeric_limits<Flow_Type>::max())
           {
             max_distance  = std::max(max_distance, ssp_info<Net>(p).distance);
             ssp_info<Net>(p).potential += ssp_info<Net>(p).distance;
@@ -592,7 +593,7 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
         unreachable_potential = max_potential + max_distance;
 
       for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-        if (auto p = it.get_curr();
+        if (auto p = it.get_curr_ne();
             ssp_info<Net>(p).distance >= std::numeric_limits<Flow_Type>::max())
           ssp_info<Net>(p).potential = unreachable_potential;
     }
@@ -606,7 +607,7 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
   // The value and the cost of the whole flow, with what the network had
   Flow_Type total_cost{0};
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    total_cost += it.get_curr()->flow * it.get_curr()->cost;
+    total_cost += it.get_curr_ne()->flow * it.get_curr_ne()->cost;
 
   return {net.flow_value(), total_cost};
 }
