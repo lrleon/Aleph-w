@@ -197,6 +197,65 @@ class TestCiPolicyChecks < Minitest::Test
     end
   end
 
+  def test_std_uses_counts_the_code_only
+    code = <<~CPP
+      // std::vector in a comment
+      /* std::sort in a block */
+      const char * s = "std::map in a literal";
+      std::vector<int> a;  std::vector<std::pair<int, int>> b;
+      std::array<int, 3> c;
+      void f() { std::sort(a.begin(), a.end()); }
+      std::set<int> d;  // std-interop: what the standard library takes
+      ::std::deque<int> e;
+    CPP
+    assert_equal({ 'vector' => 2, 'sort' => 1, 'deque' => 1 }, std_uses(code))
+  end
+
+  def test_added_std_uses_reports_what_a_file_adds
+    path = 'tpl_x.H'
+    base = 'main'
+    old_content = "std::vector<int> a;\nstd::vector<int> b;\n"
+    new_content = "std::vector<int> b;\nstd::vector<int> a;\nstd::vector<int> c;\n" \
+                  "void f() { std::sort(p, q); }\n"
+    def_mock_git_show({ "origin/#{base}:#{path}" => old_content }) do
+      def_mock_file_read({ path => new_content }) do
+        assert_equal({ 'vector' => 1, 'sort' => 1 }, added_std_uses(base, path))
+      end
+    end
+  end
+
+  def test_added_std_uses_ignores_moved_and_removed_uses
+    path = 'tpl_x.H'
+    base = 'main'
+    old_content = "std::vector<int> a;\nstd::sort(p, q);\n"
+    new_content = "void g();\nstd::vector<int> a;\n"
+    def_mock_git_show({ "origin/#{base}:#{path}" => old_content }) do
+      def_mock_file_read({ path => new_content }) do
+        assert_empty added_std_uses(base, path)
+      end
+    end
+  end
+
+  def test_added_std_uses_of_a_new_and_of_a_renamed_file
+    base = 'main'
+    code = "std::map<int, int> m;\n"
+    def_mock_git_show({ "origin/#{base}:old.H" => code }) do
+      def_mock_file_read({ 'new.H' => code, 'fresh.H' => code }) do
+        assert_empty added_std_uses(base, 'new.H', 'old.H')
+        assert_equal({ 'map' => 1 }, added_std_uses(base, 'fresh.H'))
+      end
+    end
+  end
+
+  def test_std_checked_library_files
+    assert std_checked_library_file?('tpl_net.H')
+    assert std_checked_library_file?('aleph-graph.C')
+    refute std_checked_library_file?('Tests/tpl_net_test.cc')
+    refute std_checked_library_file?('benchmarks/ca/bench_support.H')
+    refute std_checked_library_file?('ah-convert.H')
+    refute std_checked_library_file?('README.md')
+  end
+
   private
 
   def def_mock_run(results)

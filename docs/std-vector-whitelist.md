@@ -45,3 +45,19 @@ these sites should migrate with it.
 
 None. As of phase 27.5.B the grep above returns only the sites listed
 in this document.
+
+## The rest of the library
+
+The job `policy-checks` fails a pull request that adds a standard
+container or sort that Aleph has (`std::vector`, `std::map`, `std::sort`
+and the others that `scripts/ci_policy_checks.rb` lists) to a file of the
+library, in the root of the repository. It counts the uses of each in the
+code of the file, without its comments and literals, against those of the
+base of the pull request, so that moving code adds none.
+
+A line that interoperates with the standard library, as one with a
+`std::vector` that a function of the standard library takes or returns,
+ends with `// std-interop: <why>`, and is not counted. The files whose
+purpose is that interoperation are not checked: `ah-convert.H`,
+`ah-convert-common.H`, `ah-stl-functional.H`, `ah-stl-utils.H`,
+`ah-stl-zip.H`, `ah-uni-functional.H`, `ah-zip.H` and `ah-zip-utils.H`.
