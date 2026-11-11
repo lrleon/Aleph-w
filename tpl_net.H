@@ -50,6 +50,7 @@
 #define TPL_NET_H
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <set>
 #include <tuple>
@@ -99,10 +100,52 @@ struct Net_Arc_Info : public Arc_Info
   }
 };
 
+namespace net_detail {
+/** @brief Whether `float` can be the type of a flow: it can, but it is
+    deprecated, and this overload, which a static assertion of Net_Arc
+    calls, warns it.
+
+    The tolerances of the floating flows are relative to the data and to
+    the epsilon of the type, which for `float`, 1.2e-7, is 2^29 times that
+    of `double`: so the far magnitude that hides the real improvements
+    comes with ordinary data, as an arc of cost 500 hides from the cycle
+    canceling the cycles of cost -1 among the others on a network of 100
+    nodes, without notice; the tolerance of check_node(), 1e-9, is below
+    its epsilon; and its integers stay exact only up to 2^24. Use `double`:
+    `float` is rejected in 8.0.0. The warning comes from this header, so
+    that a pragma around the code that uses the network does not silence
+    it; including the headers between `#pragma GCC diagnostic push`,
+    `#pragma GCC diagnostic ignored "-Wdeprecated-declarations"` and
+    `#pragma GCC diagnostic pop` does, while moving to `double`.
+
+    @return true.
+*/
+[[deprecated("float as the type of a flow is deprecated: its precision is below what the "
+             "tolerances of the floating flows need; use double. It is rejected in 8.0.0")]]
+constexpr bool flow_type_ok(const float *) noexcept
+{
+  return true;
+}
+
+/** @brief Whether any type but `float` can be the type of a flow, as a
+    static assertion of Net_Arc asks: it can (see flow_type_ok(const float *)).
+
+    @return true.
+*/
+constexpr bool flow_type_ok(const void *) noexcept
+{
+  return true;
+}
+}  // namespace net_detail
+
 /** @brief Arc of a flow network implemented with adjacency lists.
  *
  * Net_Arc models a capacitated network arc with Arc_Info and a numeric
- * Flow_Type for capacity and flow.
+ * Flow_Type for capacity and flow: an integer type, which compares
+ * exactly, or `double`. `float` is deprecated, and warns when the arc is
+ * instantiated: its precision is below what the tolerances of the
+ * floating flows need (see net_detail::flow_type_ok()); it is rejected in
+ * 8.0.0.
  *
  * This class is only intended as the arc type for Net_Graph; do not
  * instantiate it directly. Use Net_Graph::insert_arc() instead.
@@ -114,6 +157,9 @@ template <typename Arc_Info, typename F_Type = double>
 struct Net_Arc : public Graph_Aarc<Arc_Info>  // Arc type for flow networks.
 {
   using Base = Graph_Aarc<Arc_Info>;
+
+  // A float flow warns that it is deprecated
+  static_assert(net_detail::flow_type_ok(static_cast<const F_Type *>(nullptr)));
 
   using Flow_Type = F_Type;
 
@@ -407,7 +453,9 @@ struct Net_Graph : public Array_Graph<NodeT, ArcT>
   /** @brief Return true if `node` satisfies flow conservation constraints.
 
       A floating flow keeps them but for rounding, within
-      node_tolerance() of the flows of the node.
+      node_tolerance() of the flows of the node. Flows that are equal
+      balance, also infinite ones, as those of a node of a path of arcs
+      of infinite capacity; an infinite flow and a finite one do not.
   */
   bool check_node(Node *node) const noexcept
   {
@@ -417,15 +465,16 @@ struct Net_Graph : public Array_Graph<NodeT, ArcT>
     auto out_flow = get_out_flow(node);
     auto in_flow = get_in_flow(node);
 
-    // Use tolerance for floating-point comparison
-    const auto eps = node_tolerance(in_flow, out_flow);
+    // Use tolerance for floating-point comparison. Equal flows balance,
+    // also infinite ones, whose difference, inf - inf, is NaN
+    const auto eps = check_tolerance(in_flow, out_flow);
     const auto nearly_zero = [eps](auto x)
       {
         return std::abs(x) <= eps;
       };
     const auto nearly_equal = [eps](auto a, auto b)
       {
-        return std::abs(a - b) <= eps;
+        return a == b or std::abs(a - b) <= eps;
       };
 
     if (is_sink(node))
@@ -447,6 +496,20 @@ private:
   Node *super_source_node = nullptr;
   Node *super_sink_node = nullptr;
 
+  // The tolerance of check_node() for a node whose flows into and out of
+  // it are in and out: node_tolerance(), but zero if one of them is
+  // infinite. That of an infinite flow, infinite too, took any imbalance,
+  // as an infinite flow into a node that sends 2.5; with zero, the flows
+  // balance only if they are equal, as the infinite flows into and out
+  // of a node of a path of arcs of infinite capacity
+  static Flow_Type check_tolerance(const Flow_Type &in, const Flow_Type &out) noexcept
+  {
+    if constexpr (std::is_floating_point_v<Flow_Type>)
+      if (std::isinf(in) or std::isinf(out))
+        return Flow_Type{0};
+    return node_tolerance(in, out);
+  }
+
   // The sum of the tolerances of check_node() of every node: as each
   // keeps its flow but for its own, the flow out of the sources and that
   // into the sinks differ, at most, by it. O(V + E)
@@ -454,20 +517,24 @@ private:
   {
     Flow_Type sum{0};
     for (Node_Iterator<Net_Graph> it(*this); it.has_curr(); it.next_ne())
-      sum += node_tolerance(get_in_flow(it.get_curr()), get_out_flow(it.get_curr()));
+      sum += check_tolerance(get_in_flow(it.get_curr()), get_out_flow(it.get_curr()));
     return sum;
   }
 
   // Whether the flow out of the sources and that into the sinks are the
   // same: exactly, or, for a floating type, but for rounding: within the
   // tolerance of check_node() of the totals, or within the sum of those
-  // of the nodes, which is computed only if the first does not hold
+  // of the nodes, which is computed only if the first does not hold.
+  // Equal totals are the same, also infinite ones, whose difference is
+  // NaN; an infinite total and a finite one are not
   bool same_totals(const Flow_Type &out, const Flow_Type &in) const
   {
     if constexpr (std::is_floating_point_v<Flow_Type>)
       {
+        if (out == in)
+          return true;
         const Flow_Type diff = std::abs(out - in);
-        return diff <= node_tolerance(out, in) or diff <= nodes_tolerance();
+        return diff <= check_tolerance(out, in) or diff <= nodes_tolerance();
       }
     else
       return out == in;
@@ -985,7 +1052,9 @@ public:
    * A floating flow is valid but for rounding: every node keeps its flow
    * within node_tolerance() of its own flows, and the flow out of the
    * sources and that into the sinks differ at most by the sum of those
-   * tolerances.
+   * tolerances. Equal flows, also infinite ones, as those of a path of
+   * arcs of infinite capacity, balance; an infinite flow and a finite one
+   * do not.
    *
    * @return true if the network is valid; false otherwise.
    */
@@ -2290,6 +2359,76 @@ static inline void remove_from_active_queue(Q_Type &q, typename Q_Type::Item_Typ
   q.remove(p);
 }
 
+namespace net_detail {
+// For a floating flow, a path from the source to the sink of arcs of
+// infinite capacity makes the maximum flow infinite. If there is one, it
+// takes an infinite flow, and the function returns true: the preflows
+// end then, as their initial preflow would fill an arc of infinite
+// capacity out of the source with infinity, which a node that cannot
+// send it on cannot send back either, inf - inf being NaN. Only arcs of
+// infinite capacity are searched, and only if one leaves the source:
+// otherwise, the cost is that of a pass over the arcs of the source
+template <class Net>
+bool fill_infinite_path(Net &net)
+{
+  using Flow_Type = typename Net::Flow_Type;
+  if constexpr (std::numeric_limits<Flow_Type>::has_infinity)
+    {
+      constexpr Flow_Type inf = std::numeric_limits<Flow_Type>::infinity();
+      auto source = net.get_source();
+      bool leaves = false;
+      for (typename Net::Node_Arc_Iterator it(source); it.has_curr() and not leaves; it.next_ne())
+        if (auto a = it.get_curr(); net.get_src_node(a) == source and a->cap == inf)
+          leaves = true;
+      if (not leaves)
+        return false;
+
+      SemiPath<Net> semi_path = Find_Aumenting_Path_BFS<Net>(net)(inf);
+      if (not get<0>(semi_path))
+        return false;
+      increase_flow<Net>(net, get<2>(semi_path), inf);
+      return true;
+    }
+  else
+    {
+      (void) net;
+      return false;
+    }
+}
+
+// The flow that the initial preflow gives an arc of infinite capacity
+// out of the source, when no path of such arcs goes to the sink: a bound
+// of the maximum flow, the capacity of a cut: that of the arcs into the
+// sink, if all of them are finite, or else the sum of all the finite
+// capacities, as the nodes that arcs of infinite capacity reach from the
+// source make a cut without them. max() if the sum goes beyond it
+template <class Net>
+typename Net::Flow_Type infinite_arc_preflow(const Net &net)
+{
+  using Flow_Type = typename Net::Flow_Type;
+  constexpr Flow_Type inf = std::numeric_limits<Flow_Type>::infinity();
+  auto sink = net.get_sink();
+  Flow_Type bound{0};
+  bool finite = true;
+  for (typename Net::Node_Arc_Iterator it(sink); it.has_curr() and finite; it.next_ne())
+    if (auto a = it.get_curr(); net.get_tgt_node(a) == sink)
+      {
+        if (a->cap == inf)
+          finite = false;
+        else
+          bound += a->cap;
+      }
+  if (not finite)
+    {
+      bound = Flow_Type{0};
+      for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        if (auto a = it.get_curr(); a->cap != inf)
+          bound += a->cap;
+    }
+  return std::min(bound, std::numeric_limits<Flow_Type>::max());
+}
+}  // namespace net_detail
+
 /** @brief Generic preflow-push maximum flow (vertex-oriented).
  *
  * Q_Type is the active-node container and must support:
@@ -2308,6 +2447,16 @@ static inline void remove_from_active_queue(Q_Type &q, typename Q_Type::Item_Typ
  * within the tolerance of check_node(), as check_network() takes it,
  * and a network whose maximum flow is 0 gives 0.
  *
+ * An arc of infinite capacity out of the source starts with a bound of
+ * the maximum flow, the capacity of the arcs into the sink, if they are
+ * finite, or else the sum of the finite capacities: filled with
+ * infinity, a node that could not send it on could not send it back
+ * either, as inf - inf is NaN, and the flow came out infinite on networks
+ * whose maximum flow is finite. A path of arcs of infinite capacity from
+ * the source to the sink makes the maximum flow infinite: its arcs take
+ * an infinite flow, and the function returns it, as the augmenting paths
+ * do.
+ *
  * @param[in,out] net Flow network (must have a single source and sink).
  * @param[in] q the queue of the active nodes, empty, which the push takes;
  *            by default Q_Type(), and with a seed for the random order of
@@ -2323,6 +2472,10 @@ typename Net::Flow_Type generic_preflow_vertex_push_maximum_flow(Net &net, Q_Typ
   ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
     << "Network is not single source and single sink";
 
+  // A path of arcs of infinite capacity makes the maximum flow infinite
+  if (net_detail::fill_infinite_path(net))
+    return net.flow_value();
+
   net.reset_nodes();          // especially assures that counters are in zero
   init_height_in_nodes(net);  // set height to minimum distance in nodes to sink
 
@@ -2333,10 +2486,24 @@ typename Net::Flow_Type generic_preflow_vertex_push_maximum_flow(Net &net, Q_Typ
 
   using Itor = __Net_Iterator<Net>;
   using Flow_Type = typename Net::Flow_Type;
+  // An arc of infinite capacity out of the source takes a bound of the
+  // maximum flow, computed once if one needs it
+  [[maybe_unused]] Flow_Type bound{0};
+  [[maybe_unused]] bool bounded = false;
   for (Itor it(source); it.has_curr(); it.next_ne())  // initial preflow
     {
       auto arc = it.get_curr();
       arc->flow = arc->cap;                               // saturate arc
+      if constexpr (std::numeric_limits<Flow_Type>::has_infinity)
+        if (arc->cap == std::numeric_limits<Flow_Type>::infinity())
+          {
+            if (not bounded)
+              {
+                bound = net_detail::infinite_arc_preflow(net);
+                bounded = true;
+              }
+            arc->flow = bound;
+          }
       if (auto tgt = net.get_tgt_node(arc); tgt != sink)  // never active
         put_in_active_queue(q, tgt);
     }

@@ -375,11 +375,14 @@ typename Net::Flow_Type dinic_blocking_flow(Net &net, typename Net::Node *source
               continue;
             }
 
-          // Check residual capacity
+          // Check residual capacity. An arc of infinite capacity that
+          // carries an infinite flow has inf - inf, NaN, which is no
+          // residual: compared as residual <= 0, it went on taking the
+          // same path forever
           const bool is_forward = (net.get_src_node(arc) == curr);
           Flow_Type residual = is_forward ? (arc->cap - arc->flow) : arc->flow;
 
-          if (residual <= Flow_Type{0})
+          if (not (residual > Flow_Type{0}))
             {
               ++ca;
               continue;
@@ -417,6 +420,10 @@ typename Net::Flow_Type dinic_blocking_flow(Net &net, typename Net::Node *source
  *  flows leave go back at the end, as those of the augmenting paths (see
  *  net_detail::return_dust()): every node keeps its flow within the
  *  tolerance of check_node(), so that the network simplex takes the flow.
+ *  An arc of infinite capacity takes flow as any other; a path from the
+ *  source to the sink of arcs of infinite capacity makes the maximum
+ *  flow infinite, and the function returns it, as the augmenting paths
+ *  and the preflows do.
  *
  *  ## Complexity
  *  - General graphs: O(V²E)
@@ -527,10 +534,14 @@ struct Dinic_Maximum_Flow
  *  With a floating flow, the residues of rounding that the paths leave go
  *  back at the end (see net_detail::return_dust()): every node keeps its
  *  flow within the tolerance of check_node(), so that the network simplex
- *  takes the flow.
+ *  takes the flow. An infinite capacity gives no scale, and Δ starts from
+ *  the largest finite one, or from 1 if there is none; the arc takes flow
+ *  in every phase, and a path from the source to the sink of arcs of
+ *  infinite capacity makes the maximum flow infinite, which the function
+ *  returns, as the augmenting paths and the preflows do.
  *
  *  ## Algorithm
- *  1. Start with Δ = largest power of 2 ≤ max capacity
+ *  1. Start with Δ = largest power of 2 ≤ max finite capacity
  *  2. While Δ ≥ 1:
  *     a. Find augmenting paths using only edges with residual ≥ Δ
  *     b. Augment flow along these paths
@@ -571,12 +582,24 @@ typename Net::Flow_Type capacity_scaling_maximum_flow(Net &net)
   Node *source = net.get_source();
   Node *sink = net.get_sink();
 
-  // Find maximum capacity to determine starting Δ
+  // Find maximum capacity to determine starting Δ. An infinite one gives
+  // no scale: Δ doubled up to it forever, also on a network whose
+  // maximum flow is finite
   Flow_Type max_cap{0};
+  bool infinite_cap = false;
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    max_cap = std::max(max_cap, it.get_curr()->cap);
+    {
+      const Flow_Type cap = it.get_curr()->cap;
+      if constexpr (std::numeric_limits<Flow_Type>::has_infinity)
+        if (cap == std::numeric_limits<Flow_Type>::infinity())
+          {
+            infinite_cap = true;
+            continue;
+          }
+      max_cap = std::max(max_cap, cap);
+    }
 
-  if (max_cap == Flow_Type{0})
+  if (max_cap == Flow_Type{0} and not infinite_cap)
     return Flow_Type{0};
 
   // Start with the largest power of 2 ≤ max_cap
@@ -1229,6 +1252,13 @@ inline typename Net::Flow_Type &hlpp_excess(typename Net::Node *p) noexcept
  *  within the tolerance of check_node(), as check_network() takes it,
  *  and a network whose maximum flow is 0 gives 0.
  *
+ *  An arc of infinite capacity out of the source starts with a bound of
+ *  the maximum flow, as in generic_preflow_vertex_push_maximum_flow():
+ *  filled with infinity, the flow came out infinite on networks whose
+ *  maximum flow is finite; and a path of arcs of infinite capacity from
+ *  the source to the sink makes the maximum flow infinite, which the
+ *  function returns.
+ *
  *  @tparam Net Network type.
  *  @param net Flow network.
  *  @return Maximum flow value.
@@ -1255,6 +1285,13 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
   // original cookies before node_info storage is freed.
   auto node_info = Array<HLPP_Node_Info<Flow_Type>>::create(n_nodes);
   Cookie_Saver<Net> cookie_saver(net, true, false);  // save nodes only
+
+  // A path of arcs of infinite capacity makes the maximum flow infinite
+  // (see net_detail::fill_infinite_path()). Its search writes in the
+  // cookies of the nodes, after cookie_saver has saved them
+  if (net_detail::fill_infinite_path(net))
+    return net.flow_value();
+
   {
     size_t idx = 0;
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
@@ -1314,16 +1351,31 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
       }
 
   // --- Saturate all arcs from source ---
+  // An arc of infinite capacity takes a bound of the maximum flow instead
+  // (see net_detail::infinite_arc_preflow()), computed once if one needs it
+  [[maybe_unused]] Flow_Type bound{0};
+  [[maybe_unused]] bool bounded = false;
   for (typename Net::Node_Arc_Iterator it(source); it.has_curr(); it.next_ne())
     if (Arc *arc = it.get_curr(); net.get_src_node(arc) == source)
       {
-        Flow_Type delta = arc->cap - arc->flow;
+        Flow_Type full = arc->cap;
+        if constexpr (std::numeric_limits<Flow_Type>::has_infinity)
+          if (full == std::numeric_limits<Flow_Type>::infinity())
+            {
+              if (not bounded)
+                {
+                  bound = net_detail::infinite_arc_preflow(net);
+                  bounded = true;
+                }
+              full = std::max(bound, arc->flow);
+            }
+        Flow_Type delta = full - arc->flow;
         if constexpr (floating)
           {
-            info(source)->out.replace(arc->flow, arc->cap);
-            info(net.get_tgt_node(arc))->in.replace(arc->flow, arc->cap);
+            info(source)->out.replace(arc->flow, full);
+            info(net.get_tgt_node(arc))->in.replace(arc->flow, full);
           }
-        arc->flow = arc->cap;
+        arc->flow = full;
         hlpp_excess<Net>(net.get_tgt_node(arc)) += delta;
         hlpp_excess<Net>(source) -= delta;
       }

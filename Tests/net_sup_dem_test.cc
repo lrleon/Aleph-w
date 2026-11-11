@@ -37,7 +37,10 @@
 
 #include <gtest/gtest.h>
 #include <tpl_net_sup_dem.H>
+#include <tpl_maxflow.H>
 #include <tpl_dynDlist.H>
+#include <limits>
+#include <random>
 #include <string>
 
 using namespace Aleph;
@@ -699,6 +702,226 @@ TEST(FloatingFeasibilityTest, AFlowOfTenthsIsFeasible)
     };
   EXPECT_TRUE(feasible([] (Net & net) { edmonds_karp_maximum_flow(net); }));
   EXPECT_TRUE(feasible([] (Net & net) { ford_fulkerson_maximum_flow(net); }));
+}
+
+namespace
+{
+  using Floating_Net =
+    Net_Sup_Dem_Graph<Net_Sup_Dem_Node<Empty_Class, double>, Net_Arc<Empty_Class, double>>;
+
+  // The maximum flows of the library that run on a network of supplies
+  // and demands, with their names
+  struct Named_Maximum_Flow
+  {
+    const char * name;
+    void (*run)(Floating_Net &);
+  };
+
+  const Named_Maximum_Flow maximum_flows[] = {
+    {"ford_fulkerson", [] (Floating_Net & net) { ford_fulkerson_maximum_flow(net); }},
+    {"edmonds_karp", [] (Floating_Net & net) { edmonds_karp_maximum_flow(net); }},
+    {"dinic", [] (Floating_Net & net) { dinic_maximum_flow(net); }},
+    {"fifo_preflow", [] (Floating_Net & net) { fifo_preflow_maximum_flow(net); }},
+    {"heap_preflow", [] (Floating_Net & net) { heap_preflow_maximum_flow(net); }}};
+} // anonymous namespace
+
+// A supply of 2.4 meets the demands of 1.1 and 1.3, but 2.4 - 1.1 is
+// 1.2999999999999998 in binary: after the path of 1.1, the arc from the
+// super-source bounds the second path, whose flow comes out an ulp short
+// of the demand of 1.3, or of 1.1 if the paths go the other way. An exact
+// comparison took that demand as not met, with the five maximum flows
+TEST(FloatingFeasibilityTest, TheDemandsOfASupplyInTenthsAreMet)
+{
+  for (const auto & [name, maximum_flow] : maximum_flows)
+    {
+      Floating_Net net;
+      auto * a = net.insert_node(2.4);
+      auto * b = net.insert_node(-1.1);
+      auto * c = net.insert_node(-1.3);
+      net.insert_arc(a, b, 5.0);
+      net.insert_arc(a, c, 5.0);
+      net.compute_aux_net();
+      maximum_flow(net);
+      EXPECT_TRUE(net.is_feasible()) << name;
+      DynDlist<Floating_Net::Node *> supply_list, demand_list;
+      net.non_feasible_nodes(supply_list, demand_list);
+      EXPECT_TRUE(supply_list.is_empty()) << name;
+      EXPECT_TRUE(demand_list.is_empty()) << name;
+    }
+}
+
+// The tolerance is that of each arc, which keeps a real deficit: a demand
+// of 1.3 that an arc of 1.2 bounds; and, beside a supply and a demand of
+// 1000, a supply and a demand of 1e-7 that no arc joins, which a tolerance
+// of the whole network, 1e-9 of 1000, would take as met
+TEST(FloatingFeasibilityTest, ARealDeficitIsNotMet)
+{
+  for (const auto & [name, maximum_flow] : maximum_flows)
+    {
+      Floating_Net net;
+      auto * a = net.insert_node(2.4);
+      auto * b = net.insert_node(-1.1);
+      auto * c = net.insert_node(-1.3);
+      net.insert_arc(a, b, 5.0);
+      net.insert_arc(a, c, 1.2);
+      net.compute_aux_net();
+      maximum_flow(net);
+      EXPECT_FALSE(net.is_feasible()) << name;
+      DynDlist<Floating_Net::Node *> supply_list, demand_list;
+      net.non_feasible_nodes(supply_list, demand_list);
+      ASSERT_EQ(supply_list.size(), 1u) << name;
+      EXPECT_EQ(supply_list.get_first(), a) << name;
+      ASSERT_EQ(demand_list.size(), 1u) << name;
+      EXPECT_EQ(demand_list.get_first(), c) << name;
+    }
+
+  for (const auto & [name, maximum_flow] : maximum_flows)
+    {
+      Floating_Net net;
+      auto * a = net.insert_node(1000.0);
+      auto * b = net.insert_node(-1000.0);
+      auto * c = net.insert_node(1e-7);
+      auto * d = net.insert_node(-1e-7);
+      net.insert_arc(a, b, 1000.0);
+      net.compute_aux_net();
+      maximum_flow(net);
+      EXPECT_FALSE(net.is_feasible()) << name;
+      DynDlist<Floating_Net::Node *> supply_list, demand_list;
+      net.non_feasible_nodes(supply_list, demand_list);
+      ASSERT_EQ(supply_list.size(), 1u) << name;
+      EXPECT_EQ(supply_list.get_first(), c) << name;
+      ASSERT_EQ(demand_list.size(), 1u) << name;
+      EXPECT_EQ(demand_list.get_first(), d) << name;
+    }
+}
+
+// On 300 random networks of 5 to 9 nodes in tenths, the supplies and the
+// demands are what an exact maximum flow in integer tenths ships from
+// and to the nodes that want to supply or demand up to 3.0: the
+// instances are feasible by construction, and each maximum flow finds
+// them so, where an exact comparison took some 490 of 1500 for not
+// feasible
+TEST(FloatingFeasibilityTest, FeasibleInstancesInTenthsAreFeasible)
+{
+  using Integer_Net = Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class, long>>;
+  struct Spec_Arc
+  {
+    int u, v;
+    long cap;  // in tenths
+  };
+  std::mt19937 gen(31337);
+  size_t instances = 0;
+  for (int k = 0; k < 300; ++k)
+    {
+      // a path through every node from 0 and to n - 1, and some arcs more
+      const int n = 5 + int(gen() % 5);
+      Array<Spec_Arc> arcs;
+      auto cap = [&gen] { return long(1 + gen() % 40); };
+      for (int i = 1; i < n - 1; ++i)
+        {
+          const int u = int(gen() % unsigned(i));
+          arcs.append(Spec_Arc{u, i, cap()});
+          const int v = i + 1 + int(gen() % unsigned(n - 1 - i));
+          arcs.append(Spec_Arc{i, v, cap()});
+        }
+      for (int extra = int(4 + gen() % 11); extra > 0; --extra)
+        {
+          const int u = int(gen() % unsigned(n - 1));
+          const int v = 1 + int(gen() % unsigned(n - 1));
+          if (u != v)
+            arcs.append(Spec_Arc{u, v, cap()});
+        }
+
+      // what each node wants to supply (positive) or demand (negative)
+      Array<long> want(size_t(n), 0);
+      for (int i = 0; i < n; ++i)
+        {
+          const unsigned r = gen() % 4;
+          if (r == 0)
+            want[size_t(i)] = 1 + long(gen() % 30);
+          else if (r == 1)
+            want[size_t(i)] = -(1 + long(gen() % 30));
+        }
+      want[0] = 1 + long(gen() % 30);
+      want[size_t(n - 1)] = -(1 + long(gen() % 30));
+
+      // what an exact maximum flow ships from and to them
+      Integer_Net inet;
+      Array<Integer_Net::Node *> inodes;
+      for (int i = 0; i < n; ++i)
+        inodes.append(inet.insert_node());
+      auto * s = inet.insert_node();
+      auto * t = inet.insert_node();
+      for (size_t j = 0; j < arcs.size(); ++j)
+        inet.insert_arc(inodes[size_t(arcs[j].u)], inodes[size_t(arcs[j].v)], arcs[j].cap);
+      Array<Integer_Net::Arc *> ends(size_t(n), nullptr);
+      for (int i = 0; i < n; ++i)
+        if (want[size_t(i)] > 0)
+          ends[size_t(i)] = inet.insert_arc(s, inodes[size_t(i)], want[size_t(i)]);
+        else if (want[size_t(i)] < 0)
+          ends[size_t(i)] = inet.insert_arc(inodes[size_t(i)], t, -want[size_t(i)]);
+      edmonds_karp_maximum_flow(inet);
+      Array<long> supply(size_t(n), 0);
+      bool supplies = false, demands = false;
+      for (int i = 0; i < n; ++i)
+        if (ends[size_t(i)] != nullptr)
+          {
+            supply[size_t(i)] = want[size_t(i)] > 0 ? ends[size_t(i)]->flow : -ends[size_t(i)]->flow;
+            supplies = supplies or supply[size_t(i)] > 0;
+            demands = demands or supply[size_t(i)] < 0;
+          }
+      if (not supplies or not demands)
+        continue;  // nothing to ship
+      ++instances;
+
+      for (const auto & [name, maximum_flow] : maximum_flows)
+        {
+          Floating_Net net;
+          Array<Floating_Net::Node *> nodes;
+          for (int i = 0; i < n; ++i)
+            nodes.append(net.insert_node(double(supply[size_t(i)]) / 10.0));
+          for (size_t j = 0; j < arcs.size(); ++j)
+            net.insert_arc(nodes[size_t(arcs[j].u)], nodes[size_t(arcs[j].v)],
+                           double(arcs[j].cap) / 10.0);
+          net.compute_aux_net();
+          maximum_flow(net);
+          EXPECT_TRUE(net.is_feasible()) << name << " on the instance " << k;
+        }
+    }
+  EXPECT_GT(instances, 250u);
+}
+
+// A supply of infinity and a demand of infinity, which nodes of infinite
+// capacities admit, are met only by an infinite flow. The tolerance of
+// an arc of infinite capacity, infinite too, took a maximum flow of 2.5
+// between them as meeting both, and an infinite flow, inf - inf being
+// NaN, as meeting neither
+TEST(FloatingFeasibilityTest, AnInfiniteSupplyIsMetOnlyByAnInfiniteFlow)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  for (const auto & [name, maximum_flow] : maximum_flows)
+    for (const double cap : {2.5, inf})
+      {
+        Floating_Net net;
+        auto * a = net.insert_node(inf);
+        auto * b = net.insert_node(-inf);
+        a->out_cap = inf;
+        b->in_cap = inf;
+        net.insert_arc(a, b, cap);
+        net.compute_aux_net();
+        maximum_flow(net);
+        const bool met = cap == inf;
+        EXPECT_EQ(net.is_feasible(), met) << name << " with a -> b of " << cap;
+        DynDlist<Floating_Net::Node *> supply_list, demand_list;
+        net.non_feasible_nodes(supply_list, demand_list);
+        EXPECT_EQ(supply_list.size(), met ? 0u : 1u) << name << " with a -> b of " << cap;
+        EXPECT_EQ(demand_list.size(), met ? 0u : 1u) << name << " with a -> b of " << cap;
+        if (not met and supply_list.size() == 1u and demand_list.size() == 1u)
+          {
+            EXPECT_EQ(supply_list.get_first(), a) << name;
+            EXPECT_EQ(demand_list.get_first(), b) << name;
+          }
+      }
 }
 
 int main(int argc, char** argv)

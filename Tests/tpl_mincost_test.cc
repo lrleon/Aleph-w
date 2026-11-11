@@ -8,6 +8,8 @@
  */
 
 #include <array>
+#include <string>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -687,6 +689,35 @@ TEST(SSPTest, RefusesACycleOfCost1e7)
   EXPECT_THROW(successive_shortest_paths(net), std::domain_error);
   EXPECT_EQ(sm->flow, 1);
   EXPECT_EQ(dear->flow, 1);
+}
+
+// A path of arcs of infinite capacity from the source to the sink makes
+// the maximum flow infinite, which has no cost to minimize: SSP took that
+// path forever, as the residual of an arc of infinite capacity and flow,
+// inf - inf, is NaN. It throws, with the flows of the entry, also after
+// the path of the cheaper arc, which it takes first
+TEST(SSPTest, RefusesAnInfiniteMaximumFlow)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  TestNet net;
+  auto s = net.insert_node(), a = net.insert_node(), t = net.insert_node();
+  Arc * cheap = net.insert_arc(s, t, 2.5, 1);
+  Arc * sa = net.insert_arc(s, a, inf, 2);
+  Arc * at = net.insert_arc(a, t, inf, 2);
+  cheap->flow = 1;
+
+  try
+    {
+      successive_shortest_paths(net);
+      ADD_FAILURE() << "successive_shortest_paths() did not throw";
+    }
+  catch (const std::domain_error & e)
+    {
+      EXPECT_NE(std::string(e.what()).find("infinite"), std::string::npos) << e.what();
+    }
+  EXPECT_EQ(cheap->flow, 1);
+  EXPECT_EQ(sa->flow, 0);
+  EXPECT_EQ(at->flow, 0);
 }
 
 // With the arcs that bound the paths filled exactly, and the flows that a
