@@ -218,13 +218,27 @@ struct BenchmarkConfig
 class Timer
 {
   high_resolution_clock::time_point start_time;
-  
+  high_resolution_clock::time_point stop_time;
+  bool stopped = false;
+
 public:
-  void start() { start_time = high_resolution_clock::now(); }
-  
+  void start()
+  {
+    start_time = high_resolution_clock::now();
+    stopped = false;
+  }
+
+  // Freezes the time that elapsed_ms() reports, so that the check of the
+  // result of a sort does not count in it
+  void stop()
+  {
+    stop_time = high_resolution_clock::now();
+    stopped = true;
+  }
+
   double elapsed_ms() const
   {
-    auto end_time = high_resolution_clock::now();
+    const auto end_time = stopped ? stop_time : high_resolution_clock::now();
     return duration<double, milli>(end_time - start_time).count();
   }
 };
@@ -376,24 +390,28 @@ void benchmark_array_algorithms(const BenchmarkConfig& config,
   arr = source_data;
   timer.start();
   introsort(arr);
+  timer.stop();
   print_result("Introsort", dist_name, "DynArray", timer.elapsed_ms(), is_sorted(arr));
 
   // Quicksort (optimized iterative version) - uses DynArray::operator()
   arr = source_data;
   timer.start();
   quicksort_op(arr);
+  timer.stop();
   print_result("Quicksort", dist_name, "DynArray", timer.elapsed_ms(), is_sorted(arr));
 
   // Heapsort - uses DynArray::operator()
   arr = source_data;
   timer.start();
   heapsort(arr);
+  timer.stop();
   print_result("Heapsort", dist_name, "DynArray", timer.elapsed_ms(), is_sorted(arr));
   
   // Shell Sort - uses DynArray::operator()
   arr = source_data;
   timer.start();
   shellsort(arr);
+  timer.stop();
   print_result("Shell Sort", dist_name, "DynArray", timer.elapsed_ms(), is_sorted(arr));
   
   // O(n²) algorithms - only for small inputs
@@ -402,11 +420,13 @@ void benchmark_array_algorithms(const BenchmarkConfig& config,
     arr = source_data;
     timer.start();
     insertion_sort(arr);
+    timer.stop();
     print_result("Insertion Sort", dist_name, "DynArray", timer.elapsed_ms(), is_sorted(arr));
     
     arr = source_data;
     timer.start();
     selection_sort(arr);
+    timer.stop();
     print_result("Selection Sort", dist_name, "DynArray", timer.elapsed_ms(), is_sorted(arr));
     
     if (config.num_elements <= 10000)
@@ -414,6 +434,7 @@ void benchmark_array_algorithms(const BenchmarkConfig& config,
       arr = source_data;
       timer.start();
       bubble_sort(arr);
+      timer.stop();
       print_result("Bubble Sort", dist_name, "DynArray", timer.elapsed_ms(), is_sorted(arr));
     }
   }
@@ -438,18 +459,21 @@ void benchmark_contiguous_array(const BenchmarkConfig& config,
   to_array(source_data, arr);
   timer.start();
   introsort(arr);
+  timer.stop();
   print_result("Introsort", dist_name, "Array", timer.elapsed_ms(), is_sorted(arr));
 
   // Introsort with STL-style pointer interface (begin/end)
   to_array(source_data, arr);
   timer.start();
   introsort(&arr(0), &arr(0) + arr.size());
+  timer.stop();
   print_result("Intro(ptr)", dist_name, "Array", timer.elapsed_ms(), is_sorted(arr));
 
   // Heapsort on Array<T> - contiguous memory allows optimal heap operations
   to_array(source_data, arr);
   timer.start();
   faster_heapsort(&arr(0), arr.size());
+  timer.stop();
   print_result("Heapsort", dist_name, "Array", timer.elapsed_ms(), is_sorted(arr));
 }
 
@@ -469,24 +493,28 @@ void benchmark_list_algorithms(const BenchmarkConfig& config,
   to_dynlist(source_data, slist);
   timer.start();
   mergesort(slist);
+  timer.stop();
   print_result("Merge Sort", dist_name, "DynList", timer.elapsed_ms(), is_sorted(slist));
   
   // DynList - Quicksort
   to_dynlist(source_data, slist);
   timer.start();
   quicksort(slist);
+  timer.stop();
   print_result("Quicksort", dist_name, "DynList", timer.elapsed_ms(), is_sorted(slist));
   
   // DynDlist - Merge Sort
   to_dyndlist(source_data, dlist);
   timer.start();
   mergesort(dlist);
+  timer.stop();
   print_result("Merge Sort", dist_name, "DynDlist", timer.elapsed_ms(), is_sorted(dlist));
   
   // DynDlist - Quicksort
   to_dyndlist(source_data, dlist);
   timer.start();
   quicksort(dlist);
+  timer.stop();
   print_result("Quicksort", dist_name, "DynDlist", timer.elapsed_ms(), is_sorted(dlist));
   
   // O(n²) - only for small inputs
@@ -495,11 +523,13 @@ void benchmark_list_algorithms(const BenchmarkConfig& config,
     to_dynlist(source_data, slist);
     timer.start();
     insertion_sort(slist);
+    timer.stop();
     print_result("Insertion Sort", dist_name, "DynList", timer.elapsed_ms(), is_sorted(slist));
     
     to_dyndlist(source_data, dlist);
     timer.start();
     in_place_sort(dlist);
+    timer.stop();
     print_result("Insertion Sort", dist_name, "DynDlist", timer.elapsed_ms(), is_sorted(dlist));
   }
 }
