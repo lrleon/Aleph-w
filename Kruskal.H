@@ -44,13 +44,12 @@
 # ifndef KRUSKAL_H
 # define KRUSKAL_H
 
-# include <algorithm>
-# include <vector>
-
 # include <ah-graph-concepts.H>
 
 # include <ahFunction.H>
 # include <tpl_agraph.H>
+# include <tpl_array.H>
+# include <tpl_sort_utils.H>
 # include <tpl_graph_utils.H>
 # include <tpl_test_acyclique.H>
 # include <tpl_union.H>
@@ -176,15 +175,11 @@ namespace Aleph
       // g: List_SGraph keeps its arcs in a set ordered by address, which
       // sort_arcs() could not reorder. The sort is stable, so that equal
       // arcs keep the order of g and every run gives the same tree.
-      std::vector<typename GT::Arc *> arcs;
-      arcs.reserve(g.get_num_arcs());
+      auto arcs = Array<typename GT::Arc *>::create_reserved(g.get_num_arcs());
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-        arcs.push_back(it.get_current_arc_ne());
+        arcs.append(it.get_current_arc_ne());
 
-      Distance_Compare<GT, Distance> comp(dist);
-      std::stable_sort(arcs.begin(), arcs.end(),
-                       [&comp](typename GT::Arc *a1, typename GT::Arc *a2)
-                       { return comp(a1, a2); });
+      timsort(arcs, Distance_Compare<GT, Distance>(dist));
 
       const size_t V = g.get_num_nodes();
 
@@ -193,7 +188,7 @@ namespace Aleph
       // Traverse the sorted arcs until all nodes are in one component
       for (size_t k = 0; tree.get_num_blocks() > 1 and k < arcs.size(); ++k)
         { // next smallest arc
-          auto arc = arcs[k];
+          auto arc = arcs(k);
           const long i = NODE_COUNTER(g.get_src_node(arc));
           const long j = NODE_COUNTER(g.get_tgt_node(arc));
           if (arc_is_in_tree(tree, i, j))

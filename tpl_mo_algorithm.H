@@ -72,6 +72,7 @@
 # include <tpl_array.H>
 # include <tpl_dynMapOhash.H>
 # include <tpl_dynList.H>
+# include <tpl_sort_utils.H>
 # include <ah-errors.H>
 
 namespace Aleph
@@ -339,7 +340,7 @@ namespace Aleph
       const size_t block = std::max<size_t>(1, static_cast<size_t>(std::sqrt(static_cast<double>(n))));
 
       // Snake sort: primary by l/block, secondary alternating by r
-      std::sort(&queries(0), &queries(0) + q,
+      introsort(queries,
                 [block](const Mo_Query & a, const Mo_Query & b)
                   {
                     const size_t ba = a.l / block;

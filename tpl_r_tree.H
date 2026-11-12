@@ -86,6 +86,7 @@
 #include <ah-errors.H>
 #include <point.H>
 #include <tpl_array.H>
+#include <tpl_sort_utils.H>
 
 namespace Aleph {
 
@@ -454,7 +455,7 @@ private:
         std::array<size_t, MaxEntries + 1> order{};
         for (size_t i = 0; i < n; ++i)
           order[i] = i;
-        std::sort(order.begin(), order.begin() + n,
+        introsort(order.data(), n,
                   [&items, axis, edge](const size_t a, const size_t b)
           {
             const Rectangle &ra = items(a).bbox;
@@ -551,7 +552,7 @@ private:
     std::array<size_t, MaxEntries + 1> order{};
     for (size_t i = 0; i < n; ++i)
       order[i] = i;
-    std::sort(order.begin(), order.begin() + n, [&node, &centre](const size_t a, const size_t b)
+    introsort(order.data(), n, [&node, &centre](const size_t a, const size_t b)
       {
         return node.data(a).bbox.center().distance_squared_to(centre) >
           node.data(b).bbox.center().distance_squared_to(centre);

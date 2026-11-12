@@ -100,6 +100,7 @@
 # include <tpl_dynList.H>
 # include <tpl_dynListStack.H>
 # include <tpl_mo_algorithm.H>
+# include <tpl_sort_utils.H>
 # include <tpl_tree_node.H>
 # include <ah-errors.H>
 
@@ -385,7 +386,7 @@ namespace Aleph
       const size_t block = std::max<size_t>(
         1, static_cast<size_t>(std::sqrt(static_cast<double>(n))));
 
-      std::sort(&queries(0), &queries(0) + q,
+      introsort(queries,
                 [block](const Mo_Query & a, const Mo_Query & b)
                   {
                     const size_t ba = a.l / block;
@@ -580,7 +581,7 @@ namespace Aleph
         1, static_cast<size_t>(
           std::sqrt(static_cast<double>(tour_sz))));
 
-      std::sort(&pqueries(0), &pqueries(0) + q,
+      introsort(pqueries,
                 [block](const Path_Query & a, const Path_Query & b)
                   {
                     const size_t ba = a.l / block;
@@ -944,7 +945,7 @@ namespace Aleph
       const size_t block = std::max<size_t>(
         1, static_cast<size_t>(std::sqrt(static_cast<double>(nn))));
 
-      std::sort(&queries(0), &queries(0) + q,
+      introsort(queries,
                 [block](const Mo_Query & a, const Mo_Query & b)
                   {
                     const size_t ba = a.l / block;
@@ -1118,7 +1119,7 @@ namespace Aleph
         1, static_cast<size_t>(
           std::sqrt(static_cast<double>(tour_sz))));
 
-      std::sort(&pqueries(0), &pqueries(0) + q,
+      introsort(pqueries,
                 [block](const Path_Query & a, const Path_Query & b)
                   {
                     const size_t ba = a.l / block;

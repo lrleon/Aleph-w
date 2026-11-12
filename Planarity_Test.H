@@ -108,6 +108,7 @@
 #include <tpl_dynMapTree.H>
 #include <tpl_dynSetTree.H>
 #include <tpl_graph.H>
+#include <tpl_sort_utils.H>
 #include <ah-iterator.H>
 
 namespace Aleph {
@@ -1147,33 +1148,12 @@ class LR_Planarity_Checker
       }
   }
 
-  // Sorts E stably by key: by insertion when it is short or sorted, and
-  // else with std::stable_sort, which gives the same order; insertion alone
-  // costs the square of the size of E when the keys come in decreasing order
+  // Sorts E stably by key. Timsort takes linear time on a sorted E, and
+  // sorts the short ones by binary insertion
   template <class Key>
   static void sort_by(Array<size_t> &E, const Key &key)
   {
-    const size_t n = E.size();
-    if (n < 2)
-      return;
-    size_t *const a = &E.base();
-    auto less = [&key](const size_t x, const size_t y) { return key[x] < key[y]; };
-    if (n > 32 and not std::is_sorted(a, a + n, less))
-      {
-        std::stable_sort(a, a + n, less);
-        return;
-      }
-    for (size_t i = 1; i < n; ++i)
-      {
-        const size_t k = a[i];
-        size_t j = i;
-        while (j > 0 and key[k] < key[a[j - 1]])
-          {
-            a[j] = a[j - 1];
-            --j;
-          }
-        a[j] = k;
-      }
+    timsort(E, [&key](const size_t x, const size_t y) { return key(x) < key(y); });
   }
 
   // Sorts the child edges of v by their nesting depth, as the test of v

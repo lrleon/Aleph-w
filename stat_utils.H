@@ -853,7 +853,7 @@ void compute_stats(T *data, int l, int r, T &avg, T &var, T &med, T &_min, T &_m
     }
 
   // Sort the array for quantiles
-  std::sort(data + l, data + r + 1);
+  introsort(data, l, r);
 
   _min = data[l];
   _max = data[r];
