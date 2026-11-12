@@ -1185,6 +1185,56 @@ TEST(KruskalTest, LeavesTheArcsOfTheGraphInTheirOrder)
   EXPECT_EQ(tree_arcs(), first);
 }
 
+// Kruskal sorts the arcs stably, so that of two equal arcs it tries first
+// the one that comes first in g: its tree is that of a greedy pass over the
+// arcs of g in their order, sorted stably by weight
+TEST(KruskalTest, TakesEqualArcsInTheOrderOfTheGraph)
+{
+  GT g;
+  std::mt19937 gen(11);
+  std::vector<Node *> n;
+  for (int i = 0; i < 200; ++i)
+    n.push_back(g.insert_node(i));
+  for (int k = 0; k < 2000; ++k)
+    g.insert_arc(n[gen() % 200], n[gen() % 200], int(gen() % 3)); // many equal weights
+
+  // The arcs by weight, those of each weight in the order of g
+  std::vector<Arc *> sorted;
+  for (int w = 0; w < 3; ++w)
+    for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+      if (it.get_current_arc_ne()->get_info() == w)
+        sorted.push_back(it.get_current_arc_ne());
+
+  // The greedy pass, with the blocks of the nodes in a union-find
+  std::vector<int> parent(200);
+  for (int i = 0; i < 200; ++i)
+    parent[i] = i;
+  auto find = [&parent](int x)
+  {
+    while (parent[x] != x)
+      x = parent[x] = parent[parent[x]];
+    return x;
+  };
+  std::set<Arc *> expected;
+  for (auto a : sorted)
+    {
+      const int s = find(g.get_src_node(a)->get_info());
+      const int t = find(g.get_tgt_node(a)->get_info());
+      if (s == t)
+        continue;
+      parent[s] = t;
+      expected.insert(a);
+    }
+  ASSERT_EQ(expected.size(), 199u);
+
+  Kruskal_Min_Spanning_Tree<GT>()(g);
+  std::set<Arc *> painted;
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+    if (IS_ARC_VISITED(it.get_current_arc_ne(), Aleph::Spanning_Tree))
+      painted.insert(it.get_current_arc_ne());
+  EXPECT_EQ(painted, expected);
+}
+
 // The tree mapped its nodes to those of g with map_nodes(), which chains a
 // cookie left by an earlier run: after a run whose tree was destroyed, the
 // nodes of the new tree mapped to freed nodes
