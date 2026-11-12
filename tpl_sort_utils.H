@@ -3062,6 +3062,45 @@ inline long select_pivot_op(const Array<T> &a, const long l, const long r,
   return select_pivot_op_impl<T, Compare>(a, l, r, cmp);
 }
 
+namespace sort_utils_detail {
+/** @brief Ranges with fewer items than this one keep their last item as
+ *  the pivot of partition(): there the median of three costs more than
+ *  what it saves.
+ */
+inline constexpr long Median_Of_Three_Min_Size = 7;
+
+/** @brief Put in order `a(l)`, `a(m)` and `a(r)`, with `m` the middle of
+ *  `[l, r]`, and move their median to `a(r)`, where partition() takes its
+ *  pivot.
+ *
+ *  The least of the three stays at `a(l)` and the greatest goes to
+ *  `a(m)`, so that a sorted or a reversed range splits in halves; with the
+ *  last item alone as the pivot, they split one item at a time, and moving
+ *  the median alone to `a(r)` left the least in the middle, so that a
+ *  reversed range did. A range of fewer than `Median_Of_Three_Min_Size`
+ *  items is left as it is.
+ *
+ *  @param a The container.
+ *  @param l Left index.
+ *  @param r Right index.
+ *  @param cmp Comparison functor.
+ */
+template <template <typename> class C, typename T, class Compare>
+inline void median_of_three_to_last(C<T> &a, const long l, const long r, const Compare &cmp)
+{
+  if (r - l + 1 < Median_Of_Three_Min_Size)
+    return;
+  const long m = l + (r - l) / 2;
+  if (cmp(a(m), a(l)))
+    std::swap(a(l), a(m));
+  if (cmp(a(r), a(m)))
+    std::swap(a(m), a(r));
+  if (cmp(a(m), a(l)))
+    std::swap(a(l), a(m));
+  std::swap(a(m), a(r));
+}
+}  // namespace sort_utils_detail
+
 /** @brief Implementation of partitioning using operator().
  *  @tparam Container Container type.
  *  @param a The container.
@@ -3079,10 +3118,8 @@ inline long partition_op_impl(Container &a, const long l, const long r, const Co
   long i = l - 1;
   long j = r;
 
-  // Move the selected pivot to position r
-  if (const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp); pivot_idx != r)
-    /// Only swap when the pivot isn't already at `r`.
-    std::swap(a(pivot_idx), a(r));
+  // The median of three items to position r
+  sort_utils_detail::median_of_three_to_last(a, l, r, cmp);
 
   // Now pivot value is at a(r) - use direct access instead of reference
   while (true)
@@ -3851,6 +3888,10 @@ inline long partition(C<T> &a, const long l, const long r, const Compare &cmp = 
 }
 
 /** @brief Recursively sort a dynamic array using quicksort.
+ *
+ *  The pivot is the median of the first, the middle and the last items of
+ *  each range.
+ *
  *  @param a The dynamic array.
  *  @param l Left index.
  *  @param r Right index.
@@ -3862,6 +3903,7 @@ inline void quicksort_rec(DynArray<T> &a, const long l, const long r, const Comp
   if (r <= l)
     return;
 
+  sort_utils_detail::median_of_three_to_last(a, l, r, cmp);
   if (const long i = partition(a, l, r, cmp); i - l < r - i)
     {
       quicksort_rec<T, Compare>(a, l, i - 1, cmp);
@@ -3906,6 +3948,9 @@ inline void push2(Stack &stack, const A &a, const B &b)
 
     This version of quicksort takes up maximum space of \f$O(\lg n)\f$.
 
+    The pivot is the median of the first, the middle and the last items
+    of each range, so that a sorted or a reversed array splits in halves.
+
     Quicksort is a probabilistic method. In a very bad case
     -very bad luck- can be degraded to
     \f$O(n^2)\f$. To alleviate, to the extent of luck, the bad
@@ -3939,6 +3984,7 @@ inline void quicksort(DynArray<T> &a, const Compare &cmp = Compare())
       if (r <= l)
         continue;
 
+      sort_utils_detail::median_of_three_to_last(a, l, r, cmp);
       if (const long i = partition(a, l, r, cmp); i - l > r - i)
         {
           push2(stack, l, i - 1);
@@ -4039,7 +4085,9 @@ void introsort_loop(DynArray<T> &a, long l, long r, size_t depth_limit, const Co
 
       --depth_limit;
 
-      // Partition and continue
+      // The median of three items as the pivot: with the last item alone, a
+      // sorted or a reversed range exhausted the depth limit
+      sort_utils_detail::median_of_three_to_last(a, l, r, cmp);
 
       // Recurse on smaller partition, iterate on larger (tail call elimination)
       if (const long pivot = partition(a, l, r, cmp); pivot - l < r - pivot)
@@ -4063,6 +4111,9 @@ void introsort_loop(DynArray<T> &a, long l, long r, size_t depth_limit, const Co
  *  average-case performance.
  *
  *  This is the recommended general-purpose sorting algorithm.
+ *
+ *  The pivot of each partition is the median of the first, the middle and
+ *  the last items of its range.
  *
  *  ### Characteristics
  *  - **Time complexity**: O(n log n) - guaranteed
