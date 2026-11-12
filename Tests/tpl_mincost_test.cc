@@ -479,6 +479,50 @@ TEST(TransportationTest, Larger3x4)
   EXPECT_DOUBLE_EQ(total_shipped, 150.0);  // Total supply/demand
 }
 
+// A transportation that is not square, either way: each row of the
+// shipments takes its supply, each column its demand, and the cost is that
+// of the shipments, the least one. The arcs of the network go by rows, so
+// that a mistake in their index would swap shipments
+TEST(TransportationTest, NotSquareKeepsRowsColumnsAndCost)
+{
+  const std::vector<double> supplies = {50, 60, 40};
+  const std::vector<double> demands = {30, 40, 50, 30};
+  const std::vector<std::vector<double>> costs = {{2, 3, 1, 4}, {3, 2, 4, 1}, {1, 4, 2, 3}};
+  std::vector<std::vector<double>> transposed(4, std::vector<double>(3));
+  for (size_t i = 0; i < 3; ++i)
+    for (size_t j = 0; j < 4; ++j)
+      transposed[j][i] = costs[i][j];
+
+  for (bool wide : {true, false})
+    {
+      const auto & sup = wide ? supplies : demands;
+      const auto & dem = wide ? demands : supplies;
+      const auto & cost = wide ? costs : transposed;
+      auto result = solve_transportation(sup, dem, cost);
+
+      ASSERT_TRUE(result.feasible) << (wide ? "3 x 4" : "4 x 3");
+      ASSERT_EQ(result.shipments.size(), sup.size());
+      std::vector<double> column(dem.size(), 0);
+      double total = 0;
+      for (size_t i = 0; i < sup.size(); ++i)
+        {
+          ASSERT_EQ(result.shipments[i].size(), dem.size());
+          double row = 0;
+          for (size_t j = 0; j < dem.size(); ++j)
+            {
+              row += result.shipments[i][j];
+              column[j] += result.shipments[i][j];
+              total += result.shipments[i][j] * cost[i][j];
+            }
+          EXPECT_DOUBLE_EQ(row, sup[i]) << "row " << i;
+        }
+      for (size_t j = 0; j < dem.size(); ++j)
+        EXPECT_DOUBLE_EQ(column[j], dem[j]) << "column " << j;
+      EXPECT_DOUBLE_EQ(result.total_cost, total);
+      EXPECT_DOUBLE_EQ(result.total_cost, 210);  // the least, by brute force
+    }
+}
+
 
 // ============================================================================
 // Regression tests for validation and new behavior paths

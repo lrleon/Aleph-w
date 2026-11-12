@@ -58,6 +58,8 @@
 #include <utility>
 #include <vector>
 
+#include <tpl_array.H>
+#include <tpl_sort_utils.H>
 #include <tpl_dynDlist.H>
 #include <tpl_dynListStack.H>
 #include <tpl_dynBinHeap.H>
@@ -1402,17 +1404,17 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
       };
       // The storage first, so that it outlives the saver of cookies,
       // and all of it before any flow moves
-      std::vector<Info> info(net.vsize());
-      std::vector<Node *> order, queue;  // of the searches
+      auto info = Array<Info>::create(net.vsize());
+      Array<Node *> order, queue;  // of the searches
       order.reserve(net.vsize());
       queue.reserve(net.vsize());
-      std::vector<Arc *> end_arcs;  // of the source or the sink
+      Array<Arc *> end_arcs;  // of the source or the sink
       end_arcs.reserve(std::max(net.get_num_arcs(source), net.get_num_arcs(sink)));
       Cookie_Saver<Net> saver(net, true, false);
       {
         size_t i = 0;
         for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++i)
-          NODE_COOKIE(it.get_curr_ne()) = &info[i];
+          NODE_COOKIE(it.get_curr_ne()) = &info(i);
       }
       auto at = [](Node *p) -> Info &
         {
@@ -1448,10 +1450,10 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
         {
           order.clear();
           at(start).*depth = 0;
-          order.push_back(start);
+          order.append(start);
           for (size_t k = 0; k < order.size(); ++k)
             {
-              Node *u = order[k];
+              Node *u = order(k);
               if (u == stop)
                 continue;
               for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
@@ -1462,7 +1464,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
                   if (from == u and a->flow > Flow_Type{0} and at(v).*depth < 0)
                     {
                       at(v).*depth = at(u).*depth + 1;
-                      order.push_back(v);
+                      order.append(v);
                     }
                 }
             }
@@ -1485,7 +1487,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
       // come later
       search(source, sink, true, &Info::from_source);
       for (size_t k = order.size(); k-- > 1;)
-        if (Node *v = order[k]; between(v) and off(v))
+        if (Node *v = order(k); between(v) and off(v))
           for (typename Net::Node_Arc_Iterator it(v); it.has_curr() and excess(v) > Flow_Type{0};
                it.next_ne())
             {
@@ -1500,7 +1502,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
       // the sink
       search(sink, source, false, &Info::to_sink);
       for (size_t k = order.size(); k-- > 1;)
-        if (Node *v = order[k]; between(v) and off(v))
+        if (Node *v = order(k); between(v) and off(v))
           for (typename Net::Node_Arc_Iterator it(v); it.has_curr() and excess(v) < Flow_Type{0};
                it.next_ne())
             {
@@ -1549,15 +1551,16 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
                 // into paths and cycles, a search finds
                 ++stamp;
                 at(v).stamp = stamp;
-                queue.assign(1, v);
+                queue.clear();
+                queue.append(v);
                 Node *w = nullptr, *some = nullptr;
                 for (size_t k = 0; k < queue.size() and w == nullptr; ++k)
-                  for (typename Net::Node_Arc_Iterator it(queue[k]); it.has_curr(); it.next_ne())
+                  for (typename Net::Node_Arc_Iterator it(queue(k)); it.has_curr(); it.next_ne())
                     {
                       Arc *a = it.get_curr_ne();
                       Node *near = keeps ? net.get_tgt_node(a) : net.get_src_node(a);
                       Node *x = keeps ? net.get_src_node(a) : net.get_tgt_node(a);
-                      if (near != queue[k] or x == near or not (a->flow > Flow_Type{0}) or
+                      if (near != queue(k) or x == near or not (a->flow > Flow_Type{0}) or
                           at(x).stamp == stamp)
                         continue;
                       at(x).stamp = stamp;
@@ -1569,7 +1572,7 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
                         }
                       if (some == nullptr and opposite(x))
                         some = x;
-                      queue.push_back(x);
+                      queue.append(x);
                     }
                 if (w == nullptr)
                   w = some;
@@ -1617,8 +1620,8 @@ void return_dust(Net &net, typename Net::Node *source, typename Net::Node *sink)
             if (Arc *a = it.get_curr_ne(); a->flow > Flow_Type{0} and
                 (end == source ? net.get_src_node(a) : net.get_tgt_node(a)) == end and
                 net.get_src_node(a) != net.get_tgt_node(a))
-              end_arcs.push_back(a);
-          std::sort(end_arcs.begin(), end_arcs.end(), [](Arc *a, Arc *b)
+              end_arcs.append(a);
+          introsort(end_arcs, [](Arc *a, Arc *b)
             {
               return a->flow < b->flow;
             });

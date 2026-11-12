@@ -12,6 +12,25 @@ HEADER_EXTS = %w[.h .H .hpp .hxx .hh].freeze
 TEST_EXTS = %w[.cc .cpp .C .cxx].freeze
 VENDORED_PATH_PREFIXES = %w[third_party/].freeze
 
+# The standard containers and sorts that Aleph has, which the library uses
+# instead (CONTRIBUTING.md, "Coding conventions")
+STD_NAMES_WITH_ALEPH_EQUIVALENT = %w[
+  vector deque list forward_list map multimap set multiset
+  unordered_map unordered_multimap unordered_set unordered_multiset
+  queue stack priority_queue sort stable_sort partial_sort
+].freeze
+
+# What marks a line that uses one of them to interoperate with the
+# standard library (docs/std-vector-whitelist.md)
+STD_INTEROP_MARKER = 'std-interop:'.freeze
+
+# The files of the library whose purpose is to interoperate with the
+# standard library
+STD_INTEROP_FILES = %w[
+  ah-convert.H ah-convert-common.H ah-stl-functional.H ah-stl-utils.H
+  ah-stl-zip.H ah-uni-functional.H ah-zip.H ah-zip-utils.H
+].freeze
+
 
 def vendored_path?(path)
   VENDORED_PATH_PREFIXES.any? { |prefix| path.start_with?(prefix) }
@@ -171,6 +190,41 @@ def header_has_code_changes?(base, path, old_path = nil)
 end
 
 
+# Whether path is a file of the library, in the root of the repository,
+# that must not add the standard containers and sorts that Aleph has
+def std_checked_library_file?(path)
+  !path.include?('/') && (HEADER_EXTS + ['.C']).include?(File.extname(path)) &&
+    !STD_INTEROP_FILES.include?(path)
+end
+
+
+# How many times the code of content names each of
+# STD_NAMES_WITH_ALEPH_EQUIVALENT, without its comments and literals, nor
+# the lines that STD_INTEROP_MARKER marks
+def std_uses(content)
+  code = content.lines.map do |line|
+    line.include?(STD_INTEROP_MARKER) ? line.gsub(/\bstd(\s*::)/, 'std_interop\1') : line
+  end.join
+  counts = Hash.new(0)
+  cpp_token_stream(code).split("\n").each_cons(4) do |a, b, c, name|
+    counts[name] += 1 if a == 'std' && b == ':' && c == ':' && STD_NAMES_WITH_ALEPH_EQUIVALENT.include?(name)
+  end
+  counts
+end
+
+
+# The standard containers and sorts that Aleph has and that a file adds,
+# with how many: those that its code names more times than in the base.
+# Counting by file, moving code does not add any
+def added_std_uses(base, path, old_path = nil)
+  current = std_uses(File.read(path))
+  previous = std_uses(git_show_optional("origin/#{base}:#{old_path || path}") || '')
+  current.each_with_object({}) do |(name, n), added|
+    added[name] = n - previous[name] if n > previous[name]
+  end
+end
+
+
 def mit_license_header?(path)
   begin
     head = path.read.lines.first(80)
@@ -282,6 +336,20 @@ def main
 
   if !headers_requiring_tests.empty? && tests_changed.empty?
     failures << "headers with code changes but no Tests/ files changed (add/modify tests): #{headers_requiring_tests.join(', ')}"
+  end
+
+  files_details.each do |detail|
+    path = detail[:path]
+    next unless std_checked_library_file?(path) && File.exist?(path)
+
+    added = added_std_uses(base, path, detail[:old_path])
+    next if added.empty?
+
+    names = added.map { |name, n| "std::#{name} (#{n} more)" }.join(', ')
+    failures << "#{path} adds standard containers or sorts that Aleph has: #{names}; " \
+                'use those of Aleph (Array, DynList, DynSetTree, DynMapTree, DynBinHeap, ' \
+                'DynListQueue, in_place_sort(), mergesort()...), or end each line that ' \
+                "interoperates with the standard library with `// #{STD_INTEROP_MARKER} <why>`"
   end
 
   unless failures.empty?

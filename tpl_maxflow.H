@@ -228,7 +228,7 @@ bool build_level_graph(Net &net, typename Net::Node *source, typename Net::Node 
   // Validate NODE_COOKIE and reset all levels in a single pass
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      auto p = it.get_curr();
+      auto p = it.get_curr_ne();
       assert(is_dinic_cookie_valid<Net>(p) &&
              "NODE_COOKIE not initialized for Dinic's algorithm. "
              "Call dinic_maximum_flow() instead of build_level_graph() directly, "
@@ -251,7 +251,7 @@ bool build_level_graph(Net &net, typename Net::Node *source, typename Net::Node 
       // Explore all adjacent arcs
       for (typename Net::Node_Arc_Iterator it(curr); it.has_curr(); it.next_ne())
         {
-          auto arc = it.get_curr();
+          auto arc = it.get_curr_ne();
           auto next = net.get_connected_node(arc, curr);
 
           // Skip if already visited
@@ -309,13 +309,13 @@ typename Net::Flow_Type dinic_blocking_flow(Net &net, typename Net::Node *source
   auto path_arcs = Array<Arc *>::create(n);
   auto path_fwd = Array<char>::create(n);  // char instead of bool for safety
 
-  stack[0] = source;
+  stack(0) = source;
   size_t depth = 1;
   Flow_Type total_flow{0};
 
   while (depth > 0)
     {
-      Node *curr = stack[depth - 1];
+      Node *curr = stack(depth - 1);
 
       if (curr == sink)
         {
@@ -325,7 +325,7 @@ typename Net::Flow_Type dinic_blocking_flow(Net &net, typename Net::Node *source
           for (size_t i = 0; i + 1 < depth; ++i)
             {
               Flow_Type res =
-                path_fwd[i] ? (path_arcs[i]->cap - path_arcs[i]->flow) : path_arcs[i]->flow;
+                path_fwd(i) ? (path_arcs(i)->cap - path_arcs(i)->flow) : path_arcs(i)->flow;
               if (res < bottleneck)
                 {
                   bottleneck = res;
@@ -337,10 +337,10 @@ typename Net::Flow_Type dinic_blocking_flow(Net &net, typename Net::Node *source
           // leaves next to the capacity or to zero is set to it
           for (size_t i = 0; i + 1 < depth; ++i)
             {
-              if (path_fwd[i])
-                net_detail::add_flow(path_arcs[i], bottleneck);
+              if (path_fwd(i))
+                net_detail::add_flow(path_arcs(i), bottleneck);
               else
-                net_detail::subtract_flow(path_arcs[i], bottleneck);
+                net_detail::subtract_flow(path_arcs(i), bottleneck);
             }
 
           total_flow += bottleneck;
@@ -389,9 +389,9 @@ typename Net::Flow_Type dinic_blocking_flow(Net &net, typename Net::Node *source
             }
 
           // Valid arc — push next onto the path
-          path_arcs[depth - 1] = arc;
-          path_fwd[depth - 1] = is_forward ? 1 : 0;
-          stack[depth] = next;
+          path_arcs(depth - 1) = arc;
+          path_fwd(depth - 1) = is_forward ? 1 : 0;
+          stack(depth) = next;
           ++depth;
           advanced = true;
           break;
@@ -480,7 +480,7 @@ typename Net::Flow_Type dinic_maximum_flow(Net &net)
   Cookie_Saver<Net> cookie_saver(net, true, false);  // save nodes only
   size_t idx = 0;
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
-    NODE_COOKIE(it.get_curr()) = &node_info[idx];
+    NODE_COOKIE(it.get_curr_ne()) = &node_info(idx);
 
   // Main loop: build level graph and find blocking flows
   while (build_level_graph(net, source, sink))
@@ -1295,13 +1295,13 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
   {
     size_t idx = 0;
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
-      NODE_COOKIE(it.get_curr()) = &node_info[idx];
+      NODE_COOKIE(it.get_curr_ne()) = &node_info(idx);
   }
 
   // --- Initialize heights via reverse BFS from sink ---
   // All heights start at n (unreachable); BFS sets exact distances
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-    hlpp_height<Net>(it.get_curr()) = n;
+    hlpp_height<Net>(it.get_curr_ne()) = n;
 
   hlpp_height<Net>(sink) = 0;
 
@@ -1313,7 +1313,7 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
         Node *curr = queue.get();
         for (typename Net::Node_Arc_Iterator ait(curr); ait.has_curr(); ait.next_ne())
           {
-            auto arc = ait.get_curr();
+            auto arc = ait.get_curr_ne();
             auto next = net.get_connected_node(arc, curr);
 
             if (next == source or hlpp_height<Net>(next) != n)
@@ -1345,7 +1345,7 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
   if constexpr (floating)
     for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
       {
-        Arc *arc = it.get_curr();
+        Arc *arc = it.get_curr_ne();
         info(net.get_src_node(arc))->out.add(arc->flow);
         info(net.get_tgt_node(arc))->in.add(arc->flow);
       }
@@ -1356,7 +1356,7 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
   [[maybe_unused]] Flow_Type bound{0};
   [[maybe_unused]] bool bounded = false;
   for (typename Net::Node_Arc_Iterator it(source); it.has_curr(); it.next_ne())
-    if (Arc *arc = it.get_curr(); net.get_src_node(arc) == source)
+    if (Arc *arc = it.get_curr_ne(); net.get_src_node(arc) == source)
       {
         Flow_Type full = arc->cap;
         if constexpr (std::numeric_limits<Flow_Type>::has_infinity)
@@ -1381,7 +1381,10 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
       }
   if constexpr (floating)  // the excesses, from the flows
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-      hlpp_excess<Net>(it.get_curr()) = info(it.get_curr())->in.minus(info(it.get_curr())->out);
+      {
+        Node *p = it.get_curr_ne();
+        hlpp_excess<Net>(p) = info(p)->in.minus(info(p)->out);
+      }
 
   // With a floating flow, whether p is in a bucket; else whether it has
   // an excess, as a node with one is in a bucket
@@ -1408,11 +1411,11 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
   // Add active nodes to buckets
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      auto p = it.get_curr();
+      auto p = it.get_curr_ne();
       if (p != source and p != sink and hlpp_excess<Net>(p) > Flow_Type{0})
         {
           long h = hlpp_height<Net>(p);
-          buckets[h].append(p);
+          buckets(h).append(p);
           set_in_a_bucket(p, true);
           max_height = std::max(max_height, h);
         }
@@ -1421,13 +1424,13 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
   // --- Main push/relabel loop ---
   while (max_height >= 0)
     {
-      if (buckets[max_height].is_empty())
+      if (buckets(max_height).is_empty())
         {
           --max_height;
           continue;
         }
 
-      Node *u = buckets[max_height].remove_first();
+      Node *u = buckets(max_height).remove_first();
       set_in_a_bucket(u, false);
 
       // With a floating flow, an excess of u up to this is a residue of
@@ -1444,7 +1447,7 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
       for (typename Net::Node_Arc_Iterator it(u); it.has_curr() and hlpp_excess<Net>(u) > residue;
            it.next_ne())
         {
-          Arc *arc = it.get_curr();
+          Arc *arc = it.get_curr_ne();
           Node *v = net.get_connected_node(arc, u);
 
           Flow_Type residual;
@@ -1491,7 +1494,7 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
 
                   if (was_inactive and hlpp_excess<Net>(v) > Flow_Type{0})
                     {
-                      buckets[hlpp_height<Net>(v)].append(v);
+                      buckets(hlpp_height<Net>(v)).append(v);
                       set_in_a_bucket(v, true);
                       max_height = std::max(max_height, hlpp_height<Net>(v));
                     }
@@ -1511,7 +1514,7 @@ typename Net::Flow_Type hlpp_maximum_flow(Net &net)
                 continue;  // no admissible neighbour; drop the node
               hlpp_height<Net>(u) = min_height + 1;
             }
-          buckets[hlpp_height<Net>(u)].append(u);
+          buckets(hlpp_height<Net>(u)).append(u);
           set_in_a_bucket(u, true);
           max_height = std::max(max_height, hlpp_height<Net>(u));
         }

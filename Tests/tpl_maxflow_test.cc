@@ -2015,6 +2015,54 @@ TEST(ReturnDustTest, KeepsTheResiduesWithinTheToleranceBesideDust)
   EXPECT_TRUE(net.check_network());
 }
 
+// The last pass: when nothing reaches the sink, the dust that leaves the
+// source goes back from the arcs of the source with the least flow first,
+// and when nothing leaves the source, that which reaches the sink from
+// the arcs of the sink. Of 5d and d through two arcs of the end, with 4d
+// back through a third, the 2d of dust take the d of the smaller arc and
+// then a d of the larger: in the other order, the larger would give both.
+// A large circulation through a, b and c keeps their imbalances within
+// their tolerances, so that only the end has dust
+TEST(ReturnDustTest, ReturnsTheDustOfAnEndFromItsSmallestFlowsFirst)
+{
+  const double d = 0x1p-40;
+  for (bool at_source : {true, false})
+    {
+      TestNet net;
+      Node * s = net.insert_node(0), * a = net.insert_node(1), * b = net.insert_node(2),
+           * c = net.insert_node(3), * t = net.insert_node(4);
+      net.insert_arc(a, c, 2e6)->flow = 1e6;
+      net.insert_arc(c, a, 2e6)->flow = 1e6;
+      net.insert_arc(b, c, 2e6)->flow = 1e6;
+      net.insert_arc(c, b, 2e6)->flow = 1e6;
+      Arc * big, * small, * back;
+      if (at_source)
+        {
+          big = net.insert_arc(s, a, 1.0);
+          small = net.insert_arc(s, b, 1.0);
+          back = net.insert_arc(c, s, 1.0);
+          net.insert_arc(a, t, 1.0);  // which takes nothing
+        }
+      else
+        {
+          big = net.insert_arc(a, t, 1.0);
+          small = net.insert_arc(b, t, 1.0);
+          back = net.insert_arc(t, c, 1.0);
+          net.insert_arc(s, a, 1.0);  // which gives nothing
+        }
+      big->flow = 5 * d;
+      small->flow = d;
+      back->flow = 4 * d;
+
+      net_detail::return_dust(net, s, t);
+
+      const char * end = at_source ? "source" : "sink";
+      EXPECT_EQ(big->flow, 4 * d) << end;
+      EXPECT_EQ(small->flow, 0) << end;
+      EXPECT_EQ(back->flow, 4 * d) << end;
+    }
+}
+
 namespace
 {
   // A maximum flow of the library, with its name
