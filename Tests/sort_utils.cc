@@ -38,10 +38,12 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
 #include <limits>
+#include <memory>
 #include <random>
 #include <stdexcept>
 #include <string>
@@ -848,6 +850,248 @@ TEST(SortUtilsArraySorts, introsort_array_container_large)
 
   for (size_t i = 1; i < n; ++i)
     ASSERT_LE(arr(i - 1), arr(i)) << "Failed at index " << i;
+}
+
+// introsort() is pattern-defeating quicksort. These tests cover the
+// patterns that it detects, the sizes around its thresholds (24 items,
+// blocks of 64, 128 for the median of nine), its two partitions, its two
+// ways of reading the pivot (a copy of a trivially copyable item, and a
+// reference to the others), and what a comparison that throws leaves
+
+namespace
+{
+  // n keys with the named pattern
+  vector<int> pdq_keys(const string & pattern, const size_t n, const unsigned seed)
+  {
+    mt19937 rng(seed);
+    vector<int> keys(n);
+    const int m = static_cast<int>(n);
+    for (int i = 0; i < m; ++i)
+      if (pattern == "random")
+        keys[i] = static_cast<int>(rng() % (n + 1));
+      else if (pattern == "few")
+        keys[i] = static_cast<int>(rng() % 4);
+      else if (pattern == "equal")
+        keys[i] = 7;
+      else if (pattern == "reversed")
+        keys[i] = m - i;
+      else if (pattern == "organ")
+        keys[i] = i < m / 2 ? i : m - i;
+      else if (pattern == "sawtooth")
+        keys[i] = i % 17;
+      else  // sorted, or nearly
+        keys[i] = i;
+    if (pattern == "nearly")  // sorted, with a few items swapped
+      for (size_t k = 0; n > 1 and k < n / 50 + 1; ++k)
+        {
+          const size_t x = rng() % n;
+          const size_t y = rng() % n;
+          std::swap(keys[x], keys[y]);
+        }
+    return keys;
+  }
+
+  const vector<string> pdq_patterns = {"random", "few", "equal", "sorted", "reversed",
+                                       "organ", "sawtooth", "nearly"};
+
+  const vector<size_t> pdq_sizes = {0, 1, 2, 3, 5, 23, 24, 25, 63, 64, 65, 127, 128, 129,
+                                    130, 200, 1000, 5000, 40000};
+
+  // The comparison throws at each of the comparisons of a sort of items,
+  // in steps, and the items must stay in the array
+  template <typename T>
+  void introsort_keeps_the_items(const vector<T> & items)
+  {
+    size_t total = 0;  // the comparisons of a sort that does not throw
+    {
+      auto a = items;
+      introsort(a.data(), a.size(), [&total](const T & x, const T & y)
+        {
+          ++total;
+          return x < y;
+        });
+    }
+    auto expected = items;
+    std::sort(expected.begin(), expected.end());
+    for (size_t k = 1; k <= total; k += std::max<size_t>(1, total / 400))
+      {
+        auto a = items;
+        size_t count = 0;
+        auto cmp = [&count, k](const T & x, const T & y)
+        {
+          if (++count == k)
+            throw runtime_error("comparison failed");
+          return x < y;
+        };
+        EXPECT_THROW(introsort(a.data(), a.size(), cmp), runtime_error);
+        std::sort(a.begin(), a.end());
+        ASSERT_EQ(a, expected) << "at comparison " << k;
+      }
+  }
+}
+
+TEST(SortUtilsArraySorts, introsort_gives_the_order_of_std_sort_on_every_pattern)
+{
+  for (const auto & pattern : pdq_patterns)
+    for (const size_t n : pdq_sizes)
+      {
+        auto a = pdq_keys(pattern, n, 1);
+        auto expected = a;
+        std::sort(expected.begin(), expected.end());
+        introsort(a.data(), n);
+        ASSERT_EQ(a, expected) << pattern << ", " << n << " items";
+
+        auto d = pdq_keys(pattern, n, 1);
+        std::sort(expected.begin(), expected.end(), std::greater<int>());
+        introsort(d.data(), n, std::greater<int>());
+        ASSERT_EQ(d, expected) << pattern << ", " << n << " items, descending";
+      }
+}
+
+TEST(SortUtilsArraySorts, introsort_sorts_pointers_by_their_targets)
+{
+  for (const auto & pattern : pdq_patterns)
+    for (const size_t n : pdq_sizes)
+      {
+        const auto keys = pdq_keys(pattern, n, 2);
+        vector<const int *> p(n);
+        for (size_t i = 0; i < n; ++i)
+          p[i] = &keys[i];
+        introsort(p.data(), n, [](const int * x, const int * y) { return *x < *y; });
+
+        auto expected = keys;
+        std::sort(expected.begin(), expected.end());
+        for (size_t i = 0; i < n; ++i)
+          ASSERT_EQ(*p[i], expected[i]) << pattern << ", " << n << " items";
+        std::sort(p.begin(), p.end());  // by address: each key once
+        for (size_t i = 0; i < n; ++i)
+          ASSERT_EQ(p[i], &keys[i]) << pattern << ", " << n << " items";
+      }
+}
+
+TEST(SortUtilsArraySorts, introsort_sorts_strings)
+{
+  for (const auto & pattern : pdq_patterns)
+    for (const size_t n : {size_t(0), size_t(1), size_t(24), size_t(129), size_t(1000),
+                           size_t(5000)})
+      {
+        vector<string> a;
+        for (const int k : pdq_keys(pattern, n, 3))
+          a.push_back(to_string(k));  // in the order of strings, not of numbers
+        auto expected = a;
+        std::sort(expected.begin(), expected.end());
+        introsort(a.data(), n);
+        ASSERT_EQ(a, expected) << pattern << ", " << n << " items";
+      }
+}
+
+TEST(SortUtilsArraySorts, introsort_sorts_items_that_can_only_move)
+{
+  vector<unique_ptr<int>> a;
+  vector<int *> items;
+  for (const int k : pdq_keys("random", 3000, 4))
+    {
+      a.push_back(make_unique<int>(k));
+      items.push_back(a.back().get());
+    }
+  introsort(a.data(), a.size(),
+            [](const unique_ptr<int> & x, const unique_ptr<int> & y) { return *x < *y; });
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(*a[i - 1], *a[i]);
+
+  vector<int *> sorted_items;
+  for (const auto & p : a)
+    sorted_items.push_back(p.get());
+  std::sort(items.begin(), items.end());
+  std::sort(sorted_items.begin(), sorted_items.end());
+  EXPECT_EQ(sorted_items, items);
+}
+
+TEST(SortUtilsArraySorts, introsort_sorts_only_its_range)
+{
+  for (const size_t n : {size_t(24), size_t(200), size_t(5000)})
+    {
+      auto keys = pdq_keys("random", n, 5);
+      vector<int> a(n + 20, numeric_limits<int>::max());  // the items before the range
+      for (size_t i = n + 10; i < n + 20; ++i)
+        a[i] = numeric_limits<int>::min();  // and those after it
+      std::copy(keys.begin(), keys.end(), a.begin() + 10);
+      introsort(a.data(), 10L, static_cast<long>(n + 9));
+
+      std::sort(keys.begin(), keys.end());
+      EXPECT_TRUE(std::equal(keys.begin(), keys.end(), a.begin() + 10)) << n << " items";
+      for (size_t i = 0; i < 10; ++i)
+        {
+          EXPECT_EQ(a[i], numeric_limits<int>::max());
+          EXPECT_EQ(a[n + 10 + i], numeric_limits<int>::min());
+        }
+    }
+}
+
+// A sorted range, one in descending order and one of equal items take a
+// linear number of comparisons
+TEST(SortUtilsArraySorts, introsort_takes_linear_comparisons_on_ordered_ranges)
+{
+  const size_t n = 100000;
+  for (const string pattern : {"sorted", "reversed", "equal"})
+    {
+      auto a = pdq_keys(pattern, n, 6);
+      size_t comparisons = 0;
+      introsort(a.data(), n, [&comparisons](const int x, const int y)
+        {
+          ++comparisons;
+          return x < y;
+        });
+      EXPECT_TRUE(std::is_sorted(a.begin(), a.end())) << pattern;
+      EXPECT_LE(comparisons, 4 * n) << pattern;
+    }
+}
+
+// McIlroy's adversary ("A Killer Adversary for Quicksort", 1999) gives the
+// items their values while the sort compares them, so that each partition
+// is as unbalanced as it can be: a plain quicksort takes a quadratic
+// number of comparisons, and introsort() must stay in O(n log n)
+TEST(SortUtilsArraySorts, introsort_bounds_the_comparisons_of_a_killer_adversary)
+{
+  const int n = 20000;
+  const int gas = n;  // the value of an item not frozen yet, above all others
+  vector<int> value(n, gas);
+  int frozen = 0, candidate = 0;
+  size_t comparisons = 0;
+  auto cmp = [&](const int x, const int y)
+  {
+    ++comparisons;
+    if (value[x] == gas and value[y] == gas)
+      value[x == candidate ? x : y] = frozen++;
+    if (value[x] == gas)
+      candidate = x;
+    else if (value[y] == gas)
+      candidate = y;
+    return value[x] < value[y];
+  };
+  vector<int> items(n);
+  for (int i = 0; i < n; ++i)
+    items[i] = i;
+  introsort(items.data(), items.size(), cmp);
+
+  for (int i = 1; i < n; ++i)
+    ASSERT_LE(value[items[i - 1]], value[items[i]]);
+  EXPECT_LE(comparisons, static_cast<size_t>(3 * n * std::log2(n)));
+}
+
+// If a comparison throws, the array keeps its items: those read through a
+// copy of the pivot (int) and those read through a reference (string)
+TEST(SortUtilsArraySorts, introsort_keeps_the_items_if_the_comparison_throws)
+{
+  for (const string pattern : {"random", "few", "sorted", "reversed", "organ", "nearly"})
+    {
+      const auto keys = pdq_keys(pattern, 600, 7);
+      introsort_keeps_the_items(keys);
+      vector<string> strings;
+      for (const int k : keys)
+        strings.push_back(to_string(k));
+      introsort_keeps_the_items(strings);
+    }
 }
 
 TEST(SortUtilsArraySorts, heapsort_dynarray)
