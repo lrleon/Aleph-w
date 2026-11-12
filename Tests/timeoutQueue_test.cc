@@ -786,9 +786,12 @@ TEST(TimeoutQueueTest, Statistics)
   atomic<int> executed_callbacks{0};
   auto* e1 = new TestEvent(time_from_now_ms(50));
   auto* e2 = new TestEvent(time_from_now_ms(100));
+  // The worker counts and notifies with the lock taken: without it, the test
+  // could see the count, end and destroy cv while notify_all() runs
   const auto on_executed =
     [&](TimeoutQueue::Event*, TimeoutQueue::Event::Execution_Status status)
     {
+      lock_guard<mutex> lock(mtx);
       if (status == TimeoutQueue::Event::Executed)
         ++executed_callbacks;
       cv.notify_all();
@@ -831,9 +834,11 @@ TEST(TimeoutQueueTest, ResetStats)
   atomic<bool> completed{false};
 
   auto* e = new TestEvent(time_from_now_ms(50));
+  // The flag and the notification go with the lock taken, as in Statistics
   e->set_completion_callback(
     [&](TimeoutQueue::Event*, TimeoutQueue::Event::Execution_Status status)
     {
+      lock_guard<mutex> lock(mtx);
       completed = status == TimeoutQueue::Event::Executed;
       cv.notify_all();
     });
