@@ -5,6 +5,15 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.6.1](https://github.com/lrleon/Aleph-w/compare/v7.6.0...v7.6.1) (2026-11-12)
+
+
+### Performance Improvements
+
+* **flow:** Use unchecked accessors and Aleph containers in the flows ([#182](https://github.com/lrleon/Aleph-w/issues/182)) ([53b4580](https://github.com/lrleon/Aleph-w/commit/53b458001d7d158b6631137bceb902c3890f2781))
+* **sort:** Sort with pattern-defeating quicksort in introsort() ([#186](https://github.com/lrleon/Aleph-w/issues/186)) ([80cb659](https://github.com/lrleon/Aleph-w/commit/80cb659073ee88781f95e6f2156c8beb03b28a52))
+* **sort:** Take the median of three in the sorts of a DynArray ([#187](https://github.com/lrleon/Aleph-w/issues/187)) ([63b36f9](https://github.com/lrleon/Aleph-w/commit/63b36f96741dbfd883fafc0a903350aaace81ea8))
+
 ## [7.6.0](https://github.com/lrleon/Aleph-w/compare/v7.5.0...v7.6.0) (2026-11-11)
 
 
