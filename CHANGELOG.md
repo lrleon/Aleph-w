@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [7.6.1](https://github.com/lrleon/Aleph-w/compare/v7.6.0...v7.6.1) (2026-11-12)
 
 
+### Bug Fixes
+
+* **examples:** Read the time of each sort before checking its result ([#187](https://github.com/lrleon/Aleph-w/issues/187)) ([63b36f9](https://github.com/lrleon/Aleph-w/commit/63b36f96741dbfd883fafc0a903350aaace81ea8))
+
 ### Performance Improvements
 
 * **flow:** Use unchecked accessors and Aleph containers in the flows ([#182](https://github.com/lrleon/Aleph-w/issues/182)) ([53b4580](https://github.com/lrleon/Aleph-w/commit/53b458001d7d158b6631137bceb902c3890f2781))
