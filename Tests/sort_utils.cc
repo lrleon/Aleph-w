@@ -897,6 +897,93 @@ TEST(SortUtilsArraySorts, quicksort_rec_dynarray)
     ASSERT_LE(a(i - 1), a(i));
 }
 
+// The sorts of a DynArray take as their pivot the median of the first,
+// the middle and the last items: with the last item alone, a sorted or a
+// reversed array made quicksort() and quicksort_rec() quadratic and sent
+// introsort() to heapsort, and quicksort_op(), which moved the median
+// alone to the last place, was quadratic on a reversed array
+
+namespace
+{
+  DynArray<int> dynarray_keys(const string & pattern, const size_t n)
+  {
+    mt19937 rng(10);
+    DynArray<int> a;
+    const int m = static_cast<int>(n);
+    for (int i = 0; i < m; ++i)
+      if (pattern == "random")
+        a.append(static_cast<int>(rng() % (n + 1)));
+      else if (pattern == "few")
+        a.append(static_cast<int>(rng() % 4));
+      else if (pattern == "reversed")
+        a.append(m - i);
+      else if (pattern == "organ")
+        a.append(i < m / 2 ? i : m - i);
+      else  // sorted
+        a.append(i);
+    return a;
+  }
+
+  // Sorts the keys of pattern with sort, checks that it gives the order
+  // of std::sort, and returns the comparisons that it made
+  template <class Sort>
+  size_t sort_dynarray(const string & pattern, const size_t n, Sort sort)
+  {
+    auto a = dynarray_keys(pattern, n);
+    vector<int> expected;
+    for (size_t i = 0; i < n; ++i)
+      expected.push_back(a(i));
+    std::sort(expected.begin(), expected.end());
+
+    size_t comparisons = 0;
+    sort(a, [&comparisons](const int x, const int y)
+      {
+        ++comparisons;
+        return x < y;
+      });
+
+    bool same = a.size() == n;
+    for (size_t i = 0; same and i < n; ++i)
+      same = a(i) == expected[i];
+    EXPECT_TRUE(same) << pattern << ", " << n << " items";
+    return comparisons;
+  }
+
+  auto dynarray_introsort = [](DynArray<int> & a, const auto & cmp) { introsort(a, cmp); };
+  auto dynarray_quicksort = [](DynArray<int> & a, const auto & cmp) { quicksort(a, cmp); };
+  auto dynarray_quicksort_rec = [](DynArray<int> & a, const auto & cmp)
+  {
+    quicksort_rec(a, 0L, static_cast<long>(a.size()) - 1, cmp);
+  };
+  auto dynarray_quicksort_op = [](DynArray<int> & a, const auto & cmp) { quicksort_op(a, cmp); };
+}
+
+TEST(SortUtilsArraySorts, sorts_of_a_dynarray_give_the_order_of_std_sort)
+{
+  for (const string pattern : {"random", "few", "sorted", "reversed", "organ"})
+    for (const size_t n : {size_t(0), size_t(1), size_t(2), size_t(3), size_t(39), size_t(40),
+                           size_t(41), size_t(100), size_t(1000), size_t(3000)})
+      {
+        sort_dynarray(pattern, n, dynarray_introsort);
+        sort_dynarray(pattern, n, dynarray_quicksort);
+        sort_dynarray(pattern, n, dynarray_quicksort_rec);
+        sort_dynarray(pattern, n, dynarray_quicksort_op);
+      }
+}
+
+TEST(SortUtilsArraySorts, sorts_of_a_dynarray_split_sorted_and_reversed_input_in_halves)
+{
+  const size_t n = 20000;
+  const auto bound = static_cast<size_t>(2 * n * std::log2(n));
+  for (const string pattern : {"sorted", "reversed"})
+    {
+      EXPECT_LE(sort_dynarray(pattern, n, dynarray_introsort), bound) << pattern;
+      EXPECT_LE(sort_dynarray(pattern, n, dynarray_quicksort), bound) << pattern;
+      EXPECT_LE(sort_dynarray(pattern, n, dynarray_quicksort_rec), bound) << pattern;
+      EXPECT_LE(sort_dynarray(pattern, n, dynarray_quicksort_op), bound) << pattern;
+    }
+}
+
 TEST(SortUtilsListSorts, mergesort_dynlist)
 {
   DynList<int> l = make_dynlist({4, 1, 3, 2, 0, 2});
