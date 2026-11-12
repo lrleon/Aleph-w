@@ -99,6 +99,27 @@ constant condition, and their message is compiled even where the condition
 is false, so it must compile for every instantiation. A message whose last
 `<<` does not give back a stream does not compile.
 
+### The Stream of a Message Is Out of the Frame
+
+A macro that throws writes its message in a `std::ostringstream`, with the
+insertions of its caller. That stream does not live in the frame of the
+function that checks: an object of one pointer makes it when the macro
+throws, and frees it when the exception leaves. A check costs so its
+comparison, and the compiler can inline the function that makes it. A
+stream in that frame, 376 bytes with libstdc++, kept GCC from inlining a
+checked access as `Array::operator[]`, and each access was a call.
+
+The message is the one of always: its place, `(file:line) | `, and its
+items as the stream writes them, with its manipulators. The items are
+evaluated once, in their order and only if the macro throws, and each is
+read when it is inserted:
+
+```cpp
+std::string name = "first";
+ah_domain_error() << name << " and " << (name = "second");
+// the message ends in "first and second"
+```
+
 ## Guidelines
 
 ### DO ✓

@@ -302,8 +302,11 @@ protected:
       @note O(dim). Requires size() == capacity(). The array is unchanged
             if the allocation or the assignment of `item` throws; a throwing
             move may leave some elements moved from, as in reallocate().
+      @note It is out of line: copied into put_item(), it made that
+            function too large for the loops that append to inline it.
   */
   template <class U>
+  [[gnu::noinline]]
   T &grow_and_insert(const size_t pos, U &&item, const size_t first = 0)
   {
     assert(n == dim and pos <= n);
