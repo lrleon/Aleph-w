@@ -36,20 +36,24 @@
  * that the text is the one that a stream gives for the same items, behind
  * the place of the call; that each item is evaluated once, in order and
  * only to throw, and read when it is inserted; that the stream has the
- * type of the temporary stream that the macros had, and is freed also
- * when an item throws; and that the checked accesses of the arrays still
- * throw with their text.
+ * type of the temporary stream that the macros had, and dies when its
+ * exception leaves, also when an item throws; that the place is written
+ * by the library and each thread writes its own messages; and that the
+ * checked accesses of the arrays still throw with their text.
  */
 
 # include <gtest/gtest.h>
 
+# include <atomic>
 # include <cstring>
 # include <iomanip>
+# include <ios>
 # include <ostream>
 # include <sstream>
 # include <stdexcept>
 # include <string>
 # include <string_view>
+# include <thread>
 # include <type_traits>
 # include <typeinfo>
 # include <utility>
@@ -181,6 +185,45 @@ namespace
         return text_of(e.what());
       }
     return "nothing";
+  }
+
+  // The streams that took a Watches_Its_Stream, and those of them that
+  // died
+  int streams_watched = 0;
+  int streams_dead = 0;
+
+  void count_a_dead_stream(const std::ios_base::event event, std::ios_base &,
+                           int)
+  {
+    if (event == std::ios_base::erase_event)
+      ++streams_dead;
+  }
+
+  // Its insertion makes the stream that takes it tell when it dies
+  struct Watches_Its_Stream {};
+
+  std::ostream & operator << (std::ostream & out, const Watches_Its_Stream &)
+  {
+    ++streams_watched;
+    out.register_callback(count_a_dead_stream, 0);
+    return out << "watched";
+  }
+
+  // An overload that the standard allows to a caller: it takes the strings
+  // that go into an rvalue stream where it is visible
+  namespace overload_of_the_caller
+  {
+    int strings_taken = 0;
+
+    std::ostringstream && operator << (std::ostringstream && out,
+                                       const char * str)
+    {
+      ++strings_taken;
+      static_cast<std::ostream &>(out) << str;
+      return std::move(out);
+    }
+
+    void raise() { ah_range_error() << "an item " << 7 << " and another"; }
   }
 }
 
@@ -376,10 +419,12 @@ TEST(ErrorMessage, GoesThroughAMacroThatTakesItAsAnArgument)
                std::out_of_range);
 }
 
-// Of a message, the frame of the function that checks holds a pointer. A
-// stream in it took 376 bytes with libstdc++, and a function with such a
-// frame is not inlined. And the stream is given as the temporary stream
-// of the macros was, so that the items go into it as they did.
+// What owns the stream of a message is one pointer, which is all that the
+// frame of the function that checks needs for it; a stream in that frame
+// took 376 bytes with libstdc++ on x86-64, and a function with such a
+// frame is not inlined. What the compiler makes of the frame is not seen
+// here. And the stream is given as the temporary stream of the macros
+// was, so that the items go into it as they did.
 TEST(ErrorMessage, TheStreamOfAMessageTakesAPointerOfTheFrame)
 {
   using Aleph::error_detail::Message_Stream;
@@ -402,17 +447,68 @@ TEST(ErrorMessage, TheStreamOfAMessageTakesAPointerOfTheFrame)
 }
 
 // An exception thrown by an item leaves, in the place of that of the
-// macro, and the stream of the message is freed: the sanitizers would
-// report it.
-TEST(ErrorMessage, AnItemThatThrowsFreesTheStream)
+// macro. The stream of a message dies, once, when its exception leaves,
+// be it that of the macro or that of an item: an item watches it.
+TEST(ErrorMessage, TheStreamDiesWhenItsExceptionLeaves)
 {
+  streams_watched = streams_dead = 0;
   for (int i = 0; i < 100; ++i)
     {
-      EXPECT_THROW(ah_runtime_error() << "before " << Throws_When_Inserted()
-                   << " after", std::length_error);
-      EXPECT_THROW(ah_runtime_error_if(i >= 0) << throw_if_odd(2 * i + 1),
-                   std::underflow_error);
+      EXPECT_THROW(ah_runtime_error() << Watches_Its_Stream() << " before",
+                   std::runtime_error);
+      EXPECT_EQ(streams_dead, 3 * i + 1);
+      EXPECT_THROW(ah_runtime_error() << Watches_Its_Stream() << " before "
+                   << Throws_When_Inserted() << " after", std::length_error);
+      EXPECT_EQ(streams_dead, 3 * i + 2);
+      EXPECT_THROW(ah_runtime_error_if(i >= 0) << Watches_Its_Stream()
+                   << throw_if_odd(2 * i + 1), std::underflow_error);
+      EXPECT_EQ(streams_dead, 3 * i + 3);
     }
+  EXPECT_EQ(streams_watched, 300);
+}
+
+// The place of a message is written inside the library, by the inserters
+// of the standard library. An overload of the caller for an rvalue stream
+// takes the strings among the items of that caller, and not the three of
+// the place and the name of the file.
+TEST(ErrorMessage, AnOverloadOfTheCallerTakesItsItemsAndNotThePlace)
+{
+  overload_of_the_caller::strings_taken = 0;
+  const std::string message =
+    message_of<std::range_error>(overload_of_the_caller::raise);
+  EXPECT_EQ(file_of(message), __FILE__);
+  EXPECT_EQ(text_of(message), "an item 7 and another");
+  EXPECT_EQ(overload_of_the_caller::strings_taken, 2);
+}
+
+// Each message has a stream of its own: the threads that throw at once
+// share nothing.
+TEST(ErrorMessage, EachThreadWritesItsOwnMessages)
+{
+  constexpr int Num_Threads = 8;
+  constexpr int Num_Messages = 2000;
+  std::atomic<int> wrong = 0;
+  Aleph::Array<std::thread> threads;
+  for (int t = 0; t < Num_Threads; ++t)
+    threads.append(std::thread([t, &wrong]
+      {
+        for (int i = 1; i <= Num_Messages; ++i)
+          try
+            {
+              ah_runtime_error() << "thread " << t << ", message " << i
+                                 << ", " << text_of_another_message(i);
+            }
+          catch (const std::runtime_error & e)
+            {
+              if (text_of(e.what()) != "thread " + std::to_string(t) +
+                  ", message " + std::to_string(i) + ", inner " +
+                  std::to_string(i) + " of inin")
+                ++wrong;
+            }
+      }));
+  for (int t = 0; t < Num_Threads; ++t)
+    threads(t).join();
+  EXPECT_EQ(wrong, 0);
 }
 
 // A message that an item of another throws and catches does not touch

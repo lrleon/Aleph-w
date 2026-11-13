@@ -106,8 +106,9 @@ insertions of its caller. That stream does not live in the frame of the
 function that checks: an object of one pointer makes it when the macro
 throws, and frees it when the exception leaves. A check costs so its
 comparison, and the compiler can inline the function that makes it. A
-stream in that frame, 376 bytes with libstdc++, kept GCC from inlining a
-checked access as `Array::operator[]`, and each access was a call.
+stream in that frame, 376 bytes with libstdc++ on x86-64, kept GCC from
+inlining a checked access as `Array::operator[]`, and each access was a
+call.
 
 The message is the one of always: its place, `(file:line) | `, and its
 items as the stream writes them, with its manipulators. The items are
@@ -119,6 +120,16 @@ std::string name = "first";
 ah_domain_error() << name << " and " << (name = "second");
 // the message ends in "first and second"
 ```
+
+Out of the message, two things are not as they were before 7.6.2:
+
+- The stream is allocated: a macro that throws asks for one block of
+  memory more. Without memory for it, the macro throws `std::bad_alloc` in
+  the place of its exception, and does not evaluate its items.
+- The place is written by the library, with the inserters of the standard
+  library. An overload of `<<` for an rvalue `std::ostringstream` that is
+  visible where a macro is used takes the items of that use, and no longer
+  the place.
 
 ## Guidelines
 

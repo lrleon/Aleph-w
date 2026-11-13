@@ -103,12 +103,20 @@
  *  live in the frame of the function that checks: an object of one
  *  pointer, error_detail::Message_Stream, makes it when the macro throws
  *  and frees it when the exception leaves. A stream in that frame, 376
- *  bytes with libstdc++, kept GCC from inlining a checked access as
- *  `Array::operator[]`, and each access was a call.
+ *  bytes with libstdc++ on x86-64, kept GCC from inlining a checked access
+ *  as `Array::operator[]`, and each access was a call.
  *
  *  The message does not change. Its items go into a stream of the same
  *  type, in their order and when they are evaluated, and only if the macro
- *  throws.
+ *  throws. Out of the message, two things do change:
+ *
+ *  - The stream is allocated: a macro that throws asks for one block of
+ *    memory more. Without memory for it, the macro throws `std::bad_alloc`
+ *    in the place of its exception, and does not evaluate its items.
+ *  - The place of the error, `(file:line) | `, is written by the library,
+ *    with the inserters of the standard library. An overload of `<<` for
+ *    an rvalue `std::ostringstream` that is visible where a macro is used
+ *    takes the items of that use, and no longer the place.
  *
  *  @author Leandro Rabindranath Leon
  *  @date 2002-2025 *
@@ -146,14 +154,16 @@ namespace Aleph
      *
      *  A macro wrote its message in a temporary `std::ostringstream`,
      *  which lived in the frame of the function that checks: 376 bytes
-     *  with libstdc++, and GCC does not inline a function whose frame
-     *  grows so. This object owns the stream out of that frame, of which
-     *  it takes a pointer, and frees it when the full expression of the
-     *  macro ends, which is when its exception leaves.
+     *  with libstdc++ on x86-64, and GCC does not inline a function whose
+     *  frame grows so. This object owns the stream out of that frame, of
+     *  which it takes a pointer, and frees it when the full expression of
+     *  the macro ends, which is when its exception leaves.
      *
      *  stream() gives the stream as the temporary was, an rvalue of the
-     *  same type: the message is written by the same insertions, at the
-     *  same time and with the same types as before.
+     *  same type: the items of a macro are written by the same insertions,
+     *  at the same time and with the same types as before. The place of
+     *  the error is written here, by the inserters of the standard library
+     *  and before any item is evaluated.
      *
      *  @ingroup Utilities
      */
@@ -165,7 +175,8 @@ namespace Aleph
       /** @brief Makes the stream and writes in it the place of the error.
        *  @param[in] file The file of the call, as `__FILE__` gives it.
        *  @param[in] line The line of the call.
-       *  @throw std::bad_alloc If there is no memory for the stream.
+       *  @throw std::bad_alloc If there is no memory for the stream; the
+       *         macro has not evaluated any of its items then.
        */
       AH_ERROR_COLD Message_Stream(const char * file, const int line)
         : stream_(new std::ostringstream)

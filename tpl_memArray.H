@@ -307,7 +307,7 @@ protected:
   */
   template <class U>
   [[gnu::noinline]]
-  T &grow_and_insert(const size_t pos, U &&item, const size_t first = 0)
+  T &relocate_and_insert(const size_t pos, U &&item, const size_t first)
   {
     assert(n == dim and pos <= n);
     ah_overflow_error_if(dim > (std::numeric_limits<size_t>::max() >> 1))
@@ -320,11 +320,34 @@ protected:
 #endif
     replacement.putn(n + 1);
     replacement.ptr[pos] = std::forward<U>(item);  // the old buffer is still alive
-    for (size_t i = 0; i < n; ++i)
-      replacement.ptr[i < pos ? i : i + 1] = std::move(ptr[(first + i) & (dim - 1)]);
+    for (size_t i = 0; i < pos; ++i)  // a loop for each side of the item:
+      replacement.ptr[i] = std::move(ptr[(first + i) & (dim - 1)]);
+    for (size_t i = pos; i < n; ++i)  // one loop would choose at each step
+      replacement.ptr[i + 1] = std::move(ptr[(first + i) & (dim - 1)]);
     swap(replacement);
 
     return ptr[pos];
+  }
+
+  /** @brief Grow a full array and insert one item: relocate_and_insert().
+
+      A scalar item goes as a copy. The growth takes its item by reference,
+      and an item whose address leaves its function lives in memory: a loop
+      that appends would store it at each step, also when nothing grows.
+
+      @param[in] pos Logical position of the new item, at most size().
+      @param[in] item Value to insert; it may be an element of this array.
+      @param[in] first Physical index of the first logical element.
+      @return Reference to the inserted item, at physical index `pos`.
+      @throws std::overflow_error, std::bad_alloc or an exception from T.
+  */
+  template <class U>
+  T &grow_and_insert(const size_t pos, U &&item, const size_t first = 0)
+  {
+    if constexpr (std::is_scalar_v<T>)
+      return relocate_and_insert(pos, T(item), first);
+    else
+      return relocate_and_insert(pos, std::forward<U>(item), first);
   }
 
   /** Test if `n` is lesser than `contract_threshold` and eventually
