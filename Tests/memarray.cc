@@ -1005,3 +1005,63 @@ TEST(MemArray, failed_growth_leaves_a_moved_argument_untouched)
   a.put(std::move(x));
   EXPECT_EQ(a(4).value, long_string('x'));
 }
+
+namespace
+{
+  /// @brief A full array whose sequence starts at any slot, with its growth.
+  template <class T>
+  struct Full_Ring : public MemArray<T>
+  {
+    using MemArray<T>::grow_and_insert;
+
+    /// @brief A value with the letter `c`: a `char`, or a string of it.
+    static T of(const char c)
+    {
+      if constexpr (std::is_scalar_v<T>)
+        return c;
+      else
+        return T(1, c);
+    }
+
+    /// @brief The value of the item of logical position `i`.
+    static T item(const size_t i) { return of(static_cast<char>('a' + i)); }
+
+    /// @brief Fill `cap` slots: the item of position `i` goes `first` slots after.
+    Full_Ring(const size_t cap, const size_t first) : MemArray<T>(cap)
+    {
+      for (size_t i = 0; i < cap; ++i)
+        this->put(T());
+      for (size_t i = 0; i < cap; ++i)
+        (*this)((first + i) % cap) = item(i);
+    }
+  };
+
+  /// @brief Grow rings of 8 with a new item at each position, from each slot.
+  template <class T>
+  void check_growth_of_rings()
+  {
+    const T inserted = Full_Ring<T>::of('#');
+    for (size_t first = 0; first < 8; ++first)
+      for (size_t pos = 0; pos <= 8; ++pos)
+        {
+          Full_Ring<T> ring(8, first);
+          ASSERT_EQ(ring.size(), ring.capacity());
+          T &ret = ring.grow_and_insert(pos, inserted, first);
+          EXPECT_EQ(&ret, &ring(pos));
+          ASSERT_EQ(ring.size(), 9u);
+          EXPECT_EQ(ring.capacity(), 16u);
+          for (size_t i = 0; i < 9; ++i)
+            EXPECT_EQ(ring(i), i == pos ? inserted :
+                      Full_Ring<T>::item(i < pos ? i : i - 1))
+              << "first " << first << ", pos " << pos << ", i " << i;
+        }
+  }
+}
+
+// The queues grow from any slot and at their end, and the arrays, from
+// the first slot and at any end. The growth is one for all of them.
+TEST(MemArray, growth_inserts_at_any_position_of_a_sequence_from_any_slot)
+{
+  check_growth_of_rings<char>();    // a scalar goes to the growth as a copy
+  check_growth_of_rings<string>();  // and what is not, as it comes
+}
