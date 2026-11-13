@@ -98,8 +98,10 @@ namespace
   }
 
   // The message of a std::domain_error, in an array: a string would ask
-  // for memory while a test makes the allocations fail
-  using Text = char[256];
+  // for memory while a test makes the allocations fail. The message
+  // carries the path of this file: the array has room for it, however
+  // long, and for the rest
+  using Text = char[sizeof(__FILE__) + 128];
 
   // What raise() did: 'm' if it threw std::bad_alloc; 'e' if it threw
   // std::domain_error, whose message goes to `text`; and '?' otherwise
