@@ -2362,6 +2362,50 @@ O(V + E) y tiempo O(V + E) para cotas 1–2, u O(V + E + Σ d_in(v) · d_out(v))
 cota 3, contando vecinos distintos dentro del núcleo cíclico. La DP acotada
 existente y sus certificados conservan su comportamiento.
 
+#### Los ciclos que un cambio puede volver negativos
+
+`Bounded_Cycle_Index.H` responde otra pregunta sobre el mismo grafo de mercado. Las funciones de
+arriba buscan en el grafo en cada llamada y devuelven un ciclo o unos pocos. `Bounded_Cycle_Index`
+enumera una vez todos los ciclos simples cuya longitud está en un conjunto, de 1 a 8 arcos, y
+cuando cambia el peso de un arco mira solo los ciclos que pasan por él y entrega los que quedan
+por debajo de una cota. Es para un grafo cuya forma se queda y cuyos pesos cambian todo el tiempo.
+
+- **El catálogo.** Los arcos toman números en el orden que usted da. Un ciclo es la secuencia de
+  los números de sus arcos desde el menor; los arcos paralelos dan ciclos distintos y un lazo es
+  un ciclo de un arco. Los ciclos van por longitud y luego en orden lexicográfico, de modo que los
+  de hasta una longitud son un prefijo, con las posiciones que tienen en el catálogo de ese
+  conjunto menor.
+- **El filtro.** `update(arco, peso, cota, max_length, op)` escribe un peso y llama a
+  `op(posición, suma)` por cada ciclo de ese arco que queda por debajo de la cota. Para cambiar
+  varios arcos antes de mirar ningún ciclo, como los dos lados de un mercado, se llama a
+  `set_weight()` por cada uno y luego a `for_each_cycle_below(arcos, cota, max_length, op)`, que
+  entrega cada ciclo una sola vez. La suma de un ciclo se rehace desde los pesos del momento, en
+  un orden fijo: no arrastra error de un cambio al siguiente, y es el mismo número cambie el arco
+  que cambie.
+- **El margen.** Las sumas son `double`: el índice entrega candidatos y no decide. Con
+  `w = -log(tasa)` y un umbral `t`, se da la cota `t` más un margen que cubra el error de los
+  pesos y el de la suma, que `sum_error_bound()` acota; así no se pierde ningún ciclo que la regla
+  exacta acepta, y cada candidato se decide con aritmética exacta.
+- **Un arco que no se puede usar** tiene el peso más infinito, que es el de todo arco hasta que
+  se le da uno.
+
+```cpp
+Bounded_Cycle_Index index(const_view(market), {3, 4}, by_symbol_and_side);
+
+index.update(index.arc_number(arc), -std::log(rate), 1e-9, 4,
+             [&] (size_t position, double sum)
+             {
+               if (exact_product(index.cycle_arcs(position)) > 1)
+                 report(position);
+             });
+```
+
+El índice trabaja sobre un grafo `const` y sobre un `Const_Graph_View`, y guarda punteros a los
+arcos: el grafo debe sobrevivirle sin cambiar. Ocupa `O(E + C k^2)` de memoria para `C` ciclos de
+longitud `k`; un límite del número de ciclos, 2^24 si no se da otro, detiene un grafo denso antes
+de que tome la memoria, con `std::length_error`. `Examples/bounded_cycle_index_example.cc` lo
+recorre sobre un mercado de divisas.
+
 <a id="readme-es-mst"></a>
 ### Árboles de expansión mínima
 

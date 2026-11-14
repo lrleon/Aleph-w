@@ -2572,6 +2572,48 @@ and the call throws only when the best cycle's total does not fit. The search us
 O(V + E + Σ d_in(v) · d_out(v)) time for bound 3, with distinct-neighbour degrees
 inside the cyclic core. The existing bounded DP and its certificates are unchanged.
 
+#### The cycles that a change can make negative
+
+`Bounded_Cycle_Index.H` answers another question on the same market graph. The functions above
+search the graph on each call and return one cycle or a few. `Bounded_Cycle_Index` enumerates
+once every simple cycle whose length is in a set, of 1 to 8 arcs, and when the weight of an arc
+changes it looks only at the cycles through that arc and hands those whose total is below a
+bound. It is for a graph whose shape stays while its weights change all the time.
+
+- **The catalog.** The arcs take numbers in an order that you give. A cycle is the sequence of
+  the numbers of its arcs from the least one; parallel arcs give different cycles and a loop is a
+  cycle of one arc. The cycles go by length and then lexicographically, so that those up to a
+  length are a prefix, with the positions that they have in the catalog of that smaller set.
+- **The filter.** `update(arc, weight, bound, max_length, op)` writes one weight and calls
+  `op(position, sum)` for each cycle of that arc below the bound. To change several arcs before
+  any cycle is looked at, as the two sides of a market, call `set_weight()` for each and then
+  `for_each_cycle_below(arcs, bound, max_length, op)`, which hands each cycle once. The sum of a
+  cycle is added from the weights of the moment, in a fixed order: no error is carried from one
+  change to the next, and it is the same number whichever arc changed.
+- **The margin.** The sums are `double`: the index hands candidates and does not decide. With
+  `w = -log(rate)` and a threshold `t`, give the bound `t` plus a margin that covers the error of
+  the weights and that of the sum, which `sum_error_bound()` bounds; then no cycle that the exact
+  rule accepts is lost, and each candidate is decided with exact arithmetic.
+- **An arc that cannot be used** has the weight plus infinity, which is the weight of every arc
+  until it is given one.
+
+```cpp
+Bounded_Cycle_Index index(const_view(market), {3, 4}, by_symbol_and_side);
+
+index.update(index.arc_number(arc), -std::log(rate), 1e-9, 4,
+             [&] (size_t position, double sum)
+             {
+               if (exact_product(index.cycle_arcs(position)) > 1)
+                 report(position);
+             });
+```
+
+The index works on a `const` graph and on a `Const_Graph_View`, and keeps pointers to the arcs:
+the graph must outlive it unchanged. It takes `O(E + C k^2)` memory for `C` cycles of length
+`k`; a limit on the number of cycles, 2^24 unless another is given, stops a dense graph before it
+takes the memory, with `std::length_error`. `Examples/bounded_cycle_index_example.cc` walks
+through it on a market of currencies.
+
 <a id="readme-minimum-spanning-trees"></a>
 ### Minimum Spanning Trees
 
