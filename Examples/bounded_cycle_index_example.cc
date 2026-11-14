@@ -92,6 +92,15 @@ namespace
   using View = Const_Graph_View<Market>;
   using Index = Bounded_Cycle_Index<View>;
 
+  // A rate from its digits. GMP keeps the fraction as it is written, and
+  // its arithmetic needs it in lowest terms
+  mpq_class exact_rate(const char *fraction)
+  {
+    mpq_class rate(fraction);
+    rate.canonicalize();
+    return rate;
+  }
+
   // The weight of a trade: a profitable cycle has a negative sum
   double weight_of(const mpq_class & rate) { return -log(rate.get_d()); }
 
@@ -150,7 +159,7 @@ int main()
   const auto trade = [&market] (Market::Node *from, Market::Node *to, const string & name,
                                 const char *rate)
     {
-      return market.insert_arc(from, to, Trade{name, mpq_class(rate)});
+      return market.insert_arc(from, to, Trade{name, exact_rate(rate)});
     };
   const auto eurusd_sell_arc = trade(eur, usd, "EURUSD sell", "10850/10000");
   const auto eurusd_buy_arc = trade(usd, eur, "EURUSD buy", "10000/10852");
@@ -195,8 +204,8 @@ int main()
   // any cycle is looked at, and each cycle is handed once.
   const auto quote = [&] (const char *bid, const char *ask_inverse)
     {
-      eurusd_sell_arc->get_info().rate = mpq_class(bid); // the owner of the market writes it
-      eurusd_buy_arc->get_info().rate = mpq_class(ask_inverse);
+      eurusd_sell_arc->get_info().rate = exact_rate(bid); // the owner of the market writes it
+      eurusd_buy_arc->get_info().rate = exact_rate(ask_inverse);
       index.set_weight(eurusd_sell, weight_of(eurusd_sell_arc->get_info().rate));
       index.set_weight(eurusd_buy, weight_of(eurusd_buy_arc->get_info().rate));
       decide.candidates = decide.profitable = 0;
@@ -212,7 +221,7 @@ int main()
 
   // The change of one arc: update() writes it and looks at its cycles
   const size_t eurgbp_sell = index.arc_number(eurgbp_sell_arc);
-  eurgbp_sell_arc->get_info().rate = mpq_class("8600/10000");
+  eurgbp_sell_arc->get_info().rate = exact_rate("8600/10000");
   cout << "EURGBP sell at 0.8600:\n";
   decide.candidates = decide.profitable = 0;
   const uint64_t before = index.clock();

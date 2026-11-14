@@ -86,8 +86,13 @@
  *  \f[ t_{approx} + \varepsilon_S + \varepsilon_t \f]
  *
  *  The margin widens what is accepted: it is added to the bound, not
- *  subtracted from it. The cycles that it lets through are candidates,
- *  to be decided with the exact rule. `sum_error_bound()` gives the part
+ *  subtracted from it. Those additions are rounded as well, and a bound
+ *  that is rounded down loses the cycle whose sum equals it: the bound
+ *  given must not be less than that expression. Round it up, with
+ *  `std::nextafter()` towards \f$+\infty\f$ after each addition, or
+ *  take a margin that is wider than the two errors. The cycles that the
+ *  margin lets through are candidates, to be decided with the exact
+ *  rule. `sum_error_bound()` gives the part
  *  of \f$\varepsilon_S\f$ that is of the index, the rounding of the sum;
  *  the error of each weight, that of the conversion of the rate and that
  *  of its logarithm, is of who computes the weights. With several
@@ -156,13 +161,19 @@ namespace Aleph
    *  See the description of the file for the catalog, the weights, the
    *  filter and its margin.
    *
-   *  The index is built in \f$O(V + E \log E + C k)\f$ time besides the
-   *  search, which walks each simple path of fewer arcs than the longest
-   *  length whose first arc is its least one; `C` is the number of cycles
-   *  and `k` their length. It takes \f$O(E + C k^2)\f$ memory: for each
-   *  arc, the arcs of each of its cycles are kept contiguous, so that a
-   *  change of the arc reads them in a row. `update()` takes
-   *  \f$O(c\,k)\f$ for an arc that is in `c` cycles.
+   *  The index is built in \f$O(V + E \log E + C k^2)\f$ time, with the
+   *  sort of the arcs at its expected cost, besides the search, which
+   *  walks each simple path of fewer arcs than the longest length whose
+   *  first arc is its least one; `C` is the number of cycles and `k`
+   *  their length. It takes \f$O(E + C k^2)\f$ memory: for each arc, the
+   *  arcs of each of its cycles are kept contiguous, so that a change of
+   *  the arc reads them in a row. `update()` takes \f$O(c\,k)\f$ for an
+   *  arc that is in `c` cycles.
+   *
+   *  An index can be copied, assigned, moved and exchanged with
+   *  `swap()`. A copy is another index of the same graph, with the
+   *  weights, the stamps and the clock of the first. An index that is
+   *  moved from is left without arcs and without cycles.
    *
    *  @tparam GT the type of the digraph: a graph class of Aleph or a
    *          `Const_Graph_View` of one.
@@ -181,11 +192,15 @@ namespace Aleph
     static constexpr size_t Default_Max_Cycles = size_t(1) << 24;
 
   private:
+    // The counts of the build are checked against 2^32 in a size_t
+    static_assert(sizeof(size_t) >= 8, "Bounded_Cycle_Index needs a size_t of 64 bits");
+
     static constexpr uint32_t Not_Found = std::numeric_limits<uint32_t>::max();
     static constexpr size_t Stride = Max_Length + 2; // entries of an arc, by length
 
     // Numbers by address: an open table with linear probing, as that of
-    // In_Arcs_Index, with 2^bits places, at least twice the number of keys
+    // In_Arcs_Index, with 2^bits places, at least twice the number of keys.
+    // A table that was moved from has no place: its bits are 0.
     struct Number_Table
     {
       unsigned bits = 1;
@@ -200,6 +215,19 @@ namespace Aleph
           ++bits;
         keys = Array<const void *>(size_t(1) << bits, nullptr);
         numbers = Array<uint32_t>(size_t(1) << bits, uint32_t(0));
+      }
+
+      Number_Table(const Number_Table &) = default;
+
+      Number_Table(Number_Table && other) noexcept
+        : bits(std::exchange(other.bits, 0u)), keys(std::move(other.keys)),
+          numbers(std::move(other.numbers)) {}
+
+      // By value: the table is copied or moved apart, and then exchanged
+      Number_Table & operator = (Number_Table other) noexcept
+      {
+        swap(other);
+        return *this;
       }
 
       [[nodiscard]] size_t place_of(const void *p) const noexcept
@@ -220,6 +248,8 @@ namespace Aleph
 
       [[nodiscard]] uint32_t find(const void *p) const noexcept
       {
+        if (bits == 0)
+          return Not_Found;
         const size_t mask = (size_t(1) << bits) - 1;
         for (size_t i = place_of(p); keys(i) != nullptr; i = (i + 1) & mask)
           if (keys(i) == p)
@@ -334,6 +364,8 @@ namespace Aleph
                 on_cycle(path.arcs, size_t(1));
               continue;
             }
+          if (shape.longest == 1)
+            continue; // only loops are asked for: there is no path to extend
           path.nodes[0] = shape.source(head);
           path.n = 1;
           extend(shape, path, shape.target(head), on_cycle);
@@ -664,7 +696,8 @@ namespace Aleph
       size_t seen = 0;
       for (size_t i = 0; i < n; ++i)
         {
-          // every cycle of an arc that is given again has it marked
+          if (done_(arcs[i]) != 0)
+            continue; // given again: all its cycles have it marked
           seen += look_at(arcs[i], bound, longest, i > 0, op);
           done_(arcs[i]) = 1;
         }
@@ -682,7 +715,8 @@ namespace Aleph
      *  @param[in] less the order of the arcs: `less(a, b)` is true if the
      *             arc `a` takes a number before `b`. It must be a strict
      *             weak order; the arcs that it does not tell apart keep
-     *             the order of the arc iterator of `g`.
+     *             the order of the arc iterator of `g`. What it throws
+     *             goes to the caller, and no index is built.
      *  @param[in] max_cycles the most cycles that the index may hold.
      *  @throw std::domain_error if `g` is not directed, if a length is
      *         not from 1 to `Max_Length` or if there is no length.
@@ -727,7 +761,8 @@ namespace Aleph
      *             `Max_Length`.
      *  @param[in] less the order of the arcs, a strict weak order; the
      *             arcs that it does not tell apart keep the order of the
-     *             arc iterator of `g`.
+     *             arc iterator of `g`. What it throws goes to the caller,
+     *             and no index is built.
      *  @param[in] max_cycles the most cycles that the index may hold.
      *  @throw std::domain_error if `g` is not directed, if a length is
      *         not from 1 to `Max_Length` or if there is no length.
@@ -767,6 +802,92 @@ namespace Aleph
     Bounded_Cycle_Index(const GT & g, const Array<size_t> & lengths,
                         const size_t max_cycles = Default_Max_Cycles)
       : Bounded_Cycle_Index(g, lengths, Arc_List_Order(), max_cycles) {}
+
+    /** @brief Copy an index: its catalog, its weights, its stamps and its
+     *         clock.
+     *
+     *  The copy is another index of the same graph, which must outlive it
+     *  too. It is in no query: a copy made by the function that receives
+     *  the cycles of `for_each_cycle_below()` hands every cycle that it
+     *  is asked for afterwards.
+     *
+     *  @param[in] other the index to copy.
+     *  @throw std::bad_alloc if there is no memory.
+     *  @note \f$O(E + C k^2)\f$ time and memory.
+     */
+    Bounded_Cycle_Index(const Bounded_Cycle_Index & other)
+      : arc_numbers_(other.arc_numbers_), arcs_(other.arcs_), lengths_(other.lengths_),
+        longest_(other.longest_), cycle_arcs_(other.cycle_arcs_),
+        member_first_(other.member_first_), members_(other.members_),
+        group_member_(other.group_member_), group_first_(other.group_first_),
+        narrow_(other.narrow_), wide_(other.wide_), weight_(other.weight_),
+        stamp_(other.stamp_), clock_(other.clock_),
+        done_(other.done_.size(), static_cast<unsigned char>(0)) // no mark of a query
+    {
+      for (size_t k = 0; k < Stride; ++k)
+        {
+          length_first_[k] = other.length_first_[k];
+          arcs_before_[k] = other.arcs_before_[k];
+        }
+    }
+
+    /** @brief Take the index of another, in constant time and without
+     *         failing.
+     *
+     *  @param[in,out] other the index to take. It is left without arcs
+     *                 and without cycles: it can be asked, assigned and
+     *                 destroyed.
+     */
+    Bounded_Cycle_Index(Bounded_Cycle_Index && other) noexcept
+      : arc_numbers_(std::move(other.arc_numbers_)), arcs_(std::move(other.arcs_)),
+        lengths_(std::exchange(other.lengths_, uint32_t(0))),
+        longest_(std::exchange(other.longest_, size_t(0))),
+        cycle_arcs_(std::move(other.cycle_arcs_)),
+        member_first_(std::move(other.member_first_)), members_(std::move(other.members_)),
+        group_member_(std::move(other.group_member_)),
+        group_first_(std::move(other.group_first_)), narrow_(std::move(other.narrow_)),
+        wide_(std::move(other.wide_)), weight_(std::move(other.weight_)),
+        stamp_(std::move(other.stamp_)), clock_(std::exchange(other.clock_, uint64_t(0))),
+        done_(std::move(other.done_))
+    {
+      for (size_t k = 0; k < Stride; ++k)
+        {
+          length_first_[k] = std::exchange(other.length_first_[k], size_t(0));
+          arcs_before_[k] = std::exchange(other.arcs_before_[k], size_t(0));
+        }
+    }
+
+    /** @brief Make the index a copy of another.
+     *
+     *  The copy is made apart and then exchanged with the index: if there
+     *  is no memory for it, the index keeps all that it had. For a
+     *  moment both are in memory.
+     *
+     *  @param[in] other the index to copy.
+     *  @return the index.
+     *  @throw std::bad_alloc if there is no memory; the index does not
+     *         change.
+     *  @note \f$O(E + C k^2)\f$ time and memory.
+     */
+    Bounded_Cycle_Index & operator = (const Bounded_Cycle_Index & other)
+    {
+      if (this != &other)
+        Bounded_Cycle_Index(other).swap(*this);
+      return *this;
+    }
+
+    /** @brief Take the index of another, in constant time besides freeing
+     *         what the index had, and without failing.
+     *
+     *  @param[in,out] other the index to take. It is left without arcs
+     *                 and without cycles.
+     *  @return the index.
+     */
+    Bounded_Cycle_Index & operator = (Bounded_Cycle_Index && other) noexcept
+    {
+      Bounded_Cycle_Index(std::move(other)).swap(*this);
+      return *this;
+    }
 
     /// @brief The number of arcs of the graph when the index was built.
     [[nodiscard]] size_t num_arcs() const noexcept { return arcs_.size(); }
@@ -844,7 +965,9 @@ namespace Aleph
      *         cycle.
      *
      *  @param[in] position the position of a cycle in the catalog.
-     *  @return the numbers of its arcs, valid while the index lives.
+     *  @return the numbers of its arcs: a range of the memory of the
+     *          index, valid until the index is destroyed, assigned or
+     *          moved from. `swap()` takes that memory to the other index.
      *  @throw std::out_of_range if there is no cycle at that position.
      */
     [[nodiscard]] std::span<const uint32_t> cycle_arcs(const size_t position) const
@@ -857,8 +980,10 @@ namespace Aleph
      *         ascending order.
      *
      *  @param[in] arc the number of an arc.
-     *  @return the positions, valid while the index lives; none if the
-     *          arc is in no cycle of the catalog.
+     *  @return the positions, none if the arc is in no cycle of the
+     *          catalog: a range of the memory of the index, valid until
+     *          the index is destroyed, assigned or moved from. `swap()`
+     *          takes that memory to the other index.
      *  @throw std::out_of_range if there is no arc with that number.
      */
     [[nodiscard]] std::span<const uint32_t> cycles_of(const size_t arc) const
@@ -928,6 +1053,9 @@ namespace Aleph
      *  @throw std::out_of_range if there is no arc with that number.
      *  @throw std::domain_error if `w` is not a number or is
      *         \f$-\infty\f$, or if `bound` is not a number.
+     *  @note \f$O(c\,k)\f$ besides what `op` takes, for the `c` cycles
+     *        of the arc of at most `max_length` arcs, of `k` arcs each:
+     *        the weight of each of their arcs is read.
      */
     template <class Op>
       requires std::invocable<Op &, size_t, double>
@@ -948,7 +1076,8 @@ namespace Aleph
      *  through any of the arcs, whose length is at most `max_length` and
      *  whose sum is below `bound`: by arc, in the order given, and by
      *  ascending position among those of an arc. It must not change the
-     *  index.
+     *  index. If it throws, the cycles that were not reached are not
+     *  handed, and the index is ready for another query.
      *
      *  @param[in] arcs the numbers of the arcs; a number may be repeated.
      *  @param[in] bound a cycle is handed if its sum is less than it.
@@ -958,6 +1087,12 @@ namespace Aleph
      *  @throw std::out_of_range if there is no arc with one of the
      *         numbers; no cycle is handed then.
      *  @throw std::domain_error if `bound` is not a number.
+     *  @note \f$O(n + c\,k)\f$ besides what `op` takes, for `n` arcs
+     *        given and the `c` cycles of at most `max_length` arcs, of `k`
+     *        arcs each, counted once for each different arc given that
+     *        they go through: a cycle through several of those arcs is
+     *        read for each of them and handed once. An arc that is given
+     *        again costs \f$O(1)\f$.
      */
     template <class Op>
       requires std::invocable<Op &, size_t, double>
@@ -982,6 +1117,9 @@ namespace Aleph
      *  @throw std::out_of_range if there is no arc with one of the
      *         numbers; no cycle is handed then.
      *  @throw std::domain_error if `bound` is not a number.
+     *  @note \f$O(n + c\,k)\f$ besides what `op` takes, as with an array
+     *        of arcs: `n` arcs given, and `c` cycles of `k` arcs counted
+     *        once for each different arc given that they go through.
      */
     template <class Op>
       requires std::invocable<Op &, size_t, double>
@@ -996,13 +1134,17 @@ namespace Aleph
      *
      *  `op(position, sum)` is called for each cycle whose length is at
      *  most `max_length` and whose sum is below `bound`, in ascending
-     *  order of position.
+     *  order of position. If it throws, the cycles that were not reached
+     *  are not handed.
      *
      *  @param[in] bound a cycle is handed if its sum is less than it.
      *  @param[in] max_length the longest length of the cycles to look at.
      *  @param[in] op the function that receives each cycle.
      *  @return the number of cycles looked at.
      *  @throw std::domain_error if `bound` is not a number.
+     *  @note \f$O(C\,k)\f$ besides what `op` takes, for the `C` cycles
+     *        of the catalog of at most `max_length` arcs, of `k` arcs
+     *        each.
      */
     template <class Op>
       requires std::invocable<Op &, size_t, double>
@@ -1088,6 +1230,9 @@ namespace Aleph
     /** @brief Exchange two indexes in constant time, without failing: how
      *         to replace an index by another built apart, with another
      *         set of lengths.
+     *
+     *  The ranges that `cycle_arcs()` and `cycles_of()` gave go with their
+     *  memory: those of this index are of `other` afterwards.
      *
      *  @param[in,out] other the other index.
      */

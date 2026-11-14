@@ -47,6 +47,7 @@
 # include <random>
 # include <set>
 # include <stdexcept>
+# include <type_traits>
 # include <utility>
 # include <vector>
 
@@ -244,6 +245,88 @@ namespace
   }
 
   // The complete digraph of n nodes
+  // All that an index answers, to compare two of them: its arcs with
+  // their weights, their stamps and their cycles, its cycles with their
+  // sums, its counts and its clock, and what a query of all its arcs hands
+  template <class GT>
+  struct Answers
+  {
+    std::vector<const void *> arcs;
+    std::vector<double> weights;
+    std::vector<uint64_t> stamps;
+    std::vector<std::vector<size_t>> of_arc;
+    std::vector<Cycle> cycles;
+    std::vector<double> sums;
+    std::vector<uint64_t> counts;
+    Handed handed;
+    size_t seen = 0;
+
+    explicit Answers(Bounded_Cycle_Index<GT> & index)
+    {
+      Array<size_t> all;
+      for (size_t a = 0; a < index.num_arcs(); ++a)
+        {
+          arcs.push_back(index.arc(a));
+          weights.push_back(index.weight(a));
+          stamps.push_back(index.stamp(a));
+          of_arc.push_back(as_vector(index.cycles_of(a)));
+          all.append(a);
+        }
+      for (size_t position = 0; position < index.num_cycles(); ++position)
+        {
+          cycles.push_back(as_vector(index.cycle_arcs(position)));
+          sums.push_back(index.weight_sum(position));
+        }
+      for (size_t k = 0; k <= Bounded_Cycle_Index<GT>::Max_Length + 1; ++k)
+        {
+          counts.push_back(index.num_cycles(k));
+          counts.push_back(index.num_cycles_up_to(k));
+          counts.push_back(index.has_length(k));
+        }
+      counts.push_back(index.longest_length());
+      counts.push_back(index.clock());
+      seen = index.for_each_cycle_below(all, Infinity, Bounded_Cycle_Index<GT>::Max_Length,
+                                        [this] (size_t p, double s) { handed.emplace_back(p, s); });
+    }
+
+    bool operator == (const Answers &) const = default;
+  };
+
+  // The index has no arcs and no cycles, and answers so to every query
+  template <class GT>
+  void expect_no_arcs_and_no_cycles(Bounded_Cycle_Index<GT> & index,
+                                    const typename GT::Arc *arc)
+  {
+    EXPECT_EQ(index.num_arcs(), 0u);
+    EXPECT_EQ(index.num_cycles(), 0u);
+    for (size_t k = 0; k <= Bounded_Cycle_Index<GT>::Max_Length + 1; ++k)
+      {
+        EXPECT_EQ(index.num_cycles(k), 0u) << "length " << k;
+        EXPECT_EQ(index.num_cycles_up_to(k), 0u) << "length " << k;
+        EXPECT_FALSE(index.has_length(k)) << "length " << k;
+      }
+    EXPECT_EQ(index.longest_length(), 0u);
+    EXPECT_EQ(index.clock(), 0u);
+    EXPECT_THROW((void) index.arc_number(arc), std::domain_error);
+    EXPECT_THROW((void) index.arc(0), std::out_of_range);
+    EXPECT_THROW((void) index.weight(0), std::out_of_range);
+    EXPECT_THROW((void) index.stamp(0), std::out_of_range);
+    EXPECT_THROW((void) index.cycles_of(0), std::out_of_range);
+    EXPECT_THROW((void) index.cycle_arcs(0), std::out_of_range);
+    EXPECT_THROW((void) index.weight_sum(0), std::out_of_range);
+    EXPECT_THROW((void) index.length(0), std::out_of_range);
+    EXPECT_THROW((void) index.is_stale(0, 0), std::out_of_range);
+    EXPECT_THROW(index.set_weight(0, 1), std::out_of_range);
+    EXPECT_THROW(index.touch(0), std::out_of_range);
+    size_t handed = 0;
+    const auto count = [&handed] (size_t, double) { ++handed; };
+    EXPECT_THROW(index.update(0, 1, Infinity, 8, count), std::out_of_range);
+    EXPECT_THROW(index.for_each_cycle_below({0}, Infinity, 8, count), std::out_of_range);
+    EXPECT_EQ(index.for_each_cycle_below(Array<size_t>(), Infinity, 8, count), 0u);
+    EXPECT_EQ(index.for_each_cycle_below(Infinity, 8, count), 0u);
+    EXPECT_EQ(handed, 0u);
+  }
+
   Ends complete_ends(const size_t n)
   {
     Ends ends;
@@ -983,6 +1066,187 @@ TEST(BoundedCycleIndex, SwapsAndCopies)
   expect_the_catalog(moved, Oracle<List_Type>(built.g, {3, 4, 5}, Arc_List_Order()));
 }
 
+// A copy made by the function that receives the cycles, while some arcs
+// are marked, is in no query: it hands every cycle that it is asked for.
+// So does an index that is assigned there.
+TEST(BoundedCycleIndex, StartsACopyMadeInsideAQueryWithoutMarks)
+{
+  // two cycles of two arcs, apart: the arcs 0 and 1, and the arcs 2 and 3
+  const Built<List_Type> built(4, {{0, 1}, {1, 0}, {2, 3}, {3, 2}});
+  const Built<List_Type> other(3, {{0, 1}, {1, 2}, {2, 0}});
+  Bounded_Cycle_Index index(built.g, {2});
+  ASSERT_EQ(index.num_cycles(), 2u);
+  for (size_t a = 0; a < 4; ++a)
+    index.set_weight(a, -1);
+
+  std::vector<Bounded_Cycle_Index<List_Type>> copies;
+  Bounded_Cycle_Index assigned(other.g, {3});
+  size_t calls = 0;
+  index.for_each_cycle_below({0, 2}, 0, 2, [&] (size_t, double)
+    {
+      if (++calls == 2) // the cycle of the arc 2: the arc 0 is marked
+        {
+          copies.push_back(index);
+          assigned = index;
+        }
+    });
+  ASSERT_EQ(calls, 2u);
+  ASSERT_EQ(copies.size(), 1u);
+
+  // the arc 1 after another arc: its cycle goes through the arc 0
+  for (Bounded_Cycle_Index<List_Type> *each : {&copies[0], &assigned, &index})
+    {
+      size_t handed = 0;
+      EXPECT_EQ(each->for_each_cycle_below({2, 1}, 0, 2, [&handed] (size_t, double) { ++handed; }),
+                2u);
+      EXPECT_EQ(handed, 2u);
+    }
+  EXPECT_EQ(Answers(copies[0]), Answers(index));
+  EXPECT_EQ(Answers(assigned), Answers(index));
+}
+
+// An index that is moved from, by construction or by assignment, is left
+// without arcs and without cycles; it answers every query, and it can
+// be copied, exchanged and given an index again
+TEST(BoundedCycleIndex, LeavesAnIndexThatIsMovedFromWithoutArcsAndCycles)
+{
+  static_assert(std::is_nothrow_move_constructible_v<Bounded_Cycle_Index<List_Type>>);
+  static_assert(std::is_nothrow_move_assignable_v<Bounded_Cycle_Index<List_Type>>);
+  const Built<List_Type> built(4, complete_ends(4));
+  const Built<List_Type> other(3, {{0, 1}, {1, 2}, {2, 0}});
+  Bounded_Cycle_Index index(built.g, {2, 3});
+  for (size_t a = 0; a < index.num_arcs(); ++a)
+    index.set_weight(a, a % 2 == 0 ? -1.0 : 0.5);
+  Bounded_Cycle_Index copy = index;
+  const Answers before(copy);
+  ASSERT_GT(before.cycles.size(), 0u);
+  ASSERT_GT(before.handed.size(), 0u);
+
+  Bounded_Cycle_Index taken(std::move(index));
+  EXPECT_EQ(Answers(taken), before);
+  expect_no_arcs_and_no_cycles(index, built.arcs[0]);
+
+  Bounded_Cycle_Index triangle(other.g, {3});
+  triangle.set_weight(0, 0.125);
+  triangle = std::move(taken); // what the triangle had is freed
+  EXPECT_EQ(Answers(triangle), before);
+  expect_no_arcs_and_no_cycles(taken, built.arcs[0]);
+
+  // a copy of one without arcs has none either, and so is what is
+  // exchanged with it
+  Bounded_Cycle_Index of_none = index;
+  expect_no_arcs_and_no_cycles(of_none, built.arcs[0]);
+  of_none.swap(triangle);
+  EXPECT_EQ(Answers(of_none), before);
+  expect_no_arcs_and_no_cycles(triangle, built.arcs[0]);
+
+  // and each of them takes an index again, by copy and by move
+  index = copy;
+  EXPECT_EQ(Answers(index), before);
+  taken = std::move(index);
+  EXPECT_EQ(Answers(taken), before);
+  expect_no_arcs_and_no_cycles(index, built.arcs[0]);
+  taken.set_weight(0, 7);
+  EXPECT_EQ(copy.weight(0), -1);
+}
+
+// An index that is assigned to itself, by copy or by move, keeps all
+// that it had
+TEST(BoundedCycleIndex, KeepsWhatItHadWhenItIsAssignedToItself)
+{
+  const Built<List_Type> built(4, complete_ends(4));
+  Bounded_Cycle_Index index(built.g, {2, 3, 4});
+  for (size_t a = 0; a < index.num_arcs(); ++a)
+    index.set_weight(a, a % 3 == 0 ? -2.0 : 0.25);
+  const Answers before(index);
+  Bounded_Cycle_Index<List_Type> & same = index;
+  index = same;
+  EXPECT_EQ(Answers(index), before);
+  index = std::move(same);
+  EXPECT_EQ(Answers(index), before);
+  index.swap(same);
+  EXPECT_EQ(Answers(index), before);
+}
+
+// If the function throws when an arc was already looked at, the mark of
+// that arc is cleared: the next query hands the cycles of that arc
+TEST(BoundedCycleIndex, ClearsTheMarkOfAnArcWhenTheFunctionThrowsAfterIt)
+{
+  const Built<List_Type> built(4, complete_ends(4));
+  Bounded_Cycle_Index index(built.g, {2, 3, 4});
+  for (size_t a = 0; a < index.num_arcs(); ++a)
+    index.set_weight(a, 1);
+  // the arcs 1 and 2 leave the same node: no cycle has both
+  const size_t of_first = index.cycles_of(1).size();
+  ASSERT_GT(of_first, 0u);
+  size_t calls = 0;
+  const auto throws_at_the_second_arc = [&calls, of_first] (size_t, double)
+    {
+      if (++calls == of_first + 1)
+        throw std::runtime_error("the first cycle of the second arc");
+    };
+  EXPECT_THROW(index.for_each_cycle_below({1, 2}, Infinity, 4, throws_at_the_second_arc),
+               std::runtime_error);
+  EXPECT_EQ(calls, of_first + 1);
+
+  size_t handed = 0;
+  const auto count = [&handed] (size_t, double) { ++handed; };
+  const size_t of_both = of_first + index.cycles_of(2).size();
+  EXPECT_EQ(index.for_each_cycle_below({2, 1}, Infinity, 4, count), of_both);
+  EXPECT_EQ(handed, of_both);
+}
+
+// The additions that widen the bound are rounded as well: a bound that is
+// rounded down to the sum of a cycle loses it, and one that is rounded up
+// after each addition does not
+TEST(BoundedCycleIndex, NeedsTheBoundRoundedUp)
+{
+  // a loop that weighs exactly 1, below an exact threshold of 1 + 2^-54
+  // that the caller has as 1, within 2^-54
+  const Built<List_Type> built(1, {{0, 0}});
+  Bounded_Cycle_Index index(built.g, {1});
+  const double approximate = 1, its_error = 0x1p-54;
+  const double of_the_sum = Bounded_Cycle_Index<List_Type>::sum_error_bound(1, 1);
+  EXPECT_EQ(of_the_sum, 0);
+  size_t handed = 0;
+  const auto count = [&handed] (size_t, double) { ++handed; };
+
+  const double rounded_down = approximate + of_the_sum + its_error;
+  EXPECT_EQ(rounded_down, 1);
+  index.update(0, 1, rounded_down, 1, count);
+  EXPECT_EQ(handed, 0u);
+
+  double bound = std::nextafter(approximate + of_the_sum, Infinity);
+  bound = std::nextafter(bound + its_error, Infinity);
+  index.update(0, 1, bound, 1, count);
+  EXPECT_EQ(handed, 1u);
+}
+
+// With only the loops asked for, the index has each loop of a multigraph
+// and no other cycle, also among many parallel arcs
+TEST(BoundedCycleIndex, HasOnlyTheLoopsWhenOnlyTheyAreAskedFor)
+{
+  Ends ends;
+  for (size_t i = 0; i < 300; ++i)
+    {
+      ends.emplace_back(0, 1);
+      ends.emplace_back(1, 2);
+      if (i % 100 == 0)
+        ends.emplace_back(i / 100, i / 100); // a loop at the nodes 0, 1 and 2
+    }
+  ends.emplace_back(2, 0); // closes cycles of three arcs, which are not asked for
+  const Built<List_Type> built(3, ends);
+  Bounded_Cycle_Index index(built.g, {1});
+  expect_the_catalog(index, Oracle<List_Type>(built.g, {1}, Arc_List_Order()));
+  EXPECT_EQ(index.num_cycles(), 3u);
+  for (size_t position = 0; position < index.num_cycles(); ++position)
+    {
+      const size_t loop = index.cycle_arcs(position)[0];
+      EXPECT_EQ(built.g.get_src_node(index.arc(loop)), built.g.get_tgt_node(index.arc(loop)));
+      EXPECT_EQ(as_vector(index.cycles_of(loop)), std::vector<size_t>{position});
+    }
+}
+
 // The sum that the index computes is within sum_error_bound() of the
 // exact sum of the weights, taken with rationals; and with the bound
 // widened by it, no cycle whose exact sum is below a threshold is lost
@@ -1014,8 +1278,10 @@ TEST(BoundedCycleIndex, BoundsTheErrorOfTheSum)
           double previous = 0;
           for (size_t a = 0; a < k; ++a)
             {
-              double w = std::ldexp(double(int64_t(rng() >> 11)) / 9007199254740992.0 - 0.5,
-                                    int(rng() % 60));
+              // two statements: the order of the arguments of a call is
+              // not fixed, and each compiler would draw other weights
+              const double fraction = double(int64_t(rng() >> 11)) / 9007199254740992.0 - 0.5;
+              double w = std::ldexp(fraction, int(rng() % 60));
               if (a % 3 == 2)
                 w = -previous * (1 + std::ldexp(1.0, -30 - int(rng() % 20)));
               w = std::fmin(std::fmax(w, -scale), scale);
@@ -1033,7 +1299,8 @@ TEST(BoundedCycleIndex, BoundsTheErrorOfTheSum)
 
           // a threshold just above the exact sum: the cycle is below it
           const mpq_class threshold =
-            exact + abs(exact) / 1000000000000000000_mpz + 1 / mpq_class(std::ldexp(1.0, 200));
+            exact + abs(exact) / mpz_class("1000000000000000000") +
+            1 / mpq_class(std::ldexp(1.0, 200));
           const double t = threshold.get_d(); // truncated towards zero
           const double t_error = std::fabs(t) * 0x1p-52 + 0x1p-1000;
           size_t handed = 0;

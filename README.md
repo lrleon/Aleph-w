@@ -2592,8 +2592,9 @@ bound. It is for a graph whose shape stays while its weights change all the time
   change to the next, and it is the same number whichever arc changed.
 - **The margin.** The sums are `double`: the index hands candidates and does not decide. With
   `w = -log(rate)` and a threshold `t`, give the bound `t` plus a margin that covers the error of
-  the weights and that of the sum, which `sum_error_bound()` bounds; then no cycle that the exact
-  rule accepts is lost, and each candidate is decided with exact arithmetic.
+  the weights and that of the sum, which `sum_error_bound()` bounds, and round that bound up
+  (`std::nextafter()`), since the additions that form it are rounded too; then no cycle that the
+  exact rule accepts is lost, and each candidate is decided with exact arithmetic.
 - **An arc that cannot be used** has the weight plus infinity, which is the weight of every arc
   until it is given one.
 

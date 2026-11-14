@@ -33,7 +33,9 @@
  * @file bounded_cycle_index_allocation_test.cc
  * @brief Bounded_Cycle_Index when an allocation fails: building it throws
  *        std::bad_alloc whatever allocation fails, an index built apart
- *        replaces another without allocating, and no query allocates.
+ *        replaces another without allocating, an assignment that fails
+ *        leaves the index as it was, and neither the queries nor the
+ *        moves allocate.
  *
  * This program replaces the global operator new, so that a test can make
  * an allocation fail and count those that are asked for.
@@ -44,6 +46,8 @@
 # include "allocation_failure.H"
 
 # include <new>
+# include <utility>
+# include <vector>
 
 # include <Bounded_Cycle_Index.H>
 # include <tpl_graph.H>
@@ -66,6 +70,48 @@ namespace
         if (i != j)
           g.insert_arc(nodes(i), nodes(j), 0);
   }
+
+  // All that an index answers, to compare two of them: its arcs with
+  // their weights, their stamps and their cycles, its cycles with their
+  // sums, its clock, and what a query of all its arcs hands
+  struct Answers
+  {
+    std::vector<const void *> arcs;
+    std::vector<double> numbers;
+    std::vector<size_t> positions;
+
+    explicit Answers(Index & index)
+    {
+      Array<size_t> all;
+      for (size_t a = 0; a < index.num_arcs(); ++a)
+        {
+          arcs.push_back(index.arc(a));
+          numbers.push_back(index.weight(a));
+          numbers.push_back(double(index.stamp(a)));
+          positions.push_back(index.arc_number(index.arc(a)));
+          for (const uint32_t position : index.cycles_of(a))
+            positions.push_back(position);
+          all.append(a);
+        }
+      for (size_t position = 0; position < index.num_cycles(); ++position)
+        {
+          numbers.push_back(index.weight_sum(position));
+          for (const uint32_t a : index.cycle_arcs(position))
+            positions.push_back(a);
+        }
+      positions.push_back(index.num_cycles());
+      positions.push_back(index.longest_length());
+      positions.push_back(size_t(index.clock()));
+      positions.push_back(index.for_each_cycle_below(all, 1e300, Index::Max_Length,
+                                                     [this] (const size_t position, const double sum)
+                                                     {
+                                                       positions.push_back(position);
+                                                       numbers.push_back(sum);
+                                                     }));
+    }
+
+    bool operator == (const Answers &) const = default;
+  };
 }
 
 // The tests need the operator new of allocation_failure.H
@@ -190,4 +236,77 @@ TEST_F(BoundedCycleIndexAllocation, TheQueriesDoNotAllocate)
   EXPECT_GT(handed, 0u);
   EXPECT_GT(seen, 0u);
   EXPECT_NE(sum, 0.0);
+}
+
+// An assignment copies apart and then exchanges: whatever allocation of
+// the copy fails, it throws std::bad_alloc and the index keeps all that
+// it had
+TEST_F(BoundedCycleIndexAllocation, AnAssignmentThatFailsLeavesTheIndexAsItWas)
+{
+  Graph g, h;
+  complete(g, 5);
+  complete(h, 3);
+  Index source(g, {2, 3, 4});
+  for (size_t a = 0; a < source.num_arcs(); ++a)
+    source.set_weight(a, double(a) - 7.5);
+  const Answers of_the_source(source);
+
+  size_t failures = 0;
+  for (size_t k = 1; k <= 400; ++k)
+    {
+      Index index(h, {2, 3});
+      index.set_weight(0, -1);
+      index.set_weight(3, 0.25);
+      const Answers before(index);
+      bool thrown = false;
+      size_t refused = 0;
+      {
+        Fail_At the_kth(k);
+        try
+          {
+            index = source;
+          }
+        catch (const std::bad_alloc &)
+          {
+            thrown = true;
+          }
+        refused = refused_allocations;
+      }
+      if (refused == 0) // the assignment asks for less than k allocations
+        {
+          EXPECT_FALSE(thrown);
+          EXPECT_TRUE(Answers(index) == of_the_source);
+          EXPECT_GT(failures, 10u);
+          return;
+        }
+      EXPECT_TRUE(thrown) << "allocation " << k;
+      EXPECT_TRUE(Answers(index) == before) << "allocation " << k;
+      ++failures;
+    }
+  ADD_FAILURE() << "an assignment asks for more than 400 allocations";
+}
+
+// Moving an index, by construction or by assignment, asks for no memory
+TEST_F(BoundedCycleIndexAllocation, MovingAnIndexDoesNotAllocate)
+{
+  Graph g, h;
+  complete(g, 5);
+  complete(h, 3);
+  Index index(g, {2, 3, 4});
+  for (size_t a = 0; a < index.num_arcs(); ++a)
+    index.set_weight(a, a % 2 == 0 ? -1.0 : 0.5);
+  Index other(h, {2});
+  const Answers before(index);
+
+  size_t asked = 0, left = 0;
+  {
+    No_Memory no_memory;
+    Index taken(std::move(index));
+    other = std::move(taken);
+    left = index.num_arcs() + taken.num_arcs() + index.num_cycles() + taken.num_cycles();
+    asked = refused_allocations;
+  }
+  EXPECT_EQ(asked, 0u);
+  EXPECT_EQ(left, 0u);
+  EXPECT_TRUE(Answers(other) == before);
 }

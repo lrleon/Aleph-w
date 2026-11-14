@@ -2384,8 +2384,9 @@ por debajo de una cota. Es para un grafo cuya forma se queda y cuyos pesos cambi
   que cambie.
 - **El margen.** Las sumas son `double`: el índice entrega candidatos y no decide. Con
   `w = -log(tasa)` y un umbral `t`, se da la cota `t` más un margen que cubra el error de los
-  pesos y el de la suma, que `sum_error_bound()` acota; así no se pierde ningún ciclo que la regla
-  exacta acepta, y cada candidato se decide con aritmética exacta.
+  pesos y el de la suma, que `sum_error_bound()` acota, y esa cota se redondea hacia arriba
+  (`std::nextafter()`), porque las sumas que la forman también se redondean; así no se pierde
+  ningún ciclo que la regla exacta acepta, y cada candidato se decide con aritmética exacta.
 - **Un arco que no se puede usar** tiene el peso más infinito, que es el de todo arco hasta que
   se le da uno.
 
