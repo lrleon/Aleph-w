@@ -2753,10 +2753,8 @@ typename Net::Flow_Type min_cut(Net &net, DynSetTree<typename Net::Node *> &vs,
   // Compute vt by complement.
   const size_t size_vt = net.get_num_nodes() - vs.size();
   for (Node_Iterator<Net> it(net); it.has_curr() and vt.size() < size_vt; it.next_ne())
-    {
-      if (auto p = it.get_curr(); p->state() == Unprocessed)
-        vt.insert(p);
-    }
+    if (auto p = it.get_curr(); p->state() == Unprocessed)
+      vt.insert(p);
 
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {

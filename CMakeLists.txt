@@ -314,6 +314,7 @@ set(HLIST
     Min_Mean_Cycle.H
     Howard_Min_Mean_Cycle.H
     Negative_Cycles.H
+    Bounded_Cycle_Index.H
     Planarity_Test.H
     Tree_Decomposition.H
     ah-concepts.H
