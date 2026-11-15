@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.7.0](https://github.com/lrleon/Aleph-w/compare/v7.6.2...v7.7.0) (2026-11-15)
+
+
+### Features
+
+* **graph:** Add Bounded_Cycle_Index, the short cycles through each arc ([04786c9](https://github.com/lrleon/Aleph-w/commit/04786c9634e8f1ec4353ba70a636e703d283ace2))
+
 ## [7.6.2](https://github.com/lrleon/Aleph-w/compare/v7.6.1...v7.6.2) (2026-11-13)
 
 
