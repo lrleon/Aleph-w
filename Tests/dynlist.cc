@@ -37,6 +37,9 @@
  */
 # include <gtest/gtest.h>
 
+# include <stdexcept>
+# include <vector>
+
 # include <htlist.H>
 # include <ah-unique.H>
 # include <ah-convert.H>
@@ -393,3 +396,62 @@ TEST(DynListFunctional, ToArrayHelperPreservesOrder)
     EXPECT_EQ(arr(i), it.get_curr());
 }
 
+namespace
+{
+  // An item that counts the items alive, and whose copy throws when a
+  // budget of copies runs out
+  struct Counted_Copy
+  {
+    static inline int alive = 0;
+    static inline int copies_left = -1; // -1: no copy throws
+    int value = 0;
+
+    Counted_Copy(const int v = 0) : value(v) { ++alive; }
+
+    Counted_Copy(const Counted_Copy & other) : value(other.value)
+    {
+      if (copies_left == 0)
+        throw std::runtime_error("the copy of an item");
+      if (copies_left > 0)
+        --copies_left;
+      ++alive;
+    }
+
+    Counted_Copy & operator = (const Counted_Copy &) = default;
+
+    ~Counted_Copy() { --alive; }
+  };
+}
+
+// A constructor whose copy of an item throws frees the items that it had
+// appended, with their nodes, and the exception reaches the caller: the
+// copy, the range of iterators and the initializer list
+TEST(DynList, ConstructorsFreeWhatTheyAppendedWhenACopyThrows)
+{
+  const DynList<Counted_Copy> source = {1, 2, 3, 4, 5};
+  const std::vector<Counted_Copy> items = {1, 2, 3, 4, 5};
+  const int before = Counted_Copy::alive;
+  for (int k = 0; k < 5; ++k)
+    {
+      Counted_Copy::copies_left = k;
+      EXPECT_THROW([&] { const DynList<Counted_Copy> copy(source); }(), std::runtime_error);
+      EXPECT_EQ(Counted_Copy::alive, before) << "the copy, at the item " << k;
+
+      Counted_Copy::copies_left = k;
+      EXPECT_THROW([&] { const DynList<Counted_Copy> l(items.begin(), items.end()); }(),
+                   std::runtime_error);
+      EXPECT_EQ(Counted_Copy::alive, before) << "the range, at the item " << k;
+
+      Counted_Copy::copies_left = k;
+      EXPECT_THROW(([&] { const DynList<Counted_Copy> l = {1, 2, 3, 4, 5}; }()),
+                   std::runtime_error);
+      EXPECT_EQ(Counted_Copy::alive, before) << "the initializer list, at the item " << k;
+    }
+
+  // with copies enough, each one builds the whole list
+  Counted_Copy::copies_left = 5;
+  const DynList<Counted_Copy> copy(source);
+  EXPECT_EQ(copy.size(), 5u);
+  EXPECT_EQ(copy.get_last().value, 5);
+  Counted_Copy::copies_left = -1;
+}

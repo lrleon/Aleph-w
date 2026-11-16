@@ -55,6 +55,34 @@ protected:
   DynSkipList<int> sl;
 };
 
+// A key that counts the keys alive, and whose copy throws when a budget
+// of copies runs out
+struct Counted_Key
+{
+  static inline int alive = 0;
+  static inline int copies_left = -1; // -1: no copy throws
+  int value = 0;
+
+  Counted_Key(const int v = 0) : value(v) { ++alive; }
+
+  Counted_Key(const Counted_Key & other) : value(other.value)
+  {
+    if (copies_left == 0)
+      throw std::runtime_error("the copy of a key");
+    if (copies_left > 0)
+      --copies_left;
+    ++alive;
+  }
+
+  Counted_Key & operator = (const Counted_Key &) = default;
+
+  ~Counted_Key() { --alive; }
+
+  bool operator < (const Counted_Key & other) const { return value < other.value; }
+
+  bool operator == (const Counted_Key & other) const { return value == other.value; }
+};
+
 // ============================================================================
 // Construction Tests
 // ============================================================================
@@ -63,6 +91,54 @@ TEST_F(DynSkipListTest, DefaultConstruction)
 {
   EXPECT_TRUE(sl.is_empty());
   EXPECT_EQ(sl.size(), 0);
+}
+
+// Whatever copy of a key throws, a copy of a list, or a list built from a
+// range or from an initializer list, frees what it took, and the
+// exception reaches the caller
+TEST(DynSkipList, ConstructorsFreeWhatTheyTookWhenACopyOfAKeyThrows)
+{
+  DynSkipList<Counted_Key> source;
+  for (int i = 1; i <= 5; ++i)
+    source.insert(Counted_Key(i));
+  const std::vector<Counted_Key> keys = {5, 3, 1, 4, 2};
+  const int before = Counted_Key::alive;
+
+  size_t failures = 0;
+  for (int k = 0; k < 100; ++k)
+    {
+      bool thrown = false;
+      Counted_Key::copies_left = k;
+      try
+        {
+          const DynSkipList<Counted_Key> copy(source);
+          EXPECT_EQ(copy.size(), source.size());
+        }
+      catch (const std::runtime_error &)
+        {
+          thrown = true;
+        }
+      Counted_Key::copies_left = -1;
+      EXPECT_EQ(Counted_Key::alive, before) << "the copy, at the copy " << k;
+      if (not thrown)
+        break;
+      ++failures;
+    }
+  EXPECT_GE(failures, 5u);
+
+  for (int k = 0; k < 5; ++k)
+    {
+      Counted_Key::copies_left = k;
+      EXPECT_THROW([&] { const DynSkipList<Counted_Key> l(keys.begin(), keys.end()); }(),
+                   std::runtime_error);
+      EXPECT_EQ(Counted_Key::alive, before) << "the range, at the copy " << k;
+
+      Counted_Key::copies_left = k;
+      EXPECT_THROW(([&] { const DynSkipList<Counted_Key> l = {5, 3, 1, 4, 2}; }()),
+                   std::runtime_error);
+      EXPECT_EQ(Counted_Key::alive, before) << "the initializer list, at the copy " << k;
+    }
+  Counted_Key::copies_left = -1;
 }
 
 TEST_F(DynSkipListTest, InitializerListConstruction)
