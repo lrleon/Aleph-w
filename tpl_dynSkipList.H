@@ -247,7 +247,12 @@ public:
 
   Special_Ctors(DynSkipList, Key);
 
-  /// Copy constructor
+  /** @brief Copy constructor: the copy draws the levels of its nodes
+   *         with a generator of its own, seeded with the time.
+   *  @param[in] other the list to copy.
+   *  @throw bad_alloc if there is not enough memory, or what the copy of a
+   *         key throws; then the copy frees what it took.
+   */
   DynSkipList(const DynSkipList & other)
     : GenericTraverse<DynSkipList<Key, Compare>>(),
       SpecialCtors<DynSkipList<Key, Compare>, Key>(),
@@ -259,8 +264,19 @@ public:
       probability(other.probability), cmp(other.cmp)
   {
     header = new Node(maxLevel);
-    for (auto it = other.begin(); it.has_curr(); it.next())
-      insert(it.get_curr());
+    try
+      {
+        for (auto it = other.begin(); it.has_curr(); it.next())
+          insert(it.get_curr());
+      }
+    catch (...)
+      {
+        // the copy is not built and its destructor does not run: what it
+        // took is freed here
+        empty();
+        delete header;
+        throw;
+      }
   }
 
   /// Move constructor

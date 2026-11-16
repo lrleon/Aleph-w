@@ -1117,13 +1117,15 @@ struct SpecialCtors
   /** Build the container by inserting all items of the list `l`.
 
       @param[in] l list of items to insert
-      @throw bad_alloc if there is no enough memory
+      @throw bad_alloc if there is no enough memory, or what the copy of an
+             item throws. Then the items already appended are freed, if
+             the container has `empty()`: its destructor does not run.
   */
   SpecialCtors(const Aleph::DynList<T> & l)
   {
-    l.for_each([this] (const T & item)
+    build_apart([&l] (Container & c)
       {
-        static_cast<Container *>(this)->append(item);
+        l.for_each([&c] (const T & item) { c.append(item); });
       });
   }
 
@@ -1134,26 +1136,81 @@ struct SpecialCtors
 
       @param[in] b begin iterator
       @param[in] e end iterator
-      @throw bad_alloc if there is no enough memory
+      @throw bad_alloc if there is no enough memory, or what the iterators
+             or the copy of an item throw. Then the items already
+             appended are freed, if the container has `empty()`.
   */
   template <class It>
     requires (not std::is_arithmetic_v<It>
               and requires(It it) { *it; ++it; it != it; })
   SpecialCtors(It b, It e)
   {
-    for (It it = b; it != e; ++it)
-      static_cast<Container *>(this)->append(*it);
+    build_apart([&b, &e] (Container & c)
+      {
+        for (It it = b; it != e; ++it)
+          c.append(*it);
+      });
   }
 
   /** Construct the container from an initializer list.
 
       @param[in] l initializer list of items
-      @throw bad_alloc if there is no enough memory
+      @throw bad_alloc if there is no enough memory, or what the copy of an
+             item throws. Then the items already appended are freed, if
+             the container has `empty()`.
   */
   SpecialCtors(std::initializer_list<T> l)
   {
-    for (const auto & item : l)
-      static_cast<Container *>(this)->append(item);
+    build_apart([&l] (Container & c)
+      {
+        for (const auto & item : l)
+          c.append(item);
+      });
+  }
+
+private:
+  /** @brief Free the items that a constructor of this base appended.
+
+      When such a constructor throws, the container is not built and its
+      destructor does not run: without this, the items would leak with
+      their nodes. A container without `empty()` keeps them.
+  */
+  void free_appended() noexcept
+  {
+    if constexpr (requires (Container & c) { c.empty(); })
+      static_cast<Container *>(this)->empty();
+  }
+
+  /** @brief Fill the container: in another one built apart, whose items
+      it takes with `swap()`, if the container has a default constructor
+      and `swap()`; if not, in place, freeing with free_appended() what
+      was appended if `fill` throws.
+
+      Built apart, the destructor of the other container frees what it
+      took if `fill` throws, and the copy costs less than in place, where
+      the container being built must be ready for the cleanup at each
+      append.
+  */
+  template <class Fill>
+  void build_apart(Fill fill)
+  {
+    if constexpr (std::is_default_constructible_v<Container> and
+                  requires (Container & a, Container & b) { a.swap(b); })
+      {
+        Container built;
+        fill(built);
+        static_cast<Container *>(this)->swap(built);
+      }
+    else
+      try
+        {
+          fill(*static_cast<Container *>(this));
+        }
+      catch (...)
+        {
+          free_appended();
+          throw;
+        }
   }
 };
 
