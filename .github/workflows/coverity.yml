@@ -13,14 +13,17 @@ permissions:
 jobs:
   coverity:
     name: Coverity Static Analysis
-    # Only run if manually triggered or if the 'run-coverity' label was added to a PR
+    # Only run if manually triggered or if the 'run-coverity' label was added
+    # to a PR of this repository: one from a fork gets no secrets
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && github.event.label.name == 'run-coverity')
+      (github.event_name == 'pull_request' && github.event.label.name == 'run-coverity' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     
     env:
       COVERITY_PROJECT: lrleon/Aleph-w
+      COVERITY_PROJECT_ID: 13802
       
     steps:
       - name: Checkout
@@ -30,10 +33,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build \
+            cmake ninja-build pkg-config jq \
             g++ \
             libgmp-dev libmpfr-dev libgsl-dev \
-            libx11-dev libpthread-stubs0-dev
+            libx11-dev libpthread-stubs0-dev \
+            libtclap-dev \
+            libgtest-dev
 
       - name: Download Coverity Build Tool
         run: |
@@ -55,46 +60,63 @@ jobs:
               --no-same-permissions
           echo "${{ github.workspace }}/cov-analysis/bin" >> $GITHUB_PATH
 
+      # With the tests and the examples, which instantiate the templates of
+      # the headers: the library alone compiles its 19 .C files, and Coverity
+      # analyzes only the templates that they use
       - name: Configure project
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DBUILD_TESTS=OFF \
-            -DBUILD_EXAMPLES=OFF
+            -DBUILD_TESTS=ON \
+            -DBUILD_EXAMPLES=ON
 
+      # Four jobs at a time: each runs the compiler and cov-emit, and the
+      # runner has 16 GB
       - name: Build with Coverity
         run: |
           echo "Running Coverity build analysis..."
-          cov-build --dir cov-int cmake --build build --parallel
-          
+          cov-build --dir cov-int cmake --build build --parallel 4
+
           # Show capture summary (do not fail if log file is missing)
           tail -20 cov-int/build-log.txt || true
 
       - name: Package results
         run: |
           echo "Packaging Coverity results..."
+          du -sh build cov-int
           tar czf aleph-w-coverity.tgz cov-int
           ls -lh aleph-w-coverity.tgz
 
+      # Through a cloud upload URL, as the Submit Build page of the project
+      # says for builds of more than 500 MB, the limit of the upload to
+      # builds?project=: the capture of the tests and the examples took
+      # 1.3 GB. The response, with that URL, is not printed. On a pull
+      # request, the build is the merge of its branch into the base.
       - name: Submit to Coverity Scan
+        env:
+          TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+          EMAIL: ${{ secrets.COVERITY_SCAN_EMAIL }}
+          VERSION: ${{ github.head_ref || github.ref_name }}@${{ github.sha }}
+          DESCRIPTION: "GitHub Actions build of ${{ github.event_name == 'pull_request' && format('pull request #{0}, merged into {1}', github.event.pull_request.number, github.base_ref) || github.ref_name }} (commit ${{ github.sha }})"
         run: |
           echo "Submitting to Coverity Scan..."
-          
-          # Get version info
-          VERSION="${{ github.ref_name }}@${{ github.sha }}"
-          DESCRIPTION="GitHub Actions build from branch ${{ github.ref_name }} (commit ${{ github.sha }})"
-          
-          curl -fsS \
-            --form token=${{ secrets.COVERITY_SCAN_TOKEN }} \
-            --form email=${{ secrets.COVERITY_SCAN_EMAIL }} \
-            --form file=@aleph-w-coverity.tgz \
-            --form version="$VERSION" \
-            --form description="$DESCRIPTION" \
-            "https://scan.coverity.com/builds?project=${{ env.COVERITY_PROJECT }}"
-          
+          SCAN="https://scan.coverity.com/projects/$COVERITY_PROJECT_ID/builds"
+          curl -fsS -X POST -o response \
+            --data-urlencode "version=$VERSION" \
+            --data-urlencode "description=$DESCRIPTION" \
+            --data-urlencode "email=$EMAIL" \
+            --data-urlencode "token=$TOKEN" \
+            --data-urlencode "file_name=aleph-w-coverity.tgz" \
+            "$SCAN/init"
+          upload_url=$(jq -er '.url' response)
+          build_id=$(jq -er '.build_id' response)
+          curl -fsS -X PUT --header 'Content-Type: application/json' \
+            --upload-file aleph-w-coverity.tgz "$upload_url"
+          curl -fsS -X PUT --data-urlencode "token=$TOKEN" "$SCAN/$build_id/enqueue"
+
           echo ""
-          echo "✅ Build submitted successfully!"
-          echo "📊 View results at: https://scan.coverity.com/projects?project=${{ env.COVERITY_PROJECT }}"
+          echo "✅ Build $build_id submitted successfully!"
+          echo "📊 View results at: https://scan.coverity.com/projects/lrleon-aleph-w"
 
       - name: Upload build log on failure
         if: failure()
