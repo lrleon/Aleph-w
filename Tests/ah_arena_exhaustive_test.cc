@@ -792,44 +792,66 @@ TEST(ArenaPerformance, LargeScaleAllocation)
             << duration.count() << "ms]" << std::endl;
 }
 
+// The least time of some runs of a function, in nanoseconds: a run that
+// the system interrupts, or that pays the first touch of its memory, does
+// not decide
+template <class Run>
+static long long least_nanoseconds(Run && run, const int runs = 7)
+{
+  long long least = std::numeric_limits<long long>::max();
+  for (int i = 0; i < runs; ++i)
+    {
+      const auto start = std::chrono::steady_clock::now();
+      run();
+      const auto end = std::chrono::steady_clock::now();
+      least = std::min<long long>(
+        least, std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+    }
+  return least;
+}
+
+// The arena gives its blocks faster than malloc() and free(). Each side
+// is timed several times, and the least times are compared: the arena and
+// the arrays of pointers are made before the clock starts, so that what
+// is timed is the allocations alone.
 TEST(ArenaPerformance, CompareWithMalloc)
 {
   const size_t NUM_ALLOCS = 10000;
   const size_t ALLOC_SIZE = 64;
 
-  // Malloc timing
-  auto start = std::chrono::high_resolution_clock::now();
-
   std::vector<void*> malloc_ptrs;
   malloc_ptrs.reserve(NUM_ALLOCS);
-  for (size_t i = 0; i < NUM_ALLOCS; ++i)
-    malloc_ptrs.push_back(std::malloc(ALLOC_SIZE));
-
-  for (void* ptr : malloc_ptrs)
-    std::free(ptr);
-
-  auto end = std::chrono::high_resolution_clock::now();
-  auto malloc_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
-  // Arena timing
-  start = std::chrono::high_resolution_clock::now();
+  const long long malloc_ns = least_nanoseconds([&]
+    {
+      malloc_ptrs.clear();
+      for (size_t i = 0; i < NUM_ALLOCS; ++i)
+        malloc_ptrs.push_back(std::malloc(ALLOC_SIZE));
+      for (void* ptr : malloc_ptrs)
+        std::free(ptr);
+    });
 
   AhArenaAllocator arena(NUM_ALLOCS * ALLOC_SIZE);
   std::vector<void*> arena_ptrs;
   arena_ptrs.reserve(NUM_ALLOCS);
-  for (size_t i = 0; i < NUM_ALLOCS; ++i)
-    arena_ptrs.push_back(arena.alloc(ALLOC_SIZE));
+  const long long arena_ns = least_nanoseconds([&]
+    {
+      arena.reset();
+      arena_ptrs.clear();
+      for (size_t i = 0; i < NUM_ALLOCS; ++i)
+        arena_ptrs.push_back(arena.alloc(ALLOC_SIZE));
+    });
 
-  end = std::chrono::high_resolution_clock::now();
-  auto arena_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  ASSERT_EQ(arena_ptrs.size(), NUM_ALLOCS);
+  for (const void* ptr : arena_ptrs)
+    ASSERT_NE(ptr, nullptr);
 
-  std::cout << "  [malloc: " << malloc_duration.count() << "μs, "
-            << "arena: " << arena_duration.count() << "μs, "
-            << "speedup: " << (double)malloc_duration.count() / arena_duration.count() << "x]"
+  std::cout << "  [malloc: " << malloc_ns / 1000.0 << "μs, "
+            << "arena: " << arena_ns / 1000.0 << "μs, the least of 7 runs; "
+            << "speedup: " << double(malloc_ns) / double(arena_ns > 0 ? arena_ns : 1) << "x]"
             << std::endl;
 
-  // Arena should be faster (typically 10-100x)
-  EXPECT_LT(arena_duration.count(), malloc_duration.count());
+  // A bump of a pointer against malloc() and free(): typically 10-100x
+  EXPECT_LT(arena_ns, malloc_ns);
 }
 
 // ============================================================================
