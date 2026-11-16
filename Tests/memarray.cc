@@ -39,10 +39,12 @@
 
 # include <tpl_memArray.H>
 # include <htlist.H>
+# include <concepts>
 # include <limits>
 # include <memory>
 # include <new>
 # include <string>
+# include <type_traits>
 
 using namespace std;
 using namespace testing;
@@ -1014,11 +1016,14 @@ namespace
   {
     using MemArray<T>::grow_and_insert;
 
-    /// @brief A value with the letter `c`: a `char`, or a string of it.
+    /// @brief A value with the letter `c`: a `char`, a pair of doubles, or
+    /// a string of it.
     static T of(const char c)
     {
       if constexpr (std::is_scalar_v<T>)
         return c;
+      else if constexpr (std::is_trivially_copyable_v<T>)
+        return T{double(c), -double(c)};
       else
         return T(1, c);
     }
@@ -1064,4 +1069,106 @@ TEST(MemArray, growth_inserts_at_any_position_of_a_sequence_from_any_slot)
 {
   check_growth_of_rings<char>();    // a scalar goes to the growth as a copy
   check_growth_of_rings<string>();  // and what is not, as it comes
+}
+
+// A copy has the items and the capacity of its original, whatever its size:
+// a trivially copyable type goes by memcpy() from 5 items on, and the
+// others item by item
+namespace
+{
+  struct Pair_Of_Doubles
+  {
+    double x = 0, y = 0;
+    bool operator == (const Pair_Of_Doubles &) const = default;
+  };
+
+  template <class T, class Make>
+  void check_copies_of_every_size(Make make)
+  {
+    for (size_t n = 0; n <= 40; ++n)
+      {
+        MemArray<T> a;
+        for (size_t i = 0; i < n; ++i)
+          a.append(make(i));
+        const MemArray<T> copy(a);
+        ASSERT_EQ(copy.size(), n);
+        EXPECT_EQ(copy.capacity(), a.capacity()) << n << " items";
+        for (size_t i = 0; i < n; ++i)
+          EXPECT_EQ(copy(i), a(i)) << n << " items, item " << i;
+        EXPECT_TRUE(n == 0 or &copy(0) != &a(0)) << n << " items";
+      }
+  }
+}
+
+TEST(MemArray, copies_have_the_items_and_the_capacity_of_every_size)
+{
+  static_assert(std::is_trivially_copyable_v<Pair_Of_Doubles>);
+  check_copies_of_every_size<int>([] (size_t i) { return int(i * 7); });
+  check_copies_of_every_size<char>([] (size_t i) { return char('a' + i % 26); });
+  check_copies_of_every_size<Pair_Of_Doubles>([] (size_t i)
+    {
+      return Pair_Of_Doubles{double(i), -double(i) / 4};
+    });
+  check_copies_of_every_size<string>([] (size_t i) { return string(i + 20, 'x'); });
+}
+
+// The growth moves a struct with memcpy(); the struct goes to it by
+// reference, so that the item that it inserts may be one of the array
+TEST(MemArray, growth_of_a_trivially_copyable_struct_from_any_slot)
+{
+  check_growth_of_rings<Pair_Of_Doubles>();
+}
+
+namespace
+{
+  /// @brief Assigned through a template, which counts the assignments. Its
+  /// copy and move assignments are not eligible, so that GCC finds it
+  /// trivially copyable, but its assignment is not trivial.
+  template <int K>
+  struct Assigned_By_Template
+  {
+    int value = 0;
+    static inline int assignments = 0;
+
+    Assigned_By_Template() = default;
+
+    /// @brief An item of value `v`.
+    Assigned_By_Template(const int v) : value(v) {}
+
+    Assigned_By_Template(const Assigned_By_Template &) = default;
+    Assigned_By_Template(Assigned_By_Template &&) = default;
+    Assigned_By_Template &operator = (const Assigned_By_Template &)
+      requires (K < 0) = default;
+    Assigned_By_Template &operator = (Assigned_By_Template &&)
+      requires (K < 0) = default;
+
+    /// @brief Assign `a`, and count it.
+    template <class U>
+      requires std::same_as<std::remove_cvref_t<U>, Assigned_By_Template>
+    Assigned_By_Template &operator = (U && a)
+    {
+      ++assignments;
+      value = a.value;
+      return *this;
+    }
+  };
+}
+
+// A copy and a growth go through an assignment that is not trivial, as
+// with a few items, whatever the type traits say of the copy
+TEST(MemArray, a_type_whose_assignment_is_not_trivial_is_copied_and_grown_through_it)
+{
+  using T = Assigned_By_Template<0>;
+  static_assert(not std::is_trivially_copy_assignable_v<T>);
+  MemArray<T> a(8);
+  for (int i = 0; i < 8; ++i)
+    a.append(T(i));
+  T::assignments = 0;
+  const MemArray<T> copy(a);
+  EXPECT_EQ(T::assignments, 8);
+  T::assignments = 0;
+  a.append(T(8));  // full: it grows
+  EXPECT_EQ(T::assignments, 9);
+  for (int i = 0; i < 9; ++i)
+    EXPECT_EQ(a(i).value, i);
 }

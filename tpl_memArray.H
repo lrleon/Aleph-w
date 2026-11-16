@@ -93,9 +93,11 @@
 
 #include <utility>
 #include <cstdlib>
+#include <cstring>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <type_traits>
 
 #include <ah-errors.H>
 #include <ahUtils.H>
@@ -163,6 +165,13 @@ protected:
 #ifdef ALEPH_MEMARRAY_ANNOTATIONS
   bool annotated = true;  // false while the live items are not the prefix [0, n)
 #endif
+
+  /// Whether memcpy() copies an item as its assignments do: `T` is
+  /// trivially copyable, its copy and move assignments are trivial, and it
+  /// is not volatile, whose pointers memcpy() does not take.
+  static constexpr bool copied_as_bytes =
+    std::is_trivially_copyable_v<T> and std::is_trivially_copy_assignable_v<T>
+    and std::is_trivially_move_assignable_v<T> and not std::is_volatile_v<T>;
 
 public:
   /** Number of items at or below which contract() halves the capacity.
@@ -304,6 +313,9 @@ protected:
             move may leave some elements moved from, as in reallocate().
       @note It is out of line: copied into put_item(), it made that
             function too large for the loops that append to inline it.
+      @note If `memcpy()` copies `T` as its assignments do
+            (copied_as_bytes), the items that are in a row, from the first
+            slot, are moved with it.
   */
   template <class U>
   [[gnu::noinline]]
@@ -320,6 +332,15 @@ protected:
 #endif
     replacement.putn(n + 1);
     replacement.ptr[pos] = std::forward<U>(item);  // the old buffer is still alive
+    if constexpr (copied_as_bytes)
+      if (first == 0 and n > 0)  // in a row, from a buffer: an array moved from has none
+        {
+          std::memcpy(static_cast<void *>(replacement.ptr), ptr, pos * sizeof(T));
+          std::memcpy(static_cast<void *>(replacement.ptr + pos + 1), ptr + pos,
+                      (n - pos) * sizeof(T));
+          swap(replacement);
+          return ptr[pos];
+        }
     for (size_t i = 0; i < pos; ++i)  // a loop for each side of the item:
       replacement.ptr[i] = std::move(ptr[(first + i) & (dim - 1)]);
     for (size_t i = pos; i < n; ++i)  // one loop would choose at each step
@@ -449,12 +470,25 @@ public:
 #endif
   }
 
-  /// Construct a copy of `a`
+  /** @brief Construct a copy of `a`, with its capacity.
+      @param[in] a the array to copy.
+      @throws std::bad_alloc or an exception from T.
+      @note O(n). If `memcpy()` copies `T` as its assignments do
+            (copied_as_bytes), the items are copied with it from 5 of them
+            on: item by item, the compilers do not see that the two arrays
+            do not overlap.
+  */
   MemArray(const MemArray &a)
     requires(std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
     : MemArray(a.dim)
   {
     putn(a.n);
+    if constexpr (copied_as_bytes)
+      if (n > 4)
+        {
+          std::memcpy(static_cast<void *>(ptr), a.ptr, n * sizeof(T));
+          return;
+        }
     for (size_t i = 0; i < n; ++i)
       ptr[i] = a.ptr[i];
   }
