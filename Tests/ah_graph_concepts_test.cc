@@ -78,6 +78,17 @@ namespace
 static_assert(AlephGraph<LG> and AlephGraph<LD> and AlephGraph<AG> and AlephGraph<AD>);
 static_assert(AlephGraph<SG> and AlephGraph<SD> and AlephGraph<NG>);
 static_assert(AlephGraph<const LG &>);
+
+// _In_Iterator walks the list of a node, which holds the arcs into the
+// node only on a graph that is not directed and on the networks: it does
+// not exist for a digraph type, whose list holds only the arcs that leave
+template <class G>
+constexpr bool has_basic_in_iterator = requires { typename _In_Iterator<G>; };
+
+static_assert(has_basic_in_iterator<LG> and has_basic_in_iterator<AG> and
+              has_basic_in_iterator<SG> and has_basic_in_iterator<NG>);
+static_assert(not has_basic_in_iterator<LD> and not has_basic_in_iterator<AD> and
+              not has_basic_in_iterator<SD>);
 static_assert(not AlephGraph<NotAGraph> and not AlephGraph<DynList<int>> and not AlephGraph<int>);
 
 static_assert(ArcFilter<Dft_Show_Arc<LG>, LG>);
@@ -177,6 +188,45 @@ TEST(AhGraphConceptsTest, InOutArcHelpersCompileAndAgree)
   EXPECT_EQ(out_degree<LG>(a), 2u);
   EXPECT_EQ(in_degree<LG>(b), 2u);
   EXPECT_EQ(in_degree<LG>(a), 0u);
+}
+
+// On a graph that is not directed and on a network, _In_Iterator sees the
+// arcs into the node, as In_Iterator(g, p)
+TEST(AhGraphConceptsTest, BasicInIteratorSeesTheArcsIntoTheNode)
+{
+  LG g;
+  auto * a = g.insert_node(1);
+  auto * b = g.insert_node(2);
+  auto * c = g.insert_node(3);
+  g.insert_arc(a, b, 4);
+  g.insert_arc(c, b, 5);
+  g.insert_arc(b, c, 6);
+  int sum = 0, sum_of_g = 0;
+  size_t n = 0, n_of_g = 0;
+  for (_In_Iterator<LG> it(b); it.has_curr(); it.next_ne(), ++n)
+    sum += it.get_curr()->get_info();
+  for (In_Iterator<LG> it(g, b); it.has_curr(); it.next_ne(), ++n_of_g)
+    sum_of_g += it.get_curr()->get_info();
+  EXPECT_EQ(n, 2u); // the arcs whose target is b: a -> b and c -> b
+  EXPECT_EQ(sum, 9);
+  EXPECT_EQ(n_of_g, n);
+  EXPECT_EQ(sum_of_g, sum);
+
+  NG net;
+  auto * s = net.insert_node();
+  auto * m = net.insert_node();
+  auto * t = net.insert_node();
+  net.insert_arc(s, m, 2);
+  net.insert_arc(m, t, 3);
+  net.insert_arc(s, t, 4);
+  size_t into_t = 0;
+  for (_In_Iterator<NG> it(t); it.has_curr(); it.next_ne())
+    {
+      EXPECT_EQ(net.get_tgt_node(it.get_curr()), t);
+      ++into_t;
+    }
+  EXPECT_EQ(into_t, 2u);
+  EXPECT_EQ(into_t, net.get_in_degree(t));
 }
 
 TEST(AhGraphConceptsTest, ConstrainedAlgorithmsStillRun)
