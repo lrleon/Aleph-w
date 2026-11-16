@@ -93,6 +93,7 @@
 
 #include <utility>
 #include <cstdlib>
+#include <cstring>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -304,6 +305,8 @@ protected:
             move may leave some elements moved from, as in reallocate().
       @note It is out of line: copied into put_item(), it made that
             function too large for the loops that append to inline it.
+      @note The items of a trivially copyable `T` that are in a row, from
+            the first slot, are moved with `memcpy()`.
   */
   template <class U>
   [[gnu::noinline]]
@@ -320,6 +323,15 @@ protected:
 #endif
     replacement.putn(n + 1);
     replacement.ptr[pos] = std::forward<U>(item);  // the old buffer is still alive
+    if constexpr (std::is_trivially_copyable_v<T>)
+      if (first == 0 and n > 0)  // in a row, from a buffer: an array moved from has none
+        {
+          std::memcpy(static_cast<void *>(replacement.ptr), ptr, pos * sizeof(T));
+          std::memcpy(static_cast<void *>(replacement.ptr + pos + 1), ptr + pos,
+                      (n - pos) * sizeof(T));
+          swap(replacement);
+          return ptr[pos];
+        }
     for (size_t i = 0; i < pos; ++i)  // a loop for each side of the item:
       replacement.ptr[i] = std::move(ptr[(first + i) & (dim - 1)]);
     for (size_t i = pos; i < n; ++i)  // one loop would choose at each step
@@ -449,12 +461,24 @@ public:
 #endif
   }
 
-  /// Construct a copy of `a`
+  /** @brief Construct a copy of `a`, with its capacity.
+      @param[in] a the array to copy.
+      @throws std::bad_alloc or an exception from T.
+      @note O(n). The items of a trivially copyable `T` are copied with
+            `memcpy()` from 5 of them on: item by item, the compilers do
+            not see that the two arrays do not overlap.
+  */
   MemArray(const MemArray &a)
     requires(std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
     : MemArray(a.dim)
   {
     putn(a.n);
+    if constexpr (std::is_trivially_copyable_v<T>)
+      if (n > 4)
+        {
+          std::memcpy(static_cast<void *>(ptr), a.ptr, n * sizeof(T));
+          return;
+        }
     for (size_t i = 0; i < n; ++i)
       ptr[i] = a.ptr[i];
   }
