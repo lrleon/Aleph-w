@@ -1055,6 +1055,10 @@ jobs:
             --gcov-ignore-errors no_working_dir_found
             --gcov-ignore-errors output_error
             --gcov-ignore-parse-errors all
+            # When the gcov data of two units put a function on different
+            # lines, the default merge (strict) aborts the report: keep the
+            # function once, on the highest line, as gcovr does in one file.
+            --merge-mode-functions merge-use-line-max
             --exclude "(^|.*/)Tests/.*"
             --exclude "(^|.*/)Examples/.*"
             --exclude "(^|.*/)build-coverage/.*"
