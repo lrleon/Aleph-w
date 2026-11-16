@@ -1894,13 +1894,18 @@ namespace Aleph
   /** Basic iterator for incoming arcs of a node.
 
         It walks the list of the node, which holds the arcs that enter it
-        only in a graph that is not directed, as the networks are: on a
-        digraph it sees only the loops of the node. Use `In_Iterator(g, p)`
-        there.
+        only in a graph that is not directed, as the networks are. It does
+        not compile on a digraph type (`DigraphType`), whose list of a node
+        holds only the arcs that leave it, so that the iterator would see
+        only the loops of the node: use `In_Iterator(g, p)` there, or
+        `In_Arcs_Index` for many nodes. It cannot tell a graph of an
+        undirected type that says that it is directed (see
+        `set_digraph()`).
 
         @ingroup Graphs
     */
   template <class GT>
+    requires (not DigraphType<GT>)
   using _In_Iterator = Digraph_Iterator<GT, __In_Filt<GT>>;
 
   /** Filtered iterator for outcoming arcs of a node.

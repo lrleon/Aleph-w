@@ -366,6 +366,11 @@ function(in_forms_of_the_node_on_a_digraph kind header type forms)
   must_not_compile(in_iterator_of_the_node_on_${kind} "In_Iterator(p) on ${kind}"
     "${failed}In_Iterator\\(p\\) ${rest}"
     "${head}  Aleph::In_Iterator<GT> it(p);\n  (void) it.has_curr();\n}\n")
+  # _In_Iterator, an alias, is constrained instead: the first error is the
+  # constraint that it does not satisfy
+  must_not_compile(basic_in_iterator_on_${kind} "_In_Iterator on ${kind}"
+    "error: [^\n]*constraint[^\n]*_In_Iterator"
+    "${head}  Aleph::_In_Iterator<GT> it(p);\n  (void) it.has_curr();\n}\n")
   if(forms STREQUAL "SOME")
     must_not_compile(in_degree_of_the_node_on_${kind} "in_degree(p) on ${kind}"
       "${failed}in_degree\\(p\\) ${rest}"
