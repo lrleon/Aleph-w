@@ -479,7 +479,7 @@ namespace Aleph
   [[nodiscard]] bool stl_zip_all(Pred && pred, const Containers &... cs)
   {
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-      if (not std::forward<Pred>(pred)(it.get_curr()))
+      if (not pred(it.get_curr()))
         return false;
     return true;
   }
@@ -501,7 +501,7 @@ namespace Aleph
   {
     auto it = stl_zip_it(cs...);
     for (; it.has_curr(); it.next())
-      if (not std::forward<Pred>(pred)(it.get_curr()))
+      if (not pred(it.get_curr()))
         return false;
     return it.completed();
   }
@@ -536,7 +536,7 @@ namespace Aleph
   [[nodiscard]] bool stl_zip_exists(Pred && pred, const Containers &... cs)
   {
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-      if (std::forward<Pred>(pred)(it.get_curr()))
+      if (pred(it.get_curr()))
         return true;
     return false;
   }
@@ -594,7 +594,7 @@ namespace Aleph
   void stl_zip_for_each(Op && op, const Containers &... cs)
   {
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-      std::forward<Op>(op)(it.get_curr());
+      op(it.get_curr());
   }
 
   /**
@@ -611,7 +611,7 @@ namespace Aleph
   {
     size_t idx = 0;
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next(), ++idx)
-      std::forward<Op>(op)(idx, it.get_curr());
+      op(idx, it.get_curr());
   }
 
   /**
@@ -649,7 +649,7 @@ namespace Aleph
   {
     T acc = std::move(init);
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-      acc = std::forward<Op>(op)(std::move(acc), it.get_curr());
+      acc = op(std::move(acc), it.get_curr());
     return acc;
   }
 
@@ -692,11 +692,11 @@ namespace Aleph
   [[nodiscard]] auto stl_zip_map(Op && op, const Containers &... cs)
   {
     using TupleType = decltype(stl_zip_it(cs...).get_curr());
-    using ResultType = std::decay_t<decltype(std::forward<Op>(op)(std::declval<TupleType>()))>;
+    using ResultType = std::decay_t<decltype(op(std::declval<TupleType>()))>;
 
     std::vector<ResultType> result;
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-      result.push_back(std::forward<Op>(op)(it.get_curr()));
+      result.push_back(op(it.get_curr()));
     return result;
   }
 
@@ -719,7 +719,7 @@ namespace Aleph
 
     std::vector<TupleType> result;
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-      if (auto t = it.get_curr(); std::forward<Pred>(pred)(t))
+      if (auto t = it.get_curr(); pred(t))
         result.push_back(t);
     return result;
   }
@@ -740,7 +740,7 @@ namespace Aleph
     using TupleType = typename StlZipIterator<std::decay_t<Containers>...>::value_type;
 
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-      if (auto t = it.get_curr(); std::forward<Pred>(pred)(t))
+      if (auto t = it.get_curr(); pred(t))
         return std::optional<TupleType>(t);
     return std::optional<TupleType>{};
   }
@@ -760,7 +760,7 @@ namespace Aleph
   {
     size_t count = 0;
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-      if (std::forward<Pred>(pred)(it.get_curr()))
+      if (pred(it.get_curr()))
         ++count;
     return count;
   }
@@ -894,7 +894,7 @@ namespace Aleph
 
     std::vector<TupleType> matching, non_matching;
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-      if (auto t = it.get_curr(); std::forward<Pred>(pred)(t))
+      if (auto t = it.get_curr(); pred(t))
         matching.push_back(t);
       else
         non_matching.push_back(t);
@@ -947,7 +947,7 @@ namespace Aleph
   [[nodiscard]] bool stl_zip_traverse(Pred && pred, const Containers &... cs)
   {
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-      if (not std::forward<Pred>(pred)(it.get_curr()))
+      if (not pred(it.get_curr()))
         return false;
     return true;
   }
@@ -967,7 +967,7 @@ namespace Aleph
   {
     auto it = stl_zip_it(cs...);
     for (; it.has_curr(); it.next())
-      if (not std::forward<Pred>(pred)(it.get_curr()))
+      if (not pred(it.get_curr()))
         return false;
     return it.completed();
   }
@@ -1194,7 +1194,7 @@ namespace Aleph
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
       {
         auto t = it.get_curr();
-        if (not std::forward<Pred>(pred)(t))
+        if (not pred(t))
           break;
         result.push_back(t);
       }
@@ -1223,7 +1223,7 @@ namespace Aleph
     auto it = stl_zip_it(cs...);
 
     // Skip while pred is true
-    for (; it.has_curr() and std::forward<Pred>(pred)(it.get_curr()); it.next())
+    for (; it.has_curr() and pred(it.get_curr()); it.next())
       /* skip */;
 
     // Collect the rest
@@ -1292,7 +1292,7 @@ namespace Aleph
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
       {
         auto t = it.get_curr();
-        if (std::forward<Pred>(pred)(t))
+        if (pred(t))
           result = t;
       }
     return result;
@@ -1313,7 +1313,7 @@ namespace Aleph
   {
     size_t idx = 0;
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next(), ++idx)
-      if (std::forward<Pred>(pred)(it.get_curr()))
+      if (pred(it.get_curr()))
         return idx;
     return idx;
   }
@@ -1471,7 +1471,7 @@ namespace Aleph
   [[nodiscard]] auto stl_adjacent_map(Op && op, const Container & c)
   {
     using T = typename std::decay_t<Container>::value_type;
-    using R = std::decay_t<decltype(std::forward<Op>(op)(std::declval<T>(), std::declval<T>()))>;
+    using R = std::decay_t<decltype(op(std::declval<T>(), std::declval<T>()))>;
 
     std::vector<R> result;
 
@@ -1484,7 +1484,7 @@ namespace Aleph
 
     for (; it != c.end(); ++it)
       {
-        result.push_back(std::forward<Op>(op)(prev, *it));
+        result.push_back(op(prev, *it));
         prev = *it;
       }
     return result;
@@ -1523,7 +1523,7 @@ namespace Aleph
 
     for (; it != c.end(); ++it)
       {
-        if (not std::forward<Pred>(pred)(prev, *it))
+        if (not pred(prev, *it))
           return false;
         prev = *it;
       }
@@ -1552,7 +1552,7 @@ namespace Aleph
 
     for (; it != c.end(); ++it)
       {
-        if (std::forward<Pred>(pred)(prev, *it))
+        if (pred(prev, *it))
           return true;
         prev = *it;
       }
@@ -1586,12 +1586,12 @@ namespace Aleph
   [[nodiscard]] auto stl_zip_mapi(Op && op, const Containers &... cs)
   {
     using TupleType = typename StlZipIterator<std::decay_t<Containers>...>::value_type;
-    using ResultType = std::decay_t<decltype(std::forward<Op>(op)(size_t{}, std::declval<TupleType>()))>;
+    using ResultType = std::decay_t<decltype(op(size_t{}, std::declval<TupleType>()))>;
 
     std::vector<ResultType> result;
     size_t idx = 0;
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next(), ++idx)
-      result.push_back(std::forward<Op>(op)(idx, it.get_curr()));
+      result.push_back(op(idx, it.get_curr()));
     return result;
   }
 
@@ -1615,7 +1615,7 @@ namespace Aleph
     std::vector<TupleType> result;
     size_t idx = 0;
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next(), ++idx)
-      if (auto t = it.get_curr(); std::forward<Pred>(pred)(idx, t))
+      if (auto t = it.get_curr(); pred(idx, t))
         result.push_back(t);
     return result;
   }
@@ -1650,7 +1650,7 @@ namespace Aleph
     T acc = std::move(init);
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
       {
-        acc = std::forward<Op>(op)(std::move(acc), it.get_curr());
+        acc = op(std::move(acc), it.get_curr());
         result.push_back(acc);
       }
     return result;
@@ -1672,11 +1672,11 @@ namespace Aleph
   [[nodiscard]] auto stl_zip_find_mapi(Op && op, const Containers &... cs)
   {
     using TupleType = typename StlZipIterator<std::decay_t<Containers>...>::value_type;
-    using OptType = std::decay_t<decltype(std::forward<Op>(op)(size_t{}, std::declval<TupleType>()))>;
+    using OptType = std::decay_t<decltype(op(size_t{}, std::declval<TupleType>()))>;
 
     size_t idx = 0;
     for (auto it = stl_zip_it(cs...); it.has_curr(); it.next(), ++idx)
-      if (auto result = std::forward<Op>(op)(idx, it.get_curr()))
+      if (auto result = op(idx, it.get_curr()))
         return result;
     return OptType{};
   }
@@ -1718,7 +1718,7 @@ namespace Aleph
   {
     auto it = stl_zip_it(cs...);
     for (; it.has_curr(); it.next())
-      if (not std::forward<Eq>(eq)(it.get_curr()))
+      if (not eq(it.get_curr()))
         return false;
     return it.completed();
   }

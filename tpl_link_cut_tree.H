@@ -1082,33 +1082,56 @@ namespace Aleph
         return lct_nodes.size();
       };
 
-      size_t root_idx = find_idx(root);
-      struct DestroyTreeDeleter
-      {
-        void operator()(TN * nd) const noexcept
-        {
-          if (nd != nullptr)
-            destroy_tree(nd);
-        }
-      };
-      std::unique_ptr<TN, DestroyTreeDeleter> root_guard(new TN(root->val));
-      tree_nodes(root_idx) = root_guard.get();
+      // Linking each copy to the copy of its parent as it was made, in the
+      // order of lct_nodes, dereferenced the copy of a parent that came
+      // later, still null. The children of each vertex are listed first
+      // (after make_root(root), every other vertex has a parent), in the
+      // order of lct_nodes, which is kept
+      const size_t n = lct_nodes.size();
+      const size_t root_idx = find_idx(root);
+      auto first_child = Array<size_t>::create(n);
+      auto next_sibling = Array<size_t>::create(n);
+      auto queue = Array<size_t>::create(n);  // for the linking, made before the copies
+      for (size_t i = 0; i < n; ++i)
+        first_child(i) = n;
+      for (size_t i = n; i-- > 0; )
+        if (i != root_idx)
+          {
+            const size_t p = find_idx(parent(lct_nodes(i)));
+            next_sibling(i) = first_child(p);
+            first_child(p) = i;
+          }
 
-      for (size_t i = 0; i < lct_nodes.size(); ++i)
+      // Then all the copies are made, the last allocation: until they are
+      // linked they are loose, and they are freed one by one if one cannot
+      // be made
+      try
         {
-          if (i == root_idx)
-            continue;
-          Node * par = parent(lct_nodes(i));
-          if (par != nullptr)
+          for (size_t i = 0; i < n; ++i)
+            tree_nodes(i) = new TN(lct_nodes(i)->val);
+        }
+      catch (...)
+        {
+          for (size_t i = 0; i < n; ++i)
+            delete tree_nodes(i);
+          throw;
+        }
+
+      // And they are linked breadth-first from the root, as
+      // insert_rightmost_child() takes a copy that has no children yet
+      size_t head = 0, tail = 0;
+      queue(tail++) = root_idx;
+      while (head < tail)
+        {
+          const size_t p = queue(head++);
+          for (size_t c = first_child(p); c != n; c = next_sibling(c))
             {
-              size_t pi = find_idx(par);
-              std::unique_ptr<TN> child(new TN(lct_nodes(i)->val));
-              tree_nodes(pi)->insert_rightmost_child(child.get());
-              tree_nodes(i) = child.release();
+              tree_nodes(p)->insert_rightmost_child(tree_nodes(c));
+              queue(tail++) = c;
             }
         }
 
-      return root_guard.release();
+      return tree_nodes(root_idx);
     }
   };
 

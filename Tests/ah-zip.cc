@@ -2139,3 +2139,46 @@ TEST(DynSkipListZip, BasicZipOperations)
   EXPECT_EQ(mapped[0], 10);
   EXPECT_EQ(mapped[4], 50);
 }
+
+// The zip functions call their operation once per tuple, so they must call
+// it as an lvalue. They called std::forward<Op>(op)(...) at each step: a
+// temporary was called through an rvalue each time, and one whose rvalue
+// call consumes its state, as a one-shot task does, lost it after the
+// first call. The operation counts the calls through each kind of value
+namespace
+{
+  struct Counting_Pred
+  {
+    int *lvalue_calls = nullptr;
+    int *rvalue_calls = nullptr;
+    bool operator()(const auto &) & { ++*lvalue_calls; return true; }
+    bool operator()(const auto &) && { ++*rvalue_calls; return true; }
+  };
+}
+
+TEST(ZipOperations, TemporaryCallableIsCalledAsLvalue)
+{
+  DynList<int> l = {1, 2, 3};
+  int lv = 0, rv = 0;
+  auto pred = [&lv, &rv]
+  {
+    lv = rv = 0;
+    return Counting_Pred{&lv, &rv};
+  };
+
+  EXPECT_TRUE(zip_all(pred(), l, l));
+  EXPECT_EQ(lv, 3);
+  EXPECT_EQ(rv, 0);
+
+  EXPECT_TRUE(zip_traverse(pred(), l, l));
+  EXPECT_EQ(lv, 3);
+  EXPECT_EQ(rv, 0);
+
+  EXPECT_EQ(zip_count(pred(), l, l), 3u);
+  EXPECT_EQ(lv, 3);
+  EXPECT_EQ(rv, 0);
+
+  EXPECT_FALSE(zip_none(pred(), l, l));
+  EXPECT_EQ(lv, 1);
+  EXPECT_EQ(rv, 0);
+}

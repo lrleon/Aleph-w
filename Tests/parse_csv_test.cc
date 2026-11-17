@@ -1466,9 +1466,29 @@ TEST_F(CsvUtilityTest, SkipBomNotPresent)
   std::istringstream ss("a,b,c\n");
   
   EXPECT_FALSE(csv_skip_bom(ss));
-  
+
   auto row = csv_read_row(ss);
   EXPECT_EQ(row(0), "a");  // Still reads correctly
+}
+
+// A stream shorter than the BOM, or that starts as a BOM and then differs,
+// keeps all its bytes: reading three bytes and putting them back lost them
+TEST_F(CsvUtilityTest, SkipBomKeepsShortAndPartialStreams)
+{
+  for (const std::string text : {"", "a", "ab", "\xEF", "\xEF\xBB", "\xEF" "a,b\n",
+                                 "\xEF\xBB\xBE" "x\n"})
+    {
+      std::istringstream ss(text);
+      EXPECT_FALSE(csv_skip_bom(ss)) << "text of " << text.size() << " bytes";
+      ss.clear();
+      const std::string rest((std::istreambuf_iterator<char>(ss)),
+                             std::istreambuf_iterator<char>());
+      EXPECT_EQ(rest, text) << "text of " << text.size() << " bytes";
+    }
+
+  std::istringstream only_bom(std::string("\xEF\xBB\xBF"));
+  EXPECT_TRUE(csv_skip_bom(only_bom));
+  EXPECT_EQ(only_bom.peek(), std::char_traits<char>::eof());
 }
 
 TEST_F(CsvUtilityTest, TrimFields)

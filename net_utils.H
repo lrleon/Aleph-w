@@ -86,6 +86,7 @@
 #include <tpl_net.H>
 #include <tpl_netcost.H>
 #include <tpl_dynMapTree.H>
+#include <tpl_array.H>
 
 namespace Aleph
 {
@@ -857,7 +858,10 @@ void export_network_to_dimacs(const Net& net, const std::string& filename)
  *  @param filename Input filename.
  *  @return Imported network.
  *
- *  @throw std::runtime_error If file cannot be opened or parsed.
+ *  @throw std::runtime_error If file cannot be opened or parsed: a line
+ *         whose fields cannot be read, a second problem line, a node or
+ *         arc line before the problem line, or a node number outside
+ *         [1, n].
  *
  *  @ingroup Networks
  */
@@ -867,60 +871,70 @@ Net import_network_from_dimacs(const std::string& filename)
   using Node = typename Net::Node;
   using Flow_Type = typename Net::Flow_Type;
 
-  Net net;
   std::ifstream in(filename);
-  if (not in)
-    throw std::runtime_error("Cannot open file: " + filename);
+  ah_runtime_error_if(not in) << "Cannot open file: " << filename;
 
-  std::vector<Node*> nodes;
-  size_t source_id = 0, sink_id = 0;
+  // The node numbered i is nodes(i - 1). Every read and every number is
+  // checked: a malformed line left its fields unset, and a number out of
+  // range indexed past the nodes
+  Net net;
+  Array<Node *> nodes;
+  bool has_problem = false;
+  size_t line_number = 0;
+  auto node_of = [&](const size_t id)
+  {
+    ah_runtime_error_if(id == 0 or id > nodes.size())
+      << filename << ":" << line_number << ": node " << id
+      << " is not in [1, " << nodes.size() << "]";
+    return nodes(id - 1);
+  };
 
   std::string line;
   while (std::getline(in, line))
     {
-      if (line.empty() or line[0] == 'c')
-        continue;
-
+      ++line_number;
       std::istringstream iss(line);
-      char type;
-      iss >> type;
+      char type = 0;
+      if (not (iss >> type) or type == 'c')  // a blank line or a comment
+        continue;
 
       if (type == 'p')
         {
           std::string problem;
-          size_t n, m;
-          iss >> problem >> n >> m;
-
-          nodes.resize(n + 1);  // 1-indexed
-          for (size_t i = 1; i <= n; ++i)
-            nodes[i] = net.insert_node();
+          size_t n = 0, m = 0;
+          ah_runtime_error_if(has_problem)
+            << filename << ":" << line_number << ": a second problem line";
+          ah_runtime_error_if(not (iss >> problem >> n >> m))
+            << filename << ":" << line_number << ": malformed problem line";
+          nodes.reserve(n);
+          for (size_t i = 0; i < n; ++i)
+            nodes.append(net.insert_node());
+          has_problem = true;
         }
-      else if (type == 'n')
+      else if (type == 'n' or type == 'a')
         {
-          size_t id;
-          char st;
-          iss >> id >> st;
-
-          if (st == 's')
-            source_id = id;
-          else if (st == 't')
-            sink_id = id;
-        }
-      else if (type == 'a')
-        {
-          size_t src, tgt;
-          long long cap;
-          iss >> src >> tgt >> cap;
-
-          net.insert_arc(nodes[src], nodes[tgt],
-                         static_cast<Flow_Type>(cap));
+          ah_runtime_error_if(not has_problem)
+            << filename << ":" << line_number << ": a '" << type
+            << "' line before the problem line";
+          if (type == 'n')
+            {
+              size_t id = 0;
+              char designator = 0;
+              ah_runtime_error_if(not (iss >> id >> designator)
+                                  or (designator != 's' and designator != 't'))
+                << filename << ":" << line_number << ": malformed node line";
+              (void) node_of(id);  // Net_Graph finds the source and the sink by topology
+            }
+          else
+            {
+              size_t src = 0, tgt = 0;
+              long long cap = 0;
+              ah_runtime_error_if(not (iss >> src >> tgt >> cap))
+                << filename << ":" << line_number << ": malformed arc line";
+              net.insert_arc(node_of(src), node_of(tgt), static_cast<Flow_Type>(cap));
+            }
         }
     }
-
-  // Source and sink nodes are determined by topology in Net_Graph
-  // The DIMACS format's source/sink designations guide network construction
-  (void)source_id;  // Suppress unused variable warning
-  (void)sink_id;
 
   return net;
 }

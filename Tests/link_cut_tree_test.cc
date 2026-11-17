@@ -1507,6 +1507,44 @@ TEST_F(LinkCutTreeStructTest, ExportToTreeNodeStar)
   destroy_tree(tree);
 }
 
+// The export rooted at any vertex, also at one made before its parent in
+// the rooting: it linked each copy to the copy of its parent as it made
+// it, and that copy did not exist yet (a null dereference)
+TEST_F(LinkCutTreeStructTest, ExportToTreeNodeFromAnyRoot)
+{
+  constexpr int N = 40;
+  std::mt19937 rng(17);
+  std::vector<Link_Cut_Tree::Node *> nd(N);
+  for (int i = 0; i < N; ++i)
+    nd[i] = lct.make_vertex(i);
+  for (int i = 1; i < N; ++i)  // a random tree: i hangs from one before it
+    lct.link(nd[i], nd[std::uniform_int_distribution<int>(0, i - 1)(rng)]);
+
+  for (int r : {N - 1, N / 2, 0})
+    {
+      auto * tree = lct.export_to_tree_node(nd[r]);
+      ASSERT_NE(tree, nullptr);
+      EXPECT_EQ(tree->get_key(), r);
+
+      // every copy hangs from the copy of its parent under the rooting at r
+      int count = 0;
+      std::vector<std::pair<Tree_Node<int> *, int>> pending = {{tree, -1}};
+      while (not pending.empty())
+        {
+          auto [p, parent_key] = pending.back();
+          pending.pop_back();
+          ++count;
+          lct.make_root(nd[r]);
+          auto * par = lct.parent(nd[p->get_key()]);
+          EXPECT_EQ(par == nullptr ? -1 : lct.get_val(par), parent_key);
+          for (auto * c = p->get_left_child(); c != nullptr; c = c->get_right_sibling())
+            pending.push_back({c, p->get_key()});
+        }
+      EXPECT_EQ(count, N);
+      destroy_tree(tree);
+    }
+}
+
 // ===================================================================
 //  M. export_to_tree_node — edge-weighted LCT
 // ===================================================================
