@@ -5,6 +5,28 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.7.1](https://github.com/lrleon/Aleph-w/compare/v7.7.0...v7.7.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **bplus:** Keep the tree whole when an insertion runs out of memory ([#200](https://github.com/lrleon/Aleph-w/issues/200)) ([d136024](https://github.com/lrleon/Aleph-w/commit/d136024f5e65ab81e61c8ae1055c86329e7fed68))
+* **csv:** Keep the bytes of a short stream in csv_skip_bom() ([#199](https://github.com/lrleon/Aleph-w/issues/199)) ([18e76c8](https://github.com/lrleon/Aleph-w/commit/18e76c8d9cad565bd6500d7a7383faeb659736f9))
+* **fft:** Find every zero of a polynomial whose balancing shrinks a term ([#200](https://github.com/lrleon/Aleph-w/issues/200)) ([d136024](https://github.com/lrleon/Aleph-w/commit/d136024f5e65ab81e61c8ae1055c86329e7fed68))
+* **graph:** Do not compile _In_Iterator on a digraph type ([#193](https://github.com/lrleon/Aleph-w/issues/193)) ([ad21976](https://github.com/lrleon/Aleph-w/commit/ad219768331a894e7b90325568e56285888cd9d2))
+* **link-cut:** Export a tree whose vertices come before their parents ([#199](https://github.com/lrleon/Aleph-w/issues/199)) ([18e76c8](https://github.com/lrleon/Aleph-w/commit/18e76c8d9cad565bd6500d7a7383faeb659736f9))
+* **list:** Free the items of a DynList or DynSkipList whose build throws ([#194](https://github.com/lrleon/Aleph-w/issues/194)) ([c207d54](https://github.com/lrleon/Aleph-w/commit/c207d548cef65b914db39e61ce77018f91c9fae4))
+* **net:** Validate the lines of a DIMACS file when importing a network ([#199](https://github.com/lrleon/Aleph-w/issues/199)) ([18e76c8](https://github.com/lrleon/Aleph-w/commit/18e76c8d9cad565bd6500d7a7383faeb659736f9))
+* **polynomial:** Do not hang when a floating division overflows ([#199](https://github.com/lrleon/Aleph-w/issues/199)) ([18e76c8](https://github.com/lrleon/Aleph-w/commit/18e76c8d9cad565bd6500d7a7383faeb659736f9))
+* **sort:** Let a throwing comparison through the heapsorts ([#200](https://github.com/lrleon/Aleph-w/issues/200)) ([d136024](https://github.com/lrleon/Aleph-w/commit/d136024f5e65ab81e61c8ae1055c86329e7fed68))
+* **streaming:** Leave a moved-from sketch empty and usable ([#200](https://github.com/lrleon/Aleph-w/issues/200)) ([d136024](https://github.com/lrleon/Aleph-w/commit/d136024f5e65ab81e61c8ae1055c86329e7fed68))
+* **zip:** Call the operation of the zip functions as an lvalue ([#199](https://github.com/lrleon/Aleph-w/issues/199)) ([18e76c8](https://github.com/lrleon/Aleph-w/commit/18e76c8d9cad565bd6500d7a7383faeb659736f9))
+
+
+### Performance Improvements
+
+* **array:** Copy and grow a MemArray of trivial items with memcpy() ([#195](https://github.com/lrleon/Aleph-w/issues/195)) ([52d4553](https://github.com/lrleon/Aleph-w/commit/52d45534e94e012a47ea4cc1e668e939ea418b85))
+
 ## [7.7.0](https://github.com/lrleon/Aleph-w/compare/v7.6.2...v7.7.0) (2026-11-15)
 
 
