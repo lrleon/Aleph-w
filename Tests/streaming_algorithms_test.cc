@@ -117,6 +117,81 @@ TEST(StreamingAlgorithms, HyperLogLog)
   EXPECT_THROW(HyperLogLog<int>(17), std::domain_error);
 }
 
+// A moved-from sketch is an empty one of the same parameters, and a move
+// assignment exchanges the sketches. The implicit moves took the storage
+// but copied the sizes: the moved-from sketches then indexed storage they
+// no longer had (clear() of a HyperLogLog or a MinHash wrote through a null
+// buffer), and after small = std::move(big), big kept its size with the
+// storage of small
+TEST(StreamingAlgorithms, MovedFromSketchesAreEmptyAndUsable)
+{
+  HyperLogLog<int> hll(10);
+  for (int i = 0; i < 1000; ++i)
+    hll.update(i);
+  const double est = hll.estimate();
+  HyperLogLog<int> hll2(std::move(hll));
+  EXPECT_DOUBLE_EQ(hll2.estimate(), est);
+  EXPECT_EQ(hll.num_registers(), 1024u);
+  EXPECT_DOUBLE_EQ(hll.estimate(), 0.0);
+  hll.clear();
+  hll.update(7);
+  EXPECT_GT(hll.estimate(), 0.0);
+  HyperLogLog<int> small_hll(4);
+  small_hll = std::move(hll2);  // small_hll takes 2^10 registers, hll2 the 2^4
+  EXPECT_DOUBLE_EQ(small_hll.estimate(), est);
+  EXPECT_EQ(hll2.num_registers(), 16u);
+  hll2.clear();
+  hll2.update(1);
+  hll2.merge(HyperLogLog<int>(4));
+
+  Count_Min_Sketch<int> cms(64, 4);
+  cms.update(7, 5);
+  Count_Min_Sketch<int> cms2(std::move(cms));
+  EXPECT_EQ(cms2.estimate(7), 5u);
+  EXPECT_EQ(cms.width(), 64u);
+  EXPECT_EQ(cms.estimate(7), 0u);
+  cms.update(7);
+  EXPECT_EQ(cms.estimate(7), 1u);
+  Count_Min_Sketch<int> small_cms(2, 1);
+  small_cms = std::move(cms2);
+  EXPECT_EQ(small_cms.estimate(7), 5u);
+  EXPECT_EQ(cms2.width(), 2u);
+  cms2.update(3);
+  EXPECT_GE(cms2.estimate(3), 1u);
+
+  MinHash<int> mh(64);
+  mh.update(7);
+  MinHash<int> mh2(std::move(mh));
+  EXPECT_EQ(mh.size(), 64u);
+  mh.clear();
+  mh.update(7);
+  EXPECT_DOUBLE_EQ(mh.similarity(mh2), 1.0);
+  MinHash<int> small_mh(2);
+  small_mh = std::move(mh2);
+  EXPECT_EQ(small_mh.size(), 64u);
+  EXPECT_EQ(mh2.size(), 2u);
+  mh2.clear();
+  mh2.update(1);
+
+  Reservoir_Sampler<int> rs(8, 1);
+  for (int i = 0; i < 4; ++i)
+    rs.update(i);
+  Reservoir_Sampler<int> rs2(std::move(rs));
+  EXPECT_EQ(rs2.total_seen(), 4u);
+  EXPECT_EQ(rs.sample_size(), 8u);
+  EXPECT_EQ(rs.total_seen(), 0u);
+  for (int i = 0; i < 20; ++i)
+    rs.update(i);
+  EXPECT_EQ(rs.get_sample().size(), 8u);
+  Reservoir_Sampler<int> small_rs(2, 3);
+  small_rs = std::move(rs2);
+  EXPECT_EQ(small_rs.total_seen(), 4u);
+  EXPECT_EQ(rs2.sample_size(), 2u);
+  for (int i = 0; i < 5; ++i)
+    rs2.update(i);
+  EXPECT_EQ(rs2.get_sample().size(), 2u);
+}
+
 static void assertMinHashContracts(MinHash<int> & mh, size_t expected_k)
 {
   EXPECT_EQ(mh.size(), expected_k);

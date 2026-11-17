@@ -87,6 +87,58 @@ namespace Aleph
         seeds_.append(static_cast<uint32_t>(dft_hash_fct(i, 0xdeadbeef)));
     }
 
+    /** @brief Copy the size and the signature of another MinHash.
+     *  @param[in] other MinHash to copy.
+     *  @throws std::bad_alloc if the signature cannot be allocated.
+     */
+    MinHash(const MinHash & other) = default;
+
+    /** @brief Take the signature of another MinHash, which is left as an
+     *         empty one of the same size.
+     *
+     *  The implicit move took the signature but copied its size: the
+     *  moved-from MinHash then read and wrote hashes that it no longer had,
+     *  and its clear() wrote through a null buffer.
+     *
+     *  @param[in,out] other MinHash to move from.
+     *  @throws std::bad_alloc if the signature left to @p other cannot be
+     *          allocated; @p other is then unchanged.
+     *  @note Complexity: O(k), for the signature left to @p other.
+     */
+    MinHash(MinHash && other) : MinHash(other.k_)
+    {
+      swap(other);
+    }
+
+    /** @brief Copy the size and the signature of another MinHash.
+     *  @param[in] other MinHash to copy.
+     *  @return this MinHash.
+     *  @throws std::bad_alloc if the signature cannot be allocated.
+     */
+    MinHash & operator = (const MinHash & other) = default;
+
+    /** @brief Exchange this MinHash with another, which is left with the
+     *         previous state of this one.
+     *  @param[in,out] other MinHash to move from.
+     *  @return this MinHash.
+     *  @note Complexity: O(1).
+     */
+    MinHash & operator = (MinHash && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) the state of this MinHash and another.
+     *  @param[in,out] other MinHash to exchange with.
+     */
+    void swap(MinHash & other) noexcept
+    {
+      std::swap(k_, other.k_);
+      signature_.swap(other.signature_);
+      seeds_.swap(other.seeds_);
+    }
+
     /** @brief Add an element to the set.
      *  @param[in] val The element to incorporate into the signature.
      *  @throws none
