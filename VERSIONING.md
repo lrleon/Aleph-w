@@ -44,7 +44,7 @@ Releases proceed `Genius` (2022) → `3.0.0` → `3.1.0` → `3.1.1` →
 `4.0.0` → `5.0.0` … `5.11.0` → `6.0.0` → `6.1.0` → `7.0.0` → `7.0.1` →
 `7.1.0` → `7.1.1` → `7.1.2` → `7.2.0` → `7.2.1` → `7.2.2` → `7.3.0` →
 `7.3.1` → `7.3.2` → `7.3.3` → `7.3.4` → `7.3.5` → `7.3.6` → `7.4.0` →
-`7.5.0` → `7.6.0` → `7.6.1` → `7.6.2` → `7.7.0`.
+`7.5.0` → `7.6.0` → `7.6.1` → `7.6.2` → `7.7.0` → `7.7.1`.
 There are no published `1.x` or `2.x` releases: those numbers appear in
 older internal documents (e.g. the cellular-automata roadmap milestone
 "v2.0") and in the historical `version 2.0.0b` banner of header
@@ -146,6 +146,7 @@ in the consumer's translation units, plus a small static library
 | 7.6.1 | Yes (performance and fixes, with another order among equal items in the sorts that are not stable; see `docs/release-notes/7.6.1.md`) | No (recompile) |
 | 7.6.2 | Yes (performance: the macros of `ah-errors.H` keep the stream of their message out of the frame of the function that checks; see `docs/release-notes/7.6.2.md`) | No (recompile) |
 | 7.7.0 | Yes (additive: `Bounded_Cycle_Index.H`, the index of the simple cycles of bounded length of a digraph through each arc, with a filter by their weight; see `docs/release-notes/7.7.0.md`) | No (recompile) |
+| 7.7.1 | Yes (fixes; some functions now throw where they hung, crashed or returned a wrong result; see `docs/release-notes/7.7.1.md`) | No (recompile) |
 
 ## Release automation
 
