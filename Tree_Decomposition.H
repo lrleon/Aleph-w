@@ -381,8 +381,10 @@ namespace Aleph
 
       /** @brief Exchange in O(1) this topology and another.
        *  @param[in,out] other topology to exchange with.
-       *  @throw what swapping the filters throws; then nothing else is
-       *         exchanged.
+       *  @throw what swapping the filters throws. They are exchanged first,
+       *         so that, if that swap throws, nothing else is exchanged, and
+       *         both topologies are left as they were if it left its
+       *         arguments as they were.
        */
       void swap(Rooted_Tree_Topology & other) noexcept(std::is_nothrow_swappable_v<SA>)
       {
@@ -1023,25 +1025,67 @@ namespace Aleph
 
     /** @brief Exchange in O(1) this engine and another.
      *  @param[in,out] other engine to exchange with.
-     *  @throw what moving or swapping the filters, or swapping the values
-     *         or the operations, throws; then the segment trees are not
-     *         exchanged, or are with the decompositions.
+     *  @throw what swapping the values, the operations or the filters
+     *         throws. The values and the operations are exchanged first,
+     *         and then the segment trees and the decompositions, each all
+     *         or none: if a swap throws, those before it are exchanged back,
+     *         and both engines are left as they were, if the swap that
+     *         threw left its arguments as they were.
      */
     void swap(Gen_HLD_Path_Query & other)
-      noexcept(noexcept(std::swap(hld_, other.hld_)) and std::is_nothrow_swappable_v<T>
-               and std::is_nothrow_swappable_v<Op>)
+      noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
+               and std::is_nothrow_move_assignable_v<Gen_Heavy_Light_Decomposition<GT, SA>>)
     {
-      // The decomposition has no swap: std::swap() moves it through a
-      // temporary, and so moves its filter, as the specification says. The
-      // values and the operations are swapped as the specification
+      // The values and the operations are swapped as the specification
       // evaluates them: found by their arguments, else std::swap()
       using std::swap;
-      std::swap(hld_, other.hld_);
-      segment_tree_.swap(other.segment_tree_);
-      swap(identity_, other.identity_);
-      swap(op_, other.op_);
+      if constexpr (noexcept(std::swap(hld_, other.hld_)) and std::is_nothrow_swappable_v<T>
+                    and std::is_nothrow_swappable_v<Op>)
+        {
+          // None may throw: the order cannot be seen, and that of the
+          // members keeps the code of the common types. std::swap() moves
+          // the decomposition through a temporary
+          std::swap(hld_, other.hld_);
+          segment_tree_.swap(other.segment_tree_);
+          swap(identity_, other.identity_);
+          swap(op_, other.op_);
+        }
+      else
+        swap_all_or_none(other);
     }
 
+  private:
+    // The values, the operations, the segment trees, whose swap is all or
+    // none, and the decompositions, which their move assignment exchanges,
+    // all or none, as those of their topologies (the filters first) and of
+    // their arrays do. If one throws, those before it are exchanged back
+    void swap_all_or_none(Gen_HLD_Path_Query & other)
+    {
+      using std::swap;
+      int done = 0;
+      try
+        {
+          swap(identity_, other.identity_);
+          ++done;
+          swap(op_, other.op_);
+          ++done;
+          segment_tree_.swap(other.segment_tree_);
+          ++done;
+          hld_ = std::move(other.hld_);
+        }
+      catch (...)
+        {
+          if (done > 2)
+            segment_tree_.swap(other.segment_tree_);
+          if (done > 1)
+            swap(op_, other.op_);
+          if (done > 0)
+            swap(identity_, other.identity_);
+          throw;
+        }
+    }
+
+  public:
     [[nodiscard]] const Gen_Heavy_Light_Decomposition<GT, SA> &decomposition() const noexcept
     {
       return hld_;
@@ -1419,6 +1463,10 @@ namespace Aleph
 
     /** @brief Exchange in O(1) this decomposition and another.
      *  @param[in,out] other decomposition to exchange with.
+     *  @throw what swapping the filters throws. They are exchanged first, so
+     *         that, if that swap throws, nothing else is exchanged, and both
+     *         decompositions are left as they were if it left its arguments
+     *         as they were.
      */
     void swap(Gen_Centroid_Decomposition & other) noexcept(std::is_nothrow_swappable_v<SA>)
     {

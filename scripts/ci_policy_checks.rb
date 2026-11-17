@@ -98,8 +98,9 @@ def cpp_token_stream(content)
       next
     end
 
-    # R"delimiter( ... )delimiter"
-    if (literal = s.scan(/R"([^\s\\)(]*)\(.*?\)\1"/m))
+    # R"delimiter( ... )delimiter", with its prefix (u8, u, U, L), which
+    # is not an identifier: else the literal inside would end at a quote
+    if (literal = s.scan(/(?:u8|[uUL])?R"([^\s\\)(]*)\(.*?\)\1"/m))
       tokens << literal
       next
     end

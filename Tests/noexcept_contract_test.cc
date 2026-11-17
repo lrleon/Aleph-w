@@ -41,14 +41,21 @@
  *  move that throws inside a noexcept function ends the program.
  *
  *  Each class is instantiated with adversarial types of the user, built
- *  on the type that it takes by default, of three kinds: a noexcept swap
- *  of its own and moves that throw, a move assignment that throws, and a
- *  copy that throws. The operations of those types that may throw count
- *  their calls, and throw while a test arms them. For each special member
- *  the test checks that it declares noexcept exactly when it runs none of
- *  them (a move constructor may also allocate), and then, armed, that it
- *  either completes or throws their exception and leaves both objects
- *  usable.
+ *  on the type that it takes by default, of five kinds: a noexcept swap
+ *  of its own and moves that throw, a move assignment that throws, a copy
+ *  that throws, a swap of its own that throws, and a move constructor
+ *  that throws with no swap of its own. The operations of those types that
+ *  may throw count their calls, and throw while a test arms them. For each
+ *  special member the test checks that it declares noexcept exactly when
+ *  it runs none of them (a move constructor may also allocate), and then,
+ *  armed, that it either completes or throws their exception and leaves
+ *  both objects usable; a swap or a move assignment that throws must leave
+ *  both objects as they were.
+ *
+ *  A swap exchanges the members of the types of the user before the
+ *  storage, and, if one of them throws, those before it back: the classes
+ *  with two or more types of the user are instantiated with all of them of
+ *  the fourth kind, and their swaps throw at each of them in turn.
  *
  *  A class is one more line in Contract_Classes, with a case: the class
  *  with its types of the user made by A, an object of about n items, and
@@ -57,8 +64,10 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <limits>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -90,6 +99,7 @@
 #include <tpl_cartesian_tree.H>
 #include <tpl_disjoint_sparse_table.H>
 #include <tpl_dynArrayHeap.H>
+#include <tpl_dynMapTree.H>
 #include <tpl_dynSkipList.H>
 #include <tpl_fenwick_tree.H>
 #include <tpl_graph.H>
@@ -199,10 +209,156 @@ namespace
     }
   };
 
+  // The swaps of the kind (d) count down from throw_at while armed: the
+  // one that reaches zero throws
+  std::atomic<long> throw_at{1};
+
+  void risky_swap()
+  {
+    ++risky_calls;
+    ah_runtime_error_if(armed.load() and throw_at.fetch_sub(1) == 1) << adversarial_what;
+  }
+
+  // The tag of each live object of the kind (d), by its address
+  std::mutex tags_mutex;
+  DynMapTree<std::uintptr_t, long> live_tags;
+  std::atomic<long> last_tag{0};
+
+  void set_tag(const void * p, const long tag)
+  {
+    const std::lock_guard<std::mutex> lock(tags_mutex);
+    const auto key = reinterpret_cast<std::uintptr_t>(p);
+    if (auto * pair = live_tags.search(key); pair != nullptr)
+      pair->second = tag;
+    else
+      (void) live_tags.insert(key, tag);
+  }
+
+  void drop_tag(const void * p)
+  {
+    const std::lock_guard<std::mutex> lock(tags_mutex);
+    const auto key = reinterpret_cast<std::uintptr_t>(p);
+    if (live_tags.search(key) != nullptr)
+      live_tags.remove_key(key);
+  }
+
+  // The tags of the objects of the kind (d) that x holds in its own bytes,
+  // in the order of their addresses: whose types of the user x has
+  template <class T>
+  std::string tags_of(const T & x)
+  {
+    const std::lock_guard<std::mutex> lock(tags_mutex);
+    const auto lo = reinterpret_cast<std::uintptr_t>(&x);
+    std::string tags;
+    live_tags.for_each([&tags, lo] (const auto & p)
+                       {
+                         if (p.first >= lo and p.first < lo + sizeof(T))
+                           tags += std::to_string(p.second) + " ";
+                       });
+    return tags;
+  }
+
+  // (d) A swap of its own that throws, while armed, when throw_at reaches
+  // it, before it changes anything, and copies and moves that do not. Each
+  // object has a tag, which its copies and moves take and its swap
+  // exchanges, so that tags_of() tells whose types of the user an object
+  // holds. Built from its base without explicit, for the values that an
+  // operation returns
+  template <class Base>
+  struct Swap_Throws : Base
+  {
+    long tag = ++last_tag;
+
+    Swap_Throws() noexcept { set_tag(this, tag); }
+    Swap_Throws(const Base & b) noexcept : Base(b) { set_tag(this, tag); }
+    Swap_Throws(const Swap_Throws & o) noexcept : Base(o), tag(o.tag) { set_tag(this, tag); }
+    Swap_Throws(Swap_Throws && o) noexcept : Base(std::move(o)), tag(o.tag) { set_tag(this, tag); }
+    ~Swap_Throws() { drop_tag(this); }
+
+    Swap_Throws & operator = (const Swap_Throws & o) noexcept
+    {
+      Base::operator = (o);
+      set_tag(this, tag = o.tag);
+      return *this;
+    }
+
+    Swap_Throws & operator = (Swap_Throws && o) noexcept
+    {
+      Base::operator = (std::move(o));
+      set_tag(this, tag = o.tag);
+      return *this;
+    }
+
+    friend void swap(Swap_Throws & a, Swap_Throws & b)
+    {
+      risky_swap();
+      std::swap(static_cast<Base &>(a), static_cast<Base &>(b));
+      std::swap(a.tag, b.tag);
+      set_tag(&a, a.tag);
+      set_tag(&b, b.tag);
+    }
+  };
+
+  // (e) A move constructor that throws before it moves anything, a move
+  // assignment that does not, and no swap of its own: std::swap() throws
+  // when it builds its temporary
+  template <class Base>
+  struct Move_Ctor_Throws : Base
+  {
+    Move_Ctor_Throws() = default;
+    explicit Move_Ctor_Throws(const Base & b) noexcept : Base(b) {}
+    Move_Ctor_Throws(const Move_Ctor_Throws & o) noexcept : Base(o) {}
+    Move_Ctor_Throws(Move_Ctor_Throws && o) : Base((risky_operation(), static_cast<Base &&>(o))) {}
+
+    Move_Ctor_Throws & operator = (const Move_Ctor_Throws & o) noexcept
+    {
+      Base::operator = (o);
+      return *this;
+    }
+
+    Move_Ctor_Throws & operator = (Move_Ctor_Throws && o) noexcept
+    {
+      Base::operator = (std::move(o));
+      return *this;
+    }
+  };
+
   template <template <class> class A> constexpr const char * kind_name = "";
   template <> constexpr const char * kind_name<Swap_Noexcept> = "Swap_Noexcept";
   template <> constexpr const char * kind_name<Assign_Throws> = "Assign_Throws";
   template <> constexpr const char * kind_name<Copy_Throws> = "Copy_Throws";
+  template <> constexpr const char * kind_name<Swap_Throws> = "Swap_Throws";
+  template <> constexpr const char * kind_name<Move_Ctor_Throws> = "Move_Ctor_Throws";
+
+  // A value of the user, for the classes that keep one of their own, as
+  // an identity, in a member
+  struct Int
+  {
+    int v = 0;
+
+    Int() = default;
+    Int(const int x) noexcept : v(x) {}
+
+    friend bool operator == (const Int & a, const Int & b) noexcept { return a.v == b.v; }
+  };
+
+  struct Int_Plus
+  {
+    Int operator () (const Int & a, const Int & b) const noexcept { return a.v + b.v; }
+  };
+
+  int value_of(const int x) noexcept { return x; }
+  int value_of(const Int & x) noexcept { return x.v; }
+
+  // The value x of the type V of a case: an int, or one made from an Int
+  template <class V>
+  V value_from(const int x)
+  {
+    if constexpr (std::is_same_v<V, int>)
+      return x;
+    else
+      return V(Int(x));
+  }
 
   // n values in [0, 100]: a fixed scramble, with repetitions
   Array<int> values_of(const size_t n)
@@ -406,11 +562,19 @@ namespace
     static void use(type & t) { use_ranges(t); }
   };
 
+  // With tags pending below the root, which a policy swapped without its
+  // arrays would apply as the other one does
   template <template <class> class A> struct Lazy_Segment
   {
     static constexpr const char * name = "Gen_Lazy_Segment_Tree";
     using type = Gen_Lazy_Segment_Tree<A<Add_Sum_Policy<int>>>;
-    static type make(const size_t n) { return type(values_of(n)); }
+    static type make(const size_t n)
+    {
+      type t(values_of(n));
+      if (n > 2)
+        t.update(1, n - 2, 3);
+      return t;
+    }
     static void use(type & t) { use_ranges(t); }
   };
 
@@ -545,6 +709,7 @@ namespace
   {
     static constexpr const char * name = "DynSkipList";
     static constexpr bool moves_allocate = true;  // a header and a generator for the source
+    static constexpr bool assignment_empties = true;  // the destination, before it swaps
     using type = DynSkipList<int, A<std::less<int>>>;
     static type make(const size_t n)
     {
@@ -625,10 +790,10 @@ namespace
     int total = 0;
     for (size_t id = 0; id < h.size(); ++id)
       {
-        EXPECT_EQ(h.path_query_id(id, id), h.get_value_at_id(id));
-        total += h.get_value_at_id(id);
+        EXPECT_EQ(value_of(h.path_query_id(id, id)), value_of(h.get_value_at_id(id)));
+        total += value_of(h.get_value_at_id(id));
       }
-    EXPECT_TRUE(h.is_empty() or h.subtree_query_id(h.root_id()) == total);
+    EXPECT_TRUE(h.is_empty() or value_of(h.subtree_query_id(h.root_id())) == total);
   }
 
   template <template <class> class A> struct HLD_Op
@@ -670,14 +835,16 @@ namespace
   template <class Q>
   void use_path_query(Q & q)
   {
+    using V = std::decay_t<decltype(q.get_node_id(0))>;
     int total = 0;
     for (size_t id = 0; id < q.size(); ++id)
       {
-        q.update_node_id(id, 1);
-        EXPECT_EQ(q.query_path_id(id, id), q.get_node_id(id));
-        total += q.get_node_id(id);
+        q.update_node_id(id, value_from<V>(1));
+        EXPECT_EQ(value_of(q.query_path_id(id, id)), value_of(q.get_node_id(id)));
+        total += value_of(q.get_node_id(id));
       }
-    EXPECT_TRUE(q.is_empty() or q.query_subtree_id(q.decomposition().root_id()) == total);
+    EXPECT_TRUE(q.is_empty()
+                or value_of(q.query_subtree_id(q.decomposition().root_id())) == total);
   }
 
   template <template <class> class A> struct Path_Query_Op
@@ -917,6 +1084,129 @@ namespace
     }
   };
 
+  // The classes with two or more types of the user, with all of them of
+  // the kind A, so that their swaps can throw at each of them in turn
+
+  template <template <class> class A> struct Fenwick_Both
+  {
+    static constexpr const char * name = "Gen_Fenwick_Tree_Both";
+    using type = Gen_Fenwick_Tree<int, A<Aleph::plus<int>>, A<Aleph::minus<int>>>;
+    static type make(const size_t n) { return type(values_of(n)); }
+    static void use(type & t) { use_ranges(t); }
+  };
+
+  template <class V>
+  Array<V> values_of_type(const size_t n)
+  {
+    const Array<int> v = values_of(n);
+    auto a = Array<V>::create(n);
+    for (size_t i = 0; i < n; ++i)
+      a(i) = value_from<V>(v(i));
+    return a;
+  }
+
+  template <template <class> class A> struct Segment_Both
+  {
+    static constexpr const char * name = "Gen_Segment_Tree_Both";
+    using V = A<Int>;
+    using type = Gen_Segment_Tree<V, A<Int_Plus>>;
+    static type make(const size_t n) { return type(values_of_type<V>(n), V(Int(0))); }
+    static void use(type & t) { use_ranges(t); }
+  };
+
+  template <template <class> class A> struct HLD_All
+  {
+    static constexpr const char * name = "Gen_HLD_All";
+    using V = A<Int>;
+    using type = Gen_HLD<Graph, V, A<Int_Plus>, A<Show_Arc>>;
+    static type make(const size_t n)
+    {
+      return type(tree_of(n).g, [] (Gnode * p) { return V(Int(p->get_info())); }, V(Int(0)));
+    }
+    static void use(type & h) { use_hld(h); }
+  };
+
+  template <template <class> class A> struct Path_Query_All
+  {
+    static constexpr const char * name = "Gen_HLD_Path_Query_All";
+    using V = A<Int>;
+    using type = Gen_HLD_Path_Query<Graph, V, A<Int_Plus>, A<Show_Arc>>;
+    static type make(const size_t n) { return type(tree_of(n).g, V(Int(0))); }
+    static void use(type & q) { use_path_query(q); }
+  };
+
+  template <template <class> class A> struct Life_All
+  {
+    static constexpr const char * name = "Synchronous_Engine_All";
+    using Rule = A<Game_Of_Life_Rule>;
+    using Nh = A<Moore<2, 1>>;
+    using type = Synchronous_Engine<Grid, Rule, Nh>;
+    static type make(const size_t n)
+    {
+      type e(life_grid(n), Rule(make_game_of_life_rule()), Nh(Moore<2, 1>{}));
+      e.step();
+      return e;
+    }
+    static auto print(const type & e) { return engine_print(e); }
+    static void use(type & e) { use_engine(e); }
+  };
+
+  template <template <class> class A> struct Async_All
+  {
+    static constexpr const char * name = "Async_Engine_All";
+    using Rule = A<Game_Of_Life_Rule>;
+    using Nh = A<Moore<2, 1>>;
+    using Scheme = A<Random_Asynchronous_Update<>>;
+    using type = Async_Engine<Grid, Rule, Nh, Scheme>;
+    static type make(const size_t n)
+    {
+      type e(life_grid(n), Rule(make_game_of_life_rule()), Nh(Moore<2, 1>{}),
+             Scheme(Random_Asynchronous_Update<>(7, 10)));
+      e.step();
+      return e;
+    }
+    static auto print(const type & e) { return engine_print(e); }
+    static void use(type & e) { use_engine(e); }
+  };
+
+  template <template <class> class A> struct Parallel_All
+  {
+    static constexpr const char * name = "Parallel_Synchronous_Engine_All";
+    using Rule = A<Game_Of_Life_Rule>;
+    using Nh = A<Moore<2, 1>>;
+    using type = Parallel_Synchronous_Engine<Grid, Rule, Nh>;
+    static type make(const size_t n)
+    {
+      Parallel_Engine_Config cfg;
+      cfg.pool = &small_pool();
+      cfg.num_partitions = 2;
+      cfg.min_parallel_cells = 0;
+      type e(life_grid(n), Rule(make_game_of_life_rule()), Nh(Moore<2, 1>{}), cfg);
+      e.step();
+      return e;
+    }
+    static auto print(const type & e) { return engine_print(e); }
+    static void use(type & e) { use_engine(e); }
+  };
+
+  template <template <class> class A> struct Field_All
+  {
+    static constexpr const char * name = "Multi_Field_Engine_All";
+    using Rule = A<Field_Slice_Rule<0, Game_Of_Life_Rule>>;
+    using Nh = A<Moore<2, 1>>;
+    using type = Multi_Field_Engine<Two_Fields, Rule, Nh>;
+    static type make(const size_t n)
+    {
+      Two_Fields lat(extents_of(n), std::tuple{0, 7});
+      type e(std::move(lat), Rule(Field_Slice_Rule<0, Game_Of_Life_Rule>(make_game_of_life_rule())),
+             Nh(Moore<2, 1>{}));
+      e.step();
+      return e;
+    }
+    static auto print(const type & e) { return engine_print(e); }
+    static void use(type & e) { use_engine(e); }
+  };
+
   // A class of the test with the types of the user of the kind A
   template <template <template <class> class> class Case, template <class> class A>
   struct Contract
@@ -925,11 +1215,13 @@ namespace
     static constexpr const char * kind = kind_name<A>;
   };
 
-  // Each class, with the three kinds of types of the user
+  // Each class, with the five kinds of types of the user
   template <template <template <class> class> class... Cases>
   using Contract_Classes = ::testing::Types<Contract<Cases, Swap_Noexcept>...,
                                             Contract<Cases, Assign_Throws>...,
-                                            Contract<Cases, Copy_Throws>...>;
+                                            Contract<Cases, Copy_Throws>...,
+                                            Contract<Cases, Swap_Throws>...,
+                                            Contract<Cases, Move_Ctor_Throws>...>;
 
   using Classes = Contract_Classes<
     Fenwick_Plus, Fenwick_Minus, Segment, Lazy_Segment, Sparse, Disjoint_Sparse,
@@ -969,6 +1261,28 @@ namespace
       return false;
   }
 
+  // Whether the move assignment empties the destination before it swaps:
+  // then one that throws leaves it empty
+  template <class Case>
+  constexpr bool assignment_empties()
+  {
+    if constexpr (requires { Case::assignment_empties; })
+      return Case::assignment_empties;
+    else
+      return false;
+  }
+
+  // What a swap or a move assignment that throws must leave of an object:
+  // what it had, with its own types of the user
+  template <class Case, class T, class P>
+  void expect_as_it_was(const T & x, const P & print, const std::string & tags, const char * what,
+                        const char * which)
+  {
+    EXPECT_EQ(print_of<Case>(x), print) << what << " threw and left " << which << " changed";
+    EXPECT_EQ(tags_of(x), tags) << what << " threw and left " << which
+                                << " with types of the user that are not its own";
+  }
+
   template <class Case, class T>
   void use_all(T & a, T & b, std::optional<T> & c)
   {
@@ -979,16 +1293,17 @@ namespace
   }
 
   // Checks the contract of an operation: op applies it to a and b, and may
-  // build c; expect checks what it did, from the prints of a and b before.
-  // Disarmed, it counts the operations of the types of the user that may
-  // throw that op runs: if op is noexcept it must run none, since armed it
-  // would end the program, and if it is not, it must run some, unless
-  // allows_other says that something else may throw. Armed, op throws if
-  // and only if it runs one, and then the exception of the type of the
-  // user, and it leaves the objects usable
-  template <class Case, class Op, class Expect>
+  // build c; expect checks what it did, from the prints of a and b before,
+  // and on_throw what it leaves when it throws, from their prints and their
+  // tags before. Disarmed, it counts the operations of the types of the
+  // user that may throw that op runs: if op is noexcept it must run none,
+  // since armed it would end the program, and if it is not, it must run
+  // some, unless allows_other says that something else may throw. Armed,
+  // op throws if and only if it runs one, and then the exception of the
+  // type of the user, and it leaves the objects usable
+  template <class Case, class Op, class Expect, class On_Throw>
   void check_contract(const char * what, const bool is_noexcept, const bool allows_other,
-                      Op op, Expect expect)
+                      Op op, Expect expect, On_Throw on_throw)
   {
     using T = typename Case::type;
     size_t ran = 0;
@@ -1021,8 +1336,11 @@ namespace
     T b = Case::make(5);
     const auto print_a = print_of<Case>(a);
     const auto print_b = print_of<Case>(b);
+    const std::string tags_a = tags_of(a);
+    const std::string tags_b = tags_of(b);
     std::optional<T> c;
     bool threw = false;
+    throw_at = 1;
     armed = true;
     try
       {
@@ -1037,6 +1355,8 @@ namespace
     EXPECT_EQ(threw, ran > 0) << what;
     if (not threw)
       expect(a, b, c, print_a, print_b);
+    else
+      on_throw(a, b, print_a, print_b, tags_a, tags_b);
     use_all<Case>(a, b, c);
   }
 } // namespace
@@ -1049,6 +1369,7 @@ TYPED_TEST(Noexcept_Contract, MoveConstructor)
 {
   using Case = typename TypeParam::C;
   using T = typename Case::type;
+  // A move constructor that throws may leave its source empty
   check_contract<Case>("the move constructor", std::is_nothrow_move_constructible_v<T>,
                        moves_allocate<Case>(),
                        [] (T & a, T &, std::optional<T> & c) { c.emplace(std::move(a)); },
@@ -1056,7 +1377,8 @@ TYPED_TEST(Noexcept_Contract, MoveConstructor)
                          {
                            ASSERT_TRUE(c.has_value());
                            EXPECT_EQ(print_of<Case>(*c), pa);
-                         });
+                         },
+                       [] (T &, T &, const auto &, const auto &, const auto &, const auto &) {});
 }
 
 TYPED_TEST(Noexcept_Contract, MoveAssignment)
@@ -1069,6 +1391,19 @@ TYPED_TEST(Noexcept_Contract, MoveAssignment)
                          [] (T &, T & b, std::optional<T> &, const auto & pa, const auto &)
                            {
                              EXPECT_EQ(print_of<Case>(b), pa);
+                           },
+                         [] (T & a, T & b, const auto & pa, const auto & pb, const auto & ta,
+                             const auto & tb)
+                           {
+                             expect_as_it_was<Case>(a, pa, ta, "the move assignment", "the source");
+                             if constexpr (assignment_empties<Case>())
+                               {
+                                 EXPECT_EQ(b.size(), 0u) << "the destination is not empty";
+                                 EXPECT_EQ(tags_of(b), tb);
+                               }
+                             else
+                               expect_as_it_was<Case>(b, pb, tb, "the move assignment",
+                                                      "the destination");
                            });
   else
     GTEST_SKIP() << "the class has no move assignment";
@@ -1085,9 +1420,189 @@ TYPED_TEST(Noexcept_Contract, Swap)
                            {
                              EXPECT_EQ(print_of<Case>(a), pb);
                              EXPECT_EQ(print_of<Case>(b), pa);
+                           },
+                         [] (T & a, T & b, const auto & pa, const auto & pb, const auto & ta,
+                             const auto & tb)
+                           {
+                             expect_as_it_was<Case>(a, pa, ta, "swap()", "this object");
+                             expect_as_it_was<Case>(b, pb, tb, "swap()", "the other");
                            });
   else
     GTEST_SKIP() << "the class has no swap()";
+}
+
+namespace
+{
+  // The classes with two or more types of the user, all of the kind (d)
+  using Rollback_Classes = ::testing::Types<
+    Contract<Fenwick_Both, Swap_Throws>, Contract<Segment_Both, Swap_Throws>,
+    Contract<HLD_All, Swap_Throws>, Contract<Path_Query_All, Swap_Throws>,
+    Contract<Life_All, Swap_Throws>, Contract<Async_All, Swap_Throws>,
+    Contract<Parallel_All, Swap_Throws>, Contract<Field_All, Swap_Throws>>;
+
+  // op, a swap or a move assignment, throws at each swap of a type of the
+  // user that it runs, in turn: each time it must leave both objects as
+  // they were, with their types of the user, and usable
+  template <class Case, class Op>
+  void check_rollback(const char * what, Op op)
+  {
+    using T = typename Case::type;
+    size_t swaps = 0;
+    {
+      T a = Case::make(20);
+      T b = Case::make(5);
+      const size_t before = risky_calls;
+      op(a, b);
+      swaps = risky_calls - before;
+    }
+    EXPECT_GE(swaps, 2u) << what << " exchanges fewer than two types of the user";
+    for (size_t k = 1; k <= swaps; ++k)
+      {
+        T a = Case::make(20);
+        T b = Case::make(5);
+        const auto print_a = print_of<Case>(a);
+        const auto print_b = print_of<Case>(b);
+        const std::string tags_a = tags_of(a);
+        const std::string tags_b = tags_of(b);
+        bool threw = false;
+        throw_at = static_cast<long>(k);
+        armed = true;
+        try
+          {
+            op(a, b);
+          }
+        catch (const std::exception & e)
+          {
+            threw = true;
+            EXPECT_TRUE(is_adversarial(e)) << what << " threw " << e.what();
+          }
+        armed = false;
+        EXPECT_TRUE(threw) << what << " did not throw at its swap " << k;
+        SCOPED_TRACE(std::string(what) + " threw at its swap " + std::to_string(k));
+        expect_as_it_was<Case>(a, print_a, tags_a, what, "an object");
+        expect_as_it_was<Case>(b, print_b, tags_b, what, "the other");
+        Case::use(a);
+        Case::use(b);
+      }
+  }
+} // namespace
+
+template <class T> class Noexcept_Contract_Rollback : public ::testing::Test {};
+
+TYPED_TEST_SUITE(Noexcept_Contract_Rollback, Rollback_Classes, Contract_Name);
+
+TYPED_TEST(Noexcept_Contract_Rollback, Swap)
+{
+  using Case = typename TypeParam::C;
+  using T = typename Case::type;
+  check_rollback<Case>("swap()", [] (T & a, T & b) { a.swap(b); });
+}
+
+TYPED_TEST(Noexcept_Contract_Rollback, MoveAssignment)
+{
+  using Case = typename TypeParam::C;
+  using T = typename Case::type;
+  check_rollback<Case>("the move assignment", [] (T & a, T & b) { b = std::move(a); });
+}
+
+namespace
+{
+  // A rule that owns a resource, an array that its move leaves to the
+  // other rule. Its move assignment throws while armed, and it has no swap
+  // of its own: std::swap() leaves it moved from when it throws, without
+  // its resource. Its steps run with it or without it
+  std::atomic<size_t> steps_without_resource{0};
+
+  template <class Base>
+  struct Resource_Rule : Base
+  {
+    Array<int> resource = Array<int>::create(1);
+
+    explicit Resource_Rule(const Base & b) : Base(b) {}
+    Resource_Rule(const Resource_Rule &) = default;
+    Resource_Rule(Resource_Rule &&) noexcept = default;
+    Resource_Rule & operator = (const Resource_Rule &) = default;
+
+    Resource_Rule & operator = (Resource_Rule && o)
+    {
+      risky_operation();
+      Base::operator = (std::move(o));
+      resource = std::move(o.resource);
+      return *this;
+    }
+
+    template <class... Args>
+    auto operator () (const Args &... args) const
+      -> decltype(std::declval<const Base &>()(args...))
+    {
+      if (resource.is_empty())
+        ++steps_without_resource;
+      return Base::operator () (args...);
+    }
+  };
+
+  // A swap of engines that throws in that of their rules leaves each
+  // engine with its own lattices, and both step
+  template <class Case>
+  void check_rule_with_a_resource()
+  {
+    using T = typename Case::type;
+    T a = Case::make(20);
+    T b = Case::make(5);
+    const auto print_a = print_of<Case>(a);
+    const auto print_b = print_of<Case>(b);
+    bool threw = false;
+    armed = true;
+    try
+      {
+        a.swap(b);
+      }
+    catch (const std::exception & e)
+      {
+        threw = true;
+        EXPECT_TRUE(is_adversarial(e)) << Case::name << " threw " << e.what();
+      }
+    armed = false;
+    EXPECT_TRUE(threw) << Case::name;
+    EXPECT_EQ(print_of<Case>(a), print_a) << Case::name << " exchanged its lattices";
+    EXPECT_EQ(print_of<Case>(b), print_b) << Case::name << " exchanged its lattices";
+    Case::use(a);
+    Case::use(b);
+  }
+} // namespace
+
+// The rule of an engine that owns a resource, and whose move assignment
+// throws inside std::swap(): the lattices are not exchanged without the
+// rules, and both engines go on stepping
+TEST(Noexcept_Contract_Engines, RuleThatOwnsAResource)
+{
+  check_rule_with_a_resource<Life<Resource_Rule>>();
+  check_rule_with_a_resource<Async_Life<Resource_Rule>>();
+  check_rule_with_a_resource<Parallel_Life<Resource_Rule>>();
+  check_rule_with_a_resource<Field_Life<Resource_Rule>>();
+  check_rule_with_a_resource<Graph_Life<Resource_Rule>>();
+}
+
+// The move constructor of DynSkipList builds its comparison as a copy of
+// that of the source: with a comparison whose move assignment throws, it
+// runs none of the operations of the comparison that may throw, and ends
+// without throwing
+TEST(Noexcept_Contract_Skip_List, MoveConstructorWhenTheComparisonAssignmentThrows)
+{
+  using Case = Skip_List<Assign_Throws>;
+  using L = typename Case::type;
+  L src = Case::make(20);
+  std::optional<L> dst;
+  const size_t before = risky_calls;
+  armed = true;
+  EXPECT_NO_THROW(dst.emplace(std::move(src)));
+  armed = false;
+  EXPECT_EQ(risky_calls - before, 0u) << "the move constructor ran an operation of the "
+                                      << "comparison that may throw";
+  ASSERT_TRUE(dst.has_value());
+  EXPECT_EQ(dst->size(), 20u);
+  Case::use(*dst);
+  Case::use(src);
 }
 
 namespace

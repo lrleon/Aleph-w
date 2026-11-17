@@ -436,15 +436,29 @@ public:
 
   /** @brief Exchange in O(1) the simulation of this engine and another.
    *  @param[in,out] other engine to exchange with.
+   *  @throw what swapping the rules throws. They are exchanged before the
+   *         lattices, so that, if that swap throws, nothing else is
+   *         exchanged, and both engines are left as they were if it left its
+   *         arguments as they were; std::swap(), for a rule without a swap of
+   *         its own, may leave it moved from.
    */
   void swap(Graph_Synchronous_Engine &other) noexcept(
     noexcept(cur_buf_.swap(other.cur_buf_)) and std::is_nothrow_swappable_v<Rule>)
     requires std::swappable<Rule>
   {
+    // The swap that the specification evaluates: that of Rule found by its
+    // arguments, else std::swap(); first when it may throw, so that one
+    // that throws leaves no lattice with the rule of the other. When it may
+    // not, the order cannot be seen, and it goes after the lattices, as it
+    // always did: a rule with members, even Game_Of_Life_Rule, would
+    // reorder the code if it went first
     using std::swap;
+    if constexpr (not std::is_nothrow_swappable_v<Rule>)
+      swap(rule_, other.rule_);
     cur_buf_.swap(other.cur_buf_);
     nxt_buf_.swap(other.nxt_buf_);
-    swap(rule_, other.rule_);
+    if constexpr (std::is_nothrow_swappable_v<Rule>)
+      swap(rule_, other.rule_);
     nbuf_.swap(other.nbuf_);
     pre_hook_.swap(other.pre_hook_);
     post_hook_.swap(other.post_hook_);

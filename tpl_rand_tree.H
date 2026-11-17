@@ -334,8 +334,10 @@ namespace Aleph
 
     /** @brief Swap in constant time all the nodes of `this` with `tree`.
         @param[in,out] tree the tree to exchange with.
-        @throw what swapping the comparison criteria throws; then nothing
-               else is exchanged.
+        @throw what swapping the comparison criteria throws. They are
+               exchanged first, so that, if that swap throws, nothing else is
+               exchanged, and both trees are left as they were if it left its
+               arguments as they were.
     */
     void swap(Gen_Rand_Tree & tree) noexcept(std::is_nothrow_swappable_v<Compare>)
     {

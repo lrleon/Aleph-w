@@ -507,15 +507,36 @@ namespace Aleph
 
       /** @brief Exchange in O(1) this topology and another.
        *  @param[in,out] other topology to exchange with.
-       *  @throw what swapping the filters throws; then nothing else is
-       *         exchanged.
+       *  @throw what swapping the filters throws. They are exchanged first,
+       *         so that, if that swap throws, nothing else is exchanged, and
+       *         both topologies are left as they were if it left its
+       *         arguments as they were.
        */
       void swap(HLD_Tree_Data & other) noexcept(std::is_nothrow_swappable_v<SA>)
       {
+        swap_filter(other);
+        swap_but_filter(other);
+      }
+
+      /** @brief Exchange the filters of this topology and another, for an
+       *         owner that exchanges something else before the rest.
+       *  @param[in,out] other topology to exchange with.
+       *  @throw what swapping the filters throws.
+       */
+      void swap_filter(HLD_Tree_Data & other) noexcept(std::is_nothrow_swappable_v<SA>)
+      {
         // the swap that the specification evaluates: that of SA, found by
-        // its arguments, else std::swap(); first, since it may throw
+        // its arguments, else std::swap()
         using std::swap;
         swap(sa_, other.sa_);
+      }
+
+      /** @brief Exchange in O(1) all but the filters of this topology and
+       *         another.
+       *  @param[in,out] other topology to exchange with.
+       */
+      void swap_but_filter(HLD_Tree_Data & other) noexcept
+      {
         std::swap(graph_, other.graph_);
         std::swap(root_, other.root_);
         std::swap(root_id_, other.root_id_);
@@ -715,24 +736,71 @@ namespace Aleph
 
     /** @brief Exchange in O(1) this HLD and another.
      *  @param[in,out] other HLD to exchange with.
-     *  @throw what swapping the filters, the values or the operations
-     *         throws.
+     *  @throw what swapping the operations, the values or the filters
+     *         throws. They are exchanged before the topologies and the
+     *         segment trees, which are exchanged together: if a swap
+     *         throws, those before it are exchanged back, and both HLDs are
+     *         left as they were, if the swap that threw left its arguments
+     *         as they were.
      */
     void swap(Gen_HLD & other)
       noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
                and std::is_nothrow_swappable_v<SA>)
     {
       // The swaps that the specification evaluates: found by the
-      // arguments, else std::swap(). The operation goes first, and the
-      // topology exchanges nothing if its filter throws: neither leaves a
-      // topology exchanged without its segment tree
+      // arguments, else std::swap()
       using std::swap;
-      swap(op_, other.op_);
-      topology_.swap(other.topology_);
-      swap(identity_, other.identity_);
-      seg_.swap(other.seg_);
+      if constexpr (std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
+                    and std::is_nothrow_swappable_v<SA>)
+        {
+          // None may throw: the order cannot be seen, and that of the
+          // members keeps the code of an identity that has state, an int
+          swap(op_, other.op_);
+          topology_.swap(other.topology_);
+          swap(identity_, other.identity_);
+          seg_.swap(other.seg_);
+        }
+      else
+        {
+          // The rest of the topologies, which cannot throw, goes last, so
+          // that no topology is left without its segment tree
+          swap_but_topology_storage(other);
+          topology_.swap_but_filter(other.topology_);
+        }
     }
 
+  private:
+    // The operations, the values, the filters of the topologies and the
+    // segment trees, whose swap is all or none, with the swaps that the
+    // specification of swap() evaluates, all or none: if one throws, those
+    // before it are exchanged back
+    void swap_but_topology_storage(Gen_HLD & other)
+    {
+      using std::swap;
+      int done = 0;
+      try
+        {
+          swap(op_, other.op_);
+          ++done;
+          swap(identity_, other.identity_);
+          ++done;
+          topology_.swap_filter(other.topology_);
+          ++done;
+          seg_.swap(other.seg_);
+        }
+      catch (...)
+        {
+          if (done > 2)
+            topology_.swap_filter(other.topology_);
+          if (done > 1)
+            swap(identity_, other.identity_);
+          if (done > 0)
+            swap(op_, other.op_);
+          throw;
+        }
+    }
+
+  public:
     /** @brief Total number of nodes in the tree. */
     [[nodiscard]] size_t size() const noexcept { return topology_.size(); }
 

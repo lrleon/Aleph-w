@@ -780,8 +780,11 @@ public:
   /** @brief Exchange in O(1) the bindings, the hash functions and the
    *         equality predicates of this version and another.
    *  @param other Version to exchange with.
-   *  @throws Whatever swapping the equality predicates throws; then
-   *          nothing else is exchanged.
+   *  @throws Whatever swapping the equality predicates throws. They are
+   *          exchanged first, so that, if that swap throws, nothing else is
+   *          exchanged, and both versions are left as they were if it left
+   *          its arguments as they were (a predicate that its swap modified
+   *          before it threw is left modified).
    */
   void swap(PersistentHashMap &other) noexcept(std::is_nothrow_swappable_v<Cmp>)
   {

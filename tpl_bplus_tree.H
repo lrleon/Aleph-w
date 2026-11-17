@@ -843,8 +843,10 @@ public:
 
   /** @brief Exchange the keys and the comparators of this tree and another.
    *  @param other Tree to exchange with.
-   *  @throws Whatever swapping the comparators throws; then nothing else
-   *          is exchanged.
+   *  @throws Whatever swapping the comparators throws. They are exchanged
+   *          first, so that, if that swap throws, nothing else is exchanged,
+   *          and both trees are left as they were if it left its arguments as
+   *          they were.
    *  @note O(1).
    */
   void swap(Gen_BPlus_Tree &other) noexcept(std::is_nothrow_swappable_v<Compare>)

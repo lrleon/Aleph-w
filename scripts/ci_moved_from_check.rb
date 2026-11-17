@@ -295,23 +295,63 @@ def moved_from_classes(src, scalar_names = [])
   classes
 end
 
-# The names by which a test can name a class: its own, and those of the
-# aliases and the classes that derive from it in the text given
-def moved_from_names(name, text)
-  n = Regexp.escape(name)
-  aliases = text.scan(/\busing\s+(\w+)\s*=\s*[^;]*\b#{n}\b/).flatten
-  derived = text.scan(/\b(?:class|struct)\s+(\w+)\s*(?:final\s*)?:[^;{]*\b#{n}\b/).flatten
-  ([name] + aliases + derived).uniq
+# The outer type that a type names, without its qualification and its
+# arguments: Storage for F::Storage, Array, not Storage, for
+# Array<Storage>, and Ptr for Sync<long>::Ptr; nil if the text does not
+# start with a name
+def moved_from_outer_type(type)
+  t = type.strip.sub(/\A(?:(?:const|volatile|typename|class|struct)\s+)+/, '')
+  1 while t.gsub!(/<[^<>]*>/, ' ')
+  head = t[/\A(?:::\s*)?\w+(?:\s*::\s*\w+)*/] or return nil
+  head.split('::').last.strip
 end
 
-# The arguments of the Moved_From_Case that the tests name, outside their
-# comments and literals: the classes that the typed suite tests
+# The outer types of the bases of a base clause
+def moved_from_base_types(clause)
+  parts = [+'']
+  depth = 0
+  clause.each_char do |ch|
+    depth += 1 if '<(['.include?(ch)
+    depth -= 1 if '>)]'.include?(ch)
+    ch == ',' && depth.zero? ? parts << +'' : parts.last << ch
+  end
+  parts.filter_map { |p| moved_from_outer_type(p.gsub(/\b(?:public|protected|private|virtual)\b/, ' ')) }
+end
+
+# The aliases and the classes with bases of a text, outside its comments
+# and literals: [alias, outer type of its definition] and [class, outer
+# types of its bases], computed once for each text
+def moved_from_relations(text)
+  @moved_from_relations ||= {}.compare_by_identity
+  @moved_from_relations[text] ||= begin
+    code = moved_from_blank(text)
+    aliases = code.scan(/\busing\s+(\w+)\s*=\s*([^;]*);/).map { |a, t| [a, moved_from_outer_type(t)] }
+    derived = code.scan(/\b(?:class|struct)\s+(\w+)\s*(?:final\s*)?:(?!:)([^;{]*)\{/).map do |d, bases|
+      [d, moved_from_base_types(bases)]
+    end
+    [aliases, derived]
+  end
+end
+
+# The names by which a test can name a class: its own, and those of the
+# aliases of it and of the classes that derive from it in the text given.
+# An alias of, or a class derived from, a type that only takes the class
+# as an argument (Array<Storage>) does not name it
+def moved_from_names(name, text)
+  aliases, derived = moved_from_relations(text)
+  ([name] + aliases.filter_map { |a, t| a if t == name } +
+   derived.filter_map { |d, bases| d if bases.include?(name) }).uniq
+end
+
+# The outer types of the Moved_From_Case that the tests name, outside their
+# comments and literals: the classes that the typed suite tests, and not
+# their arguments (Moved_From_Case<Array<Storage>> tests Array)
 def moved_from_registered(tests_text)
   @moved_from_registered ||= {}
   return @moved_from_registered[tests_text] if @moved_from_registered.key?(tests_text)
 
   code = moved_from_blank(tests_text)
-  args = []
+  types = []
   pos = 0
   while (m = /\bMoved_From_Case\s*</.match(code, pos))
     depth = 1
@@ -321,10 +361,10 @@ def moved_from_registered(tests_text)
       depth -= 1 if code[k] == '>'
       k += 1
     end
-    args << code[m.end(0)...k - 1]
+    types << moved_from_outer_type(code[m.end(0)...k - 1])
     pos = k
   end
-  @moved_from_registered[tests_text] = args
+  @moved_from_registered[tests_text] = types.compact.uniq
 end
 
 # The problems of a header: [line, message] for each class that has the
@@ -337,10 +377,11 @@ def moved_from_problems(src, tests_text, headers_text, scalar_names = [])
 
     # The typed suite decides whether the moves of a class that it tests
     # are right, whether they are implicit or written: the class is tested
-    # if a Moved_From_Case names it, or an alias of it in the headers or
-    # in the tests, not if its name is only elsewhere in the tests
+    # if a Moved_From_Case tests it, or an alias of it in the headers or in
+    # the tests, not if its name is only elsewhere in the tests, nor only
+    # among the arguments of the type that a Moved_From_Case tests
     names = moved_from_names(c[:name], headers_text) | moved_from_names(c[:name], tests_text)
-    next if names.any? { |n| registered.any? { |r| r.match?(/\b#{Regexp.escape(n)}\b/) } }
+    next if names.any? { |n| registered.include?(n) }
 
     what = "keeps #{c[:containers].join(', ')} and #{c[:scalars].join(', ')}"
     if c[:implicit]

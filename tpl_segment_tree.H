@@ -444,19 +444,48 @@ namespace Aleph
 
     /** @brief Swap this tree with @p other in O(1).
      *  @param[in,out] other tree to exchange with.
-     *  @throw what swapping the identities or the operations throws; then
-     *         the arrays and their sizes are already exchanged.
+     *  @throw what swapping the identities or the operations throws. They
+     *         are exchanged before the arrays: if the swap of the operations
+     *         throws, the identities are exchanged back, and both trees are
+     *         left as they were, if the swap that threw left its arguments
+     *         as they were.
      */
     void swap(Gen_Segment_Tree & other) noexcept(
       std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>)
     {
-      // the swaps that the specification evaluates: those of T and Op found
-      // by their arguments, else std::swap()
-      using std::swap;
+      // The identities and the operations go first when their swaps may
+      // throw, so that one that throws leaves no array with the identity
+      // or the operation of the other. When none may, the order cannot be
+      // seen, and they go last, as they always did: an identity that has
+      // state, an int, would reorder the code if it went first
+      constexpr bool may_throw =
+        not std::is_nothrow_swappable_v<T> or not std::is_nothrow_swappable_v<Op>;
+      if constexpr (may_throw)
+        swap_identity_and_op(other);
       tree.swap(other.tree);
       std::swap(n, other.n);
+      if constexpr (not may_throw)
+        swap_identity_and_op(other);
+    }
+
+  private:
+    // The identities and the operations, with the swaps that the
+    // specification of swap() evaluates (found by their arguments, else
+    // std::swap()), both or none: if that of the operations throws, the
+    // identities are exchanged back
+    void swap_identity_and_op(Gen_Segment_Tree & other)
+    {
+      using std::swap;
       swap(identity, other.identity);
-      swap(op, other.op);
+      try
+        {
+          swap(op, other.op);
+        }
+      catch (...)
+        {
+          swap(identity, other.identity);
+          throw;
+        }
     }
   };
 
@@ -1261,18 +1290,21 @@ namespace Aleph
 
     /** @brief Swap this tree with @p other in O(1).
      *  @param[in,out] other tree to exchange with.
-     *  @throw what swapping the policies throws; then the arrays and their
-     *         sizes are already exchanged.
+     *  @throw what swapping the policies throws. They are exchanged before
+     *         the arrays, so that, if that swap throws, nothing else is
+     *         exchanged, and both trees are left as they were if it left its
+     *         arguments as they were.
      */
     void swap(Gen_Lazy_Segment_Tree & other) noexcept(std::is_nothrow_swappable_v<Policy>)
     {
       // the swap that the specification evaluates: that of Policy found by
-      // its arguments, else std::swap()
+      // its arguments, else std::swap(); first, so that one that throws
+      // leaves no aggregates or pending tags with the policy of the other
       using std::swap;
+      swap(pol, other.pol);
       tree.swap(other.tree);
       lazy.swap(other.lazy);
       std::swap(n, other.n);
-      swap(pol, other.pol);
     }
   };
 

@@ -390,8 +390,9 @@ public:
 
   /** @brief Exchange in O(1) this topology and another.
    *  @param[in,out] other topology to exchange with.
-   *  @throw what swapping the filters throws; then nothing else is
-   *         exchanged.
+   *  @throw what swapping the filters throws. They are exchanged first, so
+   *         that then nothing is exchanged: both topologies are left as they
+   *         were, if that swap left its arguments as they were.
    */
   void swap(Rooted_Tree_Data & other) noexcept(std::is_nothrow_swappable_v<SA>)
   {
@@ -663,6 +664,9 @@ public:
 
   /** @brief Exchange in O(1) this engine and another.
    *  @param[in,out] other engine to exchange with.
+   *  @throw what swapping the filters throws. They are exchanged first, so
+   *         that then nothing is exchanged: both engines are left as they
+   *         were, if that swap left its arguments as they were.
    */
   void swap(Gen_Binary_Lifting_LCA & other) noexcept(std::is_nothrow_swappable_v<SA>)
   {
@@ -946,6 +950,9 @@ public:
 
   /** @brief Exchange in O(1) this engine and another.
    *  @param[in,out] other engine to exchange with.
+   *  @throw what swapping the filters throws. They are exchanged first, so
+   *         that then nothing is exchanged: both engines are left as they
+   *         were, if that swap left its arguments as they were.
    */
   void swap(Gen_Euler_RMQ_LCA & other) noexcept(std::is_nothrow_swappable_v<SA>)
   {

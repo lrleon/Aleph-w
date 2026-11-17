@@ -406,19 +406,40 @@ namespace Aleph
 
     /** @brief Swap this tree with @p other in O(1).
      *  @param[in,out] other tree to exchange with.
-     *  @throw what swapping the operations throws; then the arrays and
-     *         their sizes are already exchanged.
+     *  @throw what swapping the operations throws. They are exchanged
+     *         before the arrays: if the swap of the subtractions throws,
+     *         the additions are exchanged back, and both trees are left as
+     *         they were, if the swap that threw left its arguments as they
+     *         were.
      */
     void swap(Gen_Fenwick_Tree & other)
       noexcept(std::is_nothrow_swappable_v<Plus> and std::is_nothrow_swappable_v<Minus>)
     {
-      // the swaps that the specification evaluates: those of the
-      // operations found by their arguments, else std::swap()
-      using std::swap;
+      // the operations first, so that one whose swap throws leaves no
+      // array with the operations of the other
+      swap_operations(other);
       tree.swap(other.tree);
       std::swap(n, other.n);
+    }
+
+  private:
+    // The additions and the subtractions, with the swaps that the
+    // specification of swap() evaluates (found by their arguments, else
+    // std::swap()), both or none: if that of the subtractions throws, the
+    // additions are exchanged back
+    void swap_operations(Gen_Fenwick_Tree & other)
+    {
+      using std::swap;
       swap(plus_op, other.plus_op);
-      swap(minus_op, other.minus_op);
+      try
+        {
+          swap(minus_op, other.minus_op);
+        }
+      catch (...)
+        {
+          swap(plus_op, other.plus_op);
+          throw;
+        }
     }
   };
 

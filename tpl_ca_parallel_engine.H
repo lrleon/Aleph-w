@@ -444,22 +444,59 @@ public:
   /** @brief Exchange in O(1) the simulation and the configuration of this
    *         engine and another.
    *  @param[in,out] other engine to exchange with.
+   *  @throw what swapping the rules or the neighborhoods throws. They are
+   *         exchanged before the lattices: if the swap of the
+   *         neighborhoods throws, the rules are exchanged back, and both
+   *         engines are left as they were, if the swap that threw left its
+   *         arguments as they were; std::swap(), for a rule without a swap
+   *         of its own, may leave it moved from.
    */
   void swap(Parallel_Synchronous_Engine &other) noexcept(
     noexcept(cur_buf_.swap(other.cur_buf_)) and std::is_nothrow_swappable_v<Rule>
     and std::is_nothrow_swappable_v<Neighborhood>)
     requires (std::swappable<Rule> and std::swappable<Neighborhood>)
   {
+    // The rules and the neighborhoods go first when their swaps may throw,
+    // so that one that throws leaves no lattice with the rule of the other.
+    // When none may, the order cannot be seen, and they go after the
+    // lattices, as they always did: a rule with members, even
+    // Game_Of_Life_Rule, would reorder the code if it went first
+    constexpr bool may_throw =
+      not std::is_nothrow_swappable_v<Rule> or not std::is_nothrow_swappable_v<Neighborhood>;
     using std::swap;
+    if constexpr (may_throw)
+      swap_rule_and_neighborhood(other);
     cur_buf_.swap(other.cur_buf_);
     nxt_buf_.swap(other.nxt_buf_);
-    swap(rule_, other.rule_);
-    swap(nh_, other.nh_);
+    if constexpr (not may_throw)
+      swap_rule_and_neighborhood(other);
     pre_hook_.swap(other.pre_hook_);
     post_hook_.swap(other.post_hook_);
     swap(step_count_, other.step_count_);
     swap(cfg_, other.cfg_);
   }
+
+private:
+  // The rules and the neighborhoods, with the swaps that the specification
+  // of swap() evaluates (found by their arguments, else std::swap()), both
+  // or none: if that of the neighborhoods throws, the rules are exchanged
+  // back
+  void swap_rule_and_neighborhood(Parallel_Synchronous_Engine &other)
+  {
+    using std::swap;
+    swap(rule_, other.rule_);
+    try
+      {
+        swap(nh_, other.nh_);
+      }
+    catch (...)
+      {
+        swap(rule_, other.rule_);
+        throw;
+      }
+  }
+
+public:
 
   /** @brief Return the current frame.
    *  @return read-only view of the current lattice buffer.

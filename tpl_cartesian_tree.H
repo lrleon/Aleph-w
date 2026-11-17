@@ -465,8 +465,10 @@ namespace Aleph
 
     /** @brief Swap with @p other in O(1).
      *  @param[in,out] other tree to exchange with.
-     *  @throw what swapping the comparisons throws; then nothing else is
-     *         exchanged.
+     *  @throw what swapping the comparisons throws. They are exchanged first,
+     *         so that, if that swap throws, nothing else is exchanged, and
+     *         both trees are left as they were if it left its arguments as
+     *         they were.
      */
     void swap(Gen_Cartesian_Tree & other)
       noexcept(noexcept(data_.swap(other.data_)) &&
@@ -762,8 +764,10 @@ namespace Aleph
     /** @brief Exchange in O(1) the tree and the tour of this engine and
      *         another.
      *  @param[in,out] other engine to exchange with.
-     *  @throw what swapping the comparisons throws; then nothing else is
-     *         exchanged.
+     *  @throw what swapping the comparisons throws. They are exchanged first,
+     *         so that, if that swap throws, nothing else is exchanged, and
+     *         both engines are left as they were if it left its arguments as
+     *         they were.
      */
     void swap(Gen_Euler_Tour_LCA & other) noexcept(std::is_nothrow_swappable_v<Comp>)
     {

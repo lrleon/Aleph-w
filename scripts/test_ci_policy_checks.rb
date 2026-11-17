@@ -41,6 +41,18 @@ class TestCiPolicyChecks < Minitest::Test
     refute_includes tokens, '"y'
   end
 
+  # The prefix of a raw literal is not an identifier: the literal stays
+  # whole, and what it holds is not code
+  def test_cpp_token_stream_prefixed_raw_string_literals
+    %w[u8R uR UR LR].each do |prefix|
+      code = "auto s = #{prefix}\"tag(\" std::vector )tag\";\nint x;\n"
+      tokens = cpp_token_stream(code).split("\n")
+      assert_includes tokens, "#{prefix}\"tag(\" std::vector )tag\"", prefix
+      assert_equal %w[; int x ;], tokens.last(4), prefix
+      assert_empty std_uses(code), prefix
+    end
+  end
+
   def test_header_has_code_changes_identical
     path = "test.H"
     base = "main"
@@ -334,6 +346,31 @@ class TestMovedFromCheck < Minitest::Test
     tests = "// Storage\nStorage s;\ntemplate <> struct Moved_From_Case<Other_Storage> {};\n"
     assert_equal ['Storage'], problems(STORAGE, tests)
     assert_empty problems(STORAGE, tests + "template <> struct Moved_From_Case<F::Storage> {};\n")
+  end
+
+  # A case of a type that takes the class as an argument tests that type,
+  # not the class: the moves of Array<Storage> do not run those of Storage.
+  # Nor is an alias of, or a class derived from, such a type one of it
+  def test_a_case_of_a_type_that_takes_the_class_does_not_test_it
+    assert_equal ['Storage'], problems(STORAGE, 'template <> struct Moved_From_Case<Array<Storage>> {};')
+    assert_equal ['Storage'], problems(STORAGE, "using Wrapped = Array<Storage>;\nMoved_From_Case<Wrapped>")
+    assert_equal ['Storage'], problems(STORAGE, 'Moved_From_Case<Wrapped>', 'using Wrapped = Array<Storage>;')
+    assert_equal ['Storage'], problems(STORAGE, "struct D : Array<Storage> {};\nMoved_From_Case<D>")
+    assert_empty problems(STORAGE, "using Wrapped = F::Storage;\nMoved_From_Case<Wrapped>")
+    assert_empty problems(STORAGE, "using Ptr = Sync<long>::Storage;\nMoved_From_Case<Ptr>")
+    assert_empty problems(STORAGE, "struct D : public F::Storage {};\nMoved_From_Case<D>")
+  end
+
+  # An alias or a class in a comment or a literal names nothing, and a
+  # qualified name is not a base clause
+  def test_aliases_and_bases_only_in_code_name_the_class
+    assert_equal ['Storage'],
+                 problems(STORAGE, "using Alias = Other;\n// using Alias = Storage;\nMoved_From_Case<Alias>")
+    assert_equal ['Storage'], problems(STORAGE, 'Moved_From_Case<Alias>', '/* using Alias = Storage; */')
+    assert_equal ['Storage'],
+                 problems(STORAGE, "const char * s = \"using Alias = Storage;\";\nMoved_From_Case<Alias>")
+    assert_equal ['Storage'], problems(STORAGE, "// struct D : Storage {};\nMoved_From_Case<D>")
+    assert_equal ['Storage'], problems(STORAGE, 'Moved_From_Case<N>', 'friend class N::Helper<Storage>;')
   end
 
   # The access labels of a nested class are not those of the class

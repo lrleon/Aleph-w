@@ -369,8 +369,10 @@ public:
 
   /** @brief Swap contents with another DynSkipList.
    *  @param[in,out] other the list to exchange with.
-   *  @throw what swapping the comparisons throws; then nothing else is
-   *         exchanged.
+   *  @throw what swapping the comparisons throws. They are exchanged first,
+   *         so that, if that swap throws, nothing else is exchanged, and both
+   *         lists are left as they were if it left its arguments as they
+   *         were.
    */
   void swap(DynSkipList & other) noexcept(std::is_nothrow_swappable_v<Compare>)
   {

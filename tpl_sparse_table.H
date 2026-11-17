@@ -481,19 +481,22 @@ namespace Aleph
 
     /** @brief Swap this table with @p other in O(1).
      *  @param[in,out] other table to exchange with.
-     *  @throw what swapping the operations throws; then the arrays and
-     *         their sizes are already exchanged.
+     *  @throw what swapping the operations throws. They are exchanged before
+     *         the arrays, so that, if that swap throws, nothing else is
+     *         exchanged, and both tables are left as they were if it left its
+     *         arguments as they were.
      */
     void swap(Gen_Sparse_Table & other) noexcept(std::is_nothrow_swappable_v<Op>)
     {
       // the swap that the specification evaluates: that of Op found by its
-      // arguments, else std::swap()
+      // arguments, else std::swap(); first, so that one that throws leaves
+      // no levels with the operation of the other
       using std::swap;
+      swap(op, other.op);
       table.swap(other.table);
       log_tbl.swap(other.log_tbl);
       std::swap(n, other.n);
       std::swap(levels, other.levels);
-      swap(op, other.op);
     }
   };
 

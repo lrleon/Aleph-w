@@ -273,6 +273,12 @@ public:
 
   /** @brief Exchange in O(1) the simulation of this engine and another.
    *  @param[in,out] other engine to exchange with.
+   *  @throw what swapping the rules, the neighborhoods or the update
+   *         schemes throws. They are exchanged before the lattices: if a
+   *         swap throws, those before it are exchanged back, and both
+   *         engines are left as they were, if the swap that threw left its
+   *         arguments as they were; std::swap(), for a rule without a swap
+   *         of its own, may leave it moved from.
    */
   void swap(Async_Engine &other) noexcept(
     noexcept(cur_.swap(other.cur_)) and std::is_nothrow_swappable_v<Rule>
@@ -280,16 +286,55 @@ public:
     requires (std::swappable<Rule> and std::swappable<Neighborhood>
               and std::swappable<Update_Scheme>)
   {
+    // The rules, the neighborhoods and the schemes go first when their
+    // swaps may throw, so that one that throws leaves no lattice with the
+    // rule or the scheme of the other. When none may, the order cannot be
+    // seen, and they go after the lattices, as they always did: a rule or
+    // a scheme with members, even Game_Of_Life_Rule, would reorder the code
+    // if it went first
+    constexpr bool may_throw =
+      not std::is_nothrow_swappable_v<Rule> or not std::is_nothrow_swappable_v<Neighborhood>
+      or not std::is_nothrow_swappable_v<Update_Scheme>;
     using std::swap;
+    if constexpr (may_throw)
+      swap_rule_neighborhood_and_scheme(other);
     cur_.swap(other.cur_);
     nxt_.swap(other.nxt_);
-    swap(rule_, other.rule_);
-    swap(nh_, other.nh_);
-    swap(scheme_, other.scheme_);
+    if constexpr (not may_throw)
+      swap_rule_neighborhood_and_scheme(other);
     pre_hook_.swap(other.pre_hook_);
     post_hook_.swap(other.post_hook_);
     swap(step_count_, other.step_count_);
   }
+
+private:
+  // The rules, the neighborhoods and the schemes, with the swaps that the
+  // specification of swap() evaluates (found by their arguments, else
+  // std::swap()), all or none: if one throws, those before it are
+  // exchanged back
+  void swap_rule_neighborhood_and_scheme(Async_Engine &other)
+  {
+    using std::swap;
+    int done = 0;
+    try
+      {
+        swap(rule_, other.rule_);
+        ++done;
+        swap(nh_, other.nh_);
+        ++done;
+        swap(scheme_, other.scheme_);
+      }
+    catch (...)
+      {
+        if (done > 1)
+          swap(nh_, other.nh_);
+        if (done > 0)
+          swap(rule_, other.rule_);
+        throw;
+      }
+  }
+
+public:
 
   /// @return read-only view of the current frame.
   [[nodiscard]] const Lattice &frame() const noexcept

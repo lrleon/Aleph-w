@@ -302,8 +302,9 @@ public:
 
   /** @brief Exchange in O(1) this topology and another.
    *  @param[in,out] other topology to exchange with.
-   *  @throw what swapping the filters throws; then nothing else is
-   *         exchanged.
+   *  @throw what swapping the filters throws. They are exchanged first, so
+   *         that then nothing is exchanged: both topologies are left as they
+   *         were, if that swap left its arguments as they were.
    */
   void swap(Tree_Topology & other) noexcept(std::is_nothrow_swappable_v<SA>)
   {
