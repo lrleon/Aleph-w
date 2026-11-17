@@ -2140,42 +2140,45 @@ TEST(DynSkipListZip, BasicZipOperations)
   EXPECT_EQ(mapped[4], 50);
 }
 
-// A callable whose call through an rvalue consumes its state, as a one-shot
-// task does: the zip functions call their operation once per tuple, so they
-// must call it as an lvalue. They called std::forward<Op>(op)(...) at each
-// step, and a temporary lost its state after the first call
+// The zip functions call their operation once per tuple, so they must call
+// it as an lvalue. They called std::forward<Op>(op)(...) at each step: a
+// temporary was called through an rvalue each time, and one whose rvalue
+// call consumes its state, as a one-shot task does, lost it after the
+// first call. The operation counts the calls through each kind of value
 namespace
 {
-  struct Consuming_Pred
+  struct Counting_Pred
   {
-    string tag = "abc";
-    int *calls = nullptr;
-    bool operator()(const auto &) & { ++*calls; return not tag.empty(); }
-    bool operator()(const auto &) &&
-    {
-      ++*calls;
-      const string t = std::move(tag);
-      return not t.empty();
-    }
+    int *lvalue_calls = nullptr;
+    int *rvalue_calls = nullptr;
+    bool operator()(const auto &) & { ++*lvalue_calls; return true; }
+    bool operator()(const auto &) && { ++*rvalue_calls; return true; }
   };
 }
 
 TEST(ZipOperations, TemporaryCallableIsCalledAsLvalue)
 {
   DynList<int> l = {1, 2, 3};
-  int calls = 0;
-  EXPECT_TRUE(zip_all(Consuming_Pred{"abc", &calls}, l, l));
-  EXPECT_EQ(calls, 3);
+  int lv = 0, rv = 0;
+  auto pred = [&lv, &rv]
+  {
+    lv = rv = 0;
+    return Counting_Pred{&lv, &rv};
+  };
 
-  calls = 0;
-  EXPECT_TRUE(zip_traverse(Consuming_Pred{"abc", &calls}, l, l));
-  EXPECT_EQ(calls, 3);
+  EXPECT_TRUE(zip_all(pred(), l, l));
+  EXPECT_EQ(lv, 3);
+  EXPECT_EQ(rv, 0);
 
-  calls = 0;
-  EXPECT_EQ(zip_count(Consuming_Pred{"abc", &calls}, l, l), 3u);
-  EXPECT_EQ(calls, 3);
+  EXPECT_TRUE(zip_traverse(pred(), l, l));
+  EXPECT_EQ(lv, 3);
+  EXPECT_EQ(rv, 0);
 
-  calls = 0;
-  EXPECT_FALSE(zip_none(Consuming_Pred{"abc", &calls}, l, l));
-  EXPECT_EQ(calls, 1);
+  EXPECT_EQ(zip_count(pred(), l, l), 3u);
+  EXPECT_EQ(lv, 3);
+  EXPECT_EQ(rv, 0);
+
+  EXPECT_FALSE(zip_none(pred(), l, l));
+  EXPECT_EQ(lv, 1);
+  EXPECT_EQ(rv, 0);
 }

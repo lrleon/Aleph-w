@@ -216,6 +216,18 @@ private:
       });
   }
 
+  /** @brief True if every coefficient is finite; always, for a type that
+   *         is not floating.
+   */
+  [[nodiscard]] bool all_coefficients_finite() const noexcept
+  {
+    if constexpr (std::is_floating_point_v<Coefficient>)
+      for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
+        if (not std::isfinite(it.get_curr().second))
+          return false;
+    return true;
+  }
+
   /** @brief Read coefficient at exponent (0 if absent). */
   Coefficient coeff_at(size_t exp) const
   {
@@ -913,7 +925,8 @@ public:
    *  @param[in] d Divisor (must not be zero).
    *  @return Pair (quotient, remainder).
    *  @throws std::domain_error if @p d is zero, or, with floating
-   *          coefficients, if a coefficient of the quotient is not finite.
+   *          coefficients, if the division overflows: a coefficient of
+   *          the quotient or of the remainder is not finite.
    */
   [[nodiscard]] std::pair<Gen_Polynomial, Gen_Polynomial> divmod(const Gen_Polynomial &d) const
   {
@@ -949,6 +962,10 @@ public:
         r.add_scaled_shifted(d, -scale, shift);
       }
 
+    // a coefficient below the leading one can overflow too, and then the
+    // loop ends by degree
+    ah_domain_error_if(not q.all_coefficients_finite() or not r.all_coefficients_finite())
+      << "divmod: a coefficient of the quotient or of the remainder overflowed";
     return {q, r};
   }
 
@@ -1286,13 +1303,14 @@ public:
     if (delta > 0)
       {
         const Coefficient scale = polynomial_detail::power(lc_d, delta);
-        if constexpr (std::is_floating_point_v<Coefficient>)
-          ah_domain_error_if(not std::isfinite(scale))
-            << "pseudo_divmod: lc(d)^" << delta << " overflowed";
         q.scale_inplace(scale);
         r.scale_inplace(scale);
       }
 
+    // Scaling by lc(d) can overflow coefficients below the leading one, and
+    // so can the last powers of lc(d)
+    ah_domain_error_if(not q.all_coefficients_finite() or not r.all_coefficients_finite())
+      << "pseudo_divmod: a coefficient of the quotient or of the remainder overflowed";
     return {q, r};
   }
 

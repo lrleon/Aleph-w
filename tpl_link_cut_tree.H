@@ -1091,6 +1091,7 @@ namespace Aleph
       const size_t root_idx = find_idx(root);
       auto first_child = Array<size_t>::create(n);
       auto next_sibling = Array<size_t>::create(n);
+      auto queue = Array<size_t>::create(n);  // for the linking, made before the copies
       for (size_t i = 0; i < n; ++i)
         first_child(i) = n;
       for (size_t i = n; i-- > 0; )
@@ -1101,8 +1102,9 @@ namespace Aleph
             first_child(p) = i;
           }
 
-      // Then all the copies are made; until they are linked they are
-      // loose, and they are freed one by one if one cannot be made
+      // Then all the copies are made, the last allocation: until they are
+      // linked they are loose, and they are freed one by one if one cannot
+      // be made
       try
         {
           for (size_t i = 0; i < n; ++i)
@@ -1117,7 +1119,6 @@ namespace Aleph
 
       // And they are linked breadth-first from the root, as
       // insert_rightmost_child() takes a copy that has no children yet
-      auto queue = Array<size_t>::create(n);
       size_t head = 0, tail = 0;
       queue(tail++) = root_idx;
       while (head < tail)

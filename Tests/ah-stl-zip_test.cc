@@ -1232,40 +1232,43 @@ TEST(StlZipMinMax, Empty)
   EXPECT_FALSE(result.has_value());
 }
 
-// A callable whose call through an rvalue consumes its state: the zip
-// functions call it once per tuple, so they must call it as an lvalue. They
-// called std::forward<Op>(op)(...) at each step, and a temporary lost its
-// state after the first call
+// The zip functions call their operation once per tuple, so they must call
+// it as an lvalue. They called std::forward<Op>(op)(...) at each step: a
+// temporary was called through an rvalue each time, and one whose rvalue
+// call consumes its state lost it after the first call. The operation
+// counts the calls through each kind of value
 namespace
 {
-  struct Consuming_Pred
+  struct Counting_Pred
   {
-    std::string tag = "abc";
-    int *calls = nullptr;
-    bool operator()(const auto &) & { ++*calls; return not tag.empty(); }
-    bool operator()(const auto &) &&
-    {
-      ++*calls;
-      const std::string t = std::move(tag);
-      return not t.empty();
-    }
+    int *lvalue_calls = nullptr;
+    int *rvalue_calls = nullptr;
+    bool operator()(const auto &) & { ++*lvalue_calls; return true; }
+    bool operator()(const auto &) && { ++*rvalue_calls; return true; }
   };
 }
 
 TEST(StlZipTest, TemporaryCallableIsCalledAsLvalue)
 {
   std::vector<int> v = {1, 2, 3};
-  int calls = 0;
-  EXPECT_TRUE(stl_zip_all(Consuming_Pred{"abc", &calls}, v, v));
-  EXPECT_EQ(calls, 3);
+  int lv = 0, rv = 0;
+  auto pred = [&lv, &rv]
+  {
+    lv = rv = 0;
+    return Counting_Pred{&lv, &rv};
+  };
 
-  calls = 0;
-  EXPECT_EQ(stl_zip_count(Consuming_Pred{"abc", &calls}, v, v), 3u);
-  EXPECT_EQ(calls, 3);
+  EXPECT_TRUE(stl_zip_all(pred(), v, v));
+  EXPECT_EQ(lv, 3);
+  EXPECT_EQ(rv, 0);
 
-  calls = 0;
-  EXPECT_TRUE(stl_zip_equal_by(Consuming_Pred{"abc", &calls}, v, v));
-  EXPECT_EQ(calls, 3);
+  EXPECT_EQ(stl_zip_count(pred(), v, v), 3u);
+  EXPECT_EQ(lv, 3);
+  EXPECT_EQ(rv, 0);
+
+  EXPECT_TRUE(stl_zip_equal_by(pred(), v, v));
+  EXPECT_EQ(lv, 3);
+  EXPECT_EQ(rv, 0);
 }
 
 // Main
