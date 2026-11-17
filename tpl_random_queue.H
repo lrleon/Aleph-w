@@ -127,8 +127,19 @@ public:
     s.for_each([this] (auto item) { this->append(item); });
   }
 
-  /// Move constructor
-  Random_Set(Random_Set && s)  noexcept { swap(s); }
+  /** @brief Take the items and the generator of another set, which is left
+      empty, with a generator of its own seeded with the time.
+
+      The previous move swapped with a set without a generator: the source
+      then drew from a null generator in its next append(), get() or pick().
+
+      @param[in,out] s the set to move from.
+      @throw bad_alloc if there is not enough memory for the array and the
+             generator left to `s`; then `s` is unchanged.
+      @note It allocates the array and the generator left to `s`, as
+            Random_Set() does.
+  */
+  Random_Set(Random_Set && s) : Random_Set() { swap(s); }
 
   Random_Set & operator = (const Random_Set & s)
   {

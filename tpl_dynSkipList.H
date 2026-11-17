@@ -279,18 +279,24 @@ public:
       }
   }
 
-  /// Move constructor
-  DynSkipList(DynSkipList && other) noexcept
-    : header(other.header),
-      r(std::move(other.r)),
-      num_nodes(other.num_nodes),
-      current_level(other.current_level),
-      probability(other.probability),
-      cmp(std::move(other.cmp))
+  /** @brief Move constructor: take the nodes, the generator and the
+   *         comparison criterion of another list, which is left empty, with
+   *         a generator of its own seeded with the time, as a copy gets.
+   *
+   *  The previous move left the source without a generator: its next
+   *  insert() drew a level from a null generator.
+   *
+   *  @param[in,out] other the list to move from.
+   *  @throw bad_alloc if there is not enough memory for the header and the
+   *         generator left to @p other, or what the copy of the comparison
+   *         criterion throws; then @p other is unchanged.
+   *  @note It allocates the header and the generator left to @p other.
+   */
+  DynSkipList(DynSkipList && other)
+    : DynSkipList(time(nullptr), other.probability)
   {
-    other.header = new Node(maxLevel);
-    other.num_nodes = 0;
-    other.current_level = 1;
+    cmp = other.cmp;
+    swap(other);
   }
 
   /// Destructor - frees all nodes and the random number generator
@@ -317,26 +323,25 @@ public:
     return *this;
   }
 
-  /// Move assignment operator
+  /** @brief Move assignment: free the nodes of this list, and exchange it
+   *         with another, which is left empty with the generator of this
+   *         one.
+   *
+   *  The previous assignment took the generator of @p other, which then
+   *  drew levels from a null one. The nodes of this list are freed, as
+   *  they were, so that @p other is left empty.
+   *
+   *  @param[in,out] other the list to move from.
+   *  @return a reference to this list.
+   *  @note O(n), for the nodes of this list.
+   */
   DynSkipList & operator=(DynSkipList && other) noexcept
   {
     if (this == &other)
       return *this;
 
     empty();
-    delete header;
-
-    header = other.header;
-    r = std::move(other.r); // ours is freed
-    num_nodes = other.num_nodes;
-    current_level = other.current_level;
-    probability = other.probability;
-    cmp = std::move(other.cmp);
-    
-    other.header = new Node(maxLevel);
-    other.num_nodes = 0;
-    other.current_level = 1;
-    
+    swap(other);
     return *this;
   }
 

@@ -338,29 +338,38 @@ namespace Aleph
       std::swap(cmp, tree.cmp);
     }
 
-    /// Move constructor - transfers ownership of tree and RNG
-    Gen_Rand_Tree(Gen_Rand_Tree && other) noexcept
-      : tree_root(other.tree_root), r(std::move(other.r)), cmp(std::move(other.cmp))
+    /** @brief Take the nodes, the generator and the comparison criterion of
+        another tree, which is left empty, with a generator of its own
+        seeded with the time.
+
+        The previous move left the source without a generator: its next
+        insertion in a tree with nodes drew from a null generator.
+
+        @param[in,out] other the tree to move from.
+        @throw bad_alloc if there is not enough memory for the generator
+               left to `other`, or what the copy of the comparison criterion
+               throws; then `other` is unchanged.
+        @note It allocates the generator left to `other`.
+    */
+    Gen_Rand_Tree(Gen_Rand_Tree && other)
+      : Gen_Rand_Tree(time(nullptr), other.cmp)
     {
-      other.tree_root = Node::NullPtr;
+      swap(other);
     }
 
-    /// Move assignment - transfers ownership of tree and RNG
+    /** @brief Exchange this tree with another, which is left with the
+        previous nodes, generator and comparison criterion of this one.
+
+        The previous assignment took the generator of `other`, which then
+        drew from a null one, and freed the nodes of this tree, which the
+        tree does not own: they go now to `other`, as in swap().
+
+        @param[in,out] other the tree to move from.
+        @return a reference to this tree.
+    */
     Gen_Rand_Tree &operator =(Gen_Rand_Tree && other) noexcept
     {
-      if (this != &other)
-        {
-          // Clean up current resources
-          destroyRec(tree_root);
-
-          // Transfer ownership; the RNG of this is freed
-          tree_root = other.tree_root;
-          r = std::move(other.r);
-          cmp = std::move(other.cmp);
-
-          // Reset other
-          other.tree_root = Node::NullPtr;
-        }
+      swap(other);
       return *this;
     }
 

@@ -83,6 +83,7 @@
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
 # include <iostream>
+# include <utility>
 
 /** @class Pointer_Table
  *  @brief A dynamic table for managing void pointers with index recycling.
@@ -306,6 +307,77 @@ public:
   {
     // DynArray initializes to default (nullptr for pointers)
     // No explicit initialization loop needed
+  }
+
+  /** @brief Copies the pointers, the free indices and the threshold of
+   *         another table.
+   *
+   *  @param[in] other The table to copy.
+   *
+   *  @throws std::bad_alloc If there is not enough memory.
+   */
+  Pointer_Table(const Pointer_Table & other) = default;
+
+  /** @brief Takes the pointers and the free indices of another table,
+   *         which is left empty, as `Pointer_Table()`.
+   *
+   *  The implicit move took the arrays but copied the counters: the
+   *  moved-from table then read entries that it no longer had. Its
+   *  threshold is reset too, since its array no longer has that size.
+   *
+   *  @param[in,out] other The table to move from.
+   *
+   *  @par Complexity
+   *  O(1).
+   */
+  Pointer_Table(Pointer_Table && other) noexcept
+    : pointer_table(std::move(other.pointer_table)), free_table(std::move(other.free_table)),
+      num_pointers(std::exchange(other.num_pointers, 0)),
+      heap_index(std::exchange(other.heap_index, 0)),
+      threshold_size(std::exchange(other.threshold_size, 0))
+  {
+    // empty
+  }
+
+  /** @brief Copies the pointers, the free indices and the threshold of
+   *         another table.
+   *
+   *  @param[in] other The table to copy.
+   *  @return This table.
+   *
+   *  @throws std::bad_alloc If there is not enough memory.
+   */
+  Pointer_Table & operator = (const Pointer_Table & other) = default;
+
+  /** @brief Exchanges this table with another, which is left with the
+   *         previous pointers of this one.
+   *
+   *  @param[in,out] other The table to move from.
+   *  @return This table.
+   *
+   *  @par Complexity
+   *  O(1).
+   */
+  Pointer_Table & operator = (Pointer_Table && other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchanges all the state of this table and another.
+   *
+   *  @param[in,out] other The table to exchange with.
+   *
+   *  @par Complexity
+   *  O(1).
+   */
+  void swap(Pointer_Table & other) noexcept
+  {
+    pointer_table.swap(other.pointer_table);
+    free_table.swap(other.free_table);
+    std::swap(num_pointers, other.num_pointers);
+    std::swap(heap_index, other.heap_index);
+    std::swap(threshold_size, other.threshold_size);
   }
 
   /** @brief Returns the current capacity of the pointer table.

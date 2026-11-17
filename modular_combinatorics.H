@@ -48,6 +48,7 @@
 # define MODULAR_COMBINATORICS_H
 
 # include <cstdint>
+# include <utility>
 # include <ah-errors.H>
 # include <tpl_array.H>
 # include <modular_arithmetic.H>
@@ -106,6 +107,52 @@ namespace Aleph
       invFact_(max_n) = mod_inv(fact_[max_n], mod_);
       for (size_t i = max_n; i > 0; i--)
         invFact_(i - 1) = mod_mul(invFact_[i], i, mod_);
+    }
+
+    /** @brief Copy the modulus and the tables of another object.
+     *  @param[in] other object to copy.
+     *  @throws std::bad_alloc if the tables cannot be allocated.
+     */
+    ModularCombinatorics(const ModularCombinatorics & other) = default;
+
+    /** @brief Take the tables of another object, which keeps its modulus
+     *         and no table: its nCk() throws out_of_range for any `k <= n`.
+     *  @param[in,out] other object to move from.
+     */
+    ModularCombinatorics(ModularCombinatorics && other) noexcept = default;
+
+    /** @brief Copy the modulus and the tables of another object.
+     *  @param[in] other object to copy.
+     *  @return this object.
+     *  @throws std::bad_alloc if the tables cannot be allocated.
+     */
+    ModularCombinatorics & operator = (const ModularCombinatorics & other) = default;
+
+    /** @brief Exchange this object with another, which is left with the
+     *         previous modulus and tables of this one.
+     *
+     *  The implicit assignment exchanged the tables but copied the
+     *  modulus: the source then computed with the tables of another
+     *  modulus, and nCk(5, 2) gave 24.
+     *
+     *  @param[in,out] other object to move from.
+     *  @return this object.
+     */
+    ModularCombinatorics & operator = (ModularCombinatorics && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) the moduli and the tables of this object and
+     *         another.
+     *  @param[in,out] other object to exchange with.
+     */
+    void swap(ModularCombinatorics & other) noexcept
+    {
+      std::swap(mod_, other.mod_);
+      fact_.swap(other.fact_);
+      invFact_.swap(other.invFact_);
     }
 
     /** @brief Calculate@f$\binom{n}{k} \pmod{P}@f$in constant time.

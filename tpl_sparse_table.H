@@ -389,15 +389,34 @@ namespace Aleph
 
     Gen_Sparse_Table(const Gen_Sparse_Table &) = default;
 
-    Gen_Sparse_Table(Gen_Sparse_Table &&) noexcept(
+    /** @brief Take the elements of another table, which is left empty.
+     *
+     *  The implicit move took the arrays but copied the size and the
+     *  number of levels: the moved-from table then indexed arrays that it
+     *  no longer had.
+     *
+     *  @param[in,out] other table to move from.
+     */
+    Gen_Sparse_Table(Gen_Sparse_Table && other) noexcept(
       std::is_nothrow_move_constructible_v<Array<T>> &&
-      std::is_nothrow_move_constructible_v<Op>) = default;
+      std::is_nothrow_move_constructible_v<Op>)
+      : table(std::move(other.table)), log_tbl(std::move(other.log_tbl)),
+        n(std::exchange(other.n, 0)), levels(std::exchange(other.levels, 0)),
+        op(std::move(other.op))
+    {}
 
     Gen_Sparse_Table & operator=(const Gen_Sparse_Table &) = default;
 
-    Gen_Sparse_Table & operator=(Gen_Sparse_Table &&) noexcept(
-      std::is_nothrow_move_assignable_v<Array<T>> &&
-      std::is_nothrow_move_assignable_v<Op>) = default;
+    /** @brief Exchange this table with another, which is left with the
+     *         previous elements of this one.
+     *  @param[in,out] other table to move from.
+     *  @return this table.
+     */
+    Gen_Sparse_Table & operator=(Gen_Sparse_Table && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
 
     /** @brief Range query over `[l, r]` in O(1).
      *

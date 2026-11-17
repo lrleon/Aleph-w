@@ -494,6 +494,50 @@ public:
     slots_     = Array<uint64_t>(num_slots_, uint64_t{0});
   }
 
+  /** @brief Copy the parameters and the slots of another filter.
+   *  @param[in] other filter to copy.
+   *  @throws std::bad_alloc if the slots cannot be allocated.
+   */
+  Quotient_Filter(const Quotient_Filter & other) = default;
+
+  /** @brief Take the elements of another filter, which is left as an empty
+   *         filter of two slots (q = 1), with its remainder bits and seed.
+   *
+   *  The implicit move took the slots but copied their count: the
+   *  moved-from filter then read slots that it no longer had, through
+   *  checked accesses in functions that are `noexcept`. With two slots,
+   *  every operation of @p other works as in any filter, with no test for
+   *  a filter without slots.
+   *
+   *  @param[in,out] other filter to move from.
+   *  @throws std::bad_alloc if the slots left to @p other cannot be
+   *          allocated; @p other is then unchanged.
+   *  @note O(1): it allocates the two slots left to @p other.
+   */
+  Quotient_Filter(Quotient_Filter && other) : Quotient_Filter(1, other.r_, other.seed_)
+  {
+    swap(other);
+  }
+
+  /** @brief Copy the parameters and the slots of another filter.
+   *  @param[in] other filter to copy.
+   *  @return this filter.
+   *  @throws std::bad_alloc if the slots cannot be allocated.
+   */
+  Quotient_Filter &operator=(const Quotient_Filter & other) = default;
+
+  /** @brief Exchange this filter with another, which is left with the
+   *         previous state of this one.
+   *  @param[in,out] other filter to move from.
+   *  @return this filter.
+   *  @note O(1).
+   */
+  Quotient_Filter &operator=(Quotient_Filter && other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
   /** @brief Construct from desired capacity and false positive rate.
    *
    *  @param[in] expected_n Expected number of elements.

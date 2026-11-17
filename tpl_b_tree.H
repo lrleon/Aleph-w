@@ -55,6 +55,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <type_traits>
 #include <utility>
 
 #include <ah-concepts.H>
@@ -589,11 +590,20 @@ public:
    */
   Gen_B_Tree(const Gen_B_Tree &other) : root_(clone_node(other.root_.get())), size_(other.size_), cmp_(other.cmp_) {}
 
-  /** @brief Move constructor.
+  /** @brief Move constructor: take the keys of another tree, which is left
+   *         empty.
+   *
+   *  The implicit move took the root but copied the size: the moved-from
+   *  tree reported keys that it no longer had, and failed verify(). The
+   *  comparator is copied, since the tree left empty still uses it.
+   *
    *  @param other Tree to move from.
+   *  @throws Whatever copying the comparator throws.
    *  @note O(1).
    */
-  Gen_B_Tree(Gen_B_Tree &&other) = default;
+  Gen_B_Tree(Gen_B_Tree &&other) noexcept(std::is_nothrow_copy_constructible_v<Compare>)
+    : root_(std::move(other.root_)), size_(std::exchange(other.size_, 0)), cmp_(other.cmp_)
+  {}
 
   /** @brief Copy assignment.
    *  @param other Tree to copy from.
@@ -614,12 +624,29 @@ public:
     return *this;
   }
 
-  /** @brief Move assignment.
+  /** @brief Move assignment: exchange this tree with another, which is
+   *         left with the previous keys of this one.
    *  @param other Tree to move from.
    *  @return `*this`.
    *  @note O(1).
    */
-  Gen_B_Tree &operator=(Gen_B_Tree &&other) = default;
+  Gen_B_Tree &operator=(Gen_B_Tree &&other) noexcept(std::is_nothrow_swappable_v<Compare>)
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange the keys and the comparators of this tree and another.
+   *  @param other Tree to exchange with.
+   *  @throws Whatever swapping the comparators throws.
+   *  @note O(1).
+   */
+  void swap(Gen_B_Tree &other) noexcept(std::is_nothrow_swappable_v<Compare>)
+  {
+    root_.swap(other.root_);
+    std::swap(size_, other.size_);
+    std::swap(cmp_, other.cmp_);
+  }
 
   /** @brief Return the comparison object (read-only).
    *  @return Constant reference to the comparison functor.

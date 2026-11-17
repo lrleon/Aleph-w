@@ -57,6 +57,7 @@
 # include <algorithm>
 # include <cstddef>
 # include <stdexcept>
+# include <type_traits>
 # include <utility>
 
 # include <tpl_dynArray.H>
@@ -173,6 +174,56 @@ namespace Aleph
     Special_Ctors(DynArrayHeap, T);
 
     Args_Ctor(DynArrayHeap, T);
+
+    /** @brief Copy the elements and the comparator of another heap.
+     *  @param[in] other heap to copy.
+     */
+    DynArrayHeap(const DynArrayHeap & other) = default;
+
+    /** @brief Take the elements of another heap, which is left empty.
+     *
+     *  The implicit move took the array but copied the number of items:
+     *  the moved-from heap then read entries that it no longer had. The
+     *  comparator is copied, since the heap left empty still uses it.
+     *
+     *  @param[in,out] other heap to move from.
+     */
+    DynArrayHeap(DynArrayHeap && other) noexcept(
+      std::is_nothrow_move_constructible_v<DynArray<T>> and
+      std::is_nothrow_copy_constructible_v<Compare>)
+      : array(std::move(other.array)), num_items(std::exchange(other.num_items, 0)),
+        cmp(other.cmp)
+    {}
+
+    /** @brief Copy the elements and the comparator of another heap.
+     *  @param[in] other heap to copy.
+     *  @return this heap.
+     */
+    DynArrayHeap & operator = (const DynArrayHeap & other) = default;
+
+    /** @brief Exchange this heap with another, which is left with the
+     *         previous elements of this one.
+     *  @param[in,out] other heap to move from.
+     *  @return this heap.
+     */
+    DynArrayHeap & operator = (DynArrayHeap && other) noexcept(
+      std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Compare>)
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) the elements and the comparators of this
+     *         heap and another.
+     *  @param[in,out] other heap to exchange with.
+     */
+    void swap(DynArrayHeap & other) noexcept(
+      std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Compare>)
+    {
+      array.swap(other.array);
+      std::swap(num_items, other.num_items);
+      std::swap(cmp, other.cmp);
+    }
 
     /** Return the element with highest priority (the heap top).
      *
