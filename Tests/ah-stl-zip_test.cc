@@ -1228,8 +1228,44 @@ TEST(StlZipMinMax, Empty)
   std::vector<int> ys = {1, 2, 3};
   
   auto result = stl_zip_min_max(empty, ys);
-  
+
   EXPECT_FALSE(result.has_value());
+}
+
+// A callable whose call through an rvalue consumes its state: the zip
+// functions call it once per tuple, so they must call it as an lvalue. They
+// called std::forward<Op>(op)(...) at each step, and a temporary lost its
+// state after the first call
+namespace
+{
+  struct Consuming_Pred
+  {
+    std::string tag = "abc";
+    int *calls = nullptr;
+    bool operator()(const auto &) & { ++*calls; return not tag.empty(); }
+    bool operator()(const auto &) &&
+    {
+      ++*calls;
+      const std::string t = std::move(tag);
+      return not t.empty();
+    }
+  };
+}
+
+TEST(StlZipTest, TemporaryCallableIsCalledAsLvalue)
+{
+  std::vector<int> v = {1, 2, 3};
+  int calls = 0;
+  EXPECT_TRUE(stl_zip_all(Consuming_Pred{"abc", &calls}, v, v));
+  EXPECT_EQ(calls, 3);
+
+  calls = 0;
+  EXPECT_EQ(stl_zip_count(Consuming_Pred{"abc", &calls}, v, v), 3u);
+  EXPECT_EQ(calls, 3);
+
+  calls = 0;
+  EXPECT_TRUE(stl_zip_equal_by(Consuming_Pred{"abc", &calls}, v, v));
+  EXPECT_EQ(calls, 3);
 }
 
 // Main

@@ -784,7 +784,7 @@ run_iterative_deepening(Engine &engine,
       AdversarialIterativeDeepeningIteration<Move, Score> iteration;
       iteration.depth = depth;
 
-      std::forward<RunOneIteration>(run_one_iteration)(out, iteration, depth, iteration_index);
+      run_one_iteration(out, iteration, depth, iteration_index);
 
       accumulate_adversarial_stats(out.total_stats, iteration.total_stats);
 

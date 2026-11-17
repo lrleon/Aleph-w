@@ -2139,3 +2139,43 @@ TEST(DynSkipListZip, BasicZipOperations)
   EXPECT_EQ(mapped[0], 10);
   EXPECT_EQ(mapped[4], 50);
 }
+
+// A callable whose call through an rvalue consumes its state, as a one-shot
+// task does: the zip functions call their operation once per tuple, so they
+// must call it as an lvalue. They called std::forward<Op>(op)(...) at each
+// step, and a temporary lost its state after the first call
+namespace
+{
+  struct Consuming_Pred
+  {
+    string tag = "abc";
+    int *calls = nullptr;
+    bool operator()(const auto &) & { ++*calls; return not tag.empty(); }
+    bool operator()(const auto &) &&
+    {
+      ++*calls;
+      const string t = std::move(tag);
+      return not t.empty();
+    }
+  };
+}
+
+TEST(ZipOperations, TemporaryCallableIsCalledAsLvalue)
+{
+  DynList<int> l = {1, 2, 3};
+  int calls = 0;
+  EXPECT_TRUE(zip_all(Consuming_Pred{"abc", &calls}, l, l));
+  EXPECT_EQ(calls, 3);
+
+  calls = 0;
+  EXPECT_TRUE(zip_traverse(Consuming_Pred{"abc", &calls}, l, l));
+  EXPECT_EQ(calls, 3);
+
+  calls = 0;
+  EXPECT_EQ(zip_count(Consuming_Pred{"abc", &calls}, l, l), 3u);
+  EXPECT_EQ(calls, 3);
+
+  calls = 0;
+  EXPECT_FALSE(zip_none(Consuming_Pred{"abc", &calls}, l, l));
+  EXPECT_EQ(calls, 1);
+}
