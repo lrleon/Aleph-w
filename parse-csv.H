@@ -1240,7 +1240,8 @@ inline Array<Array<std::string>> csv_transform(
 /** @brief Skip UTF-8 BOM if present.
  *
  *  Checks for and skips the UTF-8 Byte Order Mark (EF BB BF) at the
- *  beginning of a stream.
+ *  beginning of a stream. A stream that does not start with it keeps all
+ *  its bytes, however short it is.
  *
  *  @param in The input stream.
  *  @return True if BOM was found and skipped.
@@ -1249,17 +1250,22 @@ inline Array<Array<std::string>> csv_transform(
  */
 inline bool csv_skip_bom(std::istream & in)
 {
-  char c1 = in.get();
-  char c2 = in.get();
-  char c3 = in.get();
-  
-  if (c1 == '\xEF' and c2 == '\xBB' and c3 == '\xBF')
-    return true;  // BOM skipped
-  
-  // Not a BOM, put characters back
-  in.putback(c3);
-  in.putback(c2);
-  in.putback(c1);
+  // A byte is taken only when peek() shows that it continues the BOM, and
+  // given back on a mismatch: reading three bytes and putting them back
+  // lost the bytes of a stream shorter than three, since the reads failed
+  // at its end and then so did putback()
+  constexpr unsigned char bom[] = {0xEF, 0xBB, 0xBF};
+  size_t taken = 0;
+  while (taken < 3 and in.peek() == bom[taken])
+    {
+      in.get();
+      ++taken;
+    }
+  if (taken == 3)
+    return true;
+
+  while (taken-- > 0)
+    in.unget();
   return false;
 }
 
