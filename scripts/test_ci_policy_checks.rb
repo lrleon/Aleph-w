@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'minitest/autorun'
+require 'tmpdir'
 require_relative 'ci_policy_checks'
 
 class TestCiPolicyChecks < Minitest::Test
@@ -287,5 +288,106 @@ class TestCiPolicyChecks < Minitest::Test
     yield
   ensure
     File.singleton_class.send(:define_method, :read, old_method)
+  end
+end
+
+
+# The check of the moved-from pattern (scripts/ci_moved_from_check.rb)
+class TestMovedFromCheck < Minitest::Test
+  STORAGE = <<~CPP
+    class Storage
+    {
+      Array<int> items;
+      size_t n = 0;
+    public:
+      size_t size() const { return n; }
+    };
+  CPP
+
+  def problems(src, tests = '', headers = '')
+    moved_from_problems(src, tests, headers + src).map { |_, msg| msg[/\A\w+/] }
+  end
+
+  def test_flags_a_class_whose_implicit_move_copies_a_size
+    assert_equal ['Storage'], problems(STORAGE)
+  end
+
+  def test_a_marked_class_passes
+    assert_empty problems(STORAGE.sub("{\n", "{\n  // moved-from: n is a parameter\n"))
+  end
+
+  def test_a_tested_class_passes
+    assert_empty problems(STORAGE, 'template <> struct Moved_From_Case<Storage> {};')
+  end
+
+  def test_an_alias_names_the_class_in_a_test
+    assert_empty problems(STORAGE, 'Moved_From_Case<Int_Storage>', 'using Int_Storage = Storage;')
+  end
+
+  def test_a_defaulted_move_is_implicit
+    assert_equal ['Storage'], problems(STORAGE.sub('public:', "public:\n  Storage(Storage &&) = default;"))
+  end
+
+  def test_a_destructor_makes_the_moves_copies
+    assert_empty problems(STORAGE.sub('public:', "public:\n  ~Storage() { }"))
+  end
+
+  def test_written_moves_need_a_test
+    src = STORAGE.sub('public:', "public:\n  Storage(Storage && o) noexcept\n" \
+                                 "    : items(std::move(o.items)), n(std::exchange(o.n, 0)) { }")
+    assert_equal ['Storage'], problems(src)
+    assert_empty problems(src, 'Moved_From_Case<Storage>')
+  end
+
+  def test_an_aggregate_is_not_flagged
+    src = "struct Result\n{\n  Array<int> path;\n  size_t cost = 0;\n  bool ok() const { return true; }\n};\n"
+    assert_empty problems(src)
+  end
+
+  def test_comments_literals_and_other_branches_do_not_count
+    src = <<~CPP
+      // class Fake { Array<int> a; size_t n; public: void f(); };
+      const char * s = "class Fake2 { Array<int> a; size_t n; public: void f(); };";
+      const char * r = R"x(class Fake3 { Array<int> a; size_t n; public: void f(); };)x";
+      int big = 1'000'000;
+      #if X
+      class Real { Array<int> a; size_t n; public: void f(); };
+      #else
+      class Other { Array<int> a; size_t n; public: void f(); };
+      #endif
+    CPP
+    assert_equal ['Real'], problems(src)
+  end
+
+  def test_enumerations_and_aliases_are_scalars
+    src = "enum class Mode { a, b };\nusing Count = std::size_t;\n" \
+          "class E { Array<int> a; Mode m; public: void f(); };\n" \
+          "class F { Array<int> a; Count c; public: void f(); };\n"
+    assert_equal %w[E F], problems(src)
+  end
+
+  def test_a_nested_class_under_a_base_clause
+    src = "template <class T> class Outer : public Base<T>\n{\n" \
+          "  class Inner { DynList<T> l; T * last; public: void f(); };\n" \
+          "  Inner in;\npublic:\n  void g();\n};\n"
+    assert_equal ['Inner'], problems(src)
+  end
+
+  def test_a_class_that_the_base_had_does_not_fail
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        File.write('storage.H', STORAGE)
+        old = Open3.method(:capture2)
+        detail = [{ path: 'storage.H', old_path: 'storage.H' }]
+        begin
+          Open3.singleton_class.send(:define_method, :capture2) { |*_a, **_k| [STORAGE, nil] }
+          assert_empty moved_from_failures('master', detail)
+          Open3.singleton_class.send(:define_method, :capture2) { |*_a, **_k| ['', nil] }
+          assert_equal 1, moved_from_failures('master', detail).size
+        ensure
+          Open3.singleton_class.send(:define_method, :capture2, old)
+        end
+      end
+    end
   end
 end

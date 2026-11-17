@@ -153,6 +153,9 @@ namespace Aleph
     template <AlephGraph GT, ArcFilter<GT> SA>
     class Rooted_Tree_Topology
     {
+      // moved-from: tested through Heavy_Light_Decomposition, HLD_Path_Query
+      // and Centroid_Decomposition, which keep it
+      // (Tests/moved_from_graphs_test.cc)
     public:
       using Node = typename GT::Node;
       using Arc = typename GT::Arc;

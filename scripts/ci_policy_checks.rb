@@ -2,6 +2,7 @@
 
 require 'open3'
 require 'pathname'
+require_relative 'ci_moved_from_check'
 begin
   require 'unicode_normalize'
 rescue LoadError
@@ -351,6 +352,8 @@ def main
                 'DynListQueue, in_place_sort(), mergesort()...), or end each line that ' \
                 "interoperates with the standard library with `// #{STD_INTEROP_MARKER} <why>`"
   end
+
+  failures.concat(moved_from_failures(base, files_details))
 
   unless failures.empty?
     failures.each { |f| puts "[fail] #{f}" }

@@ -121,6 +121,7 @@ namespace Aleph
     template <AlephGraph GT, ArcFilter<GT> SA>
     class HLD_Tree_Data
     {
+      // moved-from: tested through HLD_Sum, which keeps it (Tests/moved_from_graphs_test.cc)
     public:
       using Node = typename GT::Node;
       using Arc = typename GT::Arc;

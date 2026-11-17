@@ -126,6 +126,8 @@ namespace lca_detail {
 template <AlephGraph GT, ArcFilter<GT> SA>
 class Rooted_Tree_Data
 {
+  // moved-from: tested through Binary_Lifting_LCA and Euler_RMQ_LCA,
+  // which keep it (Tests/moved_from_graphs_test.cc)
 public:
   using Node = typename GT::Node;
   using Arc = typename GT::Arc;

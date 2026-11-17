@@ -82,6 +82,8 @@ namespace tree_dp_detail {
 template <AlephGraph GT, ArcFilter<GT> SA>
 class Tree_Topology
 {
+  // moved-from: tested through Tree_DP and Reroot_DP,
+  // which keep it (Tests/moved_from_graphs_test.cc)
 public:
   using Node = typename GT::Node; /**< Node type. */
   using Arc = typename GT::Arc;   /**< Arc type. */
