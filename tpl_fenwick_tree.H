@@ -275,11 +275,30 @@ namespace Aleph
 
     Gen_Fenwick_Tree(const Gen_Fenwick_Tree &) = default;
 
-    Gen_Fenwick_Tree(Gen_Fenwick_Tree &&) noexcept = default;
+    /** @brief Take the elements of another tree, which is left empty.
+     *
+     *  The implicit move took the array but copied the size: the
+     *  moved-from tree then indexed an array that it no longer had.
+     *
+     *  @param[in,out] other tree to move from.
+     */
+    Gen_Fenwick_Tree(Gen_Fenwick_Tree && other) noexcept
+      : tree(std::move(other.tree)), n(std::exchange(other.n, 0)),
+        plus_op(std::move(other.plus_op)), minus_op(std::move(other.minus_op))
+    {}
 
     Gen_Fenwick_Tree &operator=(const Gen_Fenwick_Tree &) = default;
 
-    Gen_Fenwick_Tree &operator=(Gen_Fenwick_Tree &&) noexcept = default;
+    /** @brief Exchange this tree with another, which is left with the
+     *         previous elements of this one.
+     *  @param[in,out] other tree to move from.
+     *  @return this tree.
+     */
+    Gen_Fenwick_Tree &operator=(Gen_Fenwick_Tree && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
 
     /** @brief Point update: `a[i] = Plus(a[i], delta)`.
      *
@@ -571,11 +590,29 @@ namespace Aleph
 
     Range_Fenwick_Tree(const Range_Fenwick_Tree &) = default;
 
-    Range_Fenwick_Tree(Range_Fenwick_Tree &&) noexcept = default;
+    /** @brief Take the elements of another tree, which is left empty.
+     *
+     *  The implicit move took the inner trees but copied the size: the
+     *  moved-from tree then indexed trees that it no longer had.
+     *
+     *  @param[in,out] other tree to move from.
+     */
+    Range_Fenwick_Tree(Range_Fenwick_Tree && other) noexcept
+      : b1(std::move(other.b1)), b2(std::move(other.b2)), n(std::exchange(other.n, 0))
+    {}
 
     Range_Fenwick_Tree &operator=(const Range_Fenwick_Tree &) = default;
 
-    Range_Fenwick_Tree &operator=(Range_Fenwick_Tree &&) noexcept = default;
+    /** @brief Exchange this tree with another, which is left with the
+     *         previous elements of this one.
+     *  @param[in,out] other tree to move from.
+     *  @return this tree.
+     */
+    Range_Fenwick_Tree &operator=(Range_Fenwick_Tree && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
 
     /** @brief Range update: add @p delta to every `a[i]` with
      *  `l <= i <= r`.
