@@ -185,6 +185,58 @@ public:
     : Multi_Field_Engine(std::move(initial), std::move(r), Neighborhood{})
   {}
 
+  Multi_Field_Engine(const Multi_Field_Engine &) = default;
+
+  /** @brief Take the simulation of another engine, which is left with
+   *         empty lattices, no hooks and no steps run.
+   *
+   *  The implicit move took the lattices but copied the step counter: the
+   *  moved-from engine reported the steps of a simulation that it no
+   *  longer had.
+   *
+   *  @param[in,out] other engine to move from.
+   */
+  Multi_Field_Engine(Multi_Field_Engine &&other) noexcept(
+    std::is_nothrow_move_constructible_v<Lattice> and std::is_nothrow_move_constructible_v<Rule>
+    and std::is_nothrow_move_constructible_v<Neighborhood>)
+    : cur_(std::move(other.cur_)), nxt_(std::move(other.nxt_)), rule_(std::move(other.rule_)),
+      nh_(std::move(other.nh_)), pre_hook_(std::exchange(other.pre_hook_, nullptr)),
+      post_hook_(std::exchange(other.post_hook_, nullptr)),
+      step_count_(std::exchange(other.step_count_, 0))
+  {}
+
+  Multi_Field_Engine &operator=(const Multi_Field_Engine &) = default;
+
+  /** @brief Exchange this engine with another, which is left with the
+   *         previous simulation of this one.
+   *  @param[in,out] other engine to move from.
+   *  @return this engine.
+   */
+  Multi_Field_Engine &operator=(Multi_Field_Engine &&other) noexcept(noexcept(swap(other)))
+    requires (std::swappable<Rule> and std::swappable<Neighborhood>)
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the simulation of this engine and another.
+   *  @param[in,out] other engine to exchange with.
+   */
+  void swap(Multi_Field_Engine &other) noexcept(
+    noexcept(cur_.swap(other.cur_)) and std::is_nothrow_swappable_v<Rule>
+    and std::is_nothrow_swappable_v<Neighborhood>)
+    requires (std::swappable<Rule> and std::swappable<Neighborhood>)
+  {
+    using std::swap;
+    cur_.swap(other.cur_);
+    nxt_.swap(other.nxt_);
+    swap(rule_, other.rule_);
+    swap(nh_, other.nh_);
+    pre_hook_.swap(other.pre_hook_);
+    post_hook_.swap(other.post_hook_);
+    swap(step_count_, other.step_count_);
+  }
+
   /// @return the current frame.
   [[nodiscard]] const Lattice &frame() const noexcept
   {

@@ -216,6 +216,32 @@ public:
       store_ = aos_lattice_type(ext, init);
   }
 
+  Multi_Field_Lattice(const Multi_Field_Lattice &) = default;
+
+  /** @brief Take the fields of another lattice, which is left empty.
+   *
+   *  The implicit move took the field storages but copied the extents:
+   *  the moved-from lattice then walked cells that it no longer had.
+   *
+   *  @param[in,out] other lattice to move from.
+   */
+  Multi_Field_Lattice(Multi_Field_Lattice &&other) noexcept
+    : store_(std::move(other.store_)), extents_(std::exchange(other.extents_, extents_type{}))
+  {}
+
+  Multi_Field_Lattice &operator=(const Multi_Field_Lattice &) = default;
+
+  /** @brief Exchange this lattice with another, which is left with the
+   *         previous fields of this one.
+   *  @param[in,out] other lattice to move from.
+   *  @return this lattice.
+   */
+  Multi_Field_Lattice &operator=(Multi_Field_Lattice &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
   // ---------------------------------------------------------------------
   // Geometry
   // ---------------------------------------------------------------------

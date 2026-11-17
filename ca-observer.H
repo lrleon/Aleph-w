@@ -344,6 +344,49 @@ public:
    */
   explicit Density_Observer(State s) : tracked_state_(std::move(s)) {}
 
+  Density_Observer(const Density_Observer &) = default;
+
+  /** @brief Take the samples of another observer, which is left with none,
+   *         tracking the same state.
+   *
+   *  The implicit move took the samples but copied the flag of the
+   *  initial sample: the moved-from observer, reused, skipped the initial
+   *  frame of its next run.
+   *
+   *  @param[in,out] other observer to move from.
+   */
+  Density_Observer(Density_Observer &&other) noexcept(std::is_nothrow_copy_constructible_v<State>)
+    : tracked_state_(other.tracked_state_), counts_(std::move(other.counts_)),
+      totals_(std::move(other.totals_)), seeded_(std::exchange(other.seeded_, false))
+  {}
+
+  Density_Observer &operator=(const Density_Observer &) = default;
+
+  /** @brief Exchange this observer with another, which is left with the
+   *         previous samples of this one.
+   *  @param[in,out] other observer to move from.
+   *  @return this observer.
+   */
+  Density_Observer &operator=(Density_Observer &&other) noexcept(
+    std::is_nothrow_swappable_v<State>)
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the tracked state and the samples of this
+   *         observer and another.
+   *  @param[in,out] other observer to exchange with.
+   */
+  void swap(Density_Observer &other) noexcept(std::is_nothrow_swappable_v<State>)
+  {
+    using std::swap;
+    swap(tracked_state_, other.tracked_state_);
+    counts_.swap(other.counts_);
+    totals_.swap(other.totals_);
+    swap(seeded_, other.seeded_);
+  }
+
   /** @brief Return the count time series.
    *  @return counts, one per recorded step including the initial frame.
    *  @throws This function does not throw.
@@ -555,6 +598,42 @@ public:
    *  @throws This function does not throw.
    */
   Entropy_Observer() = default;
+
+  Entropy_Observer(const Entropy_Observer &) = default;
+
+  /** @brief Take the samples of another observer, which is left with none.
+   *
+   *  The implicit move took the samples but copied the flag of the
+   *  initial sample: the moved-from observer, reused, skipped the initial
+   *  frame of its next run.
+   *
+   *  @param[in,out] other observer to move from.
+   */
+  Entropy_Observer(Entropy_Observer &&other) noexcept
+    : entropy_(std::move(other.entropy_)), seeded_(std::exchange(other.seeded_, false))
+  {}
+
+  Entropy_Observer &operator=(const Entropy_Observer &) = default;
+
+  /** @brief Exchange this observer with another, which is left with the
+   *         previous samples of this one.
+   *  @param[in,out] other observer to move from.
+   *  @return this observer.
+   */
+  Entropy_Observer &operator=(Entropy_Observer &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the samples of this observer and another.
+   *  @param[in,out] other observer to exchange with.
+   */
+  void swap(Entropy_Observer &other) noexcept
+  {
+    entropy_.swap(other.entropy_);
+    std::swap(seeded_, other.seeded_);
+  }
 
   /** @brief Return the entropy time series.
    *  @return entropies in nats, including the initial frame.

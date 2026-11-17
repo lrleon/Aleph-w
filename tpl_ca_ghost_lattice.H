@@ -329,6 +329,34 @@ public:
     , store_(store_ext_, init)
   {}
 
+  Ghost_Lattice(const Ghost_Lattice &) = default;
+
+  /** @brief Take the cells of another lattice, which is left empty.
+   *
+   *  The implicit move took the storage but copied the extents: the
+   *  moved-from lattice then read and refreshed cells that it no longer
+   *  had.
+   *
+   *  @param[in,out] other lattice to move from.
+   */
+  Ghost_Lattice(Ghost_Lattice &&other) noexcept(std::is_nothrow_move_constructible_v<Storage>)
+    : user_ext_(std::exchange(other.user_ext_, extents_type{})),
+      store_ext_(std::exchange(other.store_ext_, extents_type{})), store_(std::move(other.store_))
+  {}
+
+  Ghost_Lattice &operator=(const Ghost_Lattice &) = default;
+
+  /** @brief Exchange this lattice with another, which is left with the
+   *         previous cells of this one.
+   *  @param[in,out] other lattice to move from.
+   *  @return this lattice.
+   */
+  Ghost_Lattice &operator=(Ghost_Lattice &&other) noexcept(noexcept(store_.swap(other.store_)))
+  {
+    swap(other);
+    return *this;
+  }
+
   // ------------------------------------------------------------------
   // LatticeLike surface (see `tpl_ca_concepts.H`).
   // ------------------------------------------------------------------

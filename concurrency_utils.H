@@ -86,6 +86,7 @@
 #define ALEPH_CONCURRENCY_UTILS_H
 
 #include <atomic>
+#include <cassert>
 #include <condition_variable>
 #include <concepts>
 #include <cstddef>
@@ -728,6 +729,9 @@ namespace Aleph
     /** @brief RAII guard for exclusive access to the synchronized value.
      *  @note Thread-safe to use only while the guard object remains alive on
      *        the thread that acquired it. The destructor releases the lock.
+     *  @note A moved-from guard holds no lock and gives no access: its
+     *        `operator->()` returns `nullptr`, and `get()` and `operator*()`
+     *        must not be called on it (asserted in Debug builds).
      */
     class LockedPtr
     {
@@ -743,26 +747,64 @@ namespace Aleph
       LockedPtr(Mutex & mutex, T & value)
         : lock_(mutex), ptr_(&value) {}
 
+      /** @brief Take the lock and the access of another guard, which is
+       *         left with neither.
+       *
+       *  The implicit move took the lock but copied the pointer: the
+       *  moved-from guard still gave the value, with no lock held.
+       *
+       *  @param[in,out] other guard to move from.
+       */
+      LockedPtr(LockedPtr && other) noexcept
+        : lock_(std::move(other.lock_)), ptr_(std::exchange(other.ptr_, nullptr)) {}
+
+      /** @brief Release the lock of this guard and take the lock and the
+       *         access of another, which is left with neither.
+       *  @param[in,out] other guard to move from.
+       *  @return this guard.
+       */
+      LockedPtr & operator = (LockedPtr && other) noexcept
+      {
+        LockedPtr taken(std::move(other));  // releases the old lock on return
+        lock_.swap(taken.lock_);
+        std::swap(ptr_, taken.ptr_);
+        return *this;
+      }
+
       /** @brief Access the protected value.
        *  @return A mutable reference to the protected object.
        *  @throws Nothing.
+       *  @pre The guard was not moved from.
        */
-      [[nodiscard]] T & get() noexcept { return *ptr_; }
+      [[nodiscard]] T & get() noexcept
+      {
+        assert(ptr_ != nullptr);
+        return *ptr_;
+      }
       /** @brief Access members of the protected value.
-       *  @return A mutable pointer to the protected object.
+       *  @return A mutable pointer to the protected object, or `nullptr` if
+       *          the guard was moved from.
        *  @throws Nothing.
        */
       [[nodiscard]] T * operator -> () noexcept { return ptr_; }
       /** @brief Access the protected value.
        *  @return A mutable reference to the protected object.
        *  @throws Nothing.
+       *  @pre The guard was not moved from.
        */
-      [[nodiscard]] T & operator * () noexcept { return *ptr_; }
+      [[nodiscard]] T & operator * () noexcept
+      {
+        assert(ptr_ != nullptr);
+        return *ptr_;
+      }
     };
 
     /** @brief RAII guard for read-only access to the synchronized value.
      *  @note Thread-safe to use only while the guard object remains alive on
      *        the thread that acquired it. The destructor releases the lock.
+     *  @note A moved-from guard holds no lock and gives no access: its
+     *        `operator->()` returns `nullptr`, and `get()` and `operator*()`
+     *        must not be called on it (asserted in Debug builds).
      */
     class ConstLockedPtr
     {
@@ -778,21 +820,56 @@ namespace Aleph
       ConstLockedPtr(Mutex & mutex, const T & value)
         : lock_(mutex), ptr_(&value) {}
 
+      /** @brief Take the lock and the access of another guard, which is
+       *         left with neither.
+       *
+       *  The implicit move took the lock but copied the pointer: the
+       *  moved-from guard still gave the value, with no lock held.
+       *
+       *  @param[in,out] other guard to move from.
+       */
+      ConstLockedPtr(ConstLockedPtr && other) noexcept
+        : lock_(std::move(other.lock_)), ptr_(std::exchange(other.ptr_, nullptr)) {}
+
+      /** @brief Release the lock of this guard and take the lock and the
+       *         access of another, which is left with neither.
+       *  @param[in,out] other guard to move from.
+       *  @return this guard.
+       */
+      ConstLockedPtr & operator = (ConstLockedPtr && other) noexcept
+      {
+        ConstLockedPtr taken(std::move(other));  // releases the old lock on return
+        lock_.swap(taken.lock_);
+        std::swap(ptr_, taken.ptr_);
+        return *this;
+      }
+
       /** @brief Access the protected value.
        *  @return A const reference to the protected object.
        *  @throws Nothing.
+       *  @pre The guard was not moved from.
        */
-      [[nodiscard]] const T & get() const noexcept { return *ptr_; }
+      [[nodiscard]] const T & get() const noexcept
+      {
+        assert(ptr_ != nullptr);
+        return *ptr_;
+      }
       /** @brief Access members of the protected value.
-       *  @return A const pointer to the protected object.
+       *  @return A const pointer to the protected object, or `nullptr` if
+       *          the guard was moved from.
        *  @throws Nothing.
        */
       [[nodiscard]] const T * operator -> () const noexcept { return ptr_; }
       /** @brief Access the protected value.
        *  @return A const reference to the protected object.
        *  @throws Nothing.
+       *  @pre The guard was not moved from.
        */
-      [[nodiscard]] const T & operator * () const noexcept { return *ptr_; }
+      [[nodiscard]] const T & operator * () const noexcept
+      {
+        assert(ptr_ != nullptr);
+        return *ptr_;
+      }
     };
 
   private:
@@ -927,6 +1004,9 @@ namespace Aleph
   public:
     /** @brief RAII guard for shared (read-only) access.
      *  @note The guard holds a shared lock until destruction.
+     *  @note A moved-from guard holds no lock and gives no access: its
+     *        `operator->()` returns `nullptr`, and `get()` and `operator*()`
+     *        must not be called on it (asserted in Debug builds).
      */
     class ReadLockedPtr
     {
@@ -942,25 +1022,63 @@ namespace Aleph
       ReadLockedPtr(SharedMutex & mutex, const T & value)
         : lock_(mutex), ptr_(&value) {}
 
+      /** @brief Take the lock and the access of another guard, which is
+       *         left with neither.
+       *
+       *  The implicit move took the lock but copied the pointer: the
+       *  moved-from guard still gave the value, with no lock held.
+       *
+       *  @param[in,out] other guard to move from.
+       */
+      ReadLockedPtr(ReadLockedPtr && other) noexcept
+        : lock_(std::move(other.lock_)), ptr_(std::exchange(other.ptr_, nullptr)) {}
+
+      /** @brief Release the lock of this guard and take the lock and the
+       *         access of another, which is left with neither.
+       *  @param[in,out] other guard to move from.
+       *  @return this guard.
+       */
+      ReadLockedPtr & operator = (ReadLockedPtr && other) noexcept
+      {
+        ReadLockedPtr taken(std::move(other));  // releases the old lock on return
+        lock_.swap(taken.lock_);
+        std::swap(ptr_, taken.ptr_);
+        return *this;
+      }
+
       /** @brief Access the protected value.
        *  @return A const reference to the protected object.
        *  @throws Nothing.
+       *  @pre The guard was not moved from.
        */
-      [[nodiscard]] const T & get() const noexcept { return *ptr_; }
+      [[nodiscard]] const T & get() const noexcept
+      {
+        assert(ptr_ != nullptr);
+        return *ptr_;
+      }
       /** @brief Access members of the protected value.
-       *  @return A const pointer to the protected object.
+       *  @return A const pointer to the protected object, or `nullptr` if
+       *          the guard was moved from.
        *  @throws Nothing.
        */
       [[nodiscard]] const T * operator -> () const noexcept { return ptr_; }
       /** @brief Access the protected value.
        *  @return A const reference to the protected object.
        *  @throws Nothing.
+       *  @pre The guard was not moved from.
        */
-      [[nodiscard]] const T & operator * () const noexcept { return *ptr_; }
+      [[nodiscard]] const T & operator * () const noexcept
+      {
+        assert(ptr_ != nullptr);
+        return *ptr_;
+      }
     };
 
     /** @brief RAII guard for exclusive (write) access.
      *  @note The guard holds an exclusive lock until destruction.
+     *  @note A moved-from guard holds no lock and gives no access: its
+     *        `operator->()` returns `nullptr`, and `get()` and `operator*()`
+     *        must not be called on it (asserted in Debug builds).
      */
     class WriteLockedPtr
     {
@@ -976,21 +1094,56 @@ namespace Aleph
       WriteLockedPtr(SharedMutex & mutex, T & value)
         : lock_(mutex), ptr_(&value) {}
 
+      /** @brief Take the lock and the access of another guard, which is
+       *         left with neither.
+       *
+       *  The implicit move took the lock but copied the pointer: the
+       *  moved-from guard still gave the value, with no lock held.
+       *
+       *  @param[in,out] other guard to move from.
+       */
+      WriteLockedPtr(WriteLockedPtr && other) noexcept
+        : lock_(std::move(other.lock_)), ptr_(std::exchange(other.ptr_, nullptr)) {}
+
+      /** @brief Release the lock of this guard and take the lock and the
+       *         access of another, which is left with neither.
+       *  @param[in,out] other guard to move from.
+       *  @return this guard.
+       */
+      WriteLockedPtr & operator = (WriteLockedPtr && other) noexcept
+      {
+        WriteLockedPtr taken(std::move(other));  // releases the old lock on return
+        lock_.swap(taken.lock_);
+        std::swap(ptr_, taken.ptr_);
+        return *this;
+      }
+
       /** @brief Access the protected value.
        *  @return A mutable reference to the protected object.
        *  @throws Nothing.
+       *  @pre The guard was not moved from.
        */
-      [[nodiscard]] T & get() noexcept { return *ptr_; }
+      [[nodiscard]] T & get() noexcept
+      {
+        assert(ptr_ != nullptr);
+        return *ptr_;
+      }
       /** @brief Access members of the protected value.
-       *  @return A mutable pointer to the protected object.
+       *  @return A mutable pointer to the protected object, or `nullptr` if
+       *          the guard was moved from.
        *  @throws Nothing.
        */
       [[nodiscard]] T * operator -> () noexcept { return ptr_; }
       /** @brief Access the protected value.
        *  @return A mutable reference to the protected object.
        *  @throws Nothing.
+       *  @pre The guard was not moved from.
        */
-      [[nodiscard]] T & operator * () noexcept { return *ptr_; }
+      [[nodiscard]] T & operator * () noexcept
+      {
+        assert(ptr_ != nullptr);
+        return *ptr_;
+      }
     };
 
   private:

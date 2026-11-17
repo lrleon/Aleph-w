@@ -392,6 +392,63 @@ public:
     : Parallel_Synchronous_Engine(std::move(initial), std::move(r), Neighborhood{}, cfg)
   {}
 
+  Parallel_Synchronous_Engine(const Parallel_Synchronous_Engine &) = default;
+
+  /** @brief Take the simulation of another engine, which is left with
+   *         empty lattices, no hooks, no steps run and the same
+   *         configuration.
+   *
+   *  The implicit move took the lattices but copied the step counter: the
+   *  moved-from engine reported the steps of a simulation that it no
+   *  longer had.
+   *
+   *  @param[in,out] other engine to move from.
+   */
+  Parallel_Synchronous_Engine(Parallel_Synchronous_Engine &&other) noexcept(
+    std::is_nothrow_move_constructible_v<Lattice> and std::is_nothrow_move_constructible_v<Rule>
+    and std::is_nothrow_move_constructible_v<Neighborhood>)
+    : cur_buf_(std::move(other.cur_buf_)), nxt_buf_(std::move(other.nxt_buf_)),
+      rule_(std::move(other.rule_)), nh_(std::move(other.nh_)),
+      pre_hook_(std::exchange(other.pre_hook_, nullptr)),
+      post_hook_(std::exchange(other.post_hook_, nullptr)),
+      step_count_(std::exchange(other.step_count_, 0)), cfg_(other.cfg_)
+  {}
+
+  Parallel_Synchronous_Engine &operator=(const Parallel_Synchronous_Engine &) = default;
+
+  /** @brief Exchange this engine with another, which is left with the
+   *         previous simulation and configuration of this one.
+   *  @param[in,out] other engine to move from.
+   *  @return this engine.
+   */
+  Parallel_Synchronous_Engine &operator=(Parallel_Synchronous_Engine &&other) noexcept(
+    noexcept(swap(other)))
+    requires (std::swappable<Rule> and std::swappable<Neighborhood>)
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the simulation and the configuration of this
+   *         engine and another.
+   *  @param[in,out] other engine to exchange with.
+   */
+  void swap(Parallel_Synchronous_Engine &other) noexcept(
+    noexcept(cur_buf_.swap(other.cur_buf_)) and std::is_nothrow_swappable_v<Rule>
+    and std::is_nothrow_swappable_v<Neighborhood>)
+    requires (std::swappable<Rule> and std::swappable<Neighborhood>)
+  {
+    using std::swap;
+    cur_buf_.swap(other.cur_buf_);
+    nxt_buf_.swap(other.nxt_buf_);
+    swap(rule_, other.rule_);
+    swap(nh_, other.nh_);
+    pre_hook_.swap(other.pre_hook_);
+    post_hook_.swap(other.post_hook_);
+    swap(step_count_, other.step_count_);
+    swap(cfg_, other.cfg_);
+  }
+
   /** @brief Return the current frame.
    *  @return read-only view of the current lattice buffer.
    */

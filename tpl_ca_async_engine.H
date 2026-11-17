@@ -224,6 +224,63 @@ public:
     : Async_Engine(std::move(initial), std::move(r), Neighborhood{}, std::move(s))
   {}
 
+  Async_Engine(const Async_Engine &) = default;
+
+  /** @brief Take the simulation of another engine, which is left with
+   *         empty lattices, no hooks and no steps run.
+   *
+   *  The implicit move took the lattices but copied the step counter: the
+   *  moved-from engine reported the steps of a simulation that it no
+   *  longer had.
+   *
+   *  @param[in,out] other engine to move from.
+   */
+  Async_Engine(Async_Engine &&other) noexcept(
+    std::is_nothrow_move_constructible_v<Lattice> and std::is_nothrow_move_constructible_v<Rule>
+    and std::is_nothrow_move_constructible_v<Neighborhood>
+    and std::is_nothrow_move_constructible_v<Update_Scheme>)
+    : cur_(std::move(other.cur_)), nxt_(std::move(other.nxt_)), rule_(std::move(other.rule_)),
+      nh_(std::move(other.nh_)), scheme_(std::move(other.scheme_)),
+      pre_hook_(std::exchange(other.pre_hook_, nullptr)),
+      post_hook_(std::exchange(other.post_hook_, nullptr)),
+      step_count_(std::exchange(other.step_count_, 0))
+  {}
+
+  Async_Engine &operator=(const Async_Engine &) = default;
+
+  /** @brief Exchange this engine with another, which is left with the
+   *         previous simulation of this one.
+   *  @param[in,out] other engine to move from.
+   *  @return this engine.
+   */
+  Async_Engine &operator=(Async_Engine &&other) noexcept(noexcept(swap(other)))
+    requires (std::swappable<Rule> and std::swappable<Neighborhood>
+              and std::swappable<Update_Scheme>)
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the simulation of this engine and another.
+   *  @param[in,out] other engine to exchange with.
+   */
+  void swap(Async_Engine &other) noexcept(
+    noexcept(cur_.swap(other.cur_)) and std::is_nothrow_swappable_v<Rule>
+    and std::is_nothrow_swappable_v<Neighborhood> and std::is_nothrow_swappable_v<Update_Scheme>)
+    requires (std::swappable<Rule> and std::swappable<Neighborhood>
+              and std::swappable<Update_Scheme>)
+  {
+    using std::swap;
+    cur_.swap(other.cur_);
+    nxt_.swap(other.nxt_);
+    swap(rule_, other.rule_);
+    swap(nh_, other.nh_);
+    swap(scheme_, other.scheme_);
+    pre_hook_.swap(other.pre_hook_);
+    post_hook_.swap(other.post_hook_);
+    swap(step_count_, other.step_count_);
+  }
+
   /// @return read-only view of the current frame.
   [[nodiscard]] const Lattice &frame() const noexcept
   {
