@@ -1094,6 +1094,81 @@ TEST(SortUtilsArraySorts, introsort_keeps_the_items_if_the_comparison_throws)
     }
 }
 
+// The heapsorts compare through Inversed_Compare, whose call was noexcept:
+// a comparator that threw ended the program, also in the heapsort to which
+// introsort() falls back. McIlroy's adversary ("A killer adversary for
+// quicksort", 1999) decides the values as the sort compares them, so that
+// the pivot is always among the least items and introsort() reaches its
+// heapsort; the comparison throws at each of its comparisons, in steps
+TEST(SortUtilsArraySorts, heapsorts_let_a_throwing_comparison_through)
+{
+  constexpr size_t n = 600;
+  size_t count = 0, fail_at = 0;
+  auto tick = [&count, &fail_at]
+  {
+    if (++count == fail_at)
+      throw runtime_error("comparison failed");
+  };
+
+  vector<int> val;
+  int solid = 0, candidate = 0;
+  const int gas = static_cast<int>(n);
+  auto adversary = [&](const int x, const int y)
+  {
+    tick();
+    if (val[x] == gas and val[y] == gas)
+      val[x == candidate ? x : y] = solid++;
+    if (val[x] == gas)
+      candidate = x;
+    else if (val[y] == gas)
+      candidate = y;
+    return val[x] < val[y];
+  };
+  auto sort_against_the_adversary = [&](const size_t k)
+  {
+    count = 0;
+    fail_at = k;
+    val.assign(n, gas);
+    solid = candidate = 0;
+    vector<int> a(n);
+    for (size_t i = 0; i < n; ++i)
+      a[i] = static_cast<int>(i);
+    try
+      {
+        introsort(a.data(), a.size(), adversary);
+      }
+    catch (const runtime_error &)
+      {
+        std::sort(a.begin(), a.end());
+        for (size_t i = 0; i < n; ++i)
+          if (a[i] != static_cast<int>(i))
+            return false;
+        return true;
+      }
+    return false;
+  };
+
+  (void) sort_against_the_adversary(0);
+  const size_t total = count;
+  for (size_t k = 1; k <= total; k += std::max<size_t>(1, total / 2000))
+    ASSERT_TRUE(sort_against_the_adversary(k)) << "at comparison " << k << " of " << total;
+
+  auto throwing_less = [&tick](const int x, const int y)
+  {
+    tick();
+    return x < y;
+  };
+  for (auto sort : {+[](int * a, size_t m, const decltype(throwing_less) & c) { heapsort(a, m, c); },
+                    +[](int * a, size_t m, const decltype(throwing_less) & c) { faster_heapsort(a, m, c); }})
+    for (const size_t k : {size_t(1), size_t(50), size_t(500)})
+      {
+        vector<int> a = pdq_keys("random", 200, 3);
+        count = 0;
+        fail_at = k;
+        EXPECT_THROW(sort(a.data(), a.size(), throwing_less), runtime_error) << "at comparison " << k;
+      }
+}
+
 TEST(SortUtilsArraySorts, heapsort_dynarray)
 {
   auto a = make_dynarray({4, 1, 3, 2, 0, 2});

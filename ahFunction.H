@@ -1151,7 +1151,10 @@ public:
   : Inversed_Compare(cmp)
   { /* empty */ }
 
-  bool operator () (const T & op1, const T & op2) const noexcept
+  // noexcept as the comparison: heapsort() and the heapsort to which
+  // introsort() falls back compare through it, and a comparator that threw
+  // ended the program where introsort() promises to let it through
+  bool operator () (const T & op1, const T & op2) const noexcept(noexcept(cmp(op2, op1)))
   {
     return cmp(op2, op1);
   }
