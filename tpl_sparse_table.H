@@ -412,7 +412,7 @@ namespace Aleph
      *  @param[in,out] other table to move from.
      *  @return this table.
      */
-    Gen_Sparse_Table & operator=(Gen_Sparse_Table && other) noexcept
+    Gen_Sparse_Table & operator=(Gen_Sparse_Table && other) noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -479,14 +479,21 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Swap this table with @p other in O(1). */
-    void swap(Gen_Sparse_Table & other) noexcept
+    /** @brief Swap this table with @p other in O(1).
+     *  @param[in,out] other table to exchange with.
+     *  @throw what swapping the operations throws; then the arrays and
+     *         their sizes are already exchanged.
+     */
+    void swap(Gen_Sparse_Table & other) noexcept(std::is_nothrow_swappable_v<Op>)
     {
+      // the swap that the specification evaluates: that of Op found by its
+      // arguments, else std::swap()
+      using std::swap;
       table.swap(other.table);
       log_tbl.swap(other.log_tbl);
       std::swap(n, other.n);
       std::swap(levels, other.levels);
-      std::swap(op, other.op);
+      swap(op, other.op);
     }
   };
 

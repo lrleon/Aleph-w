@@ -392,7 +392,12 @@ public:
     : Parallel_Synchronous_Engine(std::move(initial), std::move(r), Neighborhood{}, cfg)
   {}
 
-  Parallel_Synchronous_Engine(const Parallel_Synchronous_Engine &) = default;
+  /** @brief Copy another engine: its lattices, its rule, its neighborhood,
+   *         its hooks, its count of steps and its configuration, whose pool
+   *         the copy uses too: neither engine owns it.
+   *  @param[in] other engine to copy.
+   */
+  Parallel_Synchronous_Engine(const Parallel_Synchronous_Engine &other) = default;
 
   /** @brief Take the simulation of another engine, which is left with
    *         empty lattices, no hooks, no steps run and the same
@@ -414,7 +419,14 @@ public:
       step_count_(std::exchange(other.step_count_, 0)), cfg_(other.cfg_)
   {}
 
-  Parallel_Synchronous_Engine &operator=(const Parallel_Synchronous_Engine &) = default;
+  /** @brief Copy another engine into this one: its lattices, its rule, its
+   *         neighborhood, its hooks, its count of steps and its
+   *         configuration, whose pool this one uses too: neither engine
+   *         owns it.
+   *  @param[in] other engine to copy.
+   *  @return this engine.
+   */
+  Parallel_Synchronous_Engine &operator=(const Parallel_Synchronous_Engine &other) = default;
 
   /** @brief Exchange this engine with another, which is left with the
    *         previous simulation and configuration of this one.

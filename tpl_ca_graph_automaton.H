@@ -157,7 +157,10 @@ public:
       }
   }
 
-  Graph_Lattice(const Graph_Lattice &) = default;
+  /** @brief Copy another lattice: its cells and its adjacency.
+   *  @param[in] other lattice to copy.
+   */
+  Graph_Lattice(const Graph_Lattice &other) = default;
 
   /** @brief Take the cells and the adjacency of another lattice, which is
    *         left with no nodes.
@@ -173,7 +176,12 @@ public:
       adjacency_(std::move(other.adjacency_))
   {}
 
-  Graph_Lattice &operator=(const Graph_Lattice &) = default;
+  /** @brief Copy another lattice into this one: its cells and its
+   *         adjacency.
+   *  @param[in] other lattice to copy.
+   *  @return this lattice.
+   */
+  Graph_Lattice &operator=(const Graph_Lattice &other) = default;
 
   /** @brief Exchange this lattice with another, which is left with the
    *         previous nodes of this one.
@@ -382,7 +390,11 @@ public:
     nbuf_.reserve(cur_buf_.max_degree());
   }
 
-  Graph_Synchronous_Engine(const Graph_Synchronous_Engine &) = default;
+  /** @brief Copy another engine: its lattices, its rule, its hooks and its
+   *         count of steps.
+   *  @param[in] other engine to copy.
+   */
+  Graph_Synchronous_Engine(const Graph_Synchronous_Engine &other) = default;
 
   /** @brief Take the simulation of another engine, which is left with
    *         empty lattices, no hooks and no steps run.
@@ -402,7 +414,12 @@ public:
       step_count_(std::exchange(other.step_count_, 0))
   {}
 
-  Graph_Synchronous_Engine &operator=(const Graph_Synchronous_Engine &) = default;
+  /** @brief Copy another engine into this one: its lattices, its rule, its
+   *         hooks and its count of steps.
+   *  @param[in] other engine to copy.
+   *  @return this engine.
+   */
+  Graph_Synchronous_Engine &operator=(const Graph_Synchronous_Engine &other) = default;
 
   /** @brief Exchange this engine with another, which is left with the
    *         previous simulation of this one.

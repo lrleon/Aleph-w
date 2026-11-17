@@ -144,7 +144,11 @@ public:
     : ext_(extents), total_cells_(product(extents)), buffer_(total_cells_, init)
   {}
 
-  Dense_Cell_Storage(const Dense_Cell_Storage &) = default;
+  /** @brief Copy another storage: its extents and its cells, which the copy
+   *         keeps apart from those of @p other.
+   *  @param[in] other storage to copy.
+   */
+  Dense_Cell_Storage(const Dense_Cell_Storage &other) = default;
 
   /** @brief Take the cells of another storage, which is left empty.
    *
@@ -158,7 +162,12 @@ public:
       total_cells_(std::exchange(other.total_cells_, 0)), buffer_(std::move(other.buffer_))
   {}
 
-  Dense_Cell_Storage &operator=(const Dense_Cell_Storage &) = default;
+  /** @brief Copy another storage into this one: its extents and its cells,
+   *         which this one keeps apart from those of @p other.
+   *  @param[in] other storage to copy.
+   *  @return this storage.
+   */
+  Dense_Cell_Storage &operator=(const Dense_Cell_Storage &other) = default;
 
   /** @brief Exchange this storage with another, which is left with the
    *         previous cells of this one.

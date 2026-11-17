@@ -373,7 +373,7 @@ namespace Aleph
        *  @return this topology.
        */
       Rooted_Tree_Topology & operator = (Rooted_Tree_Topology && other)
-        noexcept(std::is_nothrow_swappable_v<SA>)
+        noexcept(noexcept(swap(other)))
       {
         swap(other);
         return *this;
@@ -381,11 +381,16 @@ namespace Aleph
 
       /** @brief Exchange in O(1) this topology and another.
        *  @param[in,out] other topology to exchange with.
+       *  @throw what swapping the filters throws; then nothing else is
+       *         exchanged.
        */
       void swap(Rooted_Tree_Topology & other) noexcept(std::is_nothrow_swappable_v<SA>)
       {
+        // the swap that the specification evaluates: that of SA found by
+        // its arguments, else std::swap(); first, since it may throw
+        using std::swap;
+        swap(sa_, other.sa_);
         std::swap(graph_, other.graph_);
-        std::swap(sa_, other.sa_);
         std::swap(root_, other.root_);
         std::swap(root_id_, other.root_id_);
         std::swap(n_, other.n_);
@@ -1010,8 +1015,7 @@ namespace Aleph
      *  @return this engine.
      */
     Gen_HLD_Path_Query & operator = (Gen_HLD_Path_Query && other)
-      noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
-               and std::is_nothrow_swappable_v<SA>)
+      noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -1019,15 +1023,23 @@ namespace Aleph
 
     /** @brief Exchange in O(1) this engine and another.
      *  @param[in,out] other engine to exchange with.
+     *  @throw what moving or swapping the filters, or swapping the values
+     *         or the operations, throws; then the segment trees are not
+     *         exchanged, or are with the decompositions.
      */
     void swap(Gen_HLD_Path_Query & other)
-      noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
-               and std::is_nothrow_swappable_v<SA>)
+      noexcept(noexcept(std::swap(hld_, other.hld_)) and std::is_nothrow_swappable_v<T>
+               and std::is_nothrow_swappable_v<Op>)
     {
+      // The decomposition has no swap: std::swap() moves it through a
+      // temporary, and so moves its filter, as the specification says. The
+      // values and the operations are swapped as the specification
+      // evaluates them: found by their arguments, else std::swap()
+      using std::swap;
       std::swap(hld_, other.hld_);
       segment_tree_.swap(other.segment_tree_);
-      std::swap(identity_, other.identity_);
-      std::swap(op_, other.op_);
+      swap(identity_, other.identity_);
+      swap(op_, other.op_);
     }
 
     [[nodiscard]] const Gen_Heavy_Light_Decomposition<GT, SA> &decomposition() const noexcept
@@ -1399,7 +1411,7 @@ namespace Aleph
      *  @return this decomposition.
      */
     Gen_Centroid_Decomposition & operator = (Gen_Centroid_Decomposition && other)
-      noexcept(std::is_nothrow_swappable_v<SA>)
+      noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;

@@ -259,7 +259,11 @@ public:
     : Synchronous_Engine(std::move(initial), std::move(r), Neighborhood{})
   {}
 
-  Synchronous_Engine(const Synchronous_Engine &) = default;
+  /** @brief Copy another engine: its lattices, its rule, its neighborhood,
+   *         its hooks and its count of steps.
+   *  @param[in] other engine to copy.
+   */
+  Synchronous_Engine(const Synchronous_Engine &other) = default;
 
   /** @brief Take the simulation of another engine, which is left with
    *         empty lattices, no hooks and no steps run.
@@ -280,7 +284,12 @@ public:
       step_count_(std::exchange(other.step_count_, 0))
   {}
 
-  Synchronous_Engine &operator=(const Synchronous_Engine &) = default;
+  /** @brief Copy another engine into this one: its lattices, its rule, its
+   *         neighborhood, its hooks and its count of steps.
+   *  @param[in] other engine to copy.
+   *  @return this engine.
+   */
+  Synchronous_Engine &operator=(const Synchronous_Engine &other) = default;
 
   /** @brief Exchange this engine with another, which is left with the
    *         previous simulation of this one.

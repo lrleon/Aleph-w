@@ -356,8 +356,7 @@ namespace Aleph
      *  @param[in,out] other tree to move from.
      *  @return this tree.
      */
-    Gen_Segment_Tree & operator=(Gen_Segment_Tree && other) noexcept(
-      std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>)
+    Gen_Segment_Tree & operator=(Gen_Segment_Tree && other) noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -443,15 +442,21 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Swap this tree with @p other in O(1). */
+    /** @brief Swap this tree with @p other in O(1).
+     *  @param[in,out] other tree to exchange with.
+     *  @throw what swapping the identities or the operations throws; then
+     *         the arrays and their sizes are already exchanged.
+     */
     void swap(Gen_Segment_Tree & other) noexcept(
-      noexcept(std::swap(std::declval<T&>(), std::declval<T&>())) and
-      noexcept(std::swap(std::declval<Op&>(), std::declval<Op&>())))
+      std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>)
     {
+      // the swaps that the specification evaluates: those of T and Op found
+      // by their arguments, else std::swap()
+      using std::swap;
       tree.swap(other.tree);
       std::swap(n, other.n);
-      std::swap(identity, other.identity);
-      std::swap(op, other.op);
+      swap(identity, other.identity);
+      swap(op, other.op);
     }
   };
 
@@ -1156,8 +1161,8 @@ namespace Aleph
      *  @param[in,out] other tree to move from.
      *  @return this tree.
      */
-    Gen_Lazy_Segment_Tree & operator=(Gen_Lazy_Segment_Tree && other) noexcept(
-      std::is_nothrow_swappable_v<Policy>)
+    Gen_Lazy_Segment_Tree & operator=(Gen_Lazy_Segment_Tree && other)
+      noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -1254,14 +1259,20 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Swap this tree with @p other in O(1). */
-    void swap(Gen_Lazy_Segment_Tree & other) noexcept(
-      noexcept(std::swap(std::declval<Policy&>(), std::declval<Policy&>())))
+    /** @brief Swap this tree with @p other in O(1).
+     *  @param[in,out] other tree to exchange with.
+     *  @throw what swapping the policies throws; then the arrays and their
+     *         sizes are already exchanged.
+     */
+    void swap(Gen_Lazy_Segment_Tree & other) noexcept(std::is_nothrow_swappable_v<Policy>)
     {
+      // the swap that the specification evaluates: that of Policy found by
+      // its arguments, else std::swap()
+      using std::swap;
       tree.swap(other.tree);
       lazy.swap(other.lazy);
       std::swap(n, other.n);
-      std::swap(pol, other.pol);
+      swap(pol, other.pol);
     }
   };
 

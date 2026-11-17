@@ -295,7 +295,10 @@ template <> struct Moved_From_Case<F::PartitionedConvolver>
 };
 
 // The processors and the filters are left unconfigured, as built by their
-// default constructors: then every operation says so
+// default constructors: then every operation says so. The destination of a
+// move goes on as its source would have: the fingerprint is what a copy
+// outputs for the next block, after the samples or the state that make()
+// leaves pending, which use() then resets
 template <> struct Moved_From_Case<F::STFTProcessor>
 {
   static F::STFTProcessor make(const size_t n)
@@ -310,6 +313,13 @@ template <> struct Moved_From_Case<F::STFTProcessor>
   static bool is_empty(const F::STFTProcessor & s)
   {
     return not s.configured() and s.frame_size() == 0 and s.fft_size() == 0;
+  }
+  static Array<Array<Complex>> fingerprint(const F::STFTProcessor & s)
+  {
+    if (not s.configured())
+      return {};
+    F::STFTProcessor copy(s);
+    return copy.process_block(ramp(3 * s.frame_size()));
   }
   static void use(F::STFTProcessor & s)
   {
@@ -369,6 +379,14 @@ template <> struct Moved_From_Case<F::ISTFTProcessor>
   {
     return not p.configured() and p.frame_size() == 0 and p.fft_size() == 0;
   }
+  static Array<double> fingerprint(const F::ISTFTProcessor & p)
+  {
+    if (not p.configured())
+      return {};
+    F::ISTFTProcessor copy(p);
+    return copy.process_block(
+      spectrogram(p.frame_size(), p.hop_size(), p.fft_size(), 3 * p.frame_size()));
+  }
   static void use(F::ISTFTProcessor & p)
   {
     if (not p.configured())
@@ -403,6 +421,13 @@ template <> struct Moved_From_Case<F::LFilter>
   {
     return not f.configured() and f.order() == 0 and f.state().is_empty();
   }
+  static Array<double> fingerprint(const F::LFilter & f)
+  {
+    if (not f.configured())
+      return {};
+    F::LFilter copy(f);
+    return copy.filter(ramp(20));
+  }
   static void use(F::LFilter & f)
   {
     if (not f.configured())
@@ -434,6 +459,13 @@ template <> struct Moved_From_Case<F::SOSFilter>
   static bool is_empty(const F::SOSFilter & f)
   {
     return not f.configured() and f.num_sections() == 0;
+  }
+  static Array<double> fingerprint(const F::SOSFilter & f)
+  {
+    if (not f.configured())
+      return {};
+    F::SOSFilter copy(f);
+    return copy.filter(ramp(20));
   }
   static void use(F::SOSFilter & f)
   {

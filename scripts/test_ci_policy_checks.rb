@@ -324,6 +324,30 @@ class TestMovedFromCheck < Minitest::Test
     assert_empty problems(STORAGE, 'Moved_From_Case<Int_Storage>', 'using Int_Storage = Storage;')
   end
 
+  def test_an_alias_of_a_test_names_the_class_in_it
+    assert_empty problems(STORAGE, "using Int_Storage = Storage;\nMoved_From_Case<Int_Storage>")
+  end
+
+  # The name of the class elsewhere in a test, as a use, a comment or a
+  # case of another class, does not test it
+  def test_only_a_moved_from_case_tests_a_class
+    tests = "// Storage\nStorage s;\ntemplate <> struct Moved_From_Case<Other_Storage> {};\n"
+    assert_equal ['Storage'], problems(STORAGE, tests)
+    assert_empty problems(STORAGE, tests + "template <> struct Moved_From_Case<F::Storage> {};\n")
+  end
+
+  # The access labels of a nested class are not those of the class
+  def test_a_nested_class_with_access_labels
+    src = STORAGE.sub("{\n", "{\n  struct Node { public: int x; };\n")
+    assert_equal ['Storage'], problems(src)
+  end
+
+  # A brace initializer does not make a member a function
+  def test_a_member_with_a_brace_initializer
+    src = STORAGE.sub('size_t n = 0;', 'size_t n{count()};')
+    assert_equal ['Storage'], problems(src)
+  end
+
   def test_a_defaulted_move_is_implicit
     assert_equal ['Storage'], problems(STORAGE.sub('public:', "public:\n  Storage(Storage &&) = default;"))
   end

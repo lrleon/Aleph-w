@@ -499,8 +499,7 @@ namespace Aleph
        *  @param[in,out] other topology to move from.
        *  @return this topology.
        */
-      HLD_Tree_Data & operator = (HLD_Tree_Data && other)
-        noexcept(std::is_nothrow_swappable_v<SA>)
+      HLD_Tree_Data & operator = (HLD_Tree_Data && other) noexcept(noexcept(swap(other)))
       {
         swap(other);
         return *this;
@@ -508,11 +507,16 @@ namespace Aleph
 
       /** @brief Exchange in O(1) this topology and another.
        *  @param[in,out] other topology to exchange with.
+       *  @throw what swapping the filters throws; then nothing else is
+       *         exchanged.
        */
       void swap(HLD_Tree_Data & other) noexcept(std::is_nothrow_swappable_v<SA>)
       {
+        // the swap that the specification evaluates: that of SA, found by
+        // its arguments, else std::swap(); first, since it may throw
+        using std::swap;
+        swap(sa_, other.sa_);
         std::swap(graph_, other.graph_);
-        std::swap(sa_, other.sa_);
         std::swap(root_, other.root_);
         std::swap(root_id_, other.root_id_);
         std::swap(n_, other.n_);
@@ -703,9 +707,7 @@ namespace Aleph
      *  @param[in,out] other HLD to move from.
      *  @return this HLD.
      */
-    Gen_HLD & operator = (Gen_HLD && other)
-      noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
-               and std::is_nothrow_swappable_v<SA>)
+    Gen_HLD & operator = (Gen_HLD && other) noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -713,14 +715,21 @@ namespace Aleph
 
     /** @brief Exchange in O(1) this HLD and another.
      *  @param[in,out] other HLD to exchange with.
+     *  @throw what swapping the filters, the values or the operations
+     *         throws.
      */
     void swap(Gen_HLD & other)
       noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
                and std::is_nothrow_swappable_v<SA>)
     {
+      // The swaps that the specification evaluates: found by the
+      // arguments, else std::swap(). The operation goes first, and the
+      // topology exchanges nothing if its filter throws: neither leaves a
+      // topology exchanged without its segment tree
+      using std::swap;
+      swap(op_, other.op_);
       topology_.swap(other.topology_);
-      std::swap(identity_, other.identity_);
-      std::swap(op_, other.op_);
+      swap(identity_, other.identity_);
       seg_.swap(other.seg_);
     }
 

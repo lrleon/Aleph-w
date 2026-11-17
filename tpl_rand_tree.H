@@ -50,6 +50,8 @@
 
 # include <ctime>
 # include <climits>
+# include <type_traits>
+# include <utility>
 # include <ah-random.H>
 # include <ahUtils.H>
 # include <ahFunction.H>
@@ -330,12 +332,19 @@ namespace Aleph
     { /* empty */
     }
 
-    /// Swap in constant time all the nodes of `this` with `tree`
-    void swap(Gen_Rand_Tree & tree) noexcept
+    /** @brief Swap in constant time all the nodes of `this` with `tree`.
+        @param[in,out] tree the tree to exchange with.
+        @throw what swapping the comparison criteria throws; then nothing
+               else is exchanged.
+    */
+    void swap(Gen_Rand_Tree & tree) noexcept(std::is_nothrow_swappable_v<Compare>)
     {
+      // the swap that the specification evaluates: that of Compare found by
+      // its arguments, else std::swap(); first, since it may throw
+      using std::swap;
+      swap(cmp, tree.cmp);
       std::swap(tree_root, tree.tree_root);
       r.swap(tree.r);
-      std::swap(cmp, tree.cmp);
     }
 
     /** @brief Take the nodes, the generator and the comparison criterion of
@@ -354,7 +363,10 @@ namespace Aleph
     Gen_Rand_Tree(Gen_Rand_Tree && other)
       : Gen_Rand_Tree(time(nullptr), other.cmp)
     {
-      swap(other);
+      // the comparison criterion is already a copy of that of other, which
+      // keeps its own: exchanging it again would need its move assignment
+      std::swap(tree_root, other.tree_root);
+      r.swap(other.r);
     }
 
     /** @brief Exchange this tree with another, which is left with the
@@ -366,8 +378,10 @@ namespace Aleph
 
         @param[in,out] other the tree to move from.
         @return a reference to this tree.
+        @throw what swapping the comparison criteria throws; then nothing is
+               exchanged.
     */
-    Gen_Rand_Tree &operator =(Gen_Rand_Tree && other) noexcept
+    Gen_Rand_Tree &operator =(Gen_Rand_Tree && other) noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;

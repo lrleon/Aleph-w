@@ -329,7 +329,11 @@ public:
     , store_(store_ext_, init)
   {}
 
-  Ghost_Lattice(const Ghost_Lattice &) = default;
+  /** @brief Copy another lattice: its extents and its storage, halo
+   *         included.
+   *  @param[in] other lattice to copy.
+   */
+  Ghost_Lattice(const Ghost_Lattice &other) = default;
 
   /** @brief Take the cells of another lattice, which is left empty.
    *
@@ -344,7 +348,12 @@ public:
       store_ext_(std::exchange(other.store_ext_, extents_type{})), store_(std::move(other.store_))
   {}
 
-  Ghost_Lattice &operator=(const Ghost_Lattice &) = default;
+  /** @brief Copy another lattice into this one: its extents and its
+   *         storage, halo included.
+   *  @param[in] other lattice to copy.
+   *  @return this lattice.
+   */
+  Ghost_Lattice &operator=(const Ghost_Lattice &other) = default;
 
   /** @brief Exchange this lattice with another, which is left with the
    *         previous cells of this one.

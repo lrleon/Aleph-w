@@ -206,8 +206,7 @@ namespace Aleph
      *  @param[in,out] other heap to move from.
      *  @return this heap.
      */
-    DynArrayHeap & operator = (DynArrayHeap && other) noexcept(
-      std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Compare>)
+    DynArrayHeap & operator = (DynArrayHeap && other) noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -216,13 +215,18 @@ namespace Aleph
     /** @brief Exchange in O(1) the elements and the comparators of this
      *         heap and another.
      *  @param[in,out] other heap to exchange with.
+     *  @throw what swapping the comparators, or the default values of the
+     *         arrays, throws.
      */
     void swap(DynArrayHeap & other) noexcept(
       std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Compare>)
     {
+      // the swap that the specification evaluates: that of Compare found by
+      // its arguments, else std::swap(); first, since it may throw
+      using std::swap;
+      swap(cmp, other.cmp);
       array.swap(other.array);
       std::swap(num_items, other.num_items);
-      std::swap(cmp, other.cmp);
     }
 
     /** Return the element with highest priority (the heap top).

@@ -382,7 +382,7 @@ public:
    *  @param[in,out] other topology to move from.
    *  @return this topology.
    */
-  Rooted_Tree_Data & operator=(Rooted_Tree_Data && other) noexcept(std::is_nothrow_swappable_v<SA>)
+  Rooted_Tree_Data & operator=(Rooted_Tree_Data && other) noexcept(noexcept(swap(other)))
   {
     swap(other);
     return *this;
@@ -390,11 +390,16 @@ public:
 
   /** @brief Exchange in O(1) this topology and another.
    *  @param[in,out] other topology to exchange with.
+   *  @throw what swapping the filters throws; then nothing else is
+   *         exchanged.
    */
   void swap(Rooted_Tree_Data & other) noexcept(std::is_nothrow_swappable_v<SA>)
   {
+    // the swap that the specification evaluates: that of SA found by its
+    // arguments, else std::swap(); first, since it may throw
+    using std::swap;
+    swap(sa_, other.sa_);
     std::swap(graph_, other.graph_);
-    std::swap(sa_, other.sa_);
     std::swap(root_, other.root_);
     std::swap(root_id_, other.root_id_);
     std::swap(n_, other.n_);
@@ -650,7 +655,7 @@ public:
    *  @return this engine.
    */
   Gen_Binary_Lifting_LCA & operator=(Gen_Binary_Lifting_LCA && other)
-    noexcept(std::is_nothrow_swappable_v<SA>)
+    noexcept(noexcept(swap(other)))
   {
     swap(other);
     return *this;
@@ -933,7 +938,7 @@ public:
    *  @return this engine.
    */
   Gen_Euler_RMQ_LCA & operator=(Gen_Euler_RMQ_LCA && other)
-    noexcept(std::is_nothrow_swappable_v<SA>)
+    noexcept(noexcept(swap(other)))
   {
     swap(other);
     return *this;

@@ -344,7 +344,11 @@ public:
    */
   explicit Density_Observer(State s) : tracked_state_(std::move(s)) {}
 
-  Density_Observer(const Density_Observer &) = default;
+  /** @brief Copy another observer: the state that it counts, the counts of
+   *         each step, their totals, and whether it has seen a frame.
+   *  @param[in] other observer to copy.
+   */
+  Density_Observer(const Density_Observer &other) = default;
 
   /** @brief Take the samples of another observer, which is left with none,
    *         tracking the same state.
@@ -360,7 +364,13 @@ public:
       totals_(std::move(other.totals_)), seeded_(std::exchange(other.seeded_, false))
   {}
 
-  Density_Observer &operator=(const Density_Observer &) = default;
+  /** @brief Copy another observer into this one: the state that it counts,
+   *         the counts of each step, their totals, and whether it has seen
+   *         a frame.
+   *  @param[in] other observer to copy.
+   *  @return this observer.
+   */
+  Density_Observer &operator=(const Density_Observer &other) = default;
 
   /** @brief Exchange this observer with another, which is left with the
    *         previous samples of this one.
@@ -599,7 +609,11 @@ public:
    */
   Entropy_Observer() = default;
 
-  Entropy_Observer(const Entropy_Observer &) = default;
+  /** @brief Copy another observer: the entropy of each step, and whether
+   *         it has seen a frame.
+   *  @param[in] other observer to copy.
+   */
+  Entropy_Observer(const Entropy_Observer &other) = default;
 
   /** @brief Take the samples of another observer, which is left with none.
    *
@@ -613,7 +627,12 @@ public:
     : entropy_(std::move(other.entropy_)), seeded_(std::exchange(other.seeded_, false))
   {}
 
-  Entropy_Observer &operator=(const Entropy_Observer &) = default;
+  /** @brief Copy another observer into this one: the entropy of each step,
+   *         and whether it has seen a frame.
+   *  @param[in] other observer to copy.
+   *  @return this observer.
+   */
+  Entropy_Observer &operator=(const Entropy_Observer &other) = default;
 
   /** @brief Exchange this observer with another, which is left with the
    *         previous samples of this one.

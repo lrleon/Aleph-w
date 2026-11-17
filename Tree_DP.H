@@ -294,7 +294,7 @@ public:
    *  @param[in,out] other topology to move from.
    *  @return this topology.
    */
-  Tree_Topology & operator=(Tree_Topology && other) noexcept(std::is_nothrow_swappable_v<SA>)
+  Tree_Topology & operator=(Tree_Topology && other) noexcept(noexcept(swap(other)))
   {
     swap(other);
     return *this;
@@ -302,11 +302,16 @@ public:
 
   /** @brief Exchange in O(1) this topology and another.
    *  @param[in,out] other topology to exchange with.
+   *  @throw what swapping the filters throws; then nothing else is
+   *         exchanged.
    */
   void swap(Tree_Topology & other) noexcept(std::is_nothrow_swappable_v<SA>)
   {
+    // the swap that the specification evaluates: that of SA found by its
+    // arguments, else std::swap(); first, since it may throw
+    using std::swap;
+    swap(sa_, other.sa_);
     std::swap(graph_, other.graph_);
-    std::swap(sa_, other.sa_);
     std::swap(root_, other.root_);
     std::swap(n_, other.n_);
     id_to_node_.swap(other.id_to_node_);

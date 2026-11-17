@@ -330,8 +330,11 @@ namespace Aleph
      *  no longer had.
      *
      *  @param[in,out] other table to move from.
+     *  @throw what moving the operation throws; then @p other is left
+     *         empty.
      */
-    Gen_Disjoint_Sparse_Table(Gen_Disjoint_Sparse_Table && other) noexcept
+    Gen_Disjoint_Sparse_Table(Gen_Disjoint_Sparse_Table && other)
+      noexcept(std::is_nothrow_move_constructible_v<Op>)
       : data(std::move(other.data)), table(std::move(other.table)),
         n(std::exchange(other.n, 0)), levels(std::exchange(other.levels, 0)),
         op(std::move(other.op))
@@ -346,7 +349,7 @@ namespace Aleph
      *  @return this table.
      */
     Gen_Disjoint_Sparse_Table & operator=(Gen_Disjoint_Sparse_Table && other)
-      noexcept
+      noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -418,14 +421,21 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Swap this table with @p other in O(1). */
-    void swap(Gen_Disjoint_Sparse_Table & other) noexcept
+    /** @brief Swap this table with @p other in O(1).
+     *  @param[in,out] other table to exchange with.
+     *  @throw what swapping the operations throws; then the arrays and
+     *         their sizes are already exchanged.
+     */
+    void swap(Gen_Disjoint_Sparse_Table & other) noexcept(std::is_nothrow_swappable_v<Op>)
     {
+      // the swap that the specification evaluates: that of Op found by its
+      // arguments, else std::swap()
+      using std::swap;
       data.swap(other.data);
       table.swap(other.table);
       std::swap(n, other.n);
       std::swap(levels, other.levels);
-      std::swap(op, other.op);
+      swap(op, other.op);
     }
   };
 

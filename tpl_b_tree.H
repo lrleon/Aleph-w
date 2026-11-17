@@ -630,7 +630,7 @@ public:
    *  @return `*this`.
    *  @note O(1).
    */
-  Gen_B_Tree &operator=(Gen_B_Tree &&other) noexcept(std::is_nothrow_swappable_v<Compare>)
+  Gen_B_Tree &operator=(Gen_B_Tree &&other) noexcept(noexcept(swap(other)))
   {
     swap(other);
     return *this;
@@ -638,14 +638,18 @@ public:
 
   /** @brief Exchange the keys and the comparators of this tree and another.
    *  @param other Tree to exchange with.
-   *  @throws Whatever swapping the comparators throws.
+   *  @throws Whatever swapping the comparators throws; then nothing else
+   *          is exchanged.
    *  @note O(1).
    */
   void swap(Gen_B_Tree &other) noexcept(std::is_nothrow_swappable_v<Compare>)
   {
+    // the swap that the specification evaluates: that of Compare found by
+    // its arguments, else std::swap(); first, since it may throw
+    using std::swap;
+    swap(cmp_, other.cmp_);
     root_.swap(other.root_);
     std::swap(size_, other.size_);
-    std::swap(cmp_, other.cmp_);
   }
 
   /** @brief Return the comparison object (read-only).

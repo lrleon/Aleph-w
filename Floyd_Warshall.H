@@ -506,11 +506,15 @@ namespace Aleph
         solver and read a matrix that it no longer had.
 
         @param[in,out] other solver to move from.
+        @throw what copying the infinity, which is const, or moving the
+               filter or the distance throws; then `other` is left without
+               nodes.
         @note The solver refers to its graph, so that it has no assignment.
      */
     Floyd_All_Shortest_Paths(Floyd_All_Shortest_Paths && other)
       noexcept(std::is_nothrow_move_constructible_v<SA>
-               and std::is_nothrow_move_constructible_v<Distance>)
+               and std::is_nothrow_move_constructible_v<Distance>
+               and std::is_nothrow_copy_constructible_v<Distance_Type>)
       : nodes(std::move(other.nodes)), g(other.g), n(std::exchange(other.n, 0)),
         Inf(other.Inf), negative_cycle(std::exchange(other.negative_cycle, false)),
         path_mat(std::move(other.path_mat)), dist(std::move(other.dist)),

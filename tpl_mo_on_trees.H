@@ -1079,7 +1079,7 @@ namespace Aleph
      *  @return this engine.
      */
     Gen_Mo_On_Tree_Node & operator = (Gen_Mo_On_Tree_Node && other)
-      noexcept(std::is_nothrow_swappable_v<Policy>)
+      noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -1087,11 +1087,16 @@ namespace Aleph
 
     /** @brief Exchange in O(1) this engine and another.
      *  @param[in,out] other engine to exchange with.
+     *  @throw what swapping the policies throws; then only the roots,
+     *         which only the constructor reads, are exchanged.
      */
     void swap(Gen_Mo_On_Tree_Node & other) noexcept(std::is_nothrow_swappable_v<Policy>)
     {
+      // the swap that the specification evaluates: that of Policy found by
+      // its arguments, else std::swap()
+      using std::swap;
       std::swap(root_, other.root_);
-      std::swap(pol_, other.pol_);
+      swap(pol_, other.pol_);
       std::swap(n_, other.n_);
       id_to_node_.swap(other.id_to_node_);
       node_to_id_.swap(other.node_to_id_);

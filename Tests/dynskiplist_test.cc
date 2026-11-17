@@ -40,6 +40,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <tpl_array.H>
 #include <tpl_dynSkipList.H>
 
 #include <limits>
@@ -215,6 +216,55 @@ TEST_F(DynSkipListTest, MoveConstruction)
   
   // Original should be empty
   EXPECT_TRUE(sl.is_empty());
+}
+
+// An order with a state, which can be copied and moved but assigned only
+// by a move, as a lambda with a capture
+struct Order
+{
+  bool descending = false;
+
+  Order() = default;
+  explicit Order(const bool d) noexcept : descending(d) {}
+  Order(const Order &) = default;
+  Order(Order &&) = default;
+  Order & operator = (const Order &) = delete;
+  Order & operator = (Order &&) = default;
+
+  bool operator () (const int a, const int b) const noexcept
+  {
+    return descending ? b < a : a < b;
+  }
+};
+
+// The move constructs the comparison of the destination from that of the
+// source, which keeps it: it needs no copy assignment of it
+TEST(DynSkipList, MoveConstructsTheComparisonFromThatOfTheSource)
+{
+  DynSkipList<int, Order> src(1UL);
+  src.get_compare() = Order(true);
+  for (int i = 0; i < 5; ++i)
+    src.insert(i);
+
+  DynSkipList<int, Order> dst(std::move(src));
+  EXPECT_TRUE(dst.get_compare().descending);
+  EXPECT_TRUE(src.get_compare().descending);
+  EXPECT_TRUE(src.is_empty());
+  Array<int> keys;
+  dst.for_each([&keys] (const int k) { keys.append(k); });
+  ASSERT_EQ(keys.size(), 5u);
+  for (size_t i = 0; i < keys.size(); ++i)
+    EXPECT_EQ(keys(i), 4 - static_cast<int>(i));
+
+  // the source goes on with its comparison
+  src.insert(1);
+  src.insert(2);
+  EXPECT_EQ(src.get_first(), 2);
+
+  DynSkipList<int, Order> other(2UL);
+  other = std::move(dst);
+  EXPECT_EQ(other.size(), 5u);
+  EXPECT_EQ(other.get_first(), 4);
 }
 
 // ============================================================================

@@ -699,6 +699,22 @@ private:
     return size_ + 1;
   }
 
+  // The predicate of other, for the move constructor, which has already
+  // taken the root of other: a copy that throws gives it back, so that
+  // other keeps its root with its size
+  static Cmp predicate_of(PersistentHashMap &other, NodePtr &taken_root)
+  {
+    try
+      {
+        return other.cmp_;
+      }
+    catch (...)
+      {
+        other.root_.swap(taken_root);
+        throw;
+      }
+  }
+
 public:
   /** @brief Construct an empty persistent hash map.
    *  @param hash_fct Hash function used to route keys through the HAMT.
@@ -731,12 +747,13 @@ public:
    *  left empty still uses them.
    *
    *  @param other Version to move from.
-   *  @throws Whatever copying the equality predicate throws.
+   *  @throws Whatever copying the equality predicate throws; then @p other
+   *          is unchanged.
    */
   PersistentHashMap(PersistentHashMap &&other)
     noexcept(std::is_nothrow_copy_constructible_v<Cmp>)
-    : root_(std::move(other.root_)), hash_fct_(other.hash_fct_), cmp_(other.cmp_),
-      size_(std::exchange(other.size_, 0))
+    : root_(std::move(other.root_)), hash_fct_(other.hash_fct_),
+      cmp_(predicate_of(other, root_)), size_(std::exchange(other.size_, 0))
   {
     // Empty.
   }
@@ -754,8 +771,7 @@ public:
    *  @return This map.
    *  @throws Whatever swapping the equality predicates throws.
    */
-  PersistentHashMap &operator = (PersistentHashMap &&other)
-    noexcept(std::is_nothrow_swappable_v<Cmp>)
+  PersistentHashMap &operator = (PersistentHashMap &&other) noexcept(noexcept(swap(other)))
   {
     swap(other);
     return *this;
@@ -764,13 +780,18 @@ public:
   /** @brief Exchange in O(1) the bindings, the hash functions and the
    *         equality predicates of this version and another.
    *  @param other Version to exchange with.
-   *  @throws Whatever swapping the equality predicates throws.
+   *  @throws Whatever swapping the equality predicates throws; then
+   *          nothing else is exchanged.
    */
   void swap(PersistentHashMap &other) noexcept(std::is_nothrow_swappable_v<Cmp>)
   {
+    // the swap that the specification evaluates: that of Cmp found by its
+    // arguments, else std::swap(); first, since it may throw, so that each
+    // root stays with its size
+    using std::swap;
+    swap(cmp_, other.cmp_);
     root_.swap(other.root_);
     std::swap(hash_fct_, other.hash_fct_);
-    std::swap(cmp_, other.cmp_);
     std::swap(size_, other.size_);
   }
 

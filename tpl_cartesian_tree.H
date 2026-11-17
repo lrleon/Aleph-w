@@ -286,8 +286,7 @@ namespace Aleph
      *  @param[in,out] other tree to move from.
      *  @return this tree.
      */
-    Gen_Cartesian_Tree &operator=(Gen_Cartesian_Tree && other) noexcept(
-      std::is_nothrow_swappable_v<Comp>)
+    Gen_Cartesian_Tree &operator=(Gen_Cartesian_Tree && other) noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -464,7 +463,11 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Swap with @p other in O(1). */
+    /** @brief Swap with @p other in O(1).
+     *  @param[in,out] other tree to exchange with.
+     *  @throw what swapping the comparisons throws; then nothing else is
+     *         exchanged.
+     */
     void swap(Gen_Cartesian_Tree & other)
       noexcept(noexcept(data_.swap(other.data_)) &&
                noexcept(parent_.swap(other.parent_)) &&
@@ -474,13 +477,18 @@ namespace Aleph
                noexcept(std::swap(n_, other.n_)) &&
                std::is_nothrow_swappable_v<Comp>)
     {
+      // the swap that the specification evaluates: that of Comp found by
+      // its arguments, else std::swap(); first, since it may throw, so that
+      // Gen_Euler_Tour_LCA, which swaps this tree before its tour, keeps
+      // the tour of its tree
+      using std::swap;
+      swap(comp_, other.comp_);
       data_.swap(other.data_);
       parent_.swap(other.parent_);
       left_.swap(other.left_);
       right_.swap(other.right_);
       std::swap(root_, other.root_);
       std::swap(n_, other.n_);
-      std::swap(comp_, other.comp_);
     }
   };
 
@@ -745,8 +753,7 @@ namespace Aleph
      *  @param[in,out] other engine to move from.
      *  @return this engine.
      */
-    Gen_Euler_Tour_LCA & operator=(Gen_Euler_Tour_LCA && other) noexcept(
-      std::is_nothrow_swappable_v<Comp>)
+    Gen_Euler_Tour_LCA & operator=(Gen_Euler_Tour_LCA && other) noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -755,6 +762,8 @@ namespace Aleph
     /** @brief Exchange in O(1) the tree and the tour of this engine and
      *         another.
      *  @param[in,out] other engine to exchange with.
+     *  @throw what swapping the comparisons throws; then nothing else is
+     *         exchanged.
      */
     void swap(Gen_Euler_Tour_LCA & other) noexcept(std::is_nothrow_swappable_v<Comp>)
     {

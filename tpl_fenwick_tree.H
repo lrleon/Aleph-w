@@ -273,7 +273,10 @@ namespace Aleph
       fill_from_aleph_it(values.get_it());
     }
 
-    Gen_Fenwick_Tree(const Gen_Fenwick_Tree &) = default;
+    /** @brief Copy another tree: its array, its size and its operations.
+     *  @param[in] other tree to copy.
+     */
+    Gen_Fenwick_Tree(const Gen_Fenwick_Tree & other) = default;
 
     /** @brief Take the elements of another tree, which is left empty.
      *
@@ -281,20 +284,29 @@ namespace Aleph
      *  moved-from tree then indexed an array that it no longer had.
      *
      *  @param[in,out] other tree to move from.
+     *  @throw what moving the operations throws; then @p other is left
+     *         empty.
      */
-    Gen_Fenwick_Tree(Gen_Fenwick_Tree && other) noexcept
+    Gen_Fenwick_Tree(Gen_Fenwick_Tree && other)
+      noexcept(std::is_nothrow_move_constructible_v<Plus>
+               and std::is_nothrow_move_constructible_v<Minus>)
       : tree(std::move(other.tree)), n(std::exchange(other.n, 0)),
         plus_op(std::move(other.plus_op)), minus_op(std::move(other.minus_op))
     {}
 
-    Gen_Fenwick_Tree &operator=(const Gen_Fenwick_Tree &) = default;
+    /** @brief Copy another tree into this one: its array, its size and its
+     *         operations.
+     *  @param[in] other tree to copy.
+     *  @return this tree.
+     */
+    Gen_Fenwick_Tree &operator=(const Gen_Fenwick_Tree & other) = default;
 
     /** @brief Exchange this tree with another, which is left with the
      *         previous elements of this one.
      *  @param[in,out] other tree to move from.
      *  @return this tree.
      */
-    Gen_Fenwick_Tree &operator=(Gen_Fenwick_Tree && other) noexcept
+    Gen_Fenwick_Tree &operator=(Gen_Fenwick_Tree && other) noexcept(noexcept(swap(other)))
     {
       swap(other);
       return *this;
@@ -392,13 +404,21 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Swap this tree with @p other in O(1). */
-    void swap(Gen_Fenwick_Tree & other) noexcept
+    /** @brief Swap this tree with @p other in O(1).
+     *  @param[in,out] other tree to exchange with.
+     *  @throw what swapping the operations throws; then the arrays and
+     *         their sizes are already exchanged.
+     */
+    void swap(Gen_Fenwick_Tree & other)
+      noexcept(std::is_nothrow_swappable_v<Plus> and std::is_nothrow_swappable_v<Minus>)
     {
+      // the swaps that the specification evaluates: those of the
+      // operations found by their arguments, else std::swap()
+      using std::swap;
       tree.swap(other.tree);
       std::swap(n, other.n);
-      std::swap(plus_op, other.plus_op);
-      std::swap(minus_op, other.minus_op);
+      swap(plus_op, other.plus_op);
+      swap(minus_op, other.minus_op);
     }
   };
 
@@ -588,7 +608,10 @@ namespace Aleph
       build_from_diffs(d);
     }
 
-    Range_Fenwick_Tree(const Range_Fenwick_Tree &) = default;
+    /** @brief Copy another tree: its two inner trees and its size.
+     *  @param[in] other tree to copy.
+     */
+    Range_Fenwick_Tree(const Range_Fenwick_Tree & other) = default;
 
     /** @brief Take the elements of another tree, which is left empty.
      *
@@ -601,7 +624,12 @@ namespace Aleph
       : b1(std::move(other.b1)), b2(std::move(other.b2)), n(std::exchange(other.n, 0))
     {}
 
-    Range_Fenwick_Tree &operator=(const Range_Fenwick_Tree &) = default;
+    /** @brief Copy another tree into this one: its two inner trees and its
+     *         size.
+     *  @param[in] other tree to copy.
+     *  @return this tree.
+     */
+    Range_Fenwick_Tree &operator=(const Range_Fenwick_Tree & other) = default;
 
     /** @brief Exchange this tree with another, which is left with the
      *         previous elements of this one.

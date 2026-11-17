@@ -224,7 +224,11 @@ public:
     : Async_Engine(std::move(initial), std::move(r), Neighborhood{}, std::move(s))
   {}
 
-  Async_Engine(const Async_Engine &) = default;
+  /** @brief Copy another engine: its lattices, its rule, its neighborhood,
+   *         its update scheme, its hooks and its count of steps.
+   *  @param[in] other engine to copy.
+   */
+  Async_Engine(const Async_Engine &other) = default;
 
   /** @brief Take the simulation of another engine, which is left with
    *         empty lattices, no hooks and no steps run.
@@ -246,7 +250,13 @@ public:
       step_count_(std::exchange(other.step_count_, 0))
   {}
 
-  Async_Engine &operator=(const Async_Engine &) = default;
+  /** @brief Copy another engine into this one: its lattices, its rule, its
+   *         neighborhood, its update scheme, its hooks and its count of
+   *         steps.
+   *  @param[in] other engine to copy.
+   *  @return this engine.
+   */
+  Async_Engine &operator=(const Async_Engine &other) = default;
 
   /** @brief Exchange this engine with another, which is left with the
    *         previous simulation of this one.

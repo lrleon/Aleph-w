@@ -172,7 +172,10 @@ def moved_from_declarations(code, from, to)
         buf = +''
         start = i
       else
-        buf << code[i..close]
+        # a nested class or a brace initializer: what it holds is not of
+        # the declaration, whose access labels and parentheses it would
+        # change; the members take their text before the first brace
+        buf << '{}'
         i = close + 1
       end
     else
@@ -293,25 +296,51 @@ def moved_from_classes(src, scalar_names = [])
 end
 
 # The names by which a test can name a class: its own, and those of the
-# aliases and the classes that derive from it in the headers given
-def moved_from_names(name, headers_text)
+# aliases and the classes that derive from it in the text given
+def moved_from_names(name, text)
   n = Regexp.escape(name)
-  aliases = headers_text.scan(/\busing\s+(\w+)\s*=\s*[^;]*\b#{n}\b/).flatten
-  derived = headers_text.scan(/\b(?:class|struct)\s+(\w+)\s*(?:final\s*)?:[^;{]*\b#{n}\b/).flatten
+  aliases = text.scan(/\busing\s+(\w+)\s*=\s*[^;]*\b#{n}\b/).flatten
+  derived = text.scan(/\b(?:class|struct)\s+(\w+)\s*(?:final\s*)?:[^;{]*\b#{n}\b/).flatten
   ([name] + aliases + derived).uniq
+end
+
+# The arguments of the Moved_From_Case that the tests name, outside their
+# comments and literals: the classes that the typed suite tests
+def moved_from_registered(tests_text)
+  @moved_from_registered ||= {}
+  return @moved_from_registered[tests_text] if @moved_from_registered.key?(tests_text)
+
+  code = moved_from_blank(tests_text)
+  args = []
+  pos = 0
+  while (m = /\bMoved_From_Case\s*</.match(code, pos))
+    depth = 1
+    k = m.end(0)
+    while k < code.size and depth.positive?
+      depth += 1 if code[k] == '<'
+      depth -= 1 if code[k] == '>'
+      k += 1
+    end
+    args << code[m.end(0)...k - 1]
+    pos = k
+  end
+  @moved_from_registered[tests_text] = args
 end
 
 # The problems of a header: [line, message] for each class that has the
 # pattern, or that writes its moves without a moved-from test
 def moved_from_problems(src, tests_text, headers_text, scalar_names = [])
+  registered = moved_from_registered(tests_text)
   moved_from_classes(src, scalar_names).filter_map do |c|
     next if c[:exempt] or c[:containers].empty? or c[:scalars].empty?
     next unless c[:implicit] or c[:written]
 
     # The typed suite decides whether the moves of a class that it tests
-    # are right, whether they are implicit or written
-    names = moved_from_names(c[:name], headers_text)
-    next if names.any? { |n| tests_text.match?(/\b#{Regexp.escape(n)}\b/) }
+    # are right, whether they are implicit or written: the class is tested
+    # if a Moved_From_Case names it, or an alias of it in the headers or
+    # in the tests, not if its name is only elsewhere in the tests
+    names = moved_from_names(c[:name], headers_text) | moved_from_names(c[:name], tests_text)
+    next if names.any? { |n| registered.any? { |r| r.match?(/\b#{Regexp.escape(n)}\b/) } }
 
     what = "keeps #{c[:containers].join(', ')} and #{c[:scalars].join(', ')}"
     if c[:implicit]
