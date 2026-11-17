@@ -351,6 +351,38 @@ TEST_F(NetUtilsTest, DimacsFlowEquivalence)
   EXPECT_DOUBLE_EQ(flow1, flow2);
 }
 
+// Comments, blank lines and lines of other types are skipped
+TEST_F(NetUtilsTest, DimacsImportSkipsCommentsAndBlankLines)
+{
+  std::ofstream(dimacs_file) << "c a network\n\n   \np max 3 2\nc between\n"
+                             << "n 1 s\nn 3 t\na 1 2 5\nx unknown\na 2 3 4\n";
+  auto net = import_network_from_dimacs<TestNet>(dimacs_file.string());
+  EXPECT_EQ(net.vsize(), 3u);
+  EXPECT_EQ(net.esize(), 2u);
+  EXPECT_DOUBLE_EQ(dinic_maximum_flow(net), 4.0);
+}
+
+// A malformed file throws instead of indexing past the nodes or reading
+// fields that were never set, which crashed
+TEST_F(NetUtilsTest, DimacsImportRejectsMalformedFiles)
+{
+  for (const char *text : {"p max 3 1\na 1 9 5\n",           // node out of range
+                           "p max 3 1\na 0 2 5\n",           // nodes start at 1
+                           "p max 3 1\na 1 -1 5\n",          // negative node
+                           "a 1 2 5\np max 3 1\n",           // arc before the problem
+                           "n 1 s\np max 3 1\n",             // node before the problem
+                           "p max\na 1 2 5\n",               // incomplete problem line
+                           "p max 3 1\np max 3 1\n",         // a second problem line
+                           "p max 3 1\na 1 2\n",             // arc without capacity
+                           "p max 3 1\nn 4 s\n",             // designated node out of range
+                           "p max 3 1\nn 1 x\n"})            // neither s nor t
+    {
+      std::ofstream(dimacs_file) << text;
+      EXPECT_THROW(import_network_from_dimacs<TestNet>(dimacs_file.string()),
+                   std::runtime_error) << text;
+    }
+}
+
 
 //==============================================================================
 // Benchmark Utilities Tests
