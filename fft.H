@@ -1551,6 +1551,23 @@ namespace Aleph
       return output;
     }
 
+    // The value and the derivative at x of the polynomial of the first n > 0
+    // coefficients
+    [[nodiscard]] static PolynomialEvaluation
+    evaluate_polynomial_prefix(const Array<Real> & coefficients,
+                               const size_t n,
+                               const Complex & x) noexcept
+    {
+      PolynomialEvaluation output;
+      output.value = Complex(coefficients(0), Real(0));
+      for (size_t i = 1; i < n; ++i)
+        {
+          output.derivative = output.derivative * x + output.value;
+          output.value = output.value * x + Complex(coefficients(i), Real(0));
+        }
+      return output;
+    }
+
     [[nodiscard]] static PolynomialEvaluation
     evaluate_polynomial_and_derivative(const Array<Real> & coefficients,
                                        const Complex & x,
@@ -1558,15 +1575,18 @@ namespace Aleph
     {
       const size_t n = effective_coeff_length(coefficients);
       ah_invalid_argument_if(n == 0) << ctx << ": polynomial coefficients must be non-empty";
+      return evaluate_polynomial_prefix(coefficients, n, x);
+    }
 
-      PolynomialEvaluation output;
-      output.value = Complex(coefficients[0], Real(0));
-      for (size_t i = 1; i < n; ++i)
-        {
-          output.derivative = output.derivative * x + output.value;
-          output.value = output.value * x + Complex(coefficients[i], Real(0));
-        }
-      return output;
+    // The root solver works on the balanced and the monic polynomials, whose
+    // length polynomial_roots_impl() fixed from the given one: they are
+    // evaluated whole. Trimming them again dropped the last coefficient
+    // when the balancing made it tiny, and with it a root (that of about
+    // -1e-12 of z^3 + 1e6 z^2 + 1e6 z + 1e-6)
+    [[nodiscard]] static PolynomialEvaluation
+    evaluate_whole_polynomial(const Array<Real> & coefficients, const Complex & x) noexcept
+    {
+      return evaluate_polynomial_prefix(coefficients, coefficients.size(), x);
     }
 
     [[nodiscard]] static std::pair<Array<Real>, Real>
@@ -1702,7 +1722,10 @@ namespace Aleph
     [[nodiscard]] static Array<Complex>
     initialize_root_guesses(const Array<Real> & coefficients)
     {
-      const size_t degree = effective_coeff_length(coefficients) - 1;
+      // as many guesses as polynomial_roots_impl() fixed: the length of the
+      // balanced polynomial, which a trim would shorten if the balancing made
+      // its last coefficient tiny
+      const size_t degree = coefficients.size() - 1;
       Array<Complex> roots = Array<Complex>::create(degree);
 
       const Real upper = polynomial_root_upper_bound(coefficients);
@@ -1747,9 +1770,7 @@ namespace Aleph
           for (size_t i = 0; i < degree; ++i)
             {
               const PolynomialEvaluation eval =
-                  evaluate_polynomial_and_derivative(coefficients,
-                                                     roots[i],
-                                                     "FFT::root_solver");
+                  evaluate_whole_polynomial(coefficients, roots[i]);
               Complex correction(Real(0), Real(0));
               for (size_t j = 0; j < degree; ++j)
                 if (j != i)
@@ -1802,9 +1823,7 @@ namespace Aleph
           for (size_t i = 0; i < degree; ++i)
             {
               const PolynomialEvaluation eval =
-                  evaluate_polynomial_and_derivative(coefficients,
-                                                     roots[i],
-                                                     "FFT::root_solver");
+                  evaluate_whole_polynomial(coefficients, roots[i]);
               Complex denom(Real(1), Real(0));
               for (size_t j = 0; j < degree; ++j)
                 if (j != i)
@@ -1853,9 +1872,7 @@ namespace Aleph
         for (size_t iter = 0; iter < iterations; ++iter)
           {
             const PolynomialEvaluation eval =
-                evaluate_polynomial_and_derivative(coefficients,
-                                                   roots[i],
-                                                   "FFT::root_solver");
+                evaluate_whole_polynomial(coefficients, roots[i]);
             if (std::abs(eval.derivative) <= tol)
               break;
 
@@ -1920,9 +1937,7 @@ namespace Aleph
       for (size_t i = 0; i < roots.size(); ++i)
         {
           const PolynomialEvaluation eval =
-              evaluate_polynomial_and_derivative(coefficients,
-                                                 roots[i],
-                                                 "FFT::root_solver");
+              evaluate_whole_polynomial(coefficients, roots[i]);
           Real bound = Real(0);
           const Real radius = std::abs(roots[i]);
           for (size_t k = 0; k < coefficients.size(); ++k)

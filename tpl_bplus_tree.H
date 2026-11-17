@@ -338,37 +338,72 @@ class Gen_BPlus_Tree
     return idx < leaf->keys.size() and equals(leaf->keys[idx], key);
   }
 
+  // Split the full child idx of parent. All that can throw is done before
+  // the tree changes: the new node with the upper half (its keys, or room
+  // for its children), the lower half of the child, the separators of the
+  // three nodes and room in the parent; then the arrays are exchanged and
+  // the pointers moved, which does not throw. It truncated the child first,
+  // so a failure after that lost the keys of the new node: and the whole
+  // tree, when insert() split a full root.
   void split_child(Node *parent, const size_t idx)
   {
     Node *child = parent->children[idx].get();
     auto  right = std::make_unique<Node>(child->leaf);
-
+    Array<Key> child_keys;
+    Array<std::unique_ptr<Node>> child_children;
     if (child->leaf)
       {
         append_copy_range(right->keys, child->keys, MinKeys);
-        truncate(child->keys, MinKeys);
+        child_keys.reserve(MaxKeys);
+        for (size_t i = 0; i < MinKeys; ++i)
+          child_keys.append(child->keys[i]);
+      }
+    else
+      {
+        right->children.reserve(child->children.size() - MinDegree);
+        child_children.reserve(2 * MinDegree);
+        child_keys.reserve(MaxKeys);
+        for (size_t i = 1; i < MinDegree; ++i)
+          child_keys.append(subtree_min(child->children[i].get()));
+        right->keys.reserve(MaxKeys);
+        for (size_t i = MinDegree + 1; i < child->children.size(); ++i)
+          right->keys.append(subtree_min(child->children[i].get()));
+      }
 
+    Array<Key> parent_keys;  // the separators of the children after the split
+    parent_keys.reserve(parent->children.size());
+    for (size_t i = 1; i <= idx; ++i)
+      parent_keys.append(subtree_min(parent->children[i].get()));
+    parent_keys.append(child->leaf ? child->keys[MinKeys]
+                                   : subtree_min(child->children[MinDegree].get()));
+    for (size_t i = idx + 1; i < parent->children.size(); ++i)
+      parent_keys.append(subtree_min(parent->children[i].get()));
+    parent->children.reserve(parent->children.size() + 1);
+
+    if (child->leaf)
+      {
         right->next = child->next;
         child->next = right.get();
       }
     else
       {
-        append_move_range(right->children, child->children, MinDegree);
-        truncate(child->children, MinDegree);
-        rebuild_separators(child);
-        rebuild_separators(right.get());
+        for (size_t i = 0; i < child->children.size(); ++i)
+          (i < MinDegree ? child_children : right->children).append(std::move(child->children(i)));
+        child->children.swap(child_children);
       }
-
+    child->keys.swap(child_keys);
     insert_at(parent->children, idx + 1, std::move(right));
-    rebuild_separators(parent);
+    parent->keys.swap(parent_keys);
   }
 
   void insert_nonfull(Node *node, const Key &key)
   {
     if (node->leaf)
       {
-        const size_t idx = lower_bound_index(node->keys, key);
-        insert_at(node->keys, idx, key);
+        // The copy is made before the keys move, so one that throws leaves
+        // them as they were
+        Key copy = key;
+        insert_at(node->keys, lower_bound_index(node->keys, key), std::move(copy));
         return;
       }
 
@@ -379,8 +414,11 @@ class Gen_BPlus_Tree
         idx = child_index(node, key);
       }
 
+    // No separator changes below a split: a key that goes to the child
+    // i > 0 is greater than its least key, separator i - 1. Rebuilding them
+    // on the way back copied all of them at each level, and a copy that
+    // threw left the node without them
     insert_nonfull(node->children[idx].get(), key);
-    rebuild_separators(node);
   }
 
   void borrow_from_prev(Node *parent, const size_t idx)
@@ -887,8 +925,9 @@ public:
 
     if (root_ == nullptr)
       {
-        root_ = std::make_unique<Node>(true);
-        root_->keys.append(key);
+        auto leaf = std::make_unique<Node>(true);
+        leaf->keys.append(key);
+        root_ = std::move(leaf);
         size_ = 1;
         return true;
       }
@@ -897,7 +936,15 @@ public:
       {
         auto new_root = std::make_unique<Node>(false);
         new_root->children.append(std::move(root_));
-        split_child(new_root.get(), 0);
+        try
+          {
+            split_child(new_root.get(), 0);
+          }
+        catch (...)  // split_child() left the old root as it was
+          {
+            root_ = std::move(new_root->children(0));
+            throw;
+          }
         root_ = std::move(new_root);
       }
 

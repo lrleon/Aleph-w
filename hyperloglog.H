@@ -116,6 +116,59 @@ namespace Aleph
         registers_(m_, static_cast<uint8_t>(0))
     {}
 
+    /** @brief Copy the precision and the registers of another estimator.
+     *  @param[in] other estimator to copy.
+     *  @throws std::bad_alloc if the registers cannot be allocated.
+     */
+    HyperLogLog(const HyperLogLog & other) = default;
+
+    /** @brief Take the registers of another estimator, which is left as an
+     *         empty estimator of the same precision.
+     *
+     *  The implicit move took the registers but copied their count: the
+     *  moved-from estimator then read and wrote registers that it no longer
+     *  had, and its clear() wrote through a null buffer.
+     *
+     *  @param[in,out] other estimator to move from.
+     *  @throws std::bad_alloc if the registers left to @p other cannot be
+     *          allocated; @p other is then unchanged.
+     *  @note Complexity: O(m), for the registers left to @p other.
+     */
+    HyperLogLog(HyperLogLog && other) : HyperLogLog(other.b_)
+    {
+      swap(other);
+    }
+
+    /** @brief Copy the precision and the registers of another estimator.
+     *  @param[in] other estimator to copy.
+     *  @return this estimator.
+     *  @throws std::bad_alloc if the registers cannot be allocated.
+     */
+    HyperLogLog & operator = (const HyperLogLog & other) = default;
+
+    /** @brief Exchange this estimator with another, which is left with the
+     *         previous state of this one.
+     *  @param[in,out] other estimator to move from.
+     *  @return this estimator.
+     *  @note Complexity: O(1).
+     */
+    HyperLogLog & operator = (HyperLogLog && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) the state of this estimator and another.
+     *  @param[in,out] other estimator to exchange with.
+     */
+    void swap(HyperLogLog & other) noexcept
+    {
+      std::swap(b_, other.b_);
+      std::swap(m_, other.m_);
+      std::swap(alpha_m_, other.alpha_m_);
+      registers_.swap(other.registers_);
+    }
+
     /** @brief Add an element to the set.
      *
      *  @param[in] val Element to incorporate into the cardinality sketch.

@@ -3703,6 +3703,31 @@ TEST(FFTIIRUtilities, RootsStabilityAndDelayMetrics)
     }
 }
 
+// The root solver balances the polynomial, scaling its roots, and the
+// last coefficient of z^3 + 1e6 z^2 + 1e6 z + 1e-6 becomes about 1e-24;
+// the solver trimmed it again and lost the zero near -1e-12, returning two
+// zeros of a cubic
+TEST(FFTIIRUtilities, ZerosOfRootsOfVeryDifferentMagnitudes)
+{
+  for (const double c : {1e-6, 1e-3, 1.0})
+    {
+      const Array<double> numerator = {1.0, 1e6, 1e6, c};
+      const auto zeros = FFTD::zeros(numerator);
+      ASSERT_EQ(zeros.size(), 3u) << "constant term " << c;
+      for (size_t i = 0; i < zeros.size(); ++i)
+        {
+          Complex value(0.0, 0.0);
+          double bound = 0.0;
+          for (size_t k = 0; k < numerator.size(); ++k)
+            {
+              value = value * zeros[i] + numerator[k];
+              bound = bound * std::abs(zeros[i]) + std::abs(numerator[k]);
+            }
+          EXPECT_LE(std::abs(value), 1e-9 * bound) << "zero " << zeros[i] << ", constant term " << c;
+        }
+    }
+}
+
 TEST(FFTIIRUtilities, PairingMarginsAndCancellationChecks)
 {
   Array<double> numerator = {1.0, 0.59, -0.41};

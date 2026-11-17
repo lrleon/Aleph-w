@@ -102,6 +102,49 @@ namespace Aleph
         reservoir_.reserve(k_);
     }
 
+    /** @brief Take the sample and the generator of another sampler, which
+     *         is left as a new sampler of the same size and seed.
+     *
+     *  The implicit move took the sample and the generator but copied the
+     *  counts: the moved-from sampler then drew from a null generator.
+     *
+     *  @param[in,out] other sampler to move from.
+     *  @throws std::bad_alloc if the sampler left to @p other cannot be
+     *          allocated; @p other is then unchanged.
+     */
+    Reservoir_Sampler(Reservoir_Sampler && other)
+      : Reservoir_Sampler(other.k_, other.seed_)
+    {
+      swap(other);
+    }
+
+    /** @brief Exchange this sampler with another, which is left with the
+     *         previous state of this one.
+     *  @param[in,out] other sampler to move from.
+     *  @return this sampler.
+     *  @note Complexity: O(1).
+     */
+    Reservoir_Sampler & operator = (Reservoir_Sampler && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) the state of this sampler and another.
+     *  @param[in,out] other sampler to exchange with.
+     */
+    void swap(Reservoir_Sampler & other) noexcept
+    {
+      std::swap(k_, other.k_);
+      std::swap(n_seen_, other.n_seen_);
+      std::swap(seed_, other.seed_);
+      std::swap(rng_min_, other.rng_min_);
+      std::swap(rng_max_, other.rng_max_);
+      std::swap(rng_range_, other.rng_range_);
+      reservoir_.swap(other.reservoir_);
+      std::swap(rng_, other.rng_);
+    }
+
     /** @brief Process a new element from the stream.
      *
      *  @param[in] val The element to potentially include in the sample.

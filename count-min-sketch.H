@@ -97,6 +97,59 @@ namespace Aleph
         seeds_.append(static_cast<uint32_t>(dft_hash_fct(i, 0x9e3779b9)));
     }
 
+    /** @brief Copy the dimensions and the counters of another sketch.
+     *  @param[in] other sketch to copy.
+     *  @throws std::bad_alloc if the counters cannot be allocated.
+     */
+    Count_Min_Sketch(const Count_Min_Sketch & other) = default;
+
+    /** @brief Take the counters of another sketch, which is left as an
+     *         empty sketch of the same dimensions.
+     *
+     *  The implicit move took the counters but copied the dimensions: the
+     *  moved-from sketch then indexed counters that it no longer had.
+     *
+     *  @param[in,out] other sketch to move from.
+     *  @throws std::bad_alloc if the counters left to @p other cannot be
+     *          allocated; @p other is then unchanged.
+     *  @note Complexity: O(w * d), for the counters left to @p other.
+     */
+    Count_Min_Sketch(Count_Min_Sketch && other) : Count_Min_Sketch(other.w_, other.d_)
+    {
+      swap(other);
+    }
+
+    /** @brief Copy the dimensions and the counters of another sketch.
+     *  @param[in] other sketch to copy.
+     *  @return this sketch.
+     *  @throws std::bad_alloc if the counters cannot be allocated.
+     */
+    Count_Min_Sketch & operator = (const Count_Min_Sketch & other) = default;
+
+    /** @brief Exchange this sketch with another, which is left with the
+     *         previous state of this one.
+     *  @param[in,out] other sketch to move from.
+     *  @return this sketch.
+     *  @note Complexity: O(1).
+     */
+    Count_Min_Sketch & operator = (Count_Min_Sketch && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) the state of this sketch and another.
+     *  @param[in,out] other sketch to exchange with.
+     */
+    void swap(Count_Min_Sketch & other) noexcept
+    {
+      std::swap(w_, other.w_);
+      std::swap(d_, other.d_);
+      table_.swap(other.table_);
+      seeds_.swap(other.seeds_);
+      std::swap(total_count_, other.total_count_);
+    }
+
     /** @brief Create a sketch with target error bounds.
      *
      *  Calculates optimal w and d for given epsilon and delta.
