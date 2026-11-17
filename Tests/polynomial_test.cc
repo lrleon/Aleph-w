@@ -1220,6 +1220,22 @@ TEST(Polynomial, PseudoDivmodZeroDivisorThrows)
   EXPECT_THROW(a.pseudo_divmod(z), std::domain_error);
 }
 
+// With floating coefficients, a coefficient that overflows turns into NaN,
+// which is never zero: the remainder kept its degree and the divisions
+// never ended
+TEST(Polynomial, FloatingDivisionsThrowOnOverflow)
+{
+  const Polynomial a = {1, 1, 1, 1, 1};
+  EXPECT_THROW((void) a.pseudo_divmod(Polynomial{1, 1e200}), std::domain_error);
+
+  const Polynomial with_inf = {1, std::numeric_limits<double>::infinity()};
+  EXPECT_THROW((void) with_inf.divmod(Polynomial{1, 1}), std::domain_error);
+
+  auto [q, r] = a.pseudo_divmod(Polynomial{1, 3});  // a small lc(d) still divides
+  EXPECT_EQ(q.degree(), 3u);
+  EXPECT_TRUE(r.is_zero() or r.degree() == 0);
+}
+
 // ===================================================================
 // Algebraic transformations
 // ===================================================================

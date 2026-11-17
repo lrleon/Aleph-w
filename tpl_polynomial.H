@@ -912,7 +912,8 @@ public:
    *
    *  @param[in] d Divisor (must not be zero).
    *  @return Pair (quotient, remainder).
-   *  @throws std::domain_error if @p d is zero.
+   *  @throws std::domain_error if @p d is zero, or, with floating
+   *          coefficients, if a coefficient of the quotient is not finite.
    */
   [[nodiscard]] std::pair<Gen_Polynomial, Gen_Polynomial> divmod(const Gen_Polynomial &d) const
   {
@@ -937,6 +938,11 @@ public:
           << "divmod: inexact coefficient division (leading_coeff=" << r.leading_coeff()
           << " / divisor_lc=" << d_lc << " = 0). "
           << "For integral/non-field coefficients, use pseudo_divmod() instead.";
+        // An infinite coefficient turns into NaN, which is never zero: the
+        // degree of the remainder would not go down and the loop not end
+        if constexpr (std::is_floating_point_v<Coefficient>)
+          ah_domain_error_if(not std::isfinite(scale))
+            << "divmod: the quotient coefficient " << scale << " is not finite";
         const size_t shift = r_degree - d_degree;
 
         q.add_to_coeff(shift, scale);
@@ -1234,7 +1240,9 @@ public:
    *
    *  @param[in] d Divisor (must not be zero).
    *  @return Pair (quotient, remainder).
-   *  @throws std::domain_error if @p d is zero.
+   *  @throws std::domain_error if @p d is zero, or, with floating
+   *          coefficients, if a coefficient overflows: the powers of
+   *          lc(d) grow with the degree.
    */
   [[nodiscard]] std::pair<Gen_Polynomial, Gen_Polynomial> pseudo_divmod(const Gen_Polynomial &d) const
   {
@@ -1257,6 +1265,12 @@ public:
           break;
 
         const Coefficient lc_r = r.leading_coeff();
+        // A coefficient that overflowed turns into NaN, which is never
+        // zero: the degree of the remainder would not go down and the loop
+        // not end
+        if constexpr (std::is_floating_point_v<Coefficient>)
+          ah_domain_error_if(not std::isfinite(lc_r))
+            << "pseudo_divmod: a coefficient of the remainder overflowed (" << lc_r << ")";
         const size_t exp = r_degree - d_degree;
 
         // Multiply q and r by lc(d) to avoid division
@@ -1272,6 +1286,9 @@ public:
     if (delta > 0)
       {
         const Coefficient scale = polynomial_detail::power(lc_d, delta);
+        if constexpr (std::is_floating_point_v<Coefficient>)
+          ah_domain_error_if(not std::isfinite(scale))
+            << "pseudo_divmod: lc(d)^" << delta << " overflowed";
         q.scale_inplace(scale);
         r.scale_inplace(scale);
       }
