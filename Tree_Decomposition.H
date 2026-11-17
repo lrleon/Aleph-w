@@ -335,6 +335,62 @@ namespace Aleph
         validate_connected_acyclic();
       }
 
+      /** @brief Copy the topology of another tree.
+       *  @param[in] other topology to copy.
+       */
+      Rooted_Tree_Topology(const Rooted_Tree_Topology & other) = default;
+
+      /** @brief Take the topology of another tree, which is left empty.
+       *
+       *  The implicit move took the arrays and the map but copied the
+       *  number of nodes and the root: the moved-from topology then passed
+       *  the checks of the ids, and so did the engines that hold it, which
+       *  read arrays that they no longer had.
+       *
+       *  @param[in,out] other topology to move from.
+       */
+      Rooted_Tree_Topology(Rooted_Tree_Topology && other)
+        noexcept(std::is_nothrow_move_constructible_v<SA>)
+        : graph_(std::exchange(other.graph_, nullptr)), sa_(std::move(other.sa_)),
+          root_(std::exchange(other.root_, nullptr)),
+          root_id_(std::exchange(other.root_id_, NONE)), n_(std::exchange(other.n_, 0)),
+          id_to_node_(std::move(other.id_to_node_)), node_to_id_(std::move(other.node_to_id_)),
+          adjacency_(std::move(other.adjacency_))
+      {}
+
+      /** @brief Copy the topology of another tree.
+       *  @param[in] other topology to copy.
+       *  @return this topology.
+       */
+      Rooted_Tree_Topology & operator = (const Rooted_Tree_Topology & other) = default;
+
+      /** @brief Exchange this topology with another, which is left with the
+       *         previous topology of this one.
+       *  @param[in,out] other topology to move from.
+       *  @return this topology.
+       */
+      Rooted_Tree_Topology & operator = (Rooted_Tree_Topology && other)
+        noexcept(std::is_nothrow_swappable_v<SA>)
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) this topology and another.
+       *  @param[in,out] other topology to exchange with.
+       */
+      void swap(Rooted_Tree_Topology & other) noexcept(std::is_nothrow_swappable_v<SA>)
+      {
+        std::swap(graph_, other.graph_);
+        std::swap(sa_, other.sa_);
+        std::swap(root_, other.root_);
+        std::swap(root_id_, other.root_id_);
+        std::swap(n_, other.n_);
+        id_to_node_.swap(other.id_to_node_);
+        node_to_id_.swap(other.node_to_id_);
+        adjacency_.swap(other.adjacency_);
+      }
+
       [[nodiscard]] size_t size() const noexcept { return n_; }
       [[nodiscard]] bool is_empty() const noexcept { return n_ == 0; }
       [[nodiscard]] Node * root() const noexcept { return root_; }
@@ -918,6 +974,59 @@ namespace Aleph
       // Empty
     }
 
+    /** @brief Copy the decomposition and the values of another engine.
+     *  @param[in] other engine to copy.
+     */
+    Gen_HLD_Path_Query(const Gen_HLD_Path_Query & other) = default;
+
+    /** @brief Take the decomposition and the values of another engine,
+     *         which is left empty.
+     *
+     *  The decomposition of the moved-from engine is empty, so that the
+     *  engine never queries the segment tree that the move leaves to it.
+     *
+     *  @param[in,out] other engine to move from.
+     */
+    Gen_HLD_Path_Query(Gen_HLD_Path_Query && other) = default;
+
+    /** @brief Copy the decomposition and the values of another engine.
+     *  @param[in] other engine to copy.
+     *  @return this engine.
+     */
+    Gen_HLD_Path_Query & operator = (const Gen_HLD_Path_Query & other) = default;
+
+    /** @brief Exchange this engine with another, which is left with the
+     *         previous tree and values of this one.
+     *
+     *  The implicit assignment left the segment tree to its own move
+     *  assignment, which exchanged its array but copied its size, and
+     *  copied the identity: the moved-from engine then queried the tree
+     *  that it received with the size of its own.
+     *
+     *  @param[in,out] other engine to move from.
+     *  @return this engine.
+     */
+    Gen_HLD_Path_Query & operator = (Gen_HLD_Path_Query && other)
+      noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
+               and std::is_nothrow_swappable_v<SA>)
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) this engine and another.
+     *  @param[in,out] other engine to exchange with.
+     */
+    void swap(Gen_HLD_Path_Query & other)
+      noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
+               and std::is_nothrow_swappable_v<SA>)
+    {
+      std::swap(hld_, other.hld_);
+      segment_tree_.swap(other.segment_tree_);
+      std::swap(identity_, other.identity_);
+      std::swap(op_, other.op_);
+    }
+
     [[nodiscard]] const Gen_Heavy_Light_Decomposition<GT, SA> &decomposition() const noexcept
     {
       return hld_;
@@ -1247,6 +1356,66 @@ namespace Aleph
       : topology_(g, nullptr, std::move(sa))
     {
       build_centroid_tree();
+    }
+
+    /** @brief Copy the centroid tree of another decomposition.
+     *  @param[in] other decomposition to copy.
+     */
+    Gen_Centroid_Decomposition(const Gen_Centroid_Decomposition & other) = default;
+
+    /** @brief Take the centroid tree of another decomposition, which is
+     *         left empty.
+     *
+     *  The implicit move took the arrays but copied the root centroid: the
+     *  moved-from decomposition then reported it for an empty tree, and
+     *  centroid_root() looked it up in a topology without nodes.
+     *
+     *  @param[in,out] other decomposition to move from.
+     */
+    Gen_Centroid_Decomposition(Gen_Centroid_Decomposition && other)
+      noexcept(std::is_nothrow_move_constructible_v<Topology>)
+      : topology_(std::move(other.topology_)), removed_(std::move(other.removed_)),
+        centroid_parent_(std::move(other.centroid_parent_)),
+        centroid_level_(std::move(other.centroid_level_)),
+        centroid_root_(std::exchange(other.centroid_root_, NONE)),
+        local_parent_(std::move(other.local_parent_)),
+        local_subtree_(std::move(other.local_subtree_)),
+        centroid_ancestors_(std::move(other.centroid_ancestors_)),
+        centroid_distances_(std::move(other.centroid_distances_))
+    {}
+
+    /** @brief Copy the centroid tree of another decomposition.
+     *  @param[in] other decomposition to copy.
+     *  @return this decomposition.
+     */
+    Gen_Centroid_Decomposition & operator = (const Gen_Centroid_Decomposition & other) = default;
+
+    /** @brief Exchange this decomposition with another, which is left with
+     *         the previous centroid tree of this one.
+     *  @param[in,out] other decomposition to move from.
+     *  @return this decomposition.
+     */
+    Gen_Centroid_Decomposition & operator = (Gen_Centroid_Decomposition && other)
+      noexcept(std::is_nothrow_swappable_v<SA>)
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) this decomposition and another.
+     *  @param[in,out] other decomposition to exchange with.
+     */
+    void swap(Gen_Centroid_Decomposition & other) noexcept(std::is_nothrow_swappable_v<SA>)
+    {
+      topology_.swap(other.topology_);
+      removed_.swap(other.removed_);
+      centroid_parent_.swap(other.centroid_parent_);
+      centroid_level_.swap(other.centroid_level_);
+      std::swap(centroid_root_, other.centroid_root_);
+      local_parent_.swap(other.local_parent_);
+      local_subtree_.swap(other.local_subtree_);
+      centroid_ancestors_.swap(other.centroid_ancestors_);
+      centroid_distances_.swap(other.centroid_distances_);
     }
 
     [[nodiscard]] size_t size() const noexcept { return topology_.size(); }

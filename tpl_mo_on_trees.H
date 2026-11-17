@@ -94,6 +94,8 @@
 # include <algorithm>
 # include <cmath>
 # include <concepts>
+# include <type_traits>
+# include <utility>
 # include <vector>
 # include <tpl_array.H>
 # include <tpl_dynMapOhash.H>
@@ -456,6 +458,34 @@ namespace Aleph
     {
       build();
     }
+
+    /** @brief Copy the tables of another engine, on the same graph.
+     *  @param[in] other engine to copy.
+     */
+    Gen_Mo_On_Trees(const Gen_Mo_On_Trees & other) = default;
+
+    /** @brief Take the tables of another engine, which is left empty, on
+     *         the same graph.
+     *
+     *  The implicit move took the arrays and the map but copied the
+     *  number of nodes and the levels of the lifting table: the moved-from
+     *  engine then reported the old size for a tree without nodes.
+     *
+     *  @param[in,out] other engine to move from.
+     *  @note The engine refers to its graph, so that it has no assignment.
+     */
+    Gen_Mo_On_Trees(Gen_Mo_On_Trees && other)
+      noexcept(std::is_nothrow_move_constructible_v<Policy>)
+      : g_(other.g_), root_(std::exchange(other.root_, nullptr)),
+        pol_(std::move(other.pol_)), n_(std::exchange(other.n_, 0)),
+        id_to_node_(std::move(other.id_to_node_)), node_to_id_(std::move(other.node_to_id_)),
+        node_values_(std::move(other.node_values_)), tin_(std::move(other.tin_)),
+        tout_(std::move(other.tout_)), flat_sub_(std::move(other.flat_sub_)),
+        first_(std::move(other.first_)), last_(std::move(other.last_)),
+        flat_node_(std::move(other.flat_node_)), log_n_(std::exchange(other.log_n_, 0)),
+        depth_(std::move(other.depth_)), parent_(std::move(other.parent_)),
+        up_(std::move(other.up_))
+    {}
 
     /** @brief Number of nodes in the tree. */
     [[nodiscard]] size_t size() const noexcept { return n_; }
@@ -1005,6 +1035,77 @@ namespace Aleph
       ah_domain_error_if(root == nullptr)
         << "Gen_Mo_On_Tree_Node: root is null";
       build();
+    }
+
+    /** @brief Copy the tables of another engine.
+     *  @param[in] other engine to copy.
+     */
+    Gen_Mo_On_Tree_Node(const Gen_Mo_On_Tree_Node & other) = default;
+
+    /** @brief Take the tables of another engine, which is left empty.
+     *
+     *  The implicit move took the arrays and the map but copied the
+     *  number of nodes and the levels of the lifting table: the moved-from
+     *  engine then reported the old size for a tree without nodes, and
+     *  the source of an assignment read the lifting table that it received
+     *  with the size of its own.
+     *
+     *  @param[in,out] other engine to move from.
+     *  @note The engine left empty has no root, which the constructor
+     *        demands: a query of a node throws std::domain_error, as one
+     *        of a node of another tree.
+     */
+    Gen_Mo_On_Tree_Node(Gen_Mo_On_Tree_Node && other)
+      noexcept(std::is_nothrow_move_constructible_v<Policy>)
+      : root_(std::exchange(other.root_, nullptr)), pol_(std::move(other.pol_)),
+        n_(std::exchange(other.n_, 0)), id_to_node_(std::move(other.id_to_node_)),
+        node_to_id_(std::move(other.node_to_id_)), node_values_(std::move(other.node_values_)),
+        tin_(std::move(other.tin_)), tout_(std::move(other.tout_)),
+        flat_sub_(std::move(other.flat_sub_)), first_(std::move(other.first_)),
+        last_(std::move(other.last_)), flat_node_(std::move(other.flat_node_)),
+        log_n_(std::exchange(other.log_n_, 0)), depth_(std::move(other.depth_)),
+        parent_(std::move(other.parent_)), up_(std::move(other.up_))
+    {}
+
+    /** @brief Copy the tables of another engine.
+     *  @param[in] other engine to copy.
+     *  @return this engine.
+     */
+    Gen_Mo_On_Tree_Node & operator = (const Gen_Mo_On_Tree_Node & other) = default;
+
+    /** @brief Exchange this engine with another, which is left with the
+     *         previous tree of this one.
+     *  @param[in,out] other engine to move from.
+     *  @return this engine.
+     */
+    Gen_Mo_On_Tree_Node & operator = (Gen_Mo_On_Tree_Node && other)
+      noexcept(std::is_nothrow_swappable_v<Policy>)
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) this engine and another.
+     *  @param[in,out] other engine to exchange with.
+     */
+    void swap(Gen_Mo_On_Tree_Node & other) noexcept(std::is_nothrow_swappable_v<Policy>)
+    {
+      std::swap(root_, other.root_);
+      std::swap(pol_, other.pol_);
+      std::swap(n_, other.n_);
+      id_to_node_.swap(other.id_to_node_);
+      node_to_id_.swap(other.node_to_id_);
+      node_values_.swap(other.node_values_);
+      tin_.swap(other.tin_);
+      tout_.swap(other.tout_);
+      flat_sub_.swap(other.flat_sub_);
+      first_.swap(other.first_);
+      last_.swap(other.last_);
+      flat_node_.swap(other.flat_node_);
+      std::swap(log_n_, other.log_n_);
+      depth_.swap(other.depth_);
+      parent_.swap(other.parent_);
+      up_.swap(other.up_);
     }
 
     /** @brief Number of nodes in the tree. */

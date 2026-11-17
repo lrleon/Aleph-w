@@ -99,6 +99,7 @@
 #include <bit>
 #include <cstddef>
 #include <limits>
+#include <type_traits>
 #include <utility>
 
 #include <ah-errors.H>
@@ -344,6 +345,69 @@ public:
     build_dfs_data();
   }
 
+  /** @brief Copy the topology of another tree.
+   *  @param[in] other topology to copy.
+   */
+  Rooted_Tree_Data(const Rooted_Tree_Data & other) = default;
+
+  /** @brief Take the topology of another tree, which is left empty.
+   *
+   *  The implicit move took the arrays and the map but copied the number
+   *  of nodes, the root and the size of the Euler tour: the moved-from
+   *  topology then passed the checks of the ids and read arrays that it
+   *  no longer had.
+   *
+   *  @param[in,out] other topology to move from.
+   */
+  Rooted_Tree_Data(Rooted_Tree_Data && other) noexcept(std::is_nothrow_move_constructible_v<SA>)
+    : graph_(std::exchange(other.graph_, nullptr)), sa_(std::move(other.sa_)),
+      root_(std::exchange(other.root_, nullptr)), root_id_(std::exchange(other.root_id_, NONE)),
+      n_(std::exchange(other.n_, 0)), id_to_node_(std::move(other.id_to_node_)),
+      node_to_id_(std::move(other.node_to_id_)), adjacency_(std::move(other.adjacency_)),
+      parent_(std::move(other.parent_)), depth_(std::move(other.depth_)),
+      tin_(std::move(other.tin_)), tout_(std::move(other.tout_)), first_(std::move(other.first_)),
+      euler_(std::move(other.euler_)), euler_size_(std::exchange(other.euler_size_, 0))
+  {}
+
+  /** @brief Copy the topology of another tree.
+   *  @param[in] other topology to copy.
+   *  @return this topology.
+   */
+  Rooted_Tree_Data & operator=(const Rooted_Tree_Data & other) = default;
+
+  /** @brief Exchange this topology with another, which is left with the
+   *         previous topology of this one.
+   *  @param[in,out] other topology to move from.
+   *  @return this topology.
+   */
+  Rooted_Tree_Data & operator=(Rooted_Tree_Data && other) noexcept(std::is_nothrow_swappable_v<SA>)
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) this topology and another.
+   *  @param[in,out] other topology to exchange with.
+   */
+  void swap(Rooted_Tree_Data & other) noexcept(std::is_nothrow_swappable_v<SA>)
+  {
+    std::swap(graph_, other.graph_);
+    std::swap(sa_, other.sa_);
+    std::swap(root_, other.root_);
+    std::swap(root_id_, other.root_id_);
+    std::swap(n_, other.n_);
+    id_to_node_.swap(other.id_to_node_);
+    node_to_id_.swap(other.node_to_id_);
+    adjacency_.swap(other.adjacency_);
+    parent_.swap(other.parent_);
+    depth_.swap(other.depth_);
+    tin_.swap(other.tin_);
+    tout_.swap(other.tout_);
+    first_.swap(other.first_);
+    euler_.swap(other.euler_);
+    std::swap(euler_size_, other.euler_size_);
+  }
+
   [[nodiscard]] size_t size() const noexcept
   {
     return n_;
@@ -551,6 +615,53 @@ public:
   Gen_Binary_Lifting_LCA(const GT &g, SA sa = SA()) : topology_(g, nullptr, std::move(sa))
   {
     build_jump_table();
+  }
+
+  /** @brief Copy the tree and the jump table of another engine.
+   *  @param[in] other engine to copy.
+   */
+  Gen_Binary_Lifting_LCA(const Gen_Binary_Lifting_LCA & other) = default;
+
+  /** @brief Take the tree and the jump table of another engine, which is
+   *         left empty.
+   *
+   *  The implicit move took the jump table but copied its number of
+   *  levels, which the moved-from engine then reported for an empty tree.
+   *
+   *  @param[in,out] other engine to move from.
+   */
+  Gen_Binary_Lifting_LCA(Gen_Binary_Lifting_LCA && other)
+    noexcept(std::is_nothrow_move_constructible_v<Topology>)
+    : topology_(std::move(other.topology_)), levels_(std::exchange(other.levels_, 0)),
+      up_(std::move(other.up_))
+  {}
+
+  /** @brief Copy the tree and the jump table of another engine.
+   *  @param[in] other engine to copy.
+   *  @return this engine.
+   */
+  Gen_Binary_Lifting_LCA & operator=(const Gen_Binary_Lifting_LCA & other) = default;
+
+  /** @brief Exchange this engine with another, which is left with the
+   *         previous tree of this one.
+   *  @param[in,out] other engine to move from.
+   *  @return this engine.
+   */
+  Gen_Binary_Lifting_LCA & operator=(Gen_Binary_Lifting_LCA && other)
+    noexcept(std::is_nothrow_swappable_v<SA>)
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) this engine and another.
+   *  @param[in,out] other engine to exchange with.
+   */
+  void swap(Gen_Binary_Lifting_LCA & other) noexcept(std::is_nothrow_swappable_v<SA>)
+  {
+    topology_.swap(other.topology_);
+    std::swap(levels_, other.levels_);
+    up_.swap(other.up_);
   }
 
   /** @brief Total number of nodes in the tree. */
@@ -785,6 +896,55 @@ public:
     : topology_(g, nullptr, std::move(sa)), rmq_(1, Depth_Node(), Depth_Node_Min_Op())
   {
     build_rmq();
+  }
+
+  /** @brief Copy the tree and the tables of another engine.
+   *  @param[in] other engine to copy.
+   */
+  Gen_Euler_RMQ_LCA(const Gen_Euler_RMQ_LCA & other) = default;
+
+  /** @brief Take the tree and the tables of another engine, which is left
+   *         empty.
+   *
+   *  The topology of the moved-from engine is empty, so that the engine
+   *  never queries the sparse table that the move leaves to it.
+   *
+   *  @param[in,out] other engine to move from.
+   */
+  Gen_Euler_RMQ_LCA(Gen_Euler_RMQ_LCA && other) = default;
+
+  /** @brief Copy the tree and the tables of another engine.
+   *  @param[in] other engine to copy.
+   *  @return this engine.
+   */
+  Gen_Euler_RMQ_LCA & operator=(const Gen_Euler_RMQ_LCA & other) = default;
+
+  /** @brief Exchange this engine with another, which is left with the
+   *         previous tree of this one.
+   *
+   *  The implicit assignment left the sparse table to its own move
+   *  assignment, which exchanged its arrays but copied their size: the
+   *  moved-from engine then queried the tables that it received with the
+   *  size of its own.
+   *
+   *  @param[in,out] other engine to move from.
+   *  @return this engine.
+   */
+  Gen_Euler_RMQ_LCA & operator=(Gen_Euler_RMQ_LCA && other)
+    noexcept(std::is_nothrow_swappable_v<SA>)
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) this engine and another.
+   *  @param[in,out] other engine to exchange with.
+   */
+  void swap(Gen_Euler_RMQ_LCA & other) noexcept(std::is_nothrow_swappable_v<SA>)
+  {
+    topology_.swap(other.topology_);
+    euler_depth_.swap(other.euler_depth_);
+    rmq_.swap(other.rmq_);
   }
 
   /** @brief Total number of nodes in the tree. */

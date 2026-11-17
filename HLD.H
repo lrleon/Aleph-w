@@ -95,6 +95,7 @@
 # include <algorithm>
 # include <cstddef>
 # include <limits>
+# include <type_traits>
 # include <utility>
 
 # include <ah-errors.H>
@@ -459,6 +460,74 @@ namespace Aleph
         compute_hld_positions();
       }
 
+      /** @brief Copy the decomposition of another tree.
+       *  @param[in] other topology to copy.
+       */
+      HLD_Tree_Data(const HLD_Tree_Data & other) = default;
+
+      /** @brief Take the decomposition of another tree, which is left
+       *         empty.
+       *
+       *  The implicit move took the arrays and the map but copied the
+       *  number of nodes, the root and the number of chains: the
+       *  moved-from topology then passed the checks of the ids and read
+       *  arrays that it no longer had.
+       *
+       *  @param[in,out] other topology to move from.
+       */
+      HLD_Tree_Data(HLD_Tree_Data && other) noexcept(std::is_nothrow_move_constructible_v<SA>)
+        : graph_(std::exchange(other.graph_, nullptr)), sa_(std::move(other.sa_)),
+          root_(std::exchange(other.root_, nullptr)),
+          root_id_(std::exchange(other.root_id_, NONE)), n_(std::exchange(other.n_, 0)),
+          id_to_node_(std::move(other.id_to_node_)), node_to_id_(std::move(other.node_to_id_)),
+          adjacency_(std::move(other.adjacency_)), parent_(std::move(other.parent_)),
+          depth_(std::move(other.depth_)), subtree_size_(std::move(other.subtree_size_)),
+          pos_(std::move(other.pos_)), chain_head_(std::move(other.chain_head_)),
+          tin_(std::move(other.tin_)), tout_(std::move(other.tout_)),
+          num_chains_(std::exchange(other.num_chains_, 0))
+      {}
+
+      /** @brief Copy the decomposition of another tree.
+       *  @param[in] other topology to copy.
+       *  @return this topology.
+       */
+      HLD_Tree_Data & operator = (const HLD_Tree_Data & other) = default;
+
+      /** @brief Exchange this topology with another, which is left with
+       *         the previous decomposition of this one.
+       *  @param[in,out] other topology to move from.
+       *  @return this topology.
+       */
+      HLD_Tree_Data & operator = (HLD_Tree_Data && other)
+        noexcept(std::is_nothrow_swappable_v<SA>)
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) this topology and another.
+       *  @param[in,out] other topology to exchange with.
+       */
+      void swap(HLD_Tree_Data & other) noexcept(std::is_nothrow_swappable_v<SA>)
+      {
+        std::swap(graph_, other.graph_);
+        std::swap(sa_, other.sa_);
+        std::swap(root_, other.root_);
+        std::swap(root_id_, other.root_id_);
+        std::swap(n_, other.n_);
+        id_to_node_.swap(other.id_to_node_);
+        node_to_id_.swap(other.node_to_id_);
+        adjacency_.swap(other.adjacency_);
+        parent_.swap(other.parent_);
+        depth_.swap(other.depth_);
+        subtree_size_.swap(other.subtree_size_);
+        pos_.swap(other.pos_);
+        chain_head_.swap(other.chain_head_);
+        tin_.swap(other.tin_);
+        tout_.swap(other.tout_);
+        std::swap(num_chains_, other.num_chains_);
+      }
+
       [[nodiscard]] size_t size() const noexcept { return n_; }
       [[nodiscard]] bool is_empty() const noexcept { return n_ == 0; }
       [[nodiscard]] Node * root() const noexcept { return root_; }
@@ -599,6 +668,59 @@ namespace Aleph
         seg_(1, identity, identity, oper)
     {
       build_segment_tree(std::forward<NodeValueFn>(node_value));
+    }
+
+    /** @brief Copy the decomposition and the values of another HLD.
+     *  @param[in] other HLD to copy.
+     */
+    Gen_HLD(const Gen_HLD & other) = default;
+
+    /** @brief Take the decomposition and the values of another HLD, which
+     *         is left empty.
+     *
+     *  The topology of the moved-from HLD is empty, so that the HLD never
+     *  queries the segment tree that the move leaves to it.
+     *
+     *  @param[in,out] other HLD to move from.
+     */
+    Gen_HLD(Gen_HLD && other) = default;
+
+    /** @brief Copy the decomposition and the values of another HLD.
+     *  @param[in] other HLD to copy.
+     *  @return this HLD.
+     */
+    Gen_HLD & operator = (const Gen_HLD & other) = default;
+
+    /** @brief Exchange this HLD with another, which is left with the
+     *         previous tree and values of this one.
+     *
+     *  The implicit assignment left the segment tree to its own move
+     *  assignment, which exchanged its array but copied its size, and
+     *  copied the identity: the moved-from HLD then queried the tree that
+     *  it received with the size of its own.
+     *
+     *  @param[in,out] other HLD to move from.
+     *  @return this HLD.
+     */
+    Gen_HLD & operator = (Gen_HLD && other)
+      noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
+               and std::is_nothrow_swappable_v<SA>)
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) this HLD and another.
+     *  @param[in,out] other HLD to exchange with.
+     */
+    void swap(Gen_HLD & other)
+      noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
+               and std::is_nothrow_swappable_v<SA>)
+    {
+      topology_.swap(other.topology_);
+      std::swap(identity_, other.identity_);
+      std::swap(op_, other.op_);
+      seg_.swap(other.seg_);
     }
 
     /** @brief Total number of nodes in the tree. */
