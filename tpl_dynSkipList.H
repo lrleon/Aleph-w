@@ -208,6 +208,23 @@ private:
     header = new Node(maxLevel);
   }
 
+  // The same, with c moved: for a comparison that cannot be copied
+  DynSkipList(const unsigned long seed, const double p, Compare && c)
+    : r(generator_seed(seed)), probability(p), cmp(std::move(c))
+  {
+    header = new Node(maxLevel);
+  }
+
+  // What a move takes of the comparison c: c to copy, if it can be copied,
+  // so that the source keeps its own; else c to move
+  static decltype(auto) comparison_to_take(Compare & c) noexcept
+  {
+    if constexpr (std::is_copy_constructible_v<Compare>)
+      return static_cast<const Compare &>(c);
+    else
+      return std::move(c);
+  }
+
   // Exchanges with other all but the comparison
   void swap_but_comparison(DynSkipList & other) noexcept
   {
@@ -305,17 +322,22 @@ public:
    *  The previous move left the source without a generator: its next
    *  insert() drew a level from a null generator.
    *
+   *  The comparison criterion is copied, if it can be copied, so that
+   *  @p other keeps its own; else it is moved, and @p other is left with
+   *  one moved from.
+   *
    *  @param[in,out] other the list to move from.
    *  @throw bad_alloc if there is not enough memory for the header and the
-   *         generator left to @p other, or what the copy of the comparison
-   *         criterion throws; then @p other is unchanged.
+   *         generator left to @p other, or what the copy or the move of the
+   *         comparison criterion throws; then @p other is unchanged, but for
+   *         a comparison criterion that was moved.
    *  @note It allocates the header and the generator left to @p other.
    */
   DynSkipList(DynSkipList && other)
-    : DynSkipList(time(nullptr), other.probability, other.cmp)
+    : DynSkipList(time(nullptr), other.probability, comparison_to_take(other.cmp))
   {
-    // the comparison is already a copy of that of other, which keeps its
-    // own: exchanging it again would need its move assignment
+    // the comparison is already taken from other: exchanging it again would
+    // need its move assignment
     swap_but_comparison(other);
   }
 

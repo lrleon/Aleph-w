@@ -55,7 +55,11 @@
  *  A swap exchanges the members of the types of the user before the
  *  storage, and, if one of them throws, those before it back: the classes
  *  with two or more types of the user are instantiated with all of them of
- *  the fourth kind, and their swaps throw at each of them in turn.
+ *  the fourth kind, and their swaps throw at each of them in turn. The
+ *  engines are also instantiated with lattices whose swap throws, which go
+ *  in the same sequence. When a swap that puts one back throws too, the
+ *  objects may be neither as they were nor exchanged, but they can be
+ *  destroyed and assigned: the swaps also throw at each pair of them.
  *
  *  A class is one more line in Contract_Classes, with a case: the class
  *  with its types of the user made by A, an object of about n items, and
@@ -209,14 +213,30 @@ namespace
     }
   };
 
-  // The swaps of the kind (d) count down from throw_at while armed: the
-  // one that reaches zero throws
+  // The swaps of the kind (d) are numbered from one while armed: those
+  // whose numbers are throw_at and throw_also throw. Two of them make a swap
+  // that puts back what another exchanged throw too
   std::atomic<long> throw_at{1};
+  std::atomic<long> throw_also{0};
+  std::atomic<long> swaps_armed{0};
 
   void risky_swap()
   {
     ++risky_calls;
-    ah_runtime_error_if(armed.load() and throw_at.fetch_sub(1) == 1) << adversarial_what;
+    if (not armed.load())
+      return;
+    const long k = ++swaps_armed;
+    ah_runtime_error_if(k == throw_at or k == throw_also) << adversarial_what;
+  }
+
+  // Arms the adversarial types, with the swaps numbered first and second
+  // to throw (none second if it is 0)
+  void arm_swaps(const long first, const long second = 0)
+  {
+    swaps_armed = 0;
+    throw_at = first;
+    throw_also = second;
+    armed = true;
   }
 
   // The tag of each live object of the kind (d), by its address
@@ -345,6 +365,11 @@ namespace
   struct Int_Plus
   {
     Int operator () (const Int & a, const Int & b) const noexcept { return a.v + b.v; }
+  };
+
+  struct Int_Less
+  {
+    bool operator () (const Int & a, const Int & b) const noexcept { return a.v < b.v; }
   };
 
   int value_of(const int x) noexcept { return x; }
@@ -510,6 +535,25 @@ namespace
   using Grid = Lattice<Dense_Cell_Storage<int, 2>, ToroidalBoundary>;
   using Two_Fields = Multi_Field_Lattice<Layout_AoS, OpenBoundary, 2, int, int>;
 
+  // A lattice whose swap may throw, as the swaps of the kind (d), which
+  // LatticeLike allows: the engines exchange it in the same sequence as
+  // their types of the user
+  template <class L>
+  struct Swap_Throws_Lattice : L
+  {
+    using L::L;
+    Swap_Throws_Lattice(const L & l) : L(l) {}
+    Swap_Throws_Lattice(L && l) : L(std::move(l)) {}
+
+    void swap(Swap_Throws_Lattice & o)
+    {
+      risky_swap();
+      L::swap(o);
+    }
+  };
+
+  using Throwing_Grid = Swap_Throws_Lattice<Grid>;
+
   // About n cells: one row for the smallest objects, ten rows otherwise
   Extents extents_of(const size_t n)
   {
@@ -651,6 +695,58 @@ namespace
       (void) h.insert(-1);
       EXPECT_EQ(h.getMin(), -1);
     }
+  };
+
+  // A dynamic array of values of the user, whose swap its own swap() runs
+  template <template <class> class A> struct Dyn_Array
+  {
+    static constexpr const char * name = "DynArray";
+    using V = A<Int>;
+    using type = DynArray<V>;
+    static type make(const size_t n)
+    {
+      type a;
+      for (const int v : values_of(n))
+        (void) a.append(value_from<V>(v));
+      return a;
+    }
+    static void use(type & a)
+    {
+      for (size_t i = 0; i < a.size(); ++i)
+        EXPECT_LE(value_of(a(i)), 100);
+      (void) a.append(value_from<V>(-1));
+      EXPECT_EQ(value_of(a(a.size() - 1)), -1);
+    }
+  };
+
+  // A heap of values of the user, whose swap that of the heap runs
+  template <template <class> class A> struct Heap_Value
+  {
+    static constexpr const char * name = "DynArrayHeap_Value";
+    using V = A<Int>;
+    using type = DynArrayHeap<V, Int_Less>;
+
+    template <class H>
+    static H make_with(const size_t n)
+    {
+      H h;
+      for (const int v : values_of(n))
+        (void) h.insert(value_from<V>(v));
+      return h;
+    }
+
+    template <class H>
+    static void use_with(H & h)
+    {
+      size_t count = 0;
+      h.for_each([&count] (const V &) { ++count; });
+      EXPECT_EQ(count, h.size());
+      (void) h.insert(value_from<V>(-1));
+      EXPECT_EQ(value_of(h.getMin()), -1);
+    }
+
+    static type make(const size_t n) { return make_with<type>(n); }
+    static void use(type & h) { use_with(h); }
   };
 
   template <template <class> class A> struct B_Tree_Case
@@ -1207,6 +1303,115 @@ namespace
     static void use(type & e) { use_engine(e); }
   };
 
+  // A heap whose comparators and values are both of the kind A
+
+  template <template <class> class A> struct Heap_Both
+  {
+    static constexpr const char * name = "DynArrayHeap_Both";
+    using V = A<Int>;
+    using type = DynArrayHeap<V, A<Int_Less>>;
+    static type make(const size_t n) { return Heap_Value<A>::template make_with<type>(n); }
+    static void use(type & h) { Heap_Value<A>::template use_with<type>(h); }
+  };
+
+  // The engines with a lattice whose swap throws as the types of the user
+
+  template <template <class> class A> struct Life_Lattice
+  {
+    static constexpr const char * name = "Synchronous_Engine_Lattice";
+    using Rule = A<Game_Of_Life_Rule>;
+    using Nh = A<Moore<2, 1>>;
+    using type = Synchronous_Engine<Throwing_Grid, Rule, Nh>;
+    static type make(const size_t n)
+    {
+      type e(Throwing_Grid(life_grid(n)), Rule(make_game_of_life_rule()), Nh(Moore<2, 1>{}));
+      e.step();
+      return e;
+    }
+    static auto print(const type & e) { return engine_print(e); }
+    static void use(type & e) { use_engine(e); }
+  };
+
+  template <template <class> class A> struct Async_Lattice
+  {
+    static constexpr const char * name = "Async_Engine_Lattice";
+    using Rule = A<Game_Of_Life_Rule>;
+    using Nh = A<Moore<2, 1>>;
+    using Scheme = A<Random_Asynchronous_Update<>>;
+    using type = Async_Engine<Throwing_Grid, Rule, Nh, Scheme>;
+    static type make(const size_t n)
+    {
+      type e(Throwing_Grid(life_grid(n)), Rule(make_game_of_life_rule()), Nh(Moore<2, 1>{}),
+             Scheme(Random_Asynchronous_Update<>(7, 10)));
+      e.step();
+      return e;
+    }
+    static auto print(const type & e) { return engine_print(e); }
+    static void use(type & e) { use_engine(e); }
+  };
+
+  template <template <class> class A> struct Parallel_Lattice
+  {
+    static constexpr const char * name = "Parallel_Synchronous_Engine_Lattice";
+    using Rule = A<Game_Of_Life_Rule>;
+    using Nh = A<Moore<2, 1>>;
+    using type = Parallel_Synchronous_Engine<Throwing_Grid, Rule, Nh>;
+    static type make(const size_t n)
+    {
+      Parallel_Engine_Config cfg;
+      cfg.pool = &small_pool();
+      cfg.num_partitions = 2;
+      cfg.min_parallel_cells = 0;
+      type e(Throwing_Grid(life_grid(n)), Rule(make_game_of_life_rule()), Nh(Moore<2, 1>{}), cfg);
+      e.step();
+      return e;
+    }
+    static auto print(const type & e) { return engine_print(e); }
+    static void use(type & e) { use_engine(e); }
+  };
+
+  template <template <class> class A> struct Field_Lattice
+  {
+    static constexpr const char * name = "Multi_Field_Engine_Lattice";
+    using Rule = A<Field_Slice_Rule<0, Game_Of_Life_Rule>>;
+    using Nh = A<Moore<2, 1>>;
+    using Fields = Swap_Throws_Lattice<Two_Fields>;
+    using type = Multi_Field_Engine<Fields, Rule, Nh>;
+    static type make(const size_t n)
+    {
+      type e(Fields(Two_Fields(extents_of(n), std::tuple{0, 7})),
+             Rule(Field_Slice_Rule<0, Game_Of_Life_Rule>(make_game_of_life_rule())), Nh(Moore<2, 1>{}));
+      e.step();
+      return e;
+    }
+    static auto print(const type & e) { return engine_print(e); }
+    static void use(type & e) { use_engine(e); }
+  };
+
+  template <template <class> class A> struct Graph_Lattice_Case
+  {
+    static constexpr const char * name = "Graph_Synchronous_Engine_Lattice";
+    using Rule = A<Game_Of_Life_Rule>;
+    using Nodes = Swap_Throws_Lattice<Graph_Lattice<int>>;
+    using type = Graph_Synchronous_Engine<Nodes, Rule>;
+    static type make(const size_t n)
+    {
+      Graph_Lattice<int> g(make_path_graph_adjacency(n, true), 0);
+      for (size_t i = 0; i < n; i += 3)
+        g.set_node(i, 1);
+      type e(Nodes(std::move(g)), Rule(make_game_of_life_rule()));
+      e.step();
+      return e;
+    }
+    static auto print(const type & e) { return engine_print(e); }
+    static void use(type & e)
+    {
+      const size_t steps = e.steps_run();
+      e.step();
+      EXPECT_EQ(e.steps_run(), steps + 1);
+    }
+  };
+
   // A class of the test with the types of the user of the kind A
   template <template <template <class> class> class Case, template <class> class A>
   struct Contract
@@ -1225,7 +1430,8 @@ namespace
 
   using Classes = Contract_Classes<
     Fenwick_Plus, Fenwick_Minus, Segment, Lazy_Segment, Sparse, Disjoint_Sparse,
-    Cartesian, Euler_Tour, Cartesian_RMQ, Heap, B_Tree_Case, BPlus_Tree_Case, Hash_Map,
+    Cartesian, Euler_Tour, Cartesian_RMQ, Heap, Heap_Value, Dyn_Array, B_Tree_Case,
+    BPlus_Tree_Case, Hash_Map,
     Skip_List, Rand_Tree_Case,
     Binary_Lifting, Euler_RMQ, HLD_Op, HLD_Filter, Heavy_Light, Path_Query_Op,
     Path_Query_Filter, Centroid, Tree_DP_Case, Reroot_DP_Case, Mo_On_Trees,
@@ -1340,8 +1546,7 @@ namespace
     const std::string tags_b = tags_of(b);
     std::optional<T> c;
     bool threw = false;
-    throw_at = 1;
-    armed = true;
+    arm_swaps(1);
     try
       {
         op(a, b, c);
@@ -1438,7 +1643,10 @@ namespace
     Contract<Fenwick_Both, Swap_Throws>, Contract<Segment_Both, Swap_Throws>,
     Contract<HLD_All, Swap_Throws>, Contract<Path_Query_All, Swap_Throws>,
     Contract<Life_All, Swap_Throws>, Contract<Async_All, Swap_Throws>,
-    Contract<Parallel_All, Swap_Throws>, Contract<Field_All, Swap_Throws>>;
+    Contract<Parallel_All, Swap_Throws>, Contract<Field_All, Swap_Throws>,
+    Contract<Heap_Both, Swap_Throws>, Contract<Life_Lattice, Swap_Throws>,
+    Contract<Async_Lattice, Swap_Throws>, Contract<Parallel_Lattice, Swap_Throws>,
+    Contract<Field_Lattice, Swap_Throws>, Contract<Graph_Lattice_Case, Swap_Throws>>;
 
   // op, a swap or a move assignment, throws at each swap of a type of the
   // user that it runs, in turn: each time it must leave both objects as
@@ -1465,8 +1673,7 @@ namespace
         const std::string tags_a = tags_of(a);
         const std::string tags_b = tags_of(b);
         bool threw = false;
-        throw_at = static_cast<long>(k);
-        armed = true;
+        arm_swaps(static_cast<long>(k));
         try
           {
             op(a, b);
@@ -1484,6 +1691,55 @@ namespace
         Case::use(a);
         Case::use(b);
       }
+  }
+
+  // op throws at each swap i of a type of the user and again at a swap j
+  // that puts back one before it: then the objects may be neither as they
+  // were nor exchanged (the classes say so), but they can be destroyed as
+  // they are, or assigned and then used as any other
+  template <class Case, class Op>
+  void check_double_failure(const char * what, Op op)
+  {
+    using T = typename Case::type;
+    size_t swaps = 0;
+    {
+      T a = Case::make(20);
+      T b = Case::make(5);
+      const size_t before = risky_calls;
+      op(a, b);
+      swaps = risky_calls - before;
+    }
+    size_t twice = 0;
+    for (long i = 2; i <= static_cast<long>(swaps); ++i)
+      for (long j = i + 1; j < 2 * i; ++j)  // the i - 1 swaps that put back those before i
+        for (const bool assign : {false, true})
+          {
+            SCOPED_TRACE(std::string(what) + " threw at its swaps " + std::to_string(i) + " and " +
+                         std::to_string(j));
+            T a = Case::make(20);
+            T b = Case::make(5);
+            arm_swaps(i, j);
+            try
+              {
+                op(a, b);
+                ADD_FAILURE() << what << " did not throw";
+              }
+            catch (const std::exception & e)
+              {
+                EXPECT_TRUE(is_adversarial(e)) << what << " threw " << e.what();
+              }
+            armed = false;
+            if (swaps_armed >= j)
+              ++twice;
+            if (assign)
+              {
+                a = Case::make(20);
+                b = Case::make(5);
+                Case::use(a);
+                Case::use(b);
+              }
+          }
+    EXPECT_GT(twice, 0u) << what << " never threw while it put back what it exchanged";
   }
 } // namespace
 
@@ -1503,6 +1759,20 @@ TYPED_TEST(Noexcept_Contract_Rollback, MoveAssignment)
   using Case = typename TypeParam::C;
   using T = typename Case::type;
   check_rollback<Case>("the move assignment", [] (T & a, T & b) { b = std::move(a); });
+}
+
+TYPED_TEST(Noexcept_Contract_Rollback, SwapThatThrowsTwice)
+{
+  using Case = typename TypeParam::C;
+  using T = typename Case::type;
+  check_double_failure<Case>("swap()", [] (T & a, T & b) { a.swap(b); });
+}
+
+TYPED_TEST(Noexcept_Contract_Rollback, MoveAssignmentThatThrowsTwice)
+{
+  using Case = typename TypeParam::C;
+  using T = typename Case::type;
+  check_double_failure<Case>("the move assignment", [] (T & a, T & b) { b = std::move(a); });
 }
 
 namespace
@@ -1672,4 +1942,51 @@ TEST(Noexcept_Contract_Floyd, InfinityWhoseCopyThrows)
   EXPECT_TRUE(threw);
   EXPECT_EQ(src.get_nodes_ref().size(), 0u);
   EXPECT_THROW((void) src.get_min_path(0L, 0L), std::out_of_range);
+}
+
+namespace
+{
+  // The moves of a set over a tree whose swap runs that of its comparison
+  // (Rand_Tree and Splay_Tree_Rk): with a comparison whose own swap throws
+  // they throw, instead of ending the program, and leave the source as it
+  // was; with Aleph::less they stay noexcept
+  template <template <typename, class> class Tree>
+  void check_set_moves(const char * tree)
+  {
+    using Set = DynSetTree<int, Tree, Swap_Throws<Aleph::less<int>>>;
+    EXPECT_TRUE((std::is_nothrow_move_constructible_v<DynSetTree<int, Tree>>)) << tree;
+    EXPECT_TRUE((std::is_nothrow_move_assignable_v<DynSetTree<int, Tree>>)) << tree;
+    // armed, a noexcept move would end the program
+    ASSERT_FALSE(std::is_nothrow_move_constructible_v<Set>) << tree;
+    ASSERT_FALSE(std::is_nothrow_move_assignable_v<Set>) << tree;
+
+    Set a;
+    for (int i = 0; i < 20; ++i)
+      (void) a.insert(i);
+    arm_swaps(1);
+    EXPECT_THROW({ Set b(std::move(a)); }, std::runtime_error) << tree;
+    armed = false;
+    EXPECT_EQ(a.size(), 20u) << tree;
+    EXPECT_TRUE(a.verify()) << tree;
+
+    Set c;
+    (void) c.insert(-1);
+    arm_swaps(1);
+    EXPECT_THROW(c = std::move(a), std::runtime_error) << tree;
+    armed = false;
+    EXPECT_EQ(a.size(), 20u) << tree;
+    EXPECT_EQ(c.size(), 0u) << tree << ": the assignment frees the elements of its destination first";
+    (void) c.insert(5);
+    EXPECT_TRUE(c.contains(5)) << tree;
+  }
+} // namespace
+
+TEST(Noexcept_Contract_Dyn_Set, MovesOverARandTreeWhoseComparisonSwapThrows)
+{
+  check_set_moves<Rand_Tree>("Rand_Tree");
+}
+
+TEST(Noexcept_Contract_Dyn_Set, MovesOverARankedSplayTreeWhoseComparisonSwapThrows)
+{
+  check_set_moves<Splay_Tree_Rk>("Splay_Tree_Rk");
 }

@@ -1030,7 +1030,9 @@ namespace Aleph
      *         and then the segment trees and the decompositions, each all
      *         or none: if a swap throws, those before it are exchanged back,
      *         and both engines are left as they were, if the swap that
-     *         threw left its arguments as they were.
+     *         threw left its arguments as they were. If a swap that puts one
+     *         back throws too, both engines can only be destroyed or
+     *         assigned.
      */
     void swap(Gen_HLD_Path_Query & other)
       noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>

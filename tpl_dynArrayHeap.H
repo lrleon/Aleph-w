@@ -216,7 +216,11 @@ namespace Aleph
      *         heap and another.
      *  @param[in,out] other heap to exchange with.
      *  @throw what swapping the comparators, or the default values of the
-     *         arrays, throws.
+     *         arrays, throws. The comparators go first; if the swap of the
+     *         arrays throws, they are exchanged back, and both heaps are
+     *         left as they were, if the swap that threw left its arguments
+     *         as they were. If the swap that puts the comparators back
+     *         throws too, both heaps can only be destroyed or assigned.
      */
     void swap(DynArrayHeap & other) noexcept(
       std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Compare>)
@@ -225,7 +229,18 @@ namespace Aleph
       // its arguments, else std::swap(); first, since it may throw
       using std::swap;
       swap(cmp, other.cmp);
-      array.swap(other.array);
+      if constexpr (std::is_nothrow_swappable_v<T>)
+        array.swap(other.array);
+      else
+        try
+          {
+            array.swap(other.array);
+          }
+        catch (...)
+          {
+            swap(cmp, other.cmp);
+            throw;
+          }
       std::swap(num_items, other.num_items);
     }
 

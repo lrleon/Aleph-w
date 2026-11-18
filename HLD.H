@@ -741,7 +741,8 @@ namespace Aleph
      *         segment trees, which are exchanged together: if a swap
      *         throws, those before it are exchanged back, and both HLDs are
      *         left as they were, if the swap that threw left its arguments
-     *         as they were.
+     *         as they were. If a swap that puts one back throws too, both
+     *         HLDs can only be destroyed or assigned.
      */
     void swap(Gen_HLD & other)
       noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>

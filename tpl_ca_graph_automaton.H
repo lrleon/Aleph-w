@@ -436,35 +436,68 @@ public:
 
   /** @brief Exchange in O(1) the simulation of this engine and another.
    *  @param[in,out] other engine to exchange with.
-   *  @throw what swapping the rules throws. They are exchanged before the
-   *         lattices, so that, if that swap throws, nothing else is
-   *         exchanged, and both engines are left as they were if it left its
-   *         arguments as they were; std::swap(), for a rule without a swap of
-   *         its own, may leave it moved from.
+   *  @throw what swapping the rules or the lattices throws. When one of
+   *         those swaps may throw, the rules are exchanged before the
+   *         lattices, all or none: if a swap throws, those before it are
+   *         exchanged back, and both engines are left as they were, if the
+   *         swap that threw left its arguments as they were. If a swap that
+   *         puts one back throws too, both engines can only be destroyed or
+   *         assigned. std::swap(), for a rule without a swap of its own, may
+   *         leave it moved from.
    */
   void swap(Graph_Synchronous_Engine &other) noexcept(
     noexcept(cur_buf_.swap(other.cur_buf_)) and std::is_nothrow_swappable_v<Rule>)
     requires std::swappable<Rule>
   {
-    // The swap that the specification evaluates: that of Rule found by its
-    // arguments, else std::swap(); first when it may throw, so that one
-    // that throws leaves no lattice with the rule of the other. When it may
-    // not, the order cannot be seen, and it goes after the lattices, as it
-    // always did: a rule with members, even Game_Of_Life_Rule, would
-    // reorder the code if it went first
+    // The swap of Rule that the specification evaluates: found by its
+    // arguments, else std::swap(). When it or that of a lattice may throw,
+    // the rules go first, and all go in a sequence that is all or none: one
+    // that throws leaves no lattice with the rule of the other. When none
+    // may, the order cannot be seen, and the rules go after the lattices,
+    // as they always did: a rule with members, even Game_Of_Life_Rule,
+    // would reorder the code if it went first
     using std::swap;
-    if constexpr (not std::is_nothrow_swappable_v<Rule>)
-      swap(rule_, other.rule_);
-    cur_buf_.swap(other.cur_buf_);
-    nxt_buf_.swap(other.nxt_buf_);
-    if constexpr (std::is_nothrow_swappable_v<Rule>)
-      swap(rule_, other.rule_);
+    if constexpr (not std::is_nothrow_swappable_v<Rule> or not noexcept(cur_buf_.swap(other.cur_buf_)))
+      swap_all_or_none(other);
+    else
+      {
+        cur_buf_.swap(other.cur_buf_);
+        nxt_buf_.swap(other.nxt_buf_);
+        swap(rule_, other.rule_);
+      }
     nbuf_.swap(other.nbuf_);
     pre_hook_.swap(other.pre_hook_);
     post_hook_.swap(other.post_hook_);
     swap(step_count_, other.step_count_);
   }
 
+private:
+  // The rules and the lattices, with the swap of Rule that the
+  // specification of swap() evaluates, all or none: if one throws, those
+  // before it are exchanged back
+  void swap_all_or_none(Graph_Synchronous_Engine &other)
+  {
+    using std::swap;
+    int done = 0;
+    try
+      {
+        swap(rule_, other.rule_);
+        ++done;
+        cur_buf_.swap(other.cur_buf_);
+        ++done;
+        nxt_buf_.swap(other.nxt_buf_);
+      }
+    catch (...)
+      {
+        if (done > 1)
+          cur_buf_.swap(other.cur_buf_);
+        if (done > 0)
+          swap(rule_, other.rule_);
+        throw;
+      }
+  }
+
+public:
   /// @return read-only view of the current frame.
   [[nodiscard]] const Lattice &frame() const noexcept { return cur_buf_; }
 

@@ -316,6 +316,10 @@ class TestMovedFromCheck < Minitest::Test
     };
   CPP
 
+  # The same class, in the namespace F and in the class template Sync
+  F_STORAGE = "namespace F\n{\n#{STORAGE}}\n".freeze
+  SYNC_STORAGE = "template <class T>\nstruct Sync\n{\n#{STORAGE}};\n".freeze
+
   def problems(src, tests = '', headers = '')
     moved_from_problems(src, tests, headers + src).map { |_, msg| msg[/\A\w+/] }
   end
@@ -345,7 +349,32 @@ class TestMovedFromCheck < Minitest::Test
   def test_only_a_moved_from_case_tests_a_class
     tests = "// Storage\nStorage s;\ntemplate <> struct Moved_From_Case<Other_Storage> {};\n"
     assert_equal ['Storage'], problems(STORAGE, tests)
-    assert_empty problems(STORAGE, tests + "template <> struct Moved_From_Case<F::Storage> {};\n")
+    assert_empty problems(F_STORAGE, tests + "template <> struct Moved_From_Case<F::Storage> {};\n")
+  end
+
+  # A name qualified with another scope names another class: the Storage
+  # of Other does not test the global one, nor that of F (c03)
+  def test_a_qualified_name_names_the_class_of_its_scope
+    assert_equal ['Storage'], problems(STORAGE, 'Moved_From_Case<Other::Storage>')
+    assert_equal ['Storage'], problems(F_STORAGE, 'Moved_From_Case<Other::Storage>')
+    assert_empty problems(F_STORAGE, 'Moved_From_Case<F::Storage>')
+    assert_empty problems(F_STORAGE, 'Moved_From_Case<Storage>')
+    assert_empty problems(STORAGE, 'Moved_From_Case<::Storage>')
+    nested = "class Fft\n{\n  Array<int> a;\npublic:\n  Fft(Fft &&) = delete;\n#{STORAGE}};\n"
+    assert_empty problems(nested, "using F = Fft;\nMoved_From_Case<F::Storage>")
+    assert_empty problems(nested, 'Moved_From_Case<F::Storage>', 'using F = Aleph::Fft;')
+    assert_equal ['Storage'], problems(nested, "using F = Other;\nMoved_From_Case<F::Storage>")
+    assert_equal ['Storage'], problems(STORAGE, "using F = Other;\nusing W = F::Storage;\nMoved_From_Case<W>")
+  end
+
+  # A pointer, a reference or an array of a class is not the class (c02)
+  def test_a_pointer_to_the_class_does_not_name_it
+    assert_equal ['Storage'], problems(STORAGE, "using P = Storage *;\nMoved_From_Case<P>")
+    assert_equal ['Storage'], problems(STORAGE, "using R = const Storage &;\nMoved_From_Case<R>")
+    assert_equal ['Storage'], problems(STORAGE, "using A = Storage[4];\nMoved_From_Case<A>")
+    assert_equal ['Storage'], problems(STORAGE, 'Moved_From_Case<Storage *>')
+    assert_empty problems(STORAGE, "using P = Storage;\nMoved_From_Case<P>")
+    assert_empty problems(STORAGE, "using C = const Storage;\nMoved_From_Case<C>")
   end
 
   # A case of a type that takes the class as an argument tests that type,
@@ -356,9 +385,9 @@ class TestMovedFromCheck < Minitest::Test
     assert_equal ['Storage'], problems(STORAGE, "using Wrapped = Array<Storage>;\nMoved_From_Case<Wrapped>")
     assert_equal ['Storage'], problems(STORAGE, 'Moved_From_Case<Wrapped>', 'using Wrapped = Array<Storage>;')
     assert_equal ['Storage'], problems(STORAGE, "struct D : Array<Storage> {};\nMoved_From_Case<D>")
-    assert_empty problems(STORAGE, "using Wrapped = F::Storage;\nMoved_From_Case<Wrapped>")
-    assert_empty problems(STORAGE, "using Ptr = Sync<long>::Storage;\nMoved_From_Case<Ptr>")
-    assert_empty problems(STORAGE, "struct D : public F::Storage {};\nMoved_From_Case<D>")
+    assert_empty problems(F_STORAGE, "using Wrapped = F::Storage;\nMoved_From_Case<Wrapped>")
+    assert_empty problems(SYNC_STORAGE, "using Ptr = Sync<long>::Storage;\nMoved_From_Case<Ptr>")
+    assert_empty problems(F_STORAGE, "struct D : public F::Storage {};\nMoved_From_Case<D>")
   end
 
   # An alias or a class in a comment or a literal names nothing, and a

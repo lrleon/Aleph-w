@@ -448,7 +448,8 @@ namespace Aleph
      *         are exchanged before the arrays: if the swap of the operations
      *         throws, the identities are exchanged back, and both trees are
      *         left as they were, if the swap that threw left its arguments
-     *         as they were.
+     *         as they were. If the swap that puts the identities back throws
+     *         too, both trees can only be destroyed or assigned.
      */
     void swap(Gen_Segment_Tree & other) noexcept(
       std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>)

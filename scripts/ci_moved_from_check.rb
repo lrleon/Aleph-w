@@ -239,6 +239,12 @@ def moved_from_classes(src, scalar_names = [])
   head = /\b(class|struct)\s+(?:alignas\s*\([^()]*\)\s*)?(?:\[\[[^\]]*\]\]\s*)?([A-Za-z_]\w*)\s*
           (?:final\s*)?(?::[^{;]*)?\{/x
   classes = []
+  scopes = []  # [open, close, name] of each namespace and class
+  pos = 0
+  while (m = /\bnamespace\s+([A-Za-z_][\w:]*)\s*\{/.match(code, pos))
+    pos = m.end(0)
+    close = moved_from_close(code, m.end(0) - 1) and scopes << [m.end(0) - 1, close, m[1].split('::').last]
+  end
   pos = 0
   while (m = head.match(code, pos))
     pos = m.end(0)
@@ -247,6 +253,7 @@ def moved_from_classes(src, scalar_names = [])
     open = m.end(0) - 1
     close = moved_from_close(code, open) or next
     name = m[2]
+    scopes << [open, close, name]
     decls = moved_from_declarations(code, open + 1, close)
     # Only the members that the class hides keep an invariant: those of a
     # plain aggregate are values that a move leaves valid
@@ -292,21 +299,31 @@ def moved_from_classes(src, scalar_names = [])
                  written: special[:move_ctor] == :user || special[:move_assign] == :user,
                  exempt: src[open..close].include?(MOVED_FROM_MARKER) }
   end
+  # The scope of a class: the innermost named namespace or class around it,
+  # which a qualified name of the class puts before its name
+  classes.each do |c|
+    c[:scope] = scopes.select { |o, e, _| o < c[:open] and e > c[:close] }.max_by(&:first)&.last
+  end
   classes
 end
 
-# The outer type that a type names, without its qualification and its
-# arguments: Storage for F::Storage, Array, not Storage, for
-# Array<Storage>, and Ptr for Sync<long>::Ptr; nil if the text does not
-# start with a name
-def moved_from_outer_type(type)
+# The outer type that a type names, as [scope, name], without the
+# arguments: [nil, Storage] for Storage, [F, Storage] for F::Storage,
+# [Sync, Ptr] for Sync<long>::Ptr, and [nil, Array], not Storage, for
+# Array<Storage>. nil if the text does not start with a name, or if it is
+# a pointer, a reference or an array of the type (Storage *), which is
+# not the type
+def moved_from_type_ref(type)
   t = type.strip.sub(/\A(?:(?:const|volatile|typename|class|struct)\s+)+/, '')
   1 while t.gsub!(/<[^<>]*>/, ' ')
   head = t[/\A(?:::\s*)?\w+(?:\s*::\s*\w+)*/] or return nil
-  head.split('::').last.strip
+  return nil unless t[head.size..].gsub(/\b(?:const|volatile)\b/, '').strip.empty?
+
+  parts = head.split('::').map(&:strip).reject(&:empty?)
+  [parts[-2], parts.last]
 end
 
-# The outer types of the bases of a base clause
+# The outer types of the bases of a base clause, as [scope, name]
 def moved_from_base_types(clause)
   parts = [+'']
   depth = 0
@@ -315,17 +332,17 @@ def moved_from_base_types(clause)
     depth -= 1 if '>)]'.include?(ch)
     ch == ',' && depth.zero? ? parts << +'' : parts.last << ch
   end
-  parts.filter_map { |p| moved_from_outer_type(p.gsub(/\b(?:public|protected|private|virtual)\b/, ' ')) }
+  parts.filter_map { |p| moved_from_type_ref(p.gsub(/\b(?:public|protected|private|virtual)\b/, ' ')) }
 end
 
 # The aliases and the classes with bases of a text, outside its comments
 # and literals: [alias, outer type of its definition] and [class, outer
-# types of its bases], computed once for each text
+# types of its bases], as [scope, name], computed once for each text
 def moved_from_relations(text)
   @moved_from_relations ||= {}.compare_by_identity
   @moved_from_relations[text] ||= begin
     code = moved_from_blank(text)
-    aliases = code.scan(/\busing\s+(\w+)\s*=\s*([^;]*);/).map { |a, t| [a, moved_from_outer_type(t)] }
+    aliases = code.scan(/\busing\s+(\w+)\s*=\s*([^;]*);/).map { |a, t| [a, moved_from_type_ref(t)] }
     derived = code.scan(/\b(?:class|struct)\s+(\w+)\s*(?:final\s*)?:(?!:)([^;{]*)\{/).map do |d, bases|
       [d, moved_from_base_types(bases)]
     end
@@ -333,19 +350,36 @@ def moved_from_relations(text)
   end
 end
 
-# The names by which a test can name a class: its own, and those of the
-# aliases of it and of the classes that derive from it in the text given.
-# An alias of, or a class derived from, a type that only takes the class
-# as an argument (Array<Storage>) does not name it
-def moved_from_names(name, text)
-  aliases, derived = moved_from_relations(text)
-  ([name] + aliases.filter_map { |a, t| a if t == name } +
-   derived.filter_map { |d, bases| d if bases.include?(name) }).uniq
+# Whether the type ref, [scope, name], names the class c: by its name, and,
+# if the ref has a scope, by the scope of c, or by an alias of it in the
+# texts (F::Plan, with using F = FFT<double>, names the Plan of FFT)
+def moved_from_ref_names?(ref, c, texts)
+  scope, name = ref
+  return false unless name == c[:name]
+  return true if scope.nil? or scope == c[:scope]
+
+  texts.any? { |t| moved_from_relations(t).first.any? { |a, r| a == scope and r and r.last == c[:scope] } }
 end
 
-# The outer types of the Moved_From_Case that the tests name, outside their
-# comments and literals: the classes that the typed suite tests, and not
-# their arguments (Moved_From_Case<Array<Storage>> tests Array)
+# Whether a Moved_From_Case of the tests, given as [scope, name], tests
+# the class c: if it names c, or, without a scope, an alias of c or a
+# class derived from c, in the headers or in the tests. An alias of, or a
+# class derived from, a type that only takes the class as an argument
+# (Array<Storage>) does not name it
+def moved_from_tested?(c, registered, texts)
+  registered.any? do |ref|
+    moved_from_ref_names?(ref, c, texts) or ref.first.nil? && texts.any? do |t|
+      aliases, derived = moved_from_relations(t)
+      aliases.any? { |a, r| a == ref.last and r and moved_from_ref_names?(r, c, texts) } or
+        derived.any? { |d, bases| d == ref.last and bases.any? { |b| moved_from_ref_names?(b, c, texts) } }
+    end
+  end
+end
+
+# The outer types of the Moved_From_Case that the tests name, as [scope,
+# name], outside their comments and literals: the classes that the typed
+# suite tests, and not their arguments (Moved_From_Case<Array<Storage>>
+# tests Array)
 def moved_from_registered(tests_text)
   @moved_from_registered ||= {}
   return @moved_from_registered[tests_text] if @moved_from_registered.key?(tests_text)
@@ -361,7 +395,7 @@ def moved_from_registered(tests_text)
       depth -= 1 if code[k] == '>'
       k += 1
     end
-    types << moved_from_outer_type(code[m.end(0)...k - 1])
+    types << moved_from_type_ref(code[m.end(0)...k - 1])
     pos = k
   end
   @moved_from_registered[tests_text] = types.compact.uniq
@@ -379,9 +413,9 @@ def moved_from_problems(src, tests_text, headers_text, scalar_names = [])
     # are right, whether they are implicit or written: the class is tested
     # if a Moved_From_Case tests it, or an alias of it in the headers or in
     # the tests, not if its name is only elsewhere in the tests, nor only
-    # among the arguments of the type that a Moved_From_Case tests
-    names = moved_from_names(c[:name], headers_text) | moved_from_names(c[:name], tests_text)
-    next if names.any? { |n| registered.include?(n) }
+    # among the arguments of the type that a Moved_From_Case tests, nor if
+    # the case qualifies the name with another scope
+    next if moved_from_tested?(c, registered, [headers_text, tests_text])
 
     what = "keeps #{c[:containers].join(', ')} and #{c[:scalars].join(', ')}"
     if c[:implicit]

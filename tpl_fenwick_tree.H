@@ -410,7 +410,8 @@ namespace Aleph
      *         before the arrays: if the swap of the subtractions throws,
      *         the additions are exchanged back, and both trees are left as
      *         they were, if the swap that threw left its arguments as they
-     *         were.
+     *         were. If the swap that puts the additions back throws too,
+     *         both trees can only be destroyed or assigned.
      */
     void swap(Gen_Fenwick_Tree & other)
       noexcept(std::is_nothrow_swappable_v<Plus> and std::is_nothrow_swappable_v<Minus>)

@@ -48,6 +48,8 @@
 # ifndef TPL_SPLAY_TREE_RK_H
 # define TPL_SPLAY_TREE_RK_H
 
+# include <type_traits>
+# include <utility>
 # include <tpl_binNodeXt.H>
 # include <ah-errors.H>
 # include <ah-concepts.H>
@@ -231,10 +233,19 @@ public:
     // Empty
   }
 
-  void swap(GenTdSplayTreeRk & tree)
+  /** @brief Exchange in O(1) the nodes and the comparison criteria of this
+   *         tree and another.
+   *  @param[in,out] tree the tree to exchange with.
+   *  @throw what swapping the comparison criteria throws. They go first,
+   *         so that, if that swap throws, nothing else is exchanged.
+   */
+  void swap(GenTdSplayTreeRk & tree) noexcept(std::is_nothrow_swappable_v<Compare>)
   {
+    // the swap that the specification evaluates: that of Compare found by
+    // its arguments, else std::swap(); first, since it may throw
+    using std::swap;
+    swap(cmp, tree.cmp);
     std::swap(root, tree.root);
-    std::swap(cmp, tree.cmp);
   }
 
   /// Destructor

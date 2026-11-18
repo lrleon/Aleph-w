@@ -267,6 +267,41 @@ TEST(DynSkipList, MoveConstructsTheComparisonFromThatOfTheSource)
   EXPECT_EQ(other.get_first(), 4);
 }
 
+// A comparison that can only be moved
+struct Move_Only_Less
+{
+  Move_Only_Less() = default;
+  Move_Only_Less(const Move_Only_Less &) = delete;
+  Move_Only_Less & operator = (const Move_Only_Less &) = delete;
+  Move_Only_Less(Move_Only_Less &&) noexcept = default;
+  Move_Only_Less & operator = (Move_Only_Less &&) noexcept = default;
+
+  bool operator () (const int a, const int b) const noexcept { return a < b; }
+};
+
+// The move takes a comparison that cannot be copied: it moves it, and the
+// source is left empty and usable, with the one moved from
+TEST(DynSkipList, MoveTakesAComparisonThatCanOnlyBeMoved)
+{
+  DynSkipList<int, Move_Only_Less> src(1UL);
+  for (const int i : {5, 1, 3})
+    src.insert(i);
+
+  DynSkipList<int, Move_Only_Less> dst(std::move(src));
+  EXPECT_EQ(dst.size(), 3u);
+  EXPECT_TRUE(src.is_empty());
+  EXPECT_EQ(dst.get_first(), 1);
+  EXPECT_NE(dst.search(3), nullptr);
+
+  src.insert(2);
+  EXPECT_EQ(src.size(), 1u);
+  EXPECT_EQ(src.get_first(), 2);
+
+  DynSkipList<int, Move_Only_Less> other(2UL);
+  other = std::move(dst);
+  EXPECT_EQ(other.size(), 3u);
+}
+
 // ============================================================================
 // Insert Tests
 // ============================================================================
