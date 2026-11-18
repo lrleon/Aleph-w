@@ -126,3 +126,47 @@ and ccache in `~/.cache/aleph-ci-local`. In GitHub, a pull request whose
 status the CI accepts saves the runs of the nine required jobs, and the
 caches of ccache that they save, in the 10 GB of Actions cache of the
 repository.
+
+## Local runners
+
+The heavy Ubuntu 24.04 jobs of `ci.yml` can also run on self-hosted runners
+with the label `aleph-24.04`, where a warm ccache shortens them: the 24.04
+entries of `build-and-test` and `graph-harness`, `sanitizers`, `tsan`,
+`cxx23-build`, `coverage`, `ranges-off` and `check-examples` with Clang.
+
+- They go there only for the pull requests of this repository, while the
+  repository variable `ALEPH_LOCAL_RUNNERS` is `on`, and `build-and-test`
+  and `sanitizers` only when the local CI has not verified them already.
+  The pushes to master, which check the merged result and feed the caches
+  and the coverage baseline, and the pull requests from forks run on
+  GitHub. With the variable off or unset, every job runs on GitHub, as
+  before; turn it off when the machine is down, or those jobs wait for it.
+- That condition chooses where the jobs of this repository run; it is not
+  an access control. A pull request from a fork runs the workflow of its
+  own branch, which can send its jobs to these runners. What keeps forks
+  out is outside the workflow: Actions requires the approval of a
+  maintainer for the workflows of every outside contributor, and a
+  maintainer approves them only after checking that the pull request does
+  not change `.github/`. The runners of a repository serve only that
+  repository.
+- The runners keep state from one job to the next, the ccache among it,
+  and the code of a job could change what later jobs build: only code that
+  the maintainers trust runs on them.
+- The runners run the jobs directly on Ubuntu 24.04 for x86_64, the system
+  of the GitHub image, as a user without sudo. The steps that install
+  packages, that use sudo or that restore the ccache of GitHub skip on them
+  (`runner.environment == 'self-hosted'`), so the machine has the packages
+  of those steps installed and GCC 13, the `g++` of the image, first in the
+  `PATH` of the runners. The jobs keep their ccache in
+  `~/.cache/ccache-aleph` of the runners' user, and Clang builds GoogleTest
+  with libc++ in the temporary directory of the job.
+- The machine may also have optional libraries that the GitHub image lacks,
+  such as libxml++ 2.6, and then the jobs build and run what depends on
+  them too.
+- The sanitizers need the address randomization off on recent kernels: the
+  services start the runners under `setarch x86_64 -R`.
+- Each runner is limited to its own cores, so that `nproc` gives the
+  parallelism of its builds, and to its memory, and a hook deletes what
+  each job built when it ends.
+- The Ubuntu 22.04 jobs, the light ones, those that use containers, the
+  release and publishing jobs and `perf-gate` stay on GitHub.
