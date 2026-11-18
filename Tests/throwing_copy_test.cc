@@ -62,6 +62,8 @@
 # include <tpl_dynArray.H>
 # include <tpl_dynMapTree.H>
 # include <tpl_dynSetHash.H>
+# include <tpl_odhash.H>
+# include <tpl_olhash.H>
 # include <tpl_binHeap.H>
 
 using namespace Aleph;
@@ -642,6 +644,151 @@ namespace
             EXPECT_EQ(p->second.value, k);
           }
       }
+  }
+
+
+  // =========================================================================
+  // set_hash_fct() and the copies of the keys. A map of tpl_dynSetHash.H
+  // given a function of pairs, which gives no hash of a key alone, searches
+  // for a pair built from the key, a copy of it and a Data built by
+  // default: their failure reaches the caller and the map keeps its pairs.
+  // A function of the keys brings back the search that copies nothing. An
+  // open table with keys places them again with a new function, as
+  // rehash() does, which copies them: if a copy fails, the table keeps its
+  // function and its keys.
+  // =========================================================================
+
+  size_t other_hash_of(const Copy_Fails & item) noexcept
+  {
+    return static_cast<size_t>(item.value) * 40503u + 17;
+  }
+
+  // Another function than hash_of(), which the maps are built with: a
+  // search by the hash of the keys that the map was built with misses
+  size_t pair_hash_of(const std::pair<Copy_Fails, Default_Fails> & p) noexcept
+  {
+    return other_hash_of(p.first);
+  }
+
+  size_t second_hash_of(const Copy_Fails & item) noexcept
+  {
+    return static_cast<size_t>(item.value) * 3 + 11;
+  }
+
+  // A map that searches by pairs, with the pairs (k, k) of the even k
+  template <class Map>
+  struct Map_By_Pairs
+  {
+    Map map{101, hash_of};
+
+    Map_By_Pairs()
+    {
+      map.set_hash_fct(pair_hash_of);
+      for (long k = 0; k < Keys; k += 2)
+        (void) map.insert(Copy_Fails(k), Default_Fails(k));
+    }
+
+    void holds_its_pairs()
+    {
+      for (long k = -1; k <= Keys; ++k)
+        {
+          const Copy_Fails key(k);
+          const auto * p = map.search(key);
+          EXPECT_EQ(p != nullptr, k >= 0 and k < Keys and k % 2 == 0) << "key " << k;
+          if (p != nullptr)
+            EXPECT_EQ(p->second.value, k);
+        }
+    }
+  };
+
+  template <class Map>
+  void search_by_pairs_lets_the_failure_through(const std::string & name)
+  {
+    static_assert(not noexcept(std::declval<Map &>().search(std::declval<const Copy_Fails &>())));
+    for (const long key : {4L, 5L})  // a key of the map and one that is not
+      try_every_failure<Map_By_Pairs<Map>>(name + "::search() by pairs", true,
+                                           [key] (Map_By_Pairs<Map> & t)
+                                           {
+                                             const Copy_Fails k(key);
+                                             (void) t.map.search(k);
+                                           },
+                                           [] (Map_By_Pairs<Map> & t, bool) { t.holds_its_pairs(); });
+  }
+
+  TEST(Hash_Map_By_Pairs, SearchLetsTheFailureThrough)
+  {
+    search_by_pairs_lets_the_failure_through<DynMapLinHash<Copy_Fails, Default_Fails>>("DynMapLinHash");
+    search_by_pairs_lets_the_failure_through<DynMapHash<Copy_Fails, Default_Fails>>("DynMapHash");
+  }
+
+  template <class Map>
+  void search_by_keys_copies_nothing()
+  {
+    Map map(101, hash_of);
+    map.set_hash_fct(pair_hash_of);
+    map.set_hash_fct(other_hash_of);
+    for (long k = 0; k < Keys; k += 2)
+      (void) map.insert(Copy_Fails(k), Default_Fails(k));
+
+    for (long k = -1; k <= Keys; ++k)
+      {
+        const Copy_Fails key(k);
+        Failures::done = 0;
+        const auto * p = map.search(key);
+        const bool has = map.has(key);
+        EXPECT_EQ(Failures::done, 0) << "searching for " << k << " copied a key or built a Data";
+        EXPECT_EQ(p != nullptr, k >= 0 and k < Keys and k % 2 == 0) << "key " << k;
+        EXPECT_EQ(has, p != nullptr) << "key " << k;
+      }
+  }
+
+  TEST(Hash_Map_By_Keys, SearchCopiesNothingAfterAFunctionOfPairs)
+  {
+    search_by_keys_copies_nothing<DynMapLinHash<Copy_Fails, Default_Fails>>();
+    search_by_keys_copies_nothing<DynMapHash<Copy_Fails, Default_Fails>>();
+  }
+
+  // An open table with the keys [0, Keys)
+  template <class Table>
+  struct Open_Table
+  {
+    Table table = make();
+
+    static Table make()
+    {
+      if constexpr (std::is_same_v<Table, ODhashTable<Copy_Fails>>)
+        return Table(101, hash_of, second_hash_of);
+      else
+        return Table(101, hash_of);
+    }
+
+    Open_Table()
+    {
+      for (long k = 0; k < Keys; ++k)
+        (void) table.insert(Copy_Fails(k));
+    }
+
+    void holds_its_keys()
+    {
+      EXPECT_EQ(table.size(), static_cast<size_t>(Keys));
+      for (long k = -1; k <= Keys; ++k)
+        EXPECT_EQ(table.search(Copy_Fails(k)) != nullptr, k >= 0 and k < Keys) << "key " << k;
+    }
+  };
+
+  TEST(Open_Hash_Table, SetHashFctKeepsItsFunctionWhenACopyFails)
+  {
+    using OL = Open_Table<OLhashTable<Copy_Fails>>;
+    using OD = Open_Table<ODhashTable<Copy_Fails>>;
+    try_every_failure<OL>("OLhashTable::set_hash_fct()", true,
+                          [] (OL & t) { t.table.set_hash_fct(other_hash_of); },
+                          [] (OL & t, bool) { t.holds_its_keys(); });
+    try_every_failure<OD>("ODhashTable::set_hash_fct()", true,
+                          [] (OD & t) { t.table.set_hash_fct(other_hash_of); },
+                          [] (OD & t, bool) { t.holds_its_keys(); });
+    try_every_failure<OD>("ODhashTable::set_second_hash_fct()", true,
+                          [] (OD & t) { t.table.set_second_hash_fct(other_hash_of); },
+                          [] (OD & t, bool) { t.holds_its_keys(); });
   }
 
 

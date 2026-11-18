@@ -407,23 +407,37 @@ namespace Aleph
 
     /** @brief Sets the hash function.
 
-        The buckets already in the table are not moved to the lists that
-        the new function assigns to them.
+        On a table that is not empty, it places every bucket again with the
+        new function, as resize() does, so the keys already stored are
+        still found.
 
         @param[in] fct The new hash function.
-        @warning If the table is not empty, call `resize(capacity())` right
-        after: it places every bucket again with the new function. Until
-        then the keys already stored may not be found.
+        @throws std::bad_alloc if there is no memory for the lists where the
+        buckets go again; the table then keeps its function and its lists.
+        @note It takes O(1) on an empty table and O(n) otherwise.
     */
-    void set_hash_fct(Hash_Fct fct) noexcept
+    void set_hash_fct(Hash_Fct fct)
     {
-      hash_fct = fct;
+      Hash_Fct old = std::move(hash_fct);
+      hash_fct = std::move(fct);
+      if (N == 0)
+        return;
+
+      try
+        {
+          resize(len); // it allocates the new lists before it moves a bucket
+        }
+      catch (...)
+        {
+          hash_fct = std::move(old);
+          throw;
+        }
     }
 
     /// @overload
-    void set_hash_fct(Hash_Fct_Ptr fct) noexcept
+    void set_hash_fct(Hash_Fct_Ptr fct)
     {
-      hash_fct = Hash_Fct(fct);
+      set_hash_fct(Hash_Fct(fct));
     }
 
     /// return the current table load

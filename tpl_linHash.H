@@ -330,22 +330,26 @@ private:
 
 public:
 
-  /** @brief Sets the hash function.
+  /** @brief Sets the hash function of an empty table.
 
       @param[in] fct The new hash function.
-      @pre The table is empty. The buckets already stored are not moved to
-      the lists that the new function assigns to them, and linear hashing
-      has no operation that places them again, so their keys may not be
-      found afterwards.
+      @throws std::domain_error if the table is not empty: the buckets
+      already stored would stay in the lists of the old function, where
+      their keys may not be found, and linear hashing has no operation
+      that places them again. The table then keeps its function.
   */
-  void set_hash_fct(Hash_Fct fct) noexcept
+  void set_hash_fct(Hash_Fct fct)
   {
-    hash_fct = fct;
+    ah_domain_error_if(not is_empty())
+      << "LinearHashTable::set_hash_fct(): the table is not empty";
+    hash_fct = std::move(fct);
   }
 
   /// @overload
-  void set_hash_fct(Hash_Fct_Ptr fct) noexcept
+  void set_hash_fct(Hash_Fct_Ptr fct)
   {
+    ah_domain_error_if(not is_empty())
+      << "LinearHashTable::set_hash_fct(): the table is not empty";
     hash_fct = Hash_Fct(fct);
   }
 
