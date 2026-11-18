@@ -95,6 +95,7 @@
 # include <algorithm>
 # include <cstddef>
 # include <limits>
+# include <type_traits>
 # include <utility>
 
 # include <ah-errors.H>
@@ -120,6 +121,7 @@ namespace Aleph
     template <AlephGraph GT, ArcFilter<GT> SA>
     class HLD_Tree_Data
     {
+      // moved-from: tested through HLD_Sum, which keeps it (Tests/moved_from_graphs_test.cc)
     public:
       using Node = typename GT::Node;
       using Arc = typename GT::Arc;
@@ -459,6 +461,99 @@ namespace Aleph
         compute_hld_positions();
       }
 
+      /** @brief Copy the decomposition of another tree.
+       *  @param[in] other topology to copy.
+       */
+      HLD_Tree_Data(const HLD_Tree_Data & other) = default;
+
+      /** @brief Take the decomposition of another tree, which is left
+       *         empty.
+       *
+       *  The implicit move took the arrays and the map but copied the
+       *  number of nodes, the root and the number of chains: the
+       *  moved-from topology then passed the checks of the ids and read
+       *  arrays that it no longer had.
+       *
+       *  @param[in,out] other topology to move from.
+       */
+      HLD_Tree_Data(HLD_Tree_Data && other) noexcept(std::is_nothrow_move_constructible_v<SA>)
+        : graph_(std::exchange(other.graph_, nullptr)), sa_(std::move(other.sa_)),
+          root_(std::exchange(other.root_, nullptr)),
+          root_id_(std::exchange(other.root_id_, NONE)), n_(std::exchange(other.n_, 0)),
+          id_to_node_(std::move(other.id_to_node_)), node_to_id_(std::move(other.node_to_id_)),
+          adjacency_(std::move(other.adjacency_)), parent_(std::move(other.parent_)),
+          depth_(std::move(other.depth_)), subtree_size_(std::move(other.subtree_size_)),
+          pos_(std::move(other.pos_)), chain_head_(std::move(other.chain_head_)),
+          tin_(std::move(other.tin_)), tout_(std::move(other.tout_)),
+          num_chains_(std::exchange(other.num_chains_, 0))
+      {}
+
+      /** @brief Copy the decomposition of another tree.
+       *  @param[in] other topology to copy.
+       *  @return this topology.
+       */
+      HLD_Tree_Data & operator = (const HLD_Tree_Data & other) = default;
+
+      /** @brief Exchange this topology with another, which is left with
+       *         the previous decomposition of this one.
+       *  @param[in,out] other topology to move from.
+       *  @return this topology.
+       */
+      HLD_Tree_Data & operator = (HLD_Tree_Data && other) noexcept(noexcept(swap(other)))
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) this topology and another.
+       *  @param[in,out] other topology to exchange with.
+       *  @throw what swapping the filters throws. They are exchanged first,
+       *         so that, if that swap throws, nothing else is exchanged, and
+       *         both topologies are left as they were if it left its
+       *         arguments as they were.
+       */
+      void swap(HLD_Tree_Data & other) noexcept(std::is_nothrow_swappable_v<SA>)
+      {
+        swap_filter(other);
+        swap_but_filter(other);
+      }
+
+      /** @brief Exchange the filters of this topology and another, for an
+       *         owner that exchanges something else before the rest.
+       *  @param[in,out] other topology to exchange with.
+       *  @throw what swapping the filters throws.
+       */
+      void swap_filter(HLD_Tree_Data & other) noexcept(std::is_nothrow_swappable_v<SA>)
+      {
+        // the swap that the specification evaluates: that of SA, found by
+        // its arguments, else std::swap()
+        using std::swap;
+        swap(sa_, other.sa_);
+      }
+
+      /** @brief Exchange in O(1) all but the filters of this topology and
+       *         another.
+       *  @param[in,out] other topology to exchange with.
+       */
+      void swap_but_filter(HLD_Tree_Data & other) noexcept
+      {
+        std::swap(graph_, other.graph_);
+        std::swap(root_, other.root_);
+        std::swap(root_id_, other.root_id_);
+        std::swap(n_, other.n_);
+        id_to_node_.swap(other.id_to_node_);
+        node_to_id_.swap(other.node_to_id_);
+        adjacency_.swap(other.adjacency_);
+        parent_.swap(other.parent_);
+        depth_.swap(other.depth_);
+        subtree_size_.swap(other.subtree_size_);
+        pos_.swap(other.pos_);
+        chain_head_.swap(other.chain_head_);
+        tin_.swap(other.tin_);
+        tout_.swap(other.tout_);
+        std::swap(num_chains_, other.num_chains_);
+      }
+
       [[nodiscard]] size_t size() const noexcept { return n_; }
       [[nodiscard]] bool is_empty() const noexcept { return n_ == 0; }
       [[nodiscard]] Node * root() const noexcept { return root_; }
@@ -601,6 +696,112 @@ namespace Aleph
       build_segment_tree(std::forward<NodeValueFn>(node_value));
     }
 
+    /** @brief Copy the decomposition and the values of another HLD.
+     *  @param[in] other HLD to copy.
+     */
+    Gen_HLD(const Gen_HLD & other) = default;
+
+    /** @brief Take the decomposition and the values of another HLD, which
+     *         is left empty.
+     *
+     *  The topology of the moved-from HLD is empty, so that the HLD never
+     *  queries the segment tree that the move leaves to it.
+     *
+     *  @param[in,out] other HLD to move from.
+     */
+    Gen_HLD(Gen_HLD && other) = default;
+
+    /** @brief Copy the decomposition and the values of another HLD.
+     *  @param[in] other HLD to copy.
+     *  @return this HLD.
+     */
+    Gen_HLD & operator = (const Gen_HLD & other) = default;
+
+    /** @brief Exchange this HLD with another, which is left with the
+     *         previous tree and values of this one.
+     *
+     *  The implicit assignment left the segment tree to its own move
+     *  assignment, which exchanged its array but copied its size, and
+     *  copied the identity: the moved-from HLD then queried the tree that
+     *  it received with the size of its own.
+     *
+     *  @param[in,out] other HLD to move from.
+     *  @return this HLD.
+     */
+    Gen_HLD & operator = (Gen_HLD && other) noexcept(noexcept(swap(other)))
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) this HLD and another.
+     *  @param[in,out] other HLD to exchange with.
+     *  @throw what swapping the operations, the values or the filters
+     *         throws. They are exchanged before the topologies and the
+     *         segment trees, which are exchanged together: if a swap
+     *         throws, those before it are exchanged back, and both HLDs are
+     *         left as they were, if the swap that threw left its arguments
+     *         as they were. If a swap that puts one back throws too, both
+     *         HLDs can only be destroyed or assigned.
+     */
+    void swap(Gen_HLD & other)
+      noexcept(std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
+               and std::is_nothrow_swappable_v<SA>)
+    {
+      // The swaps that the specification evaluates: found by the
+      // arguments, else std::swap()
+      using std::swap;
+      if constexpr (std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>
+                    and std::is_nothrow_swappable_v<SA>)
+        {
+          // None may throw: the order cannot be seen, and that of the
+          // members keeps the code of an identity that has state, an int
+          swap(op_, other.op_);
+          topology_.swap(other.topology_);
+          swap(identity_, other.identity_);
+          seg_.swap(other.seg_);
+        }
+      else
+        {
+          // The rest of the topologies, which cannot throw, goes last, so
+          // that no topology is left without its segment tree
+          swap_but_topology_storage(other);
+          topology_.swap_but_filter(other.topology_);
+        }
+    }
+
+  private:
+    // The operations, the values, the filters of the topologies and the
+    // segment trees, whose swap is all or none, with the swaps that the
+    // specification of swap() evaluates, all or none: if one throws, those
+    // before it are exchanged back
+    void swap_but_topology_storage(Gen_HLD & other)
+    {
+      using std::swap;
+      int done = 0;
+      try
+        {
+          swap(op_, other.op_);
+          ++done;
+          swap(identity_, other.identity_);
+          ++done;
+          topology_.swap_filter(other.topology_);
+          ++done;
+          seg_.swap(other.seg_);
+        }
+      catch (...)
+        {
+          if (done > 2)
+            topology_.swap_filter(other.topology_);
+          if (done > 1)
+            swap(identity_, other.identity_);
+          if (done > 0)
+            swap(op_, other.op_);
+          throw;
+        }
+    }
+
+  public:
     /** @brief Total number of nodes in the tree. */
     [[nodiscard]] size_t size() const noexcept { return topology_.size(); }
 

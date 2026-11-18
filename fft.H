@@ -72,6 +72,7 @@
 # include <numbers>
 # include <string_view>
 # include <type_traits>
+# include <utility>
 
 # if (defined(__GNUC__) or defined(__clang__)) \
       and (defined(__x86_64__) or defined(__i386__) \
@@ -7303,6 +7304,76 @@ namespace Aleph
         initialize_bluestein_plan();
       }
 
+      /** @brief Copy the tables of another plan.
+       *  @param[in] other plan to copy.
+       *  @throws std::bad_alloc if the tables cannot be allocated.
+       */
+      Plan(const Plan & other) = default;
+
+      /** @brief Take the tables of another plan, which is left empty (size 0).
+       *
+       *  The implicit move took the tables but copied the size and the
+       *  strategy: the moved-from plan then read a bit-reversal table that it
+       *  no longer had.
+       *
+       *  @param[in,out] other plan to move from.
+       *  @note Complexity: O(1).
+       */
+      Plan(Plan && other) noexcept
+        : n_(std::exchange(other.n_, 0)),
+          strategy_(std::exchange(other.strategy_, Strategy::empty)),
+          log_n_(std::exchange(other.log_n_, 0)),
+          bit_rev_(std::move(other.bit_rev_)),
+          twiddles_(std::move(other.twiddles_)),
+          half_plan_(std::move(other.half_plan_)),
+          factors_(std::move(other.factors_)),
+          roots_(std::move(other.roots_)),
+          bluestein_size_(std::exchange(other.bluestein_size_, 0)),
+          bluestein_chirp_(std::move(other.bluestein_chirp_)),
+          bluestein_kernel_forward_(std::move(other.bluestein_kernel_forward_)),
+          bluestein_kernel_inverse_(std::move(other.bluestein_kernel_inverse_)),
+          bluestein_plan_(std::move(other.bluestein_plan_))
+      {}
+
+      /** @brief Copy the tables of another plan.
+       *  @param[in] other plan to copy.
+       *  @return this plan.
+       *  @throws std::bad_alloc if the tables cannot be allocated.
+       */
+      Plan & operator = (const Plan & other) = default;
+
+      /** @brief Exchange this plan with another, which is left with the
+       *         previous tables of this one.
+       *  @param[in,out] other plan to move from.
+       *  @return this plan.
+       *  @note Complexity: O(1).
+       */
+      Plan & operator = (Plan && other) noexcept
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) the tables of this plan and another.
+       *  @param[in,out] other plan to exchange with.
+       */
+      void swap(Plan & other) noexcept
+      {
+        std::swap(n_, other.n_);
+        std::swap(strategy_, other.strategy_);
+        std::swap(log_n_, other.log_n_);
+        bit_rev_.swap(other.bit_rev_);
+        twiddles_.swap(other.twiddles_);
+        half_plan_.swap(other.half_plan_);
+        factors_.swap(other.factors_);
+        roots_.swap(other.roots_);
+        std::swap(bluestein_size_, other.bluestein_size_);
+        bluestein_chirp_.swap(other.bluestein_chirp_);
+        bluestein_kernel_forward_.swap(other.bluestein_kernel_forward_);
+        bluestein_kernel_inverse_.swap(other.bluestein_kernel_inverse_);
+        bluestein_plan_.swap(other.bluestein_plan_);
+      }
+
       /** @brief Returns the transform size this plan was built for. */
       [[nodiscard]] size_t size() const noexcept { return n_; }
 
@@ -10379,6 +10450,72 @@ namespace Aleph
         : STFTProcessor(FFT::build_real_input(window), options)
       {}
 
+      /** @brief Copy the configuration and the pending samples of another
+       *         processor.
+       *  @param[in] other processor to copy.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      STFTProcessor(const STFTProcessor & other) = default;
+
+      /** @brief Take the configuration and the pending samples of another
+       *         processor, which is left unconfigured, as built by default.
+       *
+       *  The implicit move took the window, the plan and the pending samples
+       *  but copied the FFT size and the flags: the moved-from processor then
+       *  said that it was configured and transformed frames with a plan that
+       *  it no longer had.
+       *
+       *  @param[in,out] other processor to move from.
+       *  @note Complexity: O(1).
+       */
+      STFTProcessor(STFTProcessor && other) noexcept
+        : window_(std::move(other.window_)),
+          options_(std::exchange(other.options_, STFTOptions())),
+          fft_size_(std::exchange(other.fft_size_, 0)),
+          center_pad_(std::exchange(other.center_pad_, 0)),
+          plan_(std::move(other.plan_)),
+          pending_(std::move(other.pending_)),
+          configured_(std::exchange(other.configured_, false)),
+          has_seen_input_(std::exchange(other.has_seen_input_, false)),
+          finalized_(std::exchange(other.finalized_, false))
+      {}
+
+      /** @brief Copy the configuration and the pending samples of another
+       *         processor.
+       *  @param[in] other processor to copy.
+       *  @return this processor.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      STFTProcessor & operator = (const STFTProcessor & other) = default;
+
+      /** @brief Exchange this processor with another, which is left with the
+       *         previous state of this one.
+       *  @param[in,out] other processor to move from.
+       *  @return this processor.
+       *  @note Complexity: O(1).
+       */
+      STFTProcessor & operator = (STFTProcessor && other) noexcept
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) the state of this processor and another.
+       *  @param[in,out] other processor to exchange with.
+       */
+      void swap(STFTProcessor & other) noexcept
+      {
+        window_.swap(other.window_);
+        std::swap(options_, other.options_);
+        std::swap(fft_size_, other.fft_size_);
+        std::swap(center_pad_, other.center_pad_);
+        plan_.swap(other.plan_);
+        pending_.swap(other.pending_);
+        std::swap(configured_, other.configured_);
+        std::swap(has_seen_input_, other.has_seen_input_);
+        std::swap(finalized_, other.finalized_);
+      }
+
       [[nodiscard]] size_t frame_size() const noexcept
       {
         return window_.size();
@@ -10799,6 +10936,84 @@ namespace Aleph
                          FFT::build_real_input(synthesis_window),
                          options)
       {}
+
+      /** @brief Copy the configuration and the pending samples of another
+       *         processor.
+       *  @param[in] other processor to copy.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      ISTFTProcessor(const ISTFTProcessor & other) = default;
+
+      /** @brief Take the configuration and the pending samples of another
+       *         processor, which is left unconfigured, as built by default.
+       *
+       *  The implicit move took the windows, the plan and the pending samples
+       *  but copied the FFT size, the counters and the flags: the moved-from
+       *  processor then said that it was configured and transformed frames
+       *  with a plan that it no longer had.
+       *
+       *  @param[in,out] other processor to move from.
+       *  @note Complexity: O(1).
+       */
+      ISTFTProcessor(ISTFTProcessor && other) noexcept
+        : analysis_window_(std::move(other.analysis_window_)),
+          synthesis_window_(std::move(other.synthesis_window_)),
+          options_(std::exchange(other.options_, ISTFTOptions())),
+          fft_size_(std::exchange(other.fft_size_, 0)),
+          center_pad_(std::exchange(other.center_pad_, 0)),
+          plan_(std::move(other.plan_)),
+          pending_output_(std::move(other.pending_output_)),
+          pending_norm_(std::move(other.pending_norm_)),
+          frames_processed_(std::exchange(other.frames_processed_, 0)),
+          emitted_raw_samples_(std::exchange(other.emitted_raw_samples_, 0)),
+          left_trim_remaining_(std::exchange(other.left_trim_remaining_, 0)),
+          emitted_signal_samples_(std::exchange(other.emitted_signal_samples_, 0)),
+          configured_(std::exchange(other.configured_, false)),
+          has_seen_frame_(std::exchange(other.has_seen_frame_, false)),
+          finalized_(std::exchange(other.finalized_, false))
+      {}
+
+      /** @brief Copy the configuration and the pending samples of another
+       *         processor.
+       *  @param[in] other processor to copy.
+       *  @return this processor.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      ISTFTProcessor & operator = (const ISTFTProcessor & other) = default;
+
+      /** @brief Exchange this processor with another, which is left with the
+       *         previous state of this one.
+       *  @param[in,out] other processor to move from.
+       *  @return this processor.
+       *  @note Complexity: O(1).
+       */
+      ISTFTProcessor & operator = (ISTFTProcessor && other) noexcept
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) the state of this processor and another.
+       *  @param[in,out] other processor to exchange with.
+       */
+      void swap(ISTFTProcessor & other) noexcept
+      {
+        analysis_window_.swap(other.analysis_window_);
+        synthesis_window_.swap(other.synthesis_window_);
+        std::swap(options_, other.options_);
+        std::swap(fft_size_, other.fft_size_);
+        std::swap(center_pad_, other.center_pad_);
+        plan_.swap(other.plan_);
+        pending_output_.swap(other.pending_output_);
+        pending_norm_.swap(other.pending_norm_);
+        std::swap(frames_processed_, other.frames_processed_);
+        std::swap(emitted_raw_samples_, other.emitted_raw_samples_);
+        std::swap(left_trim_remaining_, other.left_trim_remaining_);
+        std::swap(emitted_signal_samples_, other.emitted_signal_samples_);
+        std::swap(configured_, other.configured_);
+        std::swap(has_seen_frame_, other.has_seen_frame_);
+        std::swap(finalized_, other.finalized_);
+      }
 
       [[nodiscard]] size_t frame_size() const noexcept
       {
@@ -11567,6 +11782,59 @@ namespace Aleph
         : LFilter(build_real_input(numerator), build_real_input(denominator))
       {}
 
+      /** @brief Copy the coefficients and the state of another filter.
+       *  @param[in] other filter to copy.
+       *  @throws std::bad_alloc if the arrays cannot be allocated.
+       */
+      LFilter(const LFilter & other) = default;
+
+      /** @brief Take the coefficients and the state of another filter, which
+       *         is left unconfigured, as built by default.
+       *
+       *  The implicit move took the coefficients but copied the configured
+       *  flag: the moved-from filter then said that it was configured, and
+       *  filter() computed its order from an empty denominator.
+       *
+       *  @param[in,out] other filter to move from.
+       *  @note Complexity: O(1).
+       */
+      LFilter(LFilter && other) noexcept
+        : coeffs_(std::move(other.coeffs_)),
+          state_(std::move(other.state_)),
+          configured_(std::exchange(other.configured_, false))
+      {}
+
+      /** @brief Copy the coefficients and the state of another filter.
+       *  @param[in] other filter to copy.
+       *  @return this filter.
+       *  @throws std::bad_alloc if the arrays cannot be allocated.
+       */
+      LFilter & operator = (const LFilter & other) = default;
+
+      /** @brief Exchange this filter with another, which is left with the
+       *         previous coefficients and state of this one.
+       *  @param[in,out] other filter to move from.
+       *  @return this filter.
+       *  @note Complexity: O(1).
+       */
+      LFilter & operator = (LFilter && other) noexcept
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) the coefficients and the state of this
+       *         filter and another.
+       *  @param[in,out] other filter to exchange with.
+       */
+      void swap(LFilter & other) noexcept
+      {
+        coeffs_.numerator.swap(other.coeffs_.numerator);
+        coeffs_.denominator.swap(other.coeffs_.denominator);
+        state_.swap(other.state_);
+        std::swap(configured_, other.configured_);
+      }
+
       /** @brief Returns the filter order (number of feedback coefficients - 1). */
       [[nodiscard]] size_t order() const noexcept
       {
@@ -11690,6 +11958,60 @@ namespace Aleph
       explicit SOSFilter(const SectionsContainer & sections)
         : SOSFilter(to_array<BiquadSection>(sections))
       {}
+
+      /** @brief Copy the sections and the states of another cascade.
+       *  @param[in] other cascade to copy.
+       *  @throws std::bad_alloc if the arrays cannot be allocated.
+       */
+      SOSFilter(const SOSFilter & other) = default;
+
+      /** @brief Take the sections and the states of another cascade, which is
+       *         left unconfigured, as built by default.
+       *
+       *  The implicit move took the sections but copied the configured flag:
+       *  the moved-from cascade then said that it was configured, and
+       *  filter() returned its input unchanged, through no section.
+       *
+       *  @param[in,out] other cascade to move from.
+       *  @note Complexity: O(1).
+       */
+      SOSFilter(SOSFilter && other) noexcept
+        : sections_(std::move(other.sections_)),
+          coeffs_(std::move(other.coeffs_)),
+          states_(std::move(other.states_)),
+          configured_(std::exchange(other.configured_, false))
+      {}
+
+      /** @brief Copy the sections and the states of another cascade.
+       *  @param[in] other cascade to copy.
+       *  @return this cascade.
+       *  @throws std::bad_alloc if the arrays cannot be allocated.
+       */
+      SOSFilter & operator = (const SOSFilter & other) = default;
+
+      /** @brief Exchange this cascade with another, which is left with the
+       *         previous sections and states of this one.
+       *  @param[in,out] other cascade to move from.
+       *  @return this cascade.
+       *  @note Complexity: O(1).
+       */
+      SOSFilter & operator = (SOSFilter && other) noexcept
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) the sections and the states of this cascade
+       *         and another.
+       *  @param[in,out] other cascade to exchange with.
+       */
+      void swap(SOSFilter & other) noexcept
+      {
+        sections_.swap(other.sections_);
+        coeffs_.swap(other.coeffs_);
+        states_.swap(other.states_);
+        std::swap(configured_, other.configured_);
+      }
 
       /** @brief Returns the number of sections in the cascade. */
       [[nodiscard]] size_t num_sections() const noexcept
@@ -13797,6 +14119,7 @@ namespace Aleph
         return next_power_of_two(std::max(kernel_size, size_t(1)));
       }
 
+
       /** @brief Rationale: Prepares a chunk of signal for FFT by zero-padding it
        *         to the internal @ref fft_size().
        */
@@ -13974,6 +14297,68 @@ namespace Aleph
         plan_.transform(kernel_spectrum_, false);
       }
 
+      /** @brief Copy the kernel, the plan and the pending tail of another
+       *         convolver.
+       *  @param[in] other convolver to copy.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      OverlapAdd(const OverlapAdd & other) = default;
+
+      /** @brief Take the state of another convolver, which is left empty.
+       *
+       *  The implicit move took the kernel, the plan and the buffers but
+       *  copied the sizes: the moved-from convolver then transformed blocks
+       *  with a plan that it no longer had. Now its sizes are 0 and it has
+       *  no kernel: it rejects every block and signal, while reset(),
+       *  flush() and an assignment to it still work.
+       *
+       *  @param[in,out] other convolver to move from.
+       *  @note Complexity: O(1).
+       */
+      OverlapAdd(OverlapAdd && other) noexcept
+        : kernel_(std::move(other.kernel_)),
+          block_size_(std::exchange(other.block_size_, 0)),
+          fft_size_(std::exchange(other.fft_size_, 0)),
+          plan_(std::move(other.plan_)),
+          kernel_spectrum_(std::move(other.kernel_spectrum_)),
+          overlap_(std::move(other.overlap_)),
+          has_pending_tail_(std::exchange(other.has_pending_tail_, false))
+      {}
+
+      /** @brief Copy the kernel, the plan and the pending tail of another
+       *         convolver.
+       *  @param[in] other convolver to copy.
+       *  @return this convolver.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      OverlapAdd & operator = (const OverlapAdd & other) = default;
+
+      /** @brief Exchange this convolver with another, which is left with the
+       *         previous state of this one.
+       *  @param[in,out] other convolver to move from.
+       *  @return this convolver.
+       *  @note Complexity: O(1).
+       */
+      OverlapAdd & operator = (OverlapAdd && other) noexcept
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) the state of this convolver and another.
+       *  @param[in,out] other convolver to exchange with.
+       */
+      void swap(OverlapAdd & other) noexcept
+      {
+        kernel_.swap(other.kernel_);
+        std::swap(block_size_, other.block_size_);
+        std::swap(fft_size_, other.fft_size_);
+        plan_.swap(other.plan_);
+        kernel_spectrum_.swap(other.kernel_spectrum_);
+        overlap_.swap(other.overlap_);
+        std::swap(has_pending_tail_, other.has_pending_tail_);
+      }
+
       [[nodiscard]] size_t block_size() const noexcept { return block_size_; }
       [[nodiscard]] size_t fft_size() const noexcept { return fft_size_; }
       [[nodiscard]] const Array<Real> &kernel() const noexcept { return kernel_; }
@@ -13984,22 +14369,61 @@ namespace Aleph
         clear_overlap();
       }
 
+      /** @brief Convolve a whole signal with the kernel.
+       *  @param[in] signal signal to convolve.
+       *  @return the linear convolution, with
+       *          signal.size() + kernel().size() - 1 samples; empty for an
+       *          empty signal.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       *  @throws std::invalid_argument if the size of the result overflows
+       *          size_t.
+       */
       [[nodiscard]] Array<Real>
       convolve(const Array<Real> & signal) const
       {
+        // a moved-from convolver has no kernel: the size of the result would wrap
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::OverlapAdd::convolve: convolver is empty (it was moved from)";
         return convolve_impl(signal, nullptr, 0);
       }
 
+      /** @brief Convolve a whole signal with the kernel, with parallel
+       *         transforms.
+       *  @param[in] pool thread pool for the transforms.
+       *  @param[in] signal signal to convolve.
+       *  @param[in] chunk_size minimum iterations per parallel chunk (0 =
+       *             auto).
+       *  @return the linear convolution, as convolve() gives it.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       *  @throws std::invalid_argument if the size of the result overflows
+       *          size_t.
+       */
       [[nodiscard]] Array<Real>
       pconvolve(ThreadPool & pool, const Array<Real> & signal,
                 const size_t chunk_size = 0) const
       {
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::OverlapAdd::pconvolve: convolver is empty (it was moved from)";
         return convolve_impl(signal, &pool, chunk_size);
       }
 
+      /** @brief Convolve the next samples of a stream; the tail of each
+       *         block is added to the next ones, and flush() returns the
+       *         last one.
+       *  @param[in] block next samples, of any number: they are taken
+       *             block_size() at a time.
+       *  @return one output sample for each sample of @p block.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       [[nodiscard]] Array<Real>
       process_block(const Array<Real> & block)
       {
+        // a moved-from convolver has a block size of 0: the loop would not advance
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::OverlapAdd::process_block: convolver is empty (it was moved from)";
         if (block.is_empty())
           return {};
 
@@ -14021,10 +14445,21 @@ namespace Aleph
         return emitted;
       }
 
+      /** @brief process_block() with parallel transforms.
+       *  @param[in] pool thread pool for the transforms.
+       *  @param[in] block next samples, of any number.
+       *  @param[in] chunk_size minimum iterations per parallel chunk (0 =
+       *             auto).
+       *  @return one output sample for each sample of @p block.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       [[nodiscard]] Array<Real>
       pprocess_block(ThreadPool & pool, const Array<Real> & block,
                      const size_t chunk_size = 0)
       {
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::OverlapAdd::pprocess_block: convolver is empty (it was moved from)";
         if (block.is_empty())
           return {};
 
@@ -14060,6 +14495,13 @@ namespace Aleph
         return tail;
       }
 
+      /** @brief convolve() of the samples of a real container.
+       *  @tparam Container type of the container.
+       *  @param[in] signal signal to convolve.
+       *  @return the linear convolution.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -14068,6 +14510,16 @@ namespace Aleph
         return convolve(build_real_input(signal));
       }
 
+      /** @brief pconvolve() of the samples of a real container.
+       *  @tparam Container type of the container.
+       *  @param[in] pool thread pool for the transforms.
+       *  @param[in] signal signal to convolve.
+       *  @param[in] chunk_size minimum iterations per parallel chunk (0 =
+       *             auto).
+       *  @return the linear convolution.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -14077,6 +14529,13 @@ namespace Aleph
         return pconvolve(pool, build_real_input(signal), chunk_size);
       }
 
+      /** @brief process_block() of the samples of a real container.
+       *  @tparam Container type of the container.
+       *  @param[in] block next samples.
+       *  @return one output sample for each sample of @p block.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -14085,6 +14544,16 @@ namespace Aleph
         return process_block(build_real_input(block));
       }
 
+      /** @brief pprocess_block() of the samples of a real container.
+       *  @tparam Container type of the container.
+       *  @param[in] pool thread pool for the transforms.
+       *  @param[in] block next samples.
+       *  @param[in] chunk_size minimum iterations per parallel chunk (0 =
+       *             auto).
+       *  @return one output sample for each sample of @p block.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -14130,6 +14599,7 @@ namespace Aleph
           << ctx << ": batch size " << count
           << " does not match configured channel count " << overlaps_.size();
       }
+
 
       /** @brief Returns the maximum signal length in a batch. */
       [[nodiscard]] static size_t
@@ -14419,6 +14889,68 @@ namespace Aleph
         plan_.transform(kernel_spectrum_, false);
       }
 
+      /** @brief Copy the kernel, the plan and the pending tails of another
+       *         bank.
+       *  @param[in] other bank to copy.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      OverlapAddBank(const OverlapAddBank & other) = default;
+
+      /** @brief Take the state of another bank, which is left empty.
+       *
+       *  The implicit move took the kernel, the plan and the buffers but
+       *  copied the sizes: after a move assignment, the source kept its sizes
+       *  with the plan tables and the buffers of the other bank. Now it has
+       *  no channels, no kernel and sizes of 0: it rejects every batch, while
+       *  reset(), flush() and an assignment to it still work.
+       *
+       *  @param[in,out] other bank to move from.
+       *  @note Complexity: O(1).
+       */
+      OverlapAddBank(OverlapAddBank && other) noexcept
+        : kernel_(std::move(other.kernel_)),
+          block_size_(std::exchange(other.block_size_, 0)),
+          fft_size_(std::exchange(other.fft_size_, 0)),
+          plan_(std::move(other.plan_)),
+          kernel_spectrum_(std::move(other.kernel_spectrum_)),
+          overlaps_(std::move(other.overlaps_)),
+          has_pending_tail_(std::move(other.has_pending_tail_))
+      {}
+
+      /** @brief Copy the kernel, the plan and the pending tails of another
+       *         bank.
+       *  @param[in] other bank to copy.
+       *  @return this bank.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      OverlapAddBank & operator = (const OverlapAddBank & other) = default;
+
+      /** @brief Exchange this bank with another, which is left with the
+       *         previous state of this one.
+       *  @param[in,out] other bank to move from.
+       *  @return this bank.
+       *  @note Complexity: O(1).
+       */
+      OverlapAddBank & operator = (OverlapAddBank && other) noexcept
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) the state of this bank and another.
+       *  @param[in,out] other bank to exchange with.
+       */
+      void swap(OverlapAddBank & other) noexcept
+      {
+        kernel_.swap(other.kernel_);
+        std::swap(block_size_, other.block_size_);
+        std::swap(fft_size_, other.fft_size_);
+        plan_.swap(other.plan_);
+        kernel_spectrum_.swap(other.kernel_spectrum_);
+        overlaps_.swap(other.overlaps_);
+        has_pending_tail_.swap(other.has_pending_tail_);
+      }
+
       [[nodiscard]] size_t num_channels() const noexcept
       {
         return overlaps_.size();
@@ -14426,7 +14958,16 @@ namespace Aleph
 
       [[nodiscard]] size_t block_size() const noexcept { return block_size_; }
       [[nodiscard]] size_t fft_size() const noexcept { return fft_size_; }
-      [[nodiscard]] size_t overlap_size() const noexcept { return kernel_.size() - 1; }
+
+      /** @brief Returns the size of the tail of each channel.
+       *  @return kernel().size() - 1, or 0 for an empty bank (moved from),
+       *          which has no kernel.
+       */
+      [[nodiscard]] size_t overlap_size() const noexcept
+      {
+        return kernel_.is_empty() ? 0 : kernel_.size() - 1;
+      }
+
       [[nodiscard]] const Array<Real> &kernel() const noexcept { return kernel_; }
 
       void reset()
@@ -14434,25 +14975,56 @@ namespace Aleph
         clear_overlaps();
       }
 
+      /** @brief Convolve a whole signal per channel with the kernel.
+       *  @param[in] signals one signal per channel.
+       *  @return the linear convolution of each signal.
+       *  @throws std::runtime_error if the bank is empty (it was moved from).
+       *  @throws std::invalid_argument if @p signals does not have
+       *          num_channels() signals.
+       */
       [[nodiscard]] Array<Array<Real>>
       convolve(const Array<Array<Real>> & signals) const
       {
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::OverlapAddBank::convolve: bank is empty (it was moved from)";
         validate_channel_count(signals.size(), "FFT::OverlapAddBank::convolve");
         return convolve_impl(signals, nullptr, 0);
       }
 
+      /** @brief convolve() with parallel transforms.
+       *  @param[in] pool thread pool for the transforms.
+       *  @param[in] signals one signal per channel.
+       *  @param[in] chunk_size minimum iterations per parallel chunk (0 =
+       *             auto).
+       *  @return the linear convolution of each signal.
+       *  @throws std::runtime_error if the bank is empty (it was moved from).
+       *  @throws std::invalid_argument if @p signals does not have
+       *          num_channels() signals.
+       */
       [[nodiscard]] Array<Array<Real>>
       pconvolve(ThreadPool & pool,
                 const Array<Array<Real>> & signals,
                 const size_t chunk_size = 0) const
       {
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::OverlapAddBank::pconvolve: bank is empty (it was moved from)";
         validate_channel_count(signals.size(), "FFT::OverlapAddBank::pconvolve");
         return convolve_impl(signals, &pool, chunk_size);
       }
 
+      /** @brief Convolve the next samples of a stream per channel.
+       *  @param[in] block next samples of each channel, of any number.
+       *  @return one output sample for each sample of @p block, per channel.
+       *  @throws std::runtime_error if the bank is empty (it was moved from).
+       *  @throws std::invalid_argument if @p block does not have
+       *          num_channels() channels.
+       */
       [[nodiscard]] Array<Array<Real>>
       process_block(const Array<Array<Real>> & block)
       {
+        // a moved-from bank has no channels and a block size of 0
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::OverlapAddBank::process_block: bank is empty (it was moved from)";
         validate_channel_count(block.size(), "FFT::OverlapAddBank::process_block");
         const size_t max_length = max_batch_length(block);
         Array<Array<Real>> emitted(block.size(), Array<Real>());
@@ -14485,11 +15057,23 @@ namespace Aleph
         return emitted;
       }
 
+      /** @brief process_block() with parallel transforms.
+       *  @param[in] pool thread pool for the transforms.
+       *  @param[in] block next samples of each channel, of any number.
+       *  @param[in] chunk_size minimum iterations per parallel chunk (0 =
+       *             auto).
+       *  @return one output sample for each sample of @p block, per channel.
+       *  @throws std::runtime_error if the bank is empty (it was moved from).
+       *  @throws std::invalid_argument if @p block does not have
+       *          num_channels() channels.
+       */
       [[nodiscard]] Array<Array<Real>>
       pprocess_block(ThreadPool & pool,
                      const Array<Array<Real>> & block,
                      const size_t chunk_size = 0)
       {
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::OverlapAddBank::pprocess_block: bank is empty (it was moved from)";
         validate_channel_count(block.size(), "FFT::OverlapAddBank::pprocess_block");
         const size_t max_length = max_batch_length(block);
         Array<Array<Real>> emitted(block.size(), Array<Real>());
@@ -14584,6 +15168,7 @@ namespace Aleph
         return next_power_of_two(std::max(size_t(2), kernel_size * 2))
                - kernel_size + 1;
       }
+
 
       /** @brief Rationale: Resets the state for a new filtering process. */
       void
@@ -14717,6 +15302,72 @@ namespace Aleph
         plan_.transform(kernel_spectrum_, false);
       }
 
+      /** @brief Copy the kernel, the plan and the pending samples of another
+       *         convolver.
+       *  @param[in] other convolver to copy.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      OverlapSave(const OverlapSave & other) = default;
+
+      /** @brief Take the state of another convolver, which is left empty.
+       *
+       *  The implicit move took the kernel, the plan and the buffers but
+       *  copied the sizes and the counters: the moved-from convolver then
+       *  transformed blocks with a plan that it no longer had. Now its sizes
+       *  and counters are 0 and it has no kernel: it rejects every block and
+       *  signal, while reset(), flush() and an assignment to it still work.
+       *
+       *  @param[in,out] other convolver to move from.
+       *  @note Complexity: O(1).
+       */
+      OverlapSave(OverlapSave && other) noexcept
+        : kernel_(std::move(other.kernel_)),
+          block_size_(std::exchange(other.block_size_, 0)),
+          fft_size_(std::exchange(other.fft_size_, 0)),
+          plan_(std::move(other.plan_)),
+          kernel_spectrum_(std::move(other.kernel_spectrum_)),
+          history_(std::move(other.history_)),
+          pending_(std::move(other.pending_)),
+          total_input_size_(std::exchange(other.total_input_size_, 0)),
+          emitted_output_size_(std::exchange(other.emitted_output_size_, 0))
+      {}
+
+      /** @brief Copy the kernel, the plan and the pending samples of another
+       *         convolver.
+       *  @param[in] other convolver to copy.
+       *  @return this convolver.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      OverlapSave & operator = (const OverlapSave & other) = default;
+
+      /** @brief Exchange this convolver with another, which is left with the
+       *         previous state of this one.
+       *  @param[in,out] other convolver to move from.
+       *  @return this convolver.
+       *  @note Complexity: O(1).
+       */
+      OverlapSave & operator = (OverlapSave && other) noexcept
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) the state of this convolver and another.
+       *  @param[in,out] other convolver to exchange with.
+       */
+      void swap(OverlapSave & other) noexcept
+      {
+        kernel_.swap(other.kernel_);
+        std::swap(block_size_, other.block_size_);
+        std::swap(fft_size_, other.fft_size_);
+        plan_.swap(other.plan_);
+        kernel_spectrum_.swap(other.kernel_spectrum_);
+        history_.swap(other.history_);
+        pending_.swap(other.pending_);
+        std::swap(total_input_size_, other.total_input_size_);
+        std::swap(emitted_output_size_, other.emitted_output_size_);
+      }
+
       /** @brief Returns the processing block size (the hop size). */
       [[nodiscard]] size_t block_size() const noexcept { return block_size_; }
 
@@ -14745,10 +15396,15 @@ namespace Aleph
        *
        *  @param block Input signal block.
        *  @return Filtered output samples available so far.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
        */
       [[nodiscard]] Array<Real>
       process_block(const Array<Real> & block)
       {
+        // a moved-from convolver has a block size of 0: the loop would not end
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::OverlapSave::process_block: convolver is empty (it was moved from)";
         if (block.is_empty())
           return {};
 
@@ -14808,17 +15464,31 @@ namespace Aleph
         return output;
       }
 
-      /** @brief Convolves the input signal with the kernel (one-shot convenience). */
+      /** @brief Convolves the input signal with the kernel (one-shot convenience).
+       *  @param[in] signal signal to convolve; the convolver is reset first.
+       *  @return the linear convolution, with
+       *          signal.size() + kernel().size() - 1 samples.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       [[nodiscard]] Array<Real>
       convolve(const Array<Real> & signal)
       {
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::OverlapSave::convolve: convolver is empty (it was moved from)";
         reset();
         Array<Real> output = process_block(signal);
         append_all(output, flush());
         return output;
       }
 
-      /** @brief Processes an input block from a real-valued container. */
+      /** @brief Processes an input block from a real-valued container.
+       *  @tparam Container type of the container.
+       *  @param[in] block input signal block.
+       *  @return filtered output samples available so far.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -14827,7 +15497,13 @@ namespace Aleph
         return process_block(build_real_input(block));
       }
 
-      /** @brief Convolves an input signal from a real-valued container. */
+      /** @brief Convolves an input signal from a real-valued container.
+       *  @tparam Container type of the container.
+       *  @param[in] signal signal to convolve.
+       *  @return the linear convolution.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -14866,6 +15542,7 @@ namespace Aleph
           << "FFT::PartitionedConvolver: kernel size must be positive";
         return next_power_of_two(std::min(kernel_size, size_t(256)));
       }
+
 
       /** @brief Rationale: Resets all delay-line history and overlap buffers. */
       void
@@ -14983,6 +15660,77 @@ namespace Aleph
         clear_state();
       }
 
+      /** @brief Copy the kernel partitions, the plan and the state of another
+       *         convolver.
+       *  @param[in] other convolver to copy.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      PartitionedConvolver(const PartitionedConvolver & other) = default;
+
+      /** @brief Take the state of another convolver, which is left empty.
+       *
+       *  The implicit move took the kernel partitions, the plan and the
+       *  buffers but copied the sizes, the head and the counters: the
+       *  moved-from convolver then transformed partitions with a plan that it
+       *  no longer had. Now its sizes, head and counters are 0 and it has no
+       *  kernel: it rejects every block and signal, while reset(), flush()
+       *  and an assignment to it still work.
+       *
+       *  @param[in,out] other convolver to move from.
+       *  @note Complexity: O(1).
+       */
+      PartitionedConvolver(PartitionedConvolver && other) noexcept
+        : kernel_(std::move(other.kernel_)),
+          partition_size_(std::exchange(other.partition_size_, 0)),
+          fft_size_(std::exchange(other.fft_size_, 0)),
+          plan_(std::move(other.plan_)),
+          kernel_partitions_(std::move(other.kernel_partitions_)),
+          input_history_(std::move(other.input_history_)),
+          head_(std::exchange(other.head_, 0)),
+          overlap_(std::move(other.overlap_)),
+          pending_(std::move(other.pending_)),
+          total_input_size_(std::exchange(other.total_input_size_, 0)),
+          emitted_output_size_(std::exchange(other.emitted_output_size_, 0))
+      {}
+
+      /** @brief Copy the kernel partitions, the plan and the state of another
+       *         convolver.
+       *  @param[in] other convolver to copy.
+       *  @return this convolver.
+       *  @throws std::bad_alloc if the buffers cannot be allocated.
+       */
+      PartitionedConvolver & operator = (const PartitionedConvolver & other) = default;
+
+      /** @brief Exchange this convolver with another, which is left with the
+       *         previous state of this one.
+       *  @param[in,out] other convolver to move from.
+       *  @return this convolver.
+       *  @note Complexity: O(1).
+       */
+      PartitionedConvolver & operator = (PartitionedConvolver && other) noexcept
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) the state of this convolver and another.
+       *  @param[in,out] other convolver to exchange with.
+       */
+      void swap(PartitionedConvolver & other) noexcept
+      {
+        kernel_.swap(other.kernel_);
+        std::swap(partition_size_, other.partition_size_);
+        std::swap(fft_size_, other.fft_size_);
+        plan_.swap(other.plan_);
+        kernel_partitions_.swap(other.kernel_partitions_);
+        input_history_.swap(other.input_history_);
+        std::swap(head_, other.head_);
+        overlap_.swap(other.overlap_);
+        pending_.swap(other.pending_);
+        std::swap(total_input_size_, other.total_input_size_);
+        std::swap(emitted_output_size_, other.emitted_output_size_);
+      }
+
       [[nodiscard]] size_t partition_size() const noexcept
       {
         return partition_size_;
@@ -15003,9 +15751,20 @@ namespace Aleph
         clear_state();
       }
 
+      /** @brief Convolve the next samples of a stream, a partition at a time.
+       *  @param[in] block next samples, of any number: they are buffered
+       *             until a whole partition is available.
+       *  @return the output of every partition completed so far.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       [[nodiscard]] Array<Real>
       process_block(const Array<Real> & block)
       {
+        // a moved-from convolver has a partition size of 0: the loop would not end
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::PartitionedConvolver::process_block: convolver is empty"
+          << " (it was moved from)";
         if (block.is_empty())
           return {};
 
@@ -15058,15 +15817,32 @@ namespace Aleph
         return output;
       }
 
+      /** @brief Convolve a whole signal with the kernel.
+       *  @param[in] signal signal to convolve; the convolver is reset first.
+       *  @return the linear convolution, with
+       *          signal.size() + kernel().size() - 1 samples.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       [[nodiscard]] Array<Real>
       convolve(const Array<Real> & signal)
       {
+        ah_runtime_error_if(kernel_.is_empty())
+          << "FFT::PartitionedConvolver::convolve: convolver is empty"
+          << " (it was moved from)";
         reset();
         Array<Real> output = process_block(signal);
         append_all(output, flush());
         return output;
       }
 
+      /** @brief process_block() of the samples of a real container.
+       *  @tparam Container type of the container.
+       *  @param[in] block next samples.
+       *  @return the output of every partition completed so far.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -15075,6 +15851,13 @@ namespace Aleph
         return process_block(build_real_input(block));
       }
 
+      /** @brief convolve() of the samples of a real container.
+       *  @tparam Container type of the container.
+       *  @param[in] signal signal to convolve.
+       *  @return the linear convolution.
+       *  @throws std::runtime_error if the convolver is empty (it was moved
+       *          from).
+       */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>

@@ -78,6 +78,7 @@
 #include <optional>
 #include <random>
 #include <algorithm>
+#include <utility>
 #include <hash-fct.H>
 #include <ah-errors.H>
 #include <ahUtils.H>
@@ -247,6 +248,64 @@ public:
     buckets.putn(num_buckets);
   }
 
+  /** @brief Copy the buckets, the stash and the generator of another filter.
+   *  @param[in] other filter to copy.
+   *  @throws std::bad_alloc if the buckets cannot be allocated.
+   */
+  Compact_Cuckoo_Filter(const Compact_Cuckoo_Filter & other) = default;
+
+  /** @brief Take the items of another filter, which is left as an empty
+   *         filter of the same capacity, with no buckets until it inserts.
+   *
+   *  The implicit move took the buckets but copied their count and their
+   *  mask: the moved-from filter then indexed buckets that it no longer
+   *  had. Now its first insertion allocates them, and it draws its kicks
+   *  from a copy of its generator.
+   *
+   *  @param[in,out] other filter to move from.
+   *  @note O(1).
+   */
+  Compact_Cuckoo_Filter(Compact_Cuckoo_Filter && other) noexcept
+    : buckets(std::move(other.buckets)), num_items(std::exchange(other.num_items, 0)),
+      num_buckets(other.num_buckets), bucket_mask(other.bucket_mask), rng_(other.rng_),
+      stash_count_(std::exchange(other.stash_count_, 0))
+  {
+    std::copy(other.stash_, other.stash_ + stash_size, stash_);
+  }
+
+  /** @brief Copy the buckets, the stash and the generator of another filter.
+   *  @param[in] other filter to copy.
+   *  @return this filter.
+   *  @throws std::bad_alloc if the buckets cannot be allocated.
+   */
+  Compact_Cuckoo_Filter & operator = (const Compact_Cuckoo_Filter & other) = default;
+
+  /** @brief Exchange this filter with another, which is left with the
+   *         previous state of this one.
+   *  @param[in,out] other filter to move from.
+   *  @return this filter.
+   *  @note Complexity: O(1).
+   */
+  Compact_Cuckoo_Filter & operator = (Compact_Cuckoo_Filter && other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the state of this filter and another.
+   *  @param[in,out] other filter to exchange with.
+   */
+  void swap(Compact_Cuckoo_Filter & other) noexcept
+  {
+    buckets.swap(other.buckets);
+    std::swap(num_items, other.num_items);
+    std::swap(num_buckets, other.num_buckets);
+    std::swap(bucket_mask, other.bucket_mask);
+    std::swap(rng_, other.rng_);
+    std::swap(stash_, other.stash_);
+    std::swap(stash_count_, other.stash_count_);
+  }
+
   /** @brief Return the number of items currently in the filter.
    *  @return Current item count.
    *  @throws none.
@@ -293,7 +352,8 @@ public:
   }
 
   /** @brief Return approximate memory usage in bytes.
-   *  @return Byte count used by the bucket array.
+   *  @return Byte count used by the bucket array; 0 in a moved-from
+   *          filter, until it inserts.
    *  @throws none.
    */
   [[nodiscard]] size_t memory_usage() const noexcept
@@ -301,18 +361,23 @@ public:
     // Each bucket uses FingerprintBits * EntriesPerBucket bits
     const size_t bits_per_bucket = FingerprintBits * EntriesPerBucket;
     const size_t bytes_per_bucket = (bits_per_bucket + 7) / 8;
-    return num_buckets * bytes_per_bucket;
+    return buckets.size() * bytes_per_bucket;
   }
 
   /**
    * @brief Insert an item into the filter.
    * @param item Item to insert.
    * @return `true` if insertion succeeded, `false` if filter is full.
-   * @throws none.
-   * @note Amortised O(1).
+   * @throws std::bad_alloc if the filter was moved from and its buckets
+   *         cannot be allocated.
+   * @note Amortised O(1); the first insertion into a moved-from filter
+   *       allocates its buckets, in O(capacity / EntriesPerBucket).
    */
   bool insert(const T &item)
   {
+    if (buckets.is_empty())  // moved from
+      buckets.putn(num_buckets);
+
     const Fingerprint fp = get_fingerprint(item);
     size_t i1 = index_hash(item);
     size_t i2 = alt_index(i1, fp);
@@ -390,6 +455,9 @@ public:
    */
   [[nodiscard]] bool contains(const T &item) const
   {
+    if (num_items == 0)  // also a moved-from filter, which has no buckets
+      return false;
+
     const Fingerprint fp = get_fingerprint(item);
     const size_t i1 = index_hash(item);
     const size_t i2 = alt_index(i1, fp);
@@ -413,6 +481,9 @@ public:
    */
   bool remove(const T &item)
   {
+    if (num_items == 0)  // also a moved-from filter, which has no buckets
+      return false;
+
     const Fingerprint fp = get_fingerprint(item);
     const size_t i1 = index_hash(item);
     const size_t i2 = alt_index(i1, fp);
@@ -441,7 +512,7 @@ public:
    */
   void clear()
   {
-    for (size_t i = 0; i < num_buckets; ++i)
+    for (size_t i = 0; i < buckets.size(); ++i)
       buckets(i).clear();
     num_items = 0;
     stash_count_ = 0;

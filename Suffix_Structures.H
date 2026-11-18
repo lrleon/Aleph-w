@@ -389,6 +389,58 @@ public:
     build(text);
   }
 
+  /** @brief Copy the text and the nodes of another tree.
+   *  @param[in] other tree to copy.
+   *  @throws std::bad_alloc if the text or the nodes cannot be allocated.
+   */
+  Naive_Suffix_Tree(const Naive_Suffix_Tree &other) = default;
+
+  /** @brief Take the text and the nodes of another tree, which is left as
+   *         the tree of the empty text, as built by default.
+   *
+   *  The implicit move took the text and the nodes, the root among them,
+   *  but copied the text size: the moved-from tree then reported the size
+   *  of a text that it no longer had, and its searches read a missing root.
+   *
+   *  @param[in,out] other tree to move from.
+   *  @throws std::bad_alloc if the tree left to @p other cannot be
+   *          allocated; @p other is then unchanged.
+   *  @note Complexity: O(1), but it allocates the tree left to @p other.
+   */
+  Naive_Suffix_Tree(Naive_Suffix_Tree &&other) : Naive_Suffix_Tree()
+  {
+    swap(other);
+  }
+
+  /** @brief Copy the text and the nodes of another tree.
+   *  @param[in] other tree to copy.
+   *  @return this tree.
+   *  @throws std::bad_alloc if the text or the nodes cannot be allocated.
+   */
+  Naive_Suffix_Tree &operator=(const Naive_Suffix_Tree &other) = default;
+
+  /** @brief Exchange this tree with another, which is left with the previous
+   *         text and nodes of this one.
+   *  @param[in,out] other tree to move from.
+   *  @return this tree.
+   *  @note Complexity: O(1).
+   */
+  Naive_Suffix_Tree &operator=(Naive_Suffix_Tree &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the text and the nodes of this tree and another.
+   *  @param[in,out] other tree to exchange with.
+   */
+  void swap(Naive_Suffix_Tree &other) noexcept
+  {
+    text_.swap(other.text_);
+    std::swap(original_size_, other.original_size_);
+    nodes_.swap(other.nodes_);
+  }
+
   /** @brief Build or rebuild the suffix tree for `text`.
    *  @param[in] text The text to build the tree from.
    *  @throws std::domain_error If all 256 byte values are present in `text`,
@@ -599,6 +651,58 @@ public:
   Suffix_Automaton()
   {
     clear();
+  }
+
+  /** @brief Copy the states of another automaton.
+   *  @param[in] other automaton to copy.
+   *  @throws std::bad_alloc if the states cannot be allocated.
+   */
+  Suffix_Automaton(const Suffix_Automaton &other) = default;
+
+  /** @brief Take the states of another automaton, which is left empty, with
+   *         the root state only, as built by default.
+   *
+   *  The implicit move took the states, the root among them, but copied the
+   *  index of the last state: the moved-from automaton then read states that
+   *  it no longer had.
+   *
+   *  @param[in,out] other automaton to move from.
+   *  @throws std::bad_alloc if the root left to @p other cannot be
+   *          allocated; @p other is then unchanged.
+   *  @note Complexity: O(1), but it allocates the empty automaton left to
+   *        @p other.
+   */
+  Suffix_Automaton(Suffix_Automaton &&other) : Suffix_Automaton()
+  {
+    swap(other);
+  }
+
+  /** @brief Copy the states of another automaton.
+   *  @param[in] other automaton to copy.
+   *  @return this automaton.
+   *  @throws std::bad_alloc if the states cannot be allocated.
+   */
+  Suffix_Automaton &operator=(const Suffix_Automaton &other) = default;
+
+  /** @brief Exchange this automaton with another, which is left with the
+   *         previous states of this one.
+   *  @param[in,out] other automaton to move from.
+   *  @return this automaton.
+   *  @note Complexity: O(1).
+   */
+  Suffix_Automaton &operator=(Suffix_Automaton &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the states of this automaton and another.
+   *  @param[in,out] other automaton to exchange with.
+   */
+  void swap(Suffix_Automaton &other) noexcept
+  {
+    states_.swap(other.states_);
+    std::swap(last_, other.last_);
   }
 
   /** @brief Reset the automaton to its initial empty state (root only).

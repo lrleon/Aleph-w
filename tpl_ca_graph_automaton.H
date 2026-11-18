@@ -157,6 +157,43 @@ public:
       }
   }
 
+  /** @brief Copy another lattice: its cells and its adjacency.
+   *  @param[in] other lattice to copy.
+   */
+  Graph_Lattice(const Graph_Lattice &other) = default;
+
+  /** @brief Take the cells and the adjacency of another lattice, which is
+   *         left with no nodes.
+   *
+   *  The implicit move took the cells and the adjacency but copied the
+   *  node count: the moved-from lattice then read nodes that it no longer
+   *  had.
+   *
+   *  @param[in,out] other lattice to move from.
+   */
+  Graph_Lattice(Graph_Lattice &&other) noexcept
+    : num_nodes_(std::exchange(other.num_nodes_, 0)), cells_(std::move(other.cells_)),
+      adjacency_(std::move(other.adjacency_))
+  {}
+
+  /** @brief Copy another lattice into this one: its cells and its
+   *         adjacency.
+   *  @param[in] other lattice to copy.
+   *  @return this lattice.
+   */
+  Graph_Lattice &operator=(const Graph_Lattice &other) = default;
+
+  /** @brief Exchange this lattice with another, which is left with the
+   *         previous nodes of this one.
+   *  @param[in,out] other lattice to move from.
+   *  @return this lattice.
+   */
+  Graph_Lattice &operator=(Graph_Lattice &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
   // -------------------------------------------------------------
   // LatticeLike surface.
   // -------------------------------------------------------------
@@ -353,6 +390,114 @@ public:
     nbuf_.reserve(cur_buf_.max_degree());
   }
 
+  /** @brief Copy another engine: its lattices, its rule, its hooks and its
+   *         count of steps.
+   *  @param[in] other engine to copy.
+   */
+  Graph_Synchronous_Engine(const Graph_Synchronous_Engine &other) = default;
+
+  /** @brief Take the simulation of another engine, which is left with
+   *         empty lattices, no hooks and no steps run.
+   *
+   *  The implicit move took the lattices but copied the step counter: the
+   *  moved-from engine reported the steps of a simulation that it no
+   *  longer had.
+   *
+   *  @param[in,out] other engine to move from.
+   */
+  Graph_Synchronous_Engine(Graph_Synchronous_Engine &&other) noexcept(
+    std::is_nothrow_move_constructible_v<Lattice> and std::is_nothrow_move_constructible_v<Rule>)
+    : cur_buf_(std::move(other.cur_buf_)), nxt_buf_(std::move(other.nxt_buf_)),
+      rule_(std::move(other.rule_)), nbuf_(std::move(other.nbuf_)),
+      pre_hook_(std::exchange(other.pre_hook_, nullptr)),
+      post_hook_(std::exchange(other.post_hook_, nullptr)),
+      step_count_(std::exchange(other.step_count_, 0))
+  {}
+
+  /** @brief Copy another engine into this one: its lattices, its rule, its
+   *         hooks and its count of steps.
+   *  @param[in] other engine to copy.
+   *  @return this engine.
+   */
+  Graph_Synchronous_Engine &operator=(const Graph_Synchronous_Engine &other) = default;
+
+  /** @brief Exchange this engine with another, which is left with the
+   *         previous simulation of this one.
+   *  @param[in,out] other engine to move from.
+   *  @return this engine.
+   */
+  Graph_Synchronous_Engine &operator=(Graph_Synchronous_Engine &&other) noexcept(
+    noexcept(swap(other)))
+    requires std::swappable<Rule>
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the simulation of this engine and another.
+   *  @param[in,out] other engine to exchange with.
+   *  @throw what swapping the rules or the lattices throws. When one of
+   *         those swaps may throw, the rules are exchanged before the
+   *         lattices, all or none: if a swap throws, those before it are
+   *         exchanged back, and both engines are left as they were, if the
+   *         swap that threw left its arguments as they were. If a swap that
+   *         puts one back throws too, both engines can only be destroyed or
+   *         assigned. std::swap(), for a rule without a swap of its own, may
+   *         leave it moved from.
+   */
+  void swap(Graph_Synchronous_Engine &other) noexcept(
+    noexcept(cur_buf_.swap(other.cur_buf_)) and std::is_nothrow_swappable_v<Rule>)
+    requires std::swappable<Rule>
+  {
+    // The swap of Rule that the specification evaluates: found by its
+    // arguments, else std::swap(). When it or that of a lattice may throw,
+    // the rules go first, and all go in a sequence that is all or none: one
+    // that throws leaves no lattice with the rule of the other. When none
+    // may, the order cannot be seen, and the rules go after the lattices,
+    // as they always did: a rule with members, even Game_Of_Life_Rule,
+    // would reorder the code if it went first
+    using std::swap;
+    if constexpr (not std::is_nothrow_swappable_v<Rule> or not noexcept(cur_buf_.swap(other.cur_buf_)))
+      swap_all_or_none(other);
+    else
+      {
+        cur_buf_.swap(other.cur_buf_);
+        nxt_buf_.swap(other.nxt_buf_);
+        swap(rule_, other.rule_);
+      }
+    nbuf_.swap(other.nbuf_);
+    pre_hook_.swap(other.pre_hook_);
+    post_hook_.swap(other.post_hook_);
+    swap(step_count_, other.step_count_);
+  }
+
+private:
+  // The rules and the lattices, with the swap of Rule that the
+  // specification of swap() evaluates, all or none: if one throws, those
+  // before it are exchanged back
+  void swap_all_or_none(Graph_Synchronous_Engine &other)
+  {
+    using std::swap;
+    int done = 0;
+    try
+      {
+        swap(rule_, other.rule_);
+        ++done;
+        cur_buf_.swap(other.cur_buf_);
+        ++done;
+        nxt_buf_.swap(other.nxt_buf_);
+      }
+    catch (...)
+      {
+        if (done > 1)
+          cur_buf_.swap(other.cur_buf_);
+        if (done > 0)
+          swap(rule_, other.rule_);
+        throw;
+      }
+  }
+
+public:
   /// @return read-only view of the current frame.
   [[nodiscard]] const Lattice &frame() const noexcept { return cur_buf_; }
 

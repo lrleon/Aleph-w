@@ -480,8 +480,14 @@ namespace Aleph
 
     Special_Ctors(DynSetTree, Key);
 
+    /** @brief Take the elements of another set, which is left empty.
+     *  @param[in,out] srcTree the set to move from.
+     *  @throw what swapping the trees throws: the comparison of a tree may
+     *         have a swap of its own that throws. The move is noexcept
+     *         exactly when that swap is.
+     */
     DynSetTree(DynSetTree && srcTree)
-      noexcept : num_nodes(0)
+      noexcept(noexcept(swap(srcTree))) : num_nodes(0)
     {
       swap(srcTree);
     }
@@ -542,9 +548,16 @@ namespace Aleph
       return *this;
     }
 
-    /// Assigns the dynamic set srcTree to this.
+    /** @brief Free the elements of this set, and take those of another,
+     *         which is left empty.
+     *  @param[in,out] srcTree the set to move from.
+     *  @return this set.
+     *  @throw what swapping the trees throws: the comparison of a tree may
+     *         have a swap of its own that throws. The assignment is
+     *         noexcept exactly when that swap is.
+     */
     DynSetTree &operator =(DynSetTree && srcTree)
-      noexcept
+      noexcept(noexcept(swap(srcTree)))
     {
       if (this == &srcTree)
         return *this;

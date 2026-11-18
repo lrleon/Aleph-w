@@ -1093,6 +1093,79 @@ namespace Aleph
           initialize_bluestein_plan();
       }
 
+      /** @brief Copy the tables of another plan.
+       *  @param[in] other plan to copy.
+       *  @throws std::bad_alloc if the tables cannot be allocated.
+       */
+      Plan(const Plan & other) = default;
+
+      /** @brief Take the tables of another plan, which is left empty: its
+       *         size is 0, and it only transforms empty arrays.
+       *
+       *  The implicit move took the tables but copied the size and the
+       *  strategy: the moved-from plan then read a bit-reversal table that it
+       *  no longer had.
+       *
+       *  @param[in,out] other plan to move from.
+       *  @note Complexity: O(1).
+       */
+      Plan(Plan && other) noexcept
+        : strategy_(std::exchange(other.strategy_, Strategy::power_of_two)),
+          n_(std::exchange(other.n_, 0)),
+          log_n_(std::exchange(other.log_n_, 0)),
+          bit_rev_(std::move(other.bit_rev_)),
+          twiddles_fwd_(std::move(other.twiddles_fwd_)),
+          twiddles_inv_(std::move(other.twiddles_inv_)),
+          inv_n_(std::exchange(other.inv_n_, 0)),
+          inv_n_std_(std::exchange(other.inv_n_std_, 1)),
+          bluestein_size_(std::exchange(other.bluestein_size_, 0)),
+          bluestein_chirp_fwd_(std::move(other.bluestein_chirp_fwd_)),
+          bluestein_chirp_inv_(std::move(other.bluestein_chirp_inv_)),
+          bluestein_kernel_forward_(std::move(other.bluestein_kernel_forward_)),
+          bluestein_kernel_inverse_(std::move(other.bluestein_kernel_inverse_)),
+          bluestein_plan_(std::move(other.bluestein_plan_))
+      {}
+
+      /** @brief Copy the tables of another plan.
+       *  @param[in] other plan to copy.
+       *  @return this plan.
+       *  @throws std::bad_alloc if the tables cannot be allocated.
+       */
+      Plan & operator = (const Plan & other) = default;
+
+      /** @brief Exchange this plan with another, which is left with the
+       *         previous tables of this one.
+       *  @param[in,out] other plan to move from.
+       *  @return this plan.
+       *  @note Complexity: O(1).
+       */
+      Plan & operator = (Plan && other) noexcept
+      {
+        swap(other);
+        return *this;
+      }
+
+      /** @brief Exchange in O(1) the tables of this plan and another.
+       *  @param[in,out] other plan to exchange with.
+       */
+      void swap(Plan & other) noexcept
+      {
+        std::swap(strategy_, other.strategy_);
+        std::swap(n_, other.n_);
+        std::swap(log_n_, other.log_n_);
+        bit_rev_.swap(other.bit_rev_);
+        twiddles_fwd_.swap(other.twiddles_fwd_);
+        twiddles_inv_.swap(other.twiddles_inv_);
+        std::swap(inv_n_, other.inv_n_);
+        std::swap(inv_n_std_, other.inv_n_std_);
+        std::swap(bluestein_size_, other.bluestein_size_);
+        bluestein_chirp_fwd_.swap(other.bluestein_chirp_fwd_);
+        bluestein_chirp_inv_.swap(other.bluestein_chirp_inv_);
+        bluestein_kernel_forward_.swap(other.bluestein_kernel_forward_);
+        bluestein_kernel_inverse_.swap(other.bluestein_kernel_inverse_);
+        bluestein_plan_.swap(other.bluestein_plan_);
+      }
+
       /** @brief Return the transform size bound to the plan. */
       [[nodiscard]] size_t size() const noexcept
       {

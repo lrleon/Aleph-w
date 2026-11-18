@@ -53,6 +53,7 @@
 
 # include <climits>
 # include <ctime>
+# include <utility>
 # include <ah-random.H>
 # include <aleph.H>
 # include <ah-errors.H>
@@ -300,30 +301,46 @@ namespace Aleph
     SkipList(const SkipList &) = delete;
     SkipList & operator=(const SkipList &) = delete;
 
-    // Move constructor
-    SkipList(SkipList && other) noexcept
-      : header(std::move(other.header)),
-        headerPtr(&header),
-        r(std::move(other.r)),
-        probability(other.probability),
-        level(other.level)
+    /** @brief Take the nodes and the generator of another list, which is
+     *         left empty, with a generator of its own seeded with the time.
+     *
+     *  The previous move left the source without a generator, and with the
+     *  forward pointers of its header to the nodes that it gave: its next
+     *  insertion drew from a null generator and linked into the other list.
+     *
+     *  @param[in,out] other the list to move from.
+     *  @throw bad_alloc if there is not enough memory for the generator left
+     *         to @p other; then @p other is unchanged.
+     *  @note It allocates the generator left to @p other.
+     */
+    SkipList(SkipList && other) : SkipList(time(nullptr), other.probability)
     {
-      other.level = 0;
+      swap(other);
     }
 
-    // Move assignment
+    /** @brief Exchange this list with another, which is left with the
+     *         previous nodes and generator of this one.
+     *  @param[in,out] other the list to move from.
+     *  @return a reference to this list.
+     */
     SkipList & operator=(SkipList && other) noexcept
     {
-      if (this != &other)
-        {
-          header = std::move(other.header);
-          headerPtr = &header;
-          r = std::move(other.r);
-          probability = other.probability;
-          level = other.level;
-          other.level = 0;
-        }
+      swap(other);
       return *this;
+    }
+
+    /** @brief Exchange the nodes, the generators and the probabilities of
+     *         this list and another.
+     *  @param[in,out] other the list to exchange with.
+     *  @note O(maxLevel): the forward pointers of the headers.
+     */
+    void swap(SkipList & other) noexcept
+    {
+      for (int i = 0; i < maxLevel; ++i)
+        std::swap(header.HeaderNode::forward[i], other.header.HeaderNode::forward[i]);
+      r.swap(other.r);
+      std::swap(probability, other.probability);
+      std::swap(level, other.level);
     }
 
     /** @brief Search for a key in the skip list.

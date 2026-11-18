@@ -59,6 +59,7 @@
 #include <cstddef>
 #include <functional>
 #include <limits>
+#include <type_traits>
 #include <utility>
 
 #include <ah-errors.H>
@@ -81,6 +82,8 @@ namespace tree_dp_detail {
 template <AlephGraph GT, ArcFilter<GT> SA>
 class Tree_Topology
 {
+  // moved-from: tested through Tree_DP and Reroot_DP,
+  // which keep it (Tests/moved_from_graphs_test.cc)
 public:
   using Node = typename GT::Node; /**< Node type. */
   using Arc = typename GT::Arc;   /**< Arc type. */
@@ -257,6 +260,66 @@ public:
     index_nodes();
     build_adjacency();
     build_order();
+  }
+
+  /** @brief Copy the topology of another tree.
+   *  @param[in] other topology to copy.
+   */
+  Tree_Topology(const Tree_Topology & other) = default;
+
+  /** @brief Take the topology of another tree, which is left empty.
+   *
+   *  The implicit move took the arrays and the map but copied the number
+   *  of nodes: the moved-from topology then reported the old size, and
+   *  node_of() passed its check and read an array that it no longer had.
+   *
+   *  @param[in,out] other topology to move from.
+   */
+  Tree_Topology(Tree_Topology && other) noexcept(std::is_nothrow_move_constructible_v<SA>)
+    : graph_(std::exchange(other.graph_, nullptr)), sa_(std::move(other.sa_)),
+      root_(std::exchange(other.root_, nullptr)), n_(std::exchange(other.n_, 0)),
+      id_to_node_(std::move(other.id_to_node_)), node_to_id_(std::move(other.node_to_id_)),
+      children_(std::move(other.children_)), parent_(std::move(other.parent_)),
+      order_(std::move(other.order_))
+  {}
+
+  /** @brief Copy the topology of another tree.
+   *  @param[in] other topology to copy.
+   *  @return this topology.
+   */
+  Tree_Topology & operator=(const Tree_Topology & other) = default;
+
+  /** @brief Exchange this topology with another, which is left with the
+   *         previous topology of this one.
+   *  @param[in,out] other topology to move from.
+   *  @return this topology.
+   */
+  Tree_Topology & operator=(Tree_Topology && other) noexcept(noexcept(swap(other)))
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) this topology and another.
+   *  @param[in,out] other topology to exchange with.
+   *  @throw what swapping the filters throws. They are exchanged first, so
+   *         that then nothing is exchanged: both topologies are left as they
+   *         were, if that swap left its arguments as they were.
+   */
+  void swap(Tree_Topology & other) noexcept(std::is_nothrow_swappable_v<SA>)
+  {
+    // the swap that the specification evaluates: that of SA found by its
+    // arguments, else std::swap(); first, since it may throw
+    using std::swap;
+    swap(sa_, other.sa_);
+    std::swap(graph_, other.graph_);
+    std::swap(root_, other.root_);
+    std::swap(n_, other.n_);
+    id_to_node_.swap(other.id_to_node_);
+    node_to_id_.swap(other.node_to_id_);
+    children_.swap(other.children_);
+    parent_.swap(other.parent_);
+    order_.swap(other.order_);
   }
 
   /** @brief Returns number of nodes. */

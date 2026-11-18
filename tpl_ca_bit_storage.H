@@ -116,6 +116,43 @@ public:
     : ext_(extents), total_cells_(product(extents)), buffer_(total_cells_, init ? 1u : 0u)
   {}
 
+  /** @brief Copy another storage: its extents and its bits, which the copy
+   *         keeps apart from those of @p other.
+   *  @param[in] other storage to copy.
+   */
+  Bit_Cell_Storage(const Bit_Cell_Storage &other) = default;
+
+  /** @brief Take the cells of another storage, which is left empty.
+   *
+   *  The implicit move took the bits but copied the extents: the
+   *  moved-from storage then indexed bits that it no longer had, and
+   *  its fill() wrote them again.
+   *
+   *  @param[in,out] other storage to move from.
+   */
+  Bit_Cell_Storage(Bit_Cell_Storage &&other) noexcept
+    : ext_(std::exchange(other.ext_, extents_type{})),
+      total_cells_(std::exchange(other.total_cells_, 0)), buffer_(std::move(other.buffer_))
+  {}
+
+  /** @brief Copy another storage into this one: its extents and its bits,
+   *         which this one keeps apart from those of @p other.
+   *  @param[in] other storage to copy.
+   *  @return this storage.
+   */
+  Bit_Cell_Storage &operator=(const Bit_Cell_Storage &other) = default;
+
+  /** @brief Exchange this storage with another, which is left with the
+   *         previous cells of this one.
+   *  @param[in,out] other storage to move from.
+   *  @return this storage.
+   */
+  Bit_Cell_Storage &operator=(Bit_Cell_Storage &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
   /// @return the number of axes (compile-time constant).
   [[nodiscard]] static constexpr std::size_t dimension() noexcept
   {

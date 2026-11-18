@@ -699,6 +699,22 @@ private:
     return size_ + 1;
   }
 
+  // The predicate of other, for the move constructor, which has already
+  // taken the root of other: a copy that throws gives it back, so that
+  // other keeps its root with its size
+  static Cmp predicate_of(PersistentHashMap &other, NodePtr &taken_root)
+  {
+    try
+      {
+        return other.cmp_;
+      }
+    catch (...)
+      {
+        other.root_.swap(taken_root);
+        throw;
+      }
+  }
+
 public:
   /** @brief Construct an empty persistent hash map.
    *  @param hash_fct Hash function used to route keys through the HAMT.
@@ -715,6 +731,71 @@ public:
   {
     ah_domain_error_unless(hash_fct_ != nullptr)
       << "PersistentHashMap: hash function must not be null";
+  }
+
+  /** @brief Share the bindings of another version.
+   *  @param other Version to copy.
+   *  @throws Whatever copying the equality predicate throws.
+   */
+  PersistentHashMap(const PersistentHashMap &other) = default;
+
+  /** @brief Take the bindings of another version, which is left empty.
+   *
+   *  The implicit move took the root but copied the size: the moved-from
+   *  map reported bindings that it no longer had, and failed verify(). The
+   *  hash function and the equality predicate are copied, since the map
+   *  left empty still uses them.
+   *
+   *  @param other Version to move from.
+   *  @throws Whatever copying the equality predicate throws; then @p other
+   *          is unchanged.
+   */
+  PersistentHashMap(PersistentHashMap &&other)
+    noexcept(std::is_nothrow_copy_constructible_v<Cmp>)
+    : root_(std::move(other.root_)), hash_fct_(other.hash_fct_),
+      cmp_(predicate_of(other, root_)), size_(std::exchange(other.size_, 0))
+  {
+    // Empty.
+  }
+
+  /** @brief Share the bindings of another version.
+   *  @param other Version to copy.
+   *  @return This map.
+   *  @throws Whatever copying the equality predicate throws.
+   */
+  PersistentHashMap &operator = (const PersistentHashMap &other) = default;
+
+  /** @brief Exchange this version with another, which is left with the
+   *         previous bindings of this one.
+   *  @param other Version to move from.
+   *  @return This map.
+   *  @throws Whatever swapping the equality predicates throws.
+   */
+  PersistentHashMap &operator = (PersistentHashMap &&other) noexcept(noexcept(swap(other)))
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the bindings, the hash functions and the
+   *         equality predicates of this version and another.
+   *  @param other Version to exchange with.
+   *  @throws Whatever swapping the equality predicates throws. They are
+   *          exchanged first, so that, if that swap throws, nothing else is
+   *          exchanged, and both versions are left as they were if it left
+   *          its arguments as they were (a predicate that its swap modified
+   *          before it threw is left modified).
+   */
+  void swap(PersistentHashMap &other) noexcept(std::is_nothrow_swappable_v<Cmp>)
+  {
+    // the swap that the specification evaluates: that of Cmp found by its
+    // arguments, else std::swap(); first, since it may throw, so that each
+    // root stays with its size
+    using std::swap;
+    swap(cmp_, other.cmp_);
+    root_.swap(other.root_);
+    std::swap(hash_fct_, other.hash_fct_);
+    std::swap(size_, other.size_);
   }
 
   /** @brief Return the number of bindings stored in this version.

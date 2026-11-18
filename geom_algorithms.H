@@ -8327,6 +8327,60 @@ private:
   }
 
 public:
+  /** @brief Build an empty range tree; build() fills it. */
+  RangeTree2D() = default;
+
+  /** @brief Copy the points and the tree of another range tree.
+   *  @param[in] other range tree to copy.
+   *  @throws std::bad_alloc if the arrays cannot be allocated.
+   */
+  RangeTree2D(const RangeTree2D &other) = default;
+
+  /** @brief Take the points and the tree of another range tree, which is
+   *         left empty.
+   *
+   *  The implicit move took the arrays but copied their size: the
+   *  moved-from range tree then searched points that it no longer had.
+   *
+   *  @param[in,out] other range tree to move from.
+   *  @note Complexity: O(1).
+   */
+  RangeTree2D(RangeTree2D &&other) noexcept
+    : pts_(std::move(other.pts_)), tree_(std::move(other.tree_)),
+      n_(std::exchange(other.n_, 0)), built_(std::exchange(other.built_, false))
+  {}
+
+  /** @brief Copy the points and the tree of another range tree.
+   *  @param[in] other range tree to copy.
+   *  @return this range tree.
+   *  @throws std::bad_alloc if the arrays cannot be allocated.
+   */
+  RangeTree2D &operator=(const RangeTree2D &other) = default;
+
+  /** @brief Exchange this range tree with another, which is left with the
+   *         previous points of this one.
+   *  @param[in,out] other range tree to move from.
+   *  @return this range tree.
+   *  @note Complexity: O(1).
+   */
+  RangeTree2D &operator=(RangeTree2D &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the points and the tree of this range tree and
+   *         another.
+   *  @param[in,out] other range tree to exchange with.
+   */
+  void swap(RangeTree2D &other) noexcept
+  {
+    pts_.swap(other.pts_);
+    tree_.swap(other.tree_);
+    std::swap(n_, other.n_);
+    std::swap(built_, other.built_);
+  }
+
   /// Build the range tree from a point set.
   void build(const DynList<Point> &points)
   {
@@ -11892,6 +11946,56 @@ private:
 
 public:
   AABBTree() = default;
+
+  /** @brief Copy the entries and the nodes of another tree.
+   *  @param[in] other tree to copy.
+   *  @throws std::bad_alloc if the arrays cannot be allocated.
+   */
+  AABBTree(const AABBTree &other) = default;
+
+  /** @brief Take the entries and the nodes of another tree, which is left
+   *         empty.
+   *
+   *  The implicit move took the arrays but copied the index of the root:
+   *  the moved-from tree then read a root that it no longer had.
+   *
+   *  @param[in,out] other tree to move from.
+   *  @note Complexity: O(1).
+   */
+  AABBTree(AABBTree &&other) noexcept
+    : nodes_(std::move(other.nodes_)), entries_(std::move(other.entries_)),
+      root_(std::exchange(other.root_, NONE))
+  {}
+
+  /** @brief Copy the entries and the nodes of another tree.
+   *  @param[in] other tree to copy.
+   *  @return this tree.
+   *  @throws std::bad_alloc if the arrays cannot be allocated.
+   */
+  AABBTree &operator=(const AABBTree &other) = default;
+
+  /** @brief Exchange this tree with another, which is left with the
+   *         previous entries of this one.
+   *  @param[in,out] other tree to move from.
+   *  @return this tree.
+   *  @note Complexity: O(1).
+   */
+  AABBTree &operator=(AABBTree &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the entries and the nodes of this tree and
+   *         another.
+   *  @param[in,out] other tree to exchange with.
+   */
+  void swap(AABBTree &other) noexcept
+  {
+    nodes_.swap(other.nodes_);
+    entries_.swap(other.entries_);
+    std::swap(root_, other.root_);
+  }
 
   /**
    * @brief Build the AABB tree from an array of entries.

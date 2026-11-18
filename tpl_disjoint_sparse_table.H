@@ -323,14 +323,37 @@ namespace Aleph
 
     Gen_Disjoint_Sparse_Table(const Gen_Disjoint_Sparse_Table &) = default;
 
-    Gen_Disjoint_Sparse_Table(Gen_Disjoint_Sparse_Table &&) noexcept
-      = default;
+    /** @brief Take the elements of another table, which is left empty.
+     *
+     *  The implicit move took the arrays but copied the size and the
+     *  number of levels: the moved-from table then indexed arrays that it
+     *  no longer had.
+     *
+     *  @param[in,out] other table to move from.
+     *  @throw what moving the operation throws; then @p other is left
+     *         empty.
+     */
+    Gen_Disjoint_Sparse_Table(Gen_Disjoint_Sparse_Table && other)
+      noexcept(std::is_nothrow_move_constructible_v<Op>)
+      : data(std::move(other.data)), table(std::move(other.table)),
+        n(std::exchange(other.n, 0)), levels(std::exchange(other.levels, 0)),
+        op(std::move(other.op))
+    {}
 
     Gen_Disjoint_Sparse_Table & operator=(const Gen_Disjoint_Sparse_Table &)
       = default;
 
-    Gen_Disjoint_Sparse_Table & operator=(Gen_Disjoint_Sparse_Table &&)
-      noexcept = default;
+    /** @brief Exchange this table with another, which is left with the
+     *         previous elements of this one.
+     *  @param[in,out] other table to move from.
+     *  @return this table.
+     */
+    Gen_Disjoint_Sparse_Table & operator=(Gen_Disjoint_Sparse_Table && other)
+      noexcept(noexcept(swap(other)))
+    {
+      swap(other);
+      return *this;
+    }
 
     /** @brief Range query over `[l, r]` in O(1).
      *
@@ -398,14 +421,24 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Swap this table with @p other in O(1). */
-    void swap(Gen_Disjoint_Sparse_Table & other) noexcept
+    /** @brief Swap this table with @p other in O(1).
+     *  @param[in,out] other table to exchange with.
+     *  @throw what swapping the operations throws. They are exchanged before
+     *         the arrays, so that, if that swap throws, nothing else is
+     *         exchanged, and both tables are left as they were if it left its
+     *         arguments as they were.
+     */
+    void swap(Gen_Disjoint_Sparse_Table & other) noexcept(std::is_nothrow_swappable_v<Op>)
     {
+      // the swap that the specification evaluates: that of Op found by its
+      // arguments, else std::swap(); first, so that one that throws leaves
+      // no aggregates with the operation of the other
+      using std::swap;
+      swap(op, other.op);
       data.swap(other.data);
       table.swap(other.table);
       std::swap(n, other.n);
       std::swap(levels, other.levels);
-      std::swap(op, other.op);
     }
   };
 

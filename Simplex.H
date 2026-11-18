@@ -70,6 +70,7 @@
 # include <memory>
 # include <sstream>
 # include <string>
+# include <utility>
 # include <vector>
 # include <tpl_dynMat.H>
 # include <tpl_dynDlist.H>
@@ -846,6 +847,14 @@ namespace Aleph
       return nullptr;
     }
 
+    // The empty program, without variables nor restrictions, that a move
+    // leaves in its source; the public constructor demands variables
+    Simplex() noexcept
+      : m(nullptr), num_var(0), num_rest(0), num_artificial(0), state(Not_Solved),
+        opt_type(OptimizationType::Maximize), pivot_rule(PivotRule::Dantzig),
+        eps(std::numeric_limits<T>::epsilon() * 100)
+    {}
+
   public:
     /** @brief Constructs a Simplex solver for n variables.
      *
@@ -887,10 +896,67 @@ namespace Aleph
 
     Simplex &operator=(const Simplex &) = delete;
 
-    // Movable
-    Simplex(Simplex &&) = default;
+    /** @brief Takes the program of another solver, which is left as an
+     *         empty program, without variables nor restrictions.
+     *
+     * The defaulted move took the arrays and the lists but copied their
+     * sizes: the moved-from solver then passed its index checks and wrote
+     * through arrays that it no longer had.
+     *
+     * @param[in,out] other solver to move from.
+     */
+    Simplex(Simplex && other) noexcept : Simplex()
+    {
+      swap(other);
+    }
 
-    Simplex &operator=(Simplex &&) = default;
+    /** @brief Exchanges this solver with another, which is left with the
+     *         previous program of this one.
+     *
+     * @param[in,out] other solver to move from.
+     * @return this solver.
+     */
+    Simplex &operator=(Simplex && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchanges in O(1) this solver and another.
+     *
+     * @param[in,out] other solver to exchange with.
+     */
+    void swap(Simplex & other) noexcept
+    {
+      std::swap(m, other.m);
+      std::swap(objetive, other.objetive);
+      rest_list.swap(other.rest_list);
+      rest_types.swap(other.rest_types);
+      std::swap(num_var, other.num_var);
+      std::swap(num_rest, other.num_rest);
+      std::swap(num_artificial, other.num_artificial);
+      std::swap(solution, other.solution);
+      std::swap(state, other.state);
+      std::swap(opt_type, other.opt_type);
+      std::swap(pivot_rule, other.pivot_rule);
+      std::swap(eps, other.eps);
+      std::swap(stats, other.stats);
+      pivot_row_buffer.swap(other.pivot_row_buffer);
+      pivot_col_buffer.swap(other.pivot_col_buffer);
+      basic_vars.swap(other.basic_vars);
+      row_sign.swap(other.row_sign);
+      unit_col.swap(other.unit_col);
+      phase2_cost.swap(other.phase2_cost);
+      row_scale.swap(other.row_scale);
+      col_scale.swap(other.col_scale);
+      std::swap(obj_scale, other.obj_scale);
+      std::swap(tol_coef, other.tol_coef);
+      std::swap(tol_rhs, other.tol_rhs);
+      std::swap(tol_cost, other.tol_cost);
+      std::swap(degenerate_run, other.degenerate_run);
+      tie_cost.swap(other.tie_cost);
+      std::swap(in_phase1, other.in_phase1);
+    }
 
     /** @brief Sets the optimization type.
      *
@@ -2505,6 +2571,13 @@ namespace Aleph
         cs[j] = c[j] * col_scale[j] * obj_scale;
     }
 
+    // The empty program, without variables nor constraints, that a move
+    // leaves in its source; the public constructor demands both
+    RevisedSimplex() noexcept
+      : m(0), n(0), eps(std::numeric_limits<T>::epsilon() * 1000), refactor_frequency(50),
+        state(Not_Solved)
+    {}
+
   public:
     /** @brief Constructs a Revised Simplex solver.
      *
@@ -2528,6 +2601,85 @@ namespace Aleph
     {
       ah_invalid_argument_if(num_vars == 0 || num_constraints == 0)
         << "Number of variables and constraints must be > 0";
+    }
+
+    /** @brief Copies the program of another solver.
+     *
+     * @param[in] other solver to copy.
+     * @throw std::bad_alloc If memory allocation fails.
+     */
+    RevisedSimplex(const RevisedSimplex & other) = default;
+
+    /** @brief Takes the program of another solver, which is left as an
+     *         empty program, without variables nor constraints.
+     *
+     * The implicit move took the vectors but copied their sizes: the
+     * moved-from solver then passed its index checks and wrote into
+     * vectors that it no longer had.
+     *
+     * @param[in,out] other solver to move from.
+     */
+    RevisedSimplex(RevisedSimplex && other) noexcept : RevisedSimplex()
+    {
+      swap(other);
+    }
+
+    /** @brief Copies the program of another solver.
+     *
+     * @param[in] other solver to copy.
+     * @return this solver.
+     * @throw std::bad_alloc If memory allocation fails.
+     */
+    RevisedSimplex & operator=(const RevisedSimplex & other) = default;
+
+    /** @brief Exchanges this solver with another, which is left with the
+     *         previous program of this one.
+     *
+     * @param[in,out] other solver to move from.
+     * @return this solver.
+     */
+    RevisedSimplex & operator=(RevisedSimplex && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchanges in O(1) this solver and another.
+     *
+     * @param[in,out] other solver to exchange with.
+     */
+    void swap(RevisedSimplex & other) noexcept
+    {
+      std::swap(m, other.m);
+      std::swap(n, other.n);
+      c.swap(other.c);
+      A.swap(other.A);
+      b.swap(other.b);
+      As.swap(other.As);
+      bs.swap(other.bs);
+      cs.swap(other.cs);
+      row_scale.swap(other.row_scale);
+      col_scale.swap(other.col_scale);
+      art_row.swap(other.art_row);
+      basic.swap(other.basic);
+      is_basic.swap(other.is_basic);
+      B_inv_explicit.swap(other.B_inv_explicit);
+      x_B.swap(other.x_B);
+      solution.swap(other.solution);
+      pi.swap(other.pi);
+      d.swap(other.d);
+      work.swap(other.work);
+      cost.swap(other.cost);
+      std::swap(eps, other.eps);
+      std::swap(refactor_frequency, other.refactor_frequency);
+      std::swap(refactorizations, other.refactorizations);
+      std::swap(since_refactor, other.since_refactor);
+      std::swap(tol_coef, other.tol_coef);
+      std::swap(tol_rhs, other.tol_rhs);
+      std::swap(tol_cost, other.tol_cost);
+      std::swap(degenerate_run, other.degenerate_run);
+      std::swap(state, other.state);
+      std::swap(stats, other.stats);
     }
 
     /** @brief Sets objective coefficient.
