@@ -160,6 +160,9 @@ entries of `build-and-test` and `graph-harness`, `sanitizers`, `tsan`,
   `PATH` of the runners. The jobs keep their ccache in
   `~/.cache/ccache-aleph` of the runners' user, and Clang builds GoogleTest
   with libc++ in the temporary directory of the job.
+- The machine may also have optional libraries that the GitHub image lacks,
+  such as libxml++ 2.6, and then the jobs build and run what depends on
+  them too.
 - The sanitizers need the address randomization off on recent kernels: the
   services start the runners under `setarch x86_64 -R`.
 - Each runner is limited to its own cores, so that `nproc` gives the

@@ -736,7 +736,19 @@ find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
     pkg_check_modules(ALEPH_LIBXMLXX QUIET IMPORTED_TARGET libxml++-2.6)
 endif()
+# The libxml++ of a distribution is built with its C++ library, and its
+# headers use std::auto_ptr: with libc++ it neither compiles nor links. The test
+# is built only if a program that uses it builds with the flags of this build.
 if(TARGET PkgConfig::ALEPH_LIBXMLXX)
+    include(CheckCXXSourceCompiles)
+    set(CMAKE_REQUIRED_LIBRARIES PkgConfig::ALEPH_LIBXMLXX)
+    check_cxx_source_compiles("
+#include <libxml++/libxml++.h>
+int main() { xmlpp::Document doc; doc.create_root_node(\"aleph\"); return 0; }"
+        ALEPH_LIBXMLXX_USABLE)
+    unset(CMAKE_REQUIRED_LIBRARIES)
+endif()
+if(TARGET PkgConfig::ALEPH_LIBXMLXX AND ALEPH_LIBXMLXX_USABLE)
     add_executable(xml_graph_test xml_graph_test.cc)
     list(APPEND _ALEPH_TEST_EXECUTABLE_TARGETS xml_graph_test)
     target_link_libraries(xml_graph_test PRIVATE
@@ -751,6 +763,9 @@ if(TARGET PkgConfig::ALEPH_LIBXMLXX)
     endif()
     gtest_discover_tests(xml_graph_test DISCOVERY_MODE PRE_TEST)
     message(STATUS "libxml++-2.6 found: building xml_graph_test")
+elseif(TARGET PkgConfig::ALEPH_LIBXMLXX)
+    message(STATUS "libxml++-2.6 found, but it does not build with this compiler "
+                   "and C++ library: xml_graph_test is not built")
 else()
     message(STATUS "libxml++-2.6 not found: xml_graph_test is not built")
 endif()
