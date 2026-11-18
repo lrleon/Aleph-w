@@ -429,8 +429,9 @@ namespace Aleph
      *  so that the next searches do not start at levels that are empty.
      *
      *  @param[in] searchKey Key to remove.
-     *  @return Pointer to removed node, or nullptr if not found, also
-     *          when `searchKey` is the key of the sentinel, computeMaxKey().
+     *  @return Pointer to removed node, or nullptr if no node of the list
+     *          has `searchKey`. The sentinel, whose key is computeMaxKey(), is
+     *          never removed; a node inserted with that key is.
      *  @note Caller is responsible for deallocating the returned node.
      */
     [[nodiscard]] Node * remove(const Key & searchKey) noexcept

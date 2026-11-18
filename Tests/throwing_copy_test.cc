@@ -526,12 +526,18 @@ namespace
                                  });
   }
 
-  static_assert(noexcept(std::declval<const ZipIterator<DynList<int>, DynArray<long>> &>()
+  static_assert(noexcept(std::declval<const ZipIterator<DynList<int>, DynList<long>> &>()
                          .get_curr_ne()));
   static_assert(noexcept(std::declval<const ZipIterator<DynList<int>> &>().get_curr_ne()));
   static_assert(noexcept(std::declval<const EnumZipIterator<DynList<int>, DynList<double>> &>()
                          .get_curr_ne()));
-  static_assert(noexcept(std::declval<const EnumZipIterator<DynArray<int>> &>().get_curr_ne()));
+
+  // The reading of a DynArray may allocate, on a modifiable array, so its
+  // iterator is not noexcept: neither is the zip that reads one
+  static_assert(not noexcept(std::declval<const ZipIterator<DynList<int>, DynArray<long>> &>()
+                             .get_curr_ne()));
+  static_assert(not noexcept(std::declval<const EnumZipIterator<DynArray<int>> &>()
+                             .get_curr_ne()));
 
   // =========================================================================
   // The linear hash table (tpl_linHash.H): its lists are Dnode<Key>
@@ -792,4 +798,197 @@ namespace
   static_assert(noexcept(std::declval<const DynMapTree<int, int> &>().search(1)));
   static_assert(noexcept(std::declval<DynMapTree<long, Array<int>, Rb_Tree> &>().has(1L)));
   static_assert(noexcept(std::declval<DynMapTree<long, int, Splay_Tree> &>().has(1L)));
+
+  // =========================================================================
+  // The removals of DynSetTree that give a copy of the key, del() and
+  // remove_pos(): the node leaves the tree before that copy, which leaked
+  // it and left it counted when it threw
+  // =========================================================================
+
+  // A map and a ranked set with the keys 0 to 9
+  struct Removal_Fixture
+  {
+    DynMapTree<long, Copy_Fails> map;
+    DynSetTree<Copy_Fails, Treap_Rk> ranked;
+
+    Removal_Fixture()
+    {
+      for (long k = 0; k < 10; ++k)
+        {
+          (void) map.insert(k, Copy_Fails(k));
+          (void) ranked.insert(Copy_Fails(k));
+        }
+    }
+  };
+
+  // remove() of a map gives the data of the pair that del() copies
+  TEST(Set_Removal, DelFreesTheNodeWhenItsCopyFails)
+  {
+    try_every_failure<Removal_Fixture>("remove(5)", true,
+                                       [] (Removal_Fixture & f)
+                                       {
+                                         (void) f.map.remove(5);
+                                       },
+                                       [] (Removal_Fixture & f, bool)
+                                       {
+                                         const bool removed = not f.map.contains(5);
+                                         EXPECT_EQ(f.map.size(), removed ? 9u : 10u);
+                                         EXPECT_TRUE(f.map.verify());
+                                       });
+  }
+
+  TEST(Set_Removal, RemovePosFreesTheNodeWhenItsCopyFails)
+  {
+    try_every_failure<Removal_Fixture>("remove_pos(3)", true,
+                                       [] (Removal_Fixture & f)
+                                       {
+                                         EXPECT_EQ(f.ranked.remove_pos(3).value, 3);
+                                       },
+                                       [] (Removal_Fixture & f, bool)
+                                       {
+                                         EXPECT_FALSE(f.ranked.contains(Copy_Fails(3)));
+                                         EXPECT_EQ(f.ranked.size(), 9u);
+                                         EXPECT_TRUE(f.ranked.verify());
+                                       });
+  }
+
+  // =========================================================================
+  // The zip iterators: the reading of a container may throw too, and the
+  // copies of the items come from constant items
+  // =========================================================================
+
+  // A container of the user whose reading fails when asked to, of items
+  // whose copy cannot throw
+  struct Reading_Fails
+  {
+    using Item_Type = long;
+
+    long items[3] = {1, 2, 3};
+
+    struct Iterator
+    {
+      using Item_Type = long;
+
+      const Reading_Fails * container;
+      size_t i = 0;
+
+      Iterator(const Reading_Fails & c) noexcept : container(&c) {}
+
+      bool has_curr() const noexcept { return i < 3; }
+
+      const long & get_curr_ne() const
+      {
+        Failures::hit("reading");
+        return container->items[i];
+      }
+
+      const long & get_curr() const { return get_curr_ne(); }
+
+      void next_ne() noexcept { ++i; }
+
+      void next() noexcept { next_ne(); }
+    };
+  };
+
+  // The zip iterators took the copy of a long as all that could throw, and
+  // read the container inside noexcept
+  TEST(Zip_Reading, LetsTheFailureOfTheReadingThrough)
+  {
+    using Zip = ZipIterator<Reading_Fails, DynList<long>>;
+    using Enum_Zip = EnumZipIterator<Reading_Fails, DynList<long>>;
+    EXPECT_FALSE(noexcept(std::declval<const Zip &>().get_curr_ne()));
+    EXPECT_FALSE(noexcept(std::declval<const Enum_Zip &>().get_curr_ne()));
+    EXPECT_FALSE(noexcept(std::declval<const ZipIterator<Reading_Fails> &>().get_curr_ne()));
+
+    const Reading_Fails container;
+    const auto list = one_two_three<DynList<long>>();
+    const Zip zip(container, list);
+    const Enum_Zip enum_zip(container, list);
+    {
+      Failing_From failing(0);
+      EXPECT_THROW((void) zip.get_curr_ne(), Injected_Failure);
+      EXPECT_THROW((void) enum_zip.get_curr_ne(), Injected_Failure);
+    }
+    EXPECT_EQ(std::get<0>(zip.get_curr_ne()), 1);
+    EXPECT_EQ(std::get<1>(enum_zip.get_curr_ne()), 1);
+  }
+
+  // An item whose copy from a constant item cannot throw, and whose copy
+  // from one that is not constant fails when asked to
+  struct Copy_From_Mutable_Fails
+  {
+    long value = 0;
+
+    Copy_From_Mutable_Fails(const long v) noexcept : value(v) {}
+
+    Copy_From_Mutable_Fails(const Copy_From_Mutable_Fails & item) noexcept
+      : value(item.value) {}
+
+    Copy_From_Mutable_Fails(Copy_From_Mutable_Fails & item) : value(item.value)
+    {
+      Failures::hit("copy from an item that is not constant");
+    }
+
+    Copy_From_Mutable_Fails &
+    operator = (const Copy_From_Mutable_Fails &) noexcept = default;
+  };
+
+  // get_curr_ne() of the zip of several containers concatenates the copy
+  // of the first item with the others: it copied it again from a tuple that
+  // was not constant, with the copy that the noexcept did not check
+  TEST(Zip_Current_Copies, CopiesFromConstantItems)
+  {
+    using C = DynList<Copy_From_Mutable_Fails>;
+    const C a = one_two_three<C>(), b = one_two_three<C>(), c = one_two_three<C>();
+    const ZipIterator<C, C, C> zip(a, b, c);
+    const EnumZipIterator<C, C, C> enum_zip(a, b, c);
+    Failing_From failing(0);
+    const auto t = zip.get_curr_ne();
+    const auto u = enum_zip.get_curr_ne();
+    EXPECT_EQ(Failures::fired, 0);
+    EXPECT_EQ(std::get<0>(t).value + std::get<1>(t).value + std::get<2>(t).value, 3);
+    EXPECT_EQ(std::get<2>(u).value, 1);
+  }
+
+  // =========================================================================
+  // A base of the nodes that throws, as a user may give to DECLARE_BINNODE
+  // =========================================================================
+
+  // A base whose default construction and copy fail when asked to
+  struct Failing_Base
+  {
+    Failing_Base() { Failures::hit("default construction of the base"); }
+
+    Failing_Base(const Failing_Base &) { Failures::hit("copy of the base"); }
+
+    Failing_Base & operator = (const Failing_Base &) noexcept = default;
+
+    void reset() noexcept {}
+  };
+
+  DECLARE_BINNODE(Failing_Base_Node, 64, Failing_Base);
+
+  // Node(Key &&) builds the base by default and Node(const Control_Data &)
+  // copies it: they were noexcept as the key, which does not throw, and
+  // what the base threw ended the program
+  TEST(Node_Construction_Base, LetsTheFailureOfTheBaseThrough)
+  {
+    using Node = Failing_Base_Node<long>;
+    EXPECT_FALSE((std::is_nothrow_constructible_v<Node, long &&>));
+    EXPECT_FALSE((std::is_nothrow_constructible_v<Node, const Failing_Base &>));
+
+    const Failing_Base base;
+    {
+      Failing_From failing(0);
+      EXPECT_THROW((void) Node(7L), Injected_Failure);
+    }
+    {
+      Failing_From failing(0);
+      EXPECT_THROW((void) Node(base), Injected_Failure);
+    }
+
+    // the bases of the library do not throw: their nodes keep the noexcept
+    EXPECT_TRUE((std::is_nothrow_constructible_v<AvlNode<long>, long &&>));
+    EXPECT_TRUE((std::is_nothrow_constructible_v<BinNode<long>, const Empty_Node &>));
+  }
 }

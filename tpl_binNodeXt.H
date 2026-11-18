@@ -43,6 +43,8 @@
 # ifndef TPL_BINNODEXT_H
 # define TPL_BINNODEXT_H
 
+# include <limits>
+
 # include <ah-concepts.H>
 
 # include <tpl_binNode.H>
@@ -214,13 +216,17 @@ Node * select(Node * root, const size_t pos, Node *& parent)
     @param[out] p pointer to the node containing `key`
     @param[in] cmp comparison criteria
     @return inorder position of `key`
+    @throws anything that `cmp` throws; the search does not modify the
+    tree. It is `noexcept` only if `cmp` cannot throw, so that what a
+    comparison throws reaches the caller.
 
     @ingroup Trees
 */
     template <RankedBinNodeLike Node, class Compare> inline
 long inorder_position(Node * r,
                       const typename Node::key_type & key,
-                      Node *& p, Compare & cmp) noexcept
+                      Node *& p, Compare & cmp)
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   assert(COUNT(Node::NullPtr) == 0);
 
@@ -245,7 +251,7 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
       inline long inorder_position(Node * r,
                                    const typename Node::key_type & key,
                                    Node *& p, Compare && cmp = Compare())
-  noexcept
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   return inorder_position(r, key, p, cmp);
 }
@@ -253,7 +259,8 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
 /// \overload inorder_position()
     template <BinNodeLike Node, class Compare> inline
 long inorder_position(Node * r, const typename Node::key_type & key,
-                      Compare & cmp) noexcept
+                      Compare & cmp)
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   Node * p = nullptr;
   return inorder_position(r, key, p, cmp);
@@ -262,7 +269,8 @@ long inorder_position(Node * r, const typename Node::key_type & key,
 /// \overload inorder_position()
     template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline long inorder_position(Node * r, const typename Node::key_type & key,
-			     Compare && cmp = Compare()) noexcept
+			     Compare && cmp = Compare())
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   return inorder_position(r, key, cmp);
 }
@@ -290,13 +298,17 @@ inline long inorder_position(Node * r, const typename Node::key_type & key,
         @param[out] p reference to pointer to node
         @param[in] cmp comparison criteria
         @return the positions of `key` in the tree
+        @throws anything that `cmp` throws; the search does not modify the
+        tree. It is `noexcept` only if `cmp` cannot throw, so that what a
+        comparison throws reaches the caller.
 
         @ingroup Trees
      */
     template <RankedBinNodeLike Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 long find_position(Node * r, const typename Node::key_type & key,
-                   Node *& p, Compare & cmp) noexcept
+                   Node *& p, Compare & cmp)
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   assert(COUNT(Node::NullPtr) == 0);
 
@@ -330,12 +342,59 @@ long find_position(Node * r, const typename Node::key_type & key,
   return offset - 1;
 }
 
+/// \overload find_position()
 template <BinNodeLike Node,
 	  class Compare = Aleph::less<typename Node::key_type>> inline
 long find_position(Node * r, const typename Node::key_type & key,
-                   Node *& p, Compare && cmp = Compare()) noexcept
+                   Node *& p, Compare && cmp = Compare())
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   return find_position(r, key, p, cmp);
+}
+
+/** @brief The inorder position of the node `p`, in a tree that may have
+    keys equivalent to that of `p`.
+
+    inorder_position() finds a node by its key: among equivalent keys it
+    may find another node. This one finds `p` itself: it descends by the
+    key of `p` and, at a node with an equivalent key that is not `p`,
+    looks for `p` on both of its sides.
+
+    @param[in] r root of the tree
+    @param[in] p a node of the tree
+    @param[in] cmp comparison criteria of the tree
+    @return the inorder position of `p`, or -1 if `p` is not in the tree
+    @throws anything that `cmp` throws; the search does not modify the
+    tree. It is `noexcept` only if `cmp` cannot throw, so that what a
+    comparison throws reaches the caller.
+
+    @ingroup Trees
+*/
+template <RankedBinNodeLike Node, class Compare> inline
+long inorder_position_of_node(Node * r, Node * p, Compare & cmp)
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
+{
+  const typename Node::key_type & key = KEY(p);
+  long offset = 0;
+  while (r != Node::NullPtr)
+    if (r == p)
+      return offset + static_cast<long>(COUNT(LLINK(r)));
+    else if (cmp(key, KEY(r)))
+      r = LLINK(r);
+    else if (cmp(KEY(r), key))
+      {
+        offset += static_cast<long>(COUNT(LLINK(r)) + 1);
+        r = RLINK(r);
+      }
+    else // an equivalent key: p is on one of its sides
+      {
+        const long pos = inorder_position_of_node(LLINK(r), p, cmp);
+        if (pos >= 0)
+          return offset + pos;
+        offset += static_cast<long>(COUNT(LLINK(r)) + 1);
+        r = RLINK(r);
+      }
+  return -1;
 }
 
     /** Insert a node in an extended binary search tree.
@@ -1130,26 +1189,45 @@ private:
     return curr != nullptr;
   }
 
-  // The free inorder_position() of this header: BinTreeXt_Operation is
-  // declared in tpl_binTreeOps.H, after this one, and naming it here kept
-  // has_curr() from compiling
-  void update_pos() const noexcept
+  // The position of the node itself: among equivalent keys, a search by
+  // its key could find another node and put the iterator on it. A free
+  // function of this header: BinTreeXt_Operation is declared in
+  // tpl_binTreeOps.H, after this one, and naming it here kept has_curr()
+  // from compiling
+  void update_pos() const noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(curr != nullptr);
-    curr_pos = Aleph::inorder_position(tree_ptr->getRoot(), KEY(curr), curr,
-                                       tree_ptr->key_comp());
+    curr_pos = Aleph::inorder_position_of_node(tree_ptr->getRoot(), curr,
+                                               tree_ptr->key_comp());
+  }
+
+  // A position that an int cannot hold is past the end of every tree whose
+  // positions it holds: the greatest int keeps it there, while converting
+  // it would drop its high bits and could give a position with a node
+  static int saturated_pos(const size_t pos) noexcept
+  {
+    constexpr auto max_pos =
+      static_cast<size_t>(std::numeric_limits<int>::max());
+    return static_cast<int>(pos < max_pos ? pos : max_pos);
   }
 
   // A position outside [0, size()) has no node: past the end it comes
   // from reset_to_pos(), from the constructor with a position, from
   // next_ne() at the end or from keys removed from the tree, and select()
-  // would throw inside noexcept
+  // would throw inside noexcept. A negative one is checked first: an
+  // iterator built by default has no tree to read
   void update_curr() const noexcept
   {
     assert(curr_pos != Pos_Not_Updated);
 
+    if (curr_pos < 0)
+      {
+        curr = nullptr;
+        return;
+      }
+
     Node * root = tree_ptr->getRoot();
-    if (curr_pos < 0 or static_cast<size_t>(curr_pos) >= COUNT(root))
+    if (static_cast<size_t>(curr_pos) >= COUNT(root))
       {
         curr = nullptr;
         return;
@@ -1179,11 +1257,11 @@ public:
 
       @param[in] __tree the tree to iterate
       @param[in] pos inorder position; at size() or past it, the iterator
-      is at the end, without current node.
+      is at the end, without current node, even if an int cannot hold it.
   */
   BinTreeXt_Iterator(const TreeType & __tree, const size_t pos) noexcept
     : tree_ptr(&const_cast<TreeType&>(__tree)),
-      curr(nullptr), curr_pos(pos)
+      curr(nullptr), curr_pos(saturated_pos(pos))
   { /* empty */ }
 
   BinTreeXt_Iterator(const BinTreeXt_Iterator & itor) noexcept
@@ -1227,8 +1305,12 @@ public:
 
       @param[in] key to guide the position; if it is not in the tree, the
       position is the one that the find_position() of the tree gives.
+      @throws anything that find_position() of the tree throws, as what
+      the comparison throws; then the iterator is left as it was. It is
+      `noexcept` only if find_position() is.
   */
-  void reset_to_key(const Key & key) noexcept
+  void reset_to_key(const Key & key)
+    noexcept(noexcept(tree_ptr->find_position(key)))
   {
     std::pair<long, Node*> p = tree_ptr->find_position(key);
     curr = nullptr;
@@ -1244,12 +1326,12 @@ public:
   /** Put the iterator on the inorder position `pos`.
 
       @param[in] pos inorder position; at size() or past it, the iterator
-      is at the end, without current node.
+      is at the end, without current node, even if an int cannot hold it.
   */
   void reset_to_pos(const size_t pos) noexcept
   {
     curr = nullptr;
-    curr_pos = pos;
+    curr_pos = saturated_pos(pos);
   }
 
   /** Return the current node.
@@ -1291,7 +1373,15 @@ public:
 
   size_t get_pos() const { return get_current_position(); }
 
-  bool has_curr() const noexcept
+  /** Return `true` if the iterator has a current node.
+
+      @return `true` if the position of the iterator has a node.
+      @throws anything that the comparison throws while it computes the
+      position of a node that the iterator was put on, as reset_to_node()
+      does. It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
+  */
+  bool has_curr() const noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (not pos_updated())
       update_pos();
@@ -1332,7 +1422,17 @@ public:
     return ret_val;
   }
 
-  bool operator == (const BinTreeXt_Iterator & itor) const noexcept
+  /** Return `true` if `this` and `itor` are on the same position.
+
+      @param[in] itor the iterator to compare with.
+      @return `true` if both iterators are on the same position.
+      @throws anything that the comparison throws while it computes the
+      position of a node that an iterator was put on. It is `noexcept`
+      only if the comparison cannot throw, so that what it throws reaches
+      the caller.
+  */
+  bool operator == (const BinTreeXt_Iterator & itor) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (is_container_empty() and itor.is_container_empty())
       return true;

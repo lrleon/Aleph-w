@@ -199,12 +199,13 @@ public:
         @param[in] key to be searched
         @return a pointer to the containing key if this was found;
         otherwise `nullptr`
-        @throws anything that the comparison throws; the search does not
-        modify the tree, so it is left as it was.
-        @note It is `noexcept` only if the comparison cannot throw, so that
-        what it throws reaches the caller.
+        @throws anything that the comparison or its copy throws; the search
+        does not modify the tree, so it is left as it was.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
     */
-  Node * search(const Key & key) const noexcept(nothrow_compare_v<Compare, Key>)
+  Node * search(const Key & key) const
+    noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     return BinTree_Operation<Node, Compare>(cmp).search(root, key);
   }
@@ -229,12 +230,13 @@ public:
           @return if `p->get_key()` is not in the tree, then the pointer
           `p` is returned (it was inserted); otherwise, `nullptr`
           is returned 
-          @throws anything that the comparison throws; `p` is linked only
-          after the last comparison, so the tree is left as it was.
-          @note It is `noexcept` only if the comparison cannot throw, so
-          that what it throws reaches the caller.
+          @throws anything that the comparison or its copy throws; `p` is
+          linked only after the last comparison, so the tree is left as it
+          was.
+          @note It is `noexcept` only if the comparison and its copy cannot
+          throw, so that what it throws reaches the caller.
        */
-  Node * insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
+  Node * insert(Node *p) noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     return BinTree_Operation<Node, Compare>(cmp).insert(root, p);
   }
@@ -245,12 +247,13 @@ public:
 
           @param[in] p pointer to the node to insert
           @return the `p` pointer
-          @throws anything that the comparison throws; `p` is linked only
-          after the last comparison, so the tree is left as it was.
-          @note It is `noexcept` only if the comparison cannot throw, so
-          that what it throws reaches the caller.
+          @throws anything that the comparison or its copy throws; `p` is
+          linked only after the last comparison, so the tree is left as it
+          was.
+          @note It is `noexcept` only if the comparison and its copy cannot
+          throw, so that what it throws reaches the caller.
        */
-  Node * insert_dup(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
+  Node * insert_dup(Node *p) noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     return BinTree_Operation<Node, Compare>(cmp).insert_dup(root, p);
   }
@@ -266,12 +269,14 @@ public:
           @return if the key contained in `p` is found, then a pointer
           to the containing key in the tree is returned. Otherwise, `p`
           is inserted and returned
-          @throws anything that the comparison throws; `p` is linked only
-          after the last comparison, so the tree is left as it was.
-          @note It is `noexcept` only if the comparison cannot throw, so
-          that what it throws reaches the caller.
+          @throws anything that the comparison or its copy throws; `p` is
+          linked only after the last comparison, so the tree is left as it
+          was.
+          @note It is `noexcept` only if the comparison and its copy cannot
+          throw, so that what it throws reaches the caller.
        */
-  Node * search_or_insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
+  Node * search_or_insert(Node *p)
+    noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     return BinTree_Operation<Node, Compare>(cmp).search_or_insert(root, p);
   }
@@ -288,13 +293,14 @@ public:
       @param[out] l resulting tree with the keys lesser than `key`
       @param[out] r resulting tree with the keys greater than `key`
       @return true if the tree was split. `false` otherwise
-      @throws anything that the comparison throws; every comparison comes
-      before the first change, so the three trees are left as they were.
-      @note It is `noexcept` only if the comparison cannot throw, so that
-      what it throws reaches the caller.
+      @throws anything that the comparison or its copy throws; every
+      comparison comes before the first change, so the three trees are left
+      as they were.
+      @note It is `noexcept` only if the comparison and its copy cannot
+      throw, so that what it throws reaches the caller.
   */
   bool split(const Key & key, GenBinTree & l, GenBinTree & r)
-    noexcept(nothrow_compare_v<Compare, Key>)
+    noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     return BinTree_Operation<Node, Compare>(cmp).
       split_key_rec(root, key, l.root, r.root);
@@ -325,12 +331,13 @@ public:
       @param[in] key to remove
       @return a valid pointer to the removed node if `key` was found
       in the tree, `nullptr` otherwise
-      @throws anything that the comparison throws; the node is unlinked
-      only after the last comparison, so the tree is left as it was.
-      @note It is `noexcept` only if the comparison cannot throw, so that
-      what it throws reaches the caller.
+      @throws anything that the comparison or its copy throws; the node is
+      unlinked only after the last comparison, so the tree is left as it
+      was.
+      @note It is `noexcept` only if the comparison and its copy cannot
+      throw, so that what it throws reaches the caller.
   */
-  Node * remove(const Key & key) noexcept(nothrow_compare_v<Compare, Key>)
+  Node * remove(const Key & key) noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     return BinTree_Operation<Node, Compare>(cmp).remove(root, key);
   }

@@ -545,7 +545,8 @@ protected:
       `Data`, which may allocate or throw.
 
       @param[in] hash_func the hash of `search_key`, which must be the hash
-      that the table gives to the keys equivalent to `search_key`.
+      that the table gives to the keys equivalent to `search_key`. It is
+      taken by reference: a copy of a function object may allocate.
       @param[in] search_key what to search for; the comparator of the table
       must compare it with a `Key`.
       @return the bucket whose key is equivalent to `search_key`, or
@@ -554,7 +555,7 @@ protected:
       comparator do not throw.
   */
   template <typename HashFunc, typename SearchKey>
-  Bucket * search_with_custom_hash(HashFunc hash_func,
+  Bucket * search_with_custom_hash(const HashFunc & hash_func,
                                    const SearchKey & search_key) const noexcept
   {
     BucketList * list = table.test(list_index(hash_func(search_key)));

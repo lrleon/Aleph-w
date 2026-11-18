@@ -652,13 +652,13 @@ public:
       @param[in] key to be searched
       @return a pair with the inorder position and the node pointer.
       If key is not found, position is -1.
-      @throws anything that the comparison throws; the search does not
-      modify the tree, so it is left as it was.
-      @note It is `noexcept` only if the comparison cannot throw, so that
-      what it throws reaches the caller.
+      @throws anything that the comparison or its copy throws; the search
+      does not modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison and its copy cannot
+      throw, so that what it throws reaches the caller.
   */
   std::pair<long, Node*> position(const Key & key) const
-    noexcept(nothrow_compare_v<Compare, Key>)
+    noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     std::pair<long, Node*> ret_val;
 
@@ -672,13 +672,13 @@ public:
 
       @param[in] key to be searched
       @return a pair with the position and the node pointer
-      @throws anything that the comparison throws; the search does not
-      modify the tree, so it is left as it was.
-      @note It is `noexcept` only if the comparison cannot throw, so that
-      what it throws reaches the caller.
+      @throws anything that the comparison or its copy throws; the search
+      does not modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison and its copy cannot
+      throw, so that what it throws reaches the caller.
   */
   std::pair<long, Node*> find_position(const Key & key) const
-    noexcept(nothrow_compare_v<Compare, Key>)
+    noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     std::pair<long, Node*> r(-2, nullptr);
 

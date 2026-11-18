@@ -43,6 +43,8 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
+#include <limits>
+#include <string>
 
 #include <tpl_array.H>
 
@@ -183,4 +185,63 @@ TYPED_TEST(RankedTreeIterator, ResetToKeyGoesToTheNodeOfTheKey)
   EXPECT_EQ(KEY(it.get_curr()), 5);
   EXPECT_EQ(it.get_pos(), 3u);
   EXPECT_EQ(keys_from(it), (Array<int>{5, 8}));
+}
+
+// An iterator built by default has no tree: get_curr_ne() read the root of
+// the tree that it does not have before it saw that it has no position
+TYPED_TEST(RankedTreeIterator, AnIteratorBuiltByDefaultHasNoNode)
+{
+  typename TypeParam::Iterator it;
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_EQ(it.get_curr_ne(), nullptr);
+  EXPECT_EQ(it.get_curr(), nullptr);
+}
+
+// The position of a node that the iterator was put on is that of the node:
+// among equal keys, the search by its key found another node, which the
+// iterator took as its current one
+TYPED_TEST(RankedTreeIterator, ResetToNodeKeepsTheNodeAmongEqualKeys)
+{
+  using Node = typename TypeParam::Node;
+  Array<Node *> equal = {this->tree.search(4)};
+  for (int i = 0; i < 4; ++i)
+    equal.append(this->tree.insert_dup(this->pool.make(4)));
+
+  Array<Node *> in_order;  // by position, without searching by key
+  for (typename TypeParam::Iterator it(this->tree); it.has_curr(); it.next_ne())
+    in_order.append(it.get_curr());
+  ASSERT_EQ(in_order.size(), 9u);
+
+  for (size_t i = 0; i < equal.size(); ++i)
+    {
+      SCOPED_TRACE("the node " + std::to_string(i) + " of the key 4");
+      typename TypeParam::Iterator it(this->tree);
+      it.reset_to_node(equal[i]);
+      ASSERT_TRUE(it.has_curr());
+      EXPECT_EQ(it.get_curr(), equal[i]);
+      const size_t pos = it.get_pos();
+      ASSERT_LT(pos, in_order.size());
+      EXPECT_EQ(in_order[pos], equal[i]);
+    }
+}
+
+// A position past the end that an int cannot hold is the end too: kept in
+// an int, it lost its high bits, and 2^32 + 2 was the position 2
+TYPED_TEST(RankedTreeIterator, APositionThatAnIntCannotHoldIsTheEnd)
+{
+  if constexpr (sizeof(size_t) <= sizeof(int))
+    GTEST_SKIP() << "a size_t holds no position that an int cannot";
+  else
+    {
+      using Iterator = typename TypeParam::Iterator;
+      const size_t far = size_t{std::numeric_limits<unsigned>::max()} + 3;
+      const Iterator built(this->tree, far);
+      EXPECT_FALSE(built.has_curr());
+      EXPECT_EQ(built.get_curr(), nullptr);
+
+      Iterator it(this->tree);
+      it.reset_to_pos(far);
+      EXPECT_FALSE(it.has_curr());
+      EXPECT_EQ(it.get_curr(), nullptr);
+    }
 }

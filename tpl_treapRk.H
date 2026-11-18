@@ -50,6 +50,7 @@
 # ifndef TPL_TREAPRK_H
 # define TPL_TREAPRK_H
 
+# include <limits>
 # include <type_traits>
 # include <ah-random.H>
 # include <ahFunction.H>
@@ -400,7 +401,9 @@ public:
         inserted and this node pointer is returned. Otherwise, it is
         returned `nullptr`.
         @throws anything that the comparison throws; the tree changes only
-        after the last comparison, so it is left as it was, without `p`.
+        after the last comparison, so its links and nodes are left as they
+        were, without `p`; not so the random generator: the priority of `p`
+        was drawn before the first comparison.
         @note It is `noexcept` only if the comparison cannot throw, so that
         what it throws reaches the caller.
     */
@@ -420,7 +423,9 @@ public:
       @param[in] p pointer to the node to insert
       @return the `p` pointer
       @throws anything that the comparison throws; the tree changes only
-      after the last comparison, so it is left as it was, without `p`.
+      after the last comparison, so its links and nodes are left as they
+      were, without `p`; not so the random generator: the priority of `p`
+      was drawn before the first comparison.
       @note It is `noexcept` only if the comparison cannot throw, so that
       what it throws reaches the caller.
   */
@@ -445,7 +450,9 @@ public:
       to the containing key in the tree is returned. Otherwise, `p`
       is inserted and returned
       @throws anything that the comparison throws; the tree changes only
-      after the last comparison, so it is left as it was, without `p`.
+      after the last comparison, so its links and nodes are left as they
+      were, without `p`; not so the random generator: the priority of `p`
+      was drawn before the first comparison.
       @note It is `noexcept` only if the comparison cannot throw, so that
       what it throws reaches the caller.
   */
@@ -616,15 +623,15 @@ public:
       @param[in] key to be searched
       @return inorder position of `key` if this is in the tree or -1 if
       `key` is not found
-      @throws anything that the comparison throws; the search does not
-      modify the tree, so it is left as it was.
-      @note It is `noexcept` only if the comparison cannot throw, so that
-      what it throws reaches the caller.
+      @throws anything that the comparison or its copy throws; the search
+      does not modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison and its copy cannot
+      throw, so that what it throws reaches the caller.
 
       @ingroup Trees
    */
   std::pair<int, Node*> position(const Key & key) const
-    noexcept(nothrow_compare_v<Compare, Key>)
+    noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     std::pair<int, Node*> ret_val;
 
@@ -659,13 +666,13 @@ public:
 
       @param[in] key to be searched
       @return a pair with the inorder position and and related node
-      @throws anything that the comparison throws; the search does not
-      modify the tree, so it is left as it was.
-      @note It is `noexcept` only if the comparison cannot throw, so that
-      what it throws reaches the caller.
+      @throws anything that the comparison or its copy throws; the search
+      does not modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison and its copy cannot
+      throw, so that what it throws reaches the caller.
      */
   std::pair<int, Node*> find_position(const Key & key) const
-    noexcept(nothrow_compare_v<Compare, Key>)
+    noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     std::pair<int, Node*> r(-2, nullptr);
 
@@ -677,7 +684,9 @@ public:
 
    /** @brief Split the tree according to a key
 
-      It splits with the comparison criteria of the tree.
+      It splits with the comparison criteria of the tree, which links the
+      nodes of `t1` and `t2` in its order: their criteria must order as it
+      does, or their searches may not find the keys that they hold.
 
       @param[in] key for splitting
       @param[out] t1 tree with keys lesser than `key`
@@ -700,7 +709,9 @@ public:
       `split_dup(key, t1, t2)` splits the tree according to `key` in two
       trees `t1` which contains the key lesser than `key` and `t2` which
       contains the keys greater or equal than `key`. It splits with the
-      comparison criteria of the tree.
+      comparison criteria of the tree, which links the nodes of `t1` and
+      `t2` in its order: their criteria must order as it does, or their
+      searches may not find the keys that they hold.
 
       @param[in] key for splitting
       @param[out] t1 resulting tree with the keys lesser than `key`
@@ -864,24 +875,44 @@ public:
       return pos_updated() and curr_updated();
     }
 
-    void update_pos() const noexcept
+    // The position of the node itself: among equivalent keys, a search by
+    // its key could find another node and put the iterator on it. It
+    // compares with the criteria of the tree, without copying it
+    void update_pos() const noexcept(nothrow_compare_v<Compare, Key>)
     {
       assert(curr != nullptr);
+      curr_pos = Aleph::inorder_position_of_node(tree_ptr->getRoot(), curr,
+                                                 tree_ptr->cmp);
+    }
 
-      curr_pos = BinTreeXt_Operation<Node, Compare>(tree_ptr->cmp).
-        inorder_position(tree_ptr->getRoot(), KEY(curr), curr);
+    // A position that an int cannot hold is past the end of every tree
+    // whose positions it holds: the greatest int keeps it there, while
+    // converting it would drop its high bits and could give a position
+    // with a node
+    static int saturated_pos(const size_t pos) noexcept
+    {
+      constexpr auto max_pos =
+        static_cast<size_t>(std::numeric_limits<int>::max());
+      return static_cast<int>(pos < max_pos ? pos : max_pos);
     }
 
     // A position outside [0, size()) has no node: past the end it comes
     // from reset_to_pos(), from Iterator(tree, pos), from next_ne() at the
     // end or from keys removed from the tree, and select() would throw
-    // inside noexcept
+    // inside noexcept. A negative one is checked first: an iterator built
+    // by default has no tree to read
     void update_curr() const noexcept
     {
       assert(curr_pos != Pos_Not_Updated);
 
+      if (curr_pos < 0)
+        {
+          curr = nullptr;
+          return;
+        }
+
       Node * root = tree_ptr->getRoot();
-      if (curr_pos < 0 or static_cast<size_t>(curr_pos) >= COUNT(root))
+      if (static_cast<size_t>(curr_pos) >= COUNT(root))
         {
           curr = nullptr;
           return;
@@ -917,11 +948,12 @@ public:
 
         @param[in] __tree the tree to iterate
         @param[in] pos inorder position; at size() or past it, the
-        iterator is at the end, without current node.
+        iterator is at the end, without current node, even if an int
+        cannot hold it.
     */
     Iterator(const Gen_Treap_Rk & __tree, const size_t pos) noexcept
       : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)),
-        curr(nullptr), curr_pos(pos)
+        curr(nullptr), curr_pos(saturated_pos(pos))
     {
       // empty
     }
@@ -972,8 +1004,12 @@ public:
 
         @param[in] key to guide the position; if it is not in the tree,
         the position is the one that find_position() gives.
+        @throws anything that find_position() throws, as what the
+        comparison or its copy throws; then the iterator is left as it
+        was. It is `noexcept` only if find_position() is.
     */
-    void reset_to_key(const Key & key) noexcept
+    void reset_to_key(const Key & key)
+      noexcept(noexcept(tree_ptr->find_position(key)))
     {
       std::pair<int, Node*> p = tree_ptr->find_position(key);
       curr = nullptr;
@@ -998,12 +1034,13 @@ public:
     /** Put the iterator on the inorder position `pos`.
 
         @param[in] pos inorder position; at size() or past it, the
-        iterator is at the end, without current node.
+        iterator is at the end, without current node, even if an int
+        cannot hold it.
     */
     void reset_to_pos(const size_t pos) noexcept
     {
       curr = nullptr;
-      curr_pos = pos;
+      curr_pos = saturated_pos(pos);
     }
 
     /** Return the current node.
@@ -1055,8 +1092,15 @@ public:
     /// \overload get_current_position()
     size_t get_pos() const { return get_current_position(); }
 
-    /// Return `true` if iterator has current node
-    bool has_curr() const noexcept
+    /** Return `true` if the iterator has a current node.
+
+        @return `true` if the position of the iterator has a node.
+        @throws anything that the comparison throws while it computes the
+        position of a node that the iterator was put on, as
+        reset_to_node() does. It is `noexcept` only if the comparison
+        cannot throw, so that what it throws reaches the caller.
+    */
+    bool has_curr() const noexcept(nothrow_compare_v<Compare, Key>)
     {
       if (not pos_updated())
         update_pos();
@@ -1103,8 +1147,17 @@ public:
       return ret_val;
     }
 
-    /// Return `true` if `this` is equal to `itor`
-    bool operator == (const Iterator & itor) const noexcept
+    /** Return `true` if `this` and `itor` are on the same position.
+
+        @param[in] itor the iterator to compare with.
+        @return `true` if both iterators are on the same position.
+        @throws anything that the comparison throws while it computes the
+        position of a node that an iterator was put on. It is `noexcept`
+        only if the comparison cannot throw, so that what it throws
+        reaches the caller.
+    */
+    bool operator == (const Iterator & itor) const
+      noexcept(nothrow_compare_v<Compare, Key>)
     {
       if (is_container_empty() and itor.is_container_empty())
         return true;

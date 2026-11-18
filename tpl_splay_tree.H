@@ -120,11 +120,12 @@ using namespace Aleph;
 
     @note This implementation does NOT support rank operations.
           For indexed access, use Splay_Tree_Rk instead.
-    @note The comparison must not throw: the operations that compare are
-          `noexcept`, and if it throws the program ends
+    @note The comparison must not throw in the operations that splay: they
+          are `noexcept`, and if it throws the program ends
           (`std::terminate()`). A splay relinks the tree as it compares, so
           a comparison that threw in the middle would leave nodes hanging
-          from a local header, out of the tree.
+          from a local header, out of the tree. verify(), which does not
+          splay, lets what the comparison throws reach the caller.
     @note Based on Danny Sleator's top-down splay tree implementation.
     @note This is a low-level implementation managing raw nodes.
           For automatic memory management, use DynSetSplayTree.
@@ -254,6 +255,7 @@ public:
       not found, the last node of the search is splayed.
 
       @param[in] key the key to search
+      @pre The tree is not empty: an empty tree has no node to splay.
       @pre The comparison does not throw; if it does, the program ends
       (`std::terminate()`).
       @note It stays `noexcept` because the splay relinks the tree as it

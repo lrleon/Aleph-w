@@ -59,13 +59,34 @@
 
 namespace Aleph {
 
+/** @brief Whether the calls of `Cmp` that compare two keys of type `Key`,
+    constant or not, give a `bool` without throwing.
+
+    @tparam Cmp the comparison criteria, as a reference.
+    @tparam Key the type of the keys.
+    @ingroup Trees
+ */
+template <class Cmp, class Key>
+inline constexpr bool nothrow_compare_keys_v =
+  std::is_nothrow_invocable_r_v<bool, Cmp, const Key &, const Key &> and
+  std::is_nothrow_invocable_r_v<bool, Cmp, const Key &, Key &> and
+  std::is_nothrow_invocable_r_v<bool, Cmp, Key &, const Key &> and
+  std::is_nothrow_invocable_r_v<bool, Cmp, Key &, Key &>;
+
 /** @brief Whether `Compare` compares two keys of type `Key` without
-    throwing, called through a constant or a non-constant reference.
+    throwing, as the operations of the trees call it.
 
     The operations of the binary search trees that compare keys are
     `noexcept` only when this holds, so that what a comparison throws
     reaches their caller instead of ending the program: a `noexcept`
     function that lets an exception out calls `std::terminate()`.
+
+    They call it through a constant or a non-constant reference, with the
+    key that they search for and the key of a node, which is not constant,
+    and take its result as a `bool`. So each of these calls must not
+    throw, nor the conversion of its result to `bool`: a comparison that
+    gives a type whose conversion throws, or that has an overload for keys
+    that are not constant that throws, makes the operations throw.
 
     @tparam Compare the comparison criteria of the tree.
     @tparam Key the type of the keys of the tree.
@@ -73,8 +94,24 @@ namespace Aleph {
  */
 template <class Compare, class Key>
 inline constexpr bool nothrow_compare_v =
-  std::is_nothrow_invocable_v<Compare &, const Key &, const Key &> and
-  std::is_nothrow_invocable_v<const Compare &, const Key &, const Key &>;
+  nothrow_compare_keys_v<Compare &, Key> and
+  nothrow_compare_keys_v<const Compare &, Key>;
+
+/** @brief Whether `Compare` compares two keys of type `Key` without
+    throwing, as nothrow_compare_v, and can be copied without throwing.
+
+    For the operations that copy the comparison of the tree into an
+    operation object before they compare.
+
+    @tparam Compare the comparison criteria of the tree.
+    @tparam Key the type of the keys of the tree.
+    @ingroup Trees
+ */
+template <class Compare, class Key>
+inline constexpr bool nothrow_compare_copy_v =
+  nothrow_compare_v<Compare, Key> and
+  std::is_nothrow_constructible_v<Compare, Compare &> and
+  std::is_nothrow_constructible_v<Compare, const Compare &>;
 
 /** Debug-only check that `root` is a valid tree for `Node`.
 

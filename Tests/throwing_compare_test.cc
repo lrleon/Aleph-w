@@ -1266,3 +1266,365 @@ TEST(ThrowingCompareOperations, SplayTreesKeepTheirNoexcept)
   static_assert(noexcept(std::declval<Tree &>().splay(1)));
   static_assert(noexcept(std::declval<Splay_Tree_Rk<int, Countdown_Less> &>().splay(1)));
 }
+
+namespace
+{
+  // A comparison that does not throw, whose result throws when it is
+  // converted to bool, while armed
+  struct Proxy_Less
+  {
+    static inline bool armed = false;
+
+    struct Result
+    {
+      bool value;
+
+      operator bool () const
+      {
+        if (armed)
+          throw Comparison_Error();
+        return value;
+      }
+    };
+
+    Result operator ()(const int & a, const int & b) const noexcept
+    {
+      return Result{a < b};
+    }
+  };
+
+  // Its overloads for keys that are not constant count their calls and
+  // throw, while armed; the one for constant keys does not throw
+  template <class Key>
+  struct Mutable_Key_Less
+  {
+    static inline bool armed = false;
+    static inline long mutable_calls = 0;
+
+    static bool mutable_call(const bool result)
+    {
+      ++mutable_calls;
+      if (armed)
+        throw Comparison_Error();
+      return result;
+    }
+
+    bool operator ()(const Key & a, const Key & b) const noexcept { return a < b; }
+    bool operator ()(const Key & a, Key & b) const { return mutable_call(a < b); }
+    bool operator ()(Key & a, const Key & b) const { return mutable_call(a < b); }
+    bool operator ()(Key & a, Key & b) const { return mutable_call(a < b); }
+  };
+
+  // A comparison that does not throw, whose copy throws while armed
+  struct Copy_Throw_Less
+  {
+    static inline bool armed = false;
+
+    Copy_Throw_Less() = default;
+
+    Copy_Throw_Less(const Copy_Throw_Less &)
+    {
+      if (armed)
+        throw Comparison_Error();
+    }
+
+    Copy_Throw_Less & operator = (const Copy_Throw_Less &) = default;
+
+    bool operator ()(const int & a, const int & b) const noexcept { return a < b; }
+  };
+
+  // While one lives, the comparison Cmp is armed
+  template <class Cmp>
+  struct Armed
+  {
+    Armed() noexcept { Cmp::armed = true; }
+    ~Armed() { Cmp::armed = false; }
+    Armed(const Armed &) = delete;
+    Armed & operator = (const Armed &) = delete;
+  };
+
+  // A comparison that knows whether it is alive when it is called: each
+  // one keeps its address among those of the live ones while it lives
+  struct Tracked_Less
+  {
+    static constexpr size_t Max_Alive = 64;
+    static inline const Tracked_Less * alive[Max_Alive] = {};
+    static inline size_t num_alive = 0;
+    static inline long calls_on_dead = 0;
+
+    void born() noexcept
+    {
+      if (num_alive < Max_Alive)
+        alive[num_alive++] = this;
+    }
+
+    Tracked_Less() noexcept { born(); }
+    Tracked_Less(const Tracked_Less &) noexcept { born(); }
+    Tracked_Less & operator = (const Tracked_Less &) noexcept { return *this; }
+
+    ~Tracked_Less()
+    {
+      for (size_t i = 0; i < num_alive; ++i)
+        if (alive[i] == this)
+          {
+            alive[i] = alive[--num_alive];
+            return;
+          }
+    }
+
+    bool is_alive() const noexcept
+    {
+      for (size_t i = 0; i < num_alive; ++i)
+        if (alive[i] == this)
+          return true;
+      return false;
+    }
+
+    bool operator ()(const int & a, const int & b) const noexcept
+    {
+      if (not is_alive())
+        ++calls_on_dead;
+      return a < b;
+    }
+  };
+
+  // A tree that gives a copy of its comparison, as the concept BSTPolicy
+  // allows to a tree of the user
+  template <typename Key, class Compare>
+  struct By_Value_Avl : public Avl_Tree<Key, Compare>
+  {
+    using Base = Avl_Tree<Key, Compare>;
+    using Base::Base;
+
+    Compare get_compare() const
+    {
+      return const_cast<By_Value_Avl &>(*this).Base::get_compare();
+    }
+  };
+
+  // A tree with the keys 1, 3, 4, 5 and 8
+  template <class Tree>
+  struct Small_Tree
+  {
+    Node_Pool<typename Tree::Node> pool;
+    Tree tree;
+
+    Small_Tree()
+    {
+      if constexpr (Seeded_Tree<Tree>)
+        tree.set_seed(3);
+      for (const int key : {5, 3, 8, 1, 4})
+        EXPECT_NE(tree.insert(pool.make(key)), nullptr);
+    }
+  };
+
+  // The operations that copy the comparison into an operation object, as
+  // those of BinTree and the positions of the ranked trees, let through
+  // what that copy throws
+  template <class Tree>
+  void expect_the_copy_lets_the_exception_through()
+  {
+    Small_Tree<Tree> f;
+    auto & tree = f.tree;
+    const Armed<Copy_Throw_Less> armed;
+    if constexpr (requires { tree.position(3); })
+      {
+        EXPECT_FALSE(noexcept(tree.position(3)));
+        EXPECT_FALSE(noexcept(tree.find_position(3)));
+        EXPECT_THROW((void) tree.position(3), Comparison_Error);
+        EXPECT_THROW((void) tree.find_position(3), Comparison_Error);
+      }
+    else
+      {
+        EXPECT_FALSE(noexcept(tree.search(3)));
+        EXPECT_THROW((void) tree.search(3), Comparison_Error);
+        EXPECT_THROW((void) tree.insert(f.pool.make(7)), Comparison_Error);
+        EXPECT_THROW((void) tree.remove(3), Comparison_Error);
+      }
+    Copy_Throw_Less::armed = false;
+    EXPECT_TRUE(tree.verify());
+    EXPECT_EQ(keys_of(tree.getRoot()), (Array<int>{1, 3, 4, 5, 8}));
+  }
+
+  // The iterators of the ranked trees compare to go to a key, and to find
+  // the position of a node that they were put on: what the comparison
+  // throws must reach the caller, with the iterator as it was
+  template <class Tree>
+  void expect_the_iterator_lets_the_exception_through()
+  {
+    Tree_Fixture<Tree> f;
+    auto & tree = f.tree;
+    using Iterator = typename Tree::Iterator;
+    EXPECT_FALSE(noexcept(std::declval<Iterator &>().reset_to_key(1)));
+    EXPECT_FALSE(noexcept(std::declval<const Iterator &>().has_curr()));
+    EXPECT_FALSE(noexcept(std::declval<const Iterator &>() ==
+                          std::declval<const Iterator &>()));
+
+    Iterator it(tree, size_t{3});  // on the key 6
+    {
+      const Failing_At failing(1);
+      EXPECT_THROW(it.reset_to_key(10), Comparison_Error);
+    }
+    EXPECT_EQ(it.get_pos(), 3u);
+    EXPECT_EQ(KEY(it.get_curr()), 6);
+
+    // a node that is not the root, so that its position takes comparisons
+    const int key = KEY(tree.getRoot()) == 0 ? 2 : 0;
+    typename Tree::Node * node = tree.search(key);
+    ASSERT_NE(node, nullptr);
+    Iterator by_node(tree);
+    by_node.reset_to_node(node);
+    const Iterator at_pos(tree, size_t{3});
+    {
+      const Failing_At failing(1);
+      EXPECT_THROW((void) by_node.has_curr(), Comparison_Error);
+    }
+    {
+      const Failing_At failing(1);
+      EXPECT_THROW((void) (by_node == at_pos), Comparison_Error);
+    }
+    {
+      const Failing_At failing(1);
+      EXPECT_THROW((void) by_node.get_pos(), Comparison_Error);
+    }
+    ASSERT_TRUE(by_node.has_curr());
+    EXPECT_EQ(by_node.get_curr(), node);
+    EXPECT_EQ(by_node.get_pos(), static_cast<size_t>(rank_of(key)));
+    f.expect_initial();
+  }
+}
+
+// A comparison whose result throws when it is converted to bool: the
+// operations converted it inside noexcept, and the program ended
+TEST(ThrowingCompareOperations, TheConversionOfTheResultLetsTheExceptionThrough)
+{
+  Small_Tree<Avl_Tree<int, Proxy_Less>> f;
+  EXPECT_FALSE(noexcept(f.tree.search(3)));
+  {
+    const Armed<Proxy_Less> armed;
+    EXPECT_THROW((void) f.tree.search(4), Comparison_Error);
+  }
+  EXPECT_NE(f.tree.search(8), nullptr);
+
+  DynMapTree<int, int, Avl_Tree, Proxy_Less> map;
+  for (const int key : {5, 3, 8})
+    map.insert(key, -key);
+  EXPECT_FALSE(noexcept(map.search(3)));
+  {
+    const Armed<Proxy_Less> armed;
+    EXPECT_THROW((void) map.search(4), Comparison_Error);
+    EXPECT_THROW((void) map.contains(4), Comparison_Error);
+  }
+  EXPECT_EQ(map.find(8), -8);
+
+  const Dft_Pair_Cmp<int, int, Proxy_Less> pair_cmp;
+  const std::pair<int, int> p1{1, 10}, p2{2, 20};
+  const int k = 2;
+  EXPECT_FALSE(noexcept(pair_cmp(p1, p2)));
+  EXPECT_FALSE(noexcept(pair_cmp(p1, k)));
+  EXPECT_FALSE(noexcept(pair_cmp(k, p2)));
+  {
+    const Armed<Proxy_Less> armed;
+    EXPECT_THROW((void) pair_cmp(p1, p2), Comparison_Error);
+    EXPECT_THROW((void) pair_cmp(p1, k), Comparison_Error);
+    EXPECT_THROW((void) pair_cmp(k, p2), Comparison_Error);
+  }
+
+  // a comparison that gives a bool and does not throw keeps the noexcept
+  EXPECT_TRUE(noexcept(std::declval<Avl_Tree<int> &>().search(1)));
+  EXPECT_TRUE(noexcept(std::declval<const DynMapTree<int, int> &>().search(1)));
+  EXPECT_TRUE(noexcept(std::declval<const Dft_Pair_Cmp<int, int, Aleph::less<int>> &>()
+                       (p1, p2)));
+}
+
+// The trees compare the key that they search for with the key of a node,
+// which is not constant: an overload of the comparison for keys that are
+// not constant that throws was called inside noexcept
+TEST(ThrowingCompareOperations, AnOverloadForKeysNotConstantLetsTheExceptionThrough)
+{
+  using Less = Mutable_Key_Less<int>;
+  Small_Tree<Avl_Tree<int, Less>> f;
+  EXPECT_FALSE(noexcept(f.tree.search(3)));
+  {
+    const Armed<Less> armed;
+    EXPECT_THROW((void) f.tree.search(4), Comparison_Error);
+  }
+  EXPECT_NE(f.tree.search(8), nullptr);
+}
+
+// A map compares its key with those of its pairs as the pairs give them,
+// constant: its search by the key called the overload for keys that are
+// not constant, which the search by a pair never called
+TEST(ThrowingCompareOperations, TheSearchOfAMapComparesConstantKeys)
+{
+  using Int_Less = Mutable_Key_Less<int>;
+  DynMapTree<int, int, Avl_Tree, Int_Less> map;
+  for (const int key : {5, 3, 8, 1, 4})
+    map.insert(key, -key);
+  Int_Less::mutable_calls = 0;
+  for (const int key : {1, 3, 4, 5, 8})
+    EXPECT_EQ(map.find(key), -key);
+  EXPECT_FALSE(map.contains(7));
+  EXPECT_EQ(Int_Less::mutable_calls, 0);
+
+  using String_Less = Mutable_Key_Less<std::string>;
+  DynMapTree<std::string, int, Avl_Tree, String_Less> names;
+  for (const char * name : {"m", "d", "t", "a", "g"})
+    names.insert(name, 1);
+  String_Less::mutable_calls = 0;
+  EXPECT_TRUE(names.contains("g"));
+  EXPECT_FALSE(names.contains("h"));
+  EXPECT_EQ(String_Less::mutable_calls, 0);
+}
+
+// BinTree and the positions of the ranked trees copy the comparison into
+// an operation object before they compare: they made that copy inside
+// noexcept, and what it threw ended the program
+TEST(ThrowingCompareOperations, TheCopyOfTheComparisonLetsTheExceptionThrough)
+{
+  expect_the_copy_lets_the_exception_through<BinTree<int, Copy_Throw_Less>>();
+  expect_the_copy_lets_the_exception_through<Avl_Tree_Rk<int, Copy_Throw_Less>>();
+  expect_the_copy_lets_the_exception_through<Rb_Tree_Rk<int, Copy_Throw_Less>>();
+  expect_the_copy_lets_the_exception_through<TdRbTreeRk<int, Copy_Throw_Less>>();
+  expect_the_copy_lets_the_exception_through<HtdRbTreeRk<int, Copy_Throw_Less>>();
+  expect_the_copy_lets_the_exception_through<Treap_Rk<int, Copy_Throw_Less>>();
+  expect_the_copy_lets_the_exception_through<Rand_Tree<int, Copy_Throw_Less>>();
+
+  // a comparison whose copy does not throw keeps the noexcept
+  EXPECT_TRUE(noexcept(std::declval<BinTree<int> &>().search(1)));
+  EXPECT_TRUE(noexcept(std::declval<const Avl_Tree_Rk<int> &>().position(1)));
+}
+
+// The iterators of the ranked trees: reset_to_key(), has_curr() and
+// operator == were noexcept, and what the comparison threw ended the
+// program
+TEST(ThrowingCompareOperations, RankedIteratorsLetTheExceptionThrough)
+{
+  expect_the_iterator_lets_the_exception_through<Avl_Tree_Rk<int, Countdown_Less>>();
+  expect_the_iterator_lets_the_exception_through<Rb_Tree_Rk<int, Countdown_Less>>();
+  expect_the_iterator_lets_the_exception_through<Treap_Rk<int, Countdown_Less>>();
+
+  // with a comparison that cannot throw, they keep the noexcept
+  using Iterator = Avl_Tree_Rk<int>::Iterator;
+  EXPECT_TRUE(noexcept(std::declval<const Iterator &>().has_curr()));
+  EXPECT_TRUE(noexcept(std::declval<Iterator &>().reset_to_key(1)));
+}
+
+// A tree of the user may give a copy of its comparison, as BSTPolicy
+// allows: the search of a map compared with a reference to that copy,
+// which had died when the search took it
+TEST(ThrowingCompareOperations, AMapOnATreeThatGivesACopyOfItsComparison)
+{
+  DynMapTree<int, int, By_Value_Avl, Tracked_Less> map;
+  for (const int key : {5, 3, 8, 1, 4})
+    map.insert(key, -key);
+  Tracked_Less::calls_on_dead = 0;
+  for (const int key : {1, 3, 4, 5, 8})
+    {
+      const auto * p = map.search(key);
+      ASSERT_NE(p, nullptr) << "key " << key;
+      EXPECT_EQ(p->second, -key);
+    }
+  EXPECT_EQ(map.search(7), nullptr);
+  EXPECT_EQ(Tracked_Less::calls_on_dead, 0);
+}

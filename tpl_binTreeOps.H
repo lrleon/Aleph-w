@@ -78,8 +78,15 @@ namespace Aleph
 
     using key_type = typename Node::key_type; /// The type of key
 
-    /// Initialize the functor with comparison criteria `cmp_`
-    BinTree_Operation(Cmp cmp_ = Cmp()) noexcept : cmp(cmp_)
+    /** @brief Initialize the functor with comparison criteria `cmp_`.
+
+        @param[in] cmp_ the comparison criteria, which the functor copies.
+        @throws anything that the copy of `Cmp` throws; it is `noexcept`
+        only if that copy cannot throw, so that what it throws reaches the
+        caller.
+    */
+    BinTree_Operation(Cmp cmp_ = Cmp())
+      noexcept(std::is_nothrow_constructible_v<Cmp, Cmp &>) : cmp(cmp_)
     { /* empty */
     }
 
@@ -702,8 +709,15 @@ namespace Aleph
   public:
     using Key = typename Node::key_type;
 
-    /// Initialize the functor with comparison criteria `cmp`
-    BinTreeXt_Operation(Cmp cmp = Cmp()) noexcept
+    /** @brief Initialize the functor with comparison criteria `cmp`.
+
+        @param[in] cmp the comparison criteria, which the functor copies.
+        @throws anything that the copy of `Cmp` throws; it is `noexcept`
+        only if that copy cannot throw, so that what it throws reaches the
+        caller.
+    */
+    BinTreeXt_Operation(Cmp cmp = Cmp())
+      noexcept(std::is_nothrow_constructible_v<Cmp, Cmp &>)
       : BinTree_Operation<Node, Cmp>(cmp)
     {
       // empty

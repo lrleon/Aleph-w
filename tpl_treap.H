@@ -349,7 +349,9 @@ namespace Aleph
         inserted and this node pointer is returned. Otherwise, it is
         returned `nullptr`.
         @throws anything that the comparison throws; the tree changes only
-        after the last comparison, so it is left as it was, without `p`.
+        after the last comparison, so its links and nodes are left as they
+        were, without `p`; not so the random generator: the priority of `p`
+        was drawn before the first comparison.
         @note It is `noexcept` only if the comparison cannot throw, so that
         what it throws reaches the caller.
      */
@@ -379,7 +381,9 @@ namespace Aleph
         to the containing key in the tree is returned. Otherwise, `p`
         is inserted and returned
         @throws anything that the comparison throws; the tree changes only
-        after the last comparison, so it is left as it was, without `p`.
+        after the last comparison, so its links and nodes are left as they
+        were, without `p`; not so the random generator: the priority of `p`
+        was drawn before the first comparison.
         @note It is `noexcept` only if the comparison cannot throw, so that
         what it throws reaches the caller.
     */
@@ -399,7 +403,9 @@ namespace Aleph
         @param[in] p pointer to the node to insert
         @return the `p` pointer
         @throws anything that the comparison throws; the tree changes only
-        after the last comparison, so it is left as it was, without `p`.
+        after the last comparison, so its links and nodes are left as they
+        were, without `p`; not so the random generator: the priority of `p`
+        was drawn before the first comparison.
         @note It is `noexcept` only if the comparison cannot throw, so that
         what it throws reaches the caller.
     */

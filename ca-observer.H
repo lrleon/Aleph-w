@@ -740,7 +740,10 @@ public:
  *  thread-safe for concurrent callbacks.
  *
  *  @par Exception-safety
- *  Strong guarantee unless array allocation throws.
+ *  Buffering the hash of a frame may throw `std::bad_alloc`, which
+ *  reaches the caller of the callback: the two buffers, of the hashes and
+ *  of their steps, are then left as they were. A cycle found in that step
+ *  stays reported.
  */
 class Stationary_Detector
 {
@@ -750,8 +753,16 @@ class Stationary_Detector
   std::optional<std::size_t> cycle_length_;
   std::optional<std::size_t> cycle_start_;
 
-  void push(const std::uint64_t h, const std::size_t step) noexcept
+  // The room for the new entry comes first, in both buffers: a bad_alloc
+  // then leaves them as they were, and the appends below do not allocate.
+  // Nor does the removal of the oldest entry: a buffer shrinks only when
+  // it holds a quarter of its capacity or less, and a full window, whose
+  // buffers grew to hold it, holds more
+  void push(const std::uint64_t h, const std::size_t step)
   {
+    hashes_.reserve(hashes_.size() + 1);
+    steps_.reserve(steps_.size() + 1);
+
     // size > max, not size >= max + 1: with max = SIZE_MAX the sum wraps
     // to 0, and the first push would remove from an empty buffer
     if (hashes_.size() > max_cycle_length_)

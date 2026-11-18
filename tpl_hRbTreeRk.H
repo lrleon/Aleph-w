@@ -934,13 +934,13 @@ public:
       
       @param key Key to find
       @return Pair of (position, node). Position is -1 if not found.
-      @throws anything that the comparison throws; the search does not
-      modify the tree, so it is left as it was.
-      @note It is `noexcept` only if the comparison cannot throw, so that
-      what it throws reaches the caller.
+      @throws anything that the comparison or its copy throws; the search
+      does not modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison and its copy cannot
+      throw, so that what it throws reaches the caller.
   */
   std::pair<long, Node*> position(const Key & key) const
-    noexcept(nothrow_compare_v<Compare, Key>)
+    noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     std::pair<long, Node*> ret_val;
     ret_val.first = BinTreeXt_Operation<Node, Compare>(cmp).
@@ -954,13 +954,13 @@ public:
       
       @param key Key to find position for
       @return Pair of (position, node). Node is nullptr if key not found.
-      @throws anything that the comparison throws; the search does not
-      modify the tree, so it is left as it was.
-      @note It is `noexcept` only if the comparison cannot throw, so that
-      what it throws reaches the caller.
+      @throws anything that the comparison or its copy throws; the search
+      does not modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison and its copy cannot
+      throw, so that what it throws reaches the caller.
   */
   std::pair<long, Node*> find_position(const Key & key) const
-    noexcept(nothrow_compare_v<Compare, Key>)
+    noexcept(nothrow_compare_copy_v<Compare, Key>)
   {
     std::pair<long, Node*> r;
     r.first = BinTreeXt_Operation<Node, Compare>(cmp).

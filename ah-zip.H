@@ -70,15 +70,18 @@ namespace Aleph {
  *  @brief Helpers for the exception specifications of the zip iterators.
  */
 namespace zip_detail {
-/** Whether building a `T` from what `get_curr_ne()` of a constant iterator
- *  of type `It` gives cannot throw: the copy that the `get_curr_ne()` of a
- *  zip iterator makes of the item of each container. Copying an item that
- *  allocates (`std::string`, `DynArray`), or whose type the user wrote,
- *  may throw. The zipped containers are read through Const_Iterator,
- *  whose `get_curr_ne()` does not throw.
+/** Whether reading the current item with `get_curr_ne()` of a constant
+ *  iterator of type `It`, and building a `T` from it, cannot throw: the
+ *  reading and the copy that the `get_curr_ne()` of a zip iterator makes
+ *  of the item of each container. Copying an item that allocates
+ *  (`std::string`, `DynArray`), or whose type the user wrote, may throw;
+ *  and so may the reading of a container that the user wrote: the zipped
+ *  containers are read through Const_Iterator, whose `get_curr_ne()`
+ *  throws what that of the iterator of the container throws.
  */
 template <class It, class T>
 inline constexpr bool nothrow_curr_copy =
+  noexcept(std::declval<const It &>().get_curr_ne()) and
   std::is_nothrow_constructible_v<T, decltype(std::declval<const It &>().get_curr_ne())>;
 
 /** Whether calling `get_curr_ne()` on the constant zip iterator `Zip`, the
@@ -191,7 +194,8 @@ public:
              and std::is_nothrow_copy_constructible_v<T>
              and zip_detail::nothrow_tail_curr<ZipIterator<TailC...>>)
   {
-    std::tuple<T> curr(it.get_curr_ne());
+    // constant: tuple_cat() copies it with T(const T &), as the trait says
+    const std::tuple<T> curr(it.get_curr_ne());
     return std::tuple_cat(curr, ZipIterator<TailC...>::get_curr_ne());
   }
 
@@ -1264,7 +1268,8 @@ public:
              and std::is_nothrow_copy_constructible_v<T>
              and zip_detail::nothrow_tail_curr<EnumZipIterator<TailC...>>)
   {
-    std::tuple<T> curr(it.get_curr_ne());
+    // constant: tuple_cat() copies it with T(const T &), as the trait says
+    const std::tuple<T> curr(it.get_curr_ne());
     return std::tuple_cat(curr, EnumZipIterator<TailC...>::get_curr_ne());
   }
 

@@ -167,7 +167,8 @@ namespace Aleph
     // The insertions and the removal compare on the way down, the split of
     // an insertion at the root included, and link or count on the way
     // back, so a comparison that throws leaves the tree as it was
-    Node * random_insert(Node *root, Node *p) noexcept(nothrow_compare_v<Compare, Key>)
+    Node * random_insert(Node *root, Node *p)
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       if (root == Node::NullPtr)
         return p;
@@ -207,7 +208,8 @@ namespace Aleph
       return Node::NullPtr; // duplicated key ==> no insertion
     }
 
-    Node * random_insert_dup(Node *root, Node *p) noexcept(nothrow_compare_v<Compare, Key>)
+    Node * random_insert_dup(Node *root, Node *p)
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       if (root == Node::NullPtr)
         return p;
@@ -233,7 +235,7 @@ namespace Aleph
     }
 
     Node * random_search_or_insert(Node *& root, Node *p)
-      noexcept(nothrow_compare_v<Compare, Key>)
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       if (root == Node::NullPtr)
         return root = p;
@@ -404,12 +406,14 @@ namespace Aleph
         @param[in] p pointer to the node to insert
         @return if `p->get_key()` is not in the tree, then the pointer
         `p` is returned (it was inserted); otherwise, `nullptr` is returned
-        @throws anything that the comparison throws; the tree changes only
-        after the last comparison, so it is left as it was, without `p`.
-        @note It is `noexcept` only if the comparison cannot throw, so that
-        what it throws reaches the caller.
+        @throws anything that the comparison or its copy throws; the tree
+        changes only after the last comparison, so its links and nodes are
+        left as they were, without `p`; not so the random generator, which
+        the insertion may have used.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
     */
-    Node * insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
+    Node * insert(Node *p) noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       assert(p != Node::NullPtr);
       assert((LLINK(p) == Node::NullPtr) and (RLINK(p) == Node::NullPtr));
@@ -430,12 +434,14 @@ namespace Aleph
 
         @param[in] p pointer to the node to insert
         @return the `p` pointer
-        @throws anything that the comparison throws; the tree changes only
-        after the last comparison, so it is left as it was, without `p`.
-        @note It is `noexcept` only if the comparison cannot throw, so that
-        what it throws reaches the caller.
+        @throws anything that the comparison or its copy throws; the tree
+        changes only after the last comparison, so its links and nodes are
+        left as they were, without `p`; not so the random generator, which
+        the insertion may have used.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
     */
-    Node * insert_dup(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
+    Node * insert_dup(Node *p) noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       assert(p != Node::NullPtr);
       assert((LLINK(p) == Node::NullPtr) and (RLINK(p) == Node::NullPtr));
@@ -546,12 +552,15 @@ namespace Aleph
         @return if the key contained in `p` is found, then a pointer
         to the containing key in the tree is returned. Otherwise, `p`
         is inserted and returned
-        @throws anything that the comparison throws; the tree changes only
-        after the last comparison, so it is left as it was, without `p`.
-        @note It is `noexcept` only if the comparison cannot throw, so that
-        what it throws reaches the caller.
+        @throws anything that the comparison or its copy throws; the tree
+        changes only after the last comparison, so its links and nodes are
+        left as they were, without `p`; not so the random generator, which
+        the insertion may have used.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
     */
-    Node * search_or_insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
+    Node * search_or_insert(Node *p)
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       assert(p != Node::NullPtr);
       assert(COUNT(p) == 1);
@@ -592,15 +601,15 @@ namespace Aleph
         @return a tuple with the position of key and a pointer
         to the node containing it. If `key` is not in the tree, then
         first the first value is -1.
-        @throws anything that the comparison throws; the search does not
-        modify the tree, so it is left as it was.
-        @note It is `noexcept` only if the comparison cannot throw, so that
-        what it throws reaches the caller.
+        @throws anything that the comparison or its copy throws; the search
+        does not modify the tree, so it is left as it was.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
 
         @ingroup Trees
     */
     std::pair<long, Node *> position(const Key & key) const
-      noexcept(nothrow_compare_v<Compare, Key>)
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       std::pair<long, Node *> ret_val;
       ret_val.first = BinTreeXt_Operation<Node, Compare>(cmp).
@@ -634,13 +643,13 @@ namespace Aleph
 
         @param[in] key to be searched
         @return a pair with the inorder position and related node
-        @throws anything that the comparison throws; the search does not
-        modify the tree, so it is left as it was.
-        @note It is `noexcept` only if the comparison cannot throw, so that
-        what it throws reaches the caller.
+        @throws anything that the comparison or its copy throws; the search
+        does not modify the tree, so it is left as it was.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
     */
     std::pair<long, Node *> find_position(const Key & key) const
-      noexcept(nothrow_compare_v<Compare, Key>)
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       std::pair<long, Node *> r(-2, nullptr);
 

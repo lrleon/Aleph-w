@@ -193,8 +193,9 @@ std::string to_str(const Type &d)
  *  Wraps a key comparator to work with std::pair<Key, Data>.
  *  Supports heterogeneous comparison (Pair vs Key).
  *
- *  Its comparisons are `noexcept` only if those of `Cmp` are, so that a
- *  map whose comparison throws lets the exception reach its caller.
+ *  Its comparisons are `noexcept` only if those of `Cmp` are, with the
+ *  conversion of their result to `bool`, so that a map whose comparison
+ *  throws lets the exception reach its caller.
  *
  *  @tparam Key Key type
  *  @tparam Data Data type
@@ -209,7 +210,8 @@ struct Dft_Pair_Cmp
   /// Pair vs Pair comparison; it throws what `cmp` throws
   bool operator()(const std::pair<Key, Data> &p1,
                   const std::pair<Key, Data> &p2) const
-    noexcept(std::is_nothrow_invocable_v<const Cmp &, const Key &, const Key &>)
+    noexcept(std::is_nothrow_invocable_r_v<bool, const Cmp &,
+                                           const Key &, const Key &>)
   {
     return cmp(p1.first, p2.first);
   }
@@ -217,7 +219,8 @@ struct Dft_Pair_Cmp
   /// Heterogeneous: Pair vs Key; it throws what `cmp` throws
   bool operator()(const std::pair<Key, Data> &p,
                   const Key &k) const
-    noexcept(std::is_nothrow_invocable_v<const Cmp &, const Key &, const Key &>)
+    noexcept(std::is_nothrow_invocable_r_v<bool, const Cmp &,
+                                           const Key &, const Key &>)
   {
     return cmp(p.first, k);
   }
@@ -225,7 +228,8 @@ struct Dft_Pair_Cmp
   /// Heterogeneous: Key vs Pair; it throws what `cmp` throws
   bool operator()(const Key &k,
                   const std::pair<Key, Data> &p) const
-    noexcept(std::is_nothrow_invocable_v<const Cmp &, const Key &, const Key &>)
+    noexcept(std::is_nothrow_invocable_r_v<bool, const Cmp &,
+                                           const Key &, const Key &>)
   {
     return cmp(k, p.first);
   }
