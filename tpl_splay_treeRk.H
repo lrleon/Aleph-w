@@ -101,6 +101,11 @@ using namespace Aleph;
 
     @note This is a low-level implementation managing raw nodes.
           For automatic memory management, use DynSetSplayTree.
+    @note The comparison must not throw: the splay of the operations that
+          compare is `noexcept`, and if it throws the program ends
+          (`std::terminate()`). A splay relinks the tree as it compares, so
+          a comparison that threw in the middle would leave nodes hanging
+          from a local header, out of the tree.
 
     @see Splay_Tree Basic splay tree without rank support.
     @see DynSetSplayTree High-level wrapper.
@@ -216,10 +221,17 @@ public:
   /// \overload key_comp()
   Compare &get_compare() { return key_comp(); }
 
-  /** search key within tree and splay that node.
+  /** @brief Search `key` within the tree and splay that node; if `key` is
+      not found, the last node of the search is splayed.
 
+      @param[in] key the key to search
       @warning The tree must not be empty. All public methods check for
       empty tree before calling splay().
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`).
+      @note It stays `noexcept` because the splay relinks the tree as it
+      compares: a comparison that threw in the middle would leave nodes out
+      of the tree.
    */
   void splay(const Key & key) noexcept
   {
@@ -278,11 +290,14 @@ private:
   }
 
 public:
-  /** Inserts a node in a top down splay tree.
+  /** @brief Inserts a node in a top down splay tree.
 
       @return a pointer to the inserted node if node is not found in tree;
       nullptr otherwise.
       @param p a pointer to the node to be inserted
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`), since the splay is `noexcept`: it relinks the
+      tree as it compares.
   */
   Node * insert(Node *p)
   {
@@ -303,6 +318,15 @@ public:
     return __insert(p);
   }
 
+  /** @brief Inserts a node in a top down splay tree, even if its key is
+      already in the tree.
+
+      @param p a pointer to the node to be inserted
+      @return the pointer `p`
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`), since the splay is `noexcept`: it relinks the
+      tree as it compares.
+  */
   Node * insert_dup(Node *p)
   {
     assert(p != Node::NullPtr);
@@ -317,12 +341,14 @@ public:
     return __insert(p);
   }
 
-  /**
-     Searches a key in a top down splay tree.
+  /** @brief Searches a key in a top down splay tree.
 
      @return a pointer to the node containing the key if the key is found;
      nullptr otherwise.
      @param key key to search
+     @pre The comparison does not throw; if it does, the program ends
+     (`std::terminate()`), since the splay is `noexcept`: it relinks the
+     tree as it compares.
   */
   Node * search(const Key & key)
   {
@@ -334,6 +360,16 @@ public:
     return cmp_result == CmpEqual ? root : nullptr;
   }
 
+  /** @brief Searches the key of `p` and, if it is not in the tree, inserts
+      `p`.
+
+      @param p a pointer to the node to search or insert
+      @return a pointer to the node of the tree with the key of `p`, or
+      `p` if it was inserted
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`), since the splay is `noexcept`: it relinks the
+      tree as it compares.
+  */
   Node * search_or_insert(Node *p)
   {
     if (root == Node::NullPtr)
@@ -406,14 +442,16 @@ private:
   }
 
 public:
-  /**
-     Remove a key from a top-down splay tree.
+  /** @brief Remove a key from a top-down splay tree.
 
      Searches a key in a top-down splay tree and remove the containing
      the key if this is found.
 
      @return a pointer to node containing the removed key.
      @param key to search
+     @pre The comparison does not throw; if it does, the program ends
+     (`std::terminate()`), since the splay is `noexcept`: it relinks the
+     tree as it compares.
   */
   Node * remove(const Key & key)
   {
@@ -481,6 +519,9 @@ public:
       @return a pair containing the inorder position of key within the
       ordered set together with the node if the key is found in the tree;
       otherwise it returns -1 and the node is unspecified.
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`), since the splay is `noexcept`: it relinks the
+      tree as it compares.
    */
   std::pair<long, Node *> position(const Key & key)
   {
@@ -520,6 +561,9 @@ public:
       @return a pair containing the inorder position of key within the
       ordered set together with the node if the key is found in the tree;
       otherwise it returns -1 and the node is unspecified.
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`), since the splay is `noexcept`: it relinks the
+      tree as it compares.
    */
   std::pair<long, Node *> find_position(const Key & key)
   {

@@ -128,9 +128,11 @@ private:
   // The head node, then at most Node::MaxHeight nodes of the tree.
   using Path = InlineStack<Node *, Node::MaxHeight + 1>;
 
-  /// Search for key and stack ancestors (optimistic duplicate detection)
+  /// Search for key and stack ancestors (optimistic duplicate detection).
+  /// It only reads the tree, so it lets through what the comparison throws,
+  /// as the operations that call it do.
   Node * search_and_stack_rb(const Key & key,
-                             signed char & cmp_result, Path & path) noexcept
+                             signed char & cmp_result, Path & path)
   {
     Node *p = root;
     Node *candidate = nullptr;  // Tracks potential duplicate when going right
@@ -645,13 +647,18 @@ public:
     return Aleph::select(root, i);
   }
 
-  /** Compute the inorder position of a key.
+  /** @brief Compute the inorder position of a key.
 
       @param[in] key to be searched
       @return a pair with the inorder position and the node pointer.
       If key is not found, position is -1.
+      @throws anything that the comparison throws; the search does not
+      modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
   */
-  std::pair<long, Node*> position(const Key & key) const noexcept
+  std::pair<long, Node*> position(const Key & key) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     std::pair<long, Node*> ret_val;
 
@@ -661,12 +668,17 @@ public:
     return ret_val;
   }
 
-  /** Find the inorder position of a key in the tree.
+  /** @brief Find the inorder position of a key in the tree.
 
       @param[in] key to be searched
       @return a pair with the position and the node pointer
+      @throws anything that the comparison throws; the search does not
+      modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
   */
-  std::pair<long, Node*> find_position(const Key & key) const noexcept
+  std::pair<long, Node*> find_position(const Key & key) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     std::pair<long, Node*> r(-2, nullptr);
 
@@ -1156,9 +1168,11 @@ private:
     return join_with_pivot_rb(t1, bh1, pivot, t2, bh2);
   }
 
-  // Split by key recursively
+  // Split by key recursively. It compares on the way down and relinks on
+  // the way back, so a comparison that throws leaves the tree as it was
   Node * split_key_rec_rb(Node * p, const Key & key,
-                          Node *& t1, Node *& t2) noexcept
+                          Node *& t1, Node *& t2)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (p == Node::NullPtr)
       {
@@ -1220,9 +1234,10 @@ private:
     return found;
   }
 
-  // Split by key including duplicates
+  // Split by key including duplicates, as split_key_rec_rb()
   void split_key_dup_rec_rb(Node * p, const Key & key,
-                            Node *& t1, Node *& t2) noexcept
+                            Node *& t1, Node *& t2)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (p == Node::NullPtr)
       {
@@ -1319,13 +1334,18 @@ private:
 
 public:
 
-  /** Join this tree exclusively with another tree.
+  /** @brief Join this tree exclusively with another tree.
 
       All keys in this tree must be less than all keys in t.
       After the operation, t becomes empty and this tree contains all nodes.
 
       @param[in,out] t tree to join with (will be empty after)
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`).
       @note O(m log(n+m)) time complexity where m is size of t
+      @note It stays `noexcept` because it inserts the nodes of `t` one by
+      one: a comparison that threw in the middle would leave nodes out of
+      both trees.
   */
   void join_exclusive(Gen_Rb_Tree_Rk & t) noexcept
   {
@@ -1373,7 +1393,12 @@ public:
       @param[out] t1 tree to receive keys < key
       @param[out] t2 tree to receive keys > key
       @return pointer to node containing key, or nullptr if not found
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`).
       @note O(n) time complexity (simple iterative implementation)
+      @note It stays `noexcept` because it moves the nodes one by one: a
+      comparison that threw in the middle would leave nodes out of every
+      tree.
   */
   Node * split_key(const Key & key, Gen_Rb_Tree_Rk & t1,
                    Gen_Rb_Tree_Rk & t2) noexcept
@@ -1421,7 +1446,12 @@ public:
       @param[in] key the splitting key
       @param[out] t1 tree to receive keys <= key
       @param[out] t2 tree to receive keys > key
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`).
       @note O(n) time complexity (simple iterative implementation)
+      @note It stays `noexcept` because it moves the nodes one by one: a
+      comparison that threw in the middle would leave nodes out of every
+      tree.
   */
   void split_key_dup(const Key & key, Gen_Rb_Tree_Rk & t1,
                      Gen_Rb_Tree_Rk & t2) noexcept
@@ -1463,7 +1493,12 @@ public:
       @param[in] pos the splitting position (0-based)
       @param[out] t1 tree to receive positions [0, pos)
       @param[out] t2 tree to receive positions [pos, size)
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`).
       @note O(n) time complexity (simple iterative implementation)
+      @note It stays `noexcept` because it inserts the nodes one by one in
+      `t1` and `t2`, which compares: a comparison that threw in the middle
+      would leave nodes out of every tree.
   */
   void split_pos(size_t pos, Gen_Rb_Tree_Rk & t1,
                  Gen_Rb_Tree_Rk & t2) noexcept

@@ -474,9 +474,25 @@ Node * search_or_insert_by_key_xt(Node *& r, Node * p,
 }
 
 
+/** @brief The recursion of split_key_rec_xt().
+
+    It compares on the way down and links and counts on the way back, so a
+    comparison that throws leaves the tree as it was.
+
+    @param[in] root of the subtree to split
+    @param[in] key for splitting
+    @param[out] l where the subtree with the keys lesser than `key` goes
+    @param[out] r where the subtree with the keys greater than `key` goes
+    @param[in] cmp comparison criteria
+    @return `true` if `key` is not in the subtree, which is then split
+    @throws anything that `cmp` throws; it is `noexcept` only if `cmp`
+    cannot throw, so that what a comparison throws reaches the caller.
+    @ingroup Trees
+*/
     template <RankedBinNodeLike Node, class Compare> static inline
 bool __split_key_rec_xt(Node * root, const typename Node::key_type & key,
-                        Node *& l, Node *& r, Compare & cmp) noexcept
+                        Node *& l, Node *& r, Compare & cmp)
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   if (root == Node::NullPtr)
     {
@@ -506,7 +522,7 @@ bool __split_key_rec_xt(Node * root, const typename Node::key_type & key,
   return true;
 }
 
-/** Split an extended binary search tree according to a key
+/** @brief Split an extended binary search tree according to a key
 
     `split_key_rec_xt(root, key, l, r, cmp)` splits a tree according a
     non-existing key
@@ -518,12 +534,17 @@ bool __split_key_rec_xt(Node * root, const typename Node::key_type & key,
     @param[in,out] cmp comparison function
     @return `true` if tree was split; that is if `key` is not in the
     tree. Otherwise, if `key` is in the tree, `false` is returned
+    @throws anything that `cmp` throws; every comparison comes before the
+    first change, so `root`, `l` and `r` are left as they were.
+    @note It is `noexcept` only if `cmp` cannot throw, so that what a
+    comparison throws reaches the caller.
 
     @ingroup Trees
 */
 template <BinNodeLike Node, class Compare> inline
 bool split_key_rec_xt(Node *& root, const typename Node::key_type & key,
-                      Node *& l, Node *& r, Compare & cmp) noexcept
+                      Node *& l, Node *& r, Compare & cmp)
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   const bool ret = __split_key_rec_xt(root, key, l, r, cmp);
   if (ret)
@@ -531,20 +552,48 @@ bool split_key_rec_xt(Node *& root, const typename Node::key_type & key,
   return ret;
 }
 
-/// \overload split_key_rec_xt()
+/** @brief Split an extended binary search tree according to a key, with a
+    temporary comparison criteria.
+
+    @param[in,out] root pointer to tree root
+    @param[in] key for splitting
+    @param[out] l tree with keys lesser than `key`
+    @param[out] r tree with keys greater than `key`
+    @param[in] cmp comparison criteria
+    @return `true` if `key` was not in the tree, which is then split
+    @throws anything that `cmp` throws; then the trees are left as they
+    were. It is `noexcept` only if `cmp` cannot throw.
+    @ingroup Trees
+*/
 template <BinNodeLike Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 bool split_key_rec_xt(Node *& root, const typename Node::key_type & key,
                       Node *& l, Node *& r, Compare && cmp = Compare())
-  noexcept
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   return split_key_rec_xt(root, key, l, r, cmp);
 }
 
 
+/** @brief The recursion of split_key_dup_rec_xt().
+
+    It compares on the way down and links and counts on the way back, so a
+    comparison that throws leaves the tree as it was.
+
+    @param[in] root of the subtree to split
+    @param[in] key for splitting
+    @param[out] l where the subtree with the keys lesser than `key` goes
+    @param[out] r where the subtree with the keys greater or equal than
+    `key` goes
+    @param[in] cmp comparison criteria
+    @throws anything that `cmp` throws; it is `noexcept` only if `cmp`
+    cannot throw, so that what a comparison throws reaches the caller.
+    @ingroup Trees
+*/
     template <RankedBinNodeLike Node, class Compare> static inline
 void __split_key_dup_rec_xt(Node * root, const typename Node::key_type & key,
-                            Node *& l, Node *& r, Compare & cmp) noexcept
+                            Node *& l, Node *& r, Compare & cmp)
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   if (root == Node::NullPtr)
     {
@@ -567,8 +616,8 @@ void __split_key_dup_rec_xt(Node * root, const typename Node::key_type & key,
 }
 
 
-/** Split an extended binary search tree according to a key which can be
-    in the tree.
+/** @brief Split an extended binary search tree according to a key which can
+    be in the tree.
 
     `split_key__dup_rec_xt(root, key, l, r, cmp)` splits a tree according a
     key. The key can be in the tree.
@@ -578,23 +627,39 @@ void __split_key_dup_rec_xt(Node * root, const typename Node::key_type & key,
     @param[out] l tree with keys lesser than `key`
     @param[out] r tree with keys greater than `key`
     @param[in] cmp comparison criteria
+    @throws anything that `cmp` throws; every comparison comes before the
+    first change, so `root`, `l` and `r` are left as they were.
+    @note It is `noexcept` only if `cmp` cannot throw, so that what a
+    comparison throws reaches the caller.
 
     @ingroup Trees
 */
  template <BinNodeLike Node, class Compare> inline
 void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
-                          Node *& l, Node *& r, Compare & cmp) noexcept
+                          Node *& l, Node *& r, Compare & cmp)
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   __split_key_dup_rec_xt<Node, Compare>(root, key, l, r, cmp);
   root = Node::NullPtr;
 }
 
-/// \overload split_key_dup_rec_xt()
+/** @brief Split an extended binary search tree according to a key which can
+    be in the tree, with a temporary comparison criteria.
+
+    @param[in,out] root pointer to tree root
+    @param[in] key for splitting
+    @param[out] l tree with keys lesser than `key`
+    @param[out] r tree with keys greater or equal than `key`
+    @param[in] cmp comparison criteria
+    @throws anything that `cmp` throws; then the trees are left as they
+    were. It is `noexcept` only if `cmp` cannot throw.
+    @ingroup Trees
+*/
  template <BinNodeLike Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
                           Node *& l, Node *& r, Compare && cmp = Compare())
-   noexcept
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   return split_key_dup_rec_xt(root, key, l, r, cmp);
 }

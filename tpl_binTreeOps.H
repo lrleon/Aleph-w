@@ -50,6 +50,13 @@ namespace Aleph
 {
   /** Functor encompassing basic operation for binary search trees.
 
+      The operations that compare keys are `noexcept` only if the
+      comparison cannot throw (`nothrow_compare_v`). Those that compare
+      before they change the tree let what the comparison throws reach the
+      caller, with the tree as it was; join_preorder(), join() and
+      split_key() change the tree between comparisons, and stay `noexcept`:
+      their comparison must not throw.
+
       \see BinNode
       \ingroup Trees
   */
@@ -76,19 +83,24 @@ namespace Aleph
     { /* empty */
     }
 
-    /** Search a node with a specific key.
+    /** @brief Search a node with a specific key.
 
         @param[in] root of the tree
         @param[in] key to be searched
         @return a pointer to a node containing the key if this was found;
         `Node::NullPtr` otherwise
+        @throws anything that the comparison throws; the search does not
+        modify the tree, so it is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    [[nodiscard]] Node * search(Node *root, const Key & key) noexcept
+    [[nodiscard]] Node * search(Node *root, const Key & key)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       return searchInBinTree(root, key, cmp);
     }
 
-    /** Search a key and find its node and parent.
+    /** @brief Search a key and find its node and parent.
 
         @param[in] root of tree
         @param[in] key to search
@@ -96,8 +108,13 @@ namespace Aleph
         found. Otherwise, value is undetermined
         @return a valid pointer to a node containing `key` if this is
         found; otherwise, it returns a pointer to the last visited node
+        @throws anything that the comparison throws; the search does not
+        modify the tree, so it is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    [[nodiscard]] Node * search_parent(Node *root, const Key & key, Node *& parent) noexcept
+    [[nodiscard]] Node * search_parent(Node *root, const Key & key, Node *& parent)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       return Aleph::search_parent<Node, Cmp>(root, key, parent, cmp);
     }
@@ -116,15 +133,20 @@ namespace Aleph
         @param[in] key to search
         @return pointer to a node containing `key` if this node exists
         or the last visited node otherwise
+        @throws anything that the comparison throws; the search does not
+        modify the tree, so it is left as it was.
         @note It is not verified if the tree is empty
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
         @ingroup Trees
     */
-    [[nodiscard]] Node * search_rank_parent(Node *root, const Key & key) noexcept
+    [[nodiscard]] Node * search_rank_parent(Node *root, const Key & key)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       return Aleph::search_rank_parent<Node, Cmp>(root, key, cmp);
     }
 
-    /** Insert a node `p` in a binary search tree
+    /** @brief Insert a node `p` in a binary search tree
 
         `insert(root, p)` inserts the node `p` in the binary search tree
         with `root`
@@ -133,8 +155,13 @@ namespace Aleph
         @param[in] p pointer to the node to be inserted
         @return `p` if this was inserted; that is if `p->get_key()` is
         not in the tree; otherwise, `Node::NullPtr` is returned
+        @throws anything that the comparison throws; `p` is linked only
+        after the last comparison, so the tree is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    [[nodiscard]] Node * insert(Node *& root, Node *p) noexcept
+    [[nodiscard]] Node * insert(Node *& root, Node *p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         return root = p;
@@ -155,7 +182,7 @@ namespace Aleph
       return Node::NullPtr; // Repeated key ==> no insertion
     }
 
-    /** Insert a node `p` in a binary search tree
+    /** @brief Insert a node `p` in a binary search tree
 
         `insert_dup(root, p)` inserts the node `p` in the binary
         search tree with `root`. The key contained in `p` can be already
@@ -164,8 +191,13 @@ namespace Aleph
         @param[in,out] root of tree
         @param[in] p pointer to the node to be inserted
         @return the pointer `p`
+        @throws anything that the comparison throws; `p` is linked only
+        after the last comparison, so the tree is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * insert_dup(Node *& root, Node *p) noexcept
+    Node * insert_dup(Node *& root, Node *p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         return root = p;
@@ -182,7 +214,7 @@ namespace Aleph
       return insert_dup(RLINK(root), p);
     }
 
-    /** Search or insert a node in a binary search tree.
+    /** @brief Search or insert a node in a binary search tree.
 
         `search_or_insert(root, p)` searches in `root` a node
         containing `p->get_key()`. If found, then this node is
@@ -192,8 +224,13 @@ namespace Aleph
         @param[in] p node to search or insert
         @return `p` if its key was not in the tree; otherwise, a pointer
         containing the tree is returned.
+        @throws anything that the comparison throws; `p` is linked only
+        after the last comparison, so the tree is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * search_or_insert(Node *& r, Node *p) noexcept
+    Node * search_or_insert(Node *& r, Node *p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (r == Node::NullPtr)
         return r = p;
@@ -215,8 +252,10 @@ namespace Aleph
     }
 
   private:
+    // It compares on the way down and links on the way back, so a
+    // comparison that throws leaves the tree as it was
     bool split_key_rec_helper(Node *root, const Key & key, Node *& ts, Node *& tg)
-      noexcept
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         {
@@ -245,7 +284,7 @@ namespace Aleph
     }
 
   public:
-    /** Split recursively according to a key.
+    /** @brief Split recursively according to a key.
 
         `split_key_rec(root, key, ts, tg)` splits the tree with `root` in
         two trees `t1` which contain the keys lesser than `key` and `t2`
@@ -259,9 +298,14 @@ namespace Aleph
         @param[out] tg tree with keys greater than `key`
         @return `true` if the tree was split; that is if `key` was not in the
         tree. Otherwise, the split is not performed and it return `false`
+        @throws anything that the comparison throws; every comparison comes
+        before the first change, so `root`, `ts` and `tg` are left as they
+        were.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
     bool split_key_rec(Node *& root, const Key & key, Node *& ts, Node *& tg)
-      noexcept
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       const bool ret = split_key_rec_helper(root, key, ts, tg);
       if (ret)
@@ -270,8 +314,11 @@ namespace Aleph
     }
 
   private:
+    // It compares on the way down and links on the way back, so a
+    // comparison that throws leaves the tree as it was
     void split_key_dup_rec_helper(Node *root, const typename Node::key_type & key,
-                             Node *& ts, Node *& tg) noexcept
+                             Node *& ts, Node *& tg)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         { // Key is not in tree ==> split will succeed
@@ -279,16 +326,22 @@ namespace Aleph
           return;
         }
 
-      if (cmp(key, KEY(root))) // ¿key < KEY(root)?
-        split_key_dup_rec_helper(LLINK(root), key, ts, LLINK(root));
-      else if (cmp(KEY(root), key)) // ¿key > KEY(root)?
-        split_key_dup_rec_helper(RLINK(root), key, RLINK(root), tg);
-      else // key == KEY(root)
-        split_key_dup_rec_helper(LLINK(root), key, ts, LLINK(root));
+      // root goes to the tree of its side, over the split of its child that
+      // can hold keys of both sides
+      if (cmp(KEY(root), key)) // KEY(root) < key: root goes to ts
+        {
+          split_key_dup_rec_helper(RLINK(root), key, RLINK(root), tg);
+          ts = root;
+        }
+      else // key <= KEY(root): root goes to tg
+        {
+          split_key_dup_rec_helper(LLINK(root), key, ts, LLINK(root));
+          tg = root;
+        }
     }
 
   public:
-    /** Split a tree according to a key value
+    /** @brief Split a tree according to a key value
 
         `split_key_dup_rec(root, key, ts, tg)` splits according to `key
         the tree with `root` and build two trees. `t1`contains the keys
@@ -298,22 +351,33 @@ namespace Aleph
         @param[in] key for splitting
         @param[out] ts tree with the keys lesser than `key`
         @param[out] tg tree with the keys greater or equal than `key`
+        @throws anything that the comparison throws; every comparison comes
+        before the first change, so `root`, `ts` and `tg` are left as they
+        were.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
     void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
-                           Node *& ts, Node *& tg) noexcept
+                           Node *& ts, Node *& tg)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       split_key_dup_rec_helper(root, key, ts, tg);
       root = Node::NullPtr;
     }
 
-    /** Remove a key from a binary search tree
+    /** @brief Remove a key from a binary search tree
 
         @param[in,out] root of tree
         @param[in] key to remove
         @return a valid pointer to the removed node if `key` was found
         in the tree, `Node::NullPtr` otherwise
+        @throws anything that the comparison throws; the node is unlinked
+        only after the last comparison, so the tree is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    [[nodiscard]] Node * remove(Node *& root, const Key & key) noexcept
+    [[nodiscard]] Node * remove(Node *& root, const Key & key)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         return Node::NullPtr;
@@ -331,7 +395,7 @@ namespace Aleph
       return ret_val;
     }
 
-    /** Insert the node `p` as the root of a binary search tree
+    /** @brief Insert the node `p` as the root of a binary search tree
 
         `insert_root(root, p)` inserts in the tree `root` the node
         `p`. After insertion, `p` becomes the new root of tree.
@@ -341,8 +405,13 @@ namespace Aleph
         @return a pointer to `p` if this was inserted; that is, if
         `p->get_key()` was not present in the tree. Otherwise, no insertion
         is done and `Node::NullPtr` is returned
+        @throws anything that the comparison throws; the split compares
+        before it changes the tree, so the tree is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * insert_root(Node *& root, Node *p) noexcept
+    Node * insert_root(Node *& root, Node *p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       Node *l = Node::NullPtr, *r = Node::NullPtr;
 
@@ -356,21 +425,26 @@ namespace Aleph
       return root;
     }
 
-    /** Insert node `p` as root of a binary search tree. The key of `p`
-        can be duplicated.
+    /** @brief Insert node `p` as root of a binary search tree. The key of
+        `p` can be duplicated.
 
         @param[in,out] root of tree
         @param[in] p node to insert as root
         @return the pointer `p` which has became the root of tree
+        @throws anything that the comparison throws; the split compares
+        before it changes the tree, so the tree is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * insert_dup_root(Node *& root, Node *p) noexcept
+    Node * insert_dup_root(Node *& root, Node *p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       split_key_dup_rec(root, KEY(p), LLINK(p), RLINK(p));
 
       return root = p;
     }
 
-    /** Union of two binary search trees
+    /** @brief Union of two binary search trees
 
         \warning This union is \f$O(n \lg m)\f$ where n and m are the sizes
         of `t1` and `t2`respectively. **Use `join()` which is much more faster**
@@ -379,6 +453,11 @@ namespace Aleph
         @param[in] t2 root of second tree
         @param[out] dup root of tree where the duplicated keys will be put
         @return a pointer to the resulting root of tree
+        @pre The comparison does not throw; if it does, the program ends
+        (`std::terminate()`).
+        @note It stays `noexcept` because it moves the nodes one by one: a
+        comparison that threw in the middle would leave nodes out of every
+        tree.
     */
     [[nodiscard]] Node * join_preorder(Node *t1, Node *t2, Node *& dup) noexcept
     {
@@ -397,7 +476,7 @@ namespace Aleph
       return t1;
     }
 
-    /** Fast union of two binary search trees
+    /** @brief Fast union of two binary search trees
 
         `join(t1, t2, dup)` joins the nodes of `t1` with the nodes
         of `t2`. The duplicated keys of `t2` are copied in the binary
@@ -407,6 +486,11 @@ namespace Aleph
         @param[in] t2 root of second tree
         @param[out] dup tree where the duplicated keys of t2 are put
         @return pointer to the root of resulting join
+        @pre The comparison does not throw; if it does, the program ends
+        (`std::terminate()`).
+        @note It stays `noexcept` because it moves the nodes one by one: a
+        comparison that threw in the middle would leave nodes out of every
+        tree.
     */
     [[nodiscard]] Node * join(Node *t1, Node *t2, Node *& dup) noexcept
     {
@@ -436,7 +520,7 @@ namespace Aleph
       return t2;
     }
 
-    /** Split a binary search tree according to a key.
+    /** @brief Split a binary search tree according to a key.
 
         `split_key(root, key, l, r)` splits the tree `root`
         according to `key`. At the end, `l` contains all the keys lesser
@@ -446,6 +530,11 @@ namespace Aleph
         @param[in] key for splitting
         @param[out] l tree with keys lesser than `key`
         @param[out] r tree with keys greater or equal than `key`
+        @pre The comparison does not throw; if it does, the program ends
+        (`std::terminate()`).
+        @note It stays `noexcept` because it relinks the nodes as it
+        compares: a comparison that threw in the middle would leave the
+        tree broken.
     */
     void split_key(Node *root, const Key & key, Node *& l, Node *& r) noexcept
     {
@@ -503,7 +592,7 @@ namespace Aleph
       root = Node::NullPtr;
     }
 
-    /** Insert a node as root in a binary search tree.
+    /** @brief Insert a node as root in a binary search tree.
 
         This version first inserts `p` as a leaf of a tree. Then `p` is rotated
         until the root.
@@ -512,8 +601,13 @@ namespace Aleph
         @param[in] p pointer to the node to insert
         @return pointer to `p` if `p->get_key()` is not in the
         tree. Otherwise the function returns `Node::NullPtr`
+        @throws anything that the comparison throws; it compares on the way
+        down and rotates on the way back, so the tree is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * insert_root_rec(Node *root, Node *p) noexcept
+    Node * insert_root_rec(Node *root, Node *p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         return p; /* insertion in an empty tree */
@@ -542,14 +636,20 @@ namespace Aleph
       return root;
     }
 
-    /** Search and eventually insert `p` as root in a binary search tree
+    /** @brief Search and eventually insert `p` as root in a binary search
+        tree
 
         @param[in] root of tree
         @param[in] p pointer to the node to eventually insert
         @return if `p` is inserted, then it returns `p`; otherwise, it
         returns a pointer to the tree node containing to `p->get_key()`
+        @throws anything that the comparison throws; it compares on the way
+        down and rotates on the way back, so the tree is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * search_or_insert_root_rec(Node *root, Node *p) noexcept
+    Node * search_or_insert_root_rec(Node *root, Node *p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         return p; // insertion in an empty tree
@@ -588,6 +688,10 @@ namespace Aleph
 
   /** Functor encompassing basic operation for extended binary search trees.
 
+      Its operations compare before they change the tree, and are
+      `noexcept` only if the comparison cannot throw (`nothrow_compare_v`):
+      what it throws reaches the caller, with the tree as it was.
+
       \see BinNode
       \ingroup Trees
   */
@@ -605,17 +709,22 @@ namespace Aleph
       // empty
     }
 
-    /** Compute the inorder position of a key
+    /** @brief Compute the inorder position of a key
 
         @param[in] r root of tree
         @param[in] key to be searched
         @param[out] p pointer to the node containing `key`
         @return inorder position of `key` if this is in the tree or -1 if
         `key` is not found
+        @throws anything that the comparison throws; the search does not
+        modify the tree, and `p` is written only when `key` is found.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
 
         @ingroup Trees
     */
-    long inorder_position(Node *r, const Key & key, Node *& p) noexcept
+    long inorder_position(Node *r, const Key & key, Node *& p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       assert(COUNT(Node::NullPtr) == 0);
 
@@ -663,8 +772,13 @@ namespace Aleph
         @param[in] key to be searched
         @param[out] p reference to pointer to node
         @return the positions of `key` in the tree
+        @throws anything that the comparison throws; the search does not
+        modify the tree, and `p` is written only at the end.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    long find_position(Node *r, const Key & key, Node *& p) noexcept
+    long find_position(Node *r, const Key & key, Node *& p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       assert(COUNT(Node::NullPtr) == 0);
 
@@ -706,7 +820,7 @@ namespace Aleph
     }
 
 
-    /** Split an extended binary search tree according to a key
+    /** @brief Split an extended binary search tree according to a key
 
         `split_key_rec(root, key, l, r)` splits a tree according a
         non-existing key
@@ -717,9 +831,14 @@ namespace Aleph
         @param[out] r tree with keys greater than `key`
         @return `true` if tree was split; that is if `key` is not in the
         tree. Otherwise, if `key` is in the tree, `false` is returned
+        @throws anything that the comparison throws; it compares on the way
+        down and links and counts on the way back, so the tree, `l` and `r`
+        are left as they were.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
     bool split_key_rec(Node *root, const Key & key, Node *& l, Node *& r)
-      noexcept
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         {
@@ -749,8 +868,8 @@ namespace Aleph
       return true;
     }
 
-    /** Split an extended binary search tree according to a key which can be
-        in the tree.
+    /** @brief Split an extended binary search tree according to a key which
+        can be in the tree.
 
         `split_key__dup_rec(root, key, l, r)` splits a tree according a
         key. The key can be in the tree.
@@ -759,9 +878,14 @@ namespace Aleph
         @param[in] key for splitting
         @param[out] l tree with keys lesser than `key`
         @param[out] r tree with keys greater than `key`
+        @throws anything that the comparison throws; it compares on the way
+        down and links and counts on the way back, so the tree, `l` and `r`
+        are left as they were.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
     void split_key_dup_rec(Node *root, const Key & key, Node *& l, Node *& r)
-      noexcept
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         {
@@ -794,10 +918,15 @@ namespace Aleph
         @return if the key contained in `p` is not in tree, then returns
         `p`, since this was inserted and has became the root. Otherwise,
         it returns `Node::NullPtr`
+        @throws anything that the comparison throws; the split compares
+        before it changes the tree, so the tree is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
 
         @ingroup Trees
     */
-    Node * insert_root(Node *& root, Node *p) noexcept
+    Node * insert_root(Node *& root, Node *p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         return p;
@@ -821,8 +950,13 @@ namespace Aleph
         @param[in,out] root of tree
         @param[in] p pointer to the to insert
         @return pointer to the inserted node `p` that has become root
+        @throws anything that the comparison throws; the split compares
+        before it changes the tree, so the tree is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * insert_dup_root(Node *& root, Node *p) noexcept
+    Node * insert_dup_root(Node *& root, Node *p)
+      noexcept(nothrow_compare_v<Cmp, Key>)
     {
       if (root == Node::NullPtr)
         return p;

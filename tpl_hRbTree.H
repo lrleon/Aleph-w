@@ -205,11 +205,17 @@ namespace Aleph
         
         Descends the tree looking for where to insert q. During descent,
         any node with two red children has its colors flipped preemptively.
+        Each color flip and rotation leaves a valid red-black tree, and q
+        is linked and counted after the last comparison, so a comparison
+        that throws leaves a valid tree without q.
         
         @param q Node to insert
         @return Pointer to inserted node, or nullptr if duplicate
+        @throws anything that the comparison throws; it is `noexcept` only
+        if the comparison cannot throw.
     */
-    Node * searchFlipColorsAndInsert(Node *q) noexcept
+    Node * searchFlipColorsAndInsert(Node *q)
+      noexcept(nothrow_compare_v<Compare, Key>)
     {
       assert(q != Node::NullPtr);
       assert(root != Node::NullPtr);
@@ -261,8 +267,6 @@ namespace Aleph
           p = nextNode;
         }
 
-      ++node_count;
-
       /* Insertion act */
       const Key & pk = KEY(p);
       if (cmp(qk, pk))
@@ -271,14 +275,18 @@ namespace Aleph
       else
         RLINK(p) = q;
 
+      ++node_count; // after the comparison, which may throw
+
       if (COLOR(p) == RED) // Violation of red condition
         restoreRedCondition(q, p, fp, ffp);
 
       return q;
     }
 
-    /// Like searchFlipColorsAndInsert but allows duplicate keys.
-    Node * searchFlipColorsAndInsertDup(Node *q) noexcept
+    /// Like searchFlipColorsAndInsert but allows duplicate keys; as it, a
+    /// comparison that throws leaves a valid tree without q.
+    Node * searchFlipColorsAndInsertDup(Node *q)
+      noexcept(nothrow_compare_v<Compare, Key>)
     {
       assert(q != Node::NullPtr);
       assert(root != Node::NullPtr);
@@ -327,13 +335,13 @@ namespace Aleph
           p = nextNode;
         }
 
-      ++node_count;
-
       const Key & pk = KEY(p);
       if (cmp(qk, pk))
         LLINK(p) = q;
       else
         RLINK(p) = q;
+
+      ++node_count; // after the comparison, which may throw
 
       if (COLOR(p) == RED) // Violation of red condition
         restoreRedCondition(q, p, fp, ffp);
@@ -353,8 +361,12 @@ namespace Aleph
         @param path The path, which receives the head node and the nodes visited down to the
                returned one.
         @return Node with key, or leaf where key would be
+        @throws anything that the comparison throws; the search does not
+        modify the tree. It is `noexcept` only if the comparison cannot
+        throw.
     */
-    Node * searchAndBuildPath(const Key & key, Path & path) noexcept
+    Node * searchAndBuildPath(const Key & key, Path & path)
+      noexcept(nothrow_compare_v<Compare, Key>)
     {
       assert(root != Node::NullPtr);
 
@@ -853,8 +865,14 @@ namespace Aleph
         
         @param p Node to insert (must have COLOR=RED and null children)
         @return Pointer to inserted node, or nullptr if duplicate key
+        @throws anything that the comparison throws; the color flips and
+        rotations done on the way down leave a valid red-black tree, and
+        `p` is linked after the last comparison, so the tree keeps its
+        keys and size, without `p`.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * insert(Node *p) noexcept
+    Node * insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
     {
       assert(p != Node::NullPtr);
       assert(COLOR(p) == RED);
@@ -874,8 +892,13 @@ namespace Aleph
         
         @param p Node to insert if key not found
         @return Existing node with key, or p if inserted
+        @throws anything that the comparison throws; then the tree is a
+        valid red-black tree with its keys and size, without `p`, as in
+        insert().
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * search_or_insert(Node *p) noexcept
+    Node * search_or_insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
     {
       assert(p != Node::NullPtr);
       assert(COLOR(p) == RED);
@@ -900,8 +923,13 @@ namespace Aleph
         
         @param p Node to insert
         @return Pointer to inserted node
+        @throws anything that the comparison throws; then the tree is a
+        valid red-black tree with its keys and size, without `p`, as in
+        insert().
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * insert_dup(Node *p) noexcept
+    Node * insert_dup(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
     {
       assert(p != Node::NullPtr);
       assert(COLOR(p) == RED);
@@ -921,8 +949,12 @@ namespace Aleph
         
         @param key Key to search for
         @return Pointer to node with key, or nullptr if not found
+        @throws anything that the comparison throws; the search does not
+        modify the tree, so it is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * search(const Key & key) const noexcept
+    Node * search(const Key & key) const noexcept(nothrow_compare_v<Compare, Key>)
     {
       Node *retVal = searchInBinTree(root, key, cmp);
       return retVal == Node::NullPtr ? nullptr : retVal;
@@ -932,8 +964,12 @@ namespace Aleph
         
         @param key Key to remove
         @return Pointer to removed node, or nullptr if not found
+        @throws anything that the comparison throws; the tree changes only
+        after the last comparison, so it is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * remove(const Key & key) noexcept
+    Node * remove(const Key & key) noexcept(nothrow_compare_v<Compare, Key>)
     {
       if (root == Node::NullPtr) [[unlikely]]
         return nullptr;

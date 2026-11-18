@@ -114,14 +114,18 @@ private:
   Node *&root;        ///< Reference to root (right child of head)
   Compare cmp;        ///< Comparison functor
 
-  /// Returns true if a < b according to comparator
-  bool less(const Key& a, const Key& b) const noexcept
+  /// Returns true if a < b according to comparator; it throws what the
+  /// comparator throws
+  bool less(const Key& a, const Key& b) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     return cmp(a, b);
   }
 
-  /// Returns true if a == b (neither a < b nor b < a)
-  bool equals(const Key& a, const Key& b) const noexcept
+  /// Returns true if a == b (neither a < b nor b < a); it throws what the
+  /// comparator throws
+  bool equals(const Key& a, const Key& b) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     return not cmp(a, b) and not cmp(b, a);
   }
@@ -229,8 +233,12 @@ private:
 
   /// Search for insertion point, flipping colors proactively.
   /// Uses stack to track path for O(log n) count updates.
+  /// Each color flip and rotation leaves a valid red-black tree with right
+  /// counters, and q is linked after the last comparison, so a comparison
+  /// that throws leaves a valid tree without q.
   /// @return Inserted node or nullptr if duplicate
-  Node* searchFlipColorsAndInsert(Node *q) noexcept
+  Node* searchFlipColorsAndInsert(Node *q)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(q != Node::NullPtr);
     assert(root != Node::NullPtr);
@@ -302,8 +310,10 @@ private:
   }
 
   /// Search for insertion point allowing duplicates.
-  /// Uses stack for O(log n) count updates.
-  Node* searchFlipColorsAndInsertDup(Node *q) noexcept
+  /// Uses stack for O(log n) count updates. As searchFlipColorsAndInsert(),
+  /// a comparison that throws leaves a valid tree without q.
+  Node* searchFlipColorsAndInsertDup(Node *q)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(q != Node::NullPtr);
     assert(root != Node::NullPtr);
@@ -624,8 +634,11 @@ private:
 
   /// Search for key while coloring nodes red for deletion.
   /// Also collects visited nodes in stack for count updates.
+  /// Each step leaves a valid red-black tree with right counters, so a
+  /// comparison that throws leaves a valid tree with all its keys.
   Node* searchAndColorRed(const Key& key, Node *&fp,
-                          Node** stack, size_t& stack_len) noexcept
+                          Node** stack, size_t& stack_len)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     Node *p   = root;
     fp        = head;
@@ -757,9 +770,16 @@ public:
   const Compare & get_compare() const noexcept { return cmp; }
 
   /** @brief Insert a node.
+      @param p Node to insert (must be red with null children).
       @return Pointer to inserted node, or nullptr if duplicate.
+      @throws anything that the comparison throws; the color flips and
+      rotations done on the way down leave a valid red-black tree with
+      right counters, and `p` is linked after the last comparison, so the
+      tree keeps its keys, without `p`.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node* insert(Node *p) noexcept
+  Node* insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(p != Node::NullPtr);
     assert(COLOR(p) == RED);
@@ -775,9 +795,14 @@ public:
   }
 
   /** @brief Insert a node allowing duplicates.
+      @param p Node to insert (must be red with null children).
       @return Pointer to inserted node.
+      @throws anything that the comparison throws; then the tree is valid
+      with its keys, without `p`, as in insert().
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node* insert_dup(Node *p) noexcept
+  Node* insert_dup(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(p != Node::NullPtr);
     assert(COLOR(p) == RED);
@@ -793,9 +818,14 @@ public:
   }
 
   /** @brief Search or insert.
+      @param p Node to search or insert (must be red with null children).
       @return Inserted node or existing node with same key.
+      @throws anything that the comparison throws; then the tree is valid
+      with its keys, without `p`, as in insert().
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node* search_or_insert(Node *p) noexcept
+  Node* search_or_insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(p != Node::NullPtr);
     assert(COLOR(p) == RED);
@@ -815,9 +845,14 @@ public:
   }
 
   /** @brief Search for a key.
+      @param key Key to search for.
       @return Pointer to node, or nullptr if not found.
+      @throws anything that the comparison throws; the search does not
+      modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node* search(const Key& key) const noexcept
+  Node* search(const Key& key) const noexcept(nothrow_compare_v<Compare, Key>)
   {
     Node* p = root;
     while (p != Node::NullPtr)
@@ -830,11 +865,18 @@ public:
   }
 
   /** @brief Remove node with given key.
+      @param key Key to remove.
       @return Pointer to removed node, or nullptr if not found.
+      @throws anything that the comparison throws; the recolorings and
+      rotations done on the way down leave a valid red-black tree with
+      right counters, and the node is unlinked after the last comparison,
+      so the tree keeps its keys.
       @note Count update uses stack collected during search - O(log n) amortized,
             but may need full recalc after complex swaps.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node* remove(const Key& key) noexcept
+  Node* remove(const Key& key) noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (root == Node::NullPtr)
       return nullptr;
@@ -879,9 +921,15 @@ public:
   }
 
   /** @brief Find position of a key.
+      @param key Key to search for.
       @return Pair of (position, node pointer). Position is -1 if not found.
+      @throws anything that the comparison throws; the search does not
+      modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  std::pair<long, Node*> position(const Key & key) const noexcept
+  std::pair<long, Node*> position(const Key & key) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     std::pair<long, Node*> ret_val;
     ret_val.first = BinTreeXt_Operation<Node, Compare>(cmp).
@@ -890,9 +938,15 @@ public:
   }
 
   /** @brief Find position of a key (even if not in tree).
+      @param key Key to search for.
       @return Pair of (position, node pointer).
+      @throws anything that the comparison throws; the search does not
+      modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  std::pair<long, Node*> find_position(const Key & key) const noexcept
+  std::pair<long, Node*> find_position(const Key & key) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     std::pair<long, Node*> r(-2, nullptr);
     r.first = BinTreeXt_Operation<Node, Compare>(cmp).
@@ -916,6 +970,11 @@ public:
       @param pos Split position.
       @param t1 Receives nodes [0, pos).
       @param t2 Receives nodes [pos, size).
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`).
+      @note It stays `noexcept` because it inserts the nodes one by one in
+      `t1` and `t2`, which compares: a comparison that threw in the middle
+      would leave nodes out of every tree.
    */
   void split_pos(size_t pos, GenTdRbTreeRk & t1, GenTdRbTreeRk & t2) noexcept
   {

@@ -128,7 +128,10 @@ private:
     return path.size() == 1;
   }
 
-  Node *search_and_stack_avl(const Key &key, signed char &cmp_result, Path &path) noexcept
+  // The searches only read the tree: a comparison that throws leaves it as
+  // it was, and the operations that call them change it after them
+  Node *search_and_stack_avl(const Key &key, signed char &cmp_result, Path &path)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(at_head(path) and path.base() == head_ptr);
 
@@ -170,7 +173,8 @@ private:
     return path.top();
   }
 
-  Node *search_dup_and_stack_avl(const Key &key, signed char &cmp_result, Path &path) noexcept
+  Node *search_dup_and_stack_avl(const Key &key, signed char &cmp_result, Path &path)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(at_head(path) and path.base() == head_ptr);
     cmp_result = CmpEqual;
@@ -563,20 +567,33 @@ public:
     return root == Node::NullPtr;
   }
 
-  /// Search a node containing key; if found, then a pointer to the
-  /// node containing it is returned; otherwise `nullptr` is returned
-  [[nodiscard]] Node *search(const Key &key) const noexcept
+  /** @brief Search a node containing `key`.
+
+      @param[in] key the key to search
+      @return a pointer to the node containing `key` if it is found;
+      otherwise `nullptr`
+      @throws anything that the comparison throws; the search does not
+      modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
+  */
+  [[nodiscard]] Node *search(const Key &key) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     Node *result = searchInBinTree<Node, Compare>(root, key, cmp);
     return result == Node::NullPtr ? nullptr : result;
   }
 
-  /** Insert the node pointed by p in the tree.
+  /** @brief Insert the node pointed by p in the tree.
 
       @param[in] p the node to be inserted
       @return p if KEY(p) is not found in the tree, nullptr otherwise.
+      @throws anything that the comparison throws; the tree changes only
+      after the last comparison, so it is left as it was, without `p`.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
   */
-  [[nodiscard]] Node *insert(Node *p) noexcept
+  [[nodiscard]] Node *insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (root == Node::NullPtr)
       return root = p;
@@ -598,14 +615,18 @@ public:
     return p;
   }
 
-  /** Search or insert a key.
+  /** @brief Search or insert a key.
 
       @param[in] p the node whose key must be searched and
       eventually inserted
       @return if p is inserted, this value is returned;
       otherwise, a pointer to the node containing KEY(p) is returned.
+      @throws anything that the comparison throws; the tree changes only
+      after the last comparison, so it is left as it was, without `p`.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
   */
-  [[nodiscard]] Node *search_or_insert(Node *p) noexcept
+  [[nodiscard]] Node *search_or_insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (root == Node::NullPtr)
       return root = p;
@@ -627,8 +648,16 @@ public:
     return p;
   }
 
-  /// Insert the node p without testing for key duplicity
-  [[nodiscard]] Node *insert_dup(Node *p) noexcept
+  /** @brief Insert the node p without testing for key duplicity.
+
+      @param[in] p the node to be inserted
+      @return the pointer `p`
+      @throws anything that the comparison throws; the tree changes only
+      after the last comparison, so it is left as it was, without `p`.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
+  */
+  [[nodiscard]] Node *insert_dup(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (root == Node::NullPtr)
       return root = p;
@@ -648,9 +677,16 @@ public:
     return p;
   }
 
-  /// Remove from tree the node containing key.
-  /// Returns the removed node if the key is found; `nullptr` otherwise.
-  [[nodiscard]] Node *remove(const Key &key) noexcept
+  /** @brief Remove from tree the node containing key.
+
+      @param[in] key the key to remove
+      @return the removed node if the key is found; `nullptr` otherwise
+      @throws anything that the comparison throws; the tree changes only
+      after the last comparison, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
+  */
+  [[nodiscard]] Node *remove(const Key &key) noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (root == Node::NullPtr)
       return nullptr;
@@ -712,13 +748,18 @@ public:
     return Aleph::select(root, i);
   }
 
-  /** Compute the inorder position of a key.
+  /** @brief Compute the inorder position of a key.
 
       @param[in] key to be searched
       @return a pair with the inorder position and the node pointer.
       If the key is not found, the position is -1.
+      @throws anything that the comparison throws; the search does not
+      modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
   */
-  std::pair<long, Node *> position(const Key &key) const noexcept
+  std::pair<long, Node *> position(const Key &key) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     std::pair<long, Node *> ret_val;
 
@@ -728,12 +769,17 @@ public:
     return ret_val;
   }
 
-  /** Find the inorder position of a key in the tree.
+  /** @brief Find the inorder position of a key in the tree.
 
       @param[in] key to be searched
       @return a pair with the position and the node pointer
+      @throws anything that the comparison throws; the search does not
+      modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
   */
-  std::pair<long, Node *> find_position(const Key &key) const noexcept
+  std::pair<long, Node *> find_position(const Key &key) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     std::pair<long, Node *> r(-2, nullptr);
 
@@ -1047,7 +1093,10 @@ private:
   // Split by key recursively
   // Returns the node containing key (or NullPtr if not found)
   // t1 gets all keys < key, t2 gets all keys > key
-  Node *split_key_rec(Node *p, const Key &key, Node *&t1, Node *&t2) noexcept
+  // It compares on the way down and relinks on the way back, so a
+  // comparison that throws leaves the tree as it was
+  Node *split_key_rec(Node *p, const Key &key, Node *&t1, Node *&t2)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (p == Node::NullPtr)
       {
@@ -1107,7 +1156,10 @@ private:
   }
 
   // Split by key for duplicates: keys <= key go to t1, keys > key go to t2
-  void split_key_dup_rec(Node *p, const Key &key, Node *&t1, Node *&t2) noexcept
+  // It compares on the way down and relinks on the way back, as
+  // split_key_rec()
+  void split_key_dup_rec(Node *p, const Key &key, Node *&t1, Node *&t2)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (p == Node::NullPtr)
       {
@@ -1200,13 +1252,18 @@ private:
   }
 
 public:
-  /** Join this tree exclusively with another tree.
+  /** @brief Join this tree exclusively with another tree.
 
       All keys in this tree must be less than all keys in t.
       After the operation, t becomes empty and this tree contains all nodes.
 
       @param[in,out] t tree to join with (will be empty after)
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`).
       @note O(m log(n+m)) time complexity where m is size of t
+      @note It stays `noexcept` because it inserts the nodes of `t` one by
+      one: a comparison that threw in the middle would leave nodes out of
+      both trees.
   */
   void join_exclusive(Gen_Avl_Tree_Rk &t) noexcept
   {
@@ -1256,9 +1313,14 @@ public:
       @param[out] t1 tree to receive keys < key
       @param[out] t2 tree to receive keys > key
       @return pointer to node containing key, or nullptr if not found
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`).
       @note Complexity: O(n log(n + m)), where n is the number of nodes
             processed from this tree and m is the initial total size of t1
             and t2. Each processed node is inserted into a destination tree.
+      @note It stays `noexcept` because it moves the nodes one by one: a
+      comparison that threw in the middle would leave nodes out of every
+      tree.
   */
   Node *split_key(const Key &key, Gen_Avl_Tree_Rk &t1, Gen_Avl_Tree_Rk &t2) noexcept
   {
@@ -1307,9 +1369,14 @@ public:
       @param[in] key the splitting key
       @param[out] t1 tree to receive keys <= key
       @param[out] t2 tree to receive keys > key
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`).
       @note Complexity: O(n log(n + m)), where n is the number of nodes
             processed from this tree and m is the initial total size of t1
             and t2. Each processed node is inserted into a destination tree.
+      @note It stays `noexcept` because it moves the nodes one by one: a
+      comparison that threw in the middle would leave nodes out of every
+      tree.
   */
   void split_key_dup(const Key &key, Gen_Avl_Tree_Rk &t1, Gen_Avl_Tree_Rk &t2) noexcept
   {
@@ -1352,9 +1419,14 @@ public:
       @param[in] pos the splitting position (0-based)
       @param[out] t1 tree to receive positions [0, pos)
       @param[out] t2 tree to receive positions [pos, size)
+      @pre The comparison does not throw; if it does, the program ends
+      (`std::terminate()`).
       @note Complexity: O(n log(n + m)), where n is the number of nodes
             processed from this tree and m is the initial total size of t1
             and t2. Boundary positions transfer the root in O(1).
+      @note It stays `noexcept` because it inserts the nodes one by one in
+      `t1` and `t2`, which compares: a comparison that threw in the middle
+      would leave nodes out of every tree.
   */
   void split_pos(const size_t pos, Gen_Avl_Tree_Rk &t1, Gen_Avl_Tree_Rk &t2) noexcept
   {
