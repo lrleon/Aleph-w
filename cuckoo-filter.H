@@ -83,6 +83,7 @@
 #include <optional>
 #include <random>
 #include <algorithm>
+#include <utility>
 #include <hash-fct.H>
 #include <ah-errors.H>
 #include <ahUtils.H>
@@ -226,6 +227,65 @@ public:
       num_buckets = 1;
     bucket_mask = num_buckets - 1;
     buckets.putn(num_buckets);
+  }
+
+  /** @brief Copy the buckets, the stash and the generator of another filter.
+   *  @param[in] other filter to copy.
+   *  @throws std::bad_alloc if the buckets cannot be allocated.
+   */
+  Cuckoo_Filter(const Cuckoo_Filter & other) = default;
+
+  /** @brief Take the items of another filter, which is left as an empty
+   *         filter of one bucket.
+   *
+   *  The implicit move took the buckets but copied their count and their
+   *  mask: the moved-from filter then indexed buckets that it no longer
+   *  had. With one bucket, every operation of @p other works as in any
+   *  filter, with no test for a filter without buckets. @p other draws
+   *  its kicks from a copy of its generator.
+   *
+   *  @param[in,out] other filter to move from.
+   *  @throws std::bad_alloc if the bucket left to @p other cannot be
+   *          allocated; @p other is then unchanged.
+   *  @note O(1): it allocates the bucket left to @p other.
+   */
+  Cuckoo_Filter(Cuckoo_Filter && other) : num_buckets(1), bucket_mask(0), rng_(other.rng_)
+  {
+    buckets.putn(1);
+    swap(other);
+  }
+
+  /** @brief Copy the buckets, the stash and the generator of another filter.
+   *  @param[in] other filter to copy.
+   *  @return this filter.
+   *  @throws std::bad_alloc if the buckets cannot be allocated.
+   */
+  Cuckoo_Filter & operator = (const Cuckoo_Filter & other) = default;
+
+  /** @brief Exchange this filter with another, which is left with the
+   *         previous state of this one.
+   *  @param[in,out] other filter to move from.
+   *  @return this filter.
+   *  @note Complexity: O(1).
+   */
+  Cuckoo_Filter & operator = (Cuckoo_Filter && other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the state of this filter and another.
+   *  @param[in,out] other filter to exchange with.
+   */
+  void swap(Cuckoo_Filter & other) noexcept
+  {
+    buckets.swap(other.buckets);
+    std::swap(num_items, other.num_items);
+    std::swap(num_buckets, other.num_buckets);
+    std::swap(bucket_mask, other.bucket_mask);
+    std::swap(rng_, other.rng_);
+    std::swap(stash_, other.stash_);
+    std::swap(stash_count_, other.stash_count_);
   }
 
   /** @brief Return the number of items currently in the filter.

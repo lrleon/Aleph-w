@@ -2397,6 +2397,65 @@ namespace Aleph
         arcs(--first(target(j))) = order(j);
     }
 
+    /** Copy another index.
+
+        @param[in] other the index to copy.
+        @throw bad_alloc if there is no memory for the copy.
+    */
+    In_Arcs_Index(const In_Arcs_Index & other) = default;
+
+    /** Take the arcs of another index, which is left as the index of a
+        graph without nodes.
+
+        The implicit move took the arrays but copied the size of the table:
+        the moved-from index then looked for the nodes in a table that it
+        no longer had. A search reads the table without a check, so that
+        `other` is left as the index of a graph without nodes, whose two
+        places are empty; `number`, read only at the places of nodes, stays
+        empty.
+
+        @param[in,out] other the index to move from.
+        @throw bad_alloc if there is no memory for the table left to
+        `other`, which is then unchanged.
+    */
+    In_Arcs_Index(In_Arcs_Index && other) : keys(2, nullptr), first(1, 0)
+    {
+      swap(other);
+    }
+
+    /** Copy another index.
+
+        @param[in] other the index to copy.
+        @return this index.
+        @throw bad_alloc if there is no memory for the copy.
+    */
+    In_Arcs_Index & operator = (const In_Arcs_Index & other) = default;
+
+    /** Exchange this index with another, which is left with the previous
+        arcs of this one.
+
+        @param[in,out] other the index to move from.
+        @return this index.
+    */
+    In_Arcs_Index & operator = (In_Arcs_Index && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** Exchange in \f$O(1)\f$ this index and another.
+
+        @param[in,out] other the index to exchange with.
+    */
+    void swap(In_Arcs_Index & other) noexcept
+    {
+      std::swap(bits, other.bits);
+      keys.swap(other.keys);
+      number.swap(other.number);
+      first.swap(other.first);
+      arcs.swap(other.arcs);
+    }
+
     /// Return the number of arcs of the index: those that the filter
     /// showed.
     [[nodiscard]] size_t size() const noexcept { return arcs.size(); }

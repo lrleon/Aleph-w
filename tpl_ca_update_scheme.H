@@ -401,6 +401,8 @@ struct Random_Asynchronous_Update
    *  @param[in] r rule reference.
    *  @throws Any exception propagated by the rule, the lattice or
    *          the PRNG construction.
+   *  @note On an empty lattice there is no cell to pick, and the step
+   *        updates nothing.
    */
   template <typename Engine, typename Rule>
   void apply(Engine &e, Rule &r) const
@@ -416,6 +418,8 @@ struct Random_Asynchronous_Update
     const std::size_t step = e.step_count();
 
     const ca_size_t n_cells = ca_scheme_detail::cell_count(cur);
+    if (n_cells == 0)  // the fixed sub-steps would pick cells that do not exist
+      return;
     const std::size_t subs
       = sub_steps_per_step == 0 ? static_cast<std::size_t>(n_cells) : sub_steps_per_step;
 

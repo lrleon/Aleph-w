@@ -334,15 +334,33 @@ namespace Aleph
 
     Gen_Segment_Tree(const Gen_Segment_Tree &) = default;
 
-    Gen_Segment_Tree(Gen_Segment_Tree &&) noexcept(
+    /** @brief Take the elements of another tree, which is left empty.
+     *
+     *  The implicit move took the array but copied the size: the
+     *  moved-from tree then indexed an array that it no longer had.
+     *
+     *  @param[in,out] other tree to move from.
+     */
+    Gen_Segment_Tree(Gen_Segment_Tree && other) noexcept(
       std::is_nothrow_move_constructible_v<Array<T>> and
-      std::is_nothrow_move_constructible_v<Op>) = default;
+      std::is_nothrow_move_constructible_v<T> and
+      std::is_nothrow_move_constructible_v<Op>)
+      : tree(std::move(other.tree)), n(std::exchange(other.n, 0)),
+        identity(std::move(other.identity)), op(std::move(other.op))
+    {}
 
     Gen_Segment_Tree & operator=(const Gen_Segment_Tree &) = default;
 
-    Gen_Segment_Tree & operator=(Gen_Segment_Tree &&) noexcept(
-      std::is_nothrow_move_assignable_v<Array<T>> and
-      std::is_nothrow_move_assignable_v<Op>) = default;
+    /** @brief Exchange this tree with another, which is left with the
+     *         previous elements of this one.
+     *  @param[in,out] other tree to move from.
+     *  @return this tree.
+     */
+    Gen_Segment_Tree & operator=(Gen_Segment_Tree && other) noexcept(noexcept(swap(other)))
+    {
+      swap(other);
+      return *this;
+    }
 
     /** @brief Point update: `a[i] = Op(a[i], delta)`.
      *
@@ -424,15 +442,51 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Swap this tree with @p other in O(1). */
+    /** @brief Swap this tree with @p other in O(1).
+     *  @param[in,out] other tree to exchange with.
+     *  @throw what swapping the identities or the operations throws. They
+     *         are exchanged before the arrays: if the swap of the operations
+     *         throws, the identities are exchanged back, and both trees are
+     *         left as they were, if the swap that threw left its arguments
+     *         as they were. If the swap that puts the identities back throws
+     *         too, both trees can only be destroyed or assigned.
+     */
     void swap(Gen_Segment_Tree & other) noexcept(
-      noexcept(std::swap(std::declval<T&>(), std::declval<T&>())) and
-      noexcept(std::swap(std::declval<Op&>(), std::declval<Op&>())))
+      std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Op>)
     {
+      // The identities and the operations go first when their swaps may
+      // throw, so that one that throws leaves no array with the identity
+      // or the operation of the other. When none may, the order cannot be
+      // seen, and they go last, as they always did: an identity that has
+      // state, an int, would reorder the code if it went first
+      constexpr bool may_throw =
+        not std::is_nothrow_swappable_v<T> or not std::is_nothrow_swappable_v<Op>;
+      if constexpr (may_throw)
+        swap_identity_and_op(other);
       tree.swap(other.tree);
       std::swap(n, other.n);
-      std::swap(identity, other.identity);
-      std::swap(op, other.op);
+      if constexpr (not may_throw)
+        swap_identity_and_op(other);
+    }
+
+  private:
+    // The identities and the operations, with the swaps that the
+    // specification of swap() evaluates (found by their arguments, else
+    // std::swap()), both or none: if that of the operations throws, the
+    // identities are exchanged back
+    void swap_identity_and_op(Gen_Segment_Tree & other)
+    {
+      using std::swap;
+      swap(identity, other.identity);
+      try
+        {
+          swap(op, other.op);
+        }
+      catch (...)
+        {
+          swap(identity, other.identity);
+          throw;
+        }
     }
   };
 
@@ -1115,17 +1169,34 @@ namespace Aleph
 
     Gen_Lazy_Segment_Tree(const Gen_Lazy_Segment_Tree &) = default;
 
-    Gen_Lazy_Segment_Tree(Gen_Lazy_Segment_Tree &&) noexcept(
+    /** @brief Take the elements of another tree, which is left empty.
+     *
+     *  The implicit move took the arrays but copied the size: the
+     *  moved-from tree then indexed arrays that it no longer had.
+     *
+     *  @param[in,out] other tree to move from.
+     */
+    Gen_Lazy_Segment_Tree(Gen_Lazy_Segment_Tree && other) noexcept(
       std::is_nothrow_move_constructible_v<Array<value_type>> and
       std::is_nothrow_move_constructible_v<Array<lazy_type>> and
-      std::is_nothrow_move_constructible_v<Policy>) = default;
+      std::is_nothrow_move_constructible_v<Policy>)
+      : tree(std::move(other.tree)), lazy(std::move(other.lazy)),
+        n(std::exchange(other.n, 0)), pol(std::move(other.pol))
+    {}
 
     Gen_Lazy_Segment_Tree & operator=(const Gen_Lazy_Segment_Tree &) = default;
 
-    Gen_Lazy_Segment_Tree & operator=(Gen_Lazy_Segment_Tree &&) noexcept(
-      std::is_nothrow_move_assignable_v<Array<value_type>> and
-      std::is_nothrow_move_assignable_v<Array<lazy_type>> and
-      std::is_nothrow_move_assignable_v<Policy>) = default;
+    /** @brief Exchange this tree with another, which is left with the
+     *         previous elements of this one.
+     *  @param[in,out] other tree to move from.
+     *  @return this tree.
+     */
+    Gen_Lazy_Segment_Tree & operator=(Gen_Lazy_Segment_Tree && other)
+      noexcept(noexcept(swap(other)))
+    {
+      swap(other);
+      return *this;
+    }
 
     /** @brief Range update: apply @p val to every `a[i]` with
      *  `l <= i <= r`.
@@ -1218,14 +1289,23 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Swap this tree with @p other in O(1). */
-    void swap(Gen_Lazy_Segment_Tree & other) noexcept(
-      noexcept(std::swap(std::declval<Policy&>(), std::declval<Policy&>())))
+    /** @brief Swap this tree with @p other in O(1).
+     *  @param[in,out] other tree to exchange with.
+     *  @throw what swapping the policies throws. They are exchanged before
+     *         the arrays, so that, if that swap throws, nothing else is
+     *         exchanged, and both trees are left as they were if it left its
+     *         arguments as they were.
+     */
+    void swap(Gen_Lazy_Segment_Tree & other) noexcept(std::is_nothrow_swappable_v<Policy>)
     {
+      // the swap that the specification evaluates: that of Policy found by
+      // its arguments, else std::swap(); first, so that one that throws
+      // leaves no aggregates or pending tags with the policy of the other
+      using std::swap;
+      swap(pol, other.pol);
       tree.swap(other.tree);
       lazy.swap(other.lazy);
       std::swap(n, other.n);
-      std::swap(pol, other.pol);
     }
   };
 
@@ -1651,11 +1731,32 @@ namespace Aleph
     }
 
     Segment_Tree_Beats(const Segment_Tree_Beats &) = default;
-    Segment_Tree_Beats(Segment_Tree_Beats &&) noexcept(
-      std::is_nothrow_move_constructible_v<Array<Node>>) = default;
+
+    /** @brief Take the elements of another tree, which is left empty.
+     *
+     *  The implicit move took the nodes but copied the size: the
+     *  moved-from tree then indexed nodes that it no longer had.
+     *
+     *  @param[in,out] other tree to move from.
+     */
+    Segment_Tree_Beats(Segment_Tree_Beats && other) noexcept(
+      std::is_nothrow_move_constructible_v<Array<Node>>)
+      : tree(std::move(other.tree)), n(std::exchange(other.n, 0))
+    {}
+
     Segment_Tree_Beats & operator=(const Segment_Tree_Beats &) = default;
-    Segment_Tree_Beats & operator=(Segment_Tree_Beats &&) noexcept(
-      std::is_nothrow_move_assignable_v<Array<Node>>) = default;
+
+    /** @brief Exchange this tree with another, which is left with the
+     *         previous elements of this one.
+     *  @param[in,out] other tree to move from.
+     *  @return this tree.
+     */
+    Segment_Tree_Beats & operator=(Segment_Tree_Beats && other) noexcept(
+      std::is_nothrow_move_assignable_v<Array<Node>>)
+    {
+      swap(other);
+      return *this;
+    }
 
     /** @brief Range chmin: for each `i` in `[l, r]`, set `a[i] = min(a[i], v)`.
      *

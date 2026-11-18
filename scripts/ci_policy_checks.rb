@@ -2,6 +2,8 @@
 
 require 'open3'
 require 'pathname'
+require 'strscan'
+require_relative 'ci_moved_from_check'
 begin
   require 'unicode_normalize'
 rescue LoadError
@@ -80,103 +82,37 @@ def git_show_optional(spec)
 end
 
 
-def read_quoted_literal(content, start_idx)
-  quote = content[start_idx]
-  idx = start_idx + 1
-
-  while idx < content.length
-    ch = content[idx]
-    if ch == '\\'
-      idx += 2
-      next
-    end
-
-    idx += 1
-    break if ch == quote
-  end
-
-  [content[start_idx...idx], idx]
-end
-
-
-def read_raw_string_literal(content, start_idx)
-  return nil unless content[start_idx] == 'R' && content[start_idx + 1] == '"'
-
-  delimiter_start = start_idx + 2
-  delimiter_end = delimiter_start
-
-  while delimiter_end < content.length && content[delimiter_end] != '('
-    ch = content[delimiter_end]
-    return nil if ch =~ /[\s\\)]/
-
-    delimiter_end += 1
-  end
-
-  return nil if delimiter_end >= content.length || content[delimiter_end] != '('
-
-  delimiter = content[delimiter_start...delimiter_end]
-  terminator = ')' + delimiter + '"'
-  literal_end = content.index(terminator, delimiter_end + 1)
-  return nil if literal_end.nil?
-
-  literal_end += terminator.length
-  [content[start_idx...literal_end], literal_end]
-end
-
-
+# The tokens of the code of content, one per line: identifiers, numbers,
+# literals (raw strings included) and single characters, without the
+# whitespace and the comments. A scanner takes each token whole: walking the
+# text one character at a time took minutes on the largest headers.
 def cpp_token_stream(content)
+  s = StringScanner.new(content)
   tokens = []
-  idx = 0
+  until s.eos?
+    next if s.skip(/\s+/)
+    next if s.skip(%r{//[^\n]*})
 
-  while idx < content.length
-    if content[idx] =~ /\s/
-      idx += 1
+    if s.skip(%r{/\*})
+      s.skip_until(%r{\*/}) or s.terminate
       next
     end
 
-    if content[idx, 2] == '//'
-      idx += 2
-      idx += 1 while idx < content.length && content[idx] != "\n"
-      next
-    end
-
-    if content[idx, 2] == '/*'
-      idx += 2
-      idx += 1 while idx < content.length && content[idx, 2] != '*/'
-      idx += 2 if idx < content.length
-      next
-    end
-
-    if (literal = read_raw_string_literal(content, idx))
-      tokens << literal[0]
-      idx = literal[1]
-      next
-    end
-
-    if content[idx] == '"' || content[idx] == "'"
-      literal, idx = read_quoted_literal(content, idx)
+    # R"delimiter( ... )delimiter", with its prefix (u8, u, U, L), which
+    # is not an identifier: else the literal inside would end at a quote
+    if (literal = s.scan(/(?:u8|[uUL])?R"([^\s\\)(]*)\(.*?\)\1"/m))
       tokens << literal
       next
     end
 
-    if content[idx] =~ /[A-Za-z_]/
-      start_idx = idx
-      idx += 1
-      idx += 1 while idx < content.length && content[idx] =~ /[A-Za-z0-9_]/
-      tokens << content[start_idx...idx]
+    # A quoted literal ends at its unescaped quote, or at the end of the text
+    if (quote = s.scan(/["']/))
+      body = quote == '"' ? s.scan(/(?:[^\\"]|\\.|\\\z)*/m) : s.scan(/(?:[^\\']|\\.|\\\z)*/m)
+      tokens << "#{quote}#{body}#{s.scan(quote == '"' ? /"/ : /'/)}"
       next
     end
 
-    if content[idx] =~ /\d/
-      start_idx = idx
-      idx += 1
-      idx += 1 while idx < content.length && content[idx] =~ /[A-Za-z0-9_'.]/
-      tokens << content[start_idx...idx]
-      next
-    end
-
-    tokens << content[idx]
-    idx += 1
+    tokens << (s.scan(/[A-Za-z_][A-Za-z0-9_]*/) || s.scan(/\d[A-Za-z0-9_'.]*/) || s.getch)
   end
 
   tokens.join("\n")
@@ -351,6 +287,8 @@ def main
                 'DynListQueue, in_place_sort(), mergesort()...), or end each line that ' \
                 "interoperates with the standard library with `// #{STD_INTEROP_MARKER} <why>`"
   end
+
+  failures.concat(moved_from_failures(base, files_details))
 
   unless failures.empty?
     failures.each { |f| puts "[fail] #{f}" }

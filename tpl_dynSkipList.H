@@ -70,6 +70,7 @@
 
 # include <climits>
 # include <ctime>
+# include <type_traits>
 # include <utility>
 # include <initializer_list>
 # include <ah-random.H>
@@ -199,6 +200,41 @@ private:
     return not cmp(k1, k2) and not cmp(k2, k1);
   }
 
+  // An empty list of probability p, whose comparison is a copy of c: the
+  // one that a move builds, without a copy assignment of the comparison
+  DynSkipList(const unsigned long seed, const double p, const Compare & c)
+    : r(generator_seed(seed)), probability(p), cmp(c)
+  {
+    header = new Node(maxLevel);
+  }
+
+  // The same, with c moved: for a comparison that cannot be copied
+  DynSkipList(const unsigned long seed, const double p, Compare && c)
+    : r(generator_seed(seed)), probability(p), cmp(std::move(c))
+  {
+    header = new Node(maxLevel);
+  }
+
+  // What a move takes of the comparison c: c to copy, if it can be copied,
+  // so that the source keeps its own; else c to move
+  static decltype(auto) comparison_to_take(Compare & c) noexcept
+  {
+    if constexpr (std::is_copy_constructible_v<Compare>)
+      return static_cast<const Compare &>(c);
+    else
+      return std::move(c);
+  }
+
+  // Exchanges with other all but the comparison
+  void swap_but_comparison(DynSkipList & other) noexcept
+  {
+    std::swap(header, other.header);
+    r.swap(other.r);
+    std::swap(num_nodes, other.num_nodes);
+    std::swap(current_level, other.current_level);
+    std::swap(probability, other.probability);
+  }
+
 public:
 
   /// Set the random number generator seed, as `gsl_rng_set()` did
@@ -279,18 +315,30 @@ public:
       }
   }
 
-  /// Move constructor
-  DynSkipList(DynSkipList && other) noexcept
-    : header(other.header),
-      r(std::move(other.r)),
-      num_nodes(other.num_nodes),
-      current_level(other.current_level),
-      probability(other.probability),
-      cmp(std::move(other.cmp))
+  /** @brief Move constructor: take the nodes, the generator and the
+   *         comparison criterion of another list, which is left empty, with
+   *         a generator of its own seeded with the time, as a copy gets.
+   *
+   *  The previous move left the source without a generator: its next
+   *  insert() drew a level from a null generator.
+   *
+   *  The comparison criterion is copied, if it can be copied, so that
+   *  @p other keeps its own; else it is moved, and @p other is left with
+   *  one moved from.
+   *
+   *  @param[in,out] other the list to move from.
+   *  @throw bad_alloc if there is not enough memory for the header and the
+   *         generator left to @p other, or what the copy or the move of the
+   *         comparison criterion throws; then @p other is unchanged, but for
+   *         a comparison criterion that was moved.
+   *  @note It allocates the header and the generator left to @p other.
+   */
+  DynSkipList(DynSkipList && other)
+    : DynSkipList(time(nullptr), other.probability, comparison_to_take(other.cmp))
   {
-    other.header = new Node(maxLevel);
-    other.num_nodes = 0;
-    other.current_level = 1;
+    // the comparison is already taken from other: exchanging it again would
+    // need its move assignment
+    swap_but_comparison(other);
   }
 
   /// Destructor - frees all nodes and the random number generator
@@ -317,38 +365,44 @@ public:
     return *this;
   }
 
-  /// Move assignment operator
-  DynSkipList & operator=(DynSkipList && other) noexcept
+  /** @brief Move assignment: free the nodes of this list, and exchange it
+   *         with another, which is left empty with the generator of this
+   *         one.
+   *
+   *  The previous assignment took the generator of @p other, which then
+   *  drew levels from a null one. The nodes of this list are freed, as
+   *  they were, so that @p other is left empty.
+   *
+   *  @param[in,out] other the list to move from.
+   *  @return a reference to this list.
+   *  @throw what swapping the comparisons throws; then this list is left
+   *         empty, and @p other keeps its nodes.
+   *  @note O(n), for the nodes of this list.
+   */
+  DynSkipList & operator=(DynSkipList && other) noexcept(noexcept(swap(other)))
   {
     if (this == &other)
       return *this;
 
     empty();
-    delete header;
-
-    header = other.header;
-    r = std::move(other.r); // ours is freed
-    num_nodes = other.num_nodes;
-    current_level = other.current_level;
-    probability = other.probability;
-    cmp = std::move(other.cmp);
-    
-    other.header = new Node(maxLevel);
-    other.num_nodes = 0;
-    other.current_level = 1;
-    
+    swap(other);
     return *this;
   }
 
-  /// Swap contents with another DynSkipList
-  void swap(DynSkipList & other) noexcept
+  /** @brief Swap contents with another DynSkipList.
+   *  @param[in,out] other the list to exchange with.
+   *  @throw what swapping the comparisons throws. They are exchanged first,
+   *         so that, if that swap throws, nothing else is exchanged, and both
+   *         lists are left as they were if it left its arguments as they
+   *         were.
+   */
+  void swap(DynSkipList & other) noexcept(std::is_nothrow_swappable_v<Compare>)
   {
-    std::swap(header, other.header);
-    r.swap(other.r);
-    std::swap(num_nodes, other.num_nodes);
-    std::swap(current_level, other.current_level);
-    std::swap(probability, other.probability);
-    std::swap(cmp, other.cmp);
+    // the swap that the specification evaluates: that of Compare found by
+    // its arguments, else std::swap(); first, since it may throw
+    using std::swap;
+    swap(cmp, other.cmp);
+    swap_but_comparison(other);
   }
 
   /** @brief Remove all elements from the set.

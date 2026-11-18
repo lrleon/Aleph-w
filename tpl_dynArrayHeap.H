@@ -57,6 +57,7 @@
 # include <algorithm>
 # include <cstddef>
 # include <stdexcept>
+# include <type_traits>
 # include <utility>
 
 # include <tpl_dynArray.H>
@@ -173,6 +174,75 @@ namespace Aleph
     Special_Ctors(DynArrayHeap, T);
 
     Args_Ctor(DynArrayHeap, T);
+
+    /** @brief Copy the elements and the comparator of another heap.
+     *  @param[in] other heap to copy.
+     */
+    DynArrayHeap(const DynArrayHeap & other) = default;
+
+    /** @brief Take the elements of another heap, which is left empty.
+     *
+     *  The implicit move took the array but copied the number of items:
+     *  the moved-from heap then read entries that it no longer had. The
+     *  comparator is copied, since the heap left empty still uses it.
+     *
+     *  @param[in,out] other heap to move from.
+     */
+    DynArrayHeap(DynArrayHeap && other) noexcept(
+      std::is_nothrow_move_constructible_v<DynArray<T>> and
+      std::is_nothrow_copy_constructible_v<Compare>)
+      : array(std::move(other.array)), num_items(std::exchange(other.num_items, 0)),
+        cmp(other.cmp)
+    {}
+
+    /** @brief Copy the elements and the comparator of another heap.
+     *  @param[in] other heap to copy.
+     *  @return this heap.
+     */
+    DynArrayHeap & operator = (const DynArrayHeap & other) = default;
+
+    /** @brief Exchange this heap with another, which is left with the
+     *         previous elements of this one.
+     *  @param[in,out] other heap to move from.
+     *  @return this heap.
+     */
+    DynArrayHeap & operator = (DynArrayHeap && other) noexcept(noexcept(swap(other)))
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) the elements and the comparators of this
+     *         heap and another.
+     *  @param[in,out] other heap to exchange with.
+     *  @throw what swapping the comparators, or the default values of the
+     *         arrays, throws. The comparators go first; if the swap of the
+     *         arrays throws, they are exchanged back, and both heaps are
+     *         left as they were, if the swap that threw left its arguments
+     *         as they were. If the swap that puts the comparators back
+     *         throws too, both heaps can only be destroyed or assigned.
+     */
+    void swap(DynArrayHeap & other) noexcept(
+      std::is_nothrow_swappable_v<T> and std::is_nothrow_swappable_v<Compare>)
+    {
+      // the swap that the specification evaluates: that of Compare found by
+      // its arguments, else std::swap(); first, since it may throw
+      using std::swap;
+      swap(cmp, other.cmp);
+      if constexpr (std::is_nothrow_swappable_v<T>)
+        array.swap(other.array);
+      else
+        try
+          {
+            array.swap(other.array);
+          }
+        catch (...)
+          {
+            swap(cmp, other.cmp);
+            throw;
+          }
+      std::swap(num_items, other.num_items);
+    }
 
     /** Return the element with highest priority (the heap top).
      *

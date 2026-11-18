@@ -265,13 +265,32 @@ namespace Aleph
     /** @brief Copy assignment operator. */
     Gen_Cartesian_Tree &operator=(const Gen_Cartesian_Tree &) = default;
 
-    Gen_Cartesian_Tree(Gen_Cartesian_Tree &&) noexcept(
+    /** @brief Take the nodes of another tree, which is left empty.
+     *
+     *  The implicit move took the arrays but copied the root and the size:
+     *  the moved-from tree then read nodes that it no longer had.
+     *
+     *  @param[in,out] other tree to move from.
+     */
+    Gen_Cartesian_Tree(Gen_Cartesian_Tree && other) noexcept(
       std::is_nothrow_move_constructible_v<Array<T>> and
-      std::is_nothrow_move_constructible_v<Comp>) = default;
+      std::is_nothrow_move_constructible_v<Comp>)
+      : data_(std::move(other.data_)), parent_(std::move(other.parent_)),
+        left_(std::move(other.left_)), right_(std::move(other.right_)),
+        root_(std::exchange(other.root_, NONE)), n_(std::exchange(other.n_, 0)),
+        comp_(std::move(other.comp_))
+    {}
 
-    Gen_Cartesian_Tree &operator=(Gen_Cartesian_Tree &&) noexcept(
-      std::is_nothrow_move_assignable_v<Array<T>> and
-      std::is_nothrow_move_assignable_v<Comp>) = default;
+    /** @brief Exchange this tree with another, which is left with the
+     *         previous nodes of this one.
+     *  @param[in,out] other tree to move from.
+     *  @return this tree.
+     */
+    Gen_Cartesian_Tree &operator=(Gen_Cartesian_Tree && other) noexcept(noexcept(swap(other)))
+    {
+      swap(other);
+      return *this;
+    }
 
     /** @brief Index of the root node.
      *  @return root index, or NONE if empty.
@@ -444,7 +463,13 @@ namespace Aleph
       return ret;
     }
 
-    /** @brief Swap with @p other in O(1). */
+    /** @brief Swap with @p other in O(1).
+     *  @param[in,out] other tree to exchange with.
+     *  @throw what swapping the comparisons throws. They are exchanged first,
+     *         so that, if that swap throws, nothing else is exchanged, and
+     *         both trees are left as they were if it left its arguments as
+     *         they were.
+     */
     void swap(Gen_Cartesian_Tree & other)
       noexcept(noexcept(data_.swap(other.data_)) &&
                noexcept(parent_.swap(other.parent_)) &&
@@ -454,13 +479,18 @@ namespace Aleph
                noexcept(std::swap(n_, other.n_)) &&
                std::is_nothrow_swappable_v<Comp>)
     {
+      // the swap that the specification evaluates: that of Comp found by
+      // its arguments, else std::swap(); first, since it may throw, so that
+      // Gen_Euler_Tour_LCA, which swaps this tree before its tour, keeps
+      // the tour of its tree
+      using std::swap;
+      swap(comp_, other.comp_);
       data_.swap(other.data_);
       parent_.swap(other.parent_);
       left_.swap(other.left_);
       right_.swap(other.right_);
       std::swap(root_, other.root_);
       std::swap(n_, other.n_);
-      std::swap(comp_, other.comp_);
     }
   };
 
@@ -690,6 +720,64 @@ namespace Aleph
     {
       build_euler_tour();
       build_sparse_table();
+    }
+
+    /** @brief Copy the tree and the tour of another engine.
+     *  @param[in] other engine to copy.
+     */
+    Gen_Euler_Tour_LCA(const Gen_Euler_Tour_LCA & other) = default;
+
+    /** @brief Take the tree and the tour of another engine, which is left
+     *         empty.
+     *
+     *  The implicit move took the arrays of the tour but copied its size:
+     *  euler_tour() of the moved-from engine then read a tour that it no
+     *  longer had.
+     *
+     *  @param[in,out] other engine to move from.
+     */
+    Gen_Euler_Tour_LCA(Gen_Euler_Tour_LCA && other) noexcept(
+      std::is_nothrow_move_constructible_v<Gen_Cartesian_Tree<T, Comp>>)
+      : tree_(std::move(other.tree_)), euler_(std::move(other.euler_)),
+        depth_arr_(std::move(other.depth_arr_)), first_(std::move(other.first_)),
+        node_depth_(std::move(other.node_depth_)), sparse_(std::move(other.sparse_)),
+        euler_size_(std::exchange(other.euler_size_, 0))
+    {}
+
+    /** @brief Copy the tree and the tour of another engine.
+     *  @param[in] other engine to copy.
+     *  @return this engine.
+     */
+    Gen_Euler_Tour_LCA & operator=(const Gen_Euler_Tour_LCA & other) = default;
+
+    /** @brief Exchange this engine with another, which is left with the
+     *         previous tree and tour of this one.
+     *  @param[in,out] other engine to move from.
+     *  @return this engine.
+     */
+    Gen_Euler_Tour_LCA & operator=(Gen_Euler_Tour_LCA && other) noexcept(noexcept(swap(other)))
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) the tree and the tour of this engine and
+     *         another.
+     *  @param[in,out] other engine to exchange with.
+     *  @throw what swapping the comparisons throws. They are exchanged first,
+     *         so that, if that swap throws, nothing else is exchanged, and
+     *         both engines are left as they were if it left its arguments as
+     *         they were.
+     */
+    void swap(Gen_Euler_Tour_LCA & other) noexcept(std::is_nothrow_swappable_v<Comp>)
+    {
+      tree_.swap(other.tree_);
+      euler_.swap(other.euler_);
+      depth_arr_.swap(other.depth_arr_);
+      first_.swap(other.first_);
+      node_depth_.swap(other.node_depth_);
+      sparse_.swap(other.sparse_);
+      std::swap(euler_size_, other.euler_size_);
     }
 
     /** @brief Lowest Common Ancestor of nodes @p u and @p v in O(1).

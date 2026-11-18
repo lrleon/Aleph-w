@@ -403,6 +403,57 @@ public:
       << "SearchSolutionCollector: max_solutions must be positive";
   }
 
+  /** @brief Copy the solutions and the limit of another collector.
+   *  @param[in] other collector to copy.
+   *  @throws std::bad_alloc if the solutions cannot be copied.
+   */
+  SearchSolutionCollector(const SearchSolutionCollector &other) = default;
+
+  /** @brief Take the solutions of another collector, which is left empty,
+   *         with the same limit.
+   *
+   *  The implicit move took the list but copied the count: the moved-from
+   *  collector then reported solutions that it no longer had, and asked to
+   *  stop at the first new one once the count had reached the limit.
+   *
+   *  @param[in,out] other collector to move from.
+   *  @note Complexity: O(1).
+   */
+  SearchSolutionCollector(SearchSolutionCollector &&other) noexcept
+    : solutions_(std::move(other.solutions_)), count_(std::exchange(other.count_, 0)),
+      limit_(other.limit_)
+  {}
+
+  /** @brief Copy the solutions and the limit of another collector.
+   *  @param[in] other collector to copy.
+   *  @return this collector.
+   *  @throws std::bad_alloc if the solutions cannot be copied.
+   */
+  SearchSolutionCollector &operator=(const SearchSolutionCollector &other) = default;
+
+  /** @brief Exchange this collector with another, which is left with the
+   *         previous solutions and limit of this one.
+   *  @param[in,out] other collector to move from.
+   *  @return this collector.
+   *  @note Complexity: O(1).
+   */
+  SearchSolutionCollector &operator=(SearchSolutionCollector &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the solutions and the limits of this collector
+   *         and another.
+   *  @param[in,out] other collector to exchange with.
+   */
+  void swap(SearchSolutionCollector &other) noexcept
+  {
+    solutions_.swap(other.solutions_);
+    std::swap(count_, other.count_);
+    std::swap(limit_, other.limit_);
+  }
+
   /** @brief Append one solution and report whether enumeration should continue. */
   bool operator()(const Solution &solution)
   {

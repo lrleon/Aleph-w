@@ -245,6 +245,58 @@ public:
    */
   PersistentVector() noexcept = default;
 
+  /** @brief Share the values of another version.
+   *  @param other version to copy.
+   *  @throws Nothing.
+   */
+  PersistentVector(const PersistentVector &other) = default;
+
+  /** @brief Take the values of another version, which is left empty.
+   *
+   *  The implicit move took the root but copied the size and the shift:
+   *  the moved-from vector reported values that it no longer had, and its
+   *  get() threw logic_error.
+   *
+   *  @param other version to move from.
+   *  @throws Nothing.
+   */
+  PersistentVector(PersistentVector &&other) noexcept
+    : root_(std::move(other.root_)), size_(std::exchange(other.size_, 0)),
+      shift_(std::exchange(other.shift_, 0))
+  {
+    // Empty.
+  }
+
+  /** @brief Share the values of another version.
+   *  @param other version to copy.
+   *  @return this vector.
+   *  @throws Nothing.
+   */
+  PersistentVector &operator = (const PersistentVector &other) = default;
+
+  /** @brief Exchange this version with another, which is left with the
+   *         previous values of this one.
+   *  @param other version to move from.
+   *  @return this vector.
+   *  @throws Nothing.
+   */
+  PersistentVector &operator = (PersistentVector &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the values of this version and another.
+   *  @param other version to exchange with.
+   *  @throws Nothing.
+   */
+  void swap(PersistentVector &other) noexcept
+  {
+    root_.swap(other.root_);
+    std::swap(size_, other.size_);
+    std::swap(shift_, other.shift_);
+  }
+
   /** @brief Return the trie branching factor.
    *  @return Always 32.
    *  @throws Nothing.

@@ -113,6 +113,60 @@ namespace Aleph
       nodes_.append(Node{});
     }
 
+    /** @brief Copy the patterns and the automaton of another one.
+     *  @param[in] other automaton to copy.
+     *  @throws std::bad_alloc if the arrays cannot be allocated.
+     */
+    Aho_Corasick(const Aho_Corasick & other) = default;
+
+    /** @brief Take the patterns and the automaton of another one, which is
+     *         left empty, with the root only, as built by default.
+     *
+     *  The implicit move took the nodes, the root among them, but copied the
+     *  built flag: the moved-from automaton then said that it was built and
+     *  read a root that it no longer had.
+     *
+     *  @param[in,out] other automaton to move from.
+     *  @throws std::bad_alloc if the root left to @p other cannot be
+     *          allocated; @p other is then unchanged.
+     *  @note Complexity: O(1), but it allocates the empty automaton left to
+     *        @p other.
+     */
+    Aho_Corasick(Aho_Corasick && other) : Aho_Corasick()
+    {
+      swap(other);
+    }
+
+    /** @brief Copy the patterns and the automaton of another one.
+     *  @param[in] other automaton to copy.
+     *  @return this automaton.
+     *  @throws std::bad_alloc if the arrays cannot be allocated.
+     */
+    Aho_Corasick & operator = (const Aho_Corasick & other) = default;
+
+    /** @brief Exchange this automaton with another, which is left with the
+     *         previous patterns of this one.
+     *  @param[in,out] other automaton to move from.
+     *  @return this automaton.
+     *  @note Complexity: O(1).
+     */
+    Aho_Corasick & operator = (Aho_Corasick && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
+
+    /** @brief Exchange in O(1) the patterns and the automaton of this one and
+     *         another.
+     *  @param[in,out] other automaton to exchange with.
+     */
+    void swap(Aho_Corasick & other) noexcept
+    {
+      nodes_.swap(other.nodes_);
+      patterns_.swap(other.patterns_);
+      std::swap(built_, other.built_);
+    }
+
     /** @brief Clear all patterns and reset to an empty automaton. */
     void clear()
     {

@@ -297,6 +297,65 @@ public:
       std::filesystem::create_directories(dir_);
   }
 
+  /** @brief Copying is disabled.
+   *
+   *  The implicit copy kept in its index the iterators into the tiles of
+   *  the original, so the copy spliced the nodes of another list; both
+   *  caches would also write the same tile files.
+   */
+  Tile_Cache(const Tile_Cache &) = delete;
+
+  /// @brief Copying is disabled, as in the copy constructor.
+  Tile_Cache &operator=(const Tile_Cache &) = delete;
+
+  /** @brief Take the tiles, the directory and the statistics of another
+   *         cache, which is left as an empty cache, with no extents.
+   *
+   *  The implicit move took the tiles and the directory but copied the
+   *  extents: the moved-from cache then read and wrote tiles with no
+   *  directory, in the current one.
+   *
+   *  @param[in,out] other cache to move from.
+   */
+  Tile_Cache(Tile_Cache &&other) noexcept(std::is_nothrow_move_constructible_v<lru_list>
+                                          and std::is_nothrow_move_constructible_v<key_map>)
+    : rows_(std::exchange(other.rows_, 0)), cols_(std::exchange(other.cols_, 0)),
+      tiles_per_row_(std::exchange(other.tiles_per_row_, 0)),
+      tiles_per_col_(std::exchange(other.tiles_per_col_, 0)),
+      dir_(std::exchange(other.dir_, std::filesystem::path())), capacity_(other.capacity_),
+      cache_(std::move(other.cache_)), index_(std::move(other.index_)),
+      stats_(std::exchange(other.stats_, Tile_Cache_Stats{}))
+  {}
+
+  /** @brief Exchange this cache with another, which is left with the
+   *         previous tiles of this one.
+   *  @param[in,out] other cache to move from.
+   *  @return this cache.
+   */
+  Tile_Cache &operator=(Tile_Cache &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the grids, the tiles, the directories and the
+   *         statistics of this cache and another.
+   *  @param[in,out] other cache to exchange with.
+   */
+  void swap(Tile_Cache &other) noexcept
+  {
+    using std::swap;
+    swap(rows_, other.rows_);
+    swap(cols_, other.cols_);
+    swap(tiles_per_row_, other.tiles_per_row_);
+    swap(tiles_per_col_, other.tiles_per_col_);
+    dir_.swap(other.dir_);
+    swap(capacity_, other.capacity_);
+    cache_.swap(other.cache_);
+    index_.swap(other.index_);
+    swap(stats_, other.stats_);
+  }
+
   /// @return logical grid extents.
   [[nodiscard]] std::array<ca_size_t, 2> extents() const noexcept
   {

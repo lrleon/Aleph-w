@@ -429,6 +429,58 @@ public:
     solve(padded, range);
   }
 
+  /** @brief Copy the assignment of another solver.
+   *  @param[in] other solver to copy.
+   *  @throws std::bad_alloc if there is no memory for the copy.
+   */
+  Hungarian_Assignment(const Hungarian_Assignment & other) = default;
+
+  /** @brief Take the assignment of another solver, which is left empty.
+   *
+   *  The implicit move took the assignment arrays but copied the
+   *  dimensions and the cost: the moved-from solver then reported rows
+   *  that get_assignment() could not read.
+   *
+   *  @param[in,out] other solver to move from.
+   */
+  Hungarian_Assignment(Hungarian_Assignment && other) noexcept
+    : n_(std::exchange(other.n_, 0)), orig_rows_(std::exchange(other.orig_rows_, 0)),
+      orig_cols_(std::exchange(other.orig_cols_, 0)),
+      total_cost_(std::exchange(other.total_cost_, Cost_Type{0})),
+      row_to_col_(std::move(other.row_to_col_)), col_to_row_(std::move(other.col_to_row_))
+  {}
+
+  /** @brief Copy the assignment of another solver.
+   *  @param[in] other solver to copy.
+   *  @return this solver.
+   *  @throws std::bad_alloc if there is no memory for the copy.
+   */
+  Hungarian_Assignment & operator=(const Hungarian_Assignment & other) = default;
+
+  /** @brief Exchange this solver with another, which is left with the
+   *         previous assignment of this one.
+   *  @param[in,out] other solver to move from.
+   *  @return this solver.
+   */
+  Hungarian_Assignment & operator=(Hungarian_Assignment && other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) this solver and another.
+   *  @param[in,out] other solver to exchange with.
+   */
+  void swap(Hungarian_Assignment & other) noexcept
+  {
+    std::swap(n_, other.n_);
+    std::swap(orig_rows_, other.orig_rows_);
+    std::swap(orig_cols_, other.orig_cols_);
+    std::swap(total_cost_, other.total_cost_);
+    row_to_col_.swap(other.row_to_col_);
+    col_to_row_.swap(other.col_to_row_);
+  }
+
   /** @brief Get the optimal total cost.
    *  @return The minimum total assignment cost.
    */

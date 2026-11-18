@@ -355,6 +355,65 @@ public:
     root_ = empty_node(initial_level_);
   }
 
+  /** @brief Copying is disabled.
+   *
+   *  The implicit copy kept the pointers of the copied nodes into the
+   *  nodes of the original: the copy read and memoised into the nodes of
+   *  the original, and used them after the original was destroyed.
+   */
+  Hashlife_Engine(const Hashlife_Engine &) = delete;
+
+  /// @brief Copying is disabled, as in the copy constructor.
+  Hashlife_Engine &operator=(const Hashlife_Engine &) = delete;
+
+  /** @brief Take the universe and the caches of another engine, which is
+   *         left with an empty universe of the same rule and capacity.
+   *
+   *  The implicit move took the nodes but copied the root: the moved-from
+   *  engine kept reading the nodes of the engine that took them, also
+   *  after that engine freed them.
+   *
+   *  @param[in,out] other engine to move from.
+   *  @throws std::bad_alloc if the empty universe left to @p other cannot
+   *          be allocated; @p other is then unchanged.
+   *  @note Complexity: O(1), but it allocates the few nodes of the empty
+   *        universe left to @p other, since every query reads the root.
+   */
+  Hashlife_Engine(Hashlife_Engine &&other) : Hashlife_Engine(other.rule_, other.cache_capacity_)
+  {
+    swap(other);
+  }
+
+  /** @brief Exchange this engine with another, which is left with the
+   *         previous universe of this one.
+   *  @param[in,out] other engine to move from.
+   *  @return this engine.
+   */
+  Hashlife_Engine &operator=(Hashlife_Engine &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the universe, the rule and the caches of this
+   *         engine and another.
+   *  @param[in,out] other engine to exchange with.
+   */
+  void swap(Hashlife_Engine &other) noexcept
+  {
+    using std::swap;
+    swap(rule_, other.rule_);
+    swap(cache_capacity_, other.cache_capacity_);
+    pool_.swap(other.pool_);
+    table_.swap(other.table_);
+    empty_by_level_.swap(other.empty_by_level_);
+    swap(root_, other.root_);
+    swap(generation_, other.generation_);
+    swap(result_hits_, other.result_hits_);
+    swap(result_misses_, other.result_misses_);
+    swap(result_cache_clears_, other.result_cache_clears_);
+  }
+
   /// Replace the rule. Invalidates the result cache.
   void set_rule(const Rule &r)
   {

@@ -101,6 +101,7 @@
 # include <sstream>
 # include <iostream>
 # include <limits>
+# include <utility>
 # include <ahFunction.H>
 # include <ahSort.H>
 # include <tpl_indexArc.H>
@@ -171,7 +172,7 @@ namespace Aleph
 
     DynArray<Node *> nodes;
     GT & g;
-    const long n;
+    long n; // not const, so that a move leaves it at 0 in its source
     const Distance_Type Inf;
     bool negative_cycle = false;
     DynMatrix<long> path_mat;
@@ -490,6 +491,35 @@ namespace Aleph
      */
     Floyd_All_Shortest_Paths(const GT & g, SA && sa = SA())
       : Floyd_All_Shortest_Paths(g, Distance(), sa) {}
+
+    /** @brief Copy the matrices of another solver, on the same graph.
+        @param[in] other solver to copy.
+        @throw std::bad_alloc if there is no memory for the copy.
+     */
+    Floyd_All_Shortest_Paths(const Floyd_All_Shortest_Paths & other) = default;
+
+    /** @brief Take the matrices of another solver, which is left without
+        nodes, on the same graph.
+
+        The implicit move took the nodes and the matrices but copied their
+        number: get_min_path() then passed its checks in the moved-from
+        solver and read a matrix that it no longer had.
+
+        @param[in,out] other solver to move from.
+        @throw what copying the infinity, which is const, or moving the
+               filter or the distance throws; then `other` is left without
+               nodes.
+        @note The solver refers to its graph, so that it has no assignment.
+     */
+    Floyd_All_Shortest_Paths(Floyd_All_Shortest_Paths && other)
+      noexcept(std::is_nothrow_move_constructible_v<SA>
+               and std::is_nothrow_move_constructible_v<Distance>
+               and std::is_nothrow_copy_constructible_v<Distance_Type>)
+      : nodes(std::move(other.nodes)), g(other.g), n(std::exchange(other.n, 0)),
+        Inf(other.Inf), negative_cycle(std::exchange(other.negative_cycle, false)),
+        path_mat(std::move(other.path_mat)), dist(std::move(other.dist)),
+        sa(std::move(other.sa)), distance(std::move(other.distance))
+    {}
 
     /**
         Convert a distance value to string representation.

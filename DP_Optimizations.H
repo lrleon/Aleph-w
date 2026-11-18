@@ -398,6 +398,60 @@ private:
   }
 
 public:
+  /** @brief Construct an empty hull. */
+  Convex_Hull_Trick() = default;
+
+  /** @brief Copy the lines and the query cursor of another hull.
+   *  @param other hull to copy.
+   */
+  Convex_Hull_Trick(const Convex_Hull_Trick &other) = default;
+
+  /** @brief Take the lines of another hull, which is left empty, as clear()
+   *         leaves it.
+   *
+   *  The implicit move took the lines but copied the cursor of the
+   *  monotone queries.
+   *
+   *  @param other hull to move from.
+   */
+  Convex_Hull_Trick(Convex_Hull_Trick &&other) noexcept
+    : lines_(std::move(other.lines_)), starts_(std::move(other.starts_)),
+      cursor_(std::exchange(other.cursor_, 0))
+  {}
+
+  /** @brief Copy the lines and the query cursor of another hull.
+   *  @param other hull to copy.
+   *  @return this hull.
+   */
+  Convex_Hull_Trick &operator=(const Convex_Hull_Trick &other) = default;
+
+  /** @brief Exchange this hull with another, which is left with the
+   *         previous lines and cursor of this one.
+   *
+   *  The implicit assignment exchanged the lines but not the cursors:
+   *  query_monotone() of the source then read beyond the lines that it
+   *  got.
+   *
+   *  @param other hull to move from.
+   *  @return this hull.
+   */
+  Convex_Hull_Trick &operator=(Convex_Hull_Trick &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the lines and the cursors of this hull and
+   *         another.
+   *  @param other hull to exchange with.
+   */
+  void swap(Convex_Hull_Trick &other) noexcept
+  {
+    lines_.swap(other.lines_);
+    starts_.swap(other.starts_);
+    std::swap(cursor_, other.cursor_);
+  }
+
   [[nodiscard]] size_t size() const noexcept
   {
     return lines_.size();
@@ -606,6 +660,54 @@ public:
   {
     ah_domain_error_if(x_left_ > x_right_)
       << "Li_Chao_Tree: invalid domain [" << x_left_ << ", " << x_right_ << "]";
+  }
+
+  /** @brief Copy the domain and the lines of another tree.
+   *  @param other tree to copy.
+   */
+  Li_Chao_Tree(const Li_Chao_Tree &other) = default;
+
+  /** @brief Take the lines of another tree, which is left empty over the
+   *         same domain.
+   *
+   *  The implicit move took the nodes but copied the index of the root:
+   *  the moved-from tree was not empty without nodes, and its add_line()
+   *  and query() threw out_of_range.
+   *
+   *  @param other tree to move from.
+   */
+  Li_Chao_Tree(Li_Chao_Tree &&other) noexcept
+    : x_left_(other.x_left_), x_right_(other.x_right_), nodes_(std::move(other.nodes_)),
+      root_(std::exchange(other.root_, NIL))
+  {}
+
+  /** @brief Copy the domain and the lines of another tree.
+   *  @param other tree to copy.
+   *  @return this tree.
+   */
+  Li_Chao_Tree &operator=(const Li_Chao_Tree &other) = default;
+
+  /** @brief Exchange this tree with another, which is left with the
+   *         previous domain and lines of this one.
+   *  @param other tree to move from.
+   *  @return this tree.
+   */
+  Li_Chao_Tree &operator=(Li_Chao_Tree &&other) noexcept
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange in O(1) the domains and the lines of this tree and
+   *         another.
+   *  @param other tree to exchange with.
+   */
+  void swap(Li_Chao_Tree &other) noexcept
+  {
+    std::swap(x_left_, other.x_left_);
+    std::swap(x_right_, other.x_right_);
+    nodes_.swap(other.nodes_);
+    std::swap(root_, other.root_);
   }
 
   [[nodiscard]] bool is_empty() const noexcept

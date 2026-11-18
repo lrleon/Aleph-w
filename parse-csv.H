@@ -126,6 +126,7 @@
 #include <ostream>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <tpl_array.H>
 
 namespace Aleph
@@ -732,6 +733,52 @@ public:
   explicit CsvReader(std::istream & stream, char delimiter = ',')
     : stream_(&stream), owns_stream_(false), 
       delimiter_(delimiter), has_header_(false), row_count_(0) {}
+
+  /** @brief Take the stream and the header of another reader, which is
+   *         left reading nothing.
+   *
+   *  The implicit move took the file but copied the pointer to it: the
+   *  reader read through the file member of the moved-from reader, also
+   *  after that reader was destroyed.
+   *
+   *  @param[in,out] other reader to move from.
+   */
+  CsvReader(CsvReader && other)
+    : file_(std::move(other.file_)),
+      stream_(other.owns_stream_ ? &file_ : std::exchange(other.stream_, &other.file_)),
+      owns_stream_(std::exchange(other.owns_stream_, true)), delimiter_(other.delimiter_),
+      header_(std::move(other.header_)), has_header_(std::exchange(other.has_header_, false)),
+      row_count_(std::exchange(other.row_count_, 0)) {}
+
+  /** @brief Exchange this reader with another, which is left with the
+   *         previous stream and header of this one.
+   *  @param[in,out] other reader to move from.
+   *  @return this reader.
+   */
+  CsvReader & operator = (CsvReader && other)
+  {
+    swap(other);
+    return *this;
+  }
+
+  /** @brief Exchange the streams, the headers and the counters of this
+   *         reader and another.
+   *  @param[in,out] other reader to exchange with.
+   */
+  void swap(CsvReader & other)
+  {
+    file_.swap(other.file_);
+    std::swap(stream_, other.stream_);
+    std::swap(owns_stream_, other.owns_stream_);
+    std::swap(delimiter_, other.delimiter_);
+    header_.swap(other.header_);
+    std::swap(has_header_, other.has_header_);
+    std::swap(row_count_, other.row_count_);
+    if (owns_stream_)  // each reader reads its own file, whose state was exchanged
+      stream_ = &file_;
+    if (other.owns_stream_)
+      other.stream_ = &other.file_;
+  }
   
   /// @brief Read and store the header row.
   /// @return The header row.

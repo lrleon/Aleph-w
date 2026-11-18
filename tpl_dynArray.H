@@ -928,11 +928,20 @@ public:
   /** Swap in constant time `array` with `this`
 
       @param[in] array to swap
-      @throw anything that swapping the default values of `T` throws.
+      @throw anything that swapping the default values of `T` throws. When
+             that swap may throw, it goes first, so that, if it throws,
+             nothing else is exchanged, and both arrays are left as they
+             were if it left its arguments as they were.
       @note The sizes of directory, segment and block are also swapped
    */
   void swap(DynArray<T> &array) noexcept(std::is_nothrow_swappable_v<T>)
   {
+    // The swap that the specification evaluates: that of T found by its
+    // arguments, else std::swap(). First when it may throw; when it may
+    // not, the order cannot be seen, and it goes last, as it always did
+    using std::swap;
+    if constexpr (not std::is_nothrow_swappable_v<T>)
+      swap(default_initial_value, array.default_initial_value);
     std::swap(dir, array.dir);
     std::swap(pow_dir, array.pow_dir);
     std::swap(pow_seg, array.pow_seg);
@@ -949,7 +958,8 @@ public:
     std::swap(num_segs, array.num_segs);
     std::swap(num_blocks, array.num_blocks);
 
-    std::swap(default_initial_value, array.default_initial_value);
+    if constexpr (std::is_nothrow_swappable_v<T>)
+      swap(default_initial_value, array.default_initial_value);
 
     default_initial_value_ptr = &default_initial_value;
     array.default_initial_value_ptr = &array.default_initial_value;
