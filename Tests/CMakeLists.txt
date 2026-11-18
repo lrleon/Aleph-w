@@ -25,7 +25,9 @@ option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 # CMakeLists here for standalone configures.
 if(MSVC)
     set(WARN_FLAGS "/W3")
-    set(COMMON_FLAGS "-DMESSAGES -D_USE_MATH_DEFINES -DNOMINMAX /FIah-compat.H")
+    # /bigobj: a large test, as ah-dry or noexcept_contract_test, exceeds the
+    # default limit of sections of an object file (fatal error C1128)
+    set(COMMON_FLAGS "-DMESSAGES -D_USE_MATH_DEFINES -DNOMINMAX /FIah-compat.H /bigobj")
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         # clang-cl optimizes under strict-aliasing rules like clang;
         # htlist.H requires them disabled (see root CMakeLists).
@@ -589,6 +591,10 @@ set(ALEPH_POSIX_ONLY_TESTS
     # ntt.H requires __uint128_t which is a GCC/Clang extension; MSVC has no
     # 128-bit integer type so ntt.H emits #error on that compiler.
     ntt_test
+    # The moved-from cases of the numeric classes include ntt.H, for its plans,
+    # and the geometry of gmpxx, for RangeTree2D and AABBTree: see ntt_test,
+    # montgomery_test and the geometry tests.
+    moved_from_numeric_test
     # Montgomery reduction uses __uint128_t % n in mont_reduce (fallback path
     # for large primes).  clang-cl defines __SIZEOF_INT128__ but lacks the
     # __umodti3 runtime support (no compiler-rt on Windows).
@@ -687,11 +693,6 @@ foreach(test_program ${TEST_PROGRAMS})
         # library/users, but silence it for test targets.
         if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             target_compile_options(${test_exe} PRIVATE -Wno-unused-result)
-        endif()
-
-        # ah-dry.cc is a very large TU that exceeds the default COFF section limit
-        if(MSVC AND test_program STREQUAL "ah-dry")
-            target_compile_options(${test_exe} PRIVATE /bigobj)
         endif()
 
         # Without the elisions that the language does not require, so that
