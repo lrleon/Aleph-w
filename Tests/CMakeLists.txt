@@ -701,8 +701,14 @@ foreach(test_program ${TEST_PROGRAMS})
             target_compile_options(${test_exe} PRIVATE -fno-elide-constructors)
         endif()
 
-        # Add test to CTest (gtest_discover_tests for IDE integration)
-        gtest_discover_tests(${test_exe} DISCOVERY_MODE PRE_TEST)
+        # Add test to CTest (gtest_discover_tests for IDE integration). The
+        # tests of the thread pool measure its speedup: they run alone, so
+        # that the tests that ctest runs at the same time leave them the cores
+        if(test_program STREQUAL "thread_pool_test")
+            gtest_discover_tests(${test_exe} DISCOVERY_MODE PRE_TEST PROPERTIES RUN_SERIAL TRUE)
+        else()
+            gtest_discover_tests(${test_exe} DISCOVERY_MODE PRE_TEST)
+        endif()
 
         # Optional: Install test executable
         # install(TARGETS ${test_program} DESTINATION bin/tests)
