@@ -61,6 +61,7 @@
 # include <tpl_dnode.H>
 # include <tpl_dynArray.H>
 # include <tpl_dynMapTree.H>
+# include <tpl_dynMapOhash.H>
 # include <tpl_dynSetHash.H>
 # include <tpl_odhash.H>
 # include <tpl_olhash.H>
@@ -791,6 +792,70 @@ namespace
                           [] (OD & t, bool) { t.holds_its_keys(); });
   }
 
+
+  // =========================================================================
+  // The maps of tpl_dynMapOhash.H search for a pair built from the key, a
+  // copy of it and a Data built by default, as their table searches for
+  // pairs: their failure reaches the caller, and the map keeps its pairs.
+  // =========================================================================
+
+  template <class Map>
+  struct Open_Map_With_Pairs
+  {
+    Map map{101, hash_of, second_hash_of};
+
+    Open_Map_With_Pairs()
+    {
+      for (long k = 0; k < Keys; k += 2)
+        (void) map.insert(Copy_Fails(k), Default_Fails(k));
+    }
+
+    void holds_its_pairs()
+    {
+      for (long k = -1; k <= Keys; ++k)
+        {
+          const Copy_Fails key(k);
+          const auto * p = map.search(key);
+          EXPECT_EQ(p != nullptr, k >= 0 and k < Keys and k % 2 == 0) << "key " << k;
+          if (p != nullptr)
+            EXPECT_EQ(p->second.value, k);
+        }
+    }
+  };
+
+  template <class Map>
+  void open_map_search_lets_the_failure_through(const std::string & name)
+  {
+    using Fixture = Open_Map_With_Pairs<Map>;
+    static_assert(not noexcept(std::declval<Map &>().search(std::declval<const Copy_Fails &>())));
+    static_assert(not noexcept(std::declval<const Map &>().has(std::declval<const Copy_Fails &>())));
+    static_assert(not noexcept(std::declval<const Map &>().contains(std::declval<Copy_Fails>())));
+    for (const long key : {4L, 5L})  // a key of the map and one that is not
+      {
+        try_every_failure<Fixture>(name + "::search()", true,
+                                   [key] (Fixture & t)
+                                   {
+                                     const Copy_Fails k(key);
+                                     (void) t.map.search(k);
+                                   },
+                                   [] (Fixture & t, bool) { t.holds_its_pairs(); });
+        try_every_failure<Fixture>(name + "::has()", true,
+                                   [key] (Fixture & t)
+                                   {
+                                     const Copy_Fails k(key);
+                                     (void) t.map.has(k);
+                                   },
+                                   [] (Fixture & t, bool) { t.holds_its_pairs(); });
+      }
+  }
+
+  TEST(Open_Hash_Map, SearchLetsTheFailureThrough)
+  {
+    open_map_search_lets_the_failure_through<MapOLhash<Copy_Fails, Default_Fails>>("MapOLhash");
+    open_map_search_lets_the_failure_through<MapODhash<Copy_Fails, Default_Fails>>("MapODhash");
+    static_assert(noexcept(std::declval<MapOLhash<int, int> &>().search(1)));
+    static_assert(noexcept(std::declval<const MapODhash<int, int> &>().has(1)));
+  }
 
   // =========================================================================
   // DynMapTree (tpl_dynMapTree.H): search(), has(), contains() and find()
