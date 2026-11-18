@@ -133,6 +133,12 @@ namespace Aleph {
 /** @brief Quotient filter for probabilistic set membership with deletion.
  *
  *  @tparam T Element type. Must be hashable via `murmur3hash(T, seed)`.
+ *
+ *  @note A growing `std::vector` copies these objects instead of moving them:
+ *  their move constructor is not `noexcept`, because it leaves the source
+ *  empty and usable, which allocates, and `std::vector` moves only what cannot
+ *  throw. The containers of Aleph do not copy them to grow: `Array` moves its
+ *  items, and `DynList` and `DynArray` never relocate them.
  */
 template <typename T> class Quotient_Filter
 {

@@ -238,6 +238,12 @@ inline Array<size_t> lcp_array_kasai(const std::string_view text, const Array<si
  *  @note A unique terminal byte is appended internally via choose_terminal().
  *        If every byte value (0–255) appears in the input, construction
  *        will throw std::domain_error.
+ *
+ *  @note A growing `std::vector` copies these objects instead of moving them:
+ *  their move constructor is not `noexcept`, because it leaves the source
+ *  empty and usable, which allocates, and `std::vector` moves only what cannot
+ *  throw. The containers of Aleph do not copy them to grow: `Array` moves its
+ *  items, and `DynList` and `DynArray` never relocate them.
  */
 class Naive_Suffix_Tree
 {
@@ -606,6 +612,12 @@ public:
  *
  *  Supports substring checks, distinct substring counting, and longest
  *  common substring against another string.
+ *
+ *  @note A growing `std::vector` copies these objects instead of moving them:
+ *  their move constructor is not `noexcept`, because it leaves the source
+ *  empty and usable, which allocates, and `std::vector` moves only what cannot
+ *  throw. The containers of Aleph do not copy them to grow: `Array` moves its
+ *  items, and `DynList` and `DynArray` never relocate them.
  */
 class Suffix_Automaton
 {

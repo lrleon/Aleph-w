@@ -2191,6 +2191,13 @@ namespace Aleph
       built.
       @see In_Iterator
       @ingroup Graphs
+
+      @note A growing `std::vector` copies these objects instead of moving
+      them: their move constructor is not `noexcept`, because it leaves the
+      source empty and usable, which allocates, and `std::vector` moves only
+      what cannot throw. The containers of Aleph do not copy them to grow:
+      `Array` moves its items, and `DynList` and `DynArray` never relocate
+      them.
   */
   template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class In_Arcs_Index
