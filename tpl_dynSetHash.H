@@ -540,12 +540,15 @@ namespace Aleph
     // hash of the keys builds nothing; after set_hash_fct() takes a
     // function of pairs, the search builds one from the key and a Data
     // built by default. A Data with no default constructor leaves only the
-    // first search: set_hash_fct() then takes no function of pairs
+    // first search: set_hash_fct() then takes no function of pairs. The
+    // members of the pair are checked apart, as libstdc++ 11 does not
+    // declare the constructors of std::pair noexcept
     template <typename K>
     static constexpr bool nothrow_search =
       not std::is_default_constructible_v<Data> or
-      (std::is_nothrow_default_constructible_v<Data> and
-       std::is_nothrow_constructible_v<Pair, K, Data>);
+      (std::is_nothrow_constructible_v<Key, K> and
+       std::is_nothrow_default_constructible_v<Data> and
+       std::is_nothrow_move_constructible_v<Data>);
 
     // Whether the hash table can search by Key alone, without building a
     // Pair (and so without requiring a default-constructible Data). It is a

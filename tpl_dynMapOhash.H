@@ -145,11 +145,13 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
   // Whether a search by a key that comes as K (const Key &, or Key for
   // the searches that take an rvalue) cannot throw: it builds the pair
   // that the table searches for, a copy or a move of the key and a Data
-  // built by default
+  // built by default. The members of the pair are checked apart, as
+  // libstdc++ 11 does not declare the constructors of std::pair noexcept
   template <typename K>
   static constexpr bool nothrow_search =
+    std::is_nothrow_constructible_v<Key, K> and
     std::is_nothrow_default_constructible_v<Data> and
-    std::is_nothrow_constructible_v<Pair, K, Data>;
+    std::is_nothrow_move_constructible_v<Data>;
 
   /// @brief Alias for Data_Type (compatibility with other containers).
   using Value_Type = Data;
