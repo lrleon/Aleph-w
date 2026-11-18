@@ -752,7 +752,9 @@ class Stationary_Detector
 
   void push(const std::uint64_t h, const std::size_t step) noexcept
   {
-    if (hashes_.size() >= max_cycle_length_ + 1)
+    // size > max, not size >= max + 1: with max = SIZE_MAX the sum wraps
+    // to 0, and the first push would remove from an empty buffer
+    if (hashes_.size() > max_cycle_length_)
       {
         // Drop the oldest entry (front of the buffer); remove_first
         // closes the gap, preserving the window order.
@@ -770,7 +772,9 @@ public:
   Stationary_Detector() = default;
 
   /** @brief Construct a detector with an explicit window size.
-   *  @param[in] max_cycle_length maximum cycle length to retain.
+   *  @param[in] max_cycle_length maximum cycle length to retain; 0 takes
+   *             the default of 16, and `SIZE_MAX` keeps every frame, so
+   *             that the window grows with the run.
    *  @throws This function does not throw.
    */
   explicit Stationary_Detector(std::size_t max_cycle_length) : max_cycle_length_(max_cycle_length)

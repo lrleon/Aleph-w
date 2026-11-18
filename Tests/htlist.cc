@@ -190,6 +190,58 @@ TEST_F(List_of_25_nodes, Iterator_operations)
     }
 }
 
+TEST_F(List_of_25_nodes, Iterator_del_ne_removes_the_first_a_middle_and_the_last)
+{
+  HTList::Iterator it(list);
+  static_assert(noexcept(it.del_ne()));
+  Slinknc * p = it.del_ne(); // the first one, as remove_first_ne() does
+  EXPECT_EQ(p->to_data<int>(), 1);
+  delete p->to_snodenc<int>();
+  EXPECT_EQ(it.get_curr_ne()->to_data<int>(), 2);
+  EXPECT_EQ(list.get_first()->to_data<int>(), 2);
+
+  it.next_ne();
+  p = it.del_ne(); // a middle one
+  EXPECT_EQ(p->to_data<int>(), 3);
+  delete p->to_snodenc<int>();
+  EXPECT_EQ(it.get_curr_ne()->to_data<int>(), 4);
+
+  while (not it.is_last())
+    it.next_ne();
+  p = it.del_ne(); // the last one
+  EXPECT_EQ(p->to_data<int>(), 25);
+  delete p->to_snodenc<int>();
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_EQ(list.get_last()->to_data<int>(), 24);
+  EXPECT_EQ(list.size(), 22u);
+
+  for (it.reset_first(); it.has_curr(); /* del_ne() moves forward */)
+    delete it.del_ne()->to_snodenc<int>();
+  EXPECT_TRUE(list.is_empty());
+}
+
+// del_ne() checks nothing, as the _ne variants promise: its precondition,
+// has_curr(), is asserted. Without a current item on an empty list, it
+// called remove_first(), which throws, inside noexcept: the program ended
+// with that exception, in every build.
+#ifndef NDEBUG
+TEST(HTListDeathTest, Iterator_del_ne_asserts_that_there_is_a_current_item)
+{
+  HTList empty;
+  HTList::Iterator on_empty(empty);
+  EXPECT_DEATH((void) on_empty.del_ne(), "has_curr");
+
+  HTList list;
+  Slinknc a, b;
+  list.append(&a);
+  list.append(&b);
+  HTList::Iterator past_the_end(list);
+  past_the_end.next_ne();
+  past_the_end.next_ne();
+  EXPECT_DEATH((void) past_the_end.del_ne(), "has_curr");
+}
+#endif
+
 TEST_F(List_of_25_nodes, Split_and_concat)
 {
   HTList l, r;

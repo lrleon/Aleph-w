@@ -872,15 +872,22 @@ public:
         inorder_position(tree_ptr->getRoot(), KEY(curr), curr);
     }
 
+    // A position outside [0, size()) has no node: past the end it comes
+    // from reset_to_pos(), from Iterator(tree, pos), from next_ne() at the
+    // end or from keys removed from the tree, and select() would throw
+    // inside noexcept
     void update_curr() const noexcept
     {
       assert(curr_pos != Pos_Not_Updated);
 
-      if (curr_pos == Pos_Empty_Container or curr_pos == Pos_Not_Current or
-          curr_pos == COUNT(tree_ptr->getRoot()))
-        return;
+      Node * root = tree_ptr->getRoot();
+      if (curr_pos < 0 or static_cast<size_t>(curr_pos) >= COUNT(root))
+        {
+          curr = nullptr;
+          return;
+        }
 
-      curr = Aleph::select(tree_ptr->getRoot(), curr_pos);
+      curr = Aleph::select_ne(root, static_cast<size_t>(curr_pos));
     }
 
   public:
@@ -906,7 +913,12 @@ public:
       // empty
     }
 
-    /// Initialize an iterator starting from the iorder position `pos`
+    /** Initialize an iterator starting from the inorder position `pos`.
+
+        @param[in] __tree the tree to iterate
+        @param[in] pos inorder position; at size() or past it, the
+        iterator is at the end, without current node.
+    */
     Iterator(const Gen_Treap_Rk & __tree, const size_t pos) noexcept
       : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)),
         curr(nullptr), curr_pos(pos)
@@ -953,38 +965,55 @@ public:
       put_itor_at_the_end(*this);
     }
 
-    /** Put the iterator to a node according to specific key
+    /** Put the iterator on the node of a key.
 
-        If `key` is not present, then the iterator is put on the node
+        The node that the iterator had is dropped, so that get_curr()
+        gives the node of the new position, not the previous one.
 
-        @param[in] key to  guide the position
-        @throw domain_error if the key is not contained in the tree.
+        @param[in] key to guide the position; if it is not in the tree,
+        the position is the one that find_position() gives.
     */
     void reset_to_key(const Key & key) noexcept
     {
       std::pair<int, Node*> p = tree_ptr->find_position(key);
+      curr = nullptr;
       curr_pos = p.first;
     }
 
     /** Put the current node to a specific node
 
+        Its position is computed when it is needed, as Iterator(tree,
+        node) does: marked as the position of an empty tree, has_curr()
+        would be false.
+
         @param[in] node to put as current
-        @note Obviously the node must belong to the tree
+        @pre `node` is a node of the tree, not `nullptr`.
     */
     void reset_to_node(Node * node) noexcept
     {
       curr = node;
-      curr_pos = -2;
+      curr_pos = Pos_Not_Updated;
     }
 
-    /// Put the current to the position pos
+    /** Put the iterator on the inorder position `pos`.
+
+        @param[in] pos inorder position; at size() or past it, the
+        iterator is at the end, without current node.
+    */
     void reset_to_pos(const size_t pos) noexcept
     {
       curr = nullptr;
       curr_pos = pos;
     }
 
-    /// Return the current node
+    /** Return the current node.
+
+        A position past the end has no node, whichever way the iterator
+        got there: then it gives `nullptr`, without the check of
+        select(), which would throw.
+
+        @return the current node, or `nullptr` if there is none.
+    */
     Node * get_curr_ne() const noexcept
     {
       if (not curr_updated())
@@ -993,7 +1022,11 @@ public:
       return curr;
     }
 
-        /// \overload get_curr()
+    /** Return the current node.
+
+        @return the current node, or `nullptr` if there is none.
+        @see get_curr_ne()
+    */
     Node * get_curr() const noexcept
     {
       return get_curr_ne();

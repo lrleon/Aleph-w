@@ -1130,22 +1130,32 @@ private:
     return curr != nullptr;
   }
 
+  // The free inorder_position() of this header: BinTreeXt_Operation is
+  // declared in tpl_binTreeOps.H, after this one, and naming it here kept
+  // has_curr() from compiling
   void update_pos() const noexcept
   {
     assert(curr != nullptr);
-    curr_pos = BinTreeXt_Operation<Node, Compare>(tree_ptr->key_comp()).
-      inorder_position(tree_ptr->getRoot(), KEY(curr), curr);
+    curr_pos = Aleph::inorder_position(tree_ptr->getRoot(), KEY(curr), curr,
+                                       tree_ptr->key_comp());
   }
 
+  // A position outside [0, size()) has no node: past the end it comes
+  // from reset_to_pos(), from the constructor with a position, from
+  // next_ne() at the end or from keys removed from the tree, and select()
+  // would throw inside noexcept
   void update_curr() const noexcept
   {
     assert(curr_pos != Pos_Not_Updated);
 
-    if (curr_pos == Pos_Empty_Container or curr_pos == Pos_Not_Current or
-        curr_pos == static_cast<int>(COUNT(tree_ptr->getRoot())))
-      return;
+    Node * root = tree_ptr->getRoot();
+    if (curr_pos < 0 or static_cast<size_t>(curr_pos) >= COUNT(root))
+      {
+        curr = nullptr;
+        return;
+      }
 
-    curr = Aleph::select(tree_ptr->getRoot(), curr_pos);
+    curr = Aleph::select_ne(root, static_cast<size_t>(curr_pos));
   }
 
 public:
@@ -1165,6 +1175,12 @@ public:
       curr(__curr), curr_pos(Pos_Not_Updated)
   { /* empty */ }
 
+  /** Initialize an iterator on the inorder position `pos`.
+
+      @param[in] __tree the tree to iterate
+      @param[in] pos inorder position; at size() or past it, the iterator
+      is at the end, without current node.
+  */
   BinTreeXt_Iterator(const TreeType & __tree, const size_t pos) noexcept
     : tree_ptr(&const_cast<TreeType&>(__tree)),
       curr(nullptr), curr_pos(pos)
@@ -1204,9 +1220,18 @@ public:
     put_itor_at_the_end(*this);
   }
 
+  /** Put the iterator on the node of a key.
+
+      The node that the iterator had is dropped, so that get_curr() gives
+      the node of the new position, not the previous one.
+
+      @param[in] key to guide the position; if it is not in the tree, the
+      position is the one that the find_position() of the tree gives.
+  */
   void reset_to_key(const Key & key) noexcept
   {
     std::pair<long, Node*> p = tree_ptr->find_position(key);
+    curr = nullptr;
     curr_pos = p.first;
   }
 
@@ -1216,12 +1241,25 @@ public:
     curr_pos = Pos_Not_Updated;
   }
 
+  /** Put the iterator on the inorder position `pos`.
+
+      @param[in] pos inorder position; at size() or past it, the iterator
+      is at the end, without current node.
+  */
   void reset_to_pos(const size_t pos) noexcept
   {
     curr = nullptr;
     curr_pos = pos;
   }
 
+  /** Return the current node.
+
+      A position past the end has no node, whichever way the iterator got
+      there: then it gives `nullptr`, without the check of select(), which
+      would throw.
+
+      @return the current node, or `nullptr` if there is none.
+  */
   Node * get_curr_ne() const noexcept
   {
     if (not curr_updated())
@@ -1229,6 +1267,11 @@ public:
     return curr;
   }
 
+  /** Return the current node.
+
+      @return the current node, or `nullptr` if there is none.
+      @see get_curr_ne()
+  */
   Node * get_curr() const noexcept
   {
     return get_curr_ne();

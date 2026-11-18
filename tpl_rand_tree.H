@@ -725,16 +725,20 @@ namespace Aleph
 
     /**  Split a extended binary tree according to a position
 
-         `split_pos(pos, ts, tg)` splits the tree two trees `t1` and `t2`
-         according to a position `pos`. `t1` contains the keys from 0 to
-         `pos - 1` inorder sense and `tg` the keys from `pos` to n -
+         `split_pos(pos, t1, t2)` splits the tree in two trees `t1` and
+         `t2` according to a position `pos`. `t1` contains the keys from 0
+         to `pos - 1` inorder sense and `t2` the keys from `pos` to n -
          1. After completion `this` becames empty.
 
-         @param[in] pos position for splitting
-         @param[out] t1 tree where the rank of keys \f$[0, i)\f$ will be put
-         @param[out] t2 tree where the rank of keys \f$[i, n]\f$ will be put
+         It is not `noexcept`: a position past the end throws, and inside
+         `noexcept` that would end the program.
+
+         @param[in] pos position for splitting, at most size()
+         @param[out] t1 tree where the rank of keys \f$[0, pos)\f$ will be put
+         @param[out] t2 tree where the rank of keys \f$[pos, n)\f$ will be put
+         @throw std::out_of_range if `pos > size()`; then nothing changes
     */
-    void split_pos(size_t pos, Gen_Rand_Tree & t1, Gen_Rand_Tree & t2) noexcept
+    void split_pos(size_t pos, Gen_Rand_Tree & t1, Gen_Rand_Tree & t2)
     {
       split_pos_rec(tree_root, pos, t1.getRoot(), t2.getRoot());
     }

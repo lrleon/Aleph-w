@@ -676,23 +676,30 @@ namespace Aleph
       return s.str();
     }
 
-    // Validates variable index is within range.
+    // Validates variable index is within range; the range is half open, as
+    // [0, n - 1] wraps when there are no variables
     void verify_var_index(const size_t i) const
     {
       ah_out_of_range_error_if(i >= num_var)
-        << "Variable index " << i << " out of range [0, " << (num_var - 1) << "]";
+        << "Variable index " << i << " out of range [0, " << num_var << ")";
     }
 
-    // Validates restriction index is within range.
+    // Validates restriction index is within range; the range is half open,
+    // as [0, n - 1] wraps when there are no restrictions
     void verify_rest_index(const size_t i) const
     {
       ah_out_of_range_error_if(i >= num_rest)
-        << "Restriction index " << i << " out of range [0, " << (num_rest - 1) << "]";
+        << "Restriction index " << i << " out of range [0, " << num_rest << ")";
     }
 
-    // Creates a new restriction array initialized to zero.
+    // Creates a new restriction array initialized to zero. The tableau,
+    // once built, does not grow: a restriction added after it would make
+    // the solver read past it
     T * create_restriction(ConstraintType type = ConstraintType::LE)
     {
+      ah_logic_error_if(m != nullptr)
+        << "A restriction cannot be added after prepare_linear_program()";
+
       T *ptr = new T[num_var + 1];
       rest_list.append(ptr);
       rest_types.append(type);
@@ -1098,6 +1105,9 @@ namespace Aleph
      * @return Pointer to the internal constraint array (can be modified).
      *
      * @throw std::bad_alloc If memory allocation fails.
+     * @throw std::logic_error If prepare_linear_program() was already
+     *        called: the tableau that it built does not grow, and the
+     *        solver would read past it. The program is left as it was.
      */
     T * put_restriction(const T *coefs = nullptr,
                         ConstraintType type = ConstraintType::LE)
@@ -1119,6 +1129,10 @@ namespace Aleph
      *
      * @param[in] coefs Array of n+1 coefficients.
      * @return Pointer to the internal constraint array.
+     *
+     * @throw std::bad_alloc If memory allocation fails.
+     * @throw std::logic_error If prepare_linear_program() was already
+     *        called, as put_restriction() explains.
      */
     T * put_ge_restriction(const T *coefs)
     {
@@ -1131,6 +1145,10 @@ namespace Aleph
      *
      * @param[in] coefs Array of n+1 coefficients.
      * @return Pointer to the internal constraint array.
+     *
+     * @throw std::bad_alloc If memory allocation fails.
+     * @throw std::logic_error If prepare_linear_program() was already
+     *        called, as put_restriction() explains.
      */
     T * put_eq_restriction(const T *coefs)
     {
@@ -1144,6 +1162,8 @@ namespace Aleph
      * @return Pointer to the internal constraint array.
      *
      * @throw std::bad_alloc If memory allocation fails.
+     * @throw std::logic_error If prepare_linear_program() was already
+     *        called, as put_restriction() explains.
      */
     T * put_restriction(const DynArray<T> & coefs,
                         ConstraintType type = ConstraintType::LE)

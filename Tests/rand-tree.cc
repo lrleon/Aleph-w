@@ -38,6 +38,7 @@
 #include <gtest/gtest.h>
 #include <numeric>
 
+#include <tpl_array.H>
 #include <tpl_rand_tree.H>
 #include <tpl_binNodeUtils.H>
 #include <random>
@@ -592,9 +593,19 @@ TEST(RandTree, RemovePosLast)
   EXPECT_EQ(tree.size(), 2u);
 }
 
-// NOTE: remove_pos is marked noexcept but throws - this is a bug
-// The test below would cause std::terminate, so we skip it
-// TEST(RandTree, RemovePosOutOfRangeThrows)
+// remove_pos() is no longer noexcept: a position past the last key throws
+TEST(RandTree, RemovePosOutOfRangeThrows)
+{
+  Tree tree(42);
+  NodePool pool;
+
+  for (int k : {1, 2, 3})
+    tree.insert(pool.make(k));
+
+  EXPECT_THROW((void) tree.remove_pos(3), std::out_of_range);
+  EXPECT_EQ(tree.size(), 3u);
+  EXPECT_TRUE(tree.verify());
+}
 
 // ============================================================================
 // Split Tests
@@ -675,6 +686,41 @@ TEST(RandTree, SplitPos)
   // t2: positions [2, 5) -> keys {3, 4, 5}
   EXPECT_EQ(keys1, (std::vector<int>{1, 2}));
   EXPECT_EQ(keys2, (std::vector<int>{3, 4, 5}));
+}
+
+// split_pos() was noexcept, and a position past the end throws
+// out_of_range: the program ended. Now the exception gets through, before
+// anything changes; the end itself is a position.
+TEST(RandTree, SplitPosPastTheEndThrowsAndLeavesTheTrees)
+{
+  Tree tree(42);
+  Tree t1(43);
+  Tree t2(44);
+  NodePool pool;
+
+  for (int k : {1, 2, 3})
+    tree.insert(pool.make(k));
+
+  // The keys of a tree, in order
+  auto keys_of = [] (Node * root)
+    {
+      Array<int> keys;
+      for_each_in_order(root, [&keys] (Node * p) { keys.append(KEY(p)); });
+      return keys;
+    };
+
+  static_assert(not noexcept(tree.split_pos(0, t1, t2)));
+  EXPECT_THROW(tree.split_pos(4, t1, t2), std::out_of_range);
+  EXPECT_THROW(tree.split_pos(100, t1, t2), std::out_of_range);
+  EXPECT_EQ(keys_of(tree.getRoot()), (Array<int>{1, 2, 3}));
+  EXPECT_TRUE(tree.verify());
+  EXPECT_TRUE(t1.is_empty());
+  EXPECT_TRUE(t2.is_empty());
+
+  tree.split_pos(3, t1, t2);
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_EQ(keys_of(t1.getRoot()), (Array<int>{1, 2, 3}));
+  EXPECT_TRUE(t2.is_empty());
 }
 
 // ============================================================================
