@@ -589,6 +589,10 @@ set(ALEPH_POSIX_ONLY_TESTS
     # ntt.H requires __uint128_t which is a GCC/Clang extension; MSVC has no
     # 128-bit integer type so ntt.H emits #error on that compiler.
     ntt_test
+    # The moved-from cases of the numeric classes include ntt.H, for its plans,
+    # and the geometry of gmpxx, for RangeTree2D and AABBTree: see ntt_test,
+    # montgomery_test and the geometry tests.
+    moved_from_numeric_test
     # Montgomery reduction uses __uint128_t % n in mont_reduce (fallback path
     # for large primes).  clang-cl defines __SIZEOF_INT128__ but lacks the
     # __umodti3 runtime support (no compiler-rt on Windows).
