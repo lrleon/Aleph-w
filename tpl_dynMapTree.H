@@ -72,9 +72,13 @@ namespace Aleph {
    *   missing.
    * - `find()` throws `std::domain_error` when the key is missing.
    *
-   * @note Several operations internally create a temporary `Data()` when
-   * building a search key (`std::pair<Key, Data>`). Therefore, those methods
-   * require `Data` to be default-constructible.
+   * @note search(), has(), contains() and find() search by the key alone,
+   * without building a pair: they neither copy the key nor construct a
+   * `Data`. The splay trees are the exception: only their own search,
+   * which takes a pair, moves what it finds to the root. operator[],
+   * remove() and remove_key() build a `std::pair<Key, Data>` with a
+   * `Data()`, as the trees insert and remove whole pairs, so they require
+   * `Data` to be default-constructible.
    *
    * @see BinTree Avl_Tree Splay_Tree Rb_Tree Treap Rand_Tree
    * @ingroup Trees
@@ -92,6 +96,79 @@ namespace Aleph {
 
     using Base =
       DynSetTree<std::pair<Key, Data>, Tree, Dft_Pair_Cmp<Key, Data, Compare>>;
+
+    using Node = typename Base::Node;
+
+    // The splay trees move what a search finds to the root, which only
+    // their own search does: a search by the key alone would skip it
+    static constexpr bool splays =
+      requires (typename Base::Tree_Type & t, const Pair & p) { t.splay(p); };
+
+    // Whether a search by the key cannot throw: it compares keys and, in a
+    // splay tree, builds the pair that the tree searches for, a copy of the
+    // key and a Data built by default and moved
+    static constexpr bool nothrow_search =
+      std::is_nothrow_invocable_v<const Compare &, const Key &, const Key &> and
+      (not splays or (std::is_nothrow_copy_constructible_v<Key> and
+                      std::is_nothrow_default_constructible_v<Data> and
+                      std::is_nothrow_move_constructible_v<Data>));
+
+    // The pair whose key is equivalent to key, or nullptr. It descends
+    // comparing key with the first member of each pair, so it builds no
+    // pair: no copy of the key and no Data, which may allocate or throw.
+    // A scalar key compares fast: two comparisons per level stop at the
+    // pair found, as the search of the AVL tree does. Another key, as a
+    // std::string, may compare slowly: one comparison per level, down to
+    // a leaf, as searchInBinTree() does, makes fewer. Both bring the
+    // children of each node to the cache while they compare. A splay tree
+    // searches for a pair built from key, so that it moves what it finds
+    // to the root.
+    Pair * search_pair(const Key & key) const noexcept(nothrow_search)
+    {
+      if constexpr (splays)
+        {
+          static_assert(std::is_default_constructible_v<Data>,
+                        "DynMapTree::search() on a splay tree requires Data to be default-constructible");
+          return const_cast<Pair *>(Base::search(Pair(key, Data())));
+        }
+      else if constexpr (std::is_scalar_v<Key>)
+        {
+          const Compare & cmp = this->get_compare().cmp;
+          for (Node * p = this->get_root_node(); p != Node::NullPtr; )
+            {
+              __builtin_prefetch(LLINK(p));
+              __builtin_prefetch(RLINK(p));
+              if (cmp(key, KEY(p).first))
+                p = LLINK(p);
+              else if (cmp(KEY(p).first, key))
+                p = RLINK(p);
+              else
+                return &KEY(p);
+            }
+          return nullptr;
+        }
+      else
+        {
+          const Compare & cmp = this->get_compare().cmp;
+          Node * candidate = nullptr;  // the last one whose key is not greater
+          for (Node * p = this->get_root_node(); p != Node::NullPtr; )
+            {
+              __builtin_prefetch(LLINK(p));
+              __builtin_prefetch(RLINK(p));
+              if (cmp(key, KEY(p).first))
+                p = LLINK(p);
+              else
+                {
+                  candidate = p;
+                  p = RLINK(p);
+                }
+            }
+
+          if (candidate == nullptr or cmp(KEY(candidate).first, key))
+            return nullptr;
+          return &KEY(candidate);
+        }
+    }
 
   public:
 
@@ -235,11 +312,24 @@ namespace Aleph {
       return this->del(p).second;
     }
 
+    /** @brief Deletes the pair whose key is `key`.
+
+        @param[in] key the key of the pair to delete.
+        @throw std::domain_error if `key` is not in the map.
+        @throw what copying `key` or building a `Data` throws.
+        @note The trees remove by a whole pair, so it builds one from `key`
+        and a `Data()`: removing by the pair stored in the node, found by
+        the key alone, would take a second descent of the tree, which
+        costs more than that pair. It does not copy the pair that it
+        removes.
+    */
     void remove_key(const Key & key)
     {
       static_assert(std::is_default_constructible_v<Data>,
                     "DynMapTree::remove_key() requires Data to be default-constructible");
-      (void) this->del(Pair(key, Data()));
+      const size_t n = this->size();
+      ah_domain_error_if(Base::remove(Pair(key, Data())) == n)
+        << "DynMapTree::remove_key: key is not in the map";
     }
 
     /** @brief Collect all keys.
@@ -251,65 +341,74 @@ namespace Aleph {
      *
      * @param[in] key Key to search.
      * @return Pointer to the stored pair if found; nullptr otherwise.
+     * @throw what comparing two keys throws; nothing when that comparison
+     * is `noexcept`, as `Aleph::less` of the arithmetic types. In a splay
+     * tree, also what copying `key` or building a `Data` throws.
+     * @note It compares `key` with the key of each pair, without building a
+     * pair to search for: a copy of a long `std::string` key or a `Data()`
+     * that is an `Array` would allocate in every search, and what such a
+     * copy or construction throws would end the program. The splay trees
+     * are the exception: only their own search, which takes a pair, moves
+     * the pair found to the root, as they need.
      */
-    Pair * search(const Key & key) noexcept
+    Pair * search(const Key & key) noexcept(nothrow_search)
     {
-      static_assert(std::is_default_constructible_v<Data>,
-                    "DynMapTree::search() requires Data to be default-constructible");
-      return this->Base::search(Pair(key, Data()));
+      return search_pair(key);
     }
 
     /// \overload
     /// A pointer to const.
-    const Pair * search(const Key & key) const noexcept
+    const Pair * search(const Key & key) const noexcept(nothrow_search)
     {
-      static_assert(std::is_default_constructible_v<Data>,
-                    "DynMapTree::search() requires Data to be default-constructible");
-      return this->Base::search(Pair(key, Data()));
-    }
-
-    Pair * search(Key && key) noexcept
-    {
-      static_assert(std::is_default_constructible_v<Data>,
-                    "DynMapTree::search() requires Data to be default-constructible");
-      return this->Base::search(Pair(std::move(key), Data()));
+      return search_pair(key);
     }
 
     /// \overload
+    Pair * search(Key && key) noexcept(nothrow_search) { return search_pair(key); }
+
+    /// \overload
     /// A pointer to const.
-    const Pair * search(Key && key) const noexcept
-    {
-      static_assert(std::is_default_constructible_v<Data>,
-                    "DynMapTree::search() requires Data to be default-constructible");
-      return this->Base::search(Pair(std::move(key), Data()));
-    }
+    const Pair * search(Key && key) const noexcept(nothrow_search) { return search_pair(key); }
 
-    bool has(const Key & key) const noexcept { return search(key) != nullptr; }
+    /** @brief Return whether `key` is in the map.
+     *
+     * @param[in] key Key to search.
+     * @return `true` if a pair has a key equivalent to `key`.
+     * @throw what search() throws.
+     */
+    bool has(const Key & key) const noexcept(nothrow_search) { return search_pair(key) != nullptr; }
 
-    bool has(Key && key) const noexcept { return search(std::move(key)) != nullptr; }
+    /// \overload
+    bool has(Key && key) const noexcept(nothrow_search) { return search_pair(key) != nullptr; }
 
-    bool contains(const Key & key) const noexcept { return has(key); }
+    /// Same as has().
+    bool contains(const Key & key) const noexcept(nothrow_search) { return has(key); }
 
-    bool contains(Key && key) const noexcept { return has(std::move(key)); }
+    /// \overload
+    bool contains(Key && key) const noexcept(nothrow_search) { return has(key); }
 
     /** @brief Find the value associated with `key`.
      *
      * @param[in] key Key to find.
      * @return Reference to the associated value.
      * @throw std::domain_error If `key` is not present.
+     * @throw what search() throws.
+     * @note It searches by the key, as search(), without building a pair.
      */
     Data & find(const Key & key)
     {
-      static_assert(std::is_default_constructible_v<Data>,
-                    "DynMapTree::find() requires Data to be default-constructible");
-      return this->Base::find(Pair(key, Data())).second;
+      Pair * p = search_pair(key);
+      ah_domain_error_if(p == nullptr) << "key not found";
+      return p->second;
     }
 
+    /// \overload
+    /// A reference to const.
     const Data & find(const Key & key) const
     {
-      static_assert(std::is_default_constructible_v<Data>,
-                    "DynMapTree::find() requires Data to be default-constructible");
-      return this->Base::find(Pair(key, Data())).second;
+      const Pair * p = search_pair(key);
+      ah_domain_error_if(p == nullptr) << "key not found";
+      return p->second;
     }
 
     Data & operator [] (const Key & key)

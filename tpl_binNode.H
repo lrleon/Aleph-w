@@ -183,7 +183,9 @@ public:                                                               \
    static_assert(std::is_copy_constructible<Key>::value,              \
                  "No copy constructor for Key");                      \
  }                                                                    \
- Name(Key && k) noexcept                                              \
+ /* noexcept as the move of Key: a key without a move constructor is  \
+    copied, and what that copy throws must reach the caller */        \
+ Name(Key && k) noexcept(std::is_nothrow_move_constructible_v<Key>)   \
    : key(std::move(k)), lLink(NullPtr), rLink(NullPtr)                \
  {                                                                    \
    static_assert(std::is_move_constructible<Key>::value,              \
@@ -207,7 +209,9 @@ public:                                                               \
  {                                                                    \
    /* Empty */                                                        \
  }                                                                    \
- Name(const Control_Data & control_data) noexcept :                   \
+ /* noexcept as the default construction of Key, which this builds */ \
+ Name(const Control_Data & control_data)                              \
+   noexcept(std::is_nothrow_default_constructible_v<Key>) :           \
    Control_Data(control_data),                                        \
    lLink(NullPtr), rLink(NullPtr)                                     \
  {                                                                    \

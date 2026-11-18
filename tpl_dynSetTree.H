@@ -1522,6 +1522,20 @@ namespace Aleph
     {
       return tree.get_compare();
     }
+
+  protected:
+    /** @brief The comparator that orders the keys, without copying it.
+
+        For a derived class that searches by a part of the key, as
+        DynMapTree, which compares a key with the first member of each
+        pair instead of building a pair to search for.
+
+        @return a reference to the comparator of the tree.
+    */
+    [[nodiscard]] const Compare & get_compare() const noexcept
+    {
+      return tree.get_compare();
+    }
   };
 
 

@@ -168,7 +168,15 @@ public:
     return remove_first_ne();
   }
   
-  Dnode() noexcept 
+  /** @brief Construct a node, or the header of an empty list, whose item
+      is built by default.
+
+      @throws what the default constructor of `T` throws; nothing when it
+      is `noexcept`, as for the arithmetic types and `std::string`.
+      @note The `noexcept` follows that constructor so that its exception
+      reaches the caller instead of ending the program.
+  */
+  Dnode() noexcept(std::is_nothrow_default_constructible_v<T>)
   {
     static_assert(std::is_default_constructible<T>::value, 
 		  "No default constructor for T");
@@ -205,11 +213,33 @@ public:
 		  "No copy constructor for T");
   }
 
-  /// Move constructor
-  Dnode(Dnode && node) noexcept
+  /** @brief Move constructor: takes the place of `node` in its list and
+      moves its item, which cannot throw.
+
+      @param[in] node the node to move from.
+  */
+  Dnode(Dnode && node) noexcept requires std::is_nothrow_move_constructible_v<T>
   : Dlink(std::move(node)), data(std::move(node.data))
   {
-    /* empty */ 
+    /* empty */
+  }
+
+  /** @brief Move constructor for an item whose move may throw: moves the
+      item of `node` and then takes its place in its list.
+
+      @param[in] node the node to move from.
+      @throws what the move constructor of `T` throws (its copy
+      constructor, if `T` has no move one). Then `node` stays in its list
+      and nothing is linked to `this`.
+      @note It is not `noexcept`, so that the exception reaches the caller
+      instead of ending the program; the links are taken after the item,
+      so that an exception leaves no list pointing to a node that was
+      never built.
+  */
+  Dnode(Dnode && node) requires (not std::is_nothrow_move_constructible_v<T>)
+  : data(std::move(node.data))
+  {
+    Dlink::swap(node);
   }
 
   /// Copy assigment
