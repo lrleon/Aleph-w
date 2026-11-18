@@ -748,11 +748,21 @@ endif()
 if(TARGET PkgConfig::ALEPH_LIBXMLXX)
     include(CheckCXXSourceCompiles)
     set(CMAKE_REQUIRED_LIBRARIES PkgConfig::ALEPH_LIBXMLXX)
+    # ALEPH_USE_LIBCXX passes -stdlib=libc++ as an option of the directory,
+    # which the check does not inherit
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND ALEPH_USE_LIBCXX)
+        set(CMAKE_REQUIRED_FLAGS -stdlib=libc++)
+        set(CMAKE_REQUIRED_LINK_OPTIONS -stdlib=libc++)
+    endif()
+    # Checked at each configure: the library or the flags may have changed
+    unset(ALEPH_LIBXMLXX_USABLE CACHE)
     check_cxx_source_compiles("
 #include <libxml++/libxml++.h>
 int main() { xmlpp::Document doc; doc.create_root_node(\"aleph\"); return 0; }"
         ALEPH_LIBXMLXX_USABLE)
     unset(CMAKE_REQUIRED_LIBRARIES)
+    unset(CMAKE_REQUIRED_FLAGS)
+    unset(CMAKE_REQUIRED_LINK_OPTIONS)
 endif()
 if(TARGET PkgConfig::ALEPH_LIBXMLXX AND ALEPH_LIBXMLXX_USABLE)
     add_executable(xml_graph_test xml_graph_test.cc)
