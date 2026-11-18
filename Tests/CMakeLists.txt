@@ -25,7 +25,9 @@ option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 # CMakeLists here for standalone configures.
 if(MSVC)
     set(WARN_FLAGS "/W3")
-    set(COMMON_FLAGS "-DMESSAGES -D_USE_MATH_DEFINES -DNOMINMAX /FIah-compat.H")
+    # /bigobj: a large test, as ah-dry or noexcept_contract_test, exceeds the
+    # default limit of sections of an object file (fatal error C1128)
+    set(COMMON_FLAGS "-DMESSAGES -D_USE_MATH_DEFINES -DNOMINMAX /FIah-compat.H /bigobj")
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         # clang-cl optimizes under strict-aliasing rules like clang;
         # htlist.H requires them disabled (see root CMakeLists).
@@ -691,11 +693,6 @@ foreach(test_program ${TEST_PROGRAMS})
         # library/users, but silence it for test targets.
         if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             target_compile_options(${test_exe} PRIVATE -Wno-unused-result)
-        endif()
-
-        # ah-dry.cc is a very large TU that exceeds the default COFF section limit
-        if(MSVC AND test_program STREQUAL "ah-dry")
-            target_compile_options(${test_exe} PRIVATE /bigobj)
         endif()
 
         # Without the elisions that the language does not require, so that
