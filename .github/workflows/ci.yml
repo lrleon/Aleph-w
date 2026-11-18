@@ -173,7 +173,12 @@ jobs:
     # Also when local-ci failed: its output is then empty, and the
     # steps run
     if: ${{ !cancelled() }}
-    runs-on: ${{ matrix.os }}
+    # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
+    # requests of this repository (docs/ci-local.md, "Local runners")
+    runs-on: >-
+      ${{ matrix.os == 'ubuntu-24.04' && vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      fromJSON('["self-hosted", "aleph-24.04"]') || matrix.os }}
     timeout-minutes: 45
 
     strategy:
@@ -197,8 +202,12 @@ jobs:
         if: needs.local-ci.outputs.verified != 'true'
         uses: actions/checkout@v7
 
+      - name: Use the shared ccache of the local runner
+        if: runner.environment == 'self-hosted'
+        run: echo "CCACHE_DIR=$HOME/.cache/ccache-aleph" >> "$GITHUB_ENV"
+
       - name: Install base system dependencies
-        if: needs.local-ci.outputs.verified != 'true'
+        if: needs.local-ci.outputs.verified != 'true' && runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -210,12 +219,12 @@ jobs:
             ruby-full
 
       - name: Install GCC toolchain
-        if: needs.local-ci.outputs.verified != 'true' && matrix.compiler == 'gcc'
+        if: needs.local-ci.outputs.verified != 'true' && matrix.compiler == 'gcc' && runner.environment == 'github-hosted'
         run: |
           sudo apt-get install -y g++
 
       - name: Install Clang toolchain and libc++
-        if: needs.local-ci.outputs.verified != 'true' && matrix.compiler == 'clang'
+        if: needs.local-ci.outputs.verified != 'true' && matrix.compiler == 'clang' && runner.environment == 'github-hosted'
         run: |
           sudo apt-get install -y clang libc++-dev libc++abi-dev
       - name: Configure compiler
@@ -234,7 +243,7 @@ jobs:
           fi
 
       - name: Cache ccache
-        if: needs.local-ci.outputs.verified != 'true'
+        if: needs.local-ci.outputs.verified != 'true' && runner.environment == 'github-hosted'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -245,7 +254,7 @@ jobs:
             ${{ runner.os }}-${{ matrix.os }}-ccache-
 
       - name: Build and install GoogleTest
-        if: needs.local-ci.outputs.verified != 'true'
+        if: needs.local-ci.outputs.verified != 'true' && runner.environment == 'github-hosted'
         run: |
           set -euo pipefail
 
@@ -298,6 +307,24 @@ jobs:
 
           echo "No googletest sources found in /usr/src (expected /usr/src/googletest or /usr/src/gtest)"
           exit 1
+
+      - name: Build GoogleTest with libc++ (local runner)
+        if: >-
+          needs.local-ci.outputs.verified != 'true' &&
+          runner.environment == 'self-hosted' && matrix.compiler == 'clang'
+        run: |
+          set -euo pipefail
+          # The GoogleTest of the system is built with libstdc++: build it with
+          # libc++ in the temporary directory of the job, which needs no sudo
+          cmake -S /usr/src/googletest -B "$RUNNER_TEMP/gtest-build" -G Ninja \
+            -DCMAKE_C_COMPILER="${CC}" \
+            -DCMAKE_CXX_COMPILER="${CXX}" \
+            -DCMAKE_CXX_FLAGS="${CXXFLAGS_STDLIB}" \
+            -DCMAKE_EXE_LINKER_FLAGS="-lc++abi" \
+            -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/gtest"
+          cmake --build "$RUNNER_TEMP/gtest-build"
+          cmake --install "$RUNNER_TEMP/gtest-build"
+          echo "CMAKE_PREFIX_PATH=$RUNNER_TEMP/gtest" >> "$GITHUB_ENV"
 
       - name: Configure
         if: needs.local-ci.outputs.verified != 'true'
@@ -444,7 +471,12 @@ jobs:
   # the library uses concepts throughout.
   cxx23-build:
     name: cxx23-build (ubuntu-24.04, gcc, Release)
-    runs-on: ubuntu-24.04
+    # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
+    # requests of this repository (docs/ci-local.md, "Local runners")
+    runs-on: >-
+      ${{ vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      fromJSON('["self-hosted", "aleph-24.04"]') || 'ubuntu-24.04' }}
     timeout-minutes: 45
     env:
       CC: gcc
@@ -455,7 +487,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Use the shared ccache of the local runner
+        if: runner.environment == 'self-hosted'
+        run: echo "CCACHE_DIR=$HOME/.cache/ccache-aleph" >> "$GITHUB_ENV"
+
       - name: Install system dependencies
+        if: runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -467,6 +504,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
+        if: runner.environment == 'github-hosted'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -520,7 +558,12 @@ jobs:
 
   ranges-off:
     name: ranges-off (ubuntu-24.04, gcc, Release)
-    runs-on: ubuntu-24.04
+    # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
+    # requests of this repository (docs/ci-local.md, "Local runners")
+    runs-on: >-
+      ${{ vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      fromJSON('["self-hosted", "aleph-24.04"]') || 'ubuntu-24.04' }}
     timeout-minutes: 45
     env:
       CC: gcc
@@ -531,7 +574,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Use the shared ccache of the local runner
+        if: runner.environment == 'self-hosted'
+        run: echo "CCACHE_DIR=$HOME/.cache/ccache-aleph" >> "$GITHUB_ENV"
+
       - name: Install system dependencies
+        if: runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -543,6 +591,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
+        if: runner.environment == 'github-hosted'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -957,7 +1006,12 @@ jobs:
 
   coverage:
     name: coverage (ubuntu-24.04, gcc, Debug)
-    runs-on: ubuntu-24.04
+    # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
+    # requests of this repository (docs/ci-local.md, "Local runners")
+    runs-on: >-
+      ${{ vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      fromJSON('["self-hosted", "aleph-24.04"]') || 'ubuntu-24.04' }}
     timeout-minutes: 60
     env:
       CC: gcc
@@ -970,7 +1024,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Use the shared ccache of the local runner
+        if: runner.environment == 'self-hosted'
+        run: echo "CCACHE_DIR=$HOME/.cache/ccache-aleph" >> "$GITHUB_ENV"
+
       - name: Install system dependencies
+        if: runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -982,6 +1041,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
+        if: runner.environment == 'github-hosted'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -1164,7 +1224,12 @@ jobs:
     # Also when local-ci failed: its output is then empty, and the
     # steps run
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04
+    # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
+    # requests of this repository (docs/ci-local.md, "Local runners")
+    runs-on: >-
+      ${{ vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      fromJSON('["self-hosted", "aleph-24.04"]') || 'ubuntu-24.04' }}
     timeout-minutes: 45
     env:
       CC: gcc
@@ -1182,8 +1247,12 @@ jobs:
         if: needs.local-ci.outputs.verified != 'true'
         uses: actions/checkout@v7
 
+      - name: Use the shared ccache of the local runner
+        if: runner.environment == 'self-hosted'
+        run: echo "CCACHE_DIR=$HOME/.cache/ccache-aleph" >> "$GITHUB_ENV"
+
       - name: Install system dependencies
-        if: needs.local-ci.outputs.verified != 'true'
+        if: needs.local-ci.outputs.verified != 'true' && runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -1195,7 +1264,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        if: needs.local-ci.outputs.verified != 'true'
+        if: needs.local-ci.outputs.verified != 'true' && runner.environment == 'github-hosted'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -1251,7 +1320,12 @@ jobs:
   # to two runners.
   graph-harness:
     name: graph harness (${{ matrix.os }}, ${{ matrix.compiler }}, ${{ matrix.build_type }}${{ matrix.sanitizers == 'ON' && ', ASan and UBSan' || '' }}${{ matrix.part != 'all' && format(', {0}', matrix.part) || '' }})
-    runs-on: ${{ matrix.os }}
+    # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
+    # requests of this repository (docs/ci-local.md, "Local runners")
+    runs-on: >-
+      ${{ matrix.os == 'ubuntu-24.04' && vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      fromJSON('["self-hosted", "aleph-24.04"]') || matrix.os }}
     timeout-minutes: 45
 
     strategy:
@@ -1296,7 +1370,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Use the shared ccache of the local runner
+        if: runner.environment == 'self-hosted'
+        run: echo "CCACHE_DIR=$HOME/.cache/ccache-aleph" >> "$GITHUB_ENV"
+
       - name: Install system dependencies
+        if: runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -1324,6 +1403,7 @@ jobs:
           fi
 
       - name: Cache ccache
+        if: runner.environment == 'github-hosted'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -1455,7 +1535,12 @@ jobs:
     # thread_pool surfaces. It runs every test it builds; the few cases that
     # cannot run under TSan skip themselves (see docs/ci_sanitizer_policy.md).
     name: tsan (ubuntu-24.04, clang, Debug)
-    runs-on: ubuntu-24.04
+    # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
+    # requests of this repository (docs/ci-local.md, "Local runners")
+    runs-on: >-
+      ${{ vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      fromJSON('["self-hosted", "aleph-24.04"]') || 'ubuntu-24.04' }}
     timeout-minutes: 45
     env:
       CC: clang
@@ -1466,7 +1551,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Use the shared ccache of the local runner
+        if: runner.environment == 'self-hosted'
+        run: echo "CCACHE_DIR=$HOME/.cache/ccache-aleph" >> "$GITHUB_ENV"
+
       - name: Install system dependencies
+        if: runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -1478,6 +1568,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
+        if: runner.environment == 'github-hosted'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -1603,7 +1694,12 @@ jobs:
 
   check-examples:
     name: check-examples (ubuntu-24.04, ${{ matrix.compiler }}, Release)
-    runs-on: ubuntu-24.04
+    # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
+    # requests of this repository (docs/ci-local.md, "Local runners")
+    runs-on: >-
+      ${{ matrix.compiler == 'clang' && vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      fromJSON('["self-hosted", "aleph-24.04"]') || 'ubuntu-24.04' }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -1617,7 +1713,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Use the shared ccache of the local runner
+        if: runner.environment == 'self-hosted'
+        run: echo "CCACHE_DIR=$HOME/.cache/ccache-aleph" >> "$GITHUB_ENV"
+
       - name: Install system dependencies
+        if: runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -1628,11 +1729,11 @@ jobs:
             ruby-full
 
       - name: Install GCC toolchain
-        if: matrix.compiler == 'gcc'
+        if: matrix.compiler == 'gcc' && runner.environment == 'github-hosted'
         run: sudo apt-get install -y g++
 
       - name: Install Clang toolchain
-        if: matrix.compiler == 'clang'
+        if: matrix.compiler == 'clang' && runner.environment == 'github-hosted'
         run: sudo apt-get install -y clang libc++-dev libc++abi-dev
 
       - name: Configure compiler
@@ -1650,6 +1751,7 @@ jobs:
           fi
 
       - name: Cache ccache
+        if: runner.environment == 'github-hosted'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}

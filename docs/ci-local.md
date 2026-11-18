@@ -126,3 +126,33 @@ and ccache in `~/.cache/aleph-ci-local`. In GitHub, a pull request whose
 status the CI accepts saves the runs of the nine required jobs, and the
 caches of ccache that they save, in the 10 GB of Actions cache of the
 repository.
+
+## Local runners
+
+The heavy Ubuntu 24.04 jobs of `ci.yml` can also run on self-hosted runners
+with the label `aleph-24.04`, where a warm ccache shortens them: the 24.04
+entries of `build-and-test` and `graph-harness`, `sanitizers`, `tsan`,
+`cxx23-build`, `coverage`, `ranges-off` and `check-examples` with Clang.
+
+- They go there only for the pull requests of this repository, while the
+  repository variable `ALEPH_LOCAL_RUNNERS` is `on`. The pushes to master,
+  which check the merged result and feed the caches and the coverage
+  baseline, and the pull requests from forks, whose code would run on that
+  machine, run on GitHub. With the variable off or unset, every job runs on
+  GitHub, as before; turn it off when the machine is down, or those jobs
+  wait for it.
+- The runners run the jobs directly on Ubuntu 24.04 for x86_64, the system
+  of the GitHub image, as a user without sudo. The steps that install
+  packages, that use sudo or that restore the ccache of GitHub skip on them
+  (`runner.environment == 'self-hosted'`), so the machine has the packages
+  of those steps installed and GCC 13, the `g++` of the image, first in the
+  `PATH` of the runners. The jobs keep their ccache in
+  `~/.cache/ccache-aleph` of the runners' user, and Clang builds GoogleTest
+  with libc++ in the temporary directory of the job.
+- The sanitizers need the address randomization off on recent kernels: the
+  services start the runners under `setarch x86_64 -R`.
+- Each runner is limited to its own cores, so that `nproc` gives the
+  parallelism of its builds, and to its memory, and a hook deletes what
+  each job built when it ends.
+- The Ubuntu 22.04 jobs, the light ones, those that use containers, the
+  release and publishing jobs and `perf-gate` stay on GitHub.
