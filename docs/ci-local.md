@@ -135,12 +135,23 @@ entries of `build-and-test` and `graph-harness`, `sanitizers`, `tsan`,
 `cxx23-build`, `coverage`, `ranges-off` and `check-examples` with Clang.
 
 - They go there only for the pull requests of this repository, while the
-  repository variable `ALEPH_LOCAL_RUNNERS` is `on`. The pushes to master,
-  which check the merged result and feed the caches and the coverage
-  baseline, and the pull requests from forks, whose code would run on that
-  machine, run on GitHub. With the variable off or unset, every job runs on
-  GitHub, as before; turn it off when the machine is down, or those jobs
-  wait for it.
+  repository variable `ALEPH_LOCAL_RUNNERS` is `on`, and `build-and-test`
+  and `sanitizers` only when the local CI has not verified them already.
+  The pushes to master, which check the merged result and feed the caches
+  and the coverage baseline, and the pull requests from forks run on
+  GitHub. With the variable off or unset, every job runs on GitHub, as
+  before; turn it off when the machine is down, or those jobs wait for it.
+- That condition chooses where the jobs of this repository run; it is not
+  an access control. A pull request from a fork runs the workflow of its
+  own branch, which can send its jobs to these runners. What keeps forks
+  out is outside the workflow: Actions requires the approval of a
+  maintainer for the workflows of every outside contributor, and a
+  maintainer approves them only after checking that the pull request does
+  not change `.github/`. The runners of a repository serve only that
+  repository.
+- The runners keep state from one job to the next, the ccache among it,
+  and the code of a job could change what later jobs build: only code that
+  the maintainers trust runs on them.
 - The runners run the jobs directly on Ubuntu 24.04 for x86_64, the system
   of the GitHub image, as a user without sudo. The steps that install
   packages, that use sudo or that restore the ccache of GitHub skip on them

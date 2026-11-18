@@ -176,7 +176,7 @@ jobs:
     # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
     # requests of this repository (docs/ci-local.md, "Local runners")
     runs-on: >-
-      ${{ matrix.os == 'ubuntu-24.04' && vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
+      ${{ needs.local-ci.outputs.verified != 'true' && matrix.os == 'ubuntu-24.04' && vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       fromJSON('["self-hosted", "aleph-24.04"]') || matrix.os }}
     timeout-minutes: 45
@@ -1227,7 +1227,7 @@ jobs:
     # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
     # requests of this repository (docs/ci-local.md, "Local runners")
     runs-on: >-
-      ${{ vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
+      ${{ needs.local-ci.outputs.verified != 'true' && vars.ALEPH_LOCAL_RUNNERS == 'on' && github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       fromJSON('["self-hosted", "aleph-24.04"]') || 'ubuntu-24.04' }}
     timeout-minutes: 45
