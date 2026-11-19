@@ -102,16 +102,30 @@ private:                                                                \
                                                                         \
 public:                                                                 \
                                                                         \
- /* Sets the hash function. The keys already stored are not placed   */ \
- /* again: on a table that is not empty, rehash() must follow.       */ \
- void set_hash_fct(Hash_Fct fct) noexcept                               \
+ /* Sets the hash function. On a table that is not empty, it places  */ \
+ /* the keys again with it, as rehash() does; if that throws, the    */ \
+ /* table keeps its function and its keys.                           */ \
+ void set_hash_fct(Hash_Fct fct)                                        \
  {                                                                      \
-   hash_fct = fct;                                                      \
+   Hash_Fct old = std::move(hash_fct);                                  \
+   hash_fct = std::move(fct);                                           \
+   if (N == 0)                                                          \
+     return;                                                            \
+                                                                        \
+   try                                                                  \
+     {                                                                  \
+       this->rehash();                                                  \
+     }                                                                  \
+   catch (...)                                                          \
+     {                                                                  \
+       hash_fct = std::move(old);                                       \
+       throw;                                                           \
+     }                                                                  \
  }                                                                      \
                                                                         \
- void set_hash_fct(Hash_Fct_Ptr fct) noexcept                           \
+ void set_hash_fct(Hash_Fct_Ptr fct)                                    \
  {                                                                      \
-   hash_fct = Hash_Fct(fct);                                            \
+   set_hash_fct(Hash_Fct(fct));                                         \
  }
 
 namespace Aleph

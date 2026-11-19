@@ -316,8 +316,77 @@ TEST_F(SimplexTest, SolveTwiceThrows)
   
   simplex.prepare_linear_program();
   simplex.solve();
-  
+
   EXPECT_THROW(simplex.solve(), std::logic_error);
+}
+
+// A restriction added after prepare_linear_program() grew the count of
+// restrictions but not the tableau: solve() and load_solution() then read
+// past it inside noexcept, and the program ended. Now it throws, before
+// and after solve(), and the program is left as it was.
+TEST_F(SimplexTest, PutRestrictionAfterPrepareThrowsAndKeepsTheProgram)
+{
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 40.0);
+  simplex.put_objetive_function_coef(1, 30.0);
+  double labor[] = {1.0, 1.0, 40.0};   // x + y <= 40
+  double machine[] = {2.0, 1.0, 60.0}; // 2x + y <= 60
+  double extra[] = {1.0, 0.0, 30.0};
+  DynArray<double> extra_array;
+  for (size_t i = 0; i < 3; ++i)
+    extra_array[i] = extra[i];
+  simplex.put_restriction(labor);
+  simplex.put_restriction(machine);
+  simplex.prepare_linear_program();
+
+  auto expect_no_restriction_is_added = [&]
+  {
+    EXPECT_THROW(simplex.put_restriction(extra), std::logic_error);
+    EXPECT_THROW(simplex.put_restriction(nullptr), std::logic_error);
+    EXPECT_THROW(simplex.put_restriction(extra_array), std::logic_error);
+    EXPECT_THROW(simplex.put_ge_restriction(extra), std::logic_error);
+    EXPECT_THROW(simplex.put_eq_restriction(extra), std::logic_error);
+    EXPECT_EQ(simplex.get_num_restrictions(), 2u);
+  };
+
+  expect_no_restriction_is_added();
+  ASSERT_EQ(simplex.solve(), Simplex<double>::Solved);
+  expect_no_restriction_is_added();
+
+  simplex.load_solution(); // x = y = 20
+  EXPECT_TRUE(nearly_equal(simplex.get_solution(0), 20.0));
+  EXPECT_TRUE(nearly_equal(simplex.get_solution(1), 20.0));
+  EXPECT_TRUE(nearly_equal(simplex.objetive_value(), 1400.0));
+  EXPECT_TRUE(simplex.verify_solution());
+}
+
+// The messages of the index checks gave the range as [0, n - 1], which
+// wraps when n is 0, as for a solver without restrictions or a moved-from
+// one: the range is now half open
+TEST_F(SimplexTest, IndexErrorsGiveTheRangeHalfOpen)
+{
+  auto message_of = [](auto && op) -> std::string
+  {
+    try
+      {
+        op();
+      }
+    catch (const std::out_of_range & e)
+      {
+        return e.what();
+      }
+    return "";
+  };
+
+  Simplex<double> simplex(2);
+  EXPECT_NE(message_of([&] { (void) simplex.get_objetive_function_coef(2); })
+              .find("Variable index 2 out of range [0, 2)"), std::string::npos);
+  EXPECT_NE(message_of([&] { (void) simplex.get_restriction(0); })
+              .find("Restriction index 0 out of range [0, 0)"), std::string::npos);
+
+  Simplex<double> taken(std::move(simplex)); // simplex has no variables now
+  EXPECT_NE(message_of([&] { (void) simplex.get_objetive_function_coef(0); })
+              .find("Variable index 0 out of range [0, 0)"), std::string::npos);
 }
 
 //==============================================================================

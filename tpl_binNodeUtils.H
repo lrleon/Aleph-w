@@ -54,9 +54,88 @@
 #include <tpl_binNode.H>
 #include <ah-errors.H>
 # include <cassert>
+# include <type_traits>
 # include <utility>
 
 namespace Aleph {
+
+/** @brief Whether calling `Fct` with `Args`, and taking its result as a
+    `bool` in either way, cannot throw.
+
+    A result that is not a `bool` converts to one implicitly where it is
+    returned or assigned to a `bool`, and contextually where it is a
+    condition, as in `if` and `while` and the built-in `not`, `and`, `or`
+    and `?:`. The two conversions may differ: a result with an implicit
+    `operator int()` and an `explicit operator bool()` converts through
+    the first in a `return` and through the second in an `if`. The call
+    and both conversions must not throw. The operations convert the result
+    with `static_cast<bool>` before they apply `not`, `and` or `or` to
+    it: an `operator!`, `operator&&` or `operator||` of the type of the
+    result, which this trait does not look at, never runs.
+
+    @tparam Fct the function or function object, as a reference.
+    @tparam Args the types of the arguments of the call.
+    @ingroup Trees
+ */
+template <class Fct, class... Args>
+inline constexpr bool nothrow_condition_v =
+  std::is_nothrow_invocable_r_v<bool, Fct, Args...> and
+  requires { { static_cast<bool>(std::declval<Fct>()(std::declval<Args>()...)) } noexcept; };
+
+/** @brief Whether the calls of `Cmp` that compare two keys of type `Key`,
+    constant or not, give a `bool` without throwing.
+
+    @tparam Cmp the comparison criteria, as a reference.
+    @tparam Key the type of the keys.
+    @ingroup Trees
+ */
+template <class Cmp, class Key>
+inline constexpr bool nothrow_compare_keys_v =
+  nothrow_condition_v<Cmp, const Key &, const Key &> and
+  nothrow_condition_v<Cmp, const Key &, Key &> and
+  nothrow_condition_v<Cmp, Key &, const Key &> and
+  nothrow_condition_v<Cmp, Key &, Key &>;
+
+/** @brief Whether `Compare` compares two keys of type `Key` without
+    throwing, as the operations of the trees call it.
+
+    The operations of the binary search trees that compare keys are
+    `noexcept` only when this holds, so that what a comparison throws
+    reaches their caller instead of ending the program: a `noexcept`
+    function that lets an exception out calls `std::terminate()`.
+
+    They call it through a constant or a non-constant reference, with the
+    key that they search for and the key of a node, which is not constant,
+    and take its result as a `bool`, as a condition or as a returned
+    value. So each of these calls must not throw, nor either conversion of
+    its result to `bool` (nothrow_condition_v): a comparison that gives a
+    type whose conversion throws, or that has an overload for keys that
+    are not constant that throws, makes the operations throw.
+
+    @tparam Compare the comparison criteria of the tree.
+    @tparam Key the type of the keys of the tree.
+    @ingroup Trees
+ */
+template <class Compare, class Key>
+inline constexpr bool nothrow_compare_v =
+  nothrow_compare_keys_v<Compare &, Key> and
+  nothrow_compare_keys_v<const Compare &, Key>;
+
+/** @brief Whether `Compare` compares two keys of type `Key` without
+    throwing, as nothrow_compare_v, and can be copied without throwing.
+
+    For the operations that copy the comparison of the tree into an
+    operation object before they compare.
+
+    @tparam Compare the comparison criteria of the tree.
+    @tparam Key the type of the keys of the tree.
+    @ingroup Trees
+ */
+template <class Compare, class Key>
+inline constexpr bool nothrow_compare_copy_v =
+  nothrow_compare_v<Compare, Key> and
+  std::is_nothrow_constructible_v<Compare, Compare &> and
+  std::is_nothrow_constructible_v<Compare, const Compare &>;
 
 /** Debug-only check that `root` is a valid tree for `Node`.
 
@@ -1636,7 +1715,7 @@ enum ThreeWayCmp : int
   CmpGreater = 1  ///< First argument is greater than second
 };
 
-/** Three-way comparison using a binary comparator.
+/** @brief Three-way comparison using a binary comparator.
 
     Returns CmpLess if a < b, CmpEqual if a == b, CmpGreater if a > b.
     This reduces two comparisons to one when the result is cached.
@@ -1645,10 +1724,14 @@ enum ThreeWayCmp : int
     @param[in] b second value to compare
     @param[in] cmp binary less-than comparator
     @return CmpLess, CmpEqual, or CmpGreater indicating the ordering
+    @throws anything that `cmp` throws.
+    @note It is `noexcept` only if `cmp` cannot throw, so that what a
+    comparison throws reaches the caller.
     @ingroup Trees
  */
 template <typename T, class Compare = Aleph::less<T>>
-inline ThreeWayCmp three_way_compare(const T &a, const T &b, const Compare &cmp = Compare()) noexcept
+inline ThreeWayCmp three_way_compare(const T &a, const T &b, const Compare &cmp = Compare())
+  noexcept(nothrow_compare_v<Compare, T>)
 {
   if (cmp(a, b))
     return CmpLess;
@@ -1657,23 +1740,26 @@ inline ThreeWayCmp three_way_compare(const T &a, const T &b, const Compare &cmp 
   return CmpEqual;
 }
 
-/** Search a key in a binary search tree
+/** @brief Search a key in a binary search tree using optimistic search.
+
+    Uses single comparison per level with deferred duplicate detection,
+    reducing comparisons from ~1.5h to h+1 for tree height h.
 
     @param[in] root of tree
     @param[in] key to search
     @param[in] cmp key comparison criteria
     @return a valid pointer to the node containing the searched key
     if this was found; `Node::NullPtr` otherwise
+    @throws anything that `cmp` throws; the search does not modify the
+    tree, so it is left as it was.
+    @note It is `noexcept` only if `cmp` cannot throw, so that what a
+    comparison throws reaches the caller.
     @ingroup Trees
- */
-/** Search a key in a binary search tree using optimistic search.
- *
- *  Uses single comparison per level with deferred duplicate detection,
- *  reducing comparisons from ~1.5h to h+1 for tree height h.
  */
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 [[nodiscard]] inline Node *searchInBinTree(Node *root, const typename Node::key_type &key,
-                                           const Compare &cmp = Compare()) noexcept
+                                           const Compare &cmp = Compare())
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   assert_valid_tree_root(root);
   Node *candidate = nullptr;  // Tracks potential match when going right
@@ -1693,7 +1779,7 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
     }
 
   // Optimistic check: if candidate exists and key == candidate, return it
-  if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
+  if (candidate != nullptr and not static_cast<bool>(cmp(KEY(candidate), key))) [[unlikely]]
     return candidate;
 
   return Node::NullPtr;
@@ -1788,7 +1874,7 @@ inline Node *find_predecessor(Node *p, Node *&pp) noexcept
   return p;
 }
 
-/** Search a key and find its node and parent.
+/** @brief Search a key and find its node and parent.
 
     @param[in] root of tree
     @param[in] key to search
@@ -1797,12 +1883,17 @@ inline Node *find_predecessor(Node *p, Node *&pp) noexcept
     @param[in] cmp comparison criteria
     @return a valid pointer to a node containing `key` if this is
     found; otherwise, it returns a pointer to the last visited node
+    @throws anything that `cmp` throws; the search does not modify the
+    tree, so it is left as it was.
+    @note It is `noexcept` only if `cmp` cannot throw, so that what a
+    comparison throws reaches the caller.
     @see searchInBinTree()
     @ingroup Trees
  */
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *search_parent(Node *root, const typename Node::key_type &key, Node *&parent,
-                           const Compare &cmp = Compare()) noexcept
+                           const Compare &cmp = Compare())
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   assert_valid_tree_root(root);
   assert((LLINK(parent) == root) or (RLINK(parent) == root));
@@ -1832,7 +1923,7 @@ inline Node *search_parent(Node *root, const typename Node::key_type &key, Node 
     }
 }
 
-/** Rank search of a key in a binary search tree.
+/** @brief Rank search of a key in a binary search tree.
 
     In a binary search tree the rank search of a key consists in
     determining the node that would be parent of key.
@@ -1847,12 +1938,17 @@ inline Node *search_parent(Node *root, const typename Node::key_type &key, Node 
     @param[in] cmp comparison criteria
     @return pointer to a node containing `key` if this node exists
     or the last visited node otherwise
+    @throws anything that `cmp` throws; the search does not modify the
+    tree, so it is left as it was.
     @note It is not verified if the tree is empty
+    @note It is `noexcept` only if `cmp` cannot throw, so that what a
+    comparison throws reaches the caller.
     @ingroup Trees
  */
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *search_rank_parent(Node *root, const typename Node::key_type &key,
-                                const Compare &cmp = Compare()) noexcept
+                                const Compare &cmp = Compare())
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   assert_valid_tree_root(root);
   assert(root != Node::NullPtr);
@@ -1966,9 +2062,25 @@ inline Node *search_or_insert_in_bst(Node *&r, Node *p, const Compare &cmp = Com
   [[unlikely]] return r;
 }
 
+/** @brief The recursion of split_key_rec().
+
+    It compares on the way down and links on the way back, so a comparison
+    that throws leaves the tree as it was.
+
+    @param[in] root of the subtree to split
+    @param[in] key for splitting
+    @param[out] ts where the subtree with the keys lesser than `key` goes
+    @param[out] tg where the subtree with the keys greater than `key` goes
+    @param[in] cmp comparison criteria
+    @return `true` if `key` is not in the subtree, which is then split
+    @throws anything that `cmp` throws; it is `noexcept` only if `cmp`
+    cannot throw, so that what a comparison throws reaches the caller.
+    @ingroup Trees
+ */
 template <BinNodeLike Node, class Compare>
 inline bool split_key_rec_helper(Node *root, const typename Node::key_type &key, Node *&ts,
-                                        Node *&tg, Compare &cmp) noexcept
+                                        Node *&tg, Compare &cmp)
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   if (root == Node::NullPtr)
     {  // key is not in the tree ==> split will succeed
@@ -1996,7 +2108,7 @@ inline bool split_key_rec_helper(Node *root, const typename Node::key_type &key,
   return false;  // key exists in the tree
 }
 
-/** Split recursively according to a key.
+/** @brief Split recursively according to a key.
 
     `split_key_rec(root, key, ts, tg, cmp)` splits the tree with `root`
     in two trees `t1` which contain the keys lesser than `key` and `t2`
@@ -2011,13 +2123,18 @@ inline bool split_key_rec_helper(Node *root, const typename Node::key_type &key,
     @param[in] cmp comparison criteria
     @return `true` if the tree wa split; that if `key` was not in the
     tree. Otherwise, the split is not performed and it return `false`
+    @throws anything that `cmp` throws; every comparison comes before the
+    first change, so `root`, `ts` and `tg` are left as they were.
+    @note It is `noexcept` only if `cmp` cannot throw, so that what a
+    comparison throws reaches the caller.
 
     @see split_key()
     @ingroup Trees
     */
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline bool split_key_rec(Node *&root, const typename Node::key_type &key, Node *&ts, Node *&tg,
-                          const Compare &cmp = Compare()) noexcept
+                          const Compare &cmp = Compare())
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   assert_valid_tree_root(root);
   const bool ret = split_key_rec_helper(root, key, ts, tg, cmp);
@@ -2026,9 +2143,25 @@ inline bool split_key_rec(Node *&root, const typename Node::key_type &key, Node 
   return ret;
 }
 
+/** @brief The recursion of split_key_dup_rec().
+
+    It compares on the way down and links on the way back, so a comparison
+    that throws leaves the tree as it was.
+
+    @param[in] root of the subtree to split
+    @param[in] key for splitting
+    @param[out] ts where the subtree with the keys lesser than `key` goes
+    @param[out] tg where the subtree with the keys greater or equal than
+    `key` goes
+    @param[in] cmp comparison criteria
+    @throws anything that `cmp` throws; it is `noexcept` only if `cmp`
+    cannot throw, so that what a comparison throws reaches the caller.
+    @ingroup Trees
+ */
 template <BinNodeLike Node, class Compare>
 inline void split_key_dup_rec_helper(Node *root, const typename Node::key_type &key,
-                                            Node *&ts, Node *&tg, Compare &cmp) noexcept
+                                            Node *&ts, Node *&tg, Compare &cmp)
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   if (root == Node::NullPtr)
     {
@@ -2048,7 +2181,7 @@ inline void split_key_dup_rec_helper(Node *root, const typename Node::key_type &
     }
 }
 
-/** Split a tree according to a key value
+/** @brief Split a tree according to a key value
 
     `split_key_dup_rec(root, key, ts, tg, cmp)` splits according to `key
     the tree with `root` and build two trees. `t1`contains the keys
@@ -2059,12 +2192,17 @@ inline void split_key_dup_rec_helper(Node *root, const typename Node::key_type &
     @param[out] ts tree with the keys lesser than `key`
     @param[out] tg tree with the keys greater or equal than `key`
     @param[in] cmp comparison criteria
+    @throws anything that `cmp` throws; every comparison comes before the
+    first change, so `root`, `ts` and `tg` are left as they were.
+    @note It is `noexcept` only if `cmp` cannot throw, so that what a
+    comparison throws reaches the caller.
     @see split_key()
     @ingroup Trees
     */
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline void split_key_dup_rec(Node *&root, const typename Node::key_type &key, Node *&ts, Node *&tg,
-                              const Compare &cmp = Compare()) noexcept
+                              const Compare &cmp = Compare())
+  noexcept(nothrow_compare_v<Compare, typename Node::key_type>)
 {
   assert_valid_tree_root(root);
   split_key_dup_rec_helper(root, key, ts, tg, cmp);

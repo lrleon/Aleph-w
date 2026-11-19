@@ -872,14 +872,25 @@ public:
       return current;
     }
 
+    /** Remove from the list the current node and move the iterator one
+        position forward, without checking that there is a current node.
+
+        It checks nothing, as the `_ne` variants promise: the check of
+        get_curr() throws, and inside `noexcept` that would end the
+        program.
+
+        @pre has_curr(), which only an `assert` checks: without a current
+        node, the header would be unlinked from its own list.
+        @return a pointer to the removed node
+    */
     Dlink *del_ne() noexcept
     {
       assert(curr != nullptr and head != nullptr);
       assert(has_curr());
 
-      Dlink *current = get_curr();  // the current node
-      next_ne();                    // move to the next node
-      current->del();               // unlink the node that was current
+      Dlink *current = get_curr_ne();  // the current node
+      next_ne();                       // move to the next node
+      current->del();                  // unlink the node that was current
       return current;
     }
 

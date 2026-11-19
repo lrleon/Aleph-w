@@ -164,7 +164,11 @@ namespace Aleph
     Gsl_Compatible_Rng_Owner r;
     Compare cmp;
 
-    Node * random_insert(Node *root, Node *p) noexcept
+    // The insertions and the removal compare on the way down, the split of
+    // an insertion at the root included, and link or count on the way
+    // back, so a comparison that throws leaves the tree as it was
+    Node * random_insert(Node *root, Node *p)
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       if (root == Node::NullPtr)
         return p;
@@ -204,7 +208,8 @@ namespace Aleph
       return Node::NullPtr; // duplicated key ==> no insertion
     }
 
-    Node * random_insert_dup(Node *root, Node *p) noexcept
+    Node * random_insert_dup(Node *root, Node *p)
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       if (root == Node::NullPtr)
         return p;
@@ -229,7 +234,8 @@ namespace Aleph
       return root;
     }
 
-    Node * random_search_or_insert(Node *& root, Node *p) noexcept
+    Node * random_search_or_insert(Node *& root, Node *p)
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       if (root == Node::NullPtr)
         return root = p;
@@ -395,13 +401,19 @@ namespace Aleph
       // The underlying tree only manages the tree structure, not node memory.
     }
 
-    /** Insert a node in the tree
+    /** @brief Insert a node in the tree
 
         @param[in] p pointer to the node to insert
         @return if `p->get_key()` is not in the tree, then the pointer
         `p` is returned (it was inserted); otherwise, `nullptr` is returned
+        @throws anything that the comparison or its copy throws; the tree
+        changes only after the last comparison, so its links and nodes are
+        left as they were, without `p`; not so the random generator, which
+        the insertion may have used.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
     */
-    Node * insert(Node *p) noexcept
+    Node * insert(Node *p) noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       assert(p != Node::NullPtr);
       assert((LLINK(p) == Node::NullPtr) and (RLINK(p) == Node::NullPtr));
@@ -416,14 +428,20 @@ namespace Aleph
       return p;
     }
 
-    /** Insert a node in the tree.
+    /** @brief Insert a node in the tree.
 
         This method does not fail. It always inserts.
 
         @param[in] p pointer to the node to insert
         @return the `p` pointer
+        @throws anything that the comparison or its copy throws; the tree
+        changes only after the last comparison, so its links and nodes are
+        left as they were, without `p`; not so the random generator, which
+        the insertion may have used.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
     */
-    Node * insert_dup(Node *p) noexcept
+    Node * insert_dup(Node *p) noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       assert(p != Node::NullPtr);
       assert((LLINK(p) == Node::NullPtr) and (RLINK(p) == Node::NullPtr));
@@ -456,7 +474,8 @@ namespace Aleph
       return tr;
     }
 
-    Node * random_remove(Node *& root, const Key & key) noexcept
+    Node * random_remove(Node *& root, const Key & key)
+      noexcept(nothrow_compare_v<Compare, Key>)
     {
       if (root == Node::NullPtr)
         return Node::NullPtr;
@@ -489,26 +508,34 @@ namespace Aleph
     }
 
   public:
-    /** Remove a key from the tree
+    /** @brief Remove a key from the tree
 
         @param[in] key to remove
         @return a valid pointer to the removed node if `key` was found
         in the tree, `nullptr` otherwise
+        @throws anything that the comparison throws; the tree changes only
+        after the last comparison, so it is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * remove(const Key & key) noexcept
+    Node * remove(const Key & key) noexcept(nothrow_compare_v<Compare, Key>)
     {
       Node *ret_val = random_remove(tree_root, key);
 
       return ret_val != Node::NullPtr ? ret_val : nullptr;
     }
 
-    /** Search a key.
+    /** @brief Search a key.
 
         @param[in] key to be searched
         @return a pointer to the containing key if this was found;
         otherwise `nullptr`
+        @throws anything that the comparison throws; the search does not
+        modify the tree, so it is left as it was.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
-    Node * search(const Key & key) const noexcept
+    Node * search(const Key & key) const noexcept(nothrow_compare_v<Compare, Key>)
     {
       Node *retVal = searchInBinTree<Node, Compare>(tree_root, key, cmp);
       return retVal == Node::NullPtr ? nullptr : retVal;
@@ -525,8 +552,15 @@ namespace Aleph
         @return if the key contained in `p` is found, then a pointer
         to the containing key in the tree is returned. Otherwise, `p`
         is inserted and returned
+        @throws anything that the comparison or its copy throws; the tree
+        changes only after the last comparison, so its links and nodes are
+        left as they were, without `p`; not so the random generator, which
+        the insertion may have used.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
     */
-    Node * search_or_insert(Node *p) noexcept
+    Node * search_or_insert(Node *p)
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       assert(p != Node::NullPtr);
       assert(COUNT(p) == 1);
@@ -561,16 +595,21 @@ namespace Aleph
     /// Return true if the tree is empty
     [[nodiscard]] bool is_empty() const noexcept { return tree_root == Node::NullPtr; }
 
-    /** Compute the inorder position of a key
+    /** @brief Compute the inorder position of a key
 
         @param[in] key to be searched
         @return a tuple with the position of key and a pointer
         to the node containing it. If `key` is not in the tree, then
         first the first value is -1.
+        @throws anything that the comparison or its copy throws; the search
+        does not modify the tree, so it is left as it was.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
 
         @ingroup Trees
     */
-    std::pair<long, Node *> position(const Key & key) const noexcept
+    std::pair<long, Node *> position(const Key & key) const
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       std::pair<long, Node *> ret_val;
       ret_val.first = BinTreeXt_Operation<Node, Compare>(cmp).
@@ -604,8 +643,13 @@ namespace Aleph
 
         @param[in] key to be searched
         @return a pair with the inorder position and related node
+        @throws anything that the comparison or its copy throws; the search
+        does not modify the tree, so it is left as it was.
+        @note It is `noexcept` only if the comparison and its copy cannot
+        throw, so that what it throws reaches the caller.
     */
-    std::pair<long, Node *> find_position(const Key & key) const noexcept
+    std::pair<long, Node *> find_position(const Key & key) const
+      noexcept(nothrow_compare_copy_v<Compare, Key>)
     {
       std::pair<long, Node *> r(-2, nullptr);
 
@@ -647,48 +691,63 @@ namespace Aleph
       return remove_pos(tree_root, i);
     }
 
-    /** Split the tree according to a key
+    /** @brief Split the tree according to a key
+
+        It splits with the comparison criteria of the tree.
 
         @param[in] key for splitting
         @param[out] t1 tree with keys lesser than `key`
         @param[out] t2 tree with keys greater than `key`
         @return `true` if tree was split; that is if `key` is not in the
         tree. Otherwise, if `key` is in the tree, `false` is returned
+        @throws anything that the comparison throws; every comparison comes
+        before the first change, so the three trees are left as they were.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
     bool split_key(const Key & key, Gen_Rand_Tree & t1, Gen_Rand_Tree & t2)
-      noexcept
+      noexcept(nothrow_compare_v<Compare, Key>)
     {
-      return split_key_rec_xt(tree_root, key, t1.getRoot(), t2.getRoot());
+      return split_key_rec_xt(tree_root, key, t1.getRoot(), t2.getRoot(), cmp);
     }
 
-    /** Split the tree according to a key that could be in the tree
+    /** @brief Split the tree according to a key that could be in the tree
 
         `split_dup(key, t1, t2)` splits the tree according to `key` in
         two trees `t1` which contains the key lesser than `key` and
-        `t2` which contains the keys greater or equal than `key`.
+        `t2` which contains the keys greater or equal than `key`. It
+        splits with the comparison criteria of the tree.
 
         @param[in] key for splitting
         @param[out] t1 resulting tree with the keys lesser than `key`
         @param[out] t2 resulting tree with the keys greater or equal than `key`
+        @throws anything that the comparison throws; every comparison comes
+        before the first change, so the three trees are left as they were.
+        @note It is `noexcept` only if the comparison cannot throw, so that
+        what it throws reaches the caller.
     */
     void split_key_dup(const Key & key, Gen_Rand_Tree & t1, Gen_Rand_Tree & t2)
-      noexcept
+      noexcept(nothrow_compare_v<Compare, Key>)
     {
-      split_key_dup_rec_xt(tree_root, key, t1.getRoot(), t2.getRoot());
+      split_key_dup_rec_xt(tree_root, key, t1.getRoot(), t2.getRoot(), cmp);
     }
 
     /**  Split a extended binary tree according to a position
 
-         `split_pos(pos, ts, tg)` splits the tree two trees `t1` and `t2`
-         according to a position `pos`. `t1` contains the keys from 0 to
-         `pos - 1` inorder sense and `tg` the keys from `pos` to n -
+         `split_pos(pos, t1, t2)` splits the tree in two trees `t1` and
+         `t2` according to a position `pos`. `t1` contains the keys from 0
+         to `pos - 1` inorder sense and `t2` the keys from `pos` to n -
          1. After completion `this` becames empty.
 
-         @param[in] pos position for splitting
-         @param[out] t1 tree where the rank of keys \f$[0, i)\f$ will be put
-         @param[out] t2 tree where the rank of keys \f$[i, n]\f$ will be put
+         It is not `noexcept`: a position past the end throws, and inside
+         `noexcept` that would end the program.
+
+         @param[in] pos position for splitting, at most size()
+         @param[out] t1 tree where the rank of keys \f$[0, pos)\f$ will be put
+         @param[out] t2 tree where the rank of keys \f$[pos, n)\f$ will be put
+         @throw std::out_of_range if `pos > size()`; then nothing changes
     */
-    void split_pos(size_t pos, Gen_Rand_Tree & t1, Gen_Rand_Tree & t2) noexcept
+    void split_pos(size_t pos, Gen_Rand_Tree & t1, Gen_Rand_Tree & t2)
     {
       split_pos_rec(tree_root, pos, t1.getRoot(), t2.getRoot());
     }
@@ -790,6 +849,11 @@ namespace Aleph
         @param[in] t randomized tree to join with `this`
         @param[out] dup randomized tree where nodes containing duplicated
         keys are inserted
+        @pre The comparison does not throw; if it does, the program ends
+        (`std::terminate()`).
+        @note It stays `noexcept` because it moves the nodes one by one: a
+        comparison that threw in the middle would leave nodes out of every
+        tree.
     */
     void join(Gen_Rand_Tree & t, Gen_Rand_Tree & dup) noexcept
     {
@@ -797,13 +861,19 @@ namespace Aleph
       t.tree_root = Node::NullPtr;
     }
 
-    /** Join `this` with `t` independently of the presence of duplicated keys
+    /** @brief Join `this` with `t` independently of the presence of
+        duplicated keys
 
         `join(t)` produces a random tree result of join of `this` and
         `t`. The resulting tree is stored in `this`.
 
         @param[in] t randomized tree to join with `this`
         keys are inserted
+        @pre The comparison does not throw; if it does, the program ends
+        (`std::terminate()`).
+        @note It stays `noexcept` because it moves the nodes one by one: a
+        comparison that threw in the middle would leave nodes out of every
+        tree.
     */
     void join_dup(Gen_Rand_Tree & t) noexcept
     {

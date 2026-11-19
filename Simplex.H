@@ -676,23 +676,30 @@ namespace Aleph
       return s.str();
     }
 
-    // Validates variable index is within range.
+    // Validates variable index is within range; the range is half open, as
+    // [0, n - 1] wraps when there are no variables
     void verify_var_index(const size_t i) const
     {
       ah_out_of_range_error_if(i >= num_var)
-        << "Variable index " << i << " out of range [0, " << (num_var - 1) << "]";
+        << "Variable index " << i << " out of range [0, " << num_var << ")";
     }
 
-    // Validates restriction index is within range.
+    // Validates restriction index is within range; the range is half open,
+    // as [0, n - 1] wraps when there are no restrictions
     void verify_rest_index(const size_t i) const
     {
       ah_out_of_range_error_if(i >= num_rest)
-        << "Restriction index " << i << " out of range [0, " << (num_rest - 1) << "]";
+        << "Restriction index " << i << " out of range [0, " << num_rest << ")";
     }
 
-    // Creates a new restriction array initialized to zero.
+    // Creates a new restriction array initialized to zero. The tableau,
+    // once built, does not grow: a restriction added after it would make
+    // the solver read past it
     T * create_restriction(ConstraintType type = ConstraintType::LE)
     {
+      ah_logic_error_if(m != nullptr)
+        << "A restriction cannot be added after prepare_linear_program()";
+
       T *ptr = new T[num_var + 1];
       rest_list.append(ptr);
       rest_types.append(type);
@@ -771,8 +778,12 @@ namespace Aleph
         obj_scale = scale_of(largest);
       }
 
+      // The tableau is built aside and kept only once it is complete: if
+      // building it throws, as std::bad_alloc, the program has no tableau
+      // yet, and so it still takes restrictions
       const size_t total_cols = num_var + num_rest + num_artificial + 1; // +1 for RHS
-      m = std::unique_ptr<DynMatrix<T>>(new DynMatrix<T>(num_rest + 1, total_cols));
+      std::unique_ptr<DynMatrix<T>> tableau(
+        new DynMatrix<T>(num_rest + 1, total_cols));
       basic_vars.assign(num_rest, 0);
       unit_col.assign(num_rest, 0);
 
@@ -789,13 +800,13 @@ namespace Aleph
           for (size_t j = 0; j < num_var; ++j)
             {
               const T a = sign * rest[j] * col_scale[j];
-              m->write(row, j, a);
+              tableau->write(row, j, a);
               max_coef = std::max(max_coef, std::abs(a));
             }
 
           // RHS value, which is >= 0
           const T b = sign * rest[num_var];
-          m->write(row, total_cols - 1, b);
+          tableau->write(row, total_cols - 1, b);
           max_rhs = std::max(max_rhs, std::abs(b));
 
           // Slack/surplus and artificial variables
@@ -803,16 +814,16 @@ namespace Aleph
           switch (type[row - 1])
             {
             case ConstraintType::LE: // slack variable: +1, basic
-              m->write(row, slack_col, T{1});
+              tableau->write(row, slack_col, T{1});
               unit_col[row - 1] = slack_col;
               break;
             case ConstraintType::GE: // surplus variable: -1, plus artificial: +1, basic
-              m->write(row, slack_col, T{-1});
-              m->write(row, artificial_col, T{1});
+              tableau->write(row, slack_col, T{-1});
+              tableau->write(row, artificial_col, T{1});
               unit_col[row - 1] = artificial_col++;
               break;
             case ConstraintType::EQ: // no slack/surplus, just artificial: +1, basic
-              m->write(row, artificial_col, T{1});
+              tableau->write(row, artificial_col, T{1});
               unit_col[row - 1] = artificial_col++;
               break;
             }
@@ -828,13 +839,15 @@ namespace Aleph
       for (size_t j = 0; j < num_var; ++j)
         {
           phase2_cost[j] = sense * objetive[j] * col_scale[j];
-          m->write(0, j, phase2_cost[j]);
+          tableau->write(0, j, phase2_cost[j]);
           max_cost = std::max(max_cost, std::abs(phase2_cost[j]));
         }
 
       tol_coef = eps * std::max(T{1}, max_coef);
       tol_rhs = eps * std::max(T{1}, max_rhs);
       tol_cost = eps * std::max(T{1}, max_cost);
+
+      m = std::move(tableau);
     }
 
     // The restriction rest_idx
@@ -1098,6 +1111,11 @@ namespace Aleph
      * @return Pointer to the internal constraint array (can be modified).
      *
      * @throw std::bad_alloc If memory allocation fails.
+     * @throw std::logic_error If prepare_linear_program() already built
+     *        the tableau: it does not grow, and the solver would read past
+     *        it. The program is left as it was. A preparation that threw,
+     *        as std::bad_alloc, built none, so the program still takes
+     *        restrictions.
      */
     T * put_restriction(const T *coefs = nullptr,
                         ConstraintType type = ConstraintType::LE)
@@ -1119,6 +1137,10 @@ namespace Aleph
      *
      * @param[in] coefs Array of n+1 coefficients.
      * @return Pointer to the internal constraint array.
+     *
+     * @throw std::bad_alloc If memory allocation fails.
+     * @throw std::logic_error If prepare_linear_program() already built
+     *        the tableau, as put_restriction() explains.
      */
     T * put_ge_restriction(const T *coefs)
     {
@@ -1131,6 +1153,10 @@ namespace Aleph
      *
      * @param[in] coefs Array of n+1 coefficients.
      * @return Pointer to the internal constraint array.
+     *
+     * @throw std::bad_alloc If memory allocation fails.
+     * @throw std::logic_error If prepare_linear_program() already built
+     *        the tableau, as put_restriction() explains.
      */
     T * put_eq_restriction(const T *coefs)
     {
@@ -1144,6 +1170,8 @@ namespace Aleph
      * @return Pointer to the internal constraint array.
      *
      * @throw std::bad_alloc If memory allocation fails.
+     * @throw std::logic_error If prepare_linear_program() already built
+     *        the tableau, as put_restriction() explains.
      */
     T * put_restriction(const DynArray<T> & coefs,
                         ConstraintType type = ConstraintType::LE)

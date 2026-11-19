@@ -415,6 +415,26 @@ namespace Aleph
         delete p;
     }
 
+    // A copy of the key of p, a node that left the tree, which it frees.
+    // The node leaves the set even if the copy throws: freed, so that it
+    // does not leak, and not counted, so that size() stays that of the tree
+    Key release(Node *p)
+    {
+      struct Release
+      {
+        DynSetTree * set;
+        Node * node;
+
+        ~Release()
+        {
+          set->free_node(node);
+          --set->num_nodes;
+        }
+      } release_p{this, p};
+
+      return p->get_key();
+    }
+
   public:
     typedef DynSetTree Set_Type;
 
@@ -797,6 +817,8 @@ namespace Aleph
         @param[in] key key to be removed
         @return a full copy of stored key
         @throw domain_error if the `key` is not found in the set
+        @throws anything that the copy of the stored key throws; the key
+        leaves the set anyway, so that size() counts the keys that remain.
     */
     Key del(const Key & key)
     {
@@ -805,18 +827,17 @@ namespace Aleph
       ah_domain_error_if(p == nullptr)
         << "DynSetTree::del key is not found in the tree";
 
-      auto ret_val = p->get_key();
-
-      free_node(p);
-
-      --num_nodes;
-
-      return ret_val;
+      return release(p);
     }
 
-    /** Removes a key from the dynamic set.
+    /** @brief Removes the key at the inorder position `i`.
 
-        @return number of elements that the set has.
+        @param[in] i the inorder position of the key to remove.
+        @return a copy of the removed key.
+        @throws std::domain_error if the tree has no removal by position.
+        @throws std::out_of_range if `i` is not less than size().
+        @throws anything that the copy of the stored key throws; the key
+        leaves the set anyway, so that size() counts the keys that remain.
     */
     Key remove_pos(const size_t i)
     {
@@ -829,13 +850,8 @@ namespace Aleph
       Node *p = static_cast<Node *>(call_remove_pos(tree, i, 0));
       ah_logic_error_if(p == nullptr)
         << "remove_pos returned nullptr";
-      const Key ret_val = KEY(p);
 
-      free_node(p);
-
-      --num_nodes;
-
-      return ret_val;
+      return release(p);
     }
 
     /// Returns true if key belongs to the dynamic set.
@@ -1519,6 +1535,26 @@ namespace Aleph
         @throw anything that the copy of `Compare` throws.
     */
     [[nodiscard]] Compare key_comp() const
+    {
+      return tree.get_compare();
+    }
+
+  protected:
+    /** @brief The comparator that orders the keys, as the tree gives it.
+
+        For a derived class that searches by a part of the key, as
+        DynMapTree, which compares a key with the first member of each
+        pair instead of building a pair to search for.
+
+        @return what get_compare() of the tree returns: a reference to its
+        comparator, which the trees of the library give, or a copy, which a
+        tree given by the user may give. A reference to that copy would
+        outlive it.
+        @throws anything that get_compare() of the tree throws, as the copy
+        of a comparator that it gives by value.
+    */
+    [[nodiscard]] decltype(auto) get_compare() const
+      noexcept(noexcept(tree.get_compare()))
     {
       return tree.get_compare();
     }

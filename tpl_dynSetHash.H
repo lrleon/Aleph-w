@@ -522,9 +522,33 @@ namespace Aleph
     using Hash_Fct_Ptr = size_t (*)(const Key &);
 
   private:
-    // Store the original hash function that works on Key (not Pair)
-    // This allows heterogeneous search without constructing Data()
+    // The hash function of the keys, which the table applies to the first
+    // member of each pair: search() finds a pair by it, without building
+    // one. It is no_key_hash() after set_hash_fct() takes a function of
+    // pairs, which gives no hash of a key alone
     Hash_Fct_Ptr original_hash_fct;
+
+    // The hash of the keys while the table has a function of pairs. It
+    // sends the search by the key to the list 0, which finds a pair only
+    // if it is there; a miss then searches for a pair built from the key,
+    // as the table places them. The search by the key, which is what the
+    // maps do, so checks nothing while it finds pairs
+    static size_t no_key_hash(const Key &) noexcept { return 0; }
+
+    // Whether a search by a key that comes as K (const Key &, or Key for
+    // the searches that take an rvalue) cannot throw. The search by the
+    // hash of the keys builds nothing; after set_hash_fct() takes a
+    // function of pairs, the search builds one from the key and a Data
+    // built by default. A Data with no default constructor leaves only the
+    // first search: set_hash_fct() then takes no function of pairs. The
+    // members of the pair are checked apart, as libstdc++ 11 does not
+    // declare the constructors of std::pair noexcept
+    template <typename K>
+    static constexpr bool nothrow_search =
+      not std::is_default_constructible_v<Data> or
+      (std::is_nothrow_constructible_v<Key, K> and
+       std::is_nothrow_default_constructible_v<Data> and
+       std::is_nothrow_move_constructible_v<Data>);
 
     // Whether the hash table can search by Key alone, without building a
     // Pair (and so without requiring a default-constructible Data). It is a
@@ -608,6 +632,56 @@ namespace Aleph
       std::swap(original_hash_fct, other.original_hash_fct);
     }
 
+    /** @brief Sets the hash function of the keys.
+
+        The map places and finds its pairs by the hash of their keys, as
+        with the function given to the constructor, so search() goes on
+        building nothing. On a map that is not empty, the table places the
+        pairs again with it, or throws, as its set_hash_fct() does.
+
+        @param[in] fct The hash function of the keys.
+        @throws std::domain_error over a linear hash table (DynMapLinHash)
+        that is not empty, which cannot place its pairs again, and
+        std::bad_alloc if there is no memory for the function or to place
+        the pairs again; the map then keeps its function and its pairs.
+    */
+    void set_hash_fct(Hash_Fct_Ptr fct)
+    {
+      Base::set_hash_fct(std::bind(map_hash_fct<Key, Data, Hash_Fct>,
+                                   fct, std::placeholders::_1));
+      original_hash_fct = fct;
+    }
+
+    /** @brief Sets a hash function of the pairs, as the table takes it.
+
+        A function of pairs gives no hash of a key alone, so from then on
+        search() builds a pair from the key and a Data built by default, as
+        the table places them; set_hash_fct() with a function of the keys
+        searches again without building anything. On a map that is not
+        empty, the table places the pairs again with it, or throws, as its
+        set_hash_fct() does.
+
+        @param[in] fct The hash function of the pairs.
+        @throws std::domain_error over a linear hash table (DynMapLinHash)
+        that is not empty, and std::bad_alloc if there is no memory to
+        place the pairs again; the map then keeps its function and its
+        pairs.
+    */
+    void set_hash_fct(typename Base::Hash_Fct fct)
+      requires std::is_default_constructible_v<Data>
+    {
+      Base::set_hash_fct(std::move(fct));
+      original_hash_fct = no_key_hash;
+    }
+
+    /// @overload
+    void set_hash_fct(typename Base::Hash_Fct_Ptr fct)
+      requires std::is_default_constructible_v<Data>
+    {
+      Base::set_hash_fct(fct);
+      original_hash_fct = no_key_hash;
+    }
+
     /// Inserts into the hash map the pair (key, record) indexed by key.
     /// Returns a pointer to the pair stored inside the table.
     /// Throws bad_alloc if there is not enough memory.
@@ -634,85 +708,154 @@ namespace Aleph
           (new typename Base::Bucket(Pair(std::forward<Key>(key), data)));
     }
 
-    /** Searches for key and, if found, returns a pointer to the associated
-        pair stored in the table. Otherwise (key not found), returns nullptr.
+  private:
 
-        @note This method uses heterogeneous search and does NOT require Data
-        to have a default constructor. It searches by Key only.
+    // The search for a pair built from key, as the table places them:
+    // after set_hash_fct() takes a function of pairs, which gives no hash
+    // of a key alone, or over a table that cannot search by the key alone.
+    // Out of line and cold, so that the search by the key, which builds
+    // nothing, stays as short as it was
+    template <typename K>
+    [[gnu::noinline, gnu::cold]]
+    const Pair * search_by_pair(K && key) const noexcept(nothrow_search<K>)
+    {
+      return Base::search(Pair(std::forward<K>(key), Data()));
+    }
+
+  public:
+
+    /** @brief Searches for the pair whose key is `key`.
+
+        It finds the pair by the hash of the keys, so it builds nothing: no
+        copy of the key and no Data, which then need not have a default
+        constructor. After set_hash_fct() takes a function of pairs, which
+        gives no hash of a key alone, it searches for a pair built from
+        `key` and a Data built by default, as the table places them.
+
+        @param[in] key The key to search for.
+        @return A pointer to the pair, or `nullptr` if there is none.
+        @throws Only after set_hash_fct() took a function of pairs, what
+        building that pair throws: the copy of `key` or the default
+        constructor of Data. As the search of the table, it requires that
+        the hash function and the comparator do not throw.
     */
-    Pair * search(const Key & key) noexcept
+    // Always inline, as the four searches: Clang leaves the search over a
+    // linear table out of line once it checks a miss, and then pays a
+    // call on every search
+    [[gnu::always_inline]]
+    Pair * search(const Key & key) noexcept(nothrow_search<const Key &>)
     {
       if constexpr (has_search_with_custom_hash())
         {
           auto *bucket = static_cast<Bucket *>(
             this->search_with_custom_hash(original_hash_fct, key));
-          return bucket != nullptr ? &bucket->get_key() : nullptr;
+          if (bucket != nullptr)
+            return &bucket->get_key();
+
+          if constexpr (std::is_default_constructible_v<Data>)
+            if (original_hash_fct == no_key_hash) [[unlikely]]
+              return const_cast<Pair *>(search_by_pair(key));
+          return nullptr;
         }
       else
-        return Base::search(Pair(key, Data()));
+        return const_cast<Pair *>(search_by_pair(key));
     }
 
-    /// \overload
-    /// A pointer to const.
-    const Pair * search(const Key & key) const noexcept
+    /// @overload
+    [[gnu::always_inline]]
+    const Pair * search(const Key & key) const noexcept(nothrow_search<const Key &>)
     {
       if constexpr (has_search_with_custom_hash())
         {
           auto *bucket = static_cast<Bucket *>(
             this->search_with_custom_hash(original_hash_fct, key));
-          return bucket != nullptr ? &bucket->get_key() : nullptr;
+          if (bucket != nullptr)
+            return &bucket->get_key();
+
+          if constexpr (std::is_default_constructible_v<Data>)
+            if (original_hash_fct == no_key_hash) [[unlikely]]
+              return search_by_pair(key);
+          return nullptr;
         }
       else
-        return Base::search(Pair(key, Data()));
+        return search_by_pair(key);
     }
 
-    Pair * search(Key && key) noexcept
+    /// @overload
+    /// The pair that it builds after set_hash_fct() took a function of
+    /// pairs moves `key`.
+    [[gnu::always_inline]]
+    Pair * search(Key && key) noexcept(nothrow_search<Key>)
     {
       if constexpr (has_search_with_custom_hash())
         {
           auto *bucket = static_cast<Bucket *>(
             this->search_with_custom_hash(original_hash_fct, key));
-          return bucket != nullptr ? &bucket->get_key() : nullptr;
+          if (bucket != nullptr)
+            return &bucket->get_key();
+
+          if constexpr (std::is_default_constructible_v<Data>)
+            if (original_hash_fct == no_key_hash) [[unlikely]]
+              return const_cast<Pair *>(search_by_pair(std::move(key)));
+          return nullptr;
         }
       else
-        return Base::search(Pair(std::forward<Key>(key), Data()));
+        return const_cast<Pair *>(search_by_pair(std::move(key)));
     }
 
-    /// \overload
-    /// A pointer to const.
-    const Pair * search(Key && key) const noexcept
+    /// @overload
+    [[gnu::always_inline]]
+    const Pair * search(Key && key) const noexcept(nothrow_search<Key>)
     {
       if constexpr (has_search_with_custom_hash())
         {
           auto *bucket = static_cast<Bucket *>(
             this->search_with_custom_hash(original_hash_fct, key));
-          return bucket != nullptr ? &bucket->get_key() : nullptr;
+          if (bucket != nullptr)
+            return &bucket->get_key();
+
+          if constexpr (std::is_default_constructible_v<Data>)
+            if (original_hash_fct == no_key_hash) [[unlikely]]
+              return search_by_pair(std::move(key));
+          return nullptr;
         }
       else
-        return Base::search(Pair(std::forward<Key>(key), Data()));
+        return search_by_pair(std::move(key));
     }
 
-    /// Checks if a key exists in the map
-    bool has(const Key & key) const noexcept { return search(key) != nullptr; }
-
-    bool has(Key && key) const noexcept { return search(std::forward<Key>(key)) != nullptr; }
-
-    /// Alias for has()
     /** @brief Checks if a key exists in the map.
-        
-        @param[in] key key to search for.
-        @return true if key is present, false otherwise.
-        @throws none
-    */
-    bool contains(const Key & key) const noexcept { return has(key); }
 
-    /** @brief Checks if a key exists in the map (move version).
-        
-        @param[in] key key to search for.
-        @return true if key is present, false otherwise.
-        @throws none
+        @param[in] key The key to search for.
+        @return true if a pair has the key `key`, false otherwise.
+        @throws What search() throws.
     */
-    bool contains(Key && key) const noexcept { return has(std::forward<Key>(key)); }
+    bool has(const Key & key) const noexcept(nothrow_search<const Key &>)
+    {
+      return search(key) != nullptr;
+    }
+
+    /// @overload
+    bool has(Key && key) const noexcept(nothrow_search<Key>)
+    {
+      return search(std::forward<Key>(key)) != nullptr;
+    }
+
+    /** @brief Checks if a key exists in the map; an alias for has().
+
+        @param[in] key The key to search for.
+        @return true if a pair has the key `key`, false otherwise.
+        @throws What search() throws.
+    */
+    bool contains(const Key & key) const noexcept(nothrow_search<const Key &>)
+    {
+      return has(key);
+    }
+
+    /// @overload
+    bool contains(Key && key) const noexcept(nothrow_search<Key>)
+    {
+      return has(std::forward<Key>(key));
+    }
 
     /** Finds and returns a reference to the value associated with key.
 

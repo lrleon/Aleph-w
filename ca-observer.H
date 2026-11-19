@@ -720,7 +720,7 @@ public:
 
 /** @brief Detects fixed points and short cycles via frame hashing.
  *
- *  Keeps a ring buffer of the last `max_cycle_length` frame hashes
+ *  Keeps a ring buffer of the last `max_cycle_length + 1` frame hashes
  *  paired with the step at which they were seen. After every step
  *  the new hash is compared against the buffer; on a hit the
  *  observer records the cycle length (current step minus the step
@@ -740,7 +740,11 @@ public:
  *  thread-safe for concurrent callbacks.
  *
  *  @par Exception-safety
- *  Strong guarantee unless array allocation throws.
+ *  Buffering the hash of a frame may throw `std::bad_alloc` while the
+ *  window grows, which reaches the caller of the callback: the two
+ *  buffers, of the hashes and of their steps, are then left as they were.
+ *  A cycle found in that step stays reported. Once the window is full,
+ *  buffering allocates nothing.
  */
 class Stationary_Detector
 {
@@ -750,17 +754,41 @@ class Stationary_Detector
   std::optional<std::size_t> cycle_length_;
   std::optional<std::size_t> cycle_start_;
 
-  void push(const std::uint64_t h, const std::size_t step) noexcept
+  // A full window drops its oldest entry and keeps the new one in its
+  // place: close_gap() moves the others one place down, in both buffers,
+  // which then keep their size and do not allocate. remove_first() also
+  // shrinks a buffer that holds a quarter of its capacity or less, as
+  // those of a small window do, and a bad_alloc there would leave each
+  // hash with the step of another one. A window that is not full grows:
+  // the room for the new entry comes first, in both buffers, so that a
+  // bad_alloc leaves them as they were and the appends do not allocate
+  void push(const std::uint64_t h, const std::size_t step)
   {
-    if (hashes_.size() >= max_cycle_length_ + 1)
+    // size > max, not size >= max + 1: with max = SIZE_MAX the sum wraps
+    // to 0, and the first push would drop from an empty buffer
+    if (hashes_.size() > max_cycle_length_)
       {
-        // Drop the oldest entry (front of the buffer); remove_first
-        // closes the gap, preserving the window order.
-        (void) hashes_.remove_first();
-        (void) steps_.remove_first();
+        const std::size_t n = hashes_.size();
+        Aleph::close_gap(&hashes_(0), n, 0);
+        Aleph::close_gap(&steps_(0), n, 0);
+        hashes_(n - 1) = h;
+        steps_(n - 1) = step;
+        return;
       }
+
+    hashes_.reserve(hashes_.size() + 1);
+    steps_.reserve(steps_.size() + 1);
     hashes_.append(h);
     steps_.append(step);
+  }
+
+  // Whether a frame seen length steps before is within the steps that a
+  // full window spans, max_cycle_length_ + 1: that sum wraps to 0 with
+  // SIZE_MAX, so the last one is checked as length - 1. A length of 0, as
+  // a step given twice makes, stays within them
+  [[nodiscard]] bool spans_a_full_window_at_most(const std::size_t length) const noexcept
+  {
+    return length <= max_cycle_length_ or length - 1 == max_cycle_length_;
   }
 
 public:
@@ -770,7 +798,9 @@ public:
   Stationary_Detector() = default;
 
   /** @brief Construct a detector with an explicit window size.
-   *  @param[in] max_cycle_length maximum cycle length to retain.
+   *  @param[in] max_cycle_length maximum cycle length to retain; 0 takes
+   *             the default of 16, and `SIZE_MAX` keeps every frame, so
+   *             that the window grows with the run.
    *  @throws This function does not throw.
    */
   explicit Stationary_Detector(std::size_t max_cycle_length) : max_cycle_length_(max_cycle_length)
@@ -842,6 +872,13 @@ public:
   }
 
   /** @brief Check the completed frame against the recent hash window.
+   *
+   *  A buffered hash matches if it was seen at most
+   *  `max_cycle_length + 1` steps before, the steps that a full window
+   *  spans. A frame that a failed buffering lost leaves a full window
+   *  with an older hash, which it would have dropped otherwise: a match
+   *  with it is not taken.
+   *
    *  @tparam Lattice lattice type.
    *  @param[in] step completed step index.
    *  @param[in] frame frame after the step.
@@ -856,7 +893,7 @@ public:
 
     if (not cycle_length_.has_value())
       for (std::size_t i = 0; i < hashes_.size(); ++i)
-        if (hashes_[i] == h)
+        if (hashes_[i] == h and spans_a_full_window_at_most(step - steps_[i]))
           {
             cycle_start_ = steps_[i];
             cycle_length_ = step - steps_[i];

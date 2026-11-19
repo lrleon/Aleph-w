@@ -111,16 +111,20 @@ private:
   Compare cmp;        ///< Comparison functor
   size_t num_nodes;   ///< Number of nodes in tree
 
-  /// Returns true if a < b according to comparator
-  bool less(const Key& a, const Key& b) const noexcept
+  /// Returns true if a < b according to comparator; it throws what the
+  /// comparator throws
+  bool less(const Key& a, const Key& b) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     return cmp(a, b);
   }
 
-  /// Returns true if a == b (neither a < b nor b < a)
-  bool equals(const Key& a, const Key& b) const noexcept
+  /// Returns true if a == b (neither a < b nor b < a); it throws what the
+  /// comparator throws
+  bool equals(const Key& a, const Key& b) const
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
-    return not cmp(a, b) and not cmp(b, a);
+    return not static_cast<bool>(cmp(a, b)) and not static_cast<bool>(cmp(b, a));
   }
 
   /// Get sibling of node p whose parent is fp
@@ -187,8 +191,12 @@ private:
     COLOR(LLINK(p)) = COLOR(RLINK(p)) = BLACK;
   }
 
-  /// Search for insertion point, flipping colors proactively to maintain balance
-  Node* searchFlipColorsAndInsert(Node *q) noexcept
+  /// Search for insertion point, flipping colors proactively to maintain
+  /// balance. Each color flip and rotation leaves a valid red-black tree,
+  /// and q is linked and counted after the last comparison, so a
+  /// comparison that throws leaves a valid tree without q.
+  Node* searchFlipColorsAndInsert(Node *q)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(q != Node::NullPtr);
     assert(root != Node::NullPtr);
@@ -239,13 +247,13 @@ private:
         p    = nextNode;
       }
 
-    ++num_nodes;
-
     // Perform insertion
     if (less(KEY(q), KEY(p)))
       LLINK(p) = q;
     else 
       RLINK(p) = q;
+
+    ++num_nodes;  // after the comparison, which may throw
 
     if (COLOR(p) == RED)  // May violate red condition
       restoreRedCondition(q, p, fp, ffp);
@@ -253,8 +261,11 @@ private:
     return q;
   }
 
-  /// Search for insertion point allowing duplicates
-  Node* searchFlipColorsAndInsertDup(Node *q) noexcept
+  /// Search for insertion point allowing duplicates. As
+  /// searchFlipColorsAndInsert(), a comparison that throws leaves a valid
+  /// tree without q.
+  Node* searchFlipColorsAndInsertDup(Node *q)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(q != Node::NullPtr);
     assert(root != Node::NullPtr);
@@ -301,12 +312,12 @@ private:
         p    = nextNode;
       }
 
-    ++num_nodes;
-
     if (less(KEY(q), KEY(p)))
       LLINK(p) = q;
     else 
       RLINK(p) = q;
+
+    ++num_nodes;  // after the comparison, which may throw
 
     if (COLOR(p) == RED)
       restoreRedCondition(q, p, fp, ffp);
@@ -557,8 +568,11 @@ private:
       COLOR(root) = RED;      
   }
 
-  /// Search for key while coloring nodes red for deletion
-  Node* searchAndColorRed(const Key& key, Node *&fp) noexcept
+  /// Search for key while coloring nodes red for deletion. Each step
+  /// leaves a valid red-black tree, so a comparison that throws leaves a
+  /// valid tree with all its keys.
+  Node* searchAndColorRed(const Key& key, Node *&fp)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     Node *p   = root;
     fp        = head;
@@ -698,8 +712,14 @@ public:
       
       @param p Node to insert (must be red with null children).
       @return Pointer to inserted node, or nullptr if key already exists.
+      @throws anything that the comparison throws; the color flips and
+      rotations done on the way down leave a valid red-black tree, and `p`
+      is linked after the last comparison, so the tree keeps its keys and
+      size, without `p`.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node* insert(Node *p) noexcept
+  Node* insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(p != Node::NullPtr);
     assert(COLOR(p) == RED);
@@ -719,8 +739,13 @@ public:
       
       @param p Node to insert.
       @return Pointer to inserted node (always succeeds).
+      @throws anything that the comparison throws; then the tree is a
+      valid red-black tree with its keys and size, without `p`, as in
+      insert().
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node* insert_dup(Node *p) noexcept
+  Node* insert_dup(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(p != Node::NullPtr);
     assert(COLOR(p) == RED);
@@ -740,8 +765,13 @@ public:
       
       @param p Node to search or insert.
       @return Pointer to p if inserted, or pointer to existing node with same key.
+      @throws anything that the comparison throws; then the tree is a
+      valid red-black tree with its keys and size, without `p`, as in
+      insert().
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node* search_or_insert(Node *p) noexcept
+  Node* search_or_insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(p != Node::NullPtr);
     assert(COLOR(p) == RED);
@@ -767,8 +797,12 @@ public:
       
       @param key Key to search for.
       @return Pointer to node containing key, or nullptr if not found.
+      @throws anything that the comparison throws; the search does not
+      modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node* search(const Key& key) const noexcept
+  Node* search(const Key& key) const noexcept(nothrow_compare_v<Compare, Key>)
   {
     Node* p = root;
     while (p != Node::NullPtr)
@@ -784,8 +818,14 @@ public:
       
       @param key Key to remove.
       @return Pointer to removed node, or nullptr if not found.
+      @throws anything that the comparison throws; the recolorings and
+      rotations done on the way down leave a valid red-black tree, and the
+      node is unlinked after the last comparison, so the tree keeps its
+      keys and size.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node* remove(const Key& key) noexcept
+  Node* remove(const Key& key) noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (root == Node::NullPtr)
       return nullptr;

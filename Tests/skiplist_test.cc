@@ -396,6 +396,62 @@ TEST_F(SkipListTest, RemoveAllElements)
     }
 }
 
+// remove() lowered the level comparing with nullptr the slot `level` of the
+// header, one past the top one in use, while an empty level ends at the
+// sentinel: the level never went down, and with nodes of the maximum level
+// the read went past the forward pointers of the header (an assert in debug
+// builds)
+TEST_F(SkipListTest, RemovingNodesOfTheMaximumLevelBringsTheLevelToZero)
+{
+  SL list(TEST_SEED, 0.999999); // a level below the maximum is improbable
+  for (int i = 1; i <= 8; ++i)
+    (void) list.insert(create_node_with_level(i, 0, list.generateRandomLevel()));
+  const int max_level = SL::maxLevel;
+  ASSERT_EQ(list.get_level(), max_level);
+
+  for (int i = 1; i <= 8; ++i)
+    ASSERT_NE(list.remove(i), nullptr) << "Failed to remove key " << i;
+  EXPECT_EQ(list.get_level(), 0);
+  EXPECT_FALSE(SL::Iterator(list).has_curr());
+  EXPECT_EQ(list.search(1), nullptr);
+}
+
+TEST_F(SkipListTest, TheLevelIsThatOfTheTallestNodeLeft)
+{
+  const int levels[] = {3, 1, 5, 2, 4};
+  for (int i = 0; i < 5; ++i)
+    (void) skiplist->insert(create_node_with_level(i + 1, 0, levels[i]));
+  ASSERT_EQ(skiplist->get_level(), 5);
+
+  for (const int key : {3, 5, 1, 4, 2}) // levels 5, 4, 3, 2, 1
+    {
+      ASSERT_NE(skiplist->remove(key), nullptr);
+      int tallest = 0;
+      for (SL::Iterator it(*skiplist); it.has_curr(); it.next())
+        tallest = std::max(tallest, it.get_curr()->getLevel());
+      EXPECT_EQ(skiplist->get_level(), tallest) << "after removing " << key;
+      EXPECT_TRUE(skiplist->checkSkipList());
+    }
+  EXPECT_EQ(skiplist->get_level(), 0);
+}
+
+// The sentinel that ends every level has the key of computeMaxKey(): remove()
+// took it for a node with that key, unlinked it and returned it
+TEST_F(SkipListTest, RemovingTheKeyOfTheSentinelFindsNothing)
+{
+  for (int i = 1; i <= 3; ++i)
+    (void) skiplist->insert(create_node(i, i * 10));
+  ASSERT_EQ(skiplist->search(INT_MAX), nullptr);
+
+  EXPECT_EQ(skiplist->remove(INT_MAX), nullptr);
+
+  int count = 0;
+  for (SL::Iterator it(*skiplist); it.has_curr(); it.next())
+    EXPECT_EQ(it.get_curr()->get_key(), ++count);
+  EXPECT_EQ(count, 3);
+  EXPECT_TRUE(skiplist->checkSkipList());
+}
+
 // ============================================================================
 // Level Generation Tests
 // ============================================================================

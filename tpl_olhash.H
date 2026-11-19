@@ -156,9 +156,8 @@ namespace Aleph
       @endcode
 
       @par Changing the hash function:
-      `set_hash_fct()` does not place the stored keys again. On a table
-      that is not empty, call `rehash()` right after it; until then the
-      keys already stored may not be found.
+      `set_hash_fct()` places the stored keys again with the new function,
+      as `rehash()` does: on a table that is not empty it takes O(n).
 
       @see ODhashTable for double hashing variant.
       @see OhashCommon for shared hash table operations.

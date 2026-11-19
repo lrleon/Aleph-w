@@ -173,9 +173,9 @@ namespace Aleph
       @endcode
 
       @par Changing the hash functions:
-      `set_hash_fct()` and `set_second_hash_fct()` do not place the stored
-      keys again. On a table that is not empty, call `rehash()` right after
-      them; until then the keys already stored may not be found.
+      `set_hash_fct()` and `set_second_hash_fct()` place the stored keys
+      again with the new function, as `rehash()` does: on a table that is
+      not empty each takes O(n).
 
       @see OLhashTable for linear probing variant.
       @see OhashCommon for shared hash table operations.
@@ -733,19 +733,37 @@ namespace Aleph
 
     /** @brief Sets the hash function of the second probe.
 
+        On a table that is not empty, it places the keys again with it, as
+        rehash() does, so the keys already stored are still found.
+
         @param[in] fct The new hash function.
-        @warning The keys already stored are not placed again. On a table
-        that is not empty, call `rehash()` right after.
+        @throws std::bad_alloc if there is no memory for the new buckets,
+        and what copying a key throws when its swap may throw; the table
+        then keeps its function and its keys.
+        @note It takes O(1) on an empty table and O(n) otherwise.
     */
-    void set_second_hash_fct(Hash_Fct fct) noexcept
+    void set_second_hash_fct(Hash_Fct fct)
     {
-      second_hash_fct = fct;
+      Hash_Fct old = std::move(second_hash_fct);
+      second_hash_fct = std::move(fct);
+      if (N == 0)
+        return;
+
+      try
+        {
+          this->rehash();
+        }
+      catch (...)
+        {
+          second_hash_fct = std::move(old);
+          throw;
+        }
     }
 
     /// @overload
-    void set_second_hash_fct(Hash_Fct_Ptr fct) noexcept
+    void set_second_hash_fct(Hash_Fct_Ptr fct)
     {
-      second_hash_fct = Hash_Fct(fct);
+      set_second_hash_fct(Hash_Fct(fct));
     }
 
   private:

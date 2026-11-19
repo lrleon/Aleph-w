@@ -142,6 +142,17 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
   /// @brief The type of mapped values.
   using Data_Type = Data;
 
+  // Whether a search by a key that comes as K (const Key &, or Key for
+  // the searches that take an rvalue) cannot throw: it builds the pair
+  // that the table searches for, a copy or a move of the key and a Data
+  // built by default. The members of the pair are checked apart, as
+  // libstdc++ 11 does not declare the constructors of std::pair noexcept
+  template <typename K>
+  static constexpr bool nothrow_search =
+    std::is_nothrow_constructible_v<Key, K> and
+    std::is_nothrow_default_constructible_v<Data> and
+    std::is_nothrow_move_constructible_v<Data>;
+
   /// @brief Alias for Data_Type (compatibility with other containers).
   using Value_Type = Data;
 
@@ -314,8 +325,13 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *
    *  @param[in] key The key to search for.
    *  @return Pointer to the pair if found, nullptr otherwise.
+   *  @throws What building the pair that the table searches for throws:
+   *          the copy of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
-  [[nodiscard]] Pair *search(const Key &key) noexcept
+  [[nodiscard]] Pair *search(const Key &key) noexcept(nothrow_search<const Key &>)
   {
     static_assert(std::is_default_constructible<Data>::value,
                   "MapOpenHash::search() requires Data to be default-constructible");
@@ -324,7 +340,7 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
 
   /// \overload
   /// A pointer to const.
-  [[nodiscard]] const Pair *search(const Key &key) const noexcept
+  [[nodiscard]] const Pair *search(const Key &key) const noexcept(nothrow_search<const Key &>)
   {
     static_assert(std::is_default_constructible<Data>::value,
                   "MapOpenHash::search() requires Data to be default-constructible");
@@ -335,8 +351,13 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *
    *  @param[in] key The key to search for.
    *  @return Pointer to the pair if found, nullptr otherwise.
+   *  @throws What building the pair that the table searches for throws:
+   *          the move of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
-  [[nodiscard]] Pair *search(Key &&key) noexcept
+  [[nodiscard]] Pair *search(Key &&key) noexcept(nothrow_search<Key>)
   {
     static_assert(std::is_default_constructible<Data>::value,
                   "MapOpenHash::search() requires Data to be default-constructible");
@@ -345,7 +366,7 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
 
   /// \overload
   /// A pointer to const.
-  [[nodiscard]] const Pair *search(Key &&key) const noexcept
+  [[nodiscard]] const Pair *search(Key &&key) const noexcept(nothrow_search<Key>)
   {
     static_assert(std::is_default_constructible<Data>::value,
                   "MapOpenHash::search() requires Data to be default-constructible");
@@ -356,8 +377,13 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *
    *  @param[in] key The key to check.
    *  @return true if the key exists, false otherwise.
+   *  @throws What building the pair that the table searches for throws:
+   *          the copy of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
-  [[nodiscard]] bool has(const Key &key) const noexcept
+  [[nodiscard]] bool has(const Key &key) const noexcept(nothrow_search<const Key &>)
   {
     return search(key) != nullptr;
   }
@@ -366,8 +392,13 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *
    *  @param[in] key The key to check.
    *  @return true if the key exists, false otherwise.
+   *  @throws What building the pair that the table searches for throws:
+   *          the move of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
-  [[nodiscard]] bool has(Key &&key) const noexcept
+  [[nodiscard]] bool has(Key &&key) const noexcept(nothrow_search<Key>)
   {
     return search(std::move(key)) != nullptr;
   }
@@ -378,8 +409,13 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *
    *  @param[in] key The key to check.
    *  @return true if the key exists, false otherwise.
+   *  @throws What building the pair that the table searches for throws:
+   *          the copy of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
-  [[nodiscard]] bool contains(const Key &key) const noexcept
+  [[nodiscard]] bool contains(const Key &key) const noexcept(nothrow_search<const Key &>)
   {
     return has(key);
   }
@@ -388,8 +424,13 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *
    *  @param[in] key The key to check.
    *  @return true if the key exists, false otherwise.
+   *  @throws What building the pair that the table searches for throws:
+   *          the move of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
-  [[nodiscard]] bool contains(Key &&key) const noexcept
+  [[nodiscard]] bool contains(Key &&key) const noexcept(nothrow_search<Key>)
   {
     return has(std::move(key));
   }

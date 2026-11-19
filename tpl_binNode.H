@@ -183,7 +183,12 @@ public:                                                               \
    static_assert(std::is_copy_constructible<Key>::value,              \
                  "No copy constructor for Key");                      \
  }                                                                    \
- Name(Key && k) noexcept                                              \
+ /* noexcept as the move of Key and the default construction of the   \
+    base: a key without a move constructor is copied, and what that   \
+    copy, or a base given to the macro, throws must reach the caller */ \
+ Name(Key && k)                                                       \
+   noexcept(std::is_nothrow_move_constructible_v<Key> and             \
+            std::is_nothrow_default_constructible_v<Control_Data>)    \
    : key(std::move(k)), lLink(NullPtr), rLink(NullPtr)                \
  {                                                                    \
    static_assert(std::is_move_constructible<Key>::value,              \
@@ -207,7 +212,12 @@ public:                                                               \
  {                                                                    \
    /* Empty */                                                        \
  }                                                                    \
- Name(const Control_Data & control_data) noexcept :                   \
+ /* noexcept as the default construction of Key, which this builds, \
+    and the copy of the base, which a base given to the macro may     \
+    make throw */                                                     \
+ Name(const Control_Data & control_data)                              \
+   noexcept(std::is_nothrow_default_constructible_v<Key> and          \
+            std::is_nothrow_copy_constructible_v<Control_Data>) :     \
    Control_Data(control_data),                                        \
    lLink(NullPtr), rLink(NullPtr)                                     \
  {                                                                    \

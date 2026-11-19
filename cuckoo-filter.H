@@ -95,6 +95,13 @@ namespace Aleph {
  *  @note Not thread-safe.  Concurrent reads (contains / size / etc.)
  *  are safe; any concurrent write (insert / remove / clear) requires
  *  external synchronisation.
+ *
+ *  @note A growing `std::vector` copies these objects instead of moving them:
+ *  their move constructor is not `noexcept`, because it leaves the source
+ *  empty and usable, which allocates, and `std::vector` moves only what cannot
+ *  throw. `DynList` holds them without relocating them, so it never copies
+ *  them; `Array` and `DynArray` cannot hold them, as they build their items
+ *  by default and these objects have no default constructor.
  */
 template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> class Cuckoo_Filter
 {

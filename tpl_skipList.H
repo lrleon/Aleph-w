@@ -414,9 +414,24 @@ namespace Aleph
       return headerPtr->HeaderNode::forward[0];
     }
 
+    /** @brief Return the level of the list: the number of levels in use.
+     *
+     *  It lets check that removals bring it down, so that searches do not
+     *  start at levels that are empty.
+     *
+     *  @return the level of the tallest node, or 0 if the list is empty.
+     */
+    [[nodiscard]] int get_level() const noexcept { return level; }
+
     /** @brief Remove a key from the skip list.
+     *
+     *  The level of the list goes down to that of its tallest node left,
+     *  so that the next searches do not start at levels that are empty.
+     *
      *  @param[in] searchKey Key to remove.
-     *  @return Pointer to removed node, or nullptr if not found.
+     *  @return Pointer to removed node, or nullptr if no node of the list
+     *          has `searchKey`. The sentinel, whose key is computeMaxKey(), is
+     *          never removed; a node inserted with that key is.
      *  @note Caller is responsible for deallocating the returned node.
      */
     [[nodiscard]] Node * remove(const Key & searchKey) noexcept
@@ -434,7 +449,9 @@ namespace Aleph
 
       x = x->getForward(0);
 
-      if (x->get_key() == searchKey)
+      // The sentinel has the key of computeMaxKey(), but it is not a node
+      // of the list, as search() knows
+      if (x != Node::NullPtr and x->get_key() == searchKey)
         {
           for (i = 0; i < level; i++)
             {
@@ -443,7 +460,9 @@ namespace Aleph
               update[i]->getForward(i) = x->getForward(i);
             }
 
-          while (level > 0 and headerPtr->getForward(level) == nullptr)
+          // The top level in use is level - 1, and an empty level ends at
+          // the sentinel, not at nullptr
+          while (level > 0 and headerPtr->getForward(level - 1) == Node::NullPtr)
             level--;
         }
       else

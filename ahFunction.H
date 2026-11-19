@@ -1091,7 +1091,7 @@ bool greater_or_equal_than(const T& op1, const T& op2, Compare & cmp)
     template <class T, class Compare> inline
 bool no_equals(const T & op1, const T & op2, Compare && cmp = Compare())
 {
-  return cmp(op1, op2) or cmp(op2, op1);
+  return static_cast<bool>(cmp(op1, op2)) or static_cast<bool>(cmp(op2, op1));
 }
 
   /** \overload no_equals()
@@ -1101,7 +1101,7 @@ bool no_equals(const T & op1, const T & op2, Compare && cmp = Compare())
     template <class T, class Compare> inline
 bool no_equals(const T & op1, const T & op2, Compare & cmp)
 {
-  return cmp(op1, op2) or cmp(op2, op1);
+  return static_cast<bool>(cmp(op1, op2)) or static_cast<bool>(cmp(op2, op1));
 }
 
   /** Determines if operands are equal using a comparison operator.

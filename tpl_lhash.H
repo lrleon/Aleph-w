@@ -69,8 +69,9 @@
  *  The constructor rounds the requested capacity up to a prime, and the
  *  table grows and shrinks to primes. `resize()` takes the capacity it is
  *  given, unless the table resizes itself and its load factor there
- *  reaches `upper_alpha`: then the table grows again as it inserts the
- *  keys. Removing through `Iterator::del()` never resizes the table. A
+ *  reaches `upper_alpha`: then it takes the capacity that the table would
+ *  grow to as it inserted the keys, and allocates it before a key moves.
+ *  Removing through `Iterator::del()` never resizes the table. A
  *  table that does not resize itself keeps its capacity, and its lists
  *  get longer as keys come in. For linear hashing, which grows one list
  *  at a time instead of rebuilding the table, see tpl_linHash.H.
@@ -407,23 +408,42 @@ namespace Aleph
 
     /** @brief Sets the hash function.
 
-        The buckets already in the table are not moved to the lists that
-        the new function assigns to them.
+        On a table that is not empty, it places every bucket again with the
+        new function, as resize() does, so the keys already stored are
+        still found; a table that resizes itself, with a load factor at
+        `upper_alpha` or above, then grows as resize() says.
 
         @param[in] fct The new hash function.
-        @warning If the table is not empty, call `resize(capacity())` right
-        after: it places every bucket again with the new function. Until
-        then the keys already stored may not be found.
+        @throws std::bad_alloc if there is no memory for the lists where the
+        buckets go again; the table then keeps its function and its lists.
+        @pre The new function and the comparison of the table do not throw,
+        as in every search of the table, which is `noexcept`: if one threw
+        while the buckets are placed again, some of them would be left out
+        of the table.
+        @note It takes O(1) on an empty table and O(n) otherwise.
     */
-    void set_hash_fct(Hash_Fct fct) noexcept
+    void set_hash_fct(Hash_Fct fct)
     {
-      hash_fct = fct;
+      Hash_Fct old = std::move(hash_fct);
+      hash_fct = std::move(fct);
+      if (N == 0)
+        return;
+
+      try
+        {
+          resize(len); // it allocates the new lists before it moves a bucket
+        }
+      catch (...)
+        {
+          hash_fct = std::move(old);
+          throw;
+        }
     }
 
     /// @overload
-    void set_hash_fct(Hash_Fct_Ptr fct) noexcept
+    void set_hash_fct(Hash_Fct_Ptr fct)
     {
-      hash_fct = Hash_Fct(fct);
+      set_hash_fct(Hash_Fct(fct));
     }
 
     /// return the current table load
@@ -526,8 +546,24 @@ namespace Aleph
       return bucket;
     }
 
-    /// Resizes the hash table to new_size and re-locates keys.
-    /// Throws bad_alloc if there is not enough memory to relocate the array.
+    /** @brief Resizes the table to `new_size` lists and places every
+        bucket again.
+
+        If the table resizes itself and its load factor would reach
+        `upper_alpha` with `new_size` lists, it takes the capacity that it
+        would grow to as it placed the buckets: twice as many lists, to a
+        prime, until the load factor stays below `upper_alpha`. The whole
+        capacity is allocated before a bucket moves, so the buckets are
+        placed without growing on the way.
+
+        @param[in] new_size The number of lists; 0 leaves the table as it
+        is.
+        @return The capacity of the table.
+        @throws std::bad_alloc if there is no memory for the lists; the
+        table is then left as it was.
+        @pre The hash function and the comparison do not throw, as in every
+        operation of the table.
+    */
     size_t resize(const size_t new_size)
     {
       assert(len > 0);
@@ -535,11 +571,19 @@ namespace Aleph
       if (new_size == 0)
         return len;
 
-      auto *new_table = new BucketList [new_size];
+      // the load factor as current_alpha() computes it, which insert()
+      // compares with upper_alpha: below it with size lists, none of the
+      // insertions below grows the table
+      size_t size = new_size;
+      if (with_resize and upper_alpha > 0)
+        while (static_cast<float>(1.0 * N / size) >= upper_alpha)
+          size = next_prime(2 * size);
+
+      auto *new_table = new BucketList [size];
       BucketList *old_table = table; // save current table state
       const size_t old_size = len;
       table = new_table; // empty table with new array
-      len = new_size;
+      len = size;
       busy_slots_counter = N = 0;
 
       for (size_t i = 0; i < old_size; ++i) // reinsert buckets

@@ -39,6 +39,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <cstdlib>
 #include <vector>
 #include <algorithm>
 #include <random>
@@ -805,6 +806,59 @@ TEST_F(DlinkIteratorTest, IteratorDeleteMiddleElement)
   EXPECT_TRUE(it.has_curr());
   EXPECT_EQ(it.get_curr(), &nodes[3]);
 }
+
+TEST_F(DlinkIteratorTest, DelNeRemovesTheCurrentNodeAndMovesForward)
+{
+  for (size_t i = 0; i < 4; ++i)
+    list.append(&nodes[i]); // list: 0, 1, 2, 3
+
+  Dlink::Iterator it(list);
+  static_assert(noexcept(it.del_ne()));
+  EXPECT_EQ(it.del_ne(), &nodes[0]); // the first one
+  EXPECT_EQ(it.get_curr_ne(), &nodes[1]);
+  it.next_ne();
+  EXPECT_EQ(it.del_ne(), &nodes[2]); // a middle one
+  EXPECT_EQ(it.get_curr_ne(), &nodes[3]);
+  EXPECT_EQ(it.del_ne(), &nodes[3]); // the last one
+  EXPECT_FALSE(it.has_curr());
+
+  EXPECT_TRUE(list.check());
+  EXPECT_EQ(list.get_next(), &nodes[1]);
+  EXPECT_EQ(list.get_prev(), &nodes[1]);
+  EXPECT_TRUE(nodes[0].is_empty() and nodes[2].is_empty() and nodes[3].is_empty());
+}
+
+// del_ne() checks nothing, as the _ne variants promise: its precondition,
+// has_curr(), is only asserted. It took the current node with get_curr(),
+// which throws without one, inside noexcept: without the assert, the
+// program ended.
+#ifndef NDEBUG
+TEST(DlinkIteratorDeathTest, DelNeAssertsThatThereIsACurrentNode)
+{
+  Dlink empty;
+  Dlink::Iterator on_empty(empty);
+  EXPECT_DEATH((void) on_empty.del_ne(), "has_curr");
+
+  Dlink list, a, b;
+  list.append(&a);
+  list.append(&b);
+  Dlink::Iterator past_the_end(list);
+  past_the_end.next_ne();
+  past_the_end.next_ne();
+  EXPECT_DEATH((void) past_the_end.del_ne(), "has_curr");
+}
+#else
+TEST(DlinkIteratorDeathTest, DelNeDoesNotCheckThatThereIsACurrentNode)
+{
+  // Without a current node, the iterator of an empty list is on the header,
+  // whose unlinking from itself changes nothing: del_ne() must return, not
+  // end the program with the exception of a check
+  Dlink empty;
+  Dlink::Iterator it(empty);
+  EXPECT_EXIT({ (void) it.del_ne(); std::_Exit(empty.is_empty() ? 0 : 1); },
+              ExitedWithCode(0), "");
+}
+#endif
 
 TEST_F(DlinkIteratorTest, IteratorIsFirstAndIsLast)
 {

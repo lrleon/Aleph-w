@@ -146,9 +146,11 @@ private:
   // The head node, then at most Node::MaxHeight nodes of the tree.
   using Path = InlineStack<Node *, Node::MaxHeight + 1>;
 
-  /// Search for key and stack ancestors (optimistic duplicate detection)
+  /// Search for key and stack ancestors (optimistic duplicate detection).
+  /// It only reads the tree: a comparison that throws leaves it as it was.
   Node * search_and_stack_rb(const Key & key,
-                             signed char & cmp_result, Path & path) noexcept
+                             signed char & cmp_result, Path & path)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     Node *p = root;
     Node *candidate = nullptr;  // Tracks potential duplicate when going right
@@ -175,7 +177,7 @@ private:
 
     // Optimistic duplicate check: when going right, key >= KEY(candidate)
     // If also KEY(candidate) >= key (i.e., not less), then key == KEY(candidate)
-    if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
+    if (candidate != nullptr and not static_cast<bool>(cmp(KEY(candidate), key))) [[unlikely]]
       {
         cmp_result = CmpEqual;
         // Truncate stack: remove nodes pushed after candidate
@@ -190,9 +192,11 @@ private:
     return path.top();
   }
 
-  /// Search for insertion point (allows duplicates) and stack ancestors
+  /// Search for insertion point (allows duplicates) and stack ancestors.
+  /// It only reads the tree: a comparison that throws leaves it as it was.
   Node * search_dup_and_stack_rb(const Key & key,
-                                 signed char & cmp_result, Path & path) noexcept
+                                 signed char & cmp_result, Path & path)
+    noexcept(nothrow_compare_v<Compare, Key>)
   {
     Node *p = root;
     path.push(head);
@@ -483,8 +487,12 @@ public:
   /** @brief Search for a key in the tree.
       @param key Key to search for.
       @return Pointer to node containing key, or nullptr if not found.
+      @throws anything that the comparison throws; the search does not
+      modify the tree, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node * search(const Key & key) const noexcept
+  Node * search(const Key & key) const noexcept(nothrow_compare_v<Compare, Key>)
   {
     Node *p = root;
     while (p != Node::NullPtr)
@@ -522,8 +530,12 @@ public:
       
       @param p Node to insert (must be red with null children).
       @return Pointer to inserted node, or nullptr if key already exists.
+      @throws anything that the comparison throws; the tree changes only
+      after the last comparison, so it is left as it was, without `p`.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node * insert(Node *p) noexcept
+  Node * insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(p != nullptr and p != Node::NullPtr);
     assert(COLOR(p) == RED);
@@ -554,8 +566,12 @@ public:
       
       @param p Node to search or insert.
       @return Pointer to p if inserted, or pointer to existing node with same key.
+      @throws anything that the comparison throws; the tree changes only
+      after the last comparison, so it is left as it was, without `p`.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node * search_or_insert(Node *p) noexcept
+  Node * search_or_insert(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(p != nullptr and p != Node::NullPtr);
     assert(COLOR(p) == RED);
@@ -586,8 +602,12 @@ public:
       
       @param p Node to insert.
       @return Pointer to inserted node (always succeeds).
+      @throws anything that the comparison throws; the tree changes only
+      after the last comparison, so it is left as it was, without `p`.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node * insert_dup(Node *p) noexcept
+  Node * insert_dup(Node *p) noexcept(nothrow_compare_v<Compare, Key>)
   {
     assert(p != nullptr and p != Node::NullPtr);
     assert(COLOR(p) == RED);
@@ -620,8 +640,12 @@ public:
       
       @param key Key to remove.
       @return Pointer to removed node, or nullptr if not found.
+      @throws anything that the comparison throws; the tree changes only
+      after the last comparison, so it is left as it was.
+      @note It is `noexcept` only if the comparison cannot throw, so that
+      what it throws reaches the caller.
    */
-  Node * remove(const Key & key) noexcept
+  Node * remove(const Key & key) noexcept(nothrow_compare_v<Compare, Key>)
   {
     if (root == Node::NullPtr)
       return nullptr;

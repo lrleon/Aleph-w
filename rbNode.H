@@ -96,10 +96,10 @@ private:
 public:
 
   /// Default constructor creates a red node
-  RbNode_Data() : color(RED) {}
+  RbNode_Data() noexcept : color(RED) {}
 
   /// Sentinel constructor creates a black node
-  RbNode_Data(SentinelCtor) : color(BLACK) {}
+  RbNode_Data(SentinelCtor) noexcept : color(BLACK) {}
 
   /// Get reference to node color
   Color & getColor() { return color; }

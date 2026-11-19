@@ -49,6 +49,7 @@
  */
 
 #include <cstdint>
+#include <limits>
 #include <random>
 #include <vector>
 
@@ -292,6 +293,35 @@ TEST(CAStationaryDetector, NoCycleDetectedWhenWindowIsTooSmall)
   eng.run(20);
 
   EXPECT_FALSE(det.cycle_detected());
+}
+
+TEST(CAStationaryDetector, TheWindowKeepsOneFrameMoreThanTheCycleLength)
+{
+  L seed = make_blinker();
+  Engine eng(seed, make_game_of_life_rule(), Moore<2, 1>{});
+  Stationary_Detector det(4);
+  attach_observer(eng, det);
+  eng.run(10);
+
+  ASSERT_TRUE(det.cycle_detected());
+  EXPECT_EQ(*det.cycle_length(), 2u);
+  EXPECT_EQ(det.buffered_hashes(), 5u);
+}
+
+// A window of SIZE_MAX, the natural way to ask for no limit: the check of
+// the window computed SIZE_MAX + 1, which wraps to 0, and the first step
+// removed from an empty buffer inside noexcept: the program ended.
+TEST(CAStationaryDetector, AWindowOfSizeMaxKeepsEveryFrame)
+{
+  L seed = make_blinker();
+  Engine eng(seed, make_game_of_life_rule(), Moore<2, 1>{});
+  Stationary_Detector det(std::numeric_limits<std::size_t>::max());
+  attach_observer(eng, det);
+  eng.run(10);
+
+  ASSERT_TRUE(det.cycle_detected());
+  EXPECT_EQ(*det.cycle_length(), 2u);
+  EXPECT_EQ(det.buffered_hashes(), 11u); // the initial frame and ten steps
 }
 
 // ---------------------------------------------------------------------------

@@ -1039,12 +1039,25 @@ public:
       next_ne();
     }
 
+    /** Remove the current item and move the iterator one position
+        forward, without checking that there is a current item.
+
+        It checks nothing, as the `_ne` variants promise: the check of
+        remove_first() throws, and inside `noexcept` that would end the
+        program.
+
+        @pre has_curr(), which only an `assert` checks: without a current
+        item, the removal reads through a null node.
+        @return the removed node, which the caller takes
+    */
     Slinknc *del_ne() noexcept
     {
+      assert(has_curr());
+
       Slinknc *ret_val = nullptr;
       if (curr == lptr->head)  // first item removal
         {
-          ret_val = lptr->remove_first();
+          ret_val = lptr->remove_first_ne();
           prev = curr = lptr->head;
         }
       else if (curr == lptr->tail)  // last item removal

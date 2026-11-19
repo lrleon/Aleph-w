@@ -220,11 +220,16 @@ protected:
 
 private:
 
-  size_t call_hash_fct(const Key & key) const
+  // The index of the list of the keys whose hash is hash
+  size_t list_index(const size_t hash) const noexcept
   {
-    const auto hash = hash_fct(key);
     const auto i = hash % M;
     return i < p ? hash % MM : i;
+  }
+
+  size_t call_hash_fct(const Key & key) const
+  {
+    return list_index(hash_fct(key));
   }
 
   void expand()
@@ -278,8 +283,12 @@ private:
 
   // Contracts the table while its load is at or under lower_alpha. Merging
   // the last list into its buddy may allocate the buddy, which may throw
-  // std::bad_alloc; that is done before the step changes anything, so the
-  // table is then as the last complete step left it.
+  // std::bad_alloc, or the copy of a Key while the new lists take the
+  // default value; that is done before the step changes anything, so the
+  // table is then as the last complete step left it. Cutting the array at
+  // the end of a step resets the list that leaves it, which copies a Key
+  // too: if that throws, the step is complete and the array just keeps
+  // that empty list.
   void contract()
   { // contract the table until load is below lower_alpha
     for (float alpha = (1.0*N)/MP; alpha <= lower_alpha and MP > len;
@@ -321,22 +330,26 @@ private:
 
 public:
 
-  /** @brief Sets the hash function.
+  /** @brief Sets the hash function of an empty table.
 
       @param[in] fct The new hash function.
-      @pre The table is empty. The buckets already stored are not moved to
-      the lists that the new function assigns to them, and linear hashing
-      has no operation that places them again, so their keys may not be
-      found afterwards.
+      @throws std::domain_error if the table is not empty: the buckets
+      already stored would stay in the lists of the old function, where
+      their keys may not be found, and linear hashing has no operation
+      that places them again. The table then keeps its function.
   */
-  void set_hash_fct(Hash_Fct fct) noexcept
+  void set_hash_fct(Hash_Fct fct)
   {
-    hash_fct = fct;
+    ah_domain_error_if(not is_empty())
+      << "LinearHashTable::set_hash_fct(): the table is not empty";
+    hash_fct = std::move(fct);
   }
 
   /// @overload
-  void set_hash_fct(Hash_Fct_Ptr fct) noexcept
+  void set_hash_fct(Hash_Fct_Ptr fct)
   {
+    ah_domain_error_if(not is_empty())
+      << "LinearHashTable::set_hash_fct(): the table is not empty";
     hash_fct = Hash_Fct(fct);
   }
 
@@ -434,8 +447,17 @@ public:
   }
 
 
-      /// Empty the entire table. All buckets are freed and the size
-      /// is adjusted to the initial one.
+  /** @brief Empties the table: frees every bucket and gives the table its
+      initial size.
+
+      @throws none
+      @note The lists of the table are `Dnode<Key>` headers, and cutting
+      the array resets those that leave it to the default value, which
+      copies a `Key`. If that copy throws, the array keeps those lists,
+      all of them empty, until the table grows over them again or is
+      destroyed: the table is empty and valid either way. This is why the
+      destructor, which calls empty(), never ends the program.
+  */
   void empty() noexcept
   {
     while (not entries_list.is_empty())
@@ -450,7 +472,14 @@ public:
     MM = multiply_by_two(M);
     N = p = l = 0;
     busy_slots_counter = 0;
-    table.cut_ne(len);
+    try
+      {
+        table.cut_ne(len);
+      }
+    catch (...)
+      {
+        // the lists past len are empty: the array keeps them, as it was
+      }
   }
 
   /** @brief Empties the container. 
@@ -476,8 +505,11 @@ public:
 
 private:
 
+  // The bucket of list whose key is equivalent to key, which may be of
+  // another type that the comparator compares with a Key
+  template <typename SearchKey>
   Bucket *
-  search_in_bucket_list(BucketList * list, const Key & key) const
+  search_in_bucket_list(BucketList * list, const SearchKey & key) const
   {
     for (BucketItor it(*list); it.has_curr(); it.next_ne())
       {
@@ -506,6 +538,38 @@ public:
 
     return search_in_bucket_list(list, key);
   }
+
+protected:
+
+  /** @brief Searches for a key of another type, without building a `Key`.
+
+      For the derived classes whose keys hold what they search by, as
+      DynMapHashTable, whose keys are pairs: it searches by the first
+      member alone, so it neither copies that member nor builds a
+      `Data`, which may allocate or throw.
+
+      @param[in] hash_func the hash of `search_key`, which must be the hash
+      that the table gives to the keys equivalent to `search_key`. It is
+      taken by reference: a copy of a function object may allocate.
+      @param[in] search_key what to search for; the comparator of the table
+      must compare it with a `Key`.
+      @return the bucket whose key is equivalent to `search_key`, or
+      `nullptr` if there is none.
+      @throws none: as search(), it requires that the hash function and the
+      comparator do not throw.
+  */
+  template <typename HashFunc, typename SearchKey>
+  Bucket * search_with_custom_hash(const HashFunc & hash_func,
+                                   const SearchKey & search_key) const noexcept
+  {
+    BucketList * list = table.test(list_index(hash_func(search_key)));
+    if (list == nullptr or list->is_empty())
+      return nullptr;
+
+    return search_in_bucket_list(list, search_key);
+  }
+
+public:
 
      /// Returns the number of elements in the table.
   const size_t & size() const noexcept { return N; }
@@ -590,7 +654,7 @@ private:
         {
           contract();
         }
-      catch (const std::bad_alloc &)
+      catch (...) // std::bad_alloc, or the copy of a Key (see contract())
         {
           // the table keeps the capacity of the last complete step
         }
@@ -600,8 +664,18 @@ private:
 
 public:
 
-      /// Remove bucket from table. Warning: it is not verified whether
-      /// the bucket belongs to the table.
+  /** @brief Removes `bucket` from the table, without freeing it.
+
+      @param[in] bucket the bucket to remove.
+      @return `bucket`.
+      @throws none
+      @pre `bucket` is in the table; it is not checked.
+      @note The table may contract afterwards, which may need memory or
+      copy a `Key` (the lists are `Dnode<Key>` headers that take the default
+      value). If that fails, the table keeps the capacity of the last
+      complete step of the contraction, so the removal never ends the
+      program.
+  */
   Bucket * remove(Bucket * bucket) noexcept
   {
     bucket->get_link()->del(); // remove from entries_list
