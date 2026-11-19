@@ -5,6 +5,43 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.7.2](https://github.com/lrleon/Aleph-w/compare/v7.7.1...v7.7.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ca:** Disable the copies of Hashlife_Engine and Tile_Cache, which were wrong ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **ca:** Keep Stationary_Detector from removing from an empty buffer with a window of SIZE_MAX ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **ca:** Leave moved-from engines, lattices and observers empty and usable ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **ca:** Let Stationary_Detector throw std::bad_alloc with its buffers in step instead of ending the program ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **concurrency:** Leave a moved-from lock guard without the value ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **csv:** Leave a moved-from CsvReader reading nothing ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **dynarray:** Keep DynArray::swap() and DynArrayHeap coherent when the swap of the default value throws ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **fenwick:** Leave a moved-from Fenwick tree empty and usable ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **fft:** Leave moved-from FFT and NTT plans, convolvers and filters empty ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **filters:** Leave a moved-from cuckoo or quotient filter empty and usable ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **geometry:** Leave a moved-from RangeTree2D or AABBTree empty ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **graph:** Leave moved-from graph and tree algorithms empty and usable ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **hash:** Keep a chained hash table and its keys whole when an allocation fails as it grows or places its keys again ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **hash:** Keep the linear hash tables from ending the program when a copy of a key throws as they grow or shrink ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **hash:** Place the keys of a chained or open hash table again in set_hash_fct(), and refuse a linear table that has keys ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **lists:** Keep del_ne() of the iterators of Dlink and DynList from throwing inside noexcept ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **maps:** Find the pairs of DynMapHash and DynMapLinHash after set_hash_fct(), which also takes a hash function of the keys ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **maps:** Let the searches of MapOLhash and MapODhash throw what the copy of the key throws instead of ending the program ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **maps:** Search DynMapTree by the key, without building a pair, so that a search does not allocate ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **nodes:** Let the copies and moves of the keys of the nodes and of Dnode throw instead of ending the program ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **rand-tree:** Throw std::out_of_range from split_pos() past the end instead of ending the program ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **search:** Leave a moved-from solution collector empty ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **simplex:** Reject put_restriction() once the tableau exists, and print the ranges of the errors without wrapping ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **skiplist:** Lower the level of SkipList::remove() and keep it from reading past its top ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **strings:** Leave a moved-from Aho_Corasick or suffix structure empty ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **structures:** Leave moved-from trees, tables, heaps and skip lists empty ([#201](https://github.com/lrleon/Aleph-w/issues/201)) ([cad51e5](https://github.com/lrleon/Aleph-w/commit/cad51e5ce6001c56211deafa914ee8ed872e2b76))
+* **trees:** End the iterators of the ranked trees at a position that an int cannot hold, instead of wrapping around ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **trees:** End the iterators of the ranked trees past the end instead of throwing, and let that of Avl_Tree_Rk and Rb_Tree_Rk compile ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **trees:** Free and uncount the node that a removal of DynSetTree or DynMapTree takes out when copying what it returns throws ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **trees:** Let the comparison of the trees throw through their operations instead of ending the program ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+* **zip:** Let get_curr_ne() of the zip iterators throw what the copy of an item throws ([#204](https://github.com/lrleon/Aleph-w/issues/204)) ([65571f4](https://github.com/lrleon/Aleph-w/commit/65571f4f12022db919074ef8964c34db8d0d9999))
+
 ## [7.7.1](https://github.com/lrleon/Aleph-w/compare/v7.7.0...v7.7.1) (2026-11-17)
 
 
