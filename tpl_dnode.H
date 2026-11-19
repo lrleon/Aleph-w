@@ -169,14 +169,18 @@ public:
   }
   
   /** @brief Construct a node, or the header of an empty list, whose item
-      is built by default.
+      is `T()`: zero for an arithmetic type or a pointer.
 
-      @throws what the default constructor of `T` throws; nothing when it
-      is `noexcept`, as for the arithmetic types and `std::string`.
-      @note The `noexcept` follows that constructor so that its exception
-      reaches the caller instead of ending the program.
+      An item built by default would be indeterminate for those types,
+      and reading it, even to copy it, is undefined behavior.
+
+      @throws what `T()` throws; nothing when it is `noexcept`, as for the
+      arithmetic types and `std::string`.
+      @note The `noexcept` follows `T()` so that its exception reaches the
+      caller instead of ending the program.
   */
   Dnode() noexcept(std::is_nothrow_default_constructible_v<T>)
+    : data()
   {
     static_assert(std::is_default_constructible<T>::value, 
 		  "No default constructor for T");

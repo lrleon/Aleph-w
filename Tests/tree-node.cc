@@ -38,7 +38,9 @@
 # include <gtest/gtest.h>
 
 # include <algorithm>
+# include <cstring>
 # include <map>
+# include <new>
 # include <random>
 # include <stdexcept>
 # include <vector>
@@ -52,6 +54,24 @@
 
 using namespace std;
 using namespace Aleph;
+
+// The key of a node built by default is T(): for a scalar it was left
+// indeterminate, and reading it, even to copy it, was undefined behavior.
+// The node is built over memory with a pattern, which its key must not
+// keep
+TEST(Tree_Node, default_key_is_value_initialized)
+{
+  alignas(Tree_Node<long>) unsigned char buf[sizeof(Tree_Node<long>)];
+  memset(buf, 0x5a, sizeof(buf));
+  auto * p = ::new (static_cast<void *>(buf)) Tree_Node<long>;
+  EXPECT_EQ(p->get_key(), 0);
+  EXPECT_TRUE(p->is_root());
+  EXPECT_TRUE(p->is_leaf());
+  p->~Tree_Node<long>();
+
+  Tree_Node<double *> q;
+  EXPECT_EQ(q.get_key(), nullptr);
+}
 
 TEST(Tree_Node, on_isolated_node)
 {

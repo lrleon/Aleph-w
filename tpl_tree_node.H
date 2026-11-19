@@ -121,7 +121,7 @@ class Tree_Node;  // Forward declaration for CRTP
 template <class T>
 class Tree_Node : public FunctionalMixin<Tree_Node<T>, Tree_Node<T> *>
 {
-  T data;
+  T data = T(); // not indeterminate in a node built by default
   Dlink child;
   Dlink sibling;
 
@@ -295,7 +295,14 @@ public:
     flags.is_rightmost = value;
   }
 
-  /// Empty constructor (undefined key).
+  /** @brief Constructor of a node whose key is `T()`: zero for an
+      arithmetic type or a pointer.
+
+      A key built by default would be indeterminate for those types, and
+      reading it, even to copy it, is undefined behavior.
+
+      @throws what `T()` throws.
+  */
   Tree_Node() = default;
 
   /// Constructor with data value __data

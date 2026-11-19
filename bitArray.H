@@ -589,15 +589,22 @@ namespace Aleph
       ah_runtime_error_if(not output) << "BitArray::save: write failed (newline)";
     }
 
-    /** Loads an array of bits from a file.
+    /** @brief Loads an array of bits saved with save().
 
-        load(input) takes the file opened in input, previously
-        saved with the load() method, and restores the array to the value
-        saved.
+        load(input) reads the header that save() writes, the number of
+        bytes and the number of bits, then the bytes, and restores the
+        array to the value saved. The header is checked before anything
+        is reserved: its two numbers must agree, and the bytes cannot be
+        more than a DynArray holds (`DynArray::Max_Dim_Allowed`). Each byte
+        is stored as it is read, so a header that claims more bytes than
+        the input has takes no more memory than the bytes read.
 
-        @param[in] input stream where the
-        arrangement and that must have been previously saved with
-        save().
+        @param[in] input stream with an array of bits saved with save().
+        @throws std::runtime_error if the header or a byte cannot be read,
+        if the header is inconsistent or claims too many bytes, or if a
+        byte is not in [0, 255]. Then `this` is as it was.
+        @throws std::bad_alloc if there is not enough memory. Then `this`
+        is as it was.
      */
     void load(std::istream & input)
     {
@@ -606,16 +613,20 @@ namespace Aleph
       size_t num_bits = 0;
 
       ah_runtime_error_if(not (input >> num_bytes >> num_bits)) << "BitArray::load: read failed (header)";
+      ah_runtime_error_if(num_bytes > DynArray<Byte>::Max_Dim_Allowed)
+        << "BitArray::load: header claims too many bytes (" << num_bytes << ")";
 
-      const size_t expected = (num_bits + 7) / 8;
+      // Without the sum num_bits + 7, which wraps near the maximum of size_t
+      // and let a header of 0 bytes and 2^64 - 1 bits pass
+      const size_t expected = num_bits / 8 + (num_bits % 8 != 0 ? 1 : 0);
       ah_runtime_error_if(num_bytes != expected)
         << "BitArray::load: inconsistent header (num_bytes vs num_bits)";
 
-      // Heavy Load: build temporary and then swap
+      // Heavy Load: build temporary and then swap. A byte is reserved when
+      // it is read, not on the word of the header
       BitArray tmp;
       tmp.current_size = num_bits;
       tmp.array_of_bytes.cut();
-      tmp.ensure_num_bytes(num_bytes);
 
       for (size_t i = 0; i < num_bytes; ++i)
         {

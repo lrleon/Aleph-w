@@ -37,10 +37,30 @@
  */
 # include <gtest/gtest.h>
 
+# include <cstring>
+# include <new>
+
 # include <tpl_dnode.H>
 
 using namespace testing;
 using namespace Aleph;
+
+// The item of a node built by default, as the header of a list, is T():
+// for a scalar it was left indeterminate, and reading it, even to copy it,
+// was undefined behavior. The node is built over memory with a pattern,
+// which its item must not keep
+TEST(Dnode, default_item_is_value_initialized)
+{
+  alignas(Dnode<long>) unsigned char buf[sizeof(Dnode<long>)];
+  std::memset(buf, 0x5a, sizeof(buf));
+  auto * p = ::new (static_cast<void *>(buf)) Dnode<long>;
+  EXPECT_EQ(p->get_data(), 0);
+  EXPECT_TRUE(p->is_empty());
+  p->~Dnode<long>();
+
+  Dnode<double *> q;
+  EXPECT_EQ(q.get_data(), nullptr);
+}
 
 TEST(Dnode, conversion_from_slinknc)
 {
