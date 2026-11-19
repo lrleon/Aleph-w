@@ -385,7 +385,8 @@ namespace
   X(Treap_Rk, false, true)        \
   X(Rand_Tree, false, true)
 
-  // A tree under test, alone, in a set and in a map.
+  // A tree under test, alone, in a set and in a map; the _With ones take
+  // another comparison.
 # define DECLARE_TREE_KIND(T, Restructures, Noexcept)       \
   struct T##_Kind                                           \
   {                                                         \
@@ -393,6 +394,11 @@ namespace
     using Nothrow_Tree = T<int>;                            \
     using Set = DynSetTree<int, T, Countdown_Less>;         \
     using Map = DynMapTree<int, int, T, Countdown_Less>;    \
+    template <class Cmp> using Tree_With = T<int, Cmp>;     \
+    template <class Cmp>                                    \
+    using Set_With = DynSetTree<int, T, Cmp>;               \
+    template <class Cmp>                                    \
+    using Map_With = DynMapTree<int, int, T, Cmp>;          \
     static constexpr bool restructures = Restructures;      \
     static constexpr bool noexcept_ops = Noexcept;          \
     static constexpr const char * name = #T;                \
@@ -1766,4 +1772,139 @@ TEST(ThrowingCompareOperations, AMapOnATreeThatGivesACopyOfItsComparison)
     }
   EXPECT_EQ(map.search(7), nullptr);
   EXPECT_EQ(Tracked_Less::calls_on_dead, 0);
+}
+
+namespace
+{
+  // A comparison whose result converts to bool without throwing, and has
+  // an operator!, an operator&& and an operator|| of its own, which count
+  // their calls. The noexcept of the operations looks at the conversion
+  // (nothrow_condition_v), not at these operators, which may throw: the
+  // operations must convert the result before they apply not, and or or.
+  struct Poisoned_Less
+  {
+    static inline long operator_calls = 0;
+
+    struct Result
+    {
+      bool value;
+
+      operator bool () const noexcept { return value; }
+
+      bool operator ! () const
+      {
+        ++operator_calls;
+        return not value;
+      }
+    };
+
+    Result operator ()(const int & a, const int & b) const noexcept { return Result{a < b}; }
+  };
+
+  using Poisoned_Result = Poisoned_Less::Result;
+
+  bool count_operator(const bool result)
+  {
+    ++Poisoned_Less::operator_calls;
+    return result;
+  }
+
+  bool operator && (const Poisoned_Result & a, const Poisoned_Result & b)
+  {
+    return count_operator(a.value and b.value);
+  }
+
+  bool operator && (const Poisoned_Result & a, const bool b) { return count_operator(a.value and b); }
+
+  bool operator && (const bool a, const Poisoned_Result & b) { return count_operator(a and b.value); }
+
+  bool operator || (const Poisoned_Result & a, const Poisoned_Result & b)
+  {
+    return count_operator(a.value or b.value);
+  }
+
+  bool operator || (const Poisoned_Result & a, const bool b) { return count_operator(a.value or b); }
+
+  bool operator || (const bool a, const Poisoned_Result & b) { return count_operator(a or b.value); }
+
+  // The insertions, searches, positions, splits and removals of Tree, with
+  // the initial keys and around them
+  template <class Tree>
+  void run_the_operations_of()
+  {
+    using Node = typename Tree::Node;
+    Node_Pool<Node> pool;
+    Tree tree;
+    if constexpr (Seeded_Tree<Tree>)
+      tree.set_seed(17);
+    for (const int key : insertion_order())
+      EXPECT_NE(tree.insert(pool.make(key)), nullptr);
+    EXPECT_EQ(tree.insert(pool.make(4)), nullptr);
+    EXPECT_NE(tree.search_or_insert(pool.make(5)), nullptr);
+    if constexpr (requires (Tree t, Node * p) { t.insert_dup(p); })
+      EXPECT_NE(tree.insert_dup(pool.make(6)), nullptr);
+    for (const int key : target_keys())
+      (void) tree.search(key);
+    if constexpr (requires (Tree t) { t.position(1); })
+      for (const int key : target_keys())
+        (void) tree.position(key);
+    for (const int key : target_keys())
+      (void) tree.remove(key);
+    EXPECT_TRUE(tree.verify());
+
+    Tree whole, l, r;
+    if constexpr (Seeded_Tree<Tree>)
+      whole.set_seed(5);
+    for (const int key : insertion_order())
+      EXPECT_NE(whole.insert(pool.make(key)), nullptr);
+    if constexpr (requires (Tree t) { t.split_key_dup(1, t, t); })
+      whole.split_key_dup(11, l, r);
+    else if constexpr (requires (Tree t) { t.split_dup(1, t, t); })
+      whole.split_dup(11, l, r);
+    EXPECT_TRUE(l.verify() and r.verify());
+  }
+}
+
+// The operations take the result of the comparison as a bool: they applied
+// not, and or or to it, which call the operators of a result that has
+// them, inside noexcept
+TYPED_TEST(ThrowingCompareTree, TakesTheResultOfTheComparisonAsABool)
+{
+  using Tree = typename TypeParam::template Tree_With<Poisoned_Less>;
+  using Set = typename TypeParam::template Set_With<Poisoned_Less>;
+  using Map = typename TypeParam::template Map_With<Poisoned_Less>;
+  Poisoned_Less::operator_calls = 0;
+
+  run_the_operations_of<Tree>();
+  EXPECT_EQ(Poisoned_Less::operator_calls, 0) << "the tree";
+  Poisoned_Less::operator_calls = 0;
+
+  Set set;
+  for (const int key : insertion_order())
+    EXPECT_NE(set.insert(key), nullptr);
+  for (const int key : target_keys())
+    {
+      (void) set.search(key);
+      (void) set.contains(key);
+    }
+  for (const int key : target_keys())
+    (void) set.remove(key);
+  EXPECT_EQ(set.size(), 0u);
+  EXPECT_EQ(Poisoned_Less::operator_calls, 0) << "the set";
+  Poisoned_Less::operator_calls = 0;
+
+  Map map;
+  for (const int key : insertion_order())
+    EXPECT_NE(map.insert(key, -key), nullptr);
+  for (const int key : target_keys())
+    {
+      (void) map.search(key);
+      if (map.contains(key))
+        EXPECT_EQ(map.find(key), -key);
+    }
+  for (const int key : target_keys())
+    if (map.contains(key))
+      (void) map.remove(key);
+  EXPECT_EQ(map.size(), 0u);
+  EXPECT_EQ(Poisoned_Less::operator_calls, 0) << "the map";
 }

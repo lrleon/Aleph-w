@@ -228,14 +228,33 @@ TYPED_TEST(RankedTreeIterator, ResetToNodeKeepsTheNodeAmongEqualKeys)
 // A position past the end that an int cannot hold is the end too: kept in
 // an int, it lost its high bits, and 2^32 + 2 was the position 2. Kept as
 // the greatest int, next_ne() overflowed it, which the sanitizer of
-// undefined behavior reports
+// undefined behavior reports; so did two steps from the greatest int but
+// one, which an int holds. The positions near the greatest int, which a
+// size_t holds wherever an int is narrower, are tested on every platform;
+// 2^32 + 2, where a size_t holds it
 TYPED_TEST(RankedTreeIterator, APositionThatAnIntCannotHoldIsTheEnd)
 {
-  if constexpr (sizeof(size_t) <= sizeof(int))
-    GTEST_SKIP() << "a size_t holds no position that an int cannot";
-  else
+  using Iterator = typename TypeParam::Iterator;
+  constexpr auto int_max = static_cast<size_t>(std::numeric_limits<int>::max());
+  for (const size_t pos : {int_max - 1, int_max})
     {
-      using Iterator = typename TypeParam::Iterator;
+      SCOPED_TRACE("the position " + std::to_string(pos));
+      Iterator it(this->tree, pos);
+      Iterator reset(this->tree);
+      reset.reset_to_pos(pos);
+      for (int i = 0; i < 3; ++i)
+        {
+          EXPECT_FALSE(it.has_curr()) << "after " << i << " steps";
+          EXPECT_EQ(it.get_curr(), nullptr);
+          EXPECT_FALSE(reset.has_curr()) << "after " << i << " steps";
+          EXPECT_EQ(reset.get_curr(), nullptr);
+          it.next_ne();
+          reset.next_ne();
+        }
+    }
+
+  if constexpr (std::numeric_limits<size_t>::max() > std::numeric_limits<unsigned>::max())
+    {
       const size_t far = size_t{std::numeric_limits<unsigned>::max()} + 3;
       const Iterator built(this->tree, far);
       EXPECT_FALSE(built.has_curr());
@@ -256,11 +275,5 @@ TYPED_TEST(RankedTreeIterator, APositionThatAnIntCannotHoldIsTheEnd)
       EXPECT_EQ(it.get_curr(), nullptr);
       EXPECT_FALSE(moved.has_curr()) << "next_ne() at that end";
       EXPECT_EQ(moved.get_curr(), nullptr);
-
-      it.reset_to_pos(size_t{std::numeric_limits<int>::max()});
-      EXPECT_FALSE(it.has_curr()) << "the greatest int";
-      EXPECT_EQ(it.get_curr(), nullptr);
-      it.next_ne();
-      EXPECT_FALSE(it.has_curr()) << "next_ne() at the greatest int";
     }
 }

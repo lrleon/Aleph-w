@@ -172,3 +172,57 @@ TEST(StationaryDetectorAllocation, AFullSmallWindowKeepsEachHashWithItsStep)
       EXPECT_EQ(*det.cycle_length(), window);
     }
 }
+
+// A window of 32 whose buffers grow past their first 32 entries with the
+// frame of the step 32: if that buffering fails and the caller goes on
+// without the frame, the full window spans one step more than the 33 of a
+// full window, and its oldest hash, which it would have dropped otherwise,
+// matched as a cycle of 34. A match within the 33 steps is still a cycle,
+// with or without the failure
+TEST(StationaryDetectorAllocation, AFrameLostToAFailureMakesNoLongerCycle)
+{
+  if (ALEPH_ALLOCATION_FAILURE_UNDER_TSAN)
+    GTEST_SKIP() << "ThreadSanitizer replaces the global operator new";
+
+  constexpr size_t Window = 32;
+  const Array<L> frames = distinct_frames(static_cast<int>(Window) + 2);
+  for (const size_t again : {size_t{0}, size_t{1}})  // the frame seen at the step 34
+    {
+      SCOPED_TRACE("the frame " + std::to_string(again) + " at the step 34");
+      Stationary_Detector det(Window);
+      det.on_step_begin(0, frames(0));
+      size_t lost = 0;
+      for (size_t k = 1; k <= Window + 1; ++k)
+        {
+          const Fail_At failing(k == Window ? 1 : 1000000);
+          try
+            {
+              det.on_step_end(k, frames(k));
+            }
+          catch (const std::bad_alloc &)
+            {
+              ++lost;  // the caller goes on without the frame
+            }
+        }
+      ASSERT_EQ(lost, 1u) << "the buffering of the step 32 did not allocate";
+      det.on_step_end(Window + 2, frames(again));
+      if (again == 0)  // seen 34 steps before
+        EXPECT_FALSE(det.cycle_detected());
+      else
+        {
+          ASSERT_TRUE(det.cycle_detected());
+          EXPECT_EQ(*det.cycle_start(), 1u);
+          EXPECT_EQ(*det.cycle_length(), Window + 1);
+        }
+    }
+
+  // without the failure, the frame 0 at the step 33 is a cycle of 33
+  Stationary_Detector det(Window);
+  det.on_step_begin(0, frames(0));
+  for (size_t k = 1; k <= Window; ++k)
+    det.on_step_end(k, frames(k));
+  det.on_step_end(Window + 1, frames(0));
+  ASSERT_TRUE(det.cycle_detected());
+  EXPECT_EQ(*det.cycle_start(), 0u);
+  EXPECT_EQ(*det.cycle_length(), Window + 1);
+}

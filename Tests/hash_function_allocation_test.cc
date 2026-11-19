@@ -209,4 +209,112 @@ namespace
     EXPECT_GE(fail_every_allocation<Open_Map>(
                 insert, [] (auto & c) { c.set_hash_fct(new_pair_hash); }, holds), 1u);
   }
+  // A chained table that resizes itself, with a load factor at its upper
+  // threshold or above, as one filled while it did not resize itself:
+  // placing its keys again, with set_hash_fct(), with resize() or with
+  // the growth of an insertion, grew it again in the middle, and a failure
+  // of that allocation left keys out of the table and lost its lists. The
+  // capacity that it grows to is allocated at once now
+  TEST(HashFunctionAllocation, AChainedTableAboveItsLoadKeepsItsKeys)
+  {
+    if (ALEPH_ALLOCATION_FAILURE_UNDER_TSAN)
+      GTEST_SKIP() << "ThreadSanitizer replaces the global operator new";
+
+    // Keys keys in the 101 lists of a table built by default: a load of 3
+    auto filled = [] (auto & c, int k, auto add)
+    {
+      c.set_with_resize(false);
+      add(c, k);
+      c.set_with_resize(true);
+    };
+    auto insert = [&filled] (auto & c, int k)
+    {
+      filled(c, k, [] (auto & t, int key) { t.insert(new LhashBucket<int>(key)); });
+    };
+    auto holds = [] (auto & c, int k) { return c.search(k) != nullptr; };
+    using Table = LhashTable<int>;
+    EXPECT_GE(fail_every_allocation<Table>(
+                insert, [] (auto & c) { c.set_hash_fct(new_hash); }, holds), 1u);
+    EXPECT_GE(fail_every_allocation<Table>(
+                insert, [] (auto & c) { (void) c.resize(53); }, holds), 1u);
+    int next = Keys;  // a key that is not in the table, for each try
+    EXPECT_GE(fail_every_allocation<Table>(
+                insert, [&next] (auto & c)
+                {
+                  auto * bucket = new LhashBucket<int>(next);
+                  ++next;
+                  if (c.insert(bucket) == nullptr)
+                    delete bucket;
+                }, holds), 1u);
+
+    auto set_insert = [&filled] (auto & c, int k)
+    {
+      filled(c, k, [] (auto & s, int key) { (void) s.insert(key); });
+    };
+    EXPECT_GE(fail_every_allocation<DynSetHash<int>>(
+                set_insert, [] (auto & c) { c.set_hash_fct(new_hash); }, holds), 1u);
+
+    auto map_insert = [&filled] (auto & c, int k)
+    {
+      filled(c, k, [] (auto & m, int key) { (void) m.insert(key, 10 * key); });
+    };
+    using Map = DynMapHash<int, int>;
+    EXPECT_GE(fail_every_allocation<Map>(
+                map_insert, [] (auto & c) { c.set_hash_fct(new_hash); }, holds), 1u);
+  }
+
+  // The case of the review: 190 keys in 211 lists, the last one left there
+  // by the growth of its insertion, which failed, and set_hash_fct() with
+  // each of its allocations failing in turn
+  TEST(HashFunctionAllocation, SetHashFctAfterAFailedGrowthKeepsItsKeys)
+  {
+    if (ALEPH_ALLOCATION_FAILURE_UNDER_TSAN)
+      GTEST_SKIP() << "ThreadSanitizer replaces the global operator new";
+
+    LhashTable<int> table(211);
+    const size_t len = table.capacity();
+    int keys = 0;
+    for (bool failed = false; not failed; ++keys)
+      {
+        auto * bucket = new LhashBucket<int>(keys);
+        const bool grows = (keys + 1.0) / len >= table.get_upper_alpha();
+        const Fail_At failing(grows ? 1 : 1000000);
+        try
+          {
+            ASSERT_NE(table.insert(bucket), nullptr);
+          }
+        catch (const std::bad_alloc &)
+          {
+            failed = true;  // the bucket stays in the table
+          }
+        ASSERT_EQ(table.capacity(), len);
+      }
+    ASSERT_GE(table.current_alpha(), table.get_upper_alpha());
+
+    size_t failures = 0;
+    for (size_t n = 1; n < 100; ++n)
+      {
+        SCOPED_TRACE("the allocation " + std::to_string(n) + " fails");
+        bool threw = false;
+        {
+          const Fail_At failing(n);
+          try
+            {
+              table.set_hash_fct(new_hash);
+            }
+          catch (const std::bad_alloc &)
+            {
+              threw = true;
+            }
+        }
+        EXPECT_EQ(table.size(), static_cast<size_t>(keys));
+        for (int k = 0; k < keys; ++k)
+          ASSERT_NE(table.search(k), nullptr) << "key " << k;
+        if (not threw)
+          break;
+        ++failures;
+      }
+    EXPECT_EQ(failures, 1u) << "set_hash_fct() made more than the allocation of its lists";
+  }
+
 } // namespace

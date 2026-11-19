@@ -125,7 +125,7 @@ private:
 
   bool equals(const Key & k1, const Key & k2) const
     noexcept(nothrow_compare_v<Compare, Key>)
-  { return not cmp(k1, k2) and not cmp(k2, k1); }
+  { return not static_cast<bool>(cmp(k1, k2)) and not static_cast<bool>(cmp(k2, k1)); }
 
   static Node * getSibling(Node *p, Node *fp) noexcept
   {

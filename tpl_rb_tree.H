@@ -177,7 +177,7 @@ private:
 
     // Optimistic duplicate check: when going right, key >= KEY(candidate)
     // If also KEY(candidate) >= key (i.e., not less), then key == KEY(candidate)
-    if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
+    if (candidate != nullptr and not static_cast<bool>(cmp(KEY(candidate), key))) [[unlikely]]
       {
         cmp_result = CmpEqual;
         // Truncate stack: remove nodes pushed after candidate

@@ -68,7 +68,10 @@ namespace Aleph {
     and `?:`. The two conversions may differ: a result with an implicit
     `operator int()` and an `explicit operator bool()` converts through
     the first in a `return` and through the second in an `if`. The call
-    and both conversions must not throw.
+    and both conversions must not throw. The operations convert the result
+    with `static_cast<bool>` before they apply `not`, `and` or `or` to
+    it: an `operator!`, `operator&&` or `operator||` of the type of the
+    result, which this trait does not look at, never runs.
 
     @tparam Fct the function or function object, as a reference.
     @tparam Args the types of the arguments of the call.
@@ -1776,7 +1779,7 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
     }
 
   // Optimistic check: if candidate exists and key == candidate, return it
-  if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
+  if (candidate != nullptr and not static_cast<bool>(cmp(KEY(candidate), key))) [[unlikely]]
     return candidate;
 
   return Node::NullPtr;

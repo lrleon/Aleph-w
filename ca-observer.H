@@ -720,7 +720,7 @@ public:
 
 /** @brief Detects fixed points and short cycles via frame hashing.
  *
- *  Keeps a ring buffer of the last `max_cycle_length` frame hashes
+ *  Keeps a ring buffer of the last `max_cycle_length + 1` frame hashes
  *  paired with the step at which they were seen. After every step
  *  the new hash is compared against the buffer; on a hit the
  *  observer records the cycle length (current step minus the step
@@ -780,6 +780,15 @@ class Stationary_Detector
     steps_.reserve(steps_.size() + 1);
     hashes_.append(h);
     steps_.append(step);
+  }
+
+  // Whether a frame seen length steps before is within the steps that a
+  // full window spans, max_cycle_length_ + 1: that sum wraps to 0 with
+  // SIZE_MAX, so the last one is checked as length - 1. A length of 0, as
+  // a step given twice makes, stays within them
+  [[nodiscard]] bool spans_a_full_window_at_most(const std::size_t length) const noexcept
+  {
+    return length <= max_cycle_length_ or length - 1 == max_cycle_length_;
   }
 
 public:
@@ -863,6 +872,13 @@ public:
   }
 
   /** @brief Check the completed frame against the recent hash window.
+   *
+   *  A buffered hash matches if it was seen at most
+   *  `max_cycle_length + 1` steps before, the steps that a full window
+   *  spans. A frame that a failed buffering lost leaves a full window
+   *  with an older hash, which it would have dropped otherwise: a match
+   *  with it is not taken.
+   *
    *  @tparam Lattice lattice type.
    *  @param[in] step completed step index.
    *  @param[in] frame frame after the step.
@@ -877,7 +893,7 @@ public:
 
     if (not cycle_length_.has_value())
       for (std::size_t i = 0; i < hashes_.size(); ++i)
-        if (hashes_[i] == h)
+        if (hashes_[i] == h and spans_a_full_window_at_most(step - steps_[i]))
           {
             cycle_start_ = steps_[i];
             cycle_length_ = step - steps_[i];

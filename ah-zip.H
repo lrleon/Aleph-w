@@ -202,13 +202,16 @@ public:
       @return a tuple with a copy of the current item of each container.
       @throw what reading the current items throws, as the `get_curr_ne()`
       of the iterator of a container that the user wrote may do even when
-      its items are arithmetic, and what copying them throws: the
+      its items are arithmetic; what copying them throws: the
       `std::bad_alloc` of copying a `std::string` or a `DynArray`, or what
-      the copy of a type of the user throws.
-      @note It is `noexcept` only when neither the reading nor the copy of
-      any item can throw, as with the arithmetic items of the containers
-      of Aleph, so that what they throw reaches the caller instead of
-      ending the program.
+      the copy of a type of the user throws; and what moving the items of
+      the other containers throws, as `std::tuple_cat()` moves them from
+      the tuple of the rest of the zip into this one: an item whose copy
+      cannot throw may have a move that does.
+      @note It is `noexcept` only when none of these readings, copies and
+      moves can throw, as with the arithmetic items of the containers of
+      Aleph, so that what they throw reaches the caller instead of ending
+      the program.
   */
   auto get_curr_ne() const
     noexcept(zip_detail::nothrow_curr_copy<Aleph::const_iterator_t<HeadC>, T>
@@ -1279,11 +1282,13 @@ public:
 
       @return a tuple with a copy of the current item of each container
       and the position.
-      @throw what reading or copying the current items throws, as
+      @throw what reading, copying or moving the current items throws, as
       ZipIterator::get_curr_ne(): the reading of a container that the user
-      wrote may throw even when its items are arithmetic.
-      @note It is `noexcept` only when neither the reading nor the copy of
-      any item can throw, as ZipIterator::get_curr_ne(), so that what they
+      wrote may throw even when its items are arithmetic, and
+      `std::tuple_cat()` moves the items of the other containers, whose
+      move may throw even when their copy cannot.
+      @note It is `noexcept` only when none of these readings, copies and
+      moves can throw, as ZipIterator::get_curr_ne(), so that what they
       throw reaches the caller instead of ending the program.
   */
   auto get_curr_ne() const

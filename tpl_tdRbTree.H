@@ -124,7 +124,7 @@ private:
   bool equals(const Key& a, const Key& b) const
     noexcept(nothrow_compare_v<Compare, Key>)
   {
-    return not cmp(a, b) and not cmp(b, a);
+    return not static_cast<bool>(cmp(a, b)) and not static_cast<bool>(cmp(b, a));
   }
 
   /// Get sibling of node p whose parent is fp

@@ -889,10 +889,9 @@ public:
     // A position that an int cannot hold is past the end of every tree
     // whose positions it holds: it is kept as Pos_Out_Of_Range, the least
     // int, a negative position, which has no node either, and from which
-    // next_ne() would take some 2^31 steps to leave the negative ones.
-    // Converting it would drop its high bits and could give a position
-    // with a node, and the greatest int would overflow at the first
-    // next_ne()
+    // next_ne() would take some 2^31 steps to leave the negative ones, as
+    // next_ne() goes to it from the greatest int. Converting it would drop
+    // its high bits and could give a position with a node
     static int saturated_pos(const size_t pos) noexcept
     {
       constexpr auto max_pos =
@@ -1126,9 +1125,17 @@ public:
       curr = nullptr;
     }
 
+    /** Move the iterator one position forward, without the check of
+        next().
+
+        Past the end it goes on to positions without node. It adds 1 as an
+        unsigned: from the greatest int, which a position given near it
+        reaches past the end, it goes to Pos_Out_Of_Range, the least int,
+        instead of overflowing.
+    */
     void next_ne() noexcept
     {
-      ++curr_pos;
+      curr_pos = static_cast<int>(static_cast<unsigned>(curr_pos) + 1u);
       curr = nullptr;
     }
 
