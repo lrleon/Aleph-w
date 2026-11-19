@@ -82,7 +82,11 @@ TEST(SimplexAllocation, AFailedPreparationStillTakesRestrictions)
           }
       }
       if (not threw)
-        break;
+        {
+          // completed: it must not have caught a failed allocation
+          EXPECT_EQ(refused_allocations, 0u) << "no std::bad_alloc reached the caller";
+          break;
+        }
       ++failures;
 
       double y[] = {0.0, 1.0, 3.0};  // y <= 3

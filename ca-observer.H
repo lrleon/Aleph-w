@@ -740,10 +740,11 @@ public:
  *  thread-safe for concurrent callbacks.
  *
  *  @par Exception-safety
- *  Buffering the hash of a frame may throw `std::bad_alloc`, which
- *  reaches the caller of the callback: the two buffers, of the hashes and
- *  of their steps, are then left as they were. A cycle found in that step
- *  stays reported.
+ *  Buffering the hash of a frame may throw `std::bad_alloc` while the
+ *  window grows, which reaches the caller of the callback: the two
+ *  buffers, of the hashes and of their steps, are then left as they were.
+ *  A cycle found in that step stays reported. Once the window is full,
+ *  buffering allocates nothing.
  */
 class Stationary_Detector
 {
@@ -753,25 +754,30 @@ class Stationary_Detector
   std::optional<std::size_t> cycle_length_;
   std::optional<std::size_t> cycle_start_;
 
-  // The room for the new entry comes first, in both buffers: a bad_alloc
-  // then leaves them as they were, and the appends below do not allocate.
-  // Nor does the removal of the oldest entry: a buffer shrinks only when
-  // it holds a quarter of its capacity or less, and a full window, whose
-  // buffers grew to hold it, holds more
+  // A full window drops its oldest entry and keeps the new one in its
+  // place: close_gap() moves the others one place down, in both buffers,
+  // which then keep their size and do not allocate. remove_first() also
+  // shrinks a buffer that holds a quarter of its capacity or less, as
+  // those of a small window do, and a bad_alloc there would leave each
+  // hash with the step of another one. A window that is not full grows:
+  // the room for the new entry comes first, in both buffers, so that a
+  // bad_alloc leaves them as they were and the appends do not allocate
   void push(const std::uint64_t h, const std::size_t step)
   {
-    hashes_.reserve(hashes_.size() + 1);
-    steps_.reserve(steps_.size() + 1);
-
     // size > max, not size >= max + 1: with max = SIZE_MAX the sum wraps
-    // to 0, and the first push would remove from an empty buffer
+    // to 0, and the first push would drop from an empty buffer
     if (hashes_.size() > max_cycle_length_)
       {
-        // Drop the oldest entry (front of the buffer); remove_first
-        // closes the gap, preserving the window order.
-        (void) hashes_.remove_first();
-        (void) steps_.remove_first();
+        const std::size_t n = hashes_.size();
+        Aleph::close_gap(&hashes_(0), n, 0);
+        Aleph::close_gap(&steps_(0), n, 0);
+        hashes_(n - 1) = h;
+        steps_(n - 1) = step;
+        return;
       }
+
+    hashes_.reserve(hashes_.size() + 1);
+    steps_.reserve(steps_.size() + 1);
     hashes_.append(h);
     steps_.append(step);
   }

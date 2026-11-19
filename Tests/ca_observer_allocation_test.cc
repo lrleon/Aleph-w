@@ -112,6 +112,8 @@ TEST(StationaryDetectorAllocation, AFailedBufferingReachesTheCaller)
           EXPECT_EQ(det.buffered_hashes(), before);
           det.on_step_end(k, frames(k));  // without the failure, it buffers
         }
+      else  // completed: it must not have caught a failed allocation
+        EXPECT_EQ(refused_allocations, 0u) << "no std::bad_alloc reached the caller";
       EXPECT_EQ(det.buffered_hashes(), before + 1);
       EXPECT_FALSE(det.cycle_detected());
     }
@@ -122,4 +124,51 @@ TEST(StationaryDetectorAllocation, AFailedBufferingReachesTheCaller)
   ASSERT_TRUE(det.cycle_detected());
   EXPECT_EQ(*det.cycle_start(), 5u);
   EXPECT_EQ(*det.cycle_length(), static_cast<size_t>(Frames - 5));
+}
+
+// A small window keeps few hashes in buffers that start with room for 32:
+// dropping the oldest hash shrank the buffer of the hashes, which
+// allocates, and a failure there left each hash with the step of the next
+// one, so that a cycle was reported from the wrong step
+TEST(StationaryDetectorAllocation, AFullSmallWindowKeepsEachHashWithItsStep)
+{
+  if (ALEPH_ALLOCATION_FAILURE_UNDER_TSAN)
+    GTEST_SKIP() << "ThreadSanitizer replaces the global operator new";
+
+  constexpr int Frames = 24;
+  const Array<L> frames = distinct_frames(Frames);
+  for (size_t window = 1; window <= 12; ++window)
+    {
+      SCOPED_TRACE("window " + std::to_string(window));
+      Stationary_Detector det(window);
+      det.on_step_begin(0, frames(0));
+      for (int k = 1; k < Frames; ++k)
+        {
+          bool threw = false;
+          {
+            const Fail_At failing(1);
+            try
+              {
+                det.on_step_end(k, frames(k));
+              }
+            catch (const std::bad_alloc &)
+              {
+                threw = true;
+              }
+          }
+          if (threw)
+            det.on_step_end(k, frames(k));  // without the failure, it buffers
+          else  // completed: it must not have caught a failed allocation
+            EXPECT_EQ(refused_allocations, 0u) << "no std::bad_alloc reached the caller";
+        }
+      ASSERT_EQ(det.buffered_hashes(), window + 1);
+      EXPECT_FALSE(det.cycle_detected());
+
+      // A frame of the window again: it was seen at its step
+      const size_t seen = Frames - window;
+      det.on_step_end(Frames, frames(seen));
+      ASSERT_TRUE(det.cycle_detected());
+      EXPECT_EQ(*det.cycle_start(), seen);
+      EXPECT_EQ(*det.cycle_length(), window);
+    }
 }

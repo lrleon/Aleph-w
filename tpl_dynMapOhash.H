@@ -327,6 +327,9 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @return Pointer to the pair if found, nullptr otherwise.
    *  @throws What building the pair that the table searches for throws:
    *          the copy of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
   [[nodiscard]] Pair *search(const Key &key) noexcept(nothrow_search<const Key &>)
   {
@@ -350,6 +353,9 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @return Pointer to the pair if found, nullptr otherwise.
    *  @throws What building the pair that the table searches for throws:
    *          the move of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
   [[nodiscard]] Pair *search(Key &&key) noexcept(nothrow_search<Key>)
   {
@@ -373,6 +379,9 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @return true if the key exists, false otherwise.
    *  @throws What building the pair that the table searches for throws:
    *          the copy of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
   [[nodiscard]] bool has(const Key &key) const noexcept(nothrow_search<const Key &>)
   {
@@ -385,6 +394,9 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @return true if the key exists, false otherwise.
    *  @throws What building the pair that the table searches for throws:
    *          the move of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
   [[nodiscard]] bool has(Key &&key) const noexcept(nothrow_search<Key>)
   {
@@ -399,6 +411,9 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @return true if the key exists, false otherwise.
    *  @throws What building the pair that the table searches for throws:
    *          the copy of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
   [[nodiscard]] bool contains(const Key &key) const noexcept(nothrow_search<const Key &>)
   {
@@ -411,6 +426,9 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    *  @return true if the key exists, false otherwise.
    *  @throws What building the pair that the table searches for throws:
    *          the move of `key` or the default constructor of Data.
+   *          As the search of the table, which is `noexcept`, it
+   *          requires that the hash functions and the comparison do not
+   *          throw.
    */
   [[nodiscard]] bool contains(Key &&key) const noexcept(nothrow_search<Key>)
   {

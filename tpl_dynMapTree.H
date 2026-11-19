@@ -106,13 +106,12 @@ namespace Aleph {
 
     // Whether a search by the key cannot throw: it takes the comparison of
     // the tree, which a tree given by the user may copy, compares constant
-    // keys and converts the result to bool and, in a splay tree, builds the
-    // pair that the tree searches for, a copy of the key and a Data built
-    // by default and moved
+    // keys and takes the result as a condition and, in a splay tree, builds
+    // the pair that the tree searches for, a copy of the key and a Data
+    // built by default and moved
     static constexpr bool nothrow_search =
       noexcept(std::declval<typename Base::Tree_Type &>().get_compare()) and
-      std::is_nothrow_invocable_r_v<bool, const Compare &,
-                                    const Key &, const Key &> and
+      nothrow_condition_v<const Compare &, const Key &, const Key &> and
       (not splays or (std::is_nothrow_copy_constructible_v<Key> and
                       std::is_nothrow_default_constructible_v<Data> and
                       std::is_nothrow_move_constructible_v<Data>));
@@ -349,9 +348,12 @@ namespace Aleph {
      * @return Pointer to the stored pair if found; nullptr otherwise.
      * @throw what comparing two keys throws; nothing when that comparison
      * is `noexcept`, as `Aleph::less` of the arithmetic types. In a splay
-     * tree, what copying `key` or building a `Data` throws instead: the
-     * comparison must not throw there, as the search of the splay trees is
-     * `noexcept` and a comparison that throws in it ends the program.
+     * tree, what copying `key` or building the `Data` of the pair to search
+     * for throws instead. The splay that follows is `noexcept`: a
+     * comparison that throws in it ends the program, and so does a `Data()`
+     * that throws in the header of the splay, a whole node, which it builds
+     * by default. So, in a splay tree, neither the comparison nor the
+     * default construction of `Data` may throw.
      * @note It compares `key` with the key of each pair, without building a
      * pair to search for: a copy of a long `std::string` key or a `Data()`
      * that is an `Array` would allocate in every search, and what such a

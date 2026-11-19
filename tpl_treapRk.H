@@ -1047,7 +1047,11 @@ public:
 
         A position past the end has no node, whichever way the iterator
         got there: then it gives `nullptr`, without the check of
-        select(), which would throw.
+        select(), which would throw. A node that the iterator already
+        found stays its current one, though: if the tree changes, as when
+        keys before it are removed, it may give that node while
+        has_curr() is false. A change of the tree invalidates the
+        iterator, which must then be put on a position again.
 
         @return the current node, or `nullptr` if there is none.
     */

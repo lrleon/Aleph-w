@@ -126,6 +126,10 @@ using namespace Aleph;
           a comparison that threw in the middle would leave nodes hanging
           from a local header, out of the tree. verify(), which does not
           splay, lets what the comparison throws reach the caller.
+    @note Nor must the default construction of a `Key` throw: that local
+          header is a whole node, whose key each splay builds by default
+          inside `noexcept`. In a DynMapTree, whose keys are pairs, that
+          is the default construction of its `Data`.
     @note Based on Danny Sleator's top-down splay tree implementation.
     @note This is a low-level implementation managing raw nodes.
           For automatic memory management, use DynSetSplayTree.

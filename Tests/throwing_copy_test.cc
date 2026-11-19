@@ -54,6 +54,7 @@
 # include <utility>
 
 # include <gtest/gtest.h>
+# include <gtest/gtest-spi.h>
 
 # include <ah-zip.H>
 # include <htlist.H>
@@ -225,6 +226,8 @@ namespace
   // before the k-th. A failure must reach the caller if lets_through, and
   // must not otherwise. Then valid(fixture, threw) checks the fixture, and
   // destroying it must leave as many items alive as before building it.
+  // An op that makes no operation that can fail tests nothing: it fails
+  // the test.
   template <class Fixture, class Op, class Valid>
   void try_every_failure(const std::string & what, const bool lets_through,
                          Op op, Valid valid)
@@ -258,9 +261,26 @@ namespace
         }
         EXPECT_EQ(Failures::alive, alive) << "items leaked or destroyed twice";
         if (fired == 0)
-          return;
+          {
+            if (k == 0)
+              ADD_FAILURE() << what << " made no operation that can fail: nothing was tested";
+            return;
+          }
       }
     ADD_FAILURE() << what << " made more than " << Max_Failure_Point << " operations";
+  }
+
+  // The harness: an operation that makes no operation that can fail, as a
+  // set_hash_fct() that would not change the function, completes at the
+  // first try with the fixture as it was; it must fail the test instead of
+  // passing it
+  TEST(Failure_Harness, AnOperationThatCannotFailFailsTheTest)
+  {
+    struct Nothing {};
+    EXPECT_NONFATAL_FAILURE(try_every_failure<Nothing>("doing nothing", true,
+                                                        [] (Nothing &) {},
+                                                        [] (Nothing &, bool) {}),
+                            "nothing was tested");
   }
 
   // =========================================================================
@@ -777,19 +797,48 @@ namespace
     }
   };
 
+  // Whether the hash function fct of a table is the function fct_ptr
+  template <class Hash_Fct>
+  bool is_the_function(const Hash_Fct & fct, size_t (*fct_ptr)(const Copy_Fails &))
+  {
+    // std-interop: the open tables keep their functions in a std::function
+    const auto * target = fct.template target<size_t (*)(const Copy_Fails &)>();
+    return target != nullptr and *target == fct_ptr;
+  }
+
+  // After each try, the table has the function that it had if a copy
+  // failed, and the new one otherwise
   TEST(Open_Hash_Table, SetHashFctKeepsItsFunctionWhenACopyFails)
   {
     using OL = Open_Table<OLhashTable<Copy_Fails>>;
     using OD = Open_Table<ODhashTable<Copy_Fails>>;
     try_every_failure<OL>("OLhashTable::set_hash_fct()", true,
                           [] (OL & t) { t.table.set_hash_fct(other_hash_of); },
-                          [] (OL & t, bool) { t.holds_its_keys(); });
+                          [] (OL & t, const bool threw)
+                          {
+                            t.holds_its_keys();
+                            EXPECT_TRUE(is_the_function(t.table.get_hash_fct(),
+                                                        threw ? hash_of : other_hash_of));
+                          });
     try_every_failure<OD>("ODhashTable::set_hash_fct()", true,
                           [] (OD & t) { t.table.set_hash_fct(other_hash_of); },
-                          [] (OD & t, bool) { t.holds_its_keys(); });
+                          [] (OD & t, const bool threw)
+                          {
+                            t.holds_its_keys();
+                            EXPECT_TRUE(is_the_function(t.table.get_hash_fct(),
+                                                        threw ? hash_of : other_hash_of));
+                            EXPECT_TRUE(is_the_function(t.table.get_second_hash_fct(),
+                                                        second_hash_of));
+                          });
     try_every_failure<OD>("ODhashTable::set_second_hash_fct()", true,
                           [] (OD & t) { t.table.set_second_hash_fct(other_hash_of); },
-                          [] (OD & t, bool) { t.holds_its_keys(); });
+                          [] (OD & t, const bool threw)
+                          {
+                            t.holds_its_keys();
+                            EXPECT_TRUE(is_the_function(t.table.get_hash_fct(), hash_of));
+                            EXPECT_TRUE(is_the_function(t.table.get_second_hash_fct(),
+                                                        threw ? second_hash_of : other_hash_of));
+                          });
   }
 
 
@@ -930,8 +979,12 @@ namespace
         const auto * q = const_map.search(key);
         auto * r = map.search(Copy_Fails(k));
         const auto * s = const_map.search(Copy_Fails(k));
-        const bool has = const_map.has(key) and const_map.has(Copy_Fails(k));
-        const bool contains = const_map.contains(key) and const_map.contains(Copy_Fails(k));
+        // each one apart: with and, a key that is not in the map would skip
+        // the overload for an rvalue
+        const bool has = const_map.has(key);
+        const bool has_rvalue = const_map.has(Copy_Fails(k));
+        const bool contains = const_map.contains(key);
+        const bool contains_rvalue = const_map.contains(Copy_Fails(k));
         if (in)
           {
             EXPECT_EQ(map.find(key).value, k);
@@ -949,7 +1002,9 @@ namespace
         EXPECT_EQ(p != nullptr, in) << "key " << k;
         EXPECT_TRUE(q == p and r == p and s == p) << "key " << k;
         EXPECT_EQ(has, in) << "key " << k;
+        EXPECT_EQ(has_rvalue, in) << "key " << k;
         EXPECT_EQ(contains, in) << "key " << k;
+        EXPECT_EQ(contains_rvalue, in) << "key " << k;
         if (p != nullptr)
           {
             EXPECT_EQ(p->second.value, k);
@@ -962,12 +1017,16 @@ namespace
   // What building the pair throws, in the searches of a splay tree and in
   // remove_key(), must reach the caller and leave the map as it was. The
   // data are long, so that the header of each splay, a node whose key is
-  // built by default inside noexcept, never fails.
+  // built by default inside noexcept, never fails. The search of the other
+  // trees builds nothing, so nothing of it can fail: SearchesCopyNothing
+  // checks it.
   TYPED_TEST(Map_Search, SearchLetsTheFailureThrough)
   {
     using Map = typename TypeParam::template Map<Copy_Fails, long>;
     using Fixture = Map_Fixture<Map>;
-    if constexpr (TypeParam::splays and noexcept(std::declval<Map &>().search(Copy_Fails(0))))
+    if constexpr (not TypeParam::splays)
+      GTEST_SKIP() << "the search of this tree builds no pair";
+    else if constexpr (noexcept(std::declval<Map &>().search(Copy_Fails(0))))
       ADD_FAILURE() << "search() is noexcept, but it copies a key that may throw";
     else
       for (const long k : {0L, 1L, 98L})
@@ -980,31 +1039,40 @@ namespace
                                    });
   }
 
+  // A key that is not in the map, as 99, is refused with std::domain_error
   TYPED_TEST(Map_Search, RemoveKeyLetsTheFailureThrough)
   {
     using Map = typename TypeParam::template Map<Copy_Fails, long>;
     using Fixture = Map_Fixture<Map>;
     for (const long k : {0L, 98L, 99L})
-      try_every_failure<Fixture>("remove_key(" + std::to_string(k) + ")", true,
-                                 [k] (Fixture & f)
-                                 {
-                                   try
-                                     {
-                                       f.map.remove_key(Copy_Fails(k));
-                                     }
-                                   catch (const std::domain_error &)
-                                     {
-                                       EXPECT_FALSE(in_the_map(k));
-                                     }
-                                 },
-                                 [k] (Fixture & f, const bool threw)
-                                 {
-                                   const bool removed = in_the_map(k) and not threw;
-                                   EXPECT_EQ(f.map.has(Copy_Fails(k)), in_the_map(k) and not removed);
-                                   EXPECT_EQ(f.map.size(),
-                                             static_cast<size_t>(removed ? Pairs - 1 : Pairs));
-                                   EXPECT_TRUE(f.map.verify());
-                                 });
+      {
+        bool refused = false;  // remove_key() threw std::domain_error
+        try_every_failure<Fixture>("remove_key(" + std::to_string(k) + ")", true,
+                                   [k, &refused] (Fixture & f)
+                                   {
+                                     refused = false;
+                                     try
+                                       {
+                                         f.map.remove_key(Copy_Fails(k));
+                                       }
+                                     catch (const std::domain_error &)
+                                       {
+                                         refused = true;
+                                       }
+                                   },
+                                   [k, &refused] (Fixture & f, const bool threw)
+                                   {
+                                     if (not threw)
+                                       EXPECT_EQ(refused, not in_the_map(k))
+                                         << "std::domain_error, for a key not in the map alone";
+                                     const bool removed = in_the_map(k) and not threw;
+                                     EXPECT_EQ(f.map.has(Copy_Fails(k)),
+                                               in_the_map(k) and not removed);
+                                     EXPECT_EQ(f.map.size(),
+                                               static_cast<size_t>(removed ? Pairs - 1 : Pairs));
+                                     EXPECT_TRUE(f.map.verify());
+                                   });
+      }
   }
 
   static_assert(noexcept(std::declval<const DynMapTree<int, int> &>().search(1)));
@@ -1160,6 +1228,79 @@ namespace
     EXPECT_EQ(Failures::fired, 0);
     EXPECT_EQ(std::get<0>(t).value + std::get<1>(t).value + std::get<2>(t).value, 3);
     EXPECT_EQ(std::get<2>(u).value, 1);
+  }
+
+  // An item that can be copied only from one that is not constant, with a
+  // copy that fails when asked to, and moved
+  struct Mutable_Copy_Only
+  {
+    long value = 0;
+
+    Mutable_Copy_Only(const long v) noexcept : value(v) {}
+
+    Mutable_Copy_Only(Mutable_Copy_Only & item) : value(item.value)
+    {
+      Failures::hit("copy from an item that is not constant");
+    }
+
+    Mutable_Copy_Only(const Mutable_Copy_Only &) = delete;
+
+    Mutable_Copy_Only(Mutable_Copy_Only && item) noexcept : value(item.value) {}
+  };
+
+  // A container of the items 1, 2 and 3, which its iterator gives by value
+  struct By_Value_Items
+  {
+    using Item_Type = Mutable_Copy_Only;
+
+    struct Iterator
+    {
+      using Item_Type = Mutable_Copy_Only;
+
+      long i = 0;
+
+      Iterator(const By_Value_Items &) noexcept {}
+
+      bool has_curr() const noexcept { return i < 3; }
+
+      Mutable_Copy_Only get_curr_ne() const noexcept { return Mutable_Copy_Only(i + 1); }
+
+      Mutable_Copy_Only get_curr() const noexcept { return get_curr_ne(); }
+
+      void next_ne() noexcept { ++i; }
+
+      void next() noexcept { next_ne(); }
+    };
+  };
+
+  // The zips of several containers took such an item from a tuple that was
+  // not constant, with T(T &); copying it from a constant one, with the
+  // copy that it does not have, did not compile
+  TEST(Zip_Current_Copies, CopiesAnItemThatCopiesOnlyFromOneNotConstant)
+  {
+    using List = DynList<long>;
+    using Zip = ZipIterator<By_Value_Items, List>;
+    using Enum_Zip = EnumZipIterator<By_Value_Items, List>;
+    EXPECT_FALSE(noexcept(std::declval<const Zip &>().get_curr_ne()));
+    EXPECT_FALSE(noexcept(std::declval<const Enum_Zip &>().get_curr_ne()));
+
+    const By_Value_Items items;
+    const auto list = one_two_three<List>();
+    long sum = 0;
+    for (Zip it(items, list); it.has_curr(); it.next_ne())
+      sum += std::get<0>(it.get_curr_ne()).value * std::get<1>(it.get_curr_ne());
+    for (Enum_Zip it(items, list); it.has_curr(); it.next_ne())
+      sum += std::get<0>(it.get_curr_ne()).value + static_cast<long>(std::get<2>(it.get_curr_ne()));
+    EXPECT_EQ(sum, (1 + 4 + 9) + (1 + 3 + 5));
+
+    const Zip zip(items, list);
+    const Enum_Zip enum_zip(items, list);
+    {
+      Failing_From failing(0);
+      EXPECT_THROW((void) zip.get_curr_ne(), Injected_Failure);
+      EXPECT_THROW((void) enum_zip.get_curr_ne(), Injected_Failure);
+    }
+    EXPECT_EQ(std::get<0>(zip.get_curr_ne()).value, 1);
   }
 
   // =========================================================================

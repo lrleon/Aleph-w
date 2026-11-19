@@ -92,6 +92,24 @@ template <class Zip>
 inline constexpr bool nothrow_tail_curr =
   noexcept(std::declval<const Zip &>().get_curr_ne()) and
   std::is_nothrow_move_constructible_v<decltype(std::declval<const Zip &>().get_curr_ne())>;
+
+/** The tuple where a recursive zip iterator keeps the current item of its
+ *  first container, which `std::tuple_cat()` then copies into the tuple
+ *  that it gives: constant, so that the copy is `T(const T &)`, unless
+ *  `T` can only be copied from an item that is not constant (`T(T &)`),
+ *  which the copy from a tuple that is not constant takes.
+ */
+template <class T>
+using curr_tuple_t =
+  std::conditional_t<std::is_copy_constructible_v<T>, const std::tuple<T>, std::tuple<T>>;
+
+/** Whether `std::tuple_cat()` copies the item kept in a `curr_tuple_t<T>`
+ *  without throwing.
+ */
+template <class T>
+inline constexpr bool nothrow_item_copy =
+  std::is_copy_constructible_v<T> ? std::is_nothrow_copy_constructible_v<T>
+                                  : std::is_nothrow_constructible_v<T, T &>;
 }  // namespace zip_detail
 
 /**
@@ -182,20 +200,23 @@ public:
       Requires `has_curr()`.
 
       @return a tuple with a copy of the current item of each container.
-      @throw what copying the current items throws; nothing when no copy
-      can throw, as with the arithmetic types.
-      @note It is `noexcept` only in that case: the tuple holds copies, and
-      the `std::bad_alloc` of copying a `std::string` or a `DynArray`, or
-      what the copy of a type of the user throws, must reach the caller
-      instead of ending the program.
+      @throw what reading the current items throws, as the `get_curr_ne()`
+      of the iterator of a container that the user wrote may do even when
+      its items are arithmetic, and what copying them throws: the
+      `std::bad_alloc` of copying a `std::string` or a `DynArray`, or what
+      the copy of a type of the user throws.
+      @note It is `noexcept` only when neither the reading nor the copy of
+      any item can throw, as with the arithmetic items of the containers
+      of Aleph, so that what they throw reaches the caller instead of
+      ending the program.
   */
   auto get_curr_ne() const
     noexcept(zip_detail::nothrow_curr_copy<Aleph::const_iterator_t<HeadC>, T>
-             and std::is_nothrow_copy_constructible_v<T>
+             and zip_detail::nothrow_item_copy<T>
              and zip_detail::nothrow_tail_curr<ZipIterator<TailC...>>)
   {
-    // constant: tuple_cat() copies it with T(const T &), as the trait says
-    const std::tuple<T> curr(it.get_curr_ne());
+    // tuple_cat() copies it as nothrow_item_copy says
+    zip_detail::curr_tuple_t<T> curr(it.get_curr_ne());
     return std::tuple_cat(curr, ZipIterator<TailC...>::get_curr_ne());
   }
 
@@ -277,10 +298,11 @@ public:
       Requires `has_curr()`.
 
       @return a tuple with a copy of the current item.
-      @throw what copying the current item throws; nothing when its copy
-      cannot throw, as with the arithmetic types.
-      @note It is `noexcept` only in that case, so that what the copy
-      throws reaches the caller instead of ending the program.
+      @throw what reading the current item throws, as the `get_curr_ne()`
+      of the iterator of a container that the user wrote may do even when
+      its item is arithmetic, and what copying it throws.
+      @note It is `noexcept` only when neither can throw, so that what they
+      throw reaches the caller instead of ending the program.
   */
   std::tuple<T> get_curr_ne() const noexcept(zip_detail::nothrow_curr_copy<Base, T>)
   {
@@ -1257,19 +1279,20 @@ public:
 
       @return a tuple with a copy of the current item of each container
       and the position.
-      @throw what copying the current items throws; nothing when no copy
-      can throw, as with the arithmetic types.
-      @note It is `noexcept` only in that case, as ZipIterator::get_curr_ne(),
-      so that what a copy throws reaches the caller instead of ending the
-      program.
+      @throw what reading or copying the current items throws, as
+      ZipIterator::get_curr_ne(): the reading of a container that the user
+      wrote may throw even when its items are arithmetic.
+      @note It is `noexcept` only when neither the reading nor the copy of
+      any item can throw, as ZipIterator::get_curr_ne(), so that what they
+      throw reaches the caller instead of ending the program.
   */
   auto get_curr_ne() const
     noexcept(zip_detail::nothrow_curr_copy<Aleph::const_iterator_t<HeadC>, T>
-             and std::is_nothrow_copy_constructible_v<T>
+             and zip_detail::nothrow_item_copy<T>
              and zip_detail::nothrow_tail_curr<EnumZipIterator<TailC...>>)
   {
-    // constant: tuple_cat() copies it with T(const T &), as the trait says
-    const std::tuple<T> curr(it.get_curr_ne());
+    // tuple_cat() copies it as nothrow_item_copy says
+    zip_detail::curr_tuple_t<T> curr(it.get_curr_ne());
     return std::tuple_cat(curr, EnumZipIterator<TailC...>::get_curr_ne());
   }
 
@@ -1338,10 +1361,11 @@ public:
       Requires `has_curr()`.
 
       @return a tuple with a copy of the current item and its position.
-      @throw what copying the current item throws; nothing when its copy
-      cannot throw, as with the arithmetic types.
-      @note It is `noexcept` only in that case, so that what the copy
-      throws reaches the caller instead of ending the program.
+      @throw what reading the current item throws, as the `get_curr_ne()`
+      of the iterator of a container that the user wrote may do even when
+      its item is arithmetic, and what copying it throws.
+      @note It is `noexcept` only when neither can throw, so that what they
+      throw reaches the caller instead of ending the program.
   */
   std::tuple<T, size_t> get_curr_ne() const noexcept(zip_detail::nothrow_curr_copy<Base, T>)
   {

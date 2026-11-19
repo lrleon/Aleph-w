@@ -55,6 +55,8 @@
 
 #include "search_trees_test_common.H"
 
+#include <gtest/gtest-spi.h>
+
 #include <climits>
 #include <stdexcept>
 #include <string>
@@ -220,7 +222,8 @@ namespace
      `failures` the runs that threw. After each one, the fixture must keep
      its initial keys (`expect_initial()`); after the run that does not
      throw, `done` checks its result. An exception other than the one of
-     the comparison fails the test. */
+     the comparison fails the test, and so does a run that does not throw
+     after the comparison threw: op caught the exception. */
   template <class Fixture, class Op, class Done>
   void fail_at_every_call(Op op, Done done, Failures & failures)
   {
@@ -244,6 +247,12 @@ namespace
 
         if (not thrown)
           {
+            // k calls or more: the call k threw, and op caught it
+            if (Countdown_Less::calls >= k)
+              {
+                ADD_FAILURE() << "the comparison threw, but the exception did not reach the caller";
+                return;
+              }
             done(f);
             return;
           }
@@ -418,6 +427,31 @@ namespace
   {
     return std::string(op) + "(" + std::to_string(key) + ")";
   }
+}
+
+// The harness: an operation that catches what the comparison throws, and
+// tries again, gives the right result, but the exception did not reach its
+// caller. The run of fail_at_every_call() that takes it must fail, instead
+// of taking it as the run where the comparison does not throw.
+TEST(ThrowingCompareHarness, AnExceptionThatTheOperationCatchesFailsTheTest)
+{
+  using Fixture = Tree_Fixture<Avl_Tree<int, Countdown_Less>>;
+  Failures failures;
+  EXPECT_NONFATAL_FAILURE(fail_at_every_call<Fixture>(
+                            [] (Fixture & f)
+                            {
+                              try
+                                {
+                                  (void) f.tree.search(4);
+                                }
+                              catch (const Comparison_Error &)  // the call k is past
+                                {
+                                  (void) f.tree.search(4);
+                                }
+                            },
+                            [] (Fixture & f) { f.expect_initial(); }, failures),
+                          "did not reach the caller");
+  EXPECT_EQ(failures.thrown, 0);
 }
 
 template <class Kind>
@@ -766,9 +800,11 @@ TYPED_TEST(ThrowingCompareSet, LetsTheExceptionThrough)
       {
         SCOPED_TRACE(trace_of("find", key));
         bool found = false;
+        bool refused = false;  // it threw std::domain_error
         fail_at_every_call<Fixture>(
           [&] (Fixture & f)
           {
+            refused = false;
             try
               {
                 found = f.set.find(key) == key;
@@ -776,11 +812,14 @@ TYPED_TEST(ThrowingCompareSet, LetsTheExceptionThrough)
             catch (const std::domain_error &)  // the key is not in the set
               {
                 found = false;
+                refused = true;
               }
           },
           [&] (Fixture & f)
           {
             EXPECT_EQ(found, present);
+            EXPECT_EQ(refused, not present)
+              << "find() throws std::domain_error for a key not in the set, alone";
             f.expect_initial();
           }, failures);
       }
@@ -850,9 +889,11 @@ TYPED_TEST(ThrowingCompareMap, LetsTheExceptionThrough)
       {
         SCOPED_TRACE(trace_of("find", key));
         bool found = false;
+        bool refused = false;  // it threw std::domain_error
         fail_at_every_call<Fixture>(
           [&] (Fixture & f)
           {
+            refused = false;
             try
               {
                 found = f.map.find(key) == -key;
@@ -860,20 +901,25 @@ TYPED_TEST(ThrowingCompareMap, LetsTheExceptionThrough)
             catch (const std::domain_error &)  // the key is not in the map
               {
                 found = false;
+                refused = true;
               }
           },
           [&] (Fixture & f)
           {
             EXPECT_EQ(found, present);
+            EXPECT_EQ(refused, not present)
+              << "find() throws std::domain_error for a key not in the map, alone";
             f.expect_initial();
           }, failures);
       }
       {
         SCOPED_TRACE(trace_of("remove", key));
         bool removed = false;
+        bool refused = false;  // it threw std::domain_error
         fail_at_every_call<Fixture>(
           [&] (Fixture & f)
           {
+            refused = false;
             try
               {
                 removed = f.map.remove(key) == -key;
@@ -881,29 +927,37 @@ TYPED_TEST(ThrowingCompareMap, LetsTheExceptionThrough)
             catch (const std::domain_error &)  // the key is not in the map
               {
                 removed = false;
+                refused = true;
               }
           },
           [&] (Fixture & f)
           {
             EXPECT_EQ(removed, present);
+            EXPECT_EQ(refused, not present)
+              << "remove() throws std::domain_error for a key not in the map, alone";
             Fixture::expect_valid(f.map, keys_with(INT_MIN, key));
           }, failures);
       }
 
-      // search() of DynMapTree is still noexcept by itself; when it lets
-      // through what the comparison throws, it is tested here too
-      if constexpr (not noexcept(std::declval<Map &>().search(key)))
-        {
-          SCOPED_TRACE(trace_of("search", key));
-          bool found = false;
-          fail_at_every_call<Fixture>(
-            [&] (Fixture & f) { found = f.map.search(key) != nullptr; },
-            [&] (Fixture & f)
-            {
-              EXPECT_EQ(found, present);
-              f.expect_initial();
-            }, failures);
-        }
+      // search() of DynMapTree lets through what the comparison throws:
+      // a search that went back to noexcept fails here, instead of
+      // skipping its test
+      {
+        SCOPED_TRACE(trace_of("search", key));
+        EXPECT_FALSE(noexcept(std::declval<Map &>().search(key)))
+          << "search() is noexcept, but the comparison may throw";
+        if constexpr (not noexcept(std::declval<Map &>().search(key)))
+          {
+            bool found = false;
+            fail_at_every_call<Fixture>(
+              [&] (Fixture & f) { found = f.map.search(key) != nullptr; },
+              [&] (Fixture & f)
+              {
+                EXPECT_EQ(found, present);
+                f.expect_initial();
+              }, failures);
+          }
+      }
     }
 
   EXPECT_GT(failures.thrown, 0);
@@ -1293,6 +1347,34 @@ namespace
     }
   };
 
+  // A comparison that does not throw, whose result converts to bool in two
+  // ways: implicitly, as a return does, through an operator int() that
+  // does not throw, and contextually, as the condition of an if does,
+  // through an operator bool() that throws while armed
+  struct Two_Conversions_Less
+  {
+    static inline bool armed = false;
+
+    struct Result
+    {
+      bool value;
+
+      operator int () const noexcept { return value; }
+
+      explicit operator bool () const
+      {
+        if (armed)
+          throw Comparison_Error();
+        return value;
+      }
+    };
+
+    Result operator ()(const int & a, const int & b) const noexcept
+    {
+      return Result{a < b};
+    }
+  };
+
   // Its overloads for keys that are not constant count their calls and
   // throw, while armed; the one for constant keys does not throw
   template <class Key>
@@ -1418,6 +1500,35 @@ namespace
     }
   };
 
+  // The search of Tree lets through what the condition on the result of
+  // Two_Conversions_Less throws, and so does the position of a node that
+  // is not the root, which takes comparisons, in the ranked trees
+  template <class Tree>
+  void expect_the_condition_lets_the_exception_through()
+  {
+    using Less = Two_Conversions_Less;
+    Small_Tree<Tree> f;
+    EXPECT_FALSE(noexcept(f.tree.search(3)));
+    {
+      const Armed<Less> armed;
+      EXPECT_THROW((void) f.tree.search(4), Comparison_Error);
+    }
+    EXPECT_NE(f.tree.search(8), nullptr);
+
+    if constexpr (requires (typename Tree::Iterator it, typename Tree::Node * p)
+                  { it.reset_to_node(p); })
+      {
+        typename Tree::Iterator it(f.tree);
+        it.reset_to_node(f.tree.search(KEY(f.tree.getRoot()) == 1 ? 3 : 1));
+        EXPECT_FALSE(noexcept(it.has_curr()));
+        {
+          const Armed<Less> armed;
+          EXPECT_THROW((void) it.has_curr(), Comparison_Error);
+        }
+        EXPECT_TRUE(it.has_curr());
+      }
+  }
+
   // The operations that copy the comparison into an operation object, as
   // those of BinTree and the positions of the ranked trees, let through
   // what that copy throws
@@ -1535,6 +1646,34 @@ TEST(ThrowingCompareOperations, TheConversionOfTheResultLetsTheExceptionThrough)
   EXPECT_TRUE(noexcept(std::declval<const DynMapTree<int, int> &>().search(1)));
   EXPECT_TRUE(noexcept(std::declval<const Dft_Pair_Cmp<int, int, Aleph::less<int>> &>()
                        (p1, p2)));
+}
+
+// A result whose conversion to bool as a condition throws, while its
+// conversion as a returned value does not: the operations looked at the
+// second one, and the first one threw inside noexcept in their ifs. The
+// search of a map, which compared pairs, took the second one before
+TEST(ThrowingCompareOperations, TheConditionOnTheResultLetsTheExceptionThrough)
+{
+  using Less = Two_Conversions_Less;
+  expect_the_condition_lets_the_exception_through<Avl_Tree<int, Less>>();
+  expect_the_condition_lets_the_exception_through<Treap<int, Less>>();
+  expect_the_condition_lets_the_exception_through<Avl_Tree_Rk<int, Less>>();
+  expect_the_condition_lets_the_exception_through<Treap_Rk<int, Less>>();
+
+  DynMapTree<int, int, Avl_Tree, Less> map;
+  for (const int key : {5, 3, 8})
+    map.insert(key, -key);
+  EXPECT_FALSE(noexcept(map.search(3)));
+  {
+    const Armed<Less> armed;
+    EXPECT_THROW((void) map.search(4), Comparison_Error);
+    EXPECT_THROW((void) map.contains(4), Comparison_Error);
+  }
+  EXPECT_EQ(map.find(8), -8);
+
+  // a comparison that gives a bool and does not throw keeps the noexcept
+  EXPECT_TRUE(noexcept(std::declval<const Avl_Tree_Rk<int>::Iterator &>().has_curr()));
+  EXPECT_TRUE(noexcept(std::declval<const Treap_Rk<int>::Iterator &>().has_curr()));
 }
 
 // The trees compare the key that they search for with the key of a node,

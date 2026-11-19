@@ -106,6 +106,10 @@ using namespace Aleph;
           (`std::terminate()`). A splay relinks the tree as it compares, so
           a comparison that threw in the middle would leave nodes hanging
           from a local header, out of the tree.
+    @note Nor must the default construction of a `Key` throw: that local
+          header is a whole node, whose key each splay builds by default
+          inside `noexcept`. In a DynMapTree, whose keys are pairs, that
+          is the default construction of its `Data`.
 
     @see Splay_Tree Basic splay tree without rank support.
     @see DynSetSplayTree High-level wrapper.

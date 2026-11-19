@@ -59,6 +59,26 @@
 
 namespace Aleph {
 
+/** @brief Whether calling `Fct` with `Args`, and taking its result as a
+    `bool` in either way, cannot throw.
+
+    A result that is not a `bool` converts to one implicitly where it is
+    returned or assigned to a `bool`, and contextually where it is a
+    condition, as in `if` and `while` and the built-in `not`, `and`, `or`
+    and `?:`. The two conversions may differ: a result with an implicit
+    `operator int()` and an `explicit operator bool()` converts through
+    the first in a `return` and through the second in an `if`. The call
+    and both conversions must not throw.
+
+    @tparam Fct the function or function object, as a reference.
+    @tparam Args the types of the arguments of the call.
+    @ingroup Trees
+ */
+template <class Fct, class... Args>
+inline constexpr bool nothrow_condition_v =
+  std::is_nothrow_invocable_r_v<bool, Fct, Args...> and
+  requires { { static_cast<bool>(std::declval<Fct>()(std::declval<Args>()...)) } noexcept; };
+
 /** @brief Whether the calls of `Cmp` that compare two keys of type `Key`,
     constant or not, give a `bool` without throwing.
 
@@ -68,10 +88,10 @@ namespace Aleph {
  */
 template <class Cmp, class Key>
 inline constexpr bool nothrow_compare_keys_v =
-  std::is_nothrow_invocable_r_v<bool, Cmp, const Key &, const Key &> and
-  std::is_nothrow_invocable_r_v<bool, Cmp, const Key &, Key &> and
-  std::is_nothrow_invocable_r_v<bool, Cmp, Key &, const Key &> and
-  std::is_nothrow_invocable_r_v<bool, Cmp, Key &, Key &>;
+  nothrow_condition_v<Cmp, const Key &, const Key &> and
+  nothrow_condition_v<Cmp, const Key &, Key &> and
+  nothrow_condition_v<Cmp, Key &, const Key &> and
+  nothrow_condition_v<Cmp, Key &, Key &>;
 
 /** @brief Whether `Compare` compares two keys of type `Key` without
     throwing, as the operations of the trees call it.
@@ -83,10 +103,11 @@ inline constexpr bool nothrow_compare_keys_v =
 
     They call it through a constant or a non-constant reference, with the
     key that they search for and the key of a node, which is not constant,
-    and take its result as a `bool`. So each of these calls must not
-    throw, nor the conversion of its result to `bool`: a comparison that
-    gives a type whose conversion throws, or that has an overload for keys
-    that are not constant that throws, makes the operations throw.
+    and take its result as a `bool`, as a condition or as a returned
+    value. So each of these calls must not throw, nor either conversion of
+    its result to `bool` (nothrow_condition_v): a comparison that gives a
+    type whose conversion throws, or that has an overload for keys that
+    are not constant that throws, makes the operations throw.
 
     @tparam Compare the comparison criteria of the tree.
     @tparam Key the type of the keys of the tree.

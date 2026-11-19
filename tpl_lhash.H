@@ -414,6 +414,10 @@ namespace Aleph
         @param[in] fct The new hash function.
         @throws std::bad_alloc if there is no memory for the lists where the
         buckets go again; the table then keeps its function and its lists.
+        @pre The new function and the comparison of the table do not throw,
+        as in every search of the table, which is `noexcept`: if one threw
+        while the buckets are placed again, some of them would be left out
+        of the table.
         @note It takes O(1) on an empty table and O(n) otherwise.
     */
     void set_hash_fct(Hash_Fct fct)

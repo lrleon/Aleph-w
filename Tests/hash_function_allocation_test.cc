@@ -45,6 +45,7 @@
  */
 
 # include <gtest/gtest.h>
+# include <gtest/gtest-spi.h>
 
 # include "allocation_failure.H"
 
@@ -77,8 +78,8 @@ namespace
 
   // Makes each allocation of set(c) fail in turn, on a container with Keys
   // keys, until set(c) completes: after each failure, which must be a
-  // std::bad_alloc, holds(c, k) must still find every key. Returns how many
-  // allocations failed.
+  // std::bad_alloc that reaches the caller, holds(c, k) must still find
+  // every key. Returns how many allocations failed.
   template <class Container, class Insert, class Set, class Holds>
   size_t fail_every_allocation(Insert insert, Set set, Holds holds)
   {
@@ -111,12 +112,54 @@ namespace
             }
 
         if (not threw)
-          return failures;
+          {
+            // an allocation failed and set(c) completed: it caught it
+            if (refused_allocations > 0)
+              ADD_FAILURE() << "an allocation failed, but no std::bad_alloc reached the caller";
+            return failures;
+          }
         ++failures;
       }
 
     ADD_FAILURE() << "set_hash_fct() made more than 1000 allocations";
     return failures;
+  }
+
+  // Volatile, so that the compiler keeps the allocations of
+  // allocate_and_free(), which it could otherwise leave out
+  int * volatile allocated = nullptr;
+
+  void allocate_and_free()
+  {
+    allocated = new int[4];
+    delete [] allocated;
+  }
+
+  // The harness: an operation that lets the failure of its first
+  // allocation through, and catches that of the second one and goes on,
+  // completes when the second one fails; that is a failure that did not
+  // reach the caller, not the end of the allocations to fail
+  TEST(HashFunctionAllocation, AnAllocationThatTheOperationCatchesFailsTheTest)
+  {
+    if (ALEPH_ALLOCATION_FAILURE_UNDER_TSAN)
+      GTEST_SKIP() << "ThreadSanitizer replaces the global operator new";
+
+    EXPECT_NONFATAL_FAILURE(fail_every_allocation<LhashTable<int>>(
+                              [] (auto & c, int k) { c.insert(new LhashBucket<int>(k)); },
+                              [] (auto &)
+                              {
+                                allocate_and_free();
+                                try
+                                  {
+                                    allocate_and_free();
+                                  }
+                                catch (const std::bad_alloc &)
+                                  {
+                                    // caught: the operation goes on
+                                  }
+                              },
+                              [] (auto & c, int k) { return c.search(k) != nullptr; }),
+                            "no std::bad_alloc reached the caller");
   }
 
   TEST(HashFunctionAllocation, AChainedTableKeepsItsFunction)
