@@ -5,6 +5,19 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.7.3](https://github.com/lrleon/Aleph-w/compare/v7.7.2...v7.7.3) (2026-11-19)
+
+
+### Bug Fixes
+
+* **bitarray:** Reject a header of BitArray::load() whose count of bytes wraps around, and reserve each byte when it is read ([#207](https://github.com/lrleon/Aleph-w/issues/207)) ([cc8090e](https://github.com/lrleon/Aleph-w/commit/cc8090e11d9be3f8eac047a7a23ba12edfe94408))
+* **list, tree:** Make T() the item of a Dnode or Tree_Node built by default, which was indeterminate for the scalars ([#207](https://github.com/lrleon/Aleph-w/issues/207)) ([cc8090e](https://github.com/lrleon/Aleph-w/commit/cc8090e11d9be3f8eac047a7a23ba12edfe94408))
+
+
+### Performance Improvements
+
+* **maps:** Search DynMapTree by the key with two comparisons per level ([#206](https://github.com/lrleon/Aleph-w/issues/206)) ([55b3542](https://github.com/lrleon/Aleph-w/commit/55b3542d509270a4cd29e1a73d6320e5b2f91d13))
+
 ## [7.7.2](https://github.com/lrleon/Aleph-w/compare/v7.7.1...v7.7.2) (2026-11-19)
 
 
