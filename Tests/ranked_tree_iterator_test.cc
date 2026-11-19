@@ -226,7 +226,9 @@ TYPED_TEST(RankedTreeIterator, ResetToNodeKeepsTheNodeAmongEqualKeys)
 }
 
 // A position past the end that an int cannot hold is the end too: kept in
-// an int, it lost its high bits, and 2^32 + 2 was the position 2
+// an int, it lost its high bits, and 2^32 + 2 was the position 2. Kept as
+// the greatest int, next_ne() overflowed it, which the sanitizer of
+// undefined behavior reports
 TYPED_TEST(RankedTreeIterator, APositionThatAnIntCannotHoldIsTheEnd)
 {
   if constexpr (sizeof(size_t) <= sizeof(int))
@@ -243,5 +245,22 @@ TYPED_TEST(RankedTreeIterator, APositionThatAnIntCannotHoldIsTheEnd)
       it.reset_to_pos(far);
       EXPECT_FALSE(it.has_curr());
       EXPECT_EQ(it.get_curr(), nullptr);
+
+      Iterator moved = built;
+      for (int i = 0; i < 2; ++i)
+        {
+          it.next_ne();
+          moved.next_ne();
+        }
+      EXPECT_FALSE(it.has_curr()) << "next_ne() at that end";
+      EXPECT_EQ(it.get_curr(), nullptr);
+      EXPECT_FALSE(moved.has_curr()) << "next_ne() at that end";
+      EXPECT_EQ(moved.get_curr(), nullptr);
+
+      it.reset_to_pos(size_t{std::numeric_limits<int>::max()});
+      EXPECT_FALSE(it.has_curr()) << "the greatest int";
+      EXPECT_EQ(it.get_curr(), nullptr);
+      it.next_ne();
+      EXPECT_FALSE(it.has_curr()) << "next_ne() at the greatest int";
     }
 }

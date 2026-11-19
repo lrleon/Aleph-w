@@ -1171,6 +1171,7 @@ protected:
   static constexpr int Pos_Not_Current = -1;
   static constexpr int Pos_Empty_Container = -2;
   static constexpr int Pos_Not_Updated = -3;
+  static constexpr int Pos_Out_Of_Range = std::numeric_limits<int>::min();
 
 private:
 
@@ -1202,13 +1203,16 @@ private:
   }
 
   // A position that an int cannot hold is past the end of every tree whose
-  // positions it holds: the greatest int keeps it there, while converting
-  // it would drop its high bits and could give a position with a node
+  // positions it holds: it is kept as Pos_Out_Of_Range, the least int, a
+  // negative position, which has no node either, and from which next_ne()
+  // would take some 2^31 steps to leave the negative ones. Converting it
+  // would drop its high bits and could give a position with a node, and
+  // the greatest int would overflow at the first next_ne()
   static int saturated_pos(const size_t pos) noexcept
   {
     constexpr auto max_pos =
       static_cast<size_t>(std::numeric_limits<int>::max());
-    return static_cast<int>(pos < max_pos ? pos : max_pos);
+    return pos < max_pos ? static_cast<int>(pos) : Pos_Out_Of_Range;
   }
 
   // A position outside [0, size()) has no node: past the end it comes
