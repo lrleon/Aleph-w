@@ -80,6 +80,33 @@ protected:
 // Basic Functionality Tests
 // =============================================================================
 
+// The root of a random tree is made by default, and its key was left
+// indeterminate for a scalar, while the keys of the other nodes are copied
+// from binary nodes that make theirs T(). Now every key is T(). The node
+// freed first leaves its memory dirty, for the root to take it
+TEST_F(RandomTreeTest, EveryKeyIsValueInitialized)
+{
+  delete new Tree_Node<int>(0x5a5a5a5a);
+
+  RandTree<int> gen(42);
+  Tree_Node<int>* tree = gen(20);
+  ASSERT_NE(tree, nullptr);
+  EXPECT_EQ(tree->get_key(), 0);
+
+  size_t nonzero = 0;
+  auto visit = [&nonzero](auto & self, Tree_Node<int> * p) -> void
+    {
+      if (p->get_key() != 0)
+        ++nonzero;
+      for (auto * c = p->get_left_child(); c != nullptr; c = c->get_right_sibling())
+        self(self, c);
+    };
+  visit(visit, tree);
+  EXPECT_EQ(nonzero, 0u);
+
+  destroy_tree(tree);
+}
+
 TEST_F(RandomTreeTest, GenerateSingleNode)
 {
   RandTree<int> gen(42);
