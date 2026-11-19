@@ -37,6 +37,7 @@
 
 #include <gtest/gtest.h>
 
+#include <tpl_array.H>
 #include <tpl_dynMapTree.H>
 
 #include <string>
@@ -222,6 +223,65 @@ TEST(DynMapTree, TypeTraits)
 {
   static_assert(std::is_same_v<DynMapTree<int, int>::Key_Type, int>);
   static_assert(std::is_same_v<DynMapTree<int, int>::Value_Type, int>);
+}
+
+namespace
+{
+// A tree for the typed tests of the search by the key
+template <template <typename, class> class T>
+struct Tree_Of
+{
+  template <class K, class D>
+  using Map = DynMapTree<K, D, T>;
+};
+
+// The key i, of len characters (len >= 4), distinct for i < 9000: with a
+// prefix, len - 4 equal letters and four digits; without one, the digits
+// first. A std::string of 60 characters keeps them out of the node
+std::string string_key(const int i, const size_t len, const bool prefix)
+{
+  const std::string digits = std::to_string(1000 + i);
+  return prefix ? std::string(len - 4, 'k') + digits : digits + std::string(len - 4, 'x');
+}
+
+template <class Kind>
+class DynMapTreeSearchByKey : public ::testing::Test {};
+
+using Search_Trees =
+  ::testing::Types<Tree_Of<Avl_Tree>, Tree_Of<Avl_Tree_Rk>, Tree_Of<Rb_Tree>, Tree_Of<TdRbTree>,
+                   Tree_Of<Treap>, Tree_Of<BinTree>, Tree_Of<Rand_Tree>, Tree_Of<Splay_Tree>>;
+TYPED_TEST_SUITE(DynMapTreeSearchByKey, Search_Trees);
+} // namespace
+
+// The search by a key that is not a scalar finds every pair, at any depth
+// of the tree, and no key between two of them, before them or after them,
+// with short and long string keys, with and without a long common prefix
+TYPED_TEST(DynMapTreeSearchByKey, FindsEveryStringKeyAndNoOther)
+{
+  using Map = typename TypeParam::template Map<std::string, int>;
+  constexpr int N = 300;
+  for (const size_t len : {size_t(7), size_t(16), size_t(60)})
+    for (const bool prefix : {false, true})
+      {
+        SCOPED_TRACE("length " + std::to_string(len) + (prefix ? ", with a prefix" : ""));
+        Map map;
+        for (int i = 0; i < N; ++i)  // out of order, so that the tree has any shape
+          ASSERT_NE(map.insert(string_key(i * 37 % N, len, prefix), i * 37 % N), nullptr);
+        Array<std::string> absent = {std::string(), std::string(len + 1, '~')};
+        for (int i = 0; i < N; ++i)
+          {
+            const std::string key = string_key(i, len, prefix);
+            const auto * p = map.search(key);
+            ASSERT_NE(p, nullptr) << key;
+            EXPECT_EQ(p->first, key);
+            EXPECT_EQ(p->second, i);
+            absent.append(key + '!');  // after key and before the next one
+          }
+        for (const auto & key : absent)
+          EXPECT_EQ(map.search(key), nullptr) << key;
+        EXPECT_EQ(map.size(), static_cast<size_t>(N));
+        EXPECT_TRUE(map.verify());
+      }
 }
 
 int main(int argc, char ** argv)
