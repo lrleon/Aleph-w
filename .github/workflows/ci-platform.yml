@@ -5,7 +5,9 @@ name: CI Platform
 # weekly slot for the heavier Windows toolchain combinations.
 #
 # Strategy:
-#   * macOS and ARM64-Linux are cheap enough to run on every push/PR.
+#   * macOS and ARM64-Linux are cheap enough to run on every push/PR; a
+#     push to master skips them when its pull request already ran them on
+#     the same tree (already-tested, docs/ci-local.md).
 #   * Windows runs on a `workflow_dispatch` trigger plus a weekly cron,
 #     because the MSVC and clang-cl matrix builds + dependency setup
 #     dominate the runner budget. Push events on `master` also fire it
@@ -33,8 +35,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Whether the pull request that this push to master merges already ran
+  # this workflow, with success, on the same tree
+  # (scripts/ci_already_tested.rb, docs/ci-local.md): master requires a
+  # branch to be up to date before it merges, so that the last run of the
+  # pull request checked out the tree of the squash. Then the jobs that
+  # the pull request ran skip here. Not after a pull request whose
+  # required jobs the local CI ran, nor on another event: then, or on any
+  # doubt, every job runs.
+  already-tested:
+    name: already-tested
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+      actions: read
+    outputs:
+      tested: ${{ steps.check.outputs.tested }}
+
+    steps:
+      - name: Checkout the check
+        if: github.event_name == 'push'
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/ci_already_tested.rb
+          sparse-checkout-cone-mode: false
+
+      - name: Look for the run of the pull request on this tree
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = push ]; then
+            ruby scripts/ci_already_tested.rb ci-platform.yml || echo "tested=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "A ${GITHUB_EVENT_NAME} event: every job runs."
+            echo "tested=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-macos:
     name: build-macos (${{ matrix.os }}, AppleClang, ${{ matrix.build_type }})
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     runs-on: ${{ matrix.os }}
     # The Intel runners vary about twofold in speed; without a warm ccache
     # the Intel Release job has run past 60 minutes.
@@ -147,6 +192,9 @@ jobs:
 
   build-arm64-linux:
     name: build-arm64-linux (ubuntu-24.04-arm, ${{ matrix.compiler }}, ${{ matrix.build_type }})
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
 

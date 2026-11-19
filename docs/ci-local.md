@@ -46,7 +46,8 @@ already passed on the machine of a maintainer: the hybrid CI.
 
 Everything else runs in GitHub: the policy gates, coverage, the other
 sanitizers, the graph harness, the examples, macOS, Windows and Linux on
-arm64. A push to `master` runs every job in GitHub.
+arm64. After such a pull request, the push to `master` runs every job in
+GitHub ([Master after a merge](#master-after-a-merge)).
 
 ## Use
 
@@ -114,8 +115,36 @@ drift, and what keeps it in step:
   with its Ruby and its Doxygen (the CI uses Doxygen 1.9.8), on the merge
   with `--merge`; it always runs in GitHub too.
 
-A push to `master` runs every job in GitHub, so that a drift shows up at
-the first merge.
+After a pull request whose required jobs the local CI ran, the push to
+`master` runs every job in GitHub, so that a drift shows up at the first
+merge.
+
+## Master after a merge
+
+`master` requires a branch to be up to date before it merges, so that the
+last run of a pull request checked out the tree that its squash leaves on
+`master`. On a push to `master`, the job `already-tested` of `ci.yml` and
+of `ci-platform.yml` (`scripts/ci_already_tested.rb`) looks for the pull
+request that the push merges, and the push skips the jobs that the pull
+request ran when
+
+- the head of the pull request has the same tree as the push;
+- the head has no status `ci-local/required`;
+- the last run of the workflow on that head, for the pull request,
+  passed.
+
+What runs on every push to `master`:
+
+- `coverage`, whose report on `master` is the base with which Codecov
+  compares the next pull requests;
+- `build-windows`, which only runs there;
+- the other workflows, as the documentation and release-please.
+
+Every job runs on `master` after a pull request whose required jobs the
+local CI ran, after one merged with a red or unfinished run, and once a
+week: `ci.yml` on Mondays at 05:30 UTC and `ci-platform.yml` at 04:30, so
+that the tests that seed with the time get new cases and a change of the
+images of the runners shows up.
 
 ## Cost
 

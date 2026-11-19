@@ -495,6 +495,7 @@ policy_job() {
     ruby scripts/ci_doxygen_changed.rb || status=1
     ruby scripts/test_ci_header_doc_coverage.rb || status=1
     ruby scripts/ci_header_doc_coverage.rb --min 80 || status=1
+    ruby scripts/test_ci_already_tested.rb || status=1
     exit ${status}
   )
 }
