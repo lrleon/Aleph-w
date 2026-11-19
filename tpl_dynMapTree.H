@@ -119,13 +119,16 @@ namespace Aleph {
     // The pair whose key is equivalent to key, or nullptr. It descends
     // comparing key with the first member of each pair, so it builds no
     // pair: no copy of the key and no Data, which may allocate or throw.
-    // A scalar key compares fast: two comparisons per level stop at the
-    // pair found, as the search of the AVL tree does. Another key, as a
-    // std::string, may compare slowly: one comparison per level, down to
-    // a leaf, as searchInBinTree() does, makes fewer. Both bring the
-    // children of each node to the cache while they compare. A splay tree
-    // searches for a pair built from key, so that it moves what it finds
-    // to the root.
+    // Two comparisons per level stop at the pair found, as the search of
+    // the AVL tree does, whatever the key. One comparison per level, down
+    // to a leaf, as searchInBinTree() does, makes fewer, but Clang takes
+    // the child at an address computed from the comparison, without a
+    // branch: each level then waits for the comparison of the one above,
+    // and a long std::string, whose characters are out of the node, for
+    // their memory. The second comparison keeps the branch, which lets the
+    // processor go down while it compares. It brings the children of each
+    // node to the cache meanwhile. A splay tree searches for a pair built
+    // from key, so that it moves what it finds to the root.
     Pair * search_pair(const Key & key) const noexcept(nothrow_search)
     {
       if constexpr (splays)
@@ -134,7 +137,7 @@ namespace Aleph {
                         "DynMapTree::search() on a splay tree requires Data to be default-constructible");
           return const_cast<Pair *>(Base::search(Pair(key, Data())));
         }
-      else if constexpr (std::is_scalar_v<Key>)
+      else
         {
           const Compare & cmp = this->get_compare().cmp;
           for (Node * p = this->get_root_node(); p != Node::NullPtr; )
@@ -150,28 +153,6 @@ namespace Aleph {
                 return &KEY(p);
             }
           return nullptr;
-        }
-      else
-        {
-          const Compare & cmp = this->get_compare().cmp;
-          Node * candidate = nullptr;  // the last one whose key is not greater
-          for (Node * p = this->get_root_node(); p != Node::NullPtr; )
-            {
-              __builtin_prefetch(LLINK(p));
-              __builtin_prefetch(RLINK(p));
-              if (cmp(key, std::as_const(KEY(p).first)))
-                p = LLINK(p);
-              else
-                {
-                  candidate = p;
-                  p = RLINK(p);
-                }
-            }
-
-          if (candidate == nullptr or
-              cmp(std::as_const(KEY(candidate).first), key))
-            return nullptr;
-          return &KEY(candidate);
         }
     }
 
