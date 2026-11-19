@@ -60,6 +60,7 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           sparse-checkout: scripts/ci_already_tested.rb
           sparse-checkout-cone-mode: false
 

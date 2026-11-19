@@ -137,7 +137,8 @@ What runs on every push to `master`:
 
 - `coverage`, whose report on `master` is the base with which Codecov
   compares the next pull requests;
-- `build-windows`, which only runs there;
+- `build-windows`, which also runs once a week and by hand, but not on
+  a pull request;
 - the other workflows, as the documentation and release-please.
 
 Every job runs on `master` after a pull request whose required jobs the

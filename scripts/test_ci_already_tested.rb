@@ -55,6 +55,10 @@ class TestCiAlreadyTested < Minitest::Test
   def test_a_pull_request_whose_required_jobs_the_local_ci_ran_is_not
     refute tested?(statuses: [{ 'context' => 'ci-local/required', 'state' => 'success' }])
     assert tested?(statuses: [{ 'context' => 'codecov/patch', 'state' => 'success' }])
+    # 100 statuses fill a page of the API, which may leave ci-local/required
+    # out: it says no
+    refute tested?(statuses: Array.new(100) { { 'context' => 'codecov/patch', 'state' => 'success' } })
+    assert tested?(statuses: Array.new(99) { { 'context' => 'codecov/patch', 'state' => 'success' } })
   end
 
   def test_only_the_last_run_counts_and_it_must_have_passed
@@ -62,6 +66,8 @@ class TestCiAlreadyTested < Minitest::Test
     refute tested?(runs: [{ 'run_number' => 3, 'status' => 'completed', 'conclusion' => 'failure' }, PASSED])
     refute tested?(runs: [{ 'run_number' => 3, 'status' => 'in_progress', 'conclusion' => nil }, PASSED])
     assert tested?(runs: [{ 'run_number' => 1, 'status' => 'completed', 'conclusion' => 'failure' }, PASSED])
+    # A run without a number cannot be ordered: it says no
+    refute tested?(runs: [{ 'run_number' => nil, 'status' => 'completed', 'conclusion' => 'failure' }, PASSED])
   end
 
   def test_an_error_of_the_api_is_not_tested

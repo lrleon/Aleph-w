@@ -54,12 +54,17 @@ def already_tested(event:, repo:, sha:, workflow:, api: method(:gh_api))
   return [false, "the head of ##{number}, #{head[0, 12]}, has another tree"] unless tree && tree == head_tree
 
   statuses = api.call("repos/#{repo}/commits/#{head}/statuses?per_page=100")
+  # A full page may leave ci-local/required on the next one
+  return [false, "the head of ##{number} has too many statuses to read"] if statuses.size >= 100
   if statuses.any? { |s| s['context'] == 'ci-local/required' }
     return [false, "the local CI ran the required jobs of ##{number}: they run here"]
   end
 
-  runs = api.call("repos/#{repo}/actions/workflows/#{workflow}/runs?event=pull_request&head_sha=#{head}&per_page=20")
-  run = Array(runs['workflow_runs']).max_by { |r| r['run_number'].to_i }
+  answer = api.call("repos/#{repo}/actions/workflows/#{workflow}/runs?event=pull_request&head_sha=#{head}&per_page=20")
+  runs = Array(answer['workflow_runs'])
+  return [false, "a run of #{workflow} on ##{number} has no number"] if runs.any? { |r| r['run_number'].nil? }
+
+  run = runs.max_by { |r| r['run_number'] }
   return [false, "no run of #{workflow} on the head of ##{number}"] unless run
 
   unless run['status'] == 'completed' && run['conclusion'] == 'success'
