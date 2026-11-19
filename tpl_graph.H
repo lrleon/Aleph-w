@@ -622,34 +622,44 @@ namespace Aleph
       arc->src_node = src_node;
       arc->tgt_node = tgt_node;
 
-      // step 3 (partial): allocate Arc_Node for src_node
-      std::unique_ptr<Arc_Node> src_arc_node = std::make_unique<Arc_Node>(arc);
+      // step 1: allocate the Arc_Node of src_node, which a guard frees if
+      // the allocation of the one of tgt_node throws
+      auto src_guard = std::make_unique<Arc_Node>(arc);
+      Arc_Node *src_arc_node;
 
-      // step 2: if graph ==> allocate Arc_Node for tgt_node
+      // step 2: if graph ==> allocate the Arc_Node of tgt_node, unless the
+      // arc is a loop, and insert it in the adjacency list of tgt_node.
+      // That allocation is the last thing that can throw: after it, the
+      // graph takes the Arc_Node of src_node out of its guard, and then
+      // links it, so that no guard is left owning a linked Arc_Node
       if (not this->digraph) // if digraph ==> do not insert in another node
         { // insertion in the target node
           if (src_node == tgt_node) // is it a loop?
-            arc->tgt_arc_node = src_arc_node.get();
+            {
+              src_arc_node = src_guard.release();
+              arc->tgt_arc_node = src_arc_node;
+            }
           else
-            { // allocate arc node for tgt_node
-              std::unique_ptr<Arc_Node> tgt_arc_node = std::make_unique<Arc_Node>(arc);
+            {
+              Arc_Node *tgt_arc_node = new Arc_Node(arc);
+              src_arc_node = src_guard.release();
 
               // insertion in an adjacency list of tgt_node
-              arc->tgt_arc_node = tgt_arc_node.get();
-              tgt_node->arc_list.append(tgt_arc_node.get());
+              arc->tgt_arc_node = tgt_arc_node;
+              tgt_node->arc_list.append(tgt_arc_node);
               ++tgt_node->num_arcs;
-              tgt_arc_node.release();
             }
         }
+      else
+        src_arc_node = src_guard.release();
 
-      // step 3 (remainder): insertion in the adjacency list of src_node
-      arc->src_arc_node = src_arc_node.get();
-      src_node->arc_list.append(src_arc_node.get());
+      // step 3: insertion in the adjacency list of src_node
+      arc->src_arc_node = src_arc_node;
+      src_node->arc_list.append(src_arc_node);
       ++src_node->num_arcs;
 
       arc_list.append(arc); // step 4: insert in graph arc list
       ++this->num_arcs;
-      src_arc_node.release();
 
       return arc;
     }
