@@ -304,6 +304,57 @@ TEST(BitArrayPersistence, save_load_roundtrip)
   EXPECT_EQ(b.read_bit(40'000), 1);
 }
 
+// The coherence of the header summed num_bits + 7, which wraps: a header
+// of 0 bytes and 2^64 - 1 bits passed, and the array claimed that many bits
+// with no byte, so that save() walked 2^61 bytes
+TEST(BitArrayPersistence, load_rejects_a_header_whose_bits_wrap)
+{
+  const size_t max = numeric_limits<size_t>::max();
+  for (const size_t bits : {max, max - 6})
+    {
+      BitArray a;
+      a.set_bit_str("101");
+      istringstream in("0 " + to_string(bits) + "\n");
+      EXPECT_THROW(a.load(in), std::runtime_error) << bits;
+      ASSERT_EQ(a.size(), 3u) << bits; // else get_bit_str() does not end
+      EXPECT_EQ(a.get_bit_str(), "101") << bits;
+    }
+}
+
+// A header is checked before anything is reserved: the bytes it claims
+// cannot be more than a DynArray holds. It made room for all of them, on
+// the word of the header, before the first byte was read: 128 MB for a
+// header of 2^44 bytes, 8 GB for one of 2^50
+TEST(BitArrayPersistence, load_rejects_a_header_with_too_many_bytes)
+{
+  const unsigned long long bytes = DynArray<Byte>::Max_Dim_Allowed + 1;
+  BitArray a;
+  a.set_bit_str("101");
+  istringstream in(to_string(bytes) + " " + to_string(8 * bytes) + "\n");
+  try
+    {
+      a.load(in);
+      ADD_FAILURE() << "load() accepted the header";
+    }
+  catch (const std::runtime_error & e)
+    {
+      EXPECT_NE(string(e.what()).find("too many bytes"), string::npos)
+        << e.what();
+    }
+  EXPECT_EQ(a.get_bit_str(), "101");
+}
+
+// A header that claims more bytes than the input has fails when the input
+// ends, and leaves the array as it was
+TEST(BitArrayPersistence, load_of_a_truncated_payload_throws)
+{
+  BitArray a;
+  a.set_bit_str("101");
+  istringstream in("3 17\n1 2\n");
+  EXPECT_THROW(a.load(in), std::runtime_error);
+  EXPECT_EQ(a.get_bit_str(), "101");
+}
+
 TEST(BitArrayPersistence, load_from_array_of_chars_roundtrip)
 {
   BitArray a;
