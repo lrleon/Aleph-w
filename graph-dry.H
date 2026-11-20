@@ -862,6 +862,23 @@ class GraphCommon
 
   const GT * const_me() const { return static_cast<const GT *>(this); }
 
+  // The graph takes arc, made with new by the caller. Either the graph
+  // links it, or it throws as it was, with arc in none of its lists, and
+  // then the guard frees arc. The guard is not a unique_ptr: its release()
+  // would say that the caller takes the arc, and the arc is the graph's
+  Arc * insert_new_arc(Node *src, Node *tgt, Arc *arc)
+  {
+    struct Guard
+    {
+      Arc *arc;
+      ~Guard() { delete arc; }
+    } guard{arc};
+
+    me()->insert_arc(src, tgt, arc);
+    guard.arc = nullptr;  // the graph took arc
+    return arc;
+  }
+
 protected:
   void *cookie = nullptr;
   size_t num_nodes = 0;
@@ -1444,9 +1461,7 @@ public:
    */
   Arc * insert_arc(Node *src, Node *tgt, const Arc_Type & arc_info)
   {
-    std::unique_ptr<Arc> arc(new Arc(arc_info));
-    me()->insert_arc(src, tgt, arc.get());
-    return arc.release();
+    return insert_new_arc(src, tgt, new Arc(arc_info));
   }
 
   /** Create and insert a new arc linking two nodes and moving the
@@ -1474,9 +1489,7 @@ public:
    */
   Arc * insert_arc(Node *src, Node *tgt, Arc_Type && arc_info = Arc_Type())
   {
-    std::unique_ptr<Arc> arc(new Arc(std::forward<Arc_Type>(arc_info)));
-    me()->insert_arc(src, tgt, arc.get());
-    return arc.release();
+    return insert_new_arc(src, tgt, new Arc(std::forward<Arc_Type>(arc_info)));
   }
 
   /** Insert a new arc in the graph by constructing its associated data

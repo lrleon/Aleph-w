@@ -1179,12 +1179,20 @@ namespace Aleph
     {
       ah_domain_error_if(not iv.is_valid(tree.endpoint_comp()))
         << "Invalid interval: low > high";
-      std::unique_ptr<Node> p(new Node(std::move(iv)));
-      Node *result = tree.insert(p.get());
+      // The tree takes p, or gives nullptr for a duplicate; the guard frees
+      // p if it is a duplicate or if the insertion throws. It is not a
+      // unique_ptr, whose release() would say that the caller takes p
+      struct Guard
+      {
+        Node *p;
+        ~Guard() { delete p; }
+      } guard{new Node(std::move(iv))};
+
+      Node *result = tree.insert(guard.p);
       if (result == nullptr)
         ah_domain_error() << "Duplicate interval";
-      
-      p.release();
+
+      guard.p = nullptr;  // the tree took it
       return KEY(result);
     }
 
@@ -1210,9 +1218,15 @@ namespace Aleph
     {
       ah_domain_error_if(not iv.is_valid(tree.endpoint_comp()))
         << "Invalid interval: low > high";
-      std::unique_ptr<Node> p(new Node(iv));
-      tree.insert_dup(p.get());
-      return KEY(p.release());
+      struct Guard  // frees p if the insertion throws, as in insert()
+      {
+        Node *p;
+        ~Guard() { delete p; }
+      } guard{new Node(iv)};
+
+      Node *p = tree.insert_dup(guard.p);
+      guard.p = nullptr;  // the tree took it
+      return KEY(p);
     }
 
     /** @brief Append an interval (alias for insert_dup).

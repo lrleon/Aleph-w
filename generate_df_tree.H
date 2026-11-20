@@ -199,14 +199,20 @@ namespace Aleph
       DynMapTree<Node *, Df_Low_Tree_Node *> tree_nodes;
       long curr_df = 0;
 
-      // Create the tree node of p, with the next df number
+      // Create the tree node of p, with the next df number. tree_nodes
+      // takes it; if its insertion throws, the guard frees it. The guard is
+      // not a unique_ptr, whose release() would say that the caller takes it
       Df_Low_Tree_Node * new_tree_node(Node * p)
       {
-        auto owner = std::make_unique<Df_Low_Tree_Node>
-          (Df_Low_Key{node_label(p), curr_df, curr_df});
-        Df_Low_Tree_Node * tp = owner.get();
+        struct Guard
+        {
+          Df_Low_Tree_Node * tp;
+          ~Guard() { delete tp; }
+        } guard{new Df_Low_Tree_Node(Df_Low_Key{node_label(p), curr_df, curr_df})};
+
+        Df_Low_Tree_Node * tp = guard.tp;
         tree_nodes.insert(p, tp);
-        owner.release();
+        guard.tp = nullptr;  // tree_nodes took it
         ++curr_df;
         return tp;
       }
