@@ -121,18 +121,23 @@ merge.
 
 ## Master after a merge
 
-`master` requires a branch to be up to date before it merges, so that the
-last run of a pull request checked out the tree that its squash leaves on
-`master`. On a push to `master`, the job `already-tested` of `ci.yml` and
-of `ci-platform.yml` (`scripts/ci_already_tested.rb`) looks for the pull
-request that the push merges, and the push skips the jobs that the pull
-request ran when
+When a run of `ci.yml` passes on a pull request, its job CI Success posts
+on the head of the pull request the status `ci/tested-tree`, whose
+description names the tree of the merge that the run checked out; CI
+Platform Success posts `ci-platform/tested-tree` likewise. On a push to
+`master`, the job `already-tested` of each workflow
+(`scripts/ci_already_tested.rb`) looks for the pull request that the push
+merges, and the push skips the jobs that the pull request ran when
 
-- the head of the pull request has the same tree as the push;
-- the head has no status `ci-local/required`;
-- every run of the workflow on that head, for a pull request, passed,
-  the last one included: the runs of a commit do not say for which pull
-  request they ran, and two pull requests may share a head.
+- the head of the pull request has that status, posted by GitHub Actions,
+  naming the tree of the push;
+- the head has no status `ci-local/required`.
+
+The status binds the run to the tree that it tested, which the runs do
+not say: a commit may head two pull requests into different branches.
+`master` requires a branch to be up to date before it merges, so that
+the tree of the last run of a pull request is the one that its squash
+leaves on `master`.
 
 What runs on every push to `master`:
 
@@ -143,10 +148,10 @@ What runs on every push to `master`:
 - the other workflows, as the documentation and release-please.
 
 Every job runs on `master` after a pull request whose required jobs the
-local CI ran, after one merged with a red or unfinished run, and once a
-week: `ci.yml` on Mondays at 05:30 UTC and `ci-platform.yml` at 04:30, so
-that the tests that seed with the time get new cases and a change of the
-images of the runners shows up.
+local CI ran, after one merged without that status (from a fork, or with a
+red or unfinished run), and once a week: `ci.yml` on Mondays at 05:30 UTC
+and `ci-platform.yml` at 04:30, so that the tests that seed with the time
+get new cases and a change of the images of the runners shows up.
 
 ## Cost
 

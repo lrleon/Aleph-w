@@ -179,14 +179,13 @@ jobs:
             sleep 30
           done
 
-  # Whether the pull request that this push to master merges already ran
-  # this workflow, with success, on the same tree
-  # (scripts/ci_already_tested.rb, docs/ci-local.md): master requires a
-  # branch to be up to date before it merges, so that the last run of the
-  # pull request checked out the tree of the squash. Then the jobs that
-  # the pull request ran skip here. Not after a pull request whose
-  # required jobs the local CI ran, nor on another event: then, or on any
-  # doubt, every job runs.
+  # Whether the pull request that this push to master merges already passed
+  # this workflow on the same tree (scripts/ci_already_tested.rb,
+  # docs/ci-local.md): CI Success posts, when a pull request passes, the
+  # status ci/tested-tree on its head, naming the tree of the merge that the
+  # run checked out. Then the jobs that the pull request ran skip here. Not
+  # after a pull request whose required jobs the local CI ran, nor on
+  # another event: then, or on any doubt, every job runs.
   already-tested:
     name: already-tested
     runs-on: ubuntu-24.04
@@ -195,7 +194,6 @@ jobs:
       contents: read
       pull-requests: read
       statuses: read
-      actions: read
     outputs:
       tested: ${{ steps.check.outputs.tested }}
 
@@ -1948,6 +1946,7 @@ jobs:
     name: CI Success
     runs-on: ubuntu-24.04
     needs:
+      - local-ci
       - policy-checks
       - build-and-test
       - fft-simd-validation
@@ -1961,6 +1960,10 @@ jobs:
       - check-examples
       - without-gsl
     if: always() && github.event_name == 'pull_request'
+    # To post the tree that passed
+    permissions:
+      contents: read
+      statuses: write
     steps:
       - name: Check results
         run: |
@@ -2012,3 +2015,20 @@ jobs:
             exit 1
           fi
           echo "CI passed"
+
+      # When it passed, the tree of the merge that it checked out, on the head
+      # of the pull request, for the push to master that merges it
+      # (scripts/ci_already_tested.rb). Not when the local CI ran the
+      # required jobs: master runs them all then. A pull request from a fork
+      # may not post it, and master then runs every job
+      - name: Record the tree that passed
+        if: needs.local-ci.outputs.verified != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          tree=$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${GITHUB_SHA}" --jq .tree.sha)
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" -f state=success \
+            -f context=ci/tested-tree -f description="tree ${tree}" > /dev/null
+          echo "ci/tested-tree: tree ${tree} on ${HEAD_SHA}"
