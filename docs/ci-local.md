@@ -46,7 +46,8 @@ already passed on the machine of a maintainer: the hybrid CI.
 
 Everything else runs in GitHub: the policy gates, coverage, the other
 sanitizers, the graph harness, the examples, macOS, Windows and Linux on
-arm64. A push to `master` runs every job in GitHub.
+arm64. After such a pull request, the push to `master` runs every job in
+GitHub ([Master after a merge](#master-after-a-merge)).
 
 ## Use
 
@@ -114,8 +115,54 @@ drift, and what keeps it in step:
   with its Ruby and its Doxygen (the CI uses Doxygen 1.9.8), on the merge
   with `--merge`; it always runs in GitHub too.
 
-A push to `master` runs every job in GitHub, so that a drift shows up at
-the first merge.
+After a pull request whose required jobs the local CI ran, the push to
+`master` runs every job in GitHub, so that a drift shows up at the first
+merge.
+
+## Master after a merge
+
+When a run of `ci.yml` passes on a pull request, its job CI Success posts
+on the head of the pull request the status `ci/tested-tree`, whose
+description names the tree of the merge that the run checked out; CI
+Platform Success posts `ci-platform/tested-tree` likewise. Each one waits for
+every job that the push may skip, and posts its status only when none of
+them failed or was cancelled; `scripts/test_ci_already_tested.rb` checks
+that for both workflows. On a push to
+`master`, the job `already-tested` of each workflow
+(`scripts/ci_already_tested.rb`) looks for the pull request that the push
+merges, and the push skips the jobs that the pull request ran when
+
+- the pull request comes from a branch of this repository, not from a
+  fork;
+- the head of the pull request has that status, posted by GitHub Actions,
+  naming the tree of the push;
+- the head has no status `ci-local/required`.
+
+The status binds the run to the tree that it tested, which the runs do
+not say: a commit may head two pull requests into different branches.
+`master` requires a branch to be up to date before it merges, so that
+the tree of the last run of a pull request is the one that its squash
+leaves on `master`.
+
+What runs on every push to `master`:
+
+- `coverage`, whose report on `master` is the base with which Codecov
+  compares the next pull requests;
+- `build-windows`, which also runs once a week and by hand, but not on
+  a pull request;
+- the other workflows, as the documentation and release-please.
+
+Every job runs on `master` after a pull request from a fork, after one
+whose required jobs the local CI ran, after one merged without that status
+(with a red or unfinished run), and once a week: `ci.yml` on Mondays at
+05:30 UTC and `ci-platform.yml` at 04:30, so that the tests that seed with
+the time get new cases and a change of the images of the runners shows up.
+
+Once a run posted the status, it stays on the head: a later run on the same
+head and tree that fails or does not finish does not withdraw it, and the
+push still skips what the earlier run passed. That run tested the same
+tree, so no untested code is skipped, and the weekly run still runs every
+job.
 
 ## Cost
 

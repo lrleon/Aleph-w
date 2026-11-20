@@ -4,18 +4,26 @@ on:
   # A push runs the jobs only on master: a pull request runs them on its own
   # event, and a push to its branch ran them a second time, in another group
   # of concurrency, which took the runners and kept the jobs of the pull
-  # request waiting. A branch without a pull request runs them by hand.
+  # request waiting. A branch without a pull request runs them by hand. On
+  # master, a push skips the jobs that its pull request already ran on the
+  # same tree (already-tested), and every job runs once a week.
   push:
     branches: [master]
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+  schedule:
+    # Mondays 05:30 UTC: every job, whatever the pushes skipped, so that the
+    # tests that seed with the time get new cases and a change of the images
+    # of the runners shows up
+    - cron: '30 5 * * 1'
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # By event too, so that a push to master does not cancel the weekly run
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -51,6 +59,10 @@ jobs:
           ruby scripts/test_ci_header_doc_coverage.rb
           ruby scripts/ci_header_doc_coverage.rb \
             --min "${HEADER_DOC_COVERAGE_MIN}"
+
+      - name: Tests of the check that lets master skip what its pull request ran
+        run: |
+          ruby scripts/test_ci_already_tested.rb
 
   # Whether the local CI already passed the required Linux jobs on what
   # this pull request merges (docs/ci-local.md). scripts/ci-local.sh
@@ -167,12 +179,52 @@ jobs:
             sleep 30
           done
 
+  # Whether the pull request that this push to master merges already passed
+  # this workflow on the same tree (scripts/ci_already_tested.rb,
+  # docs/ci-local.md): CI Success posts, when a pull request passes, the
+  # status ci/tested-tree on its head, naming the tree of the merge that the
+  # run checked out. Then the jobs that the pull request ran skip here. Not
+  # after a pull request whose required jobs the local CI ran, nor on
+  # another event: then, or on any doubt, every job runs.
+  already-tested:
+    name: already-tested
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+    outputs:
+      tested: ${{ steps.check.outputs.tested }}
+
+    steps:
+      - name: Checkout the check
+        if: github.event_name == 'push'
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci_already_tested.rb
+          sparse-checkout-cone-mode: false
+
+      - name: Look for the run of the pull request on this tree
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = push ]; then
+            ruby scripts/ci_already_tested.rb ci.yml || echo "tested=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "A ${GITHUB_EVENT_NAME} event: every job runs."
+            echo "tested=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-and-test:
     name: build-and-test (${{ matrix.os }}, ${{ matrix.compiler }}, ${{ matrix.build_type }})
-    needs: local-ci
-    # Also when local-ci failed: its output is then empty, and the
-    # steps run
-    if: ${{ !cancelled() }}
+    needs: [local-ci, already-tested]
+    # Also when local-ci or already-tested failed: their outputs are then
+    # empty, and the steps run. Not on a push to master whose pull request
+    # already ran it on the same tree
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
     # requests of this repository (docs/ci-local.md, "Local runners")
     runs-on: >-
@@ -382,6 +434,9 @@ jobs:
   # published in the job summary and as an artifact for comparison.
   graph-benchmarks:
     name: graph-benchmarks (ubuntu-24.04, gcc, Release)
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -472,6 +527,9 @@ jobs:
   # the library uses concepts throughout.
   cxx23-build:
     name: cxx23-build (ubuntu-24.04, gcc, Release)
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
     # requests of this repository (docs/ci-local.md, "Local runners")
     runs-on: >-
@@ -560,6 +618,9 @@ jobs:
 
   ranges-off:
     name: ranges-off (ubuntu-24.04, gcc, Release)
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
     # requests of this repository (docs/ci-local.md, "Local runners")
     runs-on: >-
@@ -651,6 +712,9 @@ jobs:
   # test or an example still needed would fail the build
   without-gsl:
     name: without-gsl (ubuntu-24.04, gcc, Release)
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     env:
@@ -742,6 +806,9 @@ jobs:
 
   fft-simd-validation:
     name: fft-simd-validation (ubuntu-24.04, gcc, Release)
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -940,6 +1007,9 @@ jobs:
 
   planarity-visual-golden:
     name: planarity-visual-golden (ubuntu-24.04, gcc, Release)
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
@@ -1224,10 +1294,11 @@ jobs:
 
   sanitizers:
     name: sanitizers (ubuntu-24.04, gcc, Debug)
-    needs: local-ci
-    # Also when local-ci failed: its output is then empty, and the
-    # steps run
-    if: ${{ !cancelled() }}
+    needs: [local-ci, already-tested]
+    # Also when local-ci or already-tested failed: their outputs are then
+    # empty, and the steps run. Not on a push to master whose pull request
+    # already ran it on the same tree
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
     # requests of this repository (docs/ci-local.md, "Local runners")
     runs-on: >-
@@ -1325,6 +1396,9 @@ jobs:
   # to two runners.
   graph-harness:
     name: graph harness (${{ matrix.os }}, ${{ matrix.compiler }}, ${{ matrix.build_type }}${{ matrix.sanitizers == 'ON' && ', ASan and UBSan' || '' }}${{ matrix.part != 'all' && format(', {0}', matrix.part) || '' }})
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
     # requests of this repository (docs/ci-local.md, "Local runners")
     runs-on: >-
@@ -1471,6 +1545,9 @@ jobs:
 
   memory-sanitizer:
     name: memory-sanitizer (ubuntu-24.04, clang, Debug)
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -1540,6 +1617,9 @@ jobs:
     # thread_pool surfaces. It runs every test it builds; the few cases that
     # cannot run under TSan skip themselves (see docs/ci_sanitizer_policy.md).
     name: tsan (ubuntu-24.04, clang, Debug)
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
     # requests of this repository (docs/ci-local.md, "Local runners")
     runs-on: >-
@@ -1626,6 +1706,9 @@ jobs:
     # ASan+UBSan build so signals are not masked by ASan reports.
     # Excluded tests are documented in docs/ci_sanitizer_policy.md.
     name: ubsan (ubuntu-24.04, clang, Debug)
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -1700,6 +1783,9 @@ jobs:
 
   check-examples:
     name: check-examples (ubuntu-24.04, ${{ matrix.compiler }}, Release)
+    # Not on a push to master whose pull request ran it (already-tested)
+    needs: already-tested
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
     # On the local runners while ALEPH_LOCAL_RUNNERS is on, only for the pull
     # requests of this repository (docs/ci-local.md, "Local runners")
     runs-on: >-
@@ -1859,7 +1945,10 @@ jobs:
   ci-success-pr:
     name: CI Success
     runs-on: ubuntu-24.04
+    # The needs include every job that a push to master skips when it finds
+    # the tree that this job records (scripts/test_ci_already_tested.rb)
     needs:
+      - local-ci
       - policy-checks
       - build-and-test
       - fft-simd-validation
@@ -1872,7 +1961,14 @@ jobs:
       - ubsan
       - check-examples
       - without-gsl
+      - graph-benchmarks
+      - cxx23-build
+      - ranges-off
     if: always() && github.event_name == 'pull_request'
+    # To post the tree that passed
+    permissions:
+      contents: read
+      statuses: write
     steps:
       - name: Check results
         run: |
@@ -1889,6 +1985,9 @@ jobs:
           echo "ubsan result: ${{ needs.ubsan.result }}"
           echo "check-examples result: ${{ needs.check-examples.result }}"
           echo "without-gsl result: ${{ needs.without-gsl.result }}"
+          echo "graph-benchmarks result: ${{ needs.graph-benchmarks.result }}"
+          echo "cxx23-build result: ${{ needs.cxx23-build.result }}"
+          echo "ranges-off result: ${{ needs.ranges-off.result }}"
 
           is_ok() {
             [ "$1" = "success" ] || [ "$1" = "skipped" ]
@@ -1918,9 +2017,29 @@ jobs:
           check_job "ubsan" "${{ needs.ubsan.result }}"
           check_job "check-examples" "${{ needs.check-examples.result }}"
           check_job "without-gsl" "${{ needs.without-gsl.result }}"
+          check_job "graph-benchmarks" "${{ needs.graph-benchmarks.result }}"
+          check_job "cxx23-build" "${{ needs.cxx23-build.result }}"
+          check_job "ranges-off" "${{ needs.ranges-off.result }}"
 
           if [ "$all_ok" -ne 1 ]; then
             echo "CI failed"
             exit 1
           fi
           echo "CI passed"
+
+      # When it passed, the tree of the merge that it checked out, on the head
+      # of the pull request, for the push to master that merges it
+      # (scripts/ci_already_tested.rb). Not when the local CI ran the
+      # required jobs: master runs them all then. A pull request from a fork
+      # may not post it, and master then runs every job
+      - name: Record the tree that passed
+        if: needs.local-ci.outputs.verified != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          tree=$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${GITHUB_SHA}" --jq .tree.sha)
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" -f state=success \
+            -f context=ci/tested-tree -f description="tree ${tree}" > /dev/null
+          echo "ci/tested-tree: tree ${tree} on ${HEAD_SHA}"
