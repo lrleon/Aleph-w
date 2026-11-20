@@ -158,6 +158,12 @@ whose required jobs the local CI ran, after one merged without that status
 05:30 UTC and `ci-platform.yml` at 04:30, so that the tests that seed with
 the time get new cases and a change of the images of the runners shows up.
 
+Once a run posted the status, it stays on the head: a later run on the same
+head and tree that fails or does not finish does not withdraw it, and the
+push still skips what the earlier run passed. That run tested the same
+tree, so no untested code is skipped, and the weekly run still runs every
+job.
+
 ## Cost
 
 On a machine of 20 cores, the first run of `required` builds the images
