@@ -21,7 +21,8 @@ class TestCiAlreadyTested < Minitest::Test
   # The answers of the API of GitHub for a squash SHA of the pull request 7,
   # whose head is HEAD, with the tree TREE
   def answers(prs: nil, statuses: nil)
-    prs ||= [{ 'number' => 7, 'merged_at' => 'yes', 'merge_commit_sha' => SHA, 'head' => { 'sha' => HEAD } }]
+    prs ||= [{ 'number' => 7, 'merged_at' => 'yes', 'merge_commit_sha' => SHA,
+               'head' => { 'sha' => HEAD, 'repo' => { 'full_name' => REPO } } }]
     {
       "repos/#{REPO}/commits/#{SHA}/pulls" => prs,
       "repos/#{REPO}/git/commits/#{SHA}" => { 'tree' => { 'sha' => TREE } },
@@ -50,6 +51,17 @@ class TestCiAlreadyTested < Minitest::Test
     refute tested?(prs: [{ 'number' => 7, 'merged_at' => nil, 'merge_commit_sha' => SHA, 'head' => { 'sha' => HEAD } }])
     refute tested?(prs: [{ 'number' => 7, 'merged_at' => 'yes', 'merge_commit_sha' => 'd' * 40,
                            'head' => { 'sha' => HEAD } }])
+  end
+
+  # A fork cannot post the status, but its head may be the head of a pull
+  # request of the repository that posted it: master runs every job after a
+  # fork, as its documentation says
+  def test_a_pull_request_from_a_fork_is_not_tested
+    pr = lambda do |repo|
+      [{ 'number' => 7, 'merged_at' => 'yes', 'merge_commit_sha' => SHA, 'head' => { 'sha' => HEAD, 'repo' => repo } }]
+    end
+    refute tested?(prs: pr.call({ 'full_name' => 'fork/repo' }))
+    refute tested?(prs: pr.call(nil)) # a fork that was deleted
   end
 
   # The status must name the tree of the push: a run on the same head that

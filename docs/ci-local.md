@@ -132,6 +132,8 @@ that for both workflows. On a push to
 (`scripts/ci_already_tested.rb`) looks for the pull request that the push
 merges, and the push skips the jobs that the pull request ran when
 
+- the pull request comes from a branch of this repository, not from a
+  fork;
 - the head of the pull request has that status, posted by GitHub Actions,
   naming the tree of the push;
 - the head has no status `ci-local/required`.
@@ -150,11 +152,11 @@ What runs on every push to `master`:
   a pull request;
 - the other workflows, as the documentation and release-please.
 
-Every job runs on `master` after a pull request whose required jobs the
-local CI ran, after one merged without that status (from a fork, or with a
-red or unfinished run), and once a week: `ci.yml` on Mondays at 05:30 UTC
-and `ci-platform.yml` at 04:30, so that the tests that seed with the time
-get new cases and a change of the images of the runners shows up.
+Every job runs on `master` after a pull request from a fork, after one
+whose required jobs the local CI ran, after one merged without that status
+(with a red or unfinished run), and once a week: `ci.yml` on Mondays at
+05:30 UTC and `ci-platform.yml` at 04:30, so that the tests that seed with
+the time get new cases and a change of the images of the runners shows up.
 
 ## Cost
 

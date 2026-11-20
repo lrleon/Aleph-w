@@ -19,7 +19,9 @@
 # which the runs themselves do not say: a commit may head two pull requests,
 # into different branches. It says true only if
 #   - the event is a push, and the commit is the merge commit of a merged
-#     pull request;
+#     pull request from a branch of this repository: a fork cannot post
+#     the status, and its head may be the head of a pull request of the
+#     repository that posted it;
 #   - the head of that pull request has that status, posted by GitHub
 #     Actions, with success, naming the tree of the commit;
 #   - the head has no status ci-local/required: when the local CI ran the
@@ -55,6 +57,8 @@ def already_tested(event:, repo:, sha:, workflow:, api: method(:gh_api))
   return [false, "#{sha[0, 12]} is not the merge commit of a pull request"] unless pr
 
   number = pr['number']
+  return [false, "##{number} comes from a fork"] unless pr.dig('head', 'repo', 'full_name') == repo
+
   head = pr.dig('head', 'sha').to_s
   tree = api.call("repos/#{repo}/git/commits/#{sha}").dig('tree', 'sha')
   return [false, "no tree for #{sha[0, 12]}"] unless tree
