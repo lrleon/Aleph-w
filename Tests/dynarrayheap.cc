@@ -309,22 +309,158 @@ namespace
   };
 
   // The array of the heap, in its order, as traverse() and the iterator
-  // see it. The iterator goes to the end of the array, which is that of
-  // the items unless the heap reserved more
+  // see it
   template <class Heap>
-  std::vector<typename Heap::Item_Type> layout(const Heap & h, const bool reserved = false)
+  std::vector<typename Heap::Item_Type> layout(const Heap & h)
   {
     using T = typename Heap::Item_Type;
     std::vector<T> by_traverse;
     h.traverse([&by_traverse](const T & x) { by_traverse.push_back(x); return true; });
-    if (reserved)
-      return by_traverse;
     std::vector<T> by_iterator;
     for (typename Heap::Iterator it(h); it.has_curr(); it.next_ne())
       by_iterator.push_back(it.get_curr());
     EXPECT_EQ(by_traverse, by_iterator);
     return by_traverse;
   }
+}
+
+namespace
+{
+  // Every way of going through a heap gives its items, in the order of
+  // traverse(), and no more; and each member of the iterator takes the
+  // number of items as the end
+  template <class Heap>
+  void expect_iterated(Heap & h)
+  {
+    using T = typename Heap::Item_Type;
+    std::vector<T> items;
+    h.traverse([&items](const T & x) { items.push_back(x); return true; });
+    ASSERT_EQ(items.size(), h.size());
+    const long n = static_cast<long>(items.size());
+
+    typename Heap::Iterator it(h);
+    for (long k = 0; k < n; ++k, it.next())
+      {
+        ASSERT_TRUE(it.has_curr());
+        EXPECT_EQ(it.get_pos(), k);
+        EXPECT_EQ(it.get_curr(), items[k]);
+        EXPECT_EQ(it.get_curr_ne(), items[k]);
+        EXPECT_EQ(it.is_last(), k == n - 1);
+      }
+    EXPECT_FALSE(it.has_curr()); // at the end
+    EXPECT_FALSE(it.is_last());
+    EXPECT_EQ(it.get_pos(), n);
+    EXPECT_THROW((void) it.get_curr(), std::overflow_error);
+    EXPECT_THROW(it.next(), std::overflow_error);
+
+    for (long k = n - 1; k >= 0; --k)
+      {
+        it.prev();
+        ASSERT_TRUE(it.has_curr());
+        EXPECT_EQ(it.get_curr(), items[k]);
+      }
+    it.prev(); // before the first item
+    EXPECT_FALSE(it.has_curr());
+    EXPECT_THROW((void) it.get_curr(), std::underflow_error);
+    EXPECT_THROW(it.prev(), std::underflow_error);
+
+    it.reset_last();
+    EXPECT_EQ(it.has_curr(), n > 0);
+    EXPECT_EQ(it.is_last(), n > 0);
+    EXPECT_EQ(it.get_pos(), n - 1);
+    it.reset_first();
+    EXPECT_EQ(it.has_curr(), n > 0);
+    EXPECT_EQ(it.get_pos(), 0);
+    it.end();
+    EXPECT_FALSE(it.has_curr());
+    EXPECT_EQ(it.get_pos(), n);
+    for (long k = 0; k < n; ++k)
+      {
+        it.set_pos(k);
+        EXPECT_EQ(it.get_curr(), items[k]);
+      }
+
+    std::vector<T> seen;
+    for (const T & x : h)
+      seen.push_back(x);
+    EXPECT_EQ(seen, items);
+    seen.clear();
+    for (const T & x : std::as_const(h))
+      seen.push_back(x);
+    EXPECT_EQ(seen, items);
+    seen.clear();
+    for (auto i = h.get_it(); i.has_curr(); i.next_ne())
+      seen.push_back(i.get_curr());
+    EXPECT_EQ(seen, items);
+    seen.clear();
+    for (auto i = std::as_const(h).get_it(); i.has_curr(); i.next())
+      seen.push_back(i.get_curr());
+    EXPECT_EQ(seen, items);
+  }
+}
+
+// The iterator goes through the items of the heap, the entries 1 to size()
+// of its array, whatever the array has beyond them. It went to the end of
+// the array: after reserve(10) and three insert_direct() it visited 9
+// entries, and reset_first() left it on the entry 0, which holds no item
+TEST(DynArrayHeapIterator, GoesThroughTheItemsWhateverTheArrayHas)
+{
+  DynArrayHeap<int> heap;
+  expect_iterated(heap); // never used
+
+  heap.reserve(10);
+  expect_iterated(heap); // entries and no item
+  for (const int x : {5, 1, 3})
+    heap.insert_direct(x);
+  EXPECT_EQ(layout(heap), (std::vector<int>{1, 5, 3}));
+  expect_iterated(heap); // more entries than items
+
+  for (int x = 20; x > 0; --x)
+    heap.insert(x); // beyond the reserved entries
+  expect_iterated(heap);
+
+  while (heap.size() > 4)
+    (void) heap.getMin();
+  expect_iterated(heap);
+
+  while (not heap.is_empty())
+    (void) heap.getMin();
+  expect_iterated(heap); // emptied: the array keeps its entry 0
+}
+
+// An iterator built without a heap has no item
+TEST(DynArrayHeapIterator, WithoutAHeapItHasNoItem)
+{
+  DynArrayHeap<int>::Iterator it;
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_FALSE(it.is_last());
+  EXPECT_THROW((void) it.get_curr(), std::overflow_error);
+  EXPECT_THROW(it.next(), std::overflow_error);
+  it.reset_last();
+  EXPECT_FALSE(it.has_curr());
+  it.end();
+  EXPECT_FALSE(it.has_curr());
+}
+
+// An insertion by move makes the place of the key before it moves it. If
+// that move throws, the heap is as it was for the iterator too, which saw
+// the new entry of the array as one item more
+TEST(DynArrayHeapIterator, DoesNotSeeThePlaceOfAKeyThatWasNotMoved)
+{
+  DynArrayHeap<Hard_To_Build> heap;
+  for (const int x : {1, 5, 3})
+    heap.insert(Hard_To_Build(x));
+
+  Hard_To_Build key(9);
+  Hard_To_Build::armed = true;
+  EXPECT_THROW(heap.insert(std::move(key)), std::runtime_error);
+  Hard_To_Build::armed = false;
+  EXPECT_EQ(key.v, 9);
+  EXPECT_EQ(heap.size(), 3U);
+  std::vector<int> seen;
+  for (DynArrayHeap<Hard_To_Build>::Iterator it(heap); it.has_curr(); it.next_ne())
+    seen.push_back(it.get_curr().v);
+  EXPECT_EQ(seen, (std::vector<int>{1, 5, 3}));
 }
 
 // The noexcept specification of the sifts looks at the comparison of two
@@ -431,7 +567,7 @@ TEST(DynArrayHeapBasics, AKeyThatIsAnItemOfTheHeap)
             case 2: heap.insert_direct(*key); other.insert_direct(copy); break;
             default: heap.insert_direct(std::move(*key)); other.insert_direct(Pair(copy));
             }
-          EXPECT_EQ(layout(heap, true), layout(other, true));
+          EXPECT_EQ(layout(heap), layout(other));
         }
 }
 
@@ -574,7 +710,7 @@ TEST(DynArrayHeapThrowingCompare, EveryFailedCallLeavesTheHeapAsItWas)
               heap.reserve(n + 2);
             for (const Item & x : items)
               heap.insert(x);
-            const std::vector<Item> before = layout(heap, reserved);
+            const std::vector<Item> before = layout(heap);
             calls.throw_at = calls.count + at;
             bool thrown = false;
             Item moved = key;
@@ -597,9 +733,7 @@ TEST(DynArrayHeapThrowingCompare, EveryFailedCallLeavesTheHeapAsItWas)
             if (not thrown)
               break;
             EXPECT_EQ(heap.size(), n);
-            // insert() by move makes the place of the key first, and the
-            // iterator goes to the end of the array
-            EXPECT_EQ(layout(heap, reserved or op == 1), before);
+            EXPECT_EQ(layout(heap), before);
             EXPECT_EQ(moved, key);
           }
       }
@@ -697,7 +831,7 @@ TEST(DynArrayHeapBasics, AKeyThatItsMoveChangesInTheHeap)
               }
             for (int i = 1; i <= n; ++i)
               old_layout.push_back(old.access(i));
-            ASSERT_EQ(layout(heap, true), old_layout);
+            ASSERT_EQ(layout(heap), old_layout);
 
             Husk & key = item_at(heap, place);
             if (direct)
@@ -711,7 +845,7 @@ TEST(DynArrayHeapBasics, AKeyThatItsMoveChangesInTheHeap)
             old_layout.clear();
             for (int i = 1; i <= n + 1; ++i)
               old_layout.push_back(old.access(i));
-            EXPECT_EQ(layout(heap, true), old_layout);
+            EXPECT_EQ(layout(heap), old_layout);
           }
 }
 
@@ -733,7 +867,7 @@ TEST(DynArrayHeapThrowingCompare, AKeyThatItsMoveChangesStaysInTheHeap)
               heap.reserve(n + 2);
               for (int k = 1; k <= n; ++k)
                 heap.insert(Husk(k % 3, k));
-              const std::vector<Husk> before = layout(heap, true);
+              const std::vector<Husk> before = layout(heap);
               Husk & key = item_at(heap, place);
               calls.throw_at = calls.count + at;
               bool thrown = false;
@@ -752,6 +886,6 @@ TEST(DynArrayHeapThrowingCompare, AKeyThatItsMoveChangesStaysInTheHeap)
               if (not thrown)
                 break;
               EXPECT_EQ(heap.size(), static_cast<size_t>(n));
-              EXPECT_EQ(layout(heap, true), before);
+              EXPECT_EQ(layout(heap), before);
             }
 }

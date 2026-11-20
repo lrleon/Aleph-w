@@ -239,9 +239,8 @@ TEST(AhIteratorConcepts, ConstIteratorsArePromotedToRandomAccessToo)
 
 TEST(AhIteratorConcepts, DynArrayHeapIteratorStaysNonRandomAccessFailSafe)
 {
-  // The heap reuses DynArray::Iterator as a base but redefines get_pos() with
-  // an offset. The self-referential marker prevents inheriting the
-  // random-access promotion, so it must NOT be a random_access_iterator.
+  // The heap has an iterator of its own, on its items, which does not opt in
+  // to the random-access promotion: it must NOT be a random_access_iterator.
   using Iter = DynArrayHeap<int>::iterator;
 
   static_assert(std::forward_iterator<Iter>);

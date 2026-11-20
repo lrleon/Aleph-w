@@ -1818,9 +1818,9 @@ public:
 
     /// Opt-in marker for StlIterator random-access promotion. It is the
     /// iterator's own type on purpose: derived iterators that reuse this
-    /// class as a base (e.g. DynArrayHeap::Iterator, which redefines
-    /// get_pos() with an offset) do NOT inherit the promotion, because their
-    /// own type differs from this marker. This keeps the promotion fail-safe.
+    /// class as a base, and may redefine its positions, do NOT inherit the
+    /// promotion, because their own type differs from this marker. This
+    /// keeps the promotion fail-safe.
     using aleph_random_access_iterator = Iterator;
 
     /// Default constructor creates an "end" iterator

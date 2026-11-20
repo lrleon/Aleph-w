@@ -557,35 +557,108 @@ namespace Aleph
     /// Return true if the heap is empty.
     [[nodiscard]] constexpr bool is_empty() const noexcept { return num_items == 0; }
 
-    struct Iterator : DynArray<T>::Iterator
+    /** @brief Iterator on the items of the heap, in the order of its array,
+     *         which is not the sorted one.
+     *
+     *  The items are read-only: the heap order must not be broken. It goes
+     *  through the items that the heap has, the entries 1 to size() of its
+     *  array, whatever the array has beyond them, as traverse() does. An
+     *  insertion or an extraction moves the items, so that the positions
+     *  that it gave are no longer theirs.
+     */
+    class Iterator
     {
-      using Base = typename DynArray<T>::Iterator;
+      const DynArrayHeap *heap_ptr = nullptr; ///< The heap; none in an iterator built without one.
+      long curr_idx = 0; ///< The position of the current item, from 0.
 
-      Iterator(const DynArrayHeap & h) noexcept : Base(h.array)
+      /// The number of items of the heap; none without a heap.
+      [[nodiscard]] long items() const noexcept
       {
-        if (h.num_items != 0)
-          this->next_ne();
+        return heap_ptr == nullptr ? 0 : static_cast<long>(heap_ptr->num_items);
       }
 
-      Iterator() = default;
+    public:
+      using Set_Type = DynArrayHeap; ///< The container that it goes through.
+      using Item_Type = T; ///< The type of the items.
 
-      [[nodiscard]] bool has_curr() const noexcept
+      /// An iterator without a heap, which has no items.
+      Iterator() noexcept = default;
+
+      /** @brief Iterator on the first item of a heap, in the order of its
+       *         array.
+       *  @param[in] h the heap.
+       */
+      Iterator(const DynArrayHeap & h) noexcept : heap_ptr(&h) {}
+
+      /// Return true if the iterator is on an item.
+      [[nodiscard]] bool has_curr() const noexcept { return curr_idx >= 0 and curr_idx < items(); }
+
+      /// Return true if the iterator is on the last item.
+      [[nodiscard]] bool is_last() const noexcept { return has_curr() and curr_idx == items() - 1; }
+
+      /// The current item, without checking that there is one.
+      [[nodiscard]] const T & get_curr_ne() const noexcept
       {
-        return this->curr_idx != 0 and
-               static_cast<size_t>(this->curr_idx) != this->array_ptr->size();
+        return heap_ptr->array.access(static_cast<size_t>(curr_idx) + 1);
       }
 
-      [[nodiscard]] long get_pos() const noexcept { return this->Base::get_pos() - 1; }
-
-      /// The current item, read-only: the heap order must not be broken.
-      [[nodiscard]] const T & get_curr() const { return Base::get_curr(); }
-
-      /// \overload get_curr()
-      [[nodiscard]] const T & get_curr_ne() const
-        noexcept(noexcept(std::declval<const Base &>().get_curr_ne()))
+      /** @brief The current item, read-only: the heap order must not be
+       *         broken.
+       *  @throws std::underflow_error if the iterator is before the first
+       *          item.
+       *  @throws std::overflow_error if it is after the last item, or has no
+       *          heap.
+       */
+      [[nodiscard]] const T & get_curr() const
       {
-        return Base::get_curr_ne();
+        ah_underflow_error_if(curr_idx < 0) << "not current item in iterator";
+        ah_overflow_error_if(curr_idx >= items()) << "not current item in iterator";
+        return get_curr_ne();
       }
+
+      /// The position of the current item among those of the heap, from 0.
+      [[nodiscard]] long get_pos() const noexcept { return curr_idx; }
+
+      /// Put the iterator on the position `pos`, without checking it.
+      void set_pos(const long pos) noexcept { curr_idx = pos; }
+
+      /// Move one position forward, without checking.
+      void next_ne() noexcept { ++curr_idx; }
+
+      /** @brief Move one position forward, from the last item to the end
+       *         too.
+       *  @throws std::overflow_error if the iterator is at the end, or has
+       *          no heap.
+       */
+      void next()
+      {
+        ah_overflow_error_if(heap_ptr == nullptr or curr_idx >= items())
+          << "not current item in iterator";
+        next_ne();
+      }
+
+      /// Move one position backward, without checking.
+      void prev_ne() noexcept { --curr_idx; }
+
+      /** @brief Move one position backward, from the first item to before
+       *         it too.
+       *  @throws std::underflow_error if the iterator is before the first
+       *          item.
+       */
+      void prev()
+      {
+        ah_underflow_error_if(curr_idx < 0) << "not current item in iterator";
+        prev_ne();
+      }
+
+      /// Put the iterator on the first item.
+      void reset_first() noexcept { curr_idx = 0; }
+
+      /// Put the iterator on the last item.
+      void reset_last() noexcept { curr_idx = items() - 1; }
+
+      /// Put the iterator at the end, after the last item.
+      void end() noexcept { curr_idx = items(); }
     };
 
     /// Read-only iterator: the iterator of a constant container.
