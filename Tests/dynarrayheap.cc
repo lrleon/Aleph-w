@@ -236,3 +236,165 @@ TEST(DynArrayHeapRandomized, MatchesStdPriorityQueueMinHeap)
     }
   EXPECT_TRUE(heap.is_empty());
 }
+
+namespace
+{
+  // The calls of a Counted_Less, and the one that throws (0: none)
+  struct Calls
+  {
+    size_t count = 0;
+    size_t throw_at = 0;
+  };
+
+  struct Counted_Less
+  {
+    Calls *calls;
+
+    bool operator()(const int a, const int b) const
+    {
+      if (++calls->count == calls->throw_at)
+        throw std::runtime_error("comparison");
+      return a < b;
+    }
+  };
+
+  using Counted_Heap = DynArrayHeap<int, Counted_Less>;
+
+  // The array of the heap, in its order, as traverse() and the iterator
+  // see it. The iterator goes to the end of the array, which is that of
+  // the items unless the heap reserved more
+  template <class Heap>
+  std::vector<int> layout(const Heap & h, const bool reserved = false)
+  {
+    std::vector<int> by_traverse;
+    h.traverse([&by_traverse](const int x) { by_traverse.push_back(x); return true; });
+    if (reserved)
+      return by_traverse;
+    std::vector<int> by_iterator;
+    for (typename Heap::Iterator it(h); it.has_curr(); it.next_ne())
+      by_iterator.push_back(it.get_curr());
+    EXPECT_EQ(by_traverse, by_iterator);
+    return by_traverse;
+  }
+
+  // The sifts of 7.7.4, which exchanged an item with its parent or child
+  // at each level, as a reference for the order of the new ones
+  size_t old_sift_up(DynArray<int> & a, size_t l, size_t r, Counted_Less & cmp)
+  {
+    for (size_t p, i = r; i > l; i = p)
+      {
+        p = i / 2;
+        if (cmp(a.access(p), a.access(i)))
+          return i;
+        std::swap(a.access(p), a.access(i));
+      }
+    return l;
+  }
+
+  void old_sift_down(DynArray<int> & a, size_t l, size_t r, Counted_Less & cmp)
+  {
+    for (size_t i = l; ;)
+      {
+        size_t c = 2 * i;
+        if (c > r)
+          return;
+        if (c + 1 <= r and cmp(a.access(c + 1), a.access(c)))
+          ++c;
+        if (cmp(a.access(i), a.access(c)))
+          return;
+        std::swap(a.access(c), a.access(i));
+        i = c;
+      }
+  }
+}
+
+// Each failed comparison of an insertion or an extraction leaves the heap
+// as it was: its items in the same places and its size, with the key of
+// an insertion by move untouched. 7.7.4 left the item counted, or the
+// minimum lost, and the heap out of order
+TEST(DynArrayHeapThrowingCompare, EveryFailedCallLeavesTheHeapAsItWas)
+{
+  std::mt19937 rng(20261120);
+  std::uniform_int_distribution<int> values(0, 30);
+  for (size_t n = 0; n <= 40; ++n)
+    for (int op = 0; op < 4; ++op) // insert, insert of a move, insert_direct, getMin
+      {
+        if (op == 3 and n == 0)
+          continue;
+        std::vector<int> items;
+        for (size_t k = 0; k < n; ++k)
+          items.push_back(values(rng));
+        const int key = values(rng);
+        for (size_t at = 1; ; ++at)
+          {
+            SCOPED_TRACE(testing::Message() << "n " << n << ", op " << op << ", call " << at);
+            Calls calls;
+            Counted_Heap heap(Counted_Less{&calls});
+            const bool reserved = op == 2; // insert_direct() writes in reserved entries
+            if (reserved)
+              heap.reserve(n + 2);
+            for (const int x : items)
+              heap.insert(x);
+            const std::vector<int> before = layout(heap, reserved);
+            calls.throw_at = calls.count + at;
+            bool thrown = false;
+            int moved = key;
+            try
+              {
+                switch (op)
+                  {
+                  case 0: heap.insert(key); break;
+                  case 1: heap.insert(std::move(moved)); break;
+                  case 2: heap.insert_direct(key); break;
+                  default: (void) heap.getMin();
+                  }
+              }
+            catch (const std::runtime_error &)
+              {
+                thrown = true;
+              }
+            calls.throw_at = 0;
+            if (not thrown)
+              break;
+            EXPECT_EQ(heap.size(), n);
+            EXPECT_EQ(layout(heap, reserved), before);
+            EXPECT_EQ(moved, key);
+          }
+      }
+}
+
+// The new sifts compare in the order of the old ones and leave every item
+// in the same place
+TEST(DynArrayHeapThrowingCompare, SameComparisonsAndPlacesAsTheOldSifts)
+{
+  std::mt19937 rng(77);
+  std::uniform_int_distribution<int> values(0, 50); // many equal items
+  Calls calls, old_calls;
+  Counted_Heap heap(Counted_Less{&calls});
+  Counted_Less old_cmp{&old_calls};
+  DynArray<int> old;
+  size_t old_n = 0;
+  for (int k = 0; k < 5000; ++k)
+    {
+      if (old_n == 0 or rng() % 3 != 0)
+        {
+          const int x = values(rng);
+          heap.insert(x);
+          old.touch(++old_n) = x;
+          old_sift_up(old, 1, old_n, old_cmp);
+        }
+      else
+        {
+          const int min = heap.getMin();
+          ASSERT_EQ(min, old.access(1));
+          old.access(1) = old.access(old_n);
+          --old_n;
+          old_sift_down(old, 1, old_n, old_cmp);
+        }
+      ASSERT_EQ(calls.count, old_calls.count) << "operation " << k;
+      std::vector<int> old_layout;
+      for (size_t i = 1; i <= old_n; ++i)
+        old_layout.push_back(old.access(i));
+      ASSERT_EQ(layout(heap), old_layout) << "operation " << k;
+    }
+}
