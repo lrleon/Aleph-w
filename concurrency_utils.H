@@ -874,10 +874,10 @@ namespace Aleph
 
   private:
     mutable Mutex mutex_;
-    T value_;
+    T value_ = T(); // not indeterminate when built by default
 
   public:
-    /** @brief Default-construct the protected value.
+    /** @brief Value-initialize the protected value: zero for a scalar.
      *  @throws Any exception thrown by `T`'s default constructor.
      */
     Synchronized() requires std::default_initializable<T> = default;
@@ -1148,10 +1148,10 @@ namespace Aleph
 
   private:
     mutable SharedMutex mutex_;
-    T value_;
+    T value_ = T(); // not indeterminate when built by default
 
   public:
-    /** @brief Default-construct the protected value.
+    /** @brief Value-initialize the protected value: zero for a scalar.
      *  @throws Any exception thrown by `T`'s default constructor.
      */
     RwSynchronized() requires std::default_initializable<T> = default;
