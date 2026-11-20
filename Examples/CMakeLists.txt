@@ -46,6 +46,22 @@ foreach(source_file IN LISTS EXAMPLE_SOURCES)
 endforeach()
 
 if(BUILD_TESTS)
+    if(TARGET adaptive_huffman_example)
+        add_test(NAME AdaptiveHuffmanExample.RoundTrip
+                 COMMAND $<TARGET_FILE:adaptive_huffman_example>)
+    endif()
+    if(TARGET adaptive_huffman_visual_example)
+        add_test(NAME AdaptiveHuffmanExample.VisualGallery
+                 COMMAND $<TARGET_FILE:adaptive_huffman_visual_example>
+                         ${CMAKE_CURRENT_BINARY_DIR}/adaptive_huffman_gallery.html)
+        add_test(NAME AdaptiveHuffmanExample.EmptyGallery
+                 COMMAND $<TARGET_FILE:adaptive_huffman_visual_example>
+                         ${CMAKE_CURRENT_BINARY_DIR}/adaptive_huffman_empty.html "")
+        add_test(NAME AdaptiveHuffmanExample.EscapedGallery
+                 COMMAND $<TARGET_FILE:adaptive_huffman_visual_example>
+                         ${CMAKE_CURRENT_BINARY_DIR}/adaptive_huffman_escaped.html "<A&\"'B>")
+    endif()
+
     set(_VERIFY_REFERENCE_EXAMPLE
         ${CMAKE_CURRENT_SOURCE_DIR}/verify_reference_example.cmake)
 

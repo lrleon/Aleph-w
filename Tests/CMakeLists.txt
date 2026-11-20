@@ -377,6 +377,7 @@ set(TEST_PROGRAMS
     ah_parallel_test
     topological_sort_test
     huffman
+    adaptive_huffman_test
 	    test_tpl_hash_macros
 	    bipartite_test
 	    dlink_test
