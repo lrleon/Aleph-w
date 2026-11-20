@@ -5,6 +5,15 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.7.4](https://github.com/lrleon/Aleph-w/compare/v7.7.3...v7.7.4) (2026-11-20)
+
+
+### Bug Fixes
+
+* **concurrency:** Value-initialize the value of a Synchronized or RwSynchronized built by default, which was indeterminate for a scalar ([#210](https://github.com/lrleon/Aleph-w/issues/210)) ([bdf3325](https://github.com/lrleon/Aleph-w/commit/bdf3325144932f3e8e4c2d9b64002443c6e38ed6))
+* **huffman:** Keep the encoder whole when memory runs out for a new symbol, instead of leaving a freed leaf in its heap and freeing it twice ([#212](https://github.com/lrleon/Aleph-w/issues/212)) ([6c5f6fc](https://github.com/lrleon/Aleph-w/commit/6c5f6fc815277cefbbcae7dbd860968dd7ec147b))
+* **trees, hash, heap:** Let the code of the user throw from the constructions, moves and swaps of the trees, the buckets of the open hash tables and the sifts of DynArrayHeap, instead of ending the program ([#210](https://github.com/lrleon/Aleph-w/issues/210)) ([bdf3325](https://github.com/lrleon/Aleph-w/commit/bdf3325144932f3e8e4c2d9b64002443c6e38ed6))
+
 ## [7.7.3](https://github.com/lrleon/Aleph-w/compare/v7.7.2...v7.7.3) (2026-11-19)
 
 
