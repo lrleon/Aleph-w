@@ -524,7 +524,15 @@ public:
     return key_comp();
   }
 
-  Gen_Avl_Tree_Rk(Compare cmf_fct = Compare()) noexcept
+  /** @brief Builds an empty tree with the comparison criteria `cmf_fct`.
+
+      @param[in] cmf_fct the comparison criteria, which the tree copies.
+      @throws what the default construction of the key of a header node
+      or the copy of `cmf_fct` throws; nothing when both are `noexcept`.
+  */
+  Gen_Avl_Tree_Rk(Compare cmf_fct = Compare())
+    noexcept(std::is_nothrow_default_constructible_v<Node> and
+             std::is_nothrow_copy_constructible_v<Compare>)
     : head_ptr(&head_node), root(RLINK(head_ptr)), cmp(cmf_fct)
   {
     // empty
@@ -534,11 +542,15 @@ public:
       `tree`.
 
       @param[in] tree the tree to swap with this
+      @throws what the swap of the comparison criteria throws, which goes
+      first: then the nodes stay where they were.
   */
-  void swap(Gen_Avl_Tree_Rk &tree) noexcept
+  void swap(Gen_Avl_Tree_Rk &tree) noexcept(std::is_nothrow_swappable_v<Compare>)
   {
-    std::swap(root, tree.root);
+    // The comparison first: if its swap throws, the nodes stay where
+    // they were
     std::swap(cmp, tree.cmp);
+    std::swap(root, tree.root);
   }
 
   virtual ~Gen_Avl_Tree_Rk() noexcept = default;

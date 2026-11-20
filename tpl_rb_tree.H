@@ -438,8 +438,15 @@ public:
   Compare & get_compare() noexcept { return cmp; }
   const Compare & get_compare() const noexcept { return cmp; }
 
-  /// Default constructor with optional comparator
-  Gen_Rb_Tree(Compare __cmp = Compare()) noexcept
+  /** @brief Builds an empty tree with the comparison criteria `__cmp`.
+
+      @param[in] __cmp the comparison criteria, which the tree copies.
+      @throws what the default construction of the key of a header node
+      or the copy of `__cmp` throws; nothing when both are `noexcept`.
+  */
+  Gen_Rb_Tree(Compare __cmp = Compare())
+    noexcept(std::is_nothrow_default_constructible_v<Node> and
+             std::is_nothrow_copy_constructible_v<Compare>)
     : head(&head_node), root(head_node.getR()),
       cmp(__cmp), num_nodes(0)
   {
@@ -448,16 +455,28 @@ public:
 
   /** Swaps all elements with another tree in constant time.
       @param[in] tree the red-black tree to swap with
+      @throws what the swap of the comparison criteria throws, which goes
+      first: then the nodes stay where they were.
    */
-  void swap(Gen_Rb_Tree & tree) noexcept
+  void swap(Gen_Rb_Tree & tree) noexcept(std::is_nothrow_swappable_v<Compare>)
   {
+    // The comparison first: if its swap throws, the nodes stay where
+    // they were
+    std::swap(cmp, tree.cmp);
     std::swap(root, tree.root);
     std::swap(num_nodes, tree.num_nodes);
-    std::swap(cmp, tree.cmp);
   }
 
-  /// Move constructor
-  Gen_Rb_Tree(Gen_Rb_Tree && tree) noexcept
+  /** @brief Takes the nodes and the comparison criteria of `tree`, which is left empty.
+
+      @param[in,out] tree the tree to move from.
+      @throws what the default construction of the key of a header node
+      or the move of the comparison criteria throws; then `tree` keeps
+      its nodes.
+  */
+  Gen_Rb_Tree(Gen_Rb_Tree && tree)
+    noexcept(std::is_nothrow_default_constructible_v<Node> and
+             std::is_nothrow_move_constructible_v<Compare>)
     : head(&head_node), root(head_node.getR()),
       cmp(std::move(tree.cmp)), 
       num_nodes(tree.num_nodes)
@@ -467,14 +486,22 @@ public:
     tree.num_nodes = 0;
   }
 
-  /// Move assignment operator
-  Gen_Rb_Tree & operator=(Gen_Rb_Tree && tree) noexcept
+  /** @brief Takes the nodes and the comparison criteria of `tree`, which is left empty.
+
+      @param[in,out] tree the tree to move from.
+      @return `*this`.
+      @throws what the move assignment of the comparison criteria throws,
+      which goes first: then the nodes stay where they were.
+  */
+  Gen_Rb_Tree & operator=(Gen_Rb_Tree && tree)
+    noexcept(std::is_nothrow_move_assignable_v<Compare>)
   {
     if (this != &tree)
       {
+        // The comparison first: if its move throws, no tree has changed
+        cmp = std::move(tree.cmp);
         root = tree.root;
         num_nodes = tree.num_nodes;
-        cmp = std::move(tree.cmp);
         tree.root = Node::NullPtr;
         tree.num_nodes = 0;
       }

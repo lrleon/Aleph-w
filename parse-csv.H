@@ -1311,7 +1311,7 @@ inline bool csv_skip_bom(std::istream & in)
   if (taken == 3)
     return true;
 
-  while (taken-- > 0)
+  for (; taken > 0; --taken)
     in.unget();
   return false;
 }

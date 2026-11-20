@@ -790,8 +790,15 @@ namespace Aleph
     /// \overload get_compare() const
     [[nodiscard]] constexpr const Compare & get_compare() const noexcept { return cmp; }
 
-    /// Default constructor
-    HtdRbTree(Compare __cmp = Compare()) noexcept
+    /** @brief Builds an empty tree with the comparison criteria `__cmp`.
+
+        @param[in] __cmp the comparison criteria, which the tree copies.
+        @throws what the default construction of the key of a header node
+        or the copy of `__cmp` throws; nothing when both are `noexcept`.
+    */
+    HtdRbTree(Compare __cmp = Compare())
+      noexcept(std::is_nothrow_default_constructible_v<Node> and
+               std::is_nothrow_copy_constructible_v<Compare>)
       : head(&headNode),
         fHead(&headParent),
         ffHead(&headGrandParent),
@@ -806,16 +813,33 @@ namespace Aleph
       COLOR(ffHead) = BLACK;
     }
 
-    /// Swap contents with another tree
-    void swap(HtdRbTree & tree) noexcept
+    /** @brief Swaps in constant time the nodes and the comparison criteria
+        of `this` and `tree`.
+
+        @param[in,out] tree the tree to swap with.
+        @throws what the swap of the comparison criteria throws, which goes
+        first: then the nodes stay where they were.
+    */
+    void swap(HtdRbTree & tree) noexcept(std::is_nothrow_swappable_v<Compare>)
     {
+      // The comparison first: if its swap throws, the nodes stay where
+      // they were
+      std::swap(cmp, tree.cmp);
       std::swap(root, tree.root);
       std::swap(node_count, tree.node_count);
-      std::swap(cmp, tree.cmp);
     }
 
-    /// Move constructor
-    HtdRbTree(HtdRbTree && tree) noexcept
+    /** @brief Takes the nodes and the comparison criteria of `tree`, which is left empty.
+
+        @param[in,out] tree the tree to move from.
+        @throws what the default construction of the key of a header node
+        or of the comparison criteria, or the swap of the comparison
+        criteria, throws; then `tree` keeps its nodes.
+    */
+    HtdRbTree(HtdRbTree && tree)
+      noexcept(std::is_nothrow_default_constructible_v<Node> and
+               std::is_nothrow_default_constructible_v<Compare> and
+               std::is_nothrow_swappable_v<Compare>)
       : head(&headNode),
         fHead(&headParent),
         ffHead(&headGrandParent),
@@ -832,8 +856,14 @@ namespace Aleph
       swap(tree);
     }
 
-    /// Move assignment
-    HtdRbTree & operator=(HtdRbTree && tree) noexcept
+    /** @brief Swaps the nodes and the comparison criteria with `tree`.
+
+        @param[in,out] tree the tree to swap with.
+        @return `*this`.
+        @throws what the swap of the comparison criteria throws, which goes
+        first: then the nodes stay where they were.
+    */
+    HtdRbTree & operator=(HtdRbTree && tree) noexcept(std::is_nothrow_swappable_v<Compare>)
     {
       swap(tree);
       return *this;

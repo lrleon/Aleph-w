@@ -195,7 +195,7 @@ namespace Aleph
       Key key;
       char status = EMPTY;
 
-      Bucket() noexcept: status(EMPTY) {}
+      Bucket() noexcept(std::is_nothrow_default_constructible_v<Key>) : status(EMPTY) {}
       void reset() noexcept { status = EMPTY; }
     };
 

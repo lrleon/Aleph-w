@@ -223,7 +223,7 @@ private:
   {
     if constexpr (std::is_floating_point_v<Coefficient>)
       for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
-        if (not std::isfinite(it.get_curr().second))
+        if (not std::isfinite(it.get_curr_ne().second))
           return false;
     return true;
   }
