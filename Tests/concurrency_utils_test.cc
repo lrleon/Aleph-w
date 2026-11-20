@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstring>
 #include <future>
 #include <memory>
 #include <numeric>
@@ -464,6 +465,30 @@ TEST(ConcurrencyUtils, BoundedChannelTryRecvPreservesQueuedValueOnAssignmentFail
   auto recovered = ch.recv();
   ASSERT_TRUE(recovered.has_value());
   EXPECT_EQ(recovered->value, 17);
+}
+
+// A Synchronized or RwSynchronized built by default value-initializes its
+// value: zero for a scalar, which was indeterminate. Built over a buffer
+// with garbage, so that an indeterminate value would show (Coverity Scan
+// of 7.7.3, UNINIT_CTOR)
+TEST(ConcurrencyUtils, DefaultValueIsValueInitialized)
+{
+  {
+    alignas(Synchronized<long>) unsigned char buf[sizeof(Synchronized<long>)];
+    std::memset(buf, 0x5a, sizeof(buf));
+    auto * p = ::new (static_cast<void *>(buf)) Synchronized<long>;
+    EXPECT_EQ(p->with_lock([] (const long & v) { return v; }), 0);
+    p->~Synchronized<long>();
+  }
+  {
+    alignas(RwSynchronized<long>) unsigned char buf[sizeof(RwSynchronized<long>)];
+    std::memset(buf, 0x5a, sizeof(buf));
+    auto * p = ::new (static_cast<void *>(buf)) RwSynchronized<long>;
+    EXPECT_EQ(p->with_read_lock([] (const long & v) { return v; }), 0);
+    p->~RwSynchronized<long>();
+  }
+  Synchronized<double *> q;
+  EXPECT_EQ(q.with_lock([] (double * const & v) { return v; }), nullptr);
 }
 
 TEST(ConcurrencyUtils, SynchronizedWithLockAndGuard)

@@ -173,11 +173,19 @@ namespace Aleph
     /// Set the random number generator seed, as `gsl_rng_set()` did
     void set_seed(const unsigned long seed) noexcept { r->seed(seed); }
 
-    /// Swap in constant time all the nodes of `this` with `tree`
-    void swap(Gen_Treap & tree) noexcept
+    /** @brief Swaps in constant time the nodes and the comparison criteria
+        of `this` and `tree`.
+
+        @param[in,out] tree the tree to swap with.
+        @throws what the swap of the comparison criteria throws, which goes
+        first: then the nodes stay where they were.
+    */
+    void swap(Gen_Treap & tree) noexcept(std::is_nothrow_swappable_v<Compare>)
     {
-      std::swap(tree_root, tree.tree_root);
+      // The comparison first: if its swap throws, the nodes stay where
+      // they were
       std::swap(cmp, tree.cmp);
+      std::swap(tree_root, tree.tree_root);
       r.swap(tree.r);
     }
 
@@ -207,10 +215,13 @@ namespace Aleph
         be swapped or destroyed.
 
         @param[in,out] tree The treap to move.
-        @throw anything that the move of the comparison criteria throws;
+        @throw anything that the default construction of the key of the
+               header node or the move of the comparison criteria throws;
                then `tree` keeps its nodes, but not its generator.
     */
-    Gen_Treap(Gen_Treap && tree) noexcept(std::is_nothrow_move_constructible_v<Compare>)
+    Gen_Treap(Gen_Treap && tree)
+      noexcept(std::is_nothrow_default_constructible_v<Node> and
+               std::is_nothrow_move_constructible_v<Compare>)
       : head_ptr(&head), tree_root(RLINK(head_ptr)), r(std::move(tree.r)),
         cmp(std::move(tree.cmp))
     {
