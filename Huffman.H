@@ -156,6 +156,29 @@ class Huffman_Encoder_Engine
     return end_symbol_ == str;
   }
 
+  // Makes the leaf of str and its node, of frequency freq, and enters the
+  // node in the map of the symbols and then in the heap. Only the map can
+  // throw: then neither node is anywhere, and both are freed here
+  Huffman_Node * insert_symbol_node(const std::string &str, const size_t freq)
+  {
+    auto *bin_node = new BinNode<std::string>(str);
+    Huffman_Node *huffman_node = nullptr;
+    try
+      {
+        huffman_node = new Huffman_Node(bin_node);
+        symbol_map_.insert(str, huffman_node);
+      }
+    catch (...)
+      {
+        delete huffman_node;
+        delete bin_node;
+        throw;
+      }
+    Aleph::set_freq(huffman_node, freq);
+    heap_.insert(huffman_node);  // noexcept: the keys are size_t
+    return huffman_node;
+  }
+
   void update_freq(const std::string &str)
   {
     ah_domain_error_if(root_ != nullptr) << "Huffman encoding tree has already been generated";
@@ -165,13 +188,7 @@ class Huffman_Encoder_Engine
     Huffman_Node *huffman_node = nullptr;
     if (auto huffman_node_ptr = symbol_map_.search(str);
         huffman_node_ptr == nullptr)  // symbol defined previously?
-      {  // No ==> create a new entry in symbol_map and insert it into heap
-        std::unique_ptr<BinNode<std::string>> bin_node_auto(new BinNode<std::string>(str));
-        huffman_node =
-          static_cast<Huffman_Node *>(heap_.insert(new Huffman_Node(bin_node_auto.get())));
-        symbol_map_.insert(str, huffman_node);
-        bin_node_auto.release();
-      }
+      huffman_node = insert_symbol_node(str, 0);  // No ==> a new entry
     else
       huffman_node = huffman_node_ptr->second;  // already defined, retrieve it
 
@@ -407,12 +424,7 @@ public:
         ah_domain_error() << msg;  // Yes ==> this is an error!
       }
 
-    std::unique_ptr<BinNode<std::string>> bin_node_auto(new BinNode<std::string>(str));
-    Huffman_Node *huffman_node = new Huffman_Node(bin_node_auto.get());
-    Aleph::set_freq(huffman_node, freq);
-    heap_.insert(huffman_node);
-    symbol_map_.insert(str, huffman_node);
-    bin_node_auto.release();
+    insert_symbol_node(str, freq);
   }
 
 private:
@@ -478,12 +490,7 @@ private:
 
   void insert_end_symbol_node(const std::string &str)
   {
-    std::unique_ptr<BinNode<std::string>> bin_node_auto(new BinNode<std::string>(str));
-
-    Huffman_Node *huffman_node =
-      static_cast<Huffman_Node *>(heap_.insert(new Huffman_Node(bin_node_auto.get())));
-    symbol_map_.insert(str, huffman_node);
-    bin_node_auto.release();
+    insert_symbol_node(str, 0);
   }
 
   void clear_build_state() noexcept
@@ -575,8 +582,9 @@ public:
     ah_domain_error_if(symbol_map_.search(str) != nullptr)
       << "End symbol is already present as a normal symbol";
 
+    std::string end = str;  // the copy can throw, before the symbol enters
     insert_end_symbol_node(str);
-    end_symbol_ = str;
+    end_symbol_.swap(end);
   }
 
   /// Return the configured end-of-stream symbol.

@@ -425,6 +425,24 @@ namespace Aleph
         }
     }
 
+    // The heap takes node, made with new by the caller. If the comparison
+    // throws, add_to_root_list() has not linked node yet, and the guard
+    // frees it. The guard is not a unique_ptr: its release() would say
+    // that the caller takes the node, and the node is the heap's
+    Node * insert_new_node(Node *node)
+    {
+      struct Guard
+      {
+        Node *node;
+        ~Guard() { delete node; }
+      } guard{node};
+
+      add_to_root_list(node);
+      guard.node = nullptr;  // the heap took node
+      ++num_nodes;
+      return node;
+    }
+
   public:
     /// Type alias for the element type
     using value_type = T;
@@ -568,10 +586,7 @@ namespace Aleph
      */
     [[nodiscard]] Node * insert(const T & val)
     {
-      auto node = std::make_unique<Node>(val); // freed if cmp throws
-      add_to_root_list(node.get());
-      ++num_nodes;
-      return node.release();
+      return insert_new_node(new Node(val));
     }
 
     /**
@@ -588,10 +603,7 @@ namespace Aleph
      */
     [[nodiscard]]Node * insert(T && val)
     {
-      auto node = std::make_unique<Node>(std::move(val)); // freed if cmp throws
-      add_to_root_list(node.get());
-      ++num_nodes;
-      return node.release();
+      return insert_new_node(new Node(std::move(val)));
     }
 
     /**
@@ -611,11 +623,7 @@ namespace Aleph
     template <typename... Args>
     [[nodiscard]] Node * emplace(Args&&... args)
     {
-      // freed if cmp throws
-      auto node = std::make_unique<Node>(std::forward<Args>(args)...);
-      add_to_root_list(node.get());
-      ++num_nodes;
-      return node.release();
+      return insert_new_node(new Node(std::forward<Args>(args)...));
     }
 
     /**
