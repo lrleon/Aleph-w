@@ -536,6 +536,61 @@ TEST(DynArrayCopy, ThrowingCopyLeaksNothing)
   EXPECT_EQ(dst.read(3).value, 7);
 }
 
+// A block is filled with the default value before the array takes it: if a
+// copy of that value throws, the array is as it was. It used to keep the
+// block of a segment that existed, half filled, and to lose that of a new
+// segment, with its items alive. Every writer of an entry goes through it:
+// touch(), reserve() and the three ways of writing through a[i]
+TEST(DynArrayBlocks, ABlockThatCannotBeFilledLeavesTheArrayAsItWas)
+{
+  struct Unlimited
+  {
+    ~Unlimited() { Copy_Bomb::budget = -1; }
+  } unlimited; // even if an ASSERT leaves the test early
+
+  using Writer = void (*)(DynArray<Copy_Bomb> &, size_t);
+  const Writer writers[] = {
+    [] (DynArray<Copy_Bomb> & a, const size_t i) { a.touch(i); },
+    [] (DynArray<Copy_Bomb> & a, const size_t i) { a.reserve(i, i); },
+    [] (DynArray<Copy_Bomb> & a, const size_t i) { a[i] = Copy_Bomb(); },
+    [] (DynArray<Copy_Bomb> & a, const size_t i) { a[i]->value = 1; },
+    [] (DynArray<Copy_Bomb> & a, const size_t i) { a[i] = a[0]; }};
+
+  Copy_Bomb seven;
+  seven.value = 7;
+  size_t w = 0;
+  for (const Writer write : writers)
+    {
+      // An entry of an array without segments, of a segment that exists
+      // and of a new one, and each copy of the filling of its block
+      for (const size_t first : {size_t{0}, size_t{4}, size_t{16}})
+        for (long at = 0; at < 4; ++at)
+          {
+            SCOPED_TRACE(testing::Message() << "writer " << w << ", entry " << first << ", copy " << at);
+            DynArray<Copy_Bomb> a(4, 2, 2); // segments of 4 blocks of 4 entries
+            a.set_default_initial_value(seven);
+            if (first != 0)
+              a.touch(0);
+            const size_t blocks = a.get_num_blocks(), size = a.size();
+            const long live = Copy_Bomb::live;
+
+            Copy_Bomb::budget = at;
+            EXPECT_THROW(write(a, first), std::runtime_error);
+            Copy_Bomb::budget = -1;
+            EXPECT_EQ(a.get_num_blocks(), blocks);
+            EXPECT_EQ(a.size(), size);
+            EXPECT_EQ(Copy_Bomb::live, live);
+            EXPECT_FALSE(a.exist(first));
+
+            write(a, first); // with every copy allowed, the block is whole
+            EXPECT_EQ(a.get_num_blocks(), blocks + 1);
+            for (size_t i = first + 1; i < first + 4; ++i)
+              EXPECT_EQ(a.access(i).value, 7) << "entry " << i;
+          }
+      ++w;
+    }
+}
+
 // Reading an entry that was never written yields the default value and never
 // allocates memory; a constant array reads through const T &, not a proxy.
 static_assert(std::is_same_v<decltype(std::declval<const DynArray<int> &>()[0]),
