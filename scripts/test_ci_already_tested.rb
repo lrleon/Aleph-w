@@ -61,13 +61,20 @@ class TestCiAlreadyTested < Minitest::Test
     assert tested?(statuses: Array.new(99) { { 'context' => 'codecov/patch', 'state' => 'success' } })
   end
 
-  def test_only_the_last_run_counts_and_it_must_have_passed
+  def test_the_last_run_must_have_passed_and_no_other_failed
     refute tested?(runs: [])
     refute tested?(runs: [{ 'run_number' => 3, 'status' => 'completed', 'conclusion' => 'failure' }, PASSED])
     refute tested?(runs: [{ 'run_number' => 3, 'status' => 'in_progress', 'conclusion' => nil }, PASSED])
-    assert tested?(runs: [{ 'run_number' => 1, 'status' => 'completed', 'conclusion' => 'failure' }, PASSED])
-    # A run without a number cannot be ordered: it says no
-    refute tested?(runs: [{ 'run_number' => nil, 'status' => 'completed', 'conclusion' => 'failure' }, PASSED])
+    # Two pull requests may share a head: the failed run may be that of the
+    # merged one, and the runs do not say for which pull request they ran
+    refute tested?(runs: [{ 'run_number' => 1, 'status' => 'completed', 'conclusion' => 'failure' }, PASSED])
+    refute tested?(runs: [{ 'run_number' => 1, 'status' => 'in_progress', 'conclusion' => nil }, PASSED])
+    refute tested?(runs: [{ 'run_number' => 1, 'status' => 'completed', 'conclusion' => 'cancelled' }, PASSED])
+    assert tested?(runs: [{ 'run_number' => 1, 'status' => 'completed', 'conclusion' => 'success' }, PASSED])
+    # A run without a number cannot be ordered, and a full page may hide one
+    refute tested?(runs: [{ 'run_number' => nil, 'status' => 'completed', 'conclusion' => 'success' }, PASSED])
+    refute tested?(runs: Array.new(20) { |i| PASSED.merge('run_number' => i + 1) })
+    assert tested?(runs: Array.new(19) { |i| PASSED.merge('run_number' => i + 1) })
   end
 
   def test_an_error_of_the_api_is_not_tested

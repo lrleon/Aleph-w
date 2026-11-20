@@ -24,8 +24,11 @@
 #     required jobs of a pull request instead of GitHub, master runs them
 #     all, so that a drift between the local CI and GitHub shows up at the
 #     first merge;
-#   - the last run of the workflow on that head, for the pull request,
-#     completed with success.
+#   - the last run of the workflow on that head, for a pull request,
+#     completed with success, and every other run of it on that head
+#     passed too: the runs of a commit do not say for which pull
+#     request they ran, and two pull requests may share a head, so that a
+#     failed run may be that of the merged one.
 
 require 'json'
 require 'open3'
@@ -63,6 +66,7 @@ def already_tested(event:, repo:, sha:, workflow:, api: method(:gh_api))
   answer = api.call("repos/#{repo}/actions/workflows/#{workflow}/runs?event=pull_request&head_sha=#{head}&per_page=20")
   runs = Array(answer['workflow_runs'])
   return [false, "a run of #{workflow} on ##{number} has no number"] if runs.any? { |r| r['run_number'].nil? }
+  return [false, "the head of ##{number} has too many runs of #{workflow} to read"] if runs.size >= 20
 
   run = runs.max_by { |r| r['run_number'] }
   return [false, "no run of #{workflow} on the head of ##{number}"] unless run
@@ -70,6 +74,9 @@ def already_tested(event:, repo:, sha:, workflow:, api: method(:gh_api))
   unless run['status'] == 'completed' && run['conclusion'] == 'success'
     return [false, "the last run of #{workflow} on ##{number} is #{run['status']} #{run['conclusion']}"]
   end
+
+  other = runs.find { |r| r['status'] != 'completed' || !%w[success skipped].include?(r['conclusion']) }
+  return [false, "run #{other['run_number']} of #{workflow} on that head is #{other['status']} #{other['conclusion']}"] if other
 
   [true, "##{number} ran #{workflow} with success on this tree: #{run['html_url']}"]
 rescue StandardError => e

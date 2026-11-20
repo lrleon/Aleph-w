@@ -130,8 +130,9 @@ request ran when
 
 - the head of the pull request has the same tree as the push;
 - the head has no status `ci-local/required`;
-- the last run of the workflow on that head, for the pull request,
-  passed.
+- every run of the workflow on that head, for a pull request, passed,
+  the last one included: the runs of a commit do not say for which pull
+  request they ran, and two pull requests may share a head.
 
 What runs on every push to `master`:
 
