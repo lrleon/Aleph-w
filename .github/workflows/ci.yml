@@ -1945,6 +1945,8 @@ jobs:
   ci-success-pr:
     name: CI Success
     runs-on: ubuntu-24.04
+    # The needs include every job that a push to master skips when it finds
+    # the tree that this job records (scripts/test_ci_already_tested.rb)
     needs:
       - local-ci
       - policy-checks
@@ -1959,6 +1961,9 @@ jobs:
       - ubsan
       - check-examples
       - without-gsl
+      - graph-benchmarks
+      - cxx23-build
+      - ranges-off
     if: always() && github.event_name == 'pull_request'
     # To post the tree that passed
     permissions:
@@ -1980,6 +1985,9 @@ jobs:
           echo "ubsan result: ${{ needs.ubsan.result }}"
           echo "check-examples result: ${{ needs.check-examples.result }}"
           echo "without-gsl result: ${{ needs.without-gsl.result }}"
+          echo "graph-benchmarks result: ${{ needs.graph-benchmarks.result }}"
+          echo "cxx23-build result: ${{ needs.cxx23-build.result }}"
+          echo "ranges-off result: ${{ needs.ranges-off.result }}"
 
           is_ok() {
             [ "$1" = "success" ] || [ "$1" = "skipped" ]
@@ -2009,6 +2017,9 @@ jobs:
           check_job "ubsan" "${{ needs.ubsan.result }}"
           check_job "check-examples" "${{ needs.check-examples.result }}"
           check_job "without-gsl" "${{ needs.without-gsl.result }}"
+          check_job "graph-benchmarks" "${{ needs.graph-benchmarks.result }}"
+          check_job "cxx23-build" "${{ needs.cxx23-build.result }}"
+          check_job "ranges-off" "${{ needs.ranges-off.result }}"
 
           if [ "$all_ok" -ne 1 ]; then
             echo "CI failed"

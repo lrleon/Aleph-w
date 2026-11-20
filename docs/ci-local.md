@@ -124,7 +124,10 @@ merge.
 When a run of `ci.yml` passes on a pull request, its job CI Success posts
 on the head of the pull request the status `ci/tested-tree`, whose
 description names the tree of the merge that the run checked out; CI
-Platform Success posts `ci-platform/tested-tree` likewise. On a push to
+Platform Success posts `ci-platform/tested-tree` likewise. Each one waits for
+every job that the push may skip, and posts its status only when none of
+them failed or was cancelled; `scripts/test_ci_already_tested.rb` checks
+that for both workflows. On a push to
 `master`, the job `already-tested` of each workflow
 (`scripts/ci_already_tested.rb`) looks for the pull request that the push
 merges, and the push skips the jobs that the pull request ran when

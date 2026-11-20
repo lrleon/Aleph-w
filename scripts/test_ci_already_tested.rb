@@ -4,6 +4,7 @@
 require 'minitest/autorun'
 require 'open3'
 require 'tmpdir'
+require 'yaml'
 require_relative 'ci_already_tested'
 
 # Tests of already_tested(), against a fake of the API of GitHub
@@ -92,6 +93,34 @@ class TestCiAlreadyTested < Minitest::Test
       out, status = Open3.capture2e(env, RbConfig.ruby, File.join(__dir__, 'ci_already_tested.rb'), 'ci.yml')
       assert status.success?, out
       assert_equal "tested=false\n", File.read(output)
+    end
+  end
+
+  # A push to master skips a job when the pull request recorded its tree, so
+  # the job that records it waits for that job, checks its result, and
+  # records nothing after a failure
+  def test_the_tree_is_recorded_only_after_every_job_that_master_skips
+    %w[ci.yml ci-platform.yml].each do |workflow|
+      path = File.join(__dir__, '..', '.github', 'workflows', workflow)
+      jobs = YAML.safe_load(File.read(path), aliases: true).fetch('jobs')
+      skipped = jobs.select { |_, job| job['if'].to_s.include?('needs.already-tested.outputs.tested') }.keys
+      recorders = jobs.select { |_, job| Array(job['steps']).any? { |step| step['run'].to_s.include?('tested-tree') } }
+      refute_empty skipped, workflow
+      refute_empty recorders, workflow
+      recorders.each do |name, job|
+        steps = job['steps']
+        check = steps.index { |step| step['name'] == 'Check results' }
+        record = steps.index { |step| step['run'].to_s.include?('tested-tree') }
+        refute_nil check, "#{workflow}: #{name} records the tree without a step Check results"
+        assert_operator check, :<, record, "#{workflow}: #{name} records the tree before it checks the results"
+        refute_match(/always\(|failure\(|cancelled\(/, steps[record]['if'].to_s,
+                     "#{workflow}: #{name} may record the tree after a failure")
+        skipped.each do |job_name|
+          assert_includes Array(job['needs']), job_name, "#{workflow}: #{name} does not wait for #{job_name}"
+          assert_includes steps[check]['run'], %(check_job "#{job_name}" "${{ needs.#{job_name}.result }}"),
+                          "#{workflow}: #{name} does not check #{job_name}"
+        end
+      end
     end
   end
 end
