@@ -500,6 +500,7 @@ set(HLIST
     Graph_Coloring.H
     graph_to_tree.H
     hashPars.H
+    Adaptive_Huffman.H
     Huffman.H
     huffman_btreepic.H
     huffman_tree.h
