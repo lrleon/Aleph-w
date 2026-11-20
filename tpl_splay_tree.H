@@ -271,17 +271,33 @@ public:
     (void) splay_impl(key);
   }
 
-  /// Constructor
-  GenTdSplayTree(Compare __cmp = Compare()) noexcept
+  /** @brief Builds an empty tree with the comparison criteria `__cmp`.
+
+      @param[in] __cmp the comparison criteria, which the tree copies.
+      @throws what the default construction of the key of a header node
+      or the copy of `__cmp` throws; nothing when both are `noexcept`.
+  */
+  GenTdSplayTree(Compare __cmp = Compare())
+    noexcept(std::is_nothrow_default_constructible_v<Node> and
+             std::is_nothrow_copy_constructible_v<Compare>)
     : head(&headnode), root(headnode.getR()), cmp(__cmp)
   {
     // Empty
   }
 
-  void swap(GenTdSplayTree & tree) noexcept
+  /** @brief Swaps in constant time the nodes and the comparison criteria
+      of `this` and `tree`.
+
+      @param[in,out] tree the tree to swap with.
+      @throws what the swap of the comparison criteria throws, which goes
+      first: then the nodes stay where they were.
+  */
+  void swap(GenTdSplayTree & tree) noexcept(std::is_nothrow_swappable_v<Compare>)
   {
-    std::swap(root, tree.root);
+    // The comparison first: if its swap throws, the nodes stay where
+    // they were
     std::swap(cmp, tree.cmp);
+    std::swap(root, tree.root);
   }
 
   /// Destructor

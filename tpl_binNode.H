@@ -223,7 +223,11 @@ public:                                                               \
  {                                                                    \
    /* Empty */                                                        \
  }                                                                    \
- Name()                                      \
+ /* noexcept as the default construction of Key, which this builds, \
+    and that of the base */                                           \
+ Name()                                                               \
+   noexcept(std::is_nothrow_default_constructible_v<Key> and          \
+            std::is_nothrow_default_constructible_v<Control_Data>)    \
  : lLink(NullPtr), rLink(NullPtr)                                     \
  {                                                                    \
    static_assert(std::is_default_constructible<Key>::value,           \

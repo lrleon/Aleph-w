@@ -738,7 +738,15 @@ public:
   Compare & get_compare() noexcept { return cmp; }
   [[nodiscard]] constexpr const Compare & get_compare() const noexcept { return cmp; }
 
-  HtdRbTreeRk(Compare __cmp = Compare()) noexcept
+  /** @brief Builds an empty tree with the comparison criteria `__cmp`.
+
+      @param[in] __cmp the comparison criteria, which the tree copies.
+      @throws what the default construction of the key of a header node
+      or the copy of `__cmp` throws; nothing when both are `noexcept`.
+  */
+  HtdRbTreeRk(Compare __cmp = Compare())
+    noexcept(std::is_nothrow_default_constructible_v<Node> and
+             std::is_nothrow_copy_constructible_v<Compare>)
     : head(&headNode),
       fHead(&headParent),
       ffHead(&headGrandParent),
@@ -748,13 +756,32 @@ public:
     init();
   }
 
-  void swap(HtdRbTreeRk & tree) noexcept
+  /** @brief Swaps in constant time the nodes and the comparison criteria
+      of `this` and `tree`.
+
+      @param[in,out] tree the tree to swap with.
+      @throws what the swap of the comparison criteria throws, which goes
+      first: then the nodes stay where they were.
+  */
+  void swap(HtdRbTreeRk & tree) noexcept(std::is_nothrow_swappable_v<Compare>)
   {
-    std::swap(root, tree.root);
+    // The comparison first: if its swap throws, the nodes stay where
+    // they were
     std::swap(cmp, tree.cmp);
+    std::swap(root, tree.root);
   }
 
-  HtdRbTreeRk(HtdRbTreeRk && tree) noexcept
+  /** @brief Takes the nodes and the comparison criteria of `tree`, which is left empty.
+
+      @param[in,out] tree the tree to move from.
+      @throws what the default construction of the key of a header node
+      or of the comparison criteria, or the swap of the comparison
+      criteria, throws; then `tree` keeps its nodes.
+  */
+  HtdRbTreeRk(HtdRbTreeRk && tree)
+    noexcept(std::is_nothrow_default_constructible_v<Node> and
+             std::is_nothrow_default_constructible_v<Compare> and
+             std::is_nothrow_swappable_v<Compare>)
     : head(&headNode),
       fHead(&headParent),
       ffHead(&headGrandParent),
@@ -765,7 +792,15 @@ public:
     swap(tree);
   }
 
-  HtdRbTreeRk & operator=(HtdRbTreeRk && tree) noexcept
+  /** @brief Swaps the nodes and the comparison criteria with `tree`.
+
+      @param[in,out] tree the tree to swap with.
+      @return `*this`.
+      @throws what the swap of the comparison criteria throws, which goes
+      first: then the nodes stay where they were.
+  */
+  HtdRbTreeRk & operator=(HtdRbTreeRk && tree)
+    noexcept(std::is_nothrow_swappable_v<Compare>)
   {
     swap(tree);
     return *this;

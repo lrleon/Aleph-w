@@ -174,11 +174,19 @@ public:
 
   GenBinTree & operator = (const GenBinTree &) = delete;
 
-  /// Swap `this` with `tree` in constant time
-  void swap(GenBinTree & tree) noexcept
+  /** @brief Swaps in constant time the nodes and the comparison criteria
+      of `this` and `tree`.
+
+      @param[in,out] tree the tree to swap with.
+      @throws what the swap of the comparison criteria throws, which goes
+      first: then the nodes stay where they were.
+  */
+  void swap(GenBinTree & tree) noexcept(std::is_nothrow_swappable_v<Compare>)
   {
-    std::swap(root, tree.root);
+    // The comparison first: if its swap throws, the nodes stay where
+    // they were
     std::swap(cmp, tree.cmp);
+    std::swap(root, tree.root);
   }
 
   /// return the comparison criteria
@@ -187,8 +195,15 @@ public:
       /// \overload key_comp()
   Compare & get_compare() noexcept { return key_comp(); }
 
-  /// Initialize an empty tree with comparison criteria `__cmp`
-  GenBinTree(Compare _cmp = Compare()) noexcept
+  /** @brief Builds an empty tree with the comparison criteria `_cmp`.
+
+      @param[in] _cmp the comparison criteria, which the tree copies.
+      @throws what the default construction of the key of a header node
+      or the copy of `_cmp` throws; nothing when both are `noexcept`.
+  */
+  GenBinTree(Compare _cmp = Compare())
+    noexcept(std::is_nothrow_default_constructible_v<Node> and
+             std::is_nothrow_copy_constructible_v<Compare>)
     : head(&headNode), root(headNode.getR()), cmp(_cmp)
   {
     // empty

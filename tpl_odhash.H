@@ -213,7 +213,7 @@ namespace Aleph
       unsigned char probe_type = NO_PROBED; // FIRST_PROBE SECOND_PROBE LINEAR_PROBE
       unsigned int probe_counter = 0;
 
-      Bucket() noexcept
+      Bucket() noexcept(std::is_nothrow_default_constructible_v<Key>)
         : key(), status(EMPTY), probe_type(NO_PROBED), probe_counter(0)
       { /* empty */
       }

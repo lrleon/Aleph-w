@@ -72,10 +72,12 @@ namespace Aleph
    * initially at index `r` upward until the heap property holds.
    *
    * @return The final index where the sifted element ended up.
+   * @throws what the comparison throws; nothing when it is `noexcept`.
    */
   template <typename T, class Compare>
   inline
-  size_t sift_up(DynArray<T> & a, const size_t l, const size_t r, Compare & cmp) noexcept
+  size_t sift_up(DynArray<T> & a, const size_t l, const size_t r, Compare & cmp)
+    noexcept(Aleph::NothrowPredicateWith<Compare &, T &, T &>)
   {
     for (size_t p, i = r; i > l; i = p)
       {
@@ -100,10 +102,13 @@ namespace Aleph
    *
    * Restores the heap invariant in the subrange [l, r] by sifting the element
    * initially at index `l` downward until the heap property holds.
+   *
+   * @throws what the comparison throws; nothing when it is `noexcept`.
    */
   template <typename T, class Compare>
   inline
-  void sift_down(DynArray<T> & a, const size_t l, const size_t r, Compare & cmp) noexcept
+  void sift_down(DynArray<T> & a, const size_t l, const size_t r, Compare & cmp)
+    noexcept(Aleph::NothrowPredicateWith<Compare &, T &, T &>)
   {
     size_t i = l;
     while (true)

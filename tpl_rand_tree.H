@@ -331,9 +331,14 @@ namespace Aleph
       // empty
     }
 
-    /// Initialize a random tree with random seed from system time and
-    /// comparison criteria `cmp`
-    Gen_Rand_Tree(const Compare & cmp = Compare()) noexcept
+    /** @brief Builds an empty random tree, whose generator is seeded with
+        the time, with the comparison criteria `cmp`.
+
+        @param[in] cmp the comparison criteria, which the tree copies.
+        @throws std::bad_alloc if there is no memory for the generator, or
+        what the copy of `cmp` throws.
+    */
+    Gen_Rand_Tree(const Compare & cmp = Compare())
       : Gen_Rand_Tree(time(nullptr), cmp)
     { /* empty */
     }

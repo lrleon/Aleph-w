@@ -472,18 +472,44 @@ public:
 
   Compare & get_compare() noexcept { return key_comp(); }
 
+  /** @brief Builds an empty tree with the comparison criteria `cmp_arg`.
+
+      @param[in] cmp_arg the comparison criteria, which the tree copies.
+      @throws what the default construction of the key of a header node
+      or the copy of `cmp_arg` throws; nothing when both are `noexcept`.
+  */
   Gen_Rb_Tree_Rk(Compare cmp_arg = Compare())
+    noexcept(std::is_nothrow_default_constructible_v<Node> and
+             std::is_nothrow_copy_constructible_v<Compare>)
     : head(&head_node), root(head_node.getR()),
       cmp(cmp_arg)
   { /* empty */ }
 
-  void swap(Gen_Rb_Tree_Rk & tree) noexcept
+  /** @brief Swaps in constant time the nodes and the comparison criteria
+      of `this` and `tree`.
+
+      @param[in,out] tree the tree to swap with.
+      @throws what the swap of the comparison criteria throws, which goes
+      first: then the nodes stay where they were.
+  */
+  void swap(Gen_Rb_Tree_Rk & tree) noexcept(std::is_nothrow_swappable_v<Compare>)
   {
-    std::swap(root, tree.root);
+    // The comparison first: if its swap throws, the nodes stay where
+    // they were
     std::swap(cmp, tree.cmp);
+    std::swap(root, tree.root);
   }
 
-  Gen_Rb_Tree_Rk(Gen_Rb_Tree_Rk && tree) noexcept
+  /** @brief Takes the nodes and the comparison criteria of `tree`, which is left empty.
+
+      @param[in,out] tree the tree to move from.
+      @throws what the default construction of the key of a header node
+      or the move of the comparison criteria throws; then `tree` keeps
+      its nodes.
+  */
+  Gen_Rb_Tree_Rk(Gen_Rb_Tree_Rk && tree)
+    noexcept(std::is_nothrow_default_constructible_v<Node> and
+             std::is_nothrow_move_constructible_v<Compare>)
     : head(&head_node), root(head_node.getR()),
       cmp(std::move(tree.cmp))
   {
@@ -491,13 +517,22 @@ public:
     tree.root = Node::NullPtr;
   }
 
-  Gen_Rb_Tree_Rk & operator = (Gen_Rb_Tree_Rk && tree) noexcept
+  /** @brief Takes the nodes and the comparison criteria of `tree`, which is left empty.
+
+      @param[in,out] tree the tree to move from.
+      @return `*this`.
+      @throws what the move assignment of the comparison criteria throws,
+      which goes first: then the nodes stay where they were.
+  */
+  Gen_Rb_Tree_Rk & operator = (Gen_Rb_Tree_Rk && tree)
+    noexcept(std::is_nothrow_move_assignable_v<Compare>)
   {
     if (this != &tree)
       {
+        // The comparison first: if its move throws, no tree has changed
+        cmp = std::move(tree.cmp);
         root = tree.root;
         tree.root = Node::NullPtr;
-        cmp = std::move(tree.cmp);
       }
     return *this;
   }
