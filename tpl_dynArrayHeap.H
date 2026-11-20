@@ -57,6 +57,7 @@
 # include <algorithm>
 # include <climits>
 # include <cstddef>
+# include <memory>
 # include <stdexcept>
 # include <type_traits>
 # include <utility>
@@ -84,7 +85,10 @@ namespace Aleph
      *  @param[in] a the array of the heap.
      *  @param[in] l the first index of the heap.
      *  @param[in] r the index where `x` enters, after the heap [l, r - 1].
-     *  @param[in] x the item that enters.
+     *  @param[in] x the item that enters. It is not constant, as the items
+     *             of the array are not: the comparison takes both in the
+     *             same way, the one that the `noexcept` specification
+     *             looks at.
      *  @param[in] cmp the comparison.
      *  @param[out] way the parents that `x` passes, in order.
      *  @return the index where `x` goes.
@@ -92,7 +96,7 @@ namespace Aleph
      */
     template <typename T, class Compare>
     inline
-    size_t up_index(DynArray<T> & a, const size_t l, const size_t r, const T & x,
+    size_t up_index(DynArray<T> & a, const size_t l, const size_t r, T & x,
                     Compare & cmp, Way<T> & way)
       noexcept(Aleph::NothrowPredicateWith<Compare &, T &, T &>)
     {
@@ -103,12 +107,12 @@ namespace Aleph
 
           // Prefetch grandparent for next iteration
           if (const size_t gp = u_index(p); gp >= l)
-            __builtin_prefetch(&a.access(gp), 0, 1);
+            __builtin_prefetch(std::addressof(a.access(gp)), 0, 1);
 
           T & ap = a.access(p);
           if (cmp(ap, x)) [[likely]] // heap property holds
             break;
-          way.at[way.len++] = &ap;
+          way.at[way.len++] = std::addressof(ap);
           i = p;
         }
       return i;
@@ -122,7 +126,7 @@ namespace Aleph
      *  @param[in] a the array of the heap.
      *  @param[in] l the index where `x` enters, the root of the heap [l, r].
      *  @param[in] r the last index of the heap.
-     *  @param[in] x the item that enters.
+     *  @param[in] x the item that enters; not constant, as in up_index().
      *  @param[in] cmp the comparison.
      *  @param[out] way the children that `x` passes, in order.
      *  @return the index where `x` goes.
@@ -130,7 +134,7 @@ namespace Aleph
      */
     template <typename T, class Compare>
     inline
-    size_t down_index(DynArray<T> & a, const size_t l, const size_t r, const T & x,
+    size_t down_index(DynArray<T> & a, const size_t l, const size_t r, T & x,
                       Compare & cmp, Way<T> & way)
       noexcept(Aleph::NothrowPredicateWith<Compare &, T &, T &>)
     {
@@ -143,12 +147,12 @@ namespace Aleph
 
           // Prefetch grandchildren for next iteration
           if (const size_t gc = l_index(c); gc <= r)
-            __builtin_prefetch(&a.access(gc), 0, 1);
+            __builtin_prefetch(std::addressof(a.access(gc)), 0, 1);
 
-          T *ac = &a.access(c);
+          T *ac = std::addressof(a.access(c));
           if (c + 1 <= r) // right child exists
             {
-              T *ac1 = &a.access(c + 1);
+              T *ac1 = std::addressof(a.access(c + 1));
               if (cmp(*ac1, *ac)) // pick the child with higher priority
                 {
                   c++;
@@ -171,13 +175,15 @@ namespace Aleph
      *  @param[in,out] first the place where `x` enters.
      *  @param[in] way the places that `x` passes, from up_index() or
      *             down_index().
-     *  @param[in,out] x the item, left moved from.
+     *  @param[in,out] x the item, left moved from. It must not be `first`
+     *                 nor a place of the way, which lose their items before
+     *                 `x` is moved.
      */
     template <typename T>
     inline
     void shift(T & first, const Way<T> & way, T & x)
     {
-      T *hole = &first;
+      T *hole = std::addressof(first);
       for (size_t k = 0; k < way.len; ++k)
         {
           *hole = std::move(*way.at[k]);
@@ -266,6 +272,40 @@ namespace Aleph
     static size_t r_index(const size_t & i) noexcept
     {
       return (i << 1) + 1; // right child index
+    }
+
+    /** @brief Take to its place the item moved from the key of an insertion.
+     *
+     *  The key is moved before the comparisons, which thus see it as the
+     *  move leaves it when it is an item of this heap. If a comparison
+     *  throws, the key takes its item back, and the heap is as it was.
+     *
+     *  @param[in,out] key the key, moved from.
+     *  @param[in,out] item what was moved from the key.
+     *  @param[in,out] place the entry `r` of the array, where the item
+     *                 enters.
+     *  @param[in] r the index where the item enters.
+     *  @return the item, in its place.
+     *  @throws what the comparison throws, with the heap and the key as
+     *          they were.
+     */
+    [[gnu::always_inline]] inline
+    T & enter(T & key, T & item, T & place, const size_t r)
+    {
+      dynarrayheap_detail::Way<T> way;
+      size_t i;
+      try
+        {
+          i = dynarrayheap_detail::up_index(array, 1, r, item, cmp, way);
+        }
+      catch (...)
+        {
+          key = std::move(item);
+          throw;
+        }
+      dynarrayheap_detail::shift(place, way, item);
+      ++num_items;
+      return array.access(i);
     }
 
   public:
@@ -384,12 +424,13 @@ namespace Aleph
      */
     T &insert(const T & key)
     {
-      // The comparisons, the copy and the place come before any move, so
-      // that if one throws, the heap is as it was
+      // The copy, the comparisons and the place come before any move, so
+      // that if one throws, the heap is as it was. The comparisons take the
+      // copy, which is not constant, as they take the items of the array
+      T item = key;
       const size_t r = num_items + 1;
       dynarrayheap_detail::Way<T> way;
-      const size_t i = dynarrayheap_detail::up_index(array, 1, r, key, cmp, way);
-      T item = key;
+      const size_t i = dynarrayheap_detail::up_index(array, 1, r, item, cmp, way);
       dynarrayheap_detail::shift(array.touch(r), way, item);
       ++num_items;
       return array.access(i);
@@ -399,19 +440,21 @@ namespace Aleph
      *
      * @param[in] key Key to move.
      * @return A modifiable reference to the stored element.
-     * @throws what the comparison or the place of @p key throw, with the
-     *         heap and @p key as they were.
+     * @throws what the place of @p key throws, with the heap and @p key as
+     *         they were; and what the comparison throws, with the heap as it
+     *         was and @p key too, which takes its item back by a move.
+     * @note @p key may be an item of this heap. The move, which comes before
+     *       the comparisons, changes that item where it is, as any change
+     *       through a reference to it does, and the heap does not put that
+     *       item in order again: it is left in order only if the item still
+     *       is, where it is.
      */
     T &insert(T && key)
     {
       const size_t r = num_items + 1;
-      dynarrayheap_detail::Way<T> way;
-      const size_t i = dynarrayheap_detail::up_index(array, 1, r, key, cmp, way);
-      T & place = array.touch(r);
-      T item = std::move(key); // key may be an item on the way
-      dynarrayheap_detail::shift(place, way, item);
-      ++num_items;
-      return array.access(i);
+      T & place = array.touch(r); // first: without memory, the key is not moved
+      T item = std::move(key);
+      return enter(key, item, place, r);
     }
 
     /** Ensure the underlying array has capacity for at least @p n elements.
@@ -433,25 +476,26 @@ namespace Aleph
      */
     T &insert_direct(const T & key)
     {
+      T item = key; // not constant, for the comparisons: see insert()
       const size_t r = num_items + 1;
       dynarrayheap_detail::Way<T> way;
-      const size_t i = dynarrayheap_detail::up_index(array, 1, r, key, cmp, way);
-      T item = key;
+      const size_t i = dynarrayheap_detail::up_index(array, 1, r, item, cmp, way);
       dynarrayheap_detail::shift(array.access(r), way, item);
       ++num_items;
       return array.access(i);
     }
 
-    /// Move overload of insert_direct().
+    /** Move overload of insert_direct().
+     *
+     * @throws what the comparison throws, with the heap as it was and
+     *         @p key too, which takes its item back by a move.
+     * @note @p key may be an item of this heap, as in insert(T &&).
+     */
     T &insert_direct(T && key)
     {
       const size_t r = num_items + 1;
-      dynarrayheap_detail::Way<T> way;
-      const size_t i = dynarrayheap_detail::up_index(array, 1, r, key, cmp, way);
       T item = std::move(key);
-      dynarrayheap_detail::shift(array.access(r), way, item);
-      ++num_items;
-      return array.access(i);
+      return enter(key, item, array.access(r), r);
     }
 
     /// Alias for insert().
@@ -486,11 +530,8 @@ namespace Aleph
         dynarrayheap_detail::down_index(array, 1, last - 1, array.access(last), cmp, way);
       T & root = array(1);
       T ret_val = std::move(root);
-      if (last > 1)
-        {
-          T item = std::move(array.access(last));
-          dynarrayheap_detail::shift(root, way, item);
-        }
+      if (last > 1) // the last item is not on its way, which ends before it
+        dynarrayheap_detail::shift(root, way, array.access(last));
       --num_items;
 
       array.cut(num_items + 1);

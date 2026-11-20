@@ -41,9 +41,11 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <ostream>
 #include <queue>
 #include <random>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 using namespace Aleph;
@@ -239,47 +241,283 @@ TEST(DynArrayHeapRandomized, MatchesStdPriorityQueueMinHeap)
 
 namespace
 {
-  // The calls of a Counted_Less, and the one that throws (0: none)
-  struct Calls
+  // A comparison with an overload for items that are not constant, which
+  // is noexcept, and another one for constant items, which is not
+  struct Two_Overloads
   {
-    size_t count = 0;
-    size_t throw_at = 0;
-  };
+    size_t *plain_calls;
+    size_t *const_calls;
 
-  struct Counted_Less
-  {
-    Calls *calls;
-
-    bool operator()(const int a, const int b) const
+    bool operator()(int & a, int & b) noexcept
     {
-      if (++calls->count == calls->throw_at)
-        throw std::runtime_error("comparison");
+      ++*plain_calls;
+      return a < b;
+    }
+
+    bool operator()(const int & a, const int & b) const
+    {
+      ++*const_calls;
       return a < b;
     }
   };
 
-  using Counted_Heap = DynArrayHeap<int, Counted_Less>;
+  // An item whose operator & does not give its address
+  struct No_Address
+  {
+    int v = 0;
+
+    No_Address() = default;
+    No_Address(const int x) noexcept : v(x) {}
+    No_Address *operator&() noexcept { return nullptr; }
+    const No_Address *operator&() const noexcept { return nullptr; }
+    bool operator<(const No_Address & o) const noexcept { return v < o.v; }
+  };
+
+  // An item whose move construction from a 9 throws while armed. Its move
+  // assignment does not throw
+  struct Hard_To_Build
+  {
+    static inline bool armed = false;
+
+    int v = 0;
+
+    Hard_To_Build() = default;
+    Hard_To_Build(const int x) noexcept : v(x) {}
+    Hard_To_Build(const Hard_To_Build &) = default;
+    Hard_To_Build & operator=(const Hard_To_Build &) = default;
+    Hard_To_Build(Hard_To_Build && o) : v(o.v)
+    {
+      if (armed and v == 9)
+        throw std::runtime_error("move construction");
+    }
+    Hard_To_Build & operator=(Hard_To_Build && o) noexcept
+    {
+      v = o.v;
+      return *this;
+    }
+    bool operator<(const Hard_To_Build & o) const noexcept { return v < o.v; }
+  };
+
+  // Compares the first of a pair, its priority, and not the second, its
+  // identity
+  struct First_Less
+  {
+    bool operator()(const std::pair<int, int> & a, const std::pair<int, int> & b) const noexcept
+    {
+      return a.first < b.first;
+    }
+  };
 
   // The array of the heap, in its order, as traverse() and the iterator
   // see it. The iterator goes to the end of the array, which is that of
   // the items unless the heap reserved more
   template <class Heap>
-  std::vector<int> layout(const Heap & h, const bool reserved = false)
+  std::vector<typename Heap::Item_Type> layout(const Heap & h, const bool reserved = false)
   {
-    std::vector<int> by_traverse;
-    h.traverse([&by_traverse](const int x) { by_traverse.push_back(x); return true; });
+    using T = typename Heap::Item_Type;
+    std::vector<T> by_traverse;
+    h.traverse([&by_traverse](const T & x) { by_traverse.push_back(x); return true; });
     if (reserved)
       return by_traverse;
-    std::vector<int> by_iterator;
+    std::vector<T> by_iterator;
     for (typename Heap::Iterator it(h); it.has_curr(); it.next_ne())
       by_iterator.push_back(it.get_curr());
     EXPECT_EQ(by_traverse, by_iterator);
     return by_traverse;
   }
+}
+
+// The noexcept specification of the sifts looks at the comparison of two
+// items that are not constant. The heap must call that overload alone, as
+// 7.7.4 did: another one that threw would end the program
+TEST(DynArrayHeapCompare, ComparesItemsThatAreNotConstant)
+{
+  static_assert(not NothrowPredicateWith<Two_Overloads &, int &, const int &>);
+  static_assert(noexcept(sift_up(std::declval<DynArray<int> &>(), size_t(), size_t(),
+                                 std::declval<Two_Overloads &>())));
+  static_assert(noexcept(sift_down(std::declval<DynArray<int> &>(), size_t(), size_t(),
+                                   std::declval<Two_Overloads &>())));
+
+  size_t plain_calls = 0, const_calls = 0;
+  DynArrayHeap<int, Two_Overloads> heap(Two_Overloads{&plain_calls, &const_calls});
+  heap.reserve(64);
+  std::vector<int> expected;
+  for (int k = 0; k < 40; ++k)
+    {
+      const int key = (k * 7) % 11;
+      switch (k % 4)
+        {
+        case 0: heap.insert(key); break;
+        case 1: heap.insert(int(key)); break;
+        case 2: heap.insert_direct(key); break;
+        default: heap.insert_direct(int(key));
+        }
+      expected.push_back(key);
+    }
+  std::sort(expected.begin(), expected.end());
+  EXPECT_EQ(drain(heap), expected);
+  EXPECT_GT(plain_calls, 0U);
+  EXPECT_EQ(const_calls, 0U);
+}
+
+// The sifts keep the addresses of the items that they pass: the real ones,
+// whatever the operator & of the items gives
+TEST(DynArrayHeapBasics, ItemsWithTheirOwnOperatorAmpersand)
+{
+  DynArrayHeap<No_Address> heap;
+  for (int k = 0; k < 50; ++k)
+    if (const No_Address key((k * 37) % 50); k % 2 == 0) // each of 0 to 49, once
+      heap.insert(key);
+    else
+      heap.insert(No_Address(key));
+  for (int k = 0; k < 50; ++k)
+    ASSERT_EQ(heap.getMin().v, k);
+  EXPECT_TRUE(heap.is_empty());
+}
+
+// getMin() takes the last item to its place with assignments alone, as
+// 7.7.4 did. A temporary built from it could throw with the minimum
+// already out of the heap, which lost it
+TEST(DynArrayHeapBasics, GetMinBuildsNoTemporaryOfTheLastItem)
+{
+  DynArrayHeap<Hard_To_Build> heap;
+  for (const int x : {1, 5, 3, 9}) // the array is 1, 5, 3, 9
+    heap.insert(Hard_To_Build(x));
+
+  int min = 0;
+  Hard_To_Build::armed = true;
+  EXPECT_NO_THROW(min = heap.getMin().v);
+  Hard_To_Build::armed = false;
+  EXPECT_EQ(min, 1);
+  EXPECT_EQ(heap.size(), 3U);
+  for (const int x : {3, 5, 9})
+    EXPECT_EQ(heap.getMin().v, x);
+}
+
+// The key may be an item of the heap itself when it is copied, or when a
+// move leaves it as it was, even on the way of the new item, among others
+// of its priority: the heap must end as with a key that is not in it
+TEST(DynArrayHeapBasics, AKeyThatIsAnItemOfTheHeap)
+{
+  using Pair = std::pair<int, int>; // a priority and an identity
+  using Heap = DynArrayHeap<Pair, First_Less>;
+  for (int op = 0; op < 4; ++op) // insert and insert_direct, of a copy and of a move
+    for (int n = 1; n <= 12; ++n)
+      for (int place = 1; place <= n; ++place) // that of the key in the array
+        {
+          SCOPED_TRACE(testing::Message() << "op " << op << ", n " << n << ", place " << place);
+          Heap heap, other;
+          heap.reserve(n + 2);
+          other.reserve(n + 2);
+          for (int k = 1; k <= n; ++k)
+            {
+              heap.insert(Pair(k % 3, k));
+              other.insert(Pair(k % 3, k));
+            }
+          Pair *key = nullptr;
+          int at = 0;
+          heap.traverse([&key, &at, place](Pair & x)
+                        {
+                          if (++at == place)
+                            key = &x;
+                          return true;
+                        });
+          ASSERT_NE(key, nullptr);
+          const Pair copy = *key;
+          switch (op)
+            {
+            case 0: heap.insert(*key); other.insert(copy); break;
+            case 1: heap.insert(std::move(*key)); other.insert(Pair(copy)); break;
+            case 2: heap.insert_direct(*key); other.insert_direct(copy); break;
+            default: heap.insert_direct(std::move(*key)); other.insert_direct(Pair(copy));
+            }
+          EXPECT_EQ(layout(heap, true), layout(other, true));
+        }
+}
+
+namespace
+{
+  // An item with a priority, which the comparisons look at, and an
+  // identity, which they do not: it tells apart the items of a priority.
+  // A move takes the identity of its source away
+  struct Item
+  {
+    static constexpr int gone = -1;
+
+    int pri = 0;
+    int id = 0;
+
+    Item() = default;
+    Item(const int p, const int i) noexcept : pri(p), id(i) {}
+    Item(const Item &) = default;
+    Item & operator=(const Item &) = default;
+    Item(Item && o) noexcept : pri(o.pri), id(std::exchange(o.id, gone)) {}
+    Item & operator=(Item && o) noexcept
+    {
+      pri = o.pri;
+      id = std::exchange(o.id, gone);
+      return *this;
+    }
+    bool operator==(const Item &) const = default;
+  };
+
+  void PrintTo(const Item & x, std::ostream *os) { *os << x.pri << '#' << x.id; }
+
+  // The calls of a Counted_Less: how many, the one that throws (0: none),
+  // and the identities of the two items of each one, in order
+  struct Calls
+  {
+    size_t count = 0;
+    size_t throw_at = 0;
+    std::vector<std::pair<int, int>> items;
+  };
+
+  template <class X>
+  struct Counted_Less_Of
+  {
+    Calls *calls;
+
+    bool operator()(const X & a, const X & b) const
+    {
+      if (++calls->count == calls->throw_at)
+        throw std::runtime_error("comparison");
+      calls->items.emplace_back(a.id, b.id);
+      return a.pri < b.pri;
+    }
+  };
+
+  using Counted_Less = Counted_Less_Of<Item>;
+  using Counted_Heap = DynArrayHeap<Item, Counted_Less>;
+
+  // An item whose move leaves in its source the priority `left`, which
+  // each test chooses, and no identity
+  struct Husk
+  {
+    static inline int left = 0;
+
+    int pri = 0;
+    int id = 0;
+
+    Husk() = default;
+    Husk(const int p, const int i) noexcept : pri(p), id(i) {}
+    Husk(const Husk &) = default;
+    Husk & operator=(const Husk &) = default;
+    Husk(Husk && o) noexcept : pri(std::exchange(o.pri, left)), id(std::exchange(o.id, 0)) {}
+    Husk & operator=(Husk && o) noexcept
+    {
+      pri = std::exchange(o.pri, left);
+      id = std::exchange(o.id, 0);
+      return *this;
+    }
+    bool operator==(const Husk &) const = default;
+  };
+
+  void PrintTo(const Husk & x, std::ostream *os) { *os << x.pri << "#" << x.id; }
 
   // The sifts of 7.7.4, which exchanged an item with its parent or child
   // at each level, as a reference for the order of the new ones
-  size_t old_sift_up(DynArray<int> & a, size_t l, size_t r, Counted_Less & cmp)
+  template <class X>
+  size_t old_sift_up(DynArray<X> & a, size_t l, size_t r, Counted_Less_Of<X> & cmp)
   {
     for (size_t p, i = r; i > l; i = p)
       {
@@ -291,7 +529,8 @@ namespace
     return l;
   }
 
-  void old_sift_down(DynArray<int> & a, size_t l, size_t r, Counted_Less & cmp)
+  template <class X>
+  void old_sift_down(DynArray<X> & a, size_t l, size_t r, Counted_Less_Of<X> & cmp)
   {
     for (size_t i = l; ;)
       {
@@ -309,36 +548,36 @@ namespace
 }
 
 // Each failed comparison of an insertion or an extraction leaves the heap
-// as it was: its items in the same places and its size, with the key of
-// an insertion by move untouched. 7.7.4 left the item counted, or the
-// minimum lost, and the heap out of order
+// as it was: its items in the same places, none moved from, and its size,
+// with the key of an insertion by move untouched. 7.7.4 left the item
+// counted, or the minimum lost, and the heap out of order
 TEST(DynArrayHeapThrowingCompare, EveryFailedCallLeavesTheHeapAsItWas)
 {
   std::mt19937 rng(20261120);
   std::uniform_int_distribution<int> values(0, 30);
   for (size_t n = 0; n <= 40; ++n)
-    for (int op = 0; op < 4; ++op) // insert, insert of a move, insert_direct, getMin
+    for (int op = 0; op < 5; ++op) // insert and insert_direct, of a copy and of a move; getMin
       {
-        if (op == 3 and n == 0)
+        if (op == 4 and n == 0)
           continue;
-        std::vector<int> items;
+        std::vector<Item> items;
         for (size_t k = 0; k < n; ++k)
-          items.push_back(values(rng));
-        const int key = values(rng);
+          items.emplace_back(values(rng), static_cast<int>(k + 1));
+        const Item key(values(rng), static_cast<int>(n + 1));
         for (size_t at = 1; ; ++at)
           {
             SCOPED_TRACE(testing::Message() << "n " << n << ", op " << op << ", call " << at);
             Calls calls;
             Counted_Heap heap(Counted_Less{&calls});
-            const bool reserved = op == 2; // insert_direct() writes in reserved entries
+            const bool reserved = op == 2 or op == 3; // insert_direct() writes in reserved entries
             if (reserved)
               heap.reserve(n + 2);
-            for (const int x : items)
+            for (const Item & x : items)
               heap.insert(x);
-            const std::vector<int> before = layout(heap, reserved);
+            const std::vector<Item> before = layout(heap, reserved);
             calls.throw_at = calls.count + at;
             bool thrown = false;
-            int moved = key;
+            Item moved = key;
             try
               {
                 switch (op)
@@ -346,6 +585,7 @@ TEST(DynArrayHeapThrowingCompare, EveryFailedCallLeavesTheHeapAsItWas)
                   case 0: heap.insert(key); break;
                   case 1: heap.insert(std::move(moved)); break;
                   case 2: heap.insert_direct(key); break;
+                  case 3: heap.insert_direct(std::move(moved)); break;
                   default: (void) heap.getMin();
                   }
               }
@@ -357,44 +597,161 @@ TEST(DynArrayHeapThrowingCompare, EveryFailedCallLeavesTheHeapAsItWas)
             if (not thrown)
               break;
             EXPECT_EQ(heap.size(), n);
-            EXPECT_EQ(layout(heap, reserved), before);
+            // insert() by move makes the place of the key first, and the
+            // iterator goes to the end of the array
+            EXPECT_EQ(layout(heap, reserved or op == 1), before);
             EXPECT_EQ(moved, key);
           }
       }
 }
 
-// The new sifts compare in the order of the old ones and leave every item
-// in the same place
+// The new sifts compare the same items in the same order as the old ones,
+// and leave every item in the same place, those of a same priority too
 TEST(DynArrayHeapThrowingCompare, SameComparisonsAndPlacesAsTheOldSifts)
 {
   std::mt19937 rng(77);
-  std::uniform_int_distribution<int> values(0, 50); // many equal items
+  std::uniform_int_distribution<int> values(0, 50); // many items of a same priority
   Calls calls, old_calls;
   Counted_Heap heap(Counted_Less{&calls});
   Counted_Less old_cmp{&old_calls};
-  DynArray<int> old;
+  DynArray<Item> old;
   size_t old_n = 0;
   for (int k = 0; k < 5000; ++k)
     {
       if (old_n == 0 or rng() % 3 != 0)
         {
-          const int x = values(rng);
-          heap.insert(x);
+          const Item x(values(rng), k + 1);
+          if (k % 2 == 0)
+            heap.insert(x);
+          else
+            heap.insert(Item(x));
           old.touch(++old_n) = x;
           old_sift_up(old, 1, old_n, old_cmp);
         }
       else
         {
-          const int min = heap.getMin();
+          const Item min = heap.getMin();
           ASSERT_EQ(min, old.access(1));
           old.access(1) = old.access(old_n);
           --old_n;
           old_sift_down(old, 1, old_n, old_cmp);
         }
-      ASSERT_EQ(calls.count, old_calls.count) << "operation " << k;
-      std::vector<int> old_layout;
+      ASSERT_EQ(calls.items, old_calls.items) << "operation " << k;
+      calls.items.clear();
+      old_calls.items.clear();
+      std::vector<Item> old_layout;
       for (size_t i = 1; i <= old_n; ++i)
         old_layout.push_back(old.access(i));
       ASSERT_EQ(layout(heap), old_layout) << "operation " << k;
     }
+}
+
+namespace
+{
+  using Husk_Less = Counted_Less_Of<Husk>;
+  using Husk_Heap = DynArrayHeap<Husk, Husk_Less>;
+
+  // The item at a place of the array of a heap, from 1
+  Husk & item_at(Husk_Heap & heap, const int place)
+  {
+    Husk *found = nullptr;
+    int at = 0;
+    heap.traverse([&found, &at, place](Husk & x)
+                  {
+                    if (++at == place)
+                      found = &x;
+                    return true;
+                  });
+    return *found;
+  }
+}
+
+// The key of an insertion by move may be an item of the heap itself, which
+// the move changes where it is. The key is moved before the comparisons, as
+// in 7.7.4, so that they see that item as it is left: the same comparisons
+// and the same places as then, whatever the place of the item, on the way
+// of the new one or not, and whatever the move leaves in it, before the
+// other items, among them or after them
+TEST(DynArrayHeapBasics, AKeyThatItsMoveChangesInTheHeap)
+{
+  for (const int left : {-1, 1, 99}) // the priorities are 0, 1 and 2
+    for (const bool direct : {false, true})
+      for (int n = 1; n <= 12; ++n)
+        for (int place = 1; place <= n; ++place)
+          {
+            SCOPED_TRACE(testing::Message() << "left " << left << ", direct " << direct
+                                            << ", n " << n << ", place " << place);
+            Husk::left = left;
+            Calls calls, old_calls;
+            Husk_Heap heap(Husk_Less{&calls});
+            heap.reserve(n + 2);
+            Husk_Less old_cmp{&old_calls};
+            DynArray<Husk> old;
+            std::vector<Husk> old_layout;
+            for (int k = 1; k <= n; ++k)
+              {
+                const Husk x(k % 3, k);
+                heap.insert(x);
+                old.touch(k) = x;
+                old_sift_up(old, 1, k, old_cmp);
+              }
+            for (int i = 1; i <= n; ++i)
+              old_layout.push_back(old.access(i));
+            ASSERT_EQ(layout(heap, true), old_layout);
+
+            Husk & key = item_at(heap, place);
+            if (direct)
+              heap.insert_direct(std::move(key));
+            else
+              heap.insert(std::move(key));
+            old.touch(n + 1) = std::move(old.access(place));
+            old_sift_up(old, 1, n + 1, old_cmp);
+
+            EXPECT_EQ(calls.items, old_calls.items);
+            old_layout.clear();
+            for (int i = 1; i <= n + 1; ++i)
+              old_layout.push_back(old.access(i));
+            EXPECT_EQ(layout(heap, true), old_layout);
+          }
+}
+
+// If the comparison throws in that insertion, the key, one of the items of
+// the heap, takes back what was moved from it, and the heap is as it was
+TEST(DynArrayHeapThrowingCompare, AKeyThatItsMoveChangesStaysInTheHeap)
+{
+  for (const int left : {-1, 99})
+    for (const bool direct : {false, true})
+      for (int n = 1; n <= 9; ++n)
+        for (int place = 1; place <= n; ++place)
+          for (size_t at = 1; ; ++at)
+            {
+              SCOPED_TRACE(testing::Message() << "left " << left << ", direct " << direct << ", n " << n
+                                              << ", place " << place << ", call " << at);
+              Husk::left = left;
+              Calls calls;
+              Husk_Heap heap(Husk_Less{&calls});
+              heap.reserve(n + 2);
+              for (int k = 1; k <= n; ++k)
+                heap.insert(Husk(k % 3, k));
+              const std::vector<Husk> before = layout(heap, true);
+              Husk & key = item_at(heap, place);
+              calls.throw_at = calls.count + at;
+              bool thrown = false;
+              try
+                {
+                  if (direct)
+                    heap.insert_direct(std::move(key));
+                  else
+                    heap.insert(std::move(key));
+                }
+              catch (const std::runtime_error &)
+                {
+                  thrown = true;
+                }
+              calls.throw_at = 0;
+              if (not thrown)
+                break;
+              EXPECT_EQ(heap.size(), static_cast<size_t>(n));
+              EXPECT_EQ(layout(heap, true), before);
+            }
 }
