@@ -38,6 +38,7 @@
 # include <tpl_interval_tree.H>
 # include <random>
 # include <algorithm>
+# include <memory>
 # include <string>
 # include <vector>
 # include <type_traits>
@@ -912,3 +913,927 @@ TEST(IntervalTreeComparator, KeyCompThrowsWhatCopyingTheComparatorThrows)
   EXPECT_TRUE(tree.verify());
   EXPECT_EQ(tree.size(), 2u);
 }
+
+// ─────────────────────────────────────────────────────────────────
+// A comparison, or a copy of an endpoint, that throws
+// ─────────────────────────────────────────────────────────────────
+
+namespace
+{
+  struct Call_Error : std::runtime_error
+  {
+    Call_Error() : std::runtime_error("the call that throws") {}
+  };
+
+  long calls_left = -1; // the calls until the one that throws; -1 for none
+  long calls_made = 0;
+
+  // A call of the comparison of Throwing_Less, or a copy of a Fragile
+  void a_call()
+  {
+    ++calls_made;
+    if (calls_left == 0)
+      {
+        calls_left = -1;
+        throw Call_Error();
+      }
+    if (calls_left > 0)
+      --calls_left;
+  }
+
+  struct Throwing_Less
+  {
+    bool operator ()(const int & a, const int & b) const
+    {
+      a_call();
+      return a < b;
+    }
+  };
+
+  // An endpoint whose copies may throw, and whose moves do not
+  struct Fragile
+  {
+    int value = 0;
+
+    Fragile() noexcept = default;
+
+    explicit Fragile(const int v) noexcept : value(v) {}
+
+    Fragile(const Fragile & f) : value(f.value) { a_call(); }
+
+    Fragile(Fragile && f) noexcept : value(f.value) {}
+
+    Fragile & operator =(const Fragile & f)
+    {
+      a_call();
+      value = f.value;
+      return *this;
+    }
+
+    Fragile & operator =(Fragile && f) noexcept
+    {
+      value = f.value;
+      return *this;
+    }
+  };
+
+  static_assert(not std::is_nothrow_copy_assignable_v<Fragile>);
+  static_assert(std::is_nothrow_move_assignable_v<Fragile>);
+  static_assert(std::is_nothrow_copy_assignable_v<int>);
+
+  struct Fragile_Less
+  {
+    bool operator ()(const Fragile & a, const Fragile & b) const noexcept
+    {
+      return a.value < b.value;
+    }
+  };
+
+  // An endpoint whose copies may throw, and whose move assignment too
+  struct Brittle
+  {
+    int value = 0;
+
+    Brittle() noexcept = default;
+
+    explicit Brittle(const int v) noexcept : value(v) {}
+
+    Brittle(const Brittle & b) : value(b.value) { a_call(); }
+
+    Brittle(Brittle && b) noexcept : value(b.value) {}
+
+    Brittle & operator =(const Brittle & b)
+    {
+      a_call();
+      value = b.value;
+      return *this;
+    }
+
+    Brittle & operator =(Brittle && b)
+    {
+      a_call();
+      value = b.value;
+      return *this;
+    }
+  };
+
+  static_assert(not std::is_nothrow_copy_assignable_v<Brittle>);
+  static_assert(not std::is_nothrow_move_assignable_v<Brittle>);
+
+  struct Brittle_Less
+  {
+    bool operator ()(const Brittle & a, const Brittle & b) const noexcept
+    {
+      return a.value < b.value;
+    }
+  };
+
+  // An endpoint with its copy assignment alone, which may throw: an rvalue
+  // of it is assigned by a copy
+  struct Copy_Only
+  {
+    int value = 0;
+
+    Copy_Only() noexcept = default;
+
+    explicit Copy_Only(const int v) noexcept : value(v) {}
+
+    Copy_Only(const Copy_Only & c) : value(c.value) { a_call(); }
+
+    Copy_Only & operator =(const Copy_Only & c)
+    {
+      a_call();
+      value = c.value;
+      return *this;
+    }
+  };
+
+  static_assert(std::is_move_assignable_v<Copy_Only>);
+  static_assert(not std::is_nothrow_move_assignable_v<Copy_Only>);
+
+  // An endpoint whose move assignment is deleted: only an lvalue of it can
+  // be assigned
+  struct No_Move
+  {
+    int value = 0;
+
+    No_Move() noexcept = default;
+
+    explicit No_Move(const int v) noexcept : value(v) {}
+
+    No_Move(const No_Move & n) : value(n.value) { a_call(); }
+
+    No_Move & operator =(const No_Move & n)
+    {
+      a_call();
+      value = n.value;
+      return *this;
+    }
+
+    No_Move & operator =(No_Move &&) = delete;
+  };
+
+  static_assert(std::is_copy_assignable_v<No_Move>);
+  static_assert(not std::is_move_assignable_v<No_Move>);
+
+  int value_of(const int v) noexcept { return v; }
+
+  int value_of(const Fragile & f) noexcept { return f.value; }
+
+  int value_of(const Brittle & b) noexcept { return b.value; }
+
+  int value_of(const Copy_Only & c) noexcept { return c.value; }
+
+  int value_of(const No_Move & n) noexcept { return n.value; }
+
+  // A comparison of any of those endpoints, which does not throw
+  struct Value_Less
+  {
+    template <class Endpoint>
+    bool operator ()(const Endpoint & a, const Endpoint & b) const noexcept
+    {
+      return value_of(a) < value_of(b);
+    }
+  };
+
+  // The result of a comparison that does not throw, whose conversion to
+  // bool is a call, and so may throw
+  struct Touchy_Bool
+  {
+    bool value;
+
+    operator bool() const
+    {
+      a_call();
+      return value;
+    }
+  };
+
+  struct Touchy_Less
+  {
+    Touchy_Bool operator ()(const int & a, const int & b) const noexcept { return {a < b}; }
+  };
+
+  static_assert(StrictWeakOrder<Touchy_Less, int>);
+
+  // A node as it is and where it hangs, to tell a tree that is as it was
+  template <class Node>
+  struct Seen
+  {
+    const Node *node;
+    const Node *left;
+    const Node *right;
+    int low;
+    int high;
+    int max;
+    unsigned long priority;
+
+    bool operator ==(const Seen &) const = default;
+  };
+
+  template <class Node>
+  void see(Node *p, std::vector<Seen<Node>> & nodes)
+  {
+    if (p == Node::NullPtr)
+      return;
+    nodes.push_back({p, LLINK(p), RLINK(p), value_of(KEY(p).low), value_of(KEY(p).high),
+                     value_of(MAX_EP(p)), PRIO(p)});
+    see(LLINK(p), nodes);
+    see(RLINK(p), nodes);
+  }
+
+  template <class Node>
+  std::vector<Seen<Node>> seen(Node *root)
+  {
+    std::vector<Seen<Node>> nodes;
+    see(root, nodes);
+    return nodes;
+  }
+
+  // The nodes of a tree and where they hang, whatever their maxima are
+  template <class Node>
+  std::vector<Seen<Node>> links(Node *root)
+  {
+    std::vector<Seen<Node>> nodes = seen(root);
+    for (auto & node : nodes)
+      node.max = 0;
+    return nodes;
+  }
+
+  // The intervals, the maxima, the priorities and the form of a tree,
+  // whatever its nodes are
+  template <class Node>
+  std::string shape(Node *p)
+  {
+    if (p == Node::NullPtr)
+      return ".";
+    return "(" + std::to_string(value_of(KEY(p).low)) + "," + std::to_string(value_of(KEY(p).high)) +
+           " max " + std::to_string(value_of(MAX_EP(p))) + " prio " + std::to_string(PRIO(p)) + " " +
+           shape(LLINK(p)) + " " + shape(RLINK(p)) + ")";
+  }
+
+  // True if two trees have the same intervals, maxima and priorities at the
+  // same places
+  template <class Node>
+  bool same(Node *a, Node *b)
+  {
+    if (a == Node::NullPtr or b == Node::NullPtr)
+      return a == b;
+    return value_of(KEY(a).low) == value_of(KEY(b).low) and
+           value_of(KEY(a).high) == value_of(KEY(b).high) and
+           value_of(MAX_EP(a)) == value_of(MAX_EP(b)) and PRIO(a) == PRIO(b) and
+           same(LLINK(a), LLINK(b)) and same(RLINK(a), RLINK(b));
+  }
+
+  // The intervals of a tree, in order
+  template <class Node>
+  std::string intervals(Node *p)
+  {
+    if (p == Node::NullPtr)
+      return "";
+    return intervals(LLINK(p)) + "[" + std::to_string(value_of(KEY(p).low)) + "," +
+           std::to_string(value_of(KEY(p).high)) + "]" + intervals(RLINK(p));
+  }
+
+  // The insertions and the removal of the tree through 7.7.5: rotations, and
+  // the maximum of each node computed again from its children on the way
+  // back, after the links
+  template <class Node, class Compare>
+  struct Old_Tree
+  {
+    using Key = typename Node::key_type;
+    using Interval_Cmp = Interval_Less<typename Node::Endpoint, Compare>;
+
+    Node *root = Node::NullPtr;
+    Compare cmp;
+
+    ~Old_Tree() { destroyRec(root); }
+
+    static void update_max(Node *p, const Compare & cmp)
+    {
+      auto & mx = MAX_EP(p);
+      mx = KEY(p).high;
+      if (LLINK(p) != Node::NullPtr)
+        if (cmp(mx, MAX_EP(LLINK(p))))
+          mx = MAX_EP(LLINK(p));
+      if (RLINK(p) != Node::NullPtr)
+        if (cmp(mx, MAX_EP(RLINK(p))))
+          mx = MAX_EP(RLINK(p));
+    }
+
+    static Node * rotate_to_right(Node *p, const Compare & cmp)
+    {
+      Node *q = LLINK(p);
+      LLINK(p) = RLINK(q);
+      RLINK(q) = p;
+      update_max(p, cmp);
+      update_max(q, cmp);
+      return q;
+    }
+
+    static Node * rotate_to_left(Node *p, const Compare & cmp)
+    {
+      Node *q = RLINK(p);
+      RLINK(p) = LLINK(q);
+      LLINK(q) = p;
+      update_max(p, cmp);
+      update_max(q, cmp);
+      return q;
+    }
+
+    Node * insert(Node *root, Node *p)
+    {
+      if (root == Node::NullPtr)
+        return p;
+
+      const Key & pk = KEY(p);
+      const Key & rk = KEY(root);
+      const Interval_Cmp interval_cmp(cmp);
+      Node *result = nullptr;
+      if (interval_cmp(pk, rk))
+        {
+          result = insert(LLINK(root), p);
+          if (result == Node::NullPtr)
+            return Node::NullPtr;
+          LLINK(root) = result;
+          update_max(root, cmp);
+          if (PRIO(LLINK(root)) < PRIO(root))
+            return rotate_to_right(root, cmp);
+          return root;
+        }
+      if (interval_cmp(rk, pk))
+        {
+          result = insert(RLINK(root), p);
+          if (result == Node::NullPtr)
+            return Node::NullPtr;
+          RLINK(root) = result;
+          update_max(root, cmp);
+          if (PRIO(RLINK(root)) < PRIO(root))
+            return rotate_to_left(root, cmp);
+          return root;
+        }
+
+      return Node::NullPtr; // duplicate
+    }
+
+    Node * insert_dup(Node *root, Node *p)
+    {
+      if (root == Node::NullPtr)
+        return p;
+
+      const Key & pk = KEY(p);
+      const Key & rk = KEY(root);
+      const Interval_Cmp interval_cmp(cmp);
+      if (interval_cmp(pk, rk))
+        {
+          LLINK(root) = insert_dup(LLINK(root), p);
+          update_max(root, cmp);
+          if (PRIO(LLINK(root)) < PRIO(root))
+            return rotate_to_right(root, cmp);
+          return root;
+        }
+      RLINK(root) = insert_dup(RLINK(root), p);
+      update_max(root, cmp);
+      if (PRIO(RLINK(root)) < PRIO(root))
+        return rotate_to_left(root, cmp);
+      return root;
+    }
+
+    static Node * join_exclusive(Node *t1, Node *t2, const Compare & cmp)
+    {
+      if (t1 == Node::NullPtr)
+        return t2;
+      if (t2 == Node::NullPtr)
+        return t1;
+
+      if (PRIO(t1) < PRIO(t2))
+        {
+          RLINK(t1) = join_exclusive(RLINK(t1), t2, cmp);
+          update_max(t1, cmp);
+          return t1;
+        }
+      LLINK(t2) = join_exclusive(t1, LLINK(t2), cmp);
+      update_max(t2, cmp);
+      return t2;
+    }
+
+    Node * remove(Node *& root, const Key & key)
+    {
+      if (root == Node::NullPtr)
+        return Node::NullPtr;
+
+      const Key & rk = KEY(root);
+      const Interval_Cmp interval_cmp(cmp);
+      Node *ret_val;
+      if (interval_cmp(key, rk))
+        ret_val = remove(LLINK(root), key);
+      else if (interval_cmp(rk, key))
+        ret_val = remove(RLINK(root), key);
+      else
+        {
+          ret_val = root;
+          root = join_exclusive(LLINK(root), RLINK(root), cmp);
+          return ret_val;
+        }
+
+      if (ret_val == Node::NullPtr)
+        return Node::NullPtr;
+
+      update_max(root, cmp);
+      return ret_val;
+    }
+  };
+
+  // The same operations, at random and with many intervals the same, on a
+  // tree and on an old one whose nodes take the same priorities. With
+  // `priorities` other than zero, the nodes take one of that many
+  // priorities, so that most of them are equal.
+  template <class E, class Less>
+  void same_trees_as_the_old_ones(const unsigned seed, const int operations, const unsigned priorities)
+  {
+    using Tree = Interval_Tree<E, Less>;
+    using Node = typename Tree::Node;
+
+    // The tree does not free its nodes: this does, also when an assertion
+    // ends the function
+    struct Owner
+    {
+      Tree tree;
+
+      explicit Owner(const unsigned seed) : tree(seed) {}
+
+      ~Owner()
+      {
+        destroyRec(tree.getRoot());
+        tree.reset_num_nodes();
+      }
+    } owner(seed);
+    Tree & tree = owner.tree;
+    Old_Tree<Node, Less> old;
+    std::mt19937 gen(seed);
+    for (int i = 0; i < operations; ++i)
+      {
+        const int lo = static_cast<int>(gen() % 40);
+        const int hi = lo + static_cast<int>(gen() % 12);
+        const Interval<E> key{E(lo), E(hi)};
+        if (priorities != 0)
+          tree.set_seed(gen() % priorities);
+        switch (gen() % 4)
+          {
+          case 0:
+            {
+              std::unique_ptr<Node> p(new Node(key));
+              std::unique_ptr<Node> q(new Node(key));
+              if (tree.insert(p.get()) == nullptr)
+                {
+                  ASSERT_EQ(old.insert(old.root, q.get()), Node::NullPtr);
+                  break; // the two that did not enter are freed
+                }
+              PRIO(q.get()) = PRIO(p.release()); // the tree has p
+              Node *root = old.insert(old.root, q.get());
+              ASSERT_NE(root, Node::NullPtr);
+              old.root = root;
+              q.release(); // the old tree has q
+              break;
+            }
+          case 1:
+            {
+              std::unique_ptr<Node> p(new Node(key));
+              std::unique_ptr<Node> q(new Node(key));
+              tree.insert_dup(p.get());
+              PRIO(q.get()) = PRIO(p.release());
+              old.root = old.insert_dup(old.root, q.release());
+              break;
+            }
+          default:
+            {
+              const std::unique_ptr<Node> p(tree.remove(key));
+              Node *taken = old.remove(old.root, key);
+              const std::unique_ptr<Node> q(taken == Node::NullPtr ? nullptr : taken);
+              ASSERT_EQ(p == nullptr, q == nullptr);
+              if (p != nullptr) // it goes out as its reset() leaves it
+                {
+                  EXPECT_EQ(LLINK(p.get()), Node::NullPtr);
+                  EXPECT_EQ(RLINK(p.get()), Node::NullPtr);
+                  EXPECT_EQ(value_of(MAX_EP(p.get())), value_of(KEY(p.get()).high));
+                }
+            }
+          }
+        ASSERT_TRUE(same(tree.getRoot(), old.root))
+          << "after the operation " << i << ": " << shape(tree.getRoot()) << " and " << shape(old.root);
+      }
+    EXPECT_TRUE(tree.verify());
+    EXPECT_GT(tree.size(), 0u);
+  }
+
+  // A tree of n intervals with even endpoints, some of them the same and
+  // some that reach far, which frees its nodes
+  template <class E, class Less>
+  struct Grove
+  {
+    using Tree = Interval_Tree<E, Less>;
+    using Node = typename Tree::Node;
+
+    Tree tree;
+
+    static Interval<E> interval(const int i)
+    {
+      const int lo = 2 * ((i * 7) % 23);
+      return {E(lo), E(lo + 2 * ((i * 5) % 11) + (i % 4 == 0 ? 80 : 0))};
+    }
+
+    Grove(const unsigned long seed, const int n) : tree(seed)
+    {
+      for (int i = 0; i < n; ++i)
+        tree.insert_dup(new Node(interval(i)));
+    }
+
+    ~Grove()
+    {
+      destroyRec(tree.getRoot());
+      tree.reset_num_nodes();
+    }
+  };
+
+  enum class Kind { Insert, Insert_Dup, Remove };
+
+  // One operation on a tree, whose call number `arm` throws: none if it is
+  // -1. It gives the calls that the operation made
+  template <class E, class Less>
+  long apply(Interval_Tree<E, Less> & tree, const Kind kind, const int lo, const int hi, const long arm)
+  {
+    using Node = typename Interval_Tree<E, Less>::Node;
+
+    const Interval<E> key{E(lo), E(hi)};
+    Node *p = kind == Kind::Remove ? nullptr : new Node(key);
+    calls_made = 0;
+    calls_left = arm;
+    try
+      {
+        switch (kind)
+          {
+          case Kind::Insert:
+            if (tree.insert(p) != nullptr)
+              p = nullptr;
+            break;
+          case Kind::Insert_Dup:
+            tree.insert_dup(p);
+            p = nullptr;
+            break;
+          case Kind::Remove:
+            p = tree.remove(key);
+            break;
+          }
+      }
+    catch (...)
+      {
+        calls_left = -1;
+        delete p; // the node that did not enter
+        throw;
+      }
+    calls_left = -1;
+    const long made = calls_made;
+    delete p; // the duplicate that did not enter, or the node taken out
+    return made;
+  }
+
+  // An operation on a tree of n intervals, with each of its calls throwing
+  // in turn: the tree must stay as it was, to the pointer, and then take
+  // the operation. If not `whole`, only its nodes must stay where they
+  // were: their maxima may change
+  template <class E, class Less>
+  void every_failed_call(const unsigned long seed, const int n, const Kind kind, const int lo, const int hi,
+                         const bool whole)
+  {
+    SCOPED_TRACE("seed " + std::to_string(seed) + ", " + std::to_string(n) + " intervals, operation " +
+                 std::to_string(static_cast<int>(kind)) + " of [" + std::to_string(lo) + "," +
+                 std::to_string(hi) + "]");
+    long total = 0;
+    std::string expected_shape;
+    std::string expected_intervals;
+    {
+      Grove<E, Less> grove(seed, n);
+      total = apply(grove.tree, kind, lo, hi, -1);
+      ASSERT_TRUE(grove.tree.verify());
+      expected_shape = shape(grove.tree.getRoot());
+      expected_intervals = intervals(grove.tree.getRoot());
+    }
+    for (long k = 0; k < total; ++k)
+      {
+        SCOPED_TRACE("call " + std::to_string(k) + " of " + std::to_string(total));
+        Grove<E, Less> grove(seed, n);
+        const auto before = whole ? seen(grove.tree.getRoot()) : links(grove.tree.getRoot());
+        const size_t size = grove.tree.size();
+        EXPECT_THROW(apply(grove.tree, kind, lo, hi, k), Call_Error);
+        EXPECT_TRUE((whole ? seen(grove.tree.getRoot()) : links(grove.tree.getRoot())) == before);
+        EXPECT_EQ(grove.tree.size(), size);
+        if (not whole)
+          continue;
+        EXPECT_TRUE(grove.tree.verify());
+
+        apply(grove.tree, kind, lo, hi, -1);
+        EXPECT_TRUE(grove.tree.verify());
+        EXPECT_EQ(intervals(grove.tree.getRoot()), expected_intervals);
+        if (kind == Kind::Remove) // an insertion takes another priority
+          EXPECT_EQ(shape(grove.tree.getRoot()), expected_shape);
+      }
+  }
+
+  // Every removal, and insertions before, among and after the intervals of
+  // trees of up to `sizes` of them, with a high endpoint below the maxima
+  // and with one above them all
+  template <class E, class Less>
+  long every_failed_call_of_every_operation(const int sizes, const bool whole = true)
+  {
+    long operations = 0;
+    for (unsigned long seed = 1; seed <= 3; ++seed)
+      for (int n = 0; n <= sizes; ++n)
+        {
+          for (int i = 0; i < n; ++i, ++operations)
+            {
+              const auto iv = Grove<E, Less>::interval(i);
+              every_failed_call<E, Less>(seed, n, Kind::Remove, value_of(iv.low), value_of(iv.high), whole);
+            }
+          every_failed_call<E, Less>(seed, n, Kind::Remove, 15, 17, whole); // not in the tree
+          ++operations;
+          for (const Kind kind : {Kind::Insert, Kind::Insert_Dup})
+            {
+              for (const int lo : {-1, 15, 47})
+                for (const int hi : {lo, lo + 9, 999}) // odd: not in the tree
+                  {
+                    every_failed_call<E, Less>(seed, n, kind, lo, hi, whole);
+                    ++operations;
+                  }
+              if (n == 0)
+                continue;
+              for (const int i : {0, n / 2}) // in the tree
+                {
+                  const auto iv = Grove<E, Less>::interval(i);
+                  every_failed_call<E, Less>(seed, n, kind, value_of(iv.low), value_of(iv.high), whole);
+                  ++operations;
+                }
+            }
+        }
+    return operations;
+  }
+}
+
+// The tree that an insertion or a removal leaves is the one that the
+// rotations of 7.7.5 left: the same nodes at the same places, with the same
+// maxima. Also with priorities that are equal, where a rotation is not made.
+TEST(IntervalTreeInsertionAndRemoval, SameTreesAsTheRotations)
+{
+  for (const unsigned seed : {1u, 2u, 3u})
+    {
+      same_trees_as_the_old_ones<int, Aleph::less<int>>(seed, 5000, 0);
+      same_trees_as_the_old_ones<int, Aleph::less<int>>(seed, 1500, 1);
+      same_trees_as_the_old_ones<int, Aleph::less<int>>(seed, 1500, 3);
+      same_trees_as_the_old_ones<Fragile, Fragile_Less>(seed, 2000, 0);
+      same_trees_as_the_old_ones<Fragile, Fragile_Less>(seed, 1000, 3);
+    }
+}
+
+// Through 7.7.5 the maxima were computed with the comparison after the
+// links, in the rotations and in the join of a removal: when it threw, an
+// insertion left the node in the tree, which DynIntervalTree then freed, and
+// a removal left nodes that hung twice, or took the node out without giving
+// it back.
+TEST(IntervalTreeThrowingCompare, EveryFailedCallLeavesTheTreeAsItWas)
+{
+  const long operations = every_failed_call_of_every_operation<int, Throwing_Less>(12);
+  EXPECT_GT(operations, 900);
+}
+
+// The copies of the endpoints are made before the tree changes too: the
+// maxima that change are copied first, and then moved to their nodes.
+TEST(IntervalTreeThrowingCopy, EveryFailedCopyLeavesTheTreeAsItWas)
+{
+  const long operations = every_failed_call_of_every_operation<Fragile, Fragile_Less>(12);
+  EXPECT_GT(operations, 900);
+}
+
+// The limit that the documentation states. A move assignment of an endpoint
+// that throws, when its copy assignment may throw too, may leave the maxima
+// of some nodes changed; but every node stays where it was, the node of an
+// insertion out of the tree and that of a removal in it: the maxima are
+// given before any link changes.
+TEST(IntervalTreeThrowingMove, AFailedMoveLeavesEveryNodeWhereItWas)
+{
+  const long operations = every_failed_call_of_every_operation<Brittle, Brittle_Less>(12, false);
+  EXPECT_GT(operations, 900);
+}
+
+// The same limit, for an endpoint that has its copy assignment alone, which
+// assigns an rvalue too and may throw; and for one whose move assignment is
+// deleted, which did not compile: the maximum was always given by a move.
+TEST(IntervalTreeThrowingMove, AFailedCopyOfAnEndpointWithoutAMoveLeavesEveryNodeWhereItWas)
+{
+  const long copied = every_failed_call_of_every_operation<Copy_Only, Value_Less>(8, false);
+  EXPECT_GT(copied, 400);
+  const long not_moved = every_failed_call_of_every_operation<No_Move, Value_Less>(8, false);
+  EXPECT_GT(not_moved, 400);
+}
+
+// A comparison may give something that is not a bool, whose conversion to
+// bool may throw: it is a part of the comparison for the tree, which stays
+// as it was, and for what search() and Interval_Less say that they throw.
+TEST(IntervalTreeThrowingCompare, AConversionToBoolThatThrowsIsAComparisonThatThrows)
+{
+  static_assert(not noexcept(std::declval<const Interval_Tree<int, Touchy_Less> &>()
+                               .search(Interval<int>())));
+  static_assert(not noexcept(std::declval<const DynIntervalTree<int, Touchy_Less> &>()
+                               .search(Interval<int>())));
+  static_assert(not noexcept(std::declval<const Interval_Less<int, Touchy_Less> &>()(Interval<int>(),
+                                                                                    Interval<int>())));
+  static_assert(noexcept(std::declval<const Interval_Less<int> &>()(Interval<int>(), Interval<int>())));
+  static_assert(not noexcept(Interval<int>().overlaps(Interval<int>(), Touchy_Less())));
+  static_assert(not noexcept(Interval<int>().contains(0, Touchy_Less())));
+  static_assert(not noexcept(Interval<int>().is_valid(Touchy_Less())));
+
+  const long operations = every_failed_call_of_every_operation<int, Touchy_Less>(8);
+  EXPECT_GT(operations, 400);
+
+  DynIntervalTree<int, Touchy_Less> tree(7);
+  tree.insert(1, 5);
+  ASSERT_NE(tree.search(Interval<int>(1, 5)), nullptr);
+  for (long k = 0; k < 3; ++k) // [1,6] goes through the three comparisons of [1,5]
+    {
+      calls_left = k;
+      EXPECT_THROW((void) tree.search(Interval<int>(1, 6)), Call_Error) << "conversion " << k;
+      calls_left = -1;
+    }
+  EXPECT_EQ(tree.search(Interval<int>(1, 6)), nullptr);
+}
+
+// The constructor of a node from an rvalue, and reset(), copy the high
+// endpoint to the maximum of the node. They were noexcept whatever that copy
+// did: an insertion by move of DynIntervalTree ended the program there.
+TEST(IntervalTreeThrowingCopy, ANodeThatCannotCopyItsEndpointSaysSo)
+{
+  using Node = Interval_Tree<Fragile, Fragile_Less>::Node;
+  using Node_Vtl = Interval_Tree_Vtl<Fragile, Fragile_Less>::Node;
+  static_assert(std::is_nothrow_constructible_v<Interval_Tree<int>::Node, Interval<int> &&>);
+  static_assert(std::is_nothrow_constructible_v<Interval_Tree_Vtl<int>::Node, Interval<int> &&>);
+  static_assert(not std::is_nothrow_constructible_v<Node, Interval<Fragile> &&>);
+  static_assert(not std::is_nothrow_constructible_v<Node_Vtl, Interval<Fragile> &&>);
+  static_assert(noexcept(std::declval<Interval_Tree<int>::Node &>().reset()));
+  static_assert(noexcept(std::declval<Interval_Tree_Vtl<int>::Node &>().reset()));
+  static_assert(not noexcept(std::declval<Node &>().reset()));
+  static_assert(not noexcept(std::declval<Node_Vtl &>().reset()));
+
+  calls_left = 0;
+  EXPECT_THROW(Node(Interval<Fragile>(Fragile(1), Fragile(5))), Call_Error);
+  calls_left = 0;
+  EXPECT_THROW(Node_Vtl(Interval<Fragile>(Fragile(1), Fragile(5))), Call_Error);
+  calls_left = -1;
+
+  // reset() keeps the links of a node whose endpoint it could not copy
+  Node a(Interval<Fragile>(Fragile(1), Fragile(5)));
+  Node b(Interval<Fragile>(Fragile(2), Fragile(9)));
+  LLINK(&a) = &b;
+  MAX_EP(&a) = Fragile(9);
+  calls_left = 0;
+  EXPECT_THROW(a.reset(), Call_Error);
+  calls_left = -1;
+  EXPECT_EQ(LLINK(&a), &b);
+  EXPECT_EQ(MAX_EP(&a).value, 9);
+  a.reset();
+  EXPECT_EQ(LLINK(&a), Node::NullPtr);
+  EXPECT_EQ(MAX_EP(&a).value, 5);
+
+  // The insertion by move of DynIntervalTree, with each copy failing in
+  // turn: that of the node, and those of the maxima that change
+  using Tree = DynIntervalTree<Fragile, Fragile_Less>;
+  const auto listed = [](const Tree & tree)
+  {
+    std::string s;
+    tree.for_each([&s](const Interval<Fragile> & iv)
+                  {
+                    s += "[" + std::to_string(iv.low.value) + "," + std::to_string(iv.high.value) + "]";
+                  });
+    return s;
+  };
+  long failed = 0;
+  for (long k = 0; ; ++k)
+    {
+      Tree tree(7);
+      for (int i = 0; i < 9; ++i)
+        tree.insert_dup(Grove<Fragile, Fragile_Less>::interval(i));
+      const std::string before = listed(tree);
+      bool thrown = false;
+      calls_left = k;
+      try
+        {
+          tree.insert(Interval<Fragile>(Fragile(15), Fragile(999)));
+        }
+      catch (const Call_Error &)
+        {
+          thrown = true;
+        }
+      calls_left = -1;
+      EXPECT_TRUE(tree.verify());
+      if (not thrown)
+        {
+          EXPECT_EQ(tree.size(), 10u);
+          break;
+        }
+      ++failed;
+      EXPECT_EQ(listed(tree), before) << "copy " << k;
+      EXPECT_EQ(tree.size(), 9u);
+    }
+  EXPECT_GT(failed, 2);
+}
+
+// DynIntervalTree frees the node of an insertion that throws: the tree must
+// not have it. And its removal must not lose the node that it does not free.
+TEST(IntervalTreeThrowingCompare, DynIntervalTreeKeepsItsIntervals)
+{
+  using Tree = DynIntervalTree<int, Throwing_Less>;
+  const auto fill = [](Tree & tree, const int n)
+  {
+    for (int i = 0; i < n; ++i)
+      tree.insert_dup(Grove<int, Throwing_Less>::interval(i));
+  };
+  const auto listed = [](const Tree & tree)
+  {
+    std::string s;
+    tree.for_each([&s](const Interval<int> & iv)
+                  {
+                    s += "[" + std::to_string(iv.low) + "," + std::to_string(iv.high) + "]";
+                  });
+    return s;
+  };
+  const auto every = [&](const int n, const auto & operation)
+  {
+    long total = 0;
+    {
+      Tree tree(7);
+      fill(tree, n);
+      calls_made = 0;
+      operation(tree);
+      total = calls_made;
+    }
+    for (long k = 0; k < total; ++k)
+      {
+        Tree tree(7);
+        fill(tree, n);
+        const std::string before = listed(tree);
+        calls_left = k;
+        EXPECT_THROW(operation(tree), Call_Error) << "call " << k << " of " << total;
+        calls_left = -1;
+        EXPECT_EQ(listed(tree), before);
+        EXPECT_EQ(tree.size(), static_cast<size_t>(n));
+        EXPECT_TRUE(tree.verify());
+        operation(tree);
+        EXPECT_TRUE(tree.verify());
+      }
+    return total;
+  };
+
+  long calls = 0;
+  for (int n = 0; n <= 14; ++n)
+    {
+      calls += every(n, [](Tree & tree) { tree.insert(15, 999); });
+      calls += every(n, [](Tree & tree) { tree.insert(Interval<int>(-1, 3)); });
+      calls += every(n, [](Tree & tree) { tree.insert_dup(Interval<int>(15, 21)); });
+      calls += every(n, [](Tree & tree) { tree.append(Interval<int>(0, 80)); });
+      if (n > 0)
+        {
+          calls += every(n, [](Tree & tree) { EXPECT_TRUE(tree.remove(0, 80)); });
+          calls += every(n, [n](Tree & tree)
+                         {
+                           EXPECT_TRUE(tree.remove(Grove<int, Throwing_Less>::interval(n / 2)));
+                         });
+        }
+    }
+  EXPECT_GT(calls, 500);
+}
+
+// search() runs the comparison and copies it: it is noexcept only when
+// neither throws. It was noexcept without a condition in DynIntervalTree.
+TEST(IntervalTreeThrowingCompare, SearchThrowsWhatTheComparisonThrows)
+{
+  static_assert(noexcept(std::declval<const Interval_Tree<int> &>().search(Interval<int>())));
+  static_assert(noexcept(std::declval<const DynIntervalTree<int> &>().search(Interval<int>())));
+  static_assert(not noexcept(std::declval<const Interval_Tree<int, Throwing_Less> &>()
+                               .search(Interval<int>())));
+  static_assert(not noexcept(std::declval<const DynIntervalTree<int, Throwing_Less> &>()
+                               .search(Interval<int>())));
+  static_assert(not noexcept(std::declval<const DynIntervalTree<int, LessWithFallibleCopy> &>()
+                               .search(Interval<int>())));
+
+  DynIntervalTree<int, Throwing_Less> tree(7);
+  tree.insert(1, 5);
+  tree.insert(3, 8);
+  ASSERT_NE(tree.search(Interval<int>(3, 8)), nullptr);
+  calls_left = 0;
+  EXPECT_THROW((void) tree.search(Interval<int>(3, 8)), Call_Error);
+  calls_left = -1;
+  EXPECT_EQ(tree.search(Interval<int>(4, 8)), nullptr);
+  EXPECT_TRUE(tree.verify());
+}
+
+// Every member of DynIntervalTree and of its iterator compiles. The
+// iterator had a prev() that called one that the iterator of the tree does
+// not have: it compiled only because nothing called it.
+template class Aleph::DynIntervalTree<int>;

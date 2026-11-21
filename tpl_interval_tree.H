@@ -62,6 +62,7 @@
 
 # include <cassert>
 # include <ctime>
+# include <optional>
 # include <type_traits>
 
 # include <ahFunction.H>
@@ -138,7 +139,7 @@ namespace Aleph
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool overlaps(const Interval & other,
                                 const Compare & cmp = Compare()) const
-      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
+      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
     {
       // [a,b] overlaps [c,d] iff a <= d and c <= b
       return not cmp(other.high, low) and not cmp(high, other.low);
@@ -154,7 +155,7 @@ namespace Aleph
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool contains(const T & p,
                                 const Compare & cmp = Compare()) const
-      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
+      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
     {
       return not cmp(p, low) and not cmp(high, p);
     }
@@ -167,7 +168,7 @@ namespace Aleph
      */
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool is_valid(const Compare & cmp = Compare()) const
-      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
+      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
     {
       return not cmp(high, low);
     }
@@ -221,7 +222,7 @@ namespace Aleph
      *  @throws none
      */
     bool operator ()(const Interval<T> & a, const Interval<T> & b) const
-      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
+      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
     {
       if (cmp(a.low, b.low))
         return true;
@@ -327,10 +328,12 @@ namespace Aleph
     }
 
     Interval_Tree_Node(Key && k)
-      noexcept(std::is_nothrow_move_constructible_v<Key>)
+      noexcept(std::is_nothrow_move_constructible_v<Key> and
+               std::is_nothrow_default_constructible_v<Data> and
+               std::is_nothrow_copy_assignable_v<Endpoint>)
       : key(std::move(k)), lLink(NullPtr), rLink(NullPtr)
     {
-      this->getMaxEndpoint() = key.high;
+      this->getMaxEndpoint() = std::as_const(key).high;
     }
 
     Interval_Tree_Node(const Interval_Tree_Node & node)
@@ -355,10 +358,15 @@ namespace Aleph
       /* empty */
     }
 
-    void reset() noexcept
+    /** @brief Leave the node as one that is in no tree: without links, and
+     *         with the high endpoint of its interval as its maximum.
+     *  @throws what the copy assignment of an endpoint throws, with the
+     *          links as they were.
+     */
+    void reset() noexcept(std::is_nothrow_copy_assignable_v<Endpoint>)
     {
       Data::reset();
-      this->getMaxEndpoint() = key.high;
+      this->getMaxEndpoint() = std::as_const(key).high;
       rLink = lLink = NullPtr;
     }
 
@@ -420,10 +428,12 @@ namespace Aleph
     }
 
     Interval_Tree_NodeVtl(Key && k)
-      noexcept(std::is_nothrow_move_constructible_v<Key>)
+      noexcept(std::is_nothrow_move_constructible_v<Key> and
+               std::is_nothrow_default_constructible_v<Data> and
+               std::is_nothrow_copy_assignable_v<Endpoint>)
       : key(std::move(k)), lLink(NullPtr), rLink(NullPtr)
     {
-      this->getMaxEndpoint() = key.high;
+      this->getMaxEndpoint() = std::as_const(key).high;
     }
 
     Interval_Tree_NodeVtl(const Interval_Tree_NodeVtl & node)
@@ -451,10 +461,15 @@ namespace Aleph
     /** @brief Virtual destructor. */
     virtual ~Interval_Tree_NodeVtl() = default;
 
-    void reset() noexcept
+    /** @brief Leave the node as one that is in no tree: without links, and
+     *         with the high endpoint of its interval as its maximum.
+     *  @throws what the copy assignment of an endpoint throws, with the
+     *          links as they were.
+     */
+    void reset() noexcept(std::is_nothrow_copy_assignable_v<Endpoint>)
     {
       Data::reset();
-      this->getMaxEndpoint() = key.high;
+      this->getMaxEndpoint() = std::as_const(key).high;
       rLink = lLink = NullPtr;
     }
 
@@ -482,6 +497,80 @@ namespace Aleph
   inline const auto &MAX_EP(const Node *p) noexcept
   {
     return p->getMaxEndpoint();
+  }
+
+  namespace interval_tree_detail
+  {
+    /** @brief What the maximum endpoint of a node is to become.
+     *
+     *  An insertion or a removal first makes every comparison, with the
+     *  tree as it was, and takes note of the new maximum of each node whose
+     *  maximum changes; only then it gives them. This one is for an endpoint
+     *  whose copy assignment does not throw: it keeps where the new maximum
+     *  is, an endpoint of the tree that the operation does not change.
+     *
+     *  @tparam T the type of the endpoints.
+     */
+    template <typename T, bool = std::is_nothrow_copy_assignable_v<T>>
+    class Pending_Max
+    {
+      const T *from = nullptr; ///< Where the new maximum is, if there is one.
+
+    public:
+      /** @brief Take note of the new maximum.
+       *  @param[in] max the new maximum, which stays where it is until
+       *             give() copies it.
+       */
+      void set(const T & max) noexcept { from = std::addressof(max); }
+
+      /** @brief Give the node its new maximum, if it has one.
+       *  @param[out] max the maximum of the node.
+       */
+      void give(T & max) const noexcept
+      {
+        if (from != nullptr)
+          max = *from;
+      }
+    };
+
+    /** @brief What the maximum endpoint of a node is to become, for an
+     *         endpoint whose copy assignment may throw.
+     *
+     *  It keeps a copy of the new maximum, made when it is noted and thus
+     *  before the tree changes. Giving it assigns that copy as an rvalue: a
+     *  move, for an endpoint that has a move assignment, and a copy for one
+     *  that has only its copy assignment. If the move assignment is deleted,
+     *  the copy is assigned as it is.
+     *
+     *  @tparam T the type of the endpoints.
+     */
+    template <typename T>
+    class Pending_Max<T, false>
+    {
+      std::optional<T> copy; ///< The new maximum, if there is one.
+
+    public:
+      /** @brief Take note of the new maximum.
+       *  @param[in] max the new maximum, which is copied.
+       *  @throws what the copy of an endpoint throws.
+       */
+      void set(const T & max) { copy.emplace(max); }
+
+      /** @brief Give the node its new maximum, if it has one.
+       *  @param[out] max the maximum of the node.
+       *  @throws what the assignment of an endpoint throws: its move
+       *          assignment, or its copy assignment if it has no other.
+       */
+      void give(T & max) noexcept(std::is_nothrow_move_assignable_v<T>)
+      {
+        if (not copy.has_value())
+          return;
+        if constexpr (std::is_move_assignable_v<T>)
+          max = std::move(*copy);
+        else
+          max = *copy; // its move assignment is deleted
+      }
+    };
   }
 
   /** @brief Augmented treap storing intervals with overlap/stabbing queries.
@@ -533,144 +622,278 @@ namespace Aleph
         % static_cast<unsigned long>(Gsl_Compatible_Rng::max());
     }
 
-    /// Recalculate max_endpoint from node's own high and children
-    static void update_max(Node *p, const Compare & cmp)
+    using Pending = interval_tree_detail::Pending_Max<T>;
+
+    /// A step of the way down from the root: a node, and the side taken there.
+    struct Step
     {
-      auto & mx = MAX_EP(p);
-      mx = KEY(p).high;
-      if (LLINK(p) != Node::NullPtr)
-        if (cmp(mx, MAX_EP(LLINK(p))))
-          mx = MAX_EP(LLINK(p));
-      if (RLINK(p) != Node::NullPtr)
-        if (cmp(mx, MAX_EP(RLINK(p))))
-          mx = MAX_EP(RLINK(p));
+      Node *node; ///< The node.
+      Step *up; ///< The step above; nullptr at the root.
+      bool left; ///< True if the way goes on through the left link.
+      Pending max; ///< The new maximum of the node, if it changes.
+    };
+
+    /// The link that hangs from a step: that of the root if there is none.
+    Node *& link_from(Step *step) noexcept
+    {
+      if (step == nullptr)
+        return tree_root;
+      return step->left ? LLINK(step->node) : RLINK(step->node);
     }
 
-    /// Rotate right with augmented field update
-    static Node * rotate_to_right_it(Node *p, const Compare & cmp)
+    /// True if `a` goes before `b`: by its low endpoint, then by its high
+    /// one. It is Interval_Less, without a copy of the comparator.
+    static bool goes_before(const Key & a, const Key & b, const Compare & cmp)
     {
-      assert(p != Node::NullPtr);
-      Node *q = LLINK(p);
-      LLINK(p) = RLINK(q);
-      RLINK(q) = p;
-      update_max(p, cmp); // old parent first (now child)
-      update_max(q, cmp); // new parent (depends on updated p)
-      return q;
+      if (cmp(a.low, b.low))
+        return true;
+      if (cmp(b.low, a.low))
+        return false;
+      return cmp(a.high, b.high);
     }
 
-    /// Rotate left with augmented field update
-    static Node * rotate_to_left_it(Node *p, const Compare & cmp)
+    /// The side of `b` where `a` goes: -1 before it, 1 after it, and 0 if
+    /// they are the same interval.
+    static int side_of(const Key & a, const Key & b, const Compare & cmp)
     {
-      assert(p != Node::NullPtr);
-      Node *q = RLINK(p);
-      RLINK(p) = LLINK(q);
-      LLINK(q) = p;
-      update_max(p, cmp);
-      update_max(q, cmp);
-      return q;
+      if (cmp(a.low, b.low))
+        return -1;
+      if (cmp(b.low, a.low))
+        return 1;
+      if (cmp(a.high, b.high))
+        return -1;
+      return cmp(b.high, a.high) ? 1 : 0;
     }
 
-    Node * insert(Node *root, Node *p)
+    /** @brief Put a node in its place, at the end of the way down.
+     *
+     *  The tree that it leaves is the one that the rotations of a treap
+     *  give. Every comparison, and every copy of an endpoint that may
+     *  throw, comes before the tree changes: if one throws, the tree is as
+     *  it was, and `p` is not in it.
+     *
+     *  @param[in,out] p the node, with its priority and its maximum, the
+     *                 high endpoint of its interval.
+     *  @param[in,out] bottom the last step of the way, whose link `p` would
+     *                 hang from as a leaf; nullptr in an empty tree.
+     *  @throws what the comparison or the copy of an endpoint throw.
+     */
+    [[gnu::noinline]] void place(Node *p, Step *bottom)
+    {
+      const Compare & less = cmp;
+      const T & high = KEY(p).high;
+
+      // The nodes that p goes above are those of the end of the way whose
+      // priority is greater. Each one keeps its subtree of the other side
+      // of the way, and takes, at the side of the way, the nodes below it
+      // that are at its side of p
+      Step *above = bottom; // the first step that stays above p
+      const T *lmax = nullptr; // the maximum of what goes to the left of p,
+      const T *rmax = nullptr; // and of what goes to its right
+      for (; above != nullptr and PRIO(p) < PRIO(above->node); above = above->up)
+        {
+          Node *q = above->node;
+          const T *& side = above->left ? rmax : lmax;
+          const T *max = std::addressof(KEY(q).high);
+          if (Node *kept = above->left ? RLINK(q) : LLINK(q);
+              kept != Node::NullPtr and less(*max, MAX_EP(kept)))
+            max = std::addressof(MAX_EP(kept));
+          if (side != nullptr and less(*max, *side))
+            max = side;
+          above->max.set(*max);
+          side = max;
+        }
+
+      Pending own; // the maximum of p, if it is not its high endpoint
+      {
+        const T *max = std::addressof(high);
+        if (lmax != nullptr and less(*max, *lmax))
+          max = lmax;
+        if (rmax != nullptr and less(*max, *rmax))
+          max = rmax;
+        if (max != std::addressof(high))
+          own.set(*max);
+      }
+
+      // The nodes that stay above p take its high endpoint if their maximum
+      // is less; above the first one whose maximum is not, none is
+      Step *whole = above; // the first step whose maximum stays
+      for (; whole != nullptr and less(MAX_EP(whole->node), high); whole = whole->up)
+        whole->max.set(high);
+
+      // Every comparison and every copy is made: from here on nothing
+      // throws. The maxima go first, and then the links
+      for (Step *s = bottom; s != whole; s = s->up)
+        s->max.give(MAX_EP(s->node));
+      own.give(MAX_EP(p));
+
+      Node *l = Node::NullPtr; // what hangs from p at its left,
+      Node *r = Node::NullPtr; // and at its right
+      for (Step *s = bottom; s != above; s = s->up)
+        if (s->left)
+          {
+            LLINK(s->node) = r;
+            r = s->node;
+          }
+        else
+          {
+            RLINK(s->node) = l;
+            l = s->node;
+          }
+      LLINK(p) = l;
+      RLINK(p) = r;
+      link_from(above) = p;
+    }
+
+    /// Go down to the place of `p` and put it there, unless its interval
+    /// is in the tree, which then gives Node::NullPtr and does not change.
+    Node * insert(Node *root, Node *p, Step *up)
     {
       if (root == Node::NullPtr)
-        return p;
-
-      const Key & pk = KEY(p);
-      const Key & rk = KEY(root);
-      const IntervalCmp interval_cmp(cmp);
-      Node *result = nullptr;
-      if (interval_cmp(pk, rk))
         {
-          result = insert(LLINK(root), p);
-          if (result == Node::NullPtr)
-            return Node::NullPtr;
-          LLINK(root) = result;
-          update_max(root, cmp);
-          if (PRIO(LLINK(root)) < PRIO(root))
-            return rotate_to_right_it(root, cmp);
-          return root;
-        }
-      if (interval_cmp(rk, pk))
-        {
-          result = insert(RLINK(root), p);
-          if (result == Node::NullPtr)
-            return Node::NullPtr;
-          RLINK(root) = result;
-          update_max(root, cmp);
-          if (PRIO(RLINK(root)) < PRIO(root))
-            return rotate_to_left_it(root, cmp);
-          return root;
+          place(p, up);
+          return p;
         }
 
-      return Node::NullPtr; // duplicate
+      const int side = side_of(KEY(p), KEY(root), cmp);
+      if (side == 0)
+        return Node::NullPtr; // duplicate
+      Step step{root, up, side < 0, Pending()};
+      return insert(step.left ? LLINK(root) : RLINK(root), p, &step);
     }
 
-    Node * insert_dup(Node *root, Node *p)
+    /// Go down to the place of `p` and put it there, after the intervals
+    /// that are the same as its own.
+    void insert_dup(Node *root, Node *p, Step *up)
     {
       if (root == Node::NullPtr)
-        return p;
-
-      const Key & pk = KEY(p);
-      const Key & rk = KEY(root);
-      const IntervalCmp interval_cmp(cmp);
-      if (interval_cmp(pk, rk))
         {
-          LLINK(root) = insert_dup(LLINK(root), p);
-          update_max(root, cmp);
-          if (PRIO(LLINK(root)) < PRIO(root))
-            return rotate_to_right_it(root, cmp);
-          return root;
+          place(p, up);
+          return;
         }
-      RLINK(root) = insert_dup(RLINK(root), p);
-      update_max(root, cmp);
-      if (PRIO(RLINK(root)) < PRIO(root))
-        return rotate_to_left_it(root, cmp);
-      return root;
+
+      Step step{root, up, goes_before(KEY(p), KEY(root), cmp), Pending()};
+      insert_dup(step.left ? LLINK(root) : RLINK(root), p, &step);
     }
 
-    static Node * join_exclusive(Node *t1, Node *t2,
-                                 const Compare & cmp)
+    /** @brief Join two trees, every interval of the first one before those
+     *         of the second one.
+     *
+     *  It is the end of a removal. The comparisons are made on the way
+     *  down, with the trees as they were. At the bottom, the removed node,
+     *  those above it and those of the two inner spines take their new
+     *  maxima; and on the way back each node of the spines takes its link.
+     *
+     *  @param[in,out] t1 the first tree.
+     *  @param[in,out] t2 the second tree.
+     *  @param[in,out] up the step of the removed node, with those of the
+     *                 nodes above it.
+     *  @param[in] whole the first step, from `up`, whose maximum stays.
+     *  @param[in,out] spine the nodes of the spines above these two trees,
+     *                 as steps, from the last one.
+     *  @return the root of the joined tree.
+     *  @throws what the comparison or the copy of an endpoint throw, with
+     *          the trees as they were.
+     */
+    Node * join(Node *t1, Node *t2, Step *up, const Step *whole, Step *spine)
     {
-      if (t1 == Node::NullPtr)
-        return t2;
-      if (t2 == Node::NullPtr)
-        return t1;
-
-      if (PRIO(t1) < PRIO(t2))
+      if (t1 == Node::NullPtr or t2 == Node::NullPtr)
         {
-          RLINK(t1) = join_exclusive(RLINK(t1), t2, cmp);
-          update_max(t1, cmp);
-          return t1;
+          // Every comparison and every copy is made: from here on nothing
+          // throws. The maxima go first; the links, on the way back
+          for (Step *s = up; s != whole; s = s->up)
+            s->max.give(MAX_EP(s->node));
+          for (Step *s = spine; s != nullptr; s = s->up)
+            s->max.give(MAX_EP(s->node));
+          return t1 == Node::NullPtr ? t2 : t1;
         }
-      LLINK(t2) = join_exclusive(t1, LLINK(t2), cmp);
-      update_max(t2, cmp);
-      return t2;
+
+      // The root is the one of less priority, and the other tree goes down
+      // its inner spine: its maximum grows if that of the other is greater.
+      // The maximum that it takes does not change later: it is greater than
+      // those of the nodes of this spine that go below the other
+      const bool first = PRIO(t1) < PRIO(t2);
+      Node *top = first ? t1 : t2;
+      Node *other = first ? t2 : t1;
+      Step grown{top, spine, not first, Pending()};
+      if (const Compare & less = cmp; less(MAX_EP(top), MAX_EP(other)))
+        grown.max.set(MAX_EP(other));
+
+      Node *rest = first ? join(RLINK(t1), t2, up, whole, &grown)
+                         : join(t1, LLINK(t2), up, whole, &grown);
+      (first ? RLINK(top) : LLINK(top)) = rest;
+      return top;
     }
 
-    Node * remove(Node *& root, const Key & key)
+    /** @brief Take a node out of the tree: its two subtrees, joined, take
+     *         its place. The node is left as its reset() leaves it.
+     *
+     *  Every comparison, and every copy of an endpoint that may throw,
+     *  comes before the tree changes: if one throws, the tree is as it was.
+     *
+     *  @param[in] p the node.
+     *  @param[in,out] up the step of its parent; nullptr if it is the root.
+     *  @throws what the comparison or the copy of an endpoint throw.
+     */
+    [[gnu::noinline]] void unlink(Node *p, Step *up)
+    {
+      const Compare & less = cmp;
+      const T & high = KEY(p).high;
+      Node *t1 = LLINK(p);
+      Node *t2 = RLINK(p);
+
+      Step self{p, up, false, Pending()}; // p goes out with its high
+      self.max.set(high); // endpoint as its maximum, given with the others
+
+      // The maximum of a node above p may fall only if the high endpoint of
+      // p is not less than it; above the first one where it is less, none
+      // falls. The new one is the greatest of its high endpoint, the
+      // maximum of its other subtree and that of what stays below it
+      Step *whole = up; // the first step whose maximum stays
+      const T *below = nullptr; // the maximum of what stays below the step
+      for (bool first = true;
+           whole != nullptr and not less(high, MAX_EP(whole->node));
+           whole = whole->up, first = false)
+        {
+          if (first) // what takes the place of p: its two subtrees
+            {
+              if (t1 != Node::NullPtr)
+                below = std::addressof(MAX_EP(t1));
+              if (t2 != Node::NullPtr and
+                  (below == nullptr or less(*below, MAX_EP(t2))))
+                below = std::addressof(MAX_EP(t2));
+            }
+          Node *q = whole->node;
+          const T *max = std::addressof(KEY(q).high);
+          if (Node *kept = whole->left ? RLINK(q) : LLINK(q);
+              kept != Node::NullPtr and less(*max, MAX_EP(kept)))
+            max = std::addressof(MAX_EP(kept));
+          if (below != nullptr and less(*max, *below))
+            max = below;
+          whole->max.set(*max);
+          below = max;
+        }
+
+      Node *joined = join(t1, t2, &self, whole, nullptr);
+      link_from(up) = joined;
+      LLINK(p) = RLINK(p) = Node::NullPtr;
+    }
+
+    /// Go down to the node of the interval `key` and take it out of the
+    /// tree. It gives the node, or Node::NullPtr if the tree has none.
+    Node * remove(Node *root, const Key & key, Step *up)
     {
       if (root == Node::NullPtr)
         return Node::NullPtr;
 
-      const Key & rk = KEY(root);
-      const IntervalCmp interval_cmp(cmp);
-      Node *ret_val;
-      if (interval_cmp(key, rk))
-        ret_val = remove(LLINK(root), key);
-      else if (interval_cmp(rk, key))
-        ret_val = remove(RLINK(root), key);
-      else
+      const int side = side_of(key, KEY(root), cmp);
+      if (side == 0)
         {
-          ret_val = root;
-          root = join_exclusive(LLINK(root), RLINK(root), cmp);
-          return ret_val;
+          unlink(root, up);
+          return root;
         }
-
-      if (ret_val == Node::NullPtr)
-        return Node::NullPtr;
-
-      update_max(root, cmp);
-      return ret_val;
+      Step step{root, up, side < 0, Pending()};
+      return remove(step.left ? LLINK(root) : RLINK(root), key, &step);
     }
 
     /// Recursive: find all intervals overlapping query
@@ -826,8 +1049,12 @@ namespace Aleph
      *
      *  @param key the interval to search for
      *  @return pointer to the node if found, nullptr otherwise
+     *  @throws what the comparison or its copy throw; nothing when neither
+     *          does.
      */
     const Node * search(const Key & key) const
+      noexcept(std::is_nothrow_copy_constructible_v<Compare> and
+               std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
     {
       Node *ret_val = searchInBinTree(tree_root, key, key_comp());
       return ret_val == Node::NullPtr ? nullptr : ret_val;
@@ -837,16 +1064,24 @@ namespace Aleph
      *
      *  @param p pointer to the node to insert
      *  @return p if inserted, nullptr if duplicate
+     *  @throws what the comparison or the copy of an endpoint throw, with
+     *          the tree as it was and `p` out of it.
+     *  @note The maxima are given at the end, with assignments of
+     *        endpoints that do not throw for most types. They may throw for
+     *        an endpoint whose copy assignment may throw and whose move
+     *        assignment may throw too, or that has none. Then no node has
+     *        moved, and `p` is out of the tree, but the maxima of some nodes may be
+     *        left changed: the queries may miss intervals, and neither an
+     *        insertion nor a removal repairs them. Such a tree must be
+     *        destroyed, or built again from its intervals.
      */
     Node * insert(Node *p)
     {
       assert(p != Node::NullPtr);
       PRIO(p) = r->get();
       p->getMaxEndpoint() = KEY(p).high;
-      Node *result = insert(tree_root, p);
-      if (result == Node::NullPtr)
+      if (insert(tree_root, p, nullptr) == Node::NullPtr)
         return nullptr;
-      tree_root = result;
       ++num_nodes;
       return p;
     }
@@ -855,13 +1090,17 @@ namespace Aleph
      *
      *  @param p pointer to the node to insert
      *  @return the p pointer
+     *  @throws what the comparison or the copy of an endpoint throw, with
+     *          the tree as it was and `p` out of it.
+     *  @note If an assignment of an endpoint throws when the maxima are
+     *        given, the tree is left as insert() says.
      */
     Node * insert_dup(Node *p)
     {
       assert(p != Node::NullPtr);
       PRIO(p) = r->get();
       p->getMaxEndpoint() = KEY(p).high;
-      tree_root = insert_dup(tree_root, p);
+      insert_dup(tree_root, p, nullptr);
       ++num_nodes;
       return p;
     }
@@ -870,13 +1109,22 @@ namespace Aleph
      *
      *  @param key the interval to remove
      *  @return pointer to removed node if found, nullptr otherwise
+     *  @throws what the comparison or the copy of an endpoint throw, with
+     *          the tree as it was.
+     *  @note The maxima are given at the end, with assignments of
+     *        endpoints that do not throw for most types. They may throw for
+     *        an endpoint whose copy assignment may throw and whose move
+     *        assignment may throw too, or that has none. Then no node has
+     *        moved, and the node is still in the tree, but the maxima of some nodes may be
+     *        left changed: the queries may miss intervals, and neither an
+     *        insertion nor a removal repairs them. Such a tree must be
+     *        destroyed, or built again from its intervals.
      */
     Node * remove(const Key & key)
     {
-      Node *ret_val = remove(tree_root, key);
+      Node *ret_val = remove(tree_root, key, nullptr);
       if (ret_val == Node::NullPtr)
         return nullptr;
-      ret_val->reset();
       --num_nodes;
       return ret_val;
     }
@@ -1154,6 +1402,13 @@ namespace Aleph
      *  @return reference to the key stored in the tree.
      *  @throws std::domain_error if iv.low > iv.high (invalid interval) or 
      *          if the interval already exists in the tree.
+     *  @throws what the comparison or the copy of an endpoint throw, and
+     *          std::bad_alloc, with the tree as it was.
+     *  @note If an assignment of an endpoint throws when the maxima are
+     *        given, which only an endpoint whose copy assignment and whose
+     *        move assignment may throw allows, the maxima of some nodes may
+     *        be left changed: see Gen_Interval_Tree::insert(). The tree must then
+     *        be destroyed, or built again from its intervals.
      */
     Key &insert(const Key & iv)
     {
@@ -1174,6 +1429,13 @@ namespace Aleph
      *  @return reference to the key stored in the tree.
      *  @throws std::domain_error if iv.low > iv.high (invalid interval) or 
      *          if the interval already exists in the tree.
+     *  @throws what the comparison or the copy of an endpoint throw, and
+     *          std::bad_alloc, with the tree as it was.
+     *  @note If an assignment of an endpoint throws when the maxima are
+     *        given, which only an endpoint whose copy assignment and whose
+     *        move assignment may throw allows, the maxima of some nodes may
+     *        be left changed: see Gen_Interval_Tree::insert(). The tree must then
+     *        be destroyed, or built again from its intervals.
      */
     Key &insert(Key && iv)
     {
@@ -1213,6 +1475,13 @@ namespace Aleph
      *  @param[in] iv the interval to insert.
      *  @return reference to the stored key.
      *  @throws std::domain_error if iv.low > iv.high.
+     *  @throws what the comparison or the copy of an endpoint throw, and
+     *          std::bad_alloc, with the tree as it was.
+     *  @note If an assignment of an endpoint throws when the maxima are
+     *        given, which only an endpoint whose copy assignment and whose
+     *        move assignment may throw allows, the maxima of some nodes may
+     *        be left changed: see Gen_Interval_Tree::insert(). The tree must then
+     *        be destroyed, or built again from its intervals.
      */
     Key &insert_dup(const Key & iv)
     {
@@ -1240,6 +1509,13 @@ namespace Aleph
      *
      *  @param[in] iv the interval to remove.
      *  @return true if removed, false if not found.
+     *  @throws what the comparison or the copy of an endpoint throw, with
+     *          the tree as it was.
+     *  @note If an assignment of an endpoint throws when the maxima are
+     *        given, which only an endpoint whose copy assignment and whose
+     *        move assignment may throw allows, the maxima of some nodes may
+     *        be left changed: see Gen_Interval_Tree::remove(). The tree must then
+     *        be destroyed, or built again from its intervals.
      */
     bool remove(const Key & iv)
     {
@@ -1265,9 +1541,11 @@ namespace Aleph
      *
      *  @param[in] iv interval to search.
      *  @return pointer to the stored interval if found, nullptr otherwise.
-     *  @throws none
+     *  @throws what the comparison or its copy throw; nothing when neither
+     *          does.
      */
-    const Key * search(const Key & iv) const noexcept
+    const Key * search(const Key & iv) const
+      noexcept(noexcept(std::declval<const Tree &>().search(iv)))
     {
       auto *p = tree.search(iv);
       return p != nullptr ? &KEY(p) : nullptr;
@@ -1496,11 +1774,6 @@ namespace Aleph
        *          128) and the pending nodes cannot be moved to the heap.
        */
       void next_ne() noexcept(noexcept(it.next_ne())) { it.next_ne(); }
-
-      /** @brief Go back to the previous element.
-       *  @throws ah_invalid_argument if already at the beginning.
-       */
-      void prev() { it.prev(); }
 
       /** @brief Reset to the first element in traversal order.
        *  @throws bad_alloc as next_ne() does.
