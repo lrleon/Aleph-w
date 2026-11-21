@@ -284,7 +284,9 @@ public:
    *          at most 256, and an unseen one at most 255 and its eight bits.
    *  @throws std::overflow_error if the frequency or output size would overflow.
    *          The output size can only overflow where size_t has 32 bits: with
-   *          64 bits a BitArray cannot hold that many bits.
+   *          64 bits a BitArray cannot hold that many bits. It stays seven
+   *          bits below the maximum of size_t, so that BitArray::set_size()
+   *          can restore any size that the output had.
    *  @throws std::bad_alloc if BitArray cannot allocate output storage.
    *  @note On an allocation failure the model is unchanged, but output may
    *        contain a partial codeword. Restore its previous size before retrying.
@@ -305,7 +307,7 @@ public:
         node = parent;
       }
     const size_t count = length + (unseen ? 8 : 0);
-    // BitArray rounds its size up by seven when allocating byte storage.
+    // BitArray::set_size() computes its bytes as (size + 7) / 8.
     ah_overflow_error_if(output.size() > std::numeric_limits<size_t>::max() - 7 - count)
       << "Adaptive Huffman output bit count overflow";
     while (length != 0)
@@ -425,6 +427,8 @@ public:
    *  @throws std::domain_error if called, without reset(), after malformed
    *          input or after decode() could not append a decoded byte.
    *  @throws std::overflow_error if the frequency limit has been reached.
+   *  @note O(1) for a bit that does not complete a byte, and O((h + 1) log 256)
+   *        for one that does, which updates the tree, where h is its height.
    */
   bool decode_bit(const unsigned int bit, unsigned char &symbol)
   {
