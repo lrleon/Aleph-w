@@ -45,6 +45,7 @@
 #include <queue>
 #include <random>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -647,6 +648,12 @@ namespace
     }
     bool operator==(const Husk &) const = default;
   };
+
+  // The key of an insertion by move takes its item back by a move
+  // assignment when the comparison throws: the heap promises to be as it
+  // was only if that assignment does not throw, as with these items
+  static_assert(std::is_nothrow_move_assignable_v<Item>);
+  static_assert(std::is_nothrow_move_assignable_v<Husk>);
 
   void PrintTo(const Husk & x, std::ostream *os) { *os << x.pri << "#" << x.id; }
 

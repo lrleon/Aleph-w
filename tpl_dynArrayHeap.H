@@ -278,7 +278,8 @@ namespace Aleph
      *
      *  The key is moved before the comparisons, which thus see it as the
      *  move leaves it when it is an item of this heap. If a comparison
-     *  throws, the key takes its item back, and the heap is as it was.
+     *  throws, the key takes its item back by a move assignment, and the
+     *  heap is as it was.
      *
      *  @param[in,out] key the key, moved from.
      *  @param[in,out] item what was moved from the key.
@@ -287,7 +288,9 @@ namespace Aleph
      *  @param[in] r the index where the item enters.
      *  @return the item, in its place.
      *  @throws what the comparison throws, with the heap and the key as
-     *          they were.
+     *          they were; or, if the move assignment that gives the key its
+     *          item back throws too, what that assignment throws, with the
+     *          item lost, as when a move of the items throws in the sifts.
      */
     [[gnu::always_inline]] inline
     T & enter(T & key, T & item, T & place, const size_t r)
@@ -442,7 +445,10 @@ namespace Aleph
      * @return A modifiable reference to the stored element.
      * @throws what the place of @p key throws, with the heap and @p key as
      *         they were; and what the comparison throws, with the heap as it
-     *         was and @p key too, which takes its item back by a move.
+     *         was and @p key too, which takes its item back by a move
+     *         assignment. If that assignment throws too, what it throws goes
+     *         out instead, and the item of @p key is lost, as when a move of
+     *         the items throws in the sifts.
      * @note @p key may be an item of this heap. The move, which comes before
      *       the comparisons, changes that item where it is, as any change
      *       through a reference to it does, and the heap does not put that
@@ -488,7 +494,8 @@ namespace Aleph
     /** Move overload of insert_direct().
      *
      * @throws what the comparison throws, with the heap as it was and
-     *         @p key too, which takes its item back by a move.
+     *         @p key too, which takes its item back by a move assignment,
+     *         as in insert(T &&).
      * @note @p key may be an item of this heap, as in insert(T &&).
      */
     T &insert_direct(T && key)
