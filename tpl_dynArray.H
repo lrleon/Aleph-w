@@ -48,6 +48,7 @@
 #include <string>
 #include <concepts>
 #include <functional>
+#include <memory>
 #include <type_traits>
 #include <aleph.H>
 #include <ahIterator.H>
@@ -433,18 +434,28 @@ private:
   T default_initial_value = T();
   T *default_initial_value_ptr = &default_initial_value;
 
+  /** @brief Allocate a block filled with the default value.
+
+      The array takes the block, and counts it, once it is whole: if a copy
+      of the default value throws, the block is released, and the array is
+      as it was.
+
+      @param[out] block where the block goes: an entry of a segment, or the
+                  pointer of a caller that then writes that entry.
+      @throw bad_alloc if there is no memory for the block.
+      @throws Any exception from copy-assigning T; nothing is leaked.
+  */
   void allocate_block(T *&block)
   {
     assert(block == nullptr);
 
-    block = new T[block_size];
+    std::unique_ptr<T[]> whole(new T[block_size]);
+    if (default_initial_value_ptr != nullptr)
+      for (T *entry = whole.get(), *end = entry + block_size; entry != end; ++entry)
+        *entry = *default_initial_value_ptr;
+
+    block = whole.release();
     ++num_blocks;
-
-    if (default_initial_value_ptr == nullptr)
-      return;
-
-    for (size_t i = 0; i < block_size; ++i)
-      block[i] = *default_initial_value_ptr;
   }
 
   void release_segment(T **&seg) noexcept
@@ -1807,9 +1818,9 @@ public:
 
     /// Opt-in marker for StlIterator random-access promotion. It is the
     /// iterator's own type on purpose: derived iterators that reuse this
-    /// class as a base (e.g. DynArrayHeap::Iterator, which redefines
-    /// get_pos() with an offset) do NOT inherit the promotion, because their
-    /// own type differs from this marker. This keeps the promotion fail-safe.
+    /// class as a base, and may redefine its positions, do NOT inherit the
+    /// promotion, because their own type differs from this marker. This
+    /// keeps the promotion fail-safe.
     using aleph_random_access_iterator = Iterator;
 
     /// Default constructor creates an "end" iterator
