@@ -45,6 +45,7 @@
 
 #include <memory>
 #include <istream>
+#include <utility>
 #include <tpl_binNodeUtils.H>
 #include <tpl_treap.H>
 #include <tpl_binHeap.H>
@@ -65,6 +66,10 @@ struct Huffman_Node : public BinHeap<size_t>::Node
   BinNode<std::string> *bin_node;
 
   Freq_Node *freq_node;
+
+  /// The node of the symbol that entered the encoder before this one, if
+  /// this is the node of a symbol: the encoder walks them without its map.
+  Huffman_Node *next_symbol = nullptr;
 
 public:
   Huffman_Node() : BinHeap<size_t>::Node(0), bin_node(nullptr), freq_node(nullptr)
@@ -118,6 +123,11 @@ class Huffman_Encoder_Engine
   Symbol_Map symbol_map_;
   Code_Map code_map_;
 
+  // The nodes of the symbols, from the last one that entered, linked by
+  // next_symbol. Undoing a generation and ending one walk them here: a
+  // walk of the map may need memory, for a map that is very deep
+  Huffman_Node *symbols_ = nullptr;
+
   Freq_Node *freq_root_;
 
   std::string end_symbol_;
@@ -162,8 +172,8 @@ class Huffman_Encoder_Engine
   }
 
   // Leaves the encoder as it was before a generation of the tree that did
-  // not end: the heap with the nodes of the symbols alone, which the map of
-  // the symbols has, and nothing of what the generation made
+  // not end: the heap with the nodes of the symbols alone, and nothing of
+  // what the generation made. It allocates nothing
   void undo_generation() noexcept
   {
     while (not heap_.is_empty())
@@ -174,14 +184,24 @@ class Huffman_Encoder_Engine
           free_inner_nodes(node->freq_node);
           delete node;
         }
-    symbol_map_.traverse([this](auto &symbol)
-                         {
-                           Huffman_Node *leaf = symbol.second;
-                           delete leaf->freq_node;
-                           leaf->freq_node = nullptr;
-                           heap_.insert(leaf);  // noexcept: the keys are size_t
-                           return true;
-                         });
+    for (Huffman_Node *leaf = symbols_; leaf != nullptr; leaf = leaf->next_symbol)
+      {
+        delete leaf->freq_node;
+        leaf->freq_node = nullptr;
+        heap_.insert(leaf);  // noexcept: the keys are size_t
+      }
+  }
+
+  // Gives a node its node of frequencies, if it has none: that of a
+  // symbol, with its frequency
+  static void make_freq_node(Huffman_Node *node)
+  {
+    if (node->freq_node != nullptr)
+      return;
+    std::unique_ptr<Freq_Node> freq_node(new Freq_Node);
+    freq_node->get_key().first = node->bin_node->get_key();
+    freq_node->get_key().second = node->get_key();
+    node->freq_node = freq_node.release();
   }
 
   // A step of the algorithm of Huffman: the two nodes of least frequency
@@ -200,27 +220,13 @@ class Huffman_Encoder_Engine
     if (with_freqs)
       try
         {
-          Freq_Node *&l_freq_node = l_huffman_node->freq_node;
-          if (l_freq_node == nullptr)
-            {
-              l_freq_node = new Freq_Node;
-              l_freq_node->get_key().first = l_huffman_node->bin_node->get_key();
-              l_freq_node->get_key().second = l_huffman_node->get_key();
-            }
-
-          Freq_Node *&r_freq_node = r_huffman_node->freq_node;
-          if (r_freq_node == nullptr)
-            {
-              r_freq_node = new Freq_Node;
-              r_freq_node->get_key().first = r_huffman_node->bin_node->get_key();
-              r_freq_node->get_key().second = r_huffman_node->get_key();
-            }
-
+          make_freq_node(l_huffman_node);
+          make_freq_node(r_huffman_node);
           std::unique_ptr<Freq_Node> freq_node(new Freq_Node);
           freq_node->get_key().first = std::to_string(new_freq);
           freq_node->get_key().second = new_freq;
-          LLINK(freq_node.get()) = l_freq_node;
-          RLINK(freq_node.get()) = r_freq_node;
+          LLINK(freq_node.get()) = l_huffman_node->freq_node;
+          RLINK(freq_node.get()) = r_huffman_node->freq_node;
           huffman_node->freq_node = freq_node.release();
         }
       catch (...)
@@ -231,7 +237,7 @@ class Huffman_Encoder_Engine
         }
 
     // Nothing throws from here on. The nodes of the symbols stay until the
-    // tree is whole, because the map of the symbols has them
+    // tree is whole: the encoder goes back to them if the generation fails
     LLINK(bin_node.get()) = l_huffman_node->bin_node;
     RLINK(bin_node.get()) = r_huffman_node->bin_node;
     if (not is_leaf(l_huffman_node->bin_node))
@@ -269,6 +275,8 @@ class Huffman_Encoder_Engine
       }
     Aleph::set_freq(huffman_node, freq);
     heap_.insert(huffman_node);  // noexcept: the keys are size_t
+    huffman_node->next_symbol = symbols_;
+    symbols_ = huffman_node;
     return huffman_node;
   }
 
@@ -394,8 +402,11 @@ public:
       built as well.
 
       @param[in] with_freqs If true, also build the frequency tree.
-      @return The root of the Huffman decoding (prefix) tree, which is of
-      the caller.
+      @return The root of the Huffman decoding (prefix) tree. The
+      destructor of the encoder does not free it: free it with
+      `destroyRec(encoder.get_root())`, which also clears the root that the
+      encoder keeps. load_tree() frees the tree that the encoder still has.
+      With `with_freqs`, the same holds for get_freq_root().
       @throw std::bad_alloc if there is not enough memory. The encoder is
       then as it was, with its symbols and their frequencies.
       @see build_prefix_encoding Huffman_Decoder_Engine
@@ -417,6 +428,8 @@ public:
         // The remaining node has the prefix tree. It stays in the heap, which
         // is who frees it, while the map of the codes is built
         huffman_root = static_cast<Huffman_Node *>(heap_.top());
+        if (with_freqs)
+          make_freq_node(huffman_root);  // it has none if it is a single symbol
         BitArray array(0);
         build_prefix_encoding(huffman_root->bin_node, array, codes);
       }
@@ -433,11 +446,8 @@ public:
       freq_root_ = huffman_root->freq_node;
     if (not is_leaf(root_))
       delete huffman_root;  // the node of a symbol goes with the others
-    symbol_map_.traverse([](auto &symbol)
-                         {
-                           delete symbol.second;
-                           return true;
-                         });
+    while (symbols_ != nullptr)
+      delete std::exchange(symbols_, symbols_->next_symbol);
     symbol_map_.empty();
     code_map_.swap(codes);
 
@@ -578,6 +588,7 @@ private:
         delete node->bin_node;
         delete node;
       }
+    symbols_ = nullptr;
     symbol_map_.empty();
     code_map_.empty();
     text_len_ = 0;

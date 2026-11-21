@@ -105,6 +105,44 @@ TEST(HuffmanStreamAPI, no_eof_off_by_one_on_read_and_encode)
   destroyRec(encoder.get_root());
 }
 
+// load_tree() drops the symbols that the encoder was counting. Once the
+// tree that it loaded is freed, the encoder counts and generates again: it
+// must not keep the nodes of the symbols that it dropped.
+TEST(HuffmanPersistence, an_encoder_that_loaded_a_tree_counts_symbols_again)
+{
+  ostringstream out;
+  {
+    Huffman_Encoder_Engine source;
+    source.set_freq("a", 5);
+    source.set_freq("b", 2);
+    source.generate_huffman_tree();
+    source.save_tree(out);
+    destroyRec(source.get_root());
+  }
+
+  Huffman_Encoder_Engine encoder;
+  encoder.set_freq("x", 3);
+  encoder.set_freq("y", 4);
+  encoder.set_freq("z", 9);
+  istringstream in(out.str());
+  encoder.load_tree(in); // x, y and z are dropped
+  EXPECT_FALSE(is_leaf(encoder.get_root()));
+  destroyRec(encoder.get_root());
+
+  encoder.set_freq("x", 1);
+  encoder.set_freq("w", 6);
+  BinNode<string> *root = encoder.generate_huffman_tree(true);
+  ASSERT_FALSE(is_leaf(root));
+  EXPECT_TRUE(is_leaf(LLINK(root)));
+  EXPECT_TRUE(is_leaf(RLINK(root)));
+  const string left = LLINK(root)->get_key();
+  const string right = RLINK(root)->get_key();
+  EXPECT_TRUE((left == "x" and right == "w") or (left == "w" and right == "x"));
+  EXPECT_EQ(encoder.get_freq_root()->get_key().second, 7u);
+  destroyRec(encoder.get_root());
+  destroyRec(encoder.get_freq_root());
+}
+
 TEST(HuffmanPersistence, save_load_tree_and_encode_roundtrip)
 {
   const string input = "a b\nc\tdd\n";

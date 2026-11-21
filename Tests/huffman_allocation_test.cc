@@ -46,10 +46,12 @@
 
 #include "allocation_failure.H"
 
+#include <algorithm>
 #include <iterator>
 #include <new>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <Huffman.H>
 
@@ -143,6 +145,8 @@ namespace
     {"y", 7}
   };
 
+  using One_More = std::pair<std::string, size_t>;
+
   void fill(Huffman_Encoder_Engine & encoder)
   {
     for (const auto & [symbol, freq] : Symbols)
@@ -150,23 +154,54 @@ namespace
   }
 
   // The bits that the tree of root p takes for the frequencies: the sum of
-  // the frequency of each symbol times the depth of its leaf. `seen` counts
-  // the leaves, each of which must be a symbol of the table or `one_more`
-  size_t cost(BinNode<std::string> *p, const size_t depth, size_t & seen,
-              const std::pair<std::string, size_t> & one_more = {})
+  // the frequency of each symbol times the depth of its leaf. `seen` takes
+  // the symbol of each leaf
+  size_t cost(BinNode<std::string> *p, const size_t depth, std::vector<std::string> & seen,
+              const One_More & one_more = {})
   {
     if (LLINK(p) == nullptr and RLINK(p) == nullptr)
       {
-        ++seen;
+        seen.push_back(p->get_key());
         if (one_more.second != 0 and one_more.first == p->get_key())
           return one_more.second * depth;
         for (const auto & [symbol, freq] : Symbols)
           if (symbol == p->get_key())
             return freq * depth;
-        ADD_FAILURE() << "a leaf that is not a symbol: " << p->get_key();
-        return 0;
+        return 0; // not a symbol: the_symbols_once() says so
       }
     return cost(LLINK(p), depth + 1, seen, one_more) + cost(RLINK(p), depth + 1, seen, one_more);
+  }
+
+  // True if the leaves have each symbol once, and nothing else: a tree
+  // with a symbol twice and without another one of the same frequency
+  // would cost the same
+  testing::AssertionResult the_symbols_once(std::vector<std::string> seen, const One_More & one_more = {})
+  {
+    std::vector<std::string> expected;
+    for (const auto & [symbol, freq] : Symbols)
+      expected.push_back(symbol);
+    if (one_more.second != 0)
+      expected.push_back(one_more.first);
+    std::sort(expected.begin(), expected.end());
+    std::sort(seen.begin(), seen.end());
+    if (seen == expected)
+      return testing::AssertionSuccess();
+    auto failure = testing::AssertionFailure() << seen.size() << " leaves for " << expected.size()
+                                               << " symbols:";
+    for (const auto & symbol : seen)
+      failure << " [" << symbol << "]";
+    return failure;
+  }
+
+  // In a tree of frequencies, each node that is not a leaf has the sum of
+  // those of its two children. It gives the frequency of p
+  size_t frequency(Freq_Node *p)
+  {
+    if (LLINK(p) == nullptr and RLINK(p) == nullptr)
+      return p->get_key().second;
+    const size_t sum = frequency(LLINK(p)) + frequency(RLINK(p));
+    EXPECT_EQ(p->get_key().second, sum) << "at the node " << p->get_key().first;
+    return sum;
   }
 }
 
@@ -178,16 +213,18 @@ namespace
 // has its symbols and their frequencies, and generates the tree again.
 TEST_F(HuffmanWithoutMemory, GenerateLeavesTheEncoderAsItWas)
 {
-  const size_t symbols = std::size(Symbols);
   size_t optimal = 0;
+  size_t total = 0;
+  for (const auto & [symbol, freq] : Symbols)
+    total += freq;
   {
     Huffman_Encoder_Engine encoder;
     fill(encoder);
-    BinNode<std::string> *root = encoder.generate_huffman_tree();
-    size_t seen = 0;
-    optimal = cost(root, 0, seen);
-    EXPECT_EQ(seen, symbols);
-    destroyRec(root);
+    encoder.generate_huffman_tree();
+    std::vector<std::string> seen;
+    optimal = cost(encoder.get_root(), 0, seen);
+    EXPECT_TRUE(the_symbols_once(seen));
+    destroyRec(encoder.get_root()); // the encoder does not free its tree
   }
 
   for (const bool with_freqs : {false, true})
@@ -200,12 +237,11 @@ TEST_F(HuffmanWithoutMemory, GenerateLeavesTheEncoderAsItWas)
           fill(encoder);
 
           bool thrown = false;
-          BinNode<std::string> *root = nullptr;
           {
             Fail_At failing(k);
             try
               {
-                root = encoder.generate_huffman_tree(with_freqs);
+                encoder.generate_huffman_tree(with_freqs);
               }
             catch (const std::bad_alloc &)
               {
@@ -219,18 +255,22 @@ TEST_F(HuffmanWithoutMemory, GenerateLeavesTheEncoderAsItWas)
               // its symbols are there, and their nodes alive
               for (const auto & [symbol, freq] : Symbols)
                 EXPECT_THROW(encoder.set_freq(symbol, freq), std::domain_error);
-              root = encoder.generate_huffman_tree(with_freqs);
+              EXPECT_THROW(encoder.get_root(), std::domain_error);
+              encoder.generate_huffman_tree(with_freqs);
             }
-          size_t seen = 0;
-          EXPECT_EQ(cost(root, 0, seen), optimal);
-          EXPECT_EQ(seen, symbols);
-          destroyRec(root);
+          std::vector<std::string> seen;
+          EXPECT_EQ(cost(encoder.get_root(), 0, seen), optimal);
+          EXPECT_TRUE(the_symbols_once(seen));
+          destroyRec(encoder.get_root());
           if (with_freqs)
-            destroyRec(encoder.get_freq_root());
+            {
+              EXPECT_EQ(frequency(encoder.get_freq_root()), total);
+              destroyRec(encoder.get_freq_root());
+            }
           if (not thrown)
             break;
         }
-      EXPECT_GT(failed, 2 * symbols); // the nodes of each step, and the codes
+      EXPECT_GT(failed, 2 * std::size(Symbols)); // the nodes of each step, and the codes
     }
 }
 
@@ -239,18 +279,18 @@ TEST_F(HuffmanWithoutMemory, GenerateLeavesTheEncoderAsItWas)
 // what the generation joined stays joined
 TEST_F(HuffmanWithoutMemory, AFailedGenerationTakesMoreSymbols)
 {
-  const std::pair<std::string, size_t> one_more = {"one more symbol, longer than a short string", 1};
+  const One_More one_more = {"one more symbol, longer than a short string", 1};
 
   size_t optimal = 0;
   {
     Huffman_Encoder_Engine encoder;
     fill(encoder);
     encoder.set_freq(one_more.first, one_more.second);
-    BinNode<std::string> *root = encoder.generate_huffman_tree();
-    size_t seen = 0;
-    optimal = cost(root, 0, seen, one_more);
-    EXPECT_EQ(seen, std::size(Symbols) + 1);
-    destroyRec(root);
+    encoder.generate_huffman_tree();
+    std::vector<std::string> seen;
+    optimal = cost(encoder.get_root(), 0, seen, one_more);
+    EXPECT_TRUE(the_symbols_once(seen, one_more));
+    destroyRec(encoder.get_root());
   }
 
   size_t failed = 0;
@@ -264,8 +304,7 @@ TEST_F(HuffmanWithoutMemory, AFailedGenerationTakesMoreSymbols)
         Fail_At failing(k);
         try
           {
-            BinNode<std::string> *root = encoder.generate_huffman_tree();
-            destroyRec(root);
+            encoder.generate_huffman_tree();
           }
         catch (const std::bad_alloc &)
           {
@@ -273,64 +312,71 @@ TEST_F(HuffmanWithoutMemory, AFailedGenerationTakesMoreSymbols)
           }
       }
       if (not thrown)
-        break;
+        {
+          destroyRec(encoder.get_root());
+          break;
+        }
       ++failed;
       encoder.set_freq(one_more.first, one_more.second);
-      BinNode<std::string> *root = encoder.generate_huffman_tree();
-      size_t seen = 0;
-      EXPECT_EQ(cost(root, 0, seen, one_more), optimal);
-      EXPECT_EQ(seen, std::size(Symbols) + 1);
-      destroyRec(root);
+      encoder.generate_huffman_tree();
+      std::vector<std::string> seen;
+      EXPECT_EQ(cost(encoder.get_root(), 0, seen, one_more), optimal);
+      EXPECT_TRUE(the_symbols_once(seen, one_more));
+      destroyRec(encoder.get_root());
     }
   EXPECT_GT(failed, 2 * std::size(Symbols));
 }
 
 // The tree of one symbol is its leaf: the node of the symbol is the last
-// one of the heap, and it is freed once
+// one of the heap, and it is freed once. Its tree of frequencies is a leaf
+// too, which the encoder did not make: get_freq_root() threw
 TEST_F(HuffmanWithoutMemory, OneSymbolGeneratesItsLeaf)
 {
   for (const bool with_freqs : {false, true})
-    for (size_t k = 1; ; ++k)
-      {
-        SCOPED_TRACE(testing::Message() << "allocation " << k << ", with_freqs " << with_freqs);
-        Huffman_Encoder_Engine encoder;
-        encoder.set_freq(Symbol, 3);
-        bool thrown = false;
-        BinNode<std::string> *root = nullptr;
+    {
+      size_t failed = 0;
+      for (size_t k = 1; ; ++k)
         {
-          Fail_At failing(k);
-          try
+          SCOPED_TRACE(testing::Message() << "allocation " << k << ", with_freqs " << with_freqs);
+          Huffman_Encoder_Engine encoder;
+          encoder.set_freq(Symbol, 3);
+          bool thrown = false;
+          {
+            Fail_At failing(k);
+            try
+              {
+                encoder.generate_huffman_tree(with_freqs);
+              }
+            catch (const std::bad_alloc &)
+              {
+                thrown = true;
+              }
+          }
+          if (thrown)
             {
-              root = encoder.generate_huffman_tree(with_freqs);
+              ++failed;
+              encoder.generate_huffman_tree(with_freqs);
             }
-          catch (const std::bad_alloc &)
+          BinNode<std::string> *root = encoder.get_root();
+          EXPECT_EQ(leaves(root), 1u);
+          EXPECT_EQ(root->get_key(), Symbol);
+          destroyRec(encoder.get_root());
+          if (with_freqs)
             {
-              thrown = true;
+              Freq_Node *freq_root = encoder.get_freq_root();
+              EXPECT_EQ(LLINK(freq_root), nullptr);
+              EXPECT_EQ(RLINK(freq_root), nullptr);
+              EXPECT_EQ(freq_root->get_key().first, Symbol);
+              EXPECT_EQ(freq_root->get_key().second, 3u);
+              destroyRec(encoder.get_freq_root());
             }
+          else
+            EXPECT_THROW(encoder.get_freq_root(), std::domain_error);
+          if (not thrown)
+            break;
         }
-        if (thrown)
-          root = encoder.generate_huffman_tree(with_freqs);
-        ASSERT_NE(root, nullptr);
-        EXPECT_EQ(leaves(root), 1u);
-        EXPECT_EQ(root->get_key(), Symbol);
-        destroyRec(root);
-        if (not thrown)
-          break;
-      }
-}
-
-namespace
-{
-  // In a tree of frequencies, each node that is not a leaf has the sum of
-  // those of its two children. It gives the frequency of p
-  size_t frequency(Freq_Node *p)
-  {
-    if (LLINK(p) == nullptr and RLINK(p) == nullptr)
-      return p->get_key().second;
-    const size_t sum = frequency(LLINK(p)) + frequency(RLINK(p));
-    EXPECT_EQ(p->get_key().second, sum) << "at the node " << p->get_key().first;
-    return sum;
-  }
+      EXPECT_GT(failed, 0u);
+    }
 }
 
 // A generation that fails leaves no node of frequencies in the symbols:
@@ -341,6 +387,7 @@ TEST_F(HuffmanWithoutMemory, AFailedGenerationKeepsNoFrequencyOfItsOwn)
 {
   const size_t length = std::string(abc_input).size();
   size_t failed = 0;
+  size_t counted_twice = 0;
   for (size_t k = 1; ; ++k)
     {
       SCOPED_TRACE(testing::Message() << "allocation " << k);
@@ -357,18 +404,33 @@ TEST_F(HuffmanWithoutMemory, AFailedGenerationKeepsNoFrequencyOfItsOwn)
             thrown = true;
           }
       }
+      // read_input() sets the end symbol once it has counted its input: a
+      // failure after that is of the generation, and the retry counts the
+      // whole input again
+      const bool counted = thrown and encoder.get_end_of_stream() != "NO-END";
       if (thrown)
         {
           ++failed;
           encoder.read_input(abc_input, true); // it counts on what it had
         }
       const size_t total = frequency(encoder.get_freq_root());
-      EXPECT_GE(total, length);
-      EXPECT_LE(total, 2 * length);
+      if (not thrown)
+        EXPECT_EQ(total, length);
+      else if (counted)
+        {
+          ++counted_twice;
+          EXPECT_EQ(total, 2 * length);
+        }
+      else // it failed while it counted, or when the end symbol entered
+        {
+          EXPECT_GE(total, length);
+          EXPECT_LE(total, 2 * length);
+        }
       destroyRec(encoder.get_root());
       destroyRec(encoder.get_freq_root());
       if (not thrown)
         break;
     }
   EXPECT_GT(failed, 10u);
+  EXPECT_GT(counted_twice, 10u); // failures of the generation itself
 }
