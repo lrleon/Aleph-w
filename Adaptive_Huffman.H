@@ -365,7 +365,7 @@ class Adaptive_Huffman_Decoder
   int current = model.root;              ///< Node reached by the partial codeword.
   unsigned int literal = 0;              ///< Partial, most-significant-bit-first byte.
   unsigned int literal_bits = 0;         ///< Number of literal bits collected.
-  bool failed = false;                   ///< Malformed input requires reset before reuse.
+  bool failed = false;                   ///< Malformed input or a lost output byte requires reset.
 
 public:
   /// @brief Construct a decoder with an empty model and no pending bits.
@@ -422,13 +422,15 @@ public:
    *  @throws std::invalid_argument if NYT introduces a byte already seen,
    *          or is used after all 256 bytes have appeared. Call reset()
    *          on both peers before starting a new message after this error.
-   *  @throws std::domain_error if called after malformed input without reset().
+   *  @throws std::domain_error if called, without reset(), after malformed
+   *          input or after decode() could not append a decoded byte.
    *  @throws std::overflow_error if the frequency limit has been reached.
    */
   bool decode_bit(const unsigned int bit, unsigned char &symbol)
   {
     ah_out_of_range_error_if(bit > 1) << "Adaptive Huffman expects a binary bit";
-    ah_domain_error_if(failed) << "Reset the adaptive Huffman decoder after malformed input";
+    ah_domain_error_if(failed)
+      << "Reset the adaptive Huffman decoder after malformed input or a lost byte";
     model.check_capacity();
 
     unsigned char value;
@@ -475,13 +477,15 @@ public:
    *  @throws std::invalid_argument, std::domain_error or std::overflow_error
    *          under the same conditions as decode_bit(), for a chunk that is
    *          not empty: an empty one consumes nothing and returns zero.
-   *  @throws std::bad_alloc or std::length_error if output cannot grow.
+   *  @throws std::bad_alloc or std::length_error if output cannot grow. The
+   *          decoder has then counted a byte that is not in output, so it is
+   *          left failed: every later call throws std::domain_error until
+   *          reset(). Use decode_bit() to control the allocation of the
+   *          output, or to go on after it fails.
    *  @note On an exception the bytes decoded before it, in the same chunk,
    *        stay in output, and the return value is lost: compare output.size(),
-   *        or symbols_processed(), with their values before the call.
-   *  @note On an output exception the last decoded byte has already been
-   *        consumed. Use decode_bit() when the caller must control output
-   *        allocation or retry delivery. Input and output are caller-owned.
+   *        or symbols_processed(), with their values before the call. Input
+   *        and output are caller-owned.
    *  @note O(b + m (h + 1) log 256) for b input bits that complete m bytes,
    *        apart from output allocation: each bit is a step down the tree, and
    *        each completed byte a tree update, where h is the tree height.
@@ -493,21 +497,31 @@ public:
       {
         unsigned char symbol;
         if (decode_bit(static_cast<unsigned int>(input[i]), symbol))
-          output.push_back(static_cast<char>(symbol));
+          try
+            {
+              output.push_back(static_cast<char>(symbol));
+            }
+          catch (...)
+            {  // The model counted the byte: going on would lose it unseen.
+              failed = true;
+              throw;
+            }
       }
     return output.size() - initial_size;
   }
 
   /** @brief Verify that an externally framed message ended at a byte boundary.
    *  @throws std::invalid_argument if a codeword or NYT literal is incomplete.
-   *  @throws std::domain_error if malformed input previously poisoned the state.
+   *  @throws std::domain_error after malformed input, or after decode() could
+   *          not append a decoded byte, until reset().
    *  @note O(1). Does not reset or seal the decoder; after a truncation error
    *        more bits may be supplied. Empty messages are valid. Byte boundary
    *        here means a decoded symbol boundary, not a multiple of eight bits.
    */
   void finish() const
   {
-    ah_domain_error_if(failed) << "Reset the adaptive Huffman decoder after malformed input";
+    ah_domain_error_if(failed)
+      << "Reset the adaptive Huffman decoder after malformed input or a lost byte";
     ah_invalid_argument_if(has_pending_symbol()) << "Truncated adaptive Huffman codeword";
   }
 };
