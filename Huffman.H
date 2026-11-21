@@ -123,19 +123,19 @@ class Huffman_Encoder_Engine
   std::string end_symbol_;
   size_t text_len_;
 
-  void build_prefix_encoding(BinNode<std::string> *p, BitArray &array)
+  static void build_prefix_encoding(BinNode<std::string> *p, BitArray &array, Code_Map &codes)
   {
     if (is_leaf(p))
       {
         const std::string &str = p->get_key();
-        code_map_.insert(str, BitArray(array));
+        codes.insert(str, BitArray(array));
         return;
       }
     array.push(0);
-    build_prefix_encoding(LLINK(p), array);
+    build_prefix_encoding(LLINK(p), array, codes);
     array.pop();
     array.push(1);
-    build_prefix_encoding(RLINK(p), array);
+    build_prefix_encoding(RLINK(p), array, codes);
     array.pop();
   }
 
@@ -146,7 +146,100 @@ class Huffman_Encoder_Engine
     BitArray array(0);
     code_map_.empty();
     symbol_map_.empty();
-    build_prefix_encoding(root_, array);
+    build_prefix_encoding(root_, array, code_map_);
+  }
+
+  // Frees the nodes of a tree that are not leaves: those that a generation
+  // made. Its leaves are of the nodes of the symbols
+  template <class Node>
+  static void free_inner_nodes(Node *p) noexcept
+  {
+    if (p == nullptr or (LLINK(p) == nullptr and RLINK(p) == nullptr))
+      return;
+    free_inner_nodes(LLINK(p));
+    free_inner_nodes(RLINK(p));
+    delete p;
+  }
+
+  // Leaves the encoder as it was before a generation of the tree that did
+  // not end: the heap with the nodes of the symbols alone, which the map of
+  // the symbols has, and nothing of what the generation made
+  void undo_generation() noexcept
+  {
+    while (not heap_.is_empty())
+      if (auto *node = static_cast<Huffman_Node *>(heap_.getMin_ne());
+          not is_leaf(node->bin_node))
+        {
+          free_inner_nodes(node->bin_node);
+          free_inner_nodes(node->freq_node);
+          delete node;
+        }
+    symbol_map_.traverse([this](auto &symbol)
+                         {
+                           Huffman_Node *leaf = symbol.second;
+                           delete leaf->freq_node;
+                           leaf->freq_node = nullptr;
+                           heap_.insert(leaf);  // noexcept: the keys are size_t
+                           return true;
+                         });
+  }
+
+  // A step of the algorithm of Huffman: the two nodes of least frequency
+  // leave the heap, and a new one enters with their trees below it. Without
+  // memory for it, the heap has the nodes that it had
+  void merge_two_nodes(const bool with_freqs)
+  {
+    // The two nodes of the step are made before the heap changes
+    std::unique_ptr<BinNode<std::string>> bin_node(new BinNode<std::string>);
+    std::unique_ptr<Huffman_Node> huffman_node(new Huffman_Node(bin_node.get()));
+    auto *l_huffman_node = static_cast<Huffman_Node *>(heap_.getMin());  // left
+    auto *r_huffman_node = static_cast<Huffman_Node *>(heap_.getMin());  // right
+    const size_t new_freq = get_freq(l_huffman_node) + get_freq(r_huffman_node);
+    Aleph::set_freq(huffman_node.get(), new_freq);
+
+    if (with_freqs)
+      try
+        {
+          Freq_Node *&l_freq_node = l_huffman_node->freq_node;
+          if (l_freq_node == nullptr)
+            {
+              l_freq_node = new Freq_Node;
+              l_freq_node->get_key().first = l_huffman_node->bin_node->get_key();
+              l_freq_node->get_key().second = l_huffman_node->get_key();
+            }
+
+          Freq_Node *&r_freq_node = r_huffman_node->freq_node;
+          if (r_freq_node == nullptr)
+            {
+              r_freq_node = new Freq_Node;
+              r_freq_node->get_key().first = r_huffman_node->bin_node->get_key();
+              r_freq_node->get_key().second = r_huffman_node->get_key();
+            }
+
+          std::unique_ptr<Freq_Node> freq_node(new Freq_Node);
+          freq_node->get_key().first = std::to_string(new_freq);
+          freq_node->get_key().second = new_freq;
+          LLINK(freq_node.get()) = l_freq_node;
+          RLINK(freq_node.get()) = r_freq_node;
+          huffman_node->freq_node = freq_node.release();
+        }
+      catch (...)
+        {
+          heap_.insert(l_huffman_node);  // noexcept: the keys are size_t
+          heap_.insert(r_huffman_node);
+          throw;
+        }
+
+    // Nothing throws from here on. The nodes of the symbols stay until the
+    // tree is whole, because the map of the symbols has them
+    LLINK(bin_node.get()) = l_huffman_node->bin_node;
+    RLINK(bin_node.get()) = r_huffman_node->bin_node;
+    if (not is_leaf(l_huffman_node->bin_node))
+      delete l_huffman_node;
+    if (not is_leaf(r_huffman_node->bin_node))
+      delete r_huffman_node;
+    bin_node.release();
+    heap_.insert(huffman_node.release());
   }
 
   bool test_end(const std::string &str) const
@@ -301,8 +394,10 @@ public:
       built as well.
 
       @param[in] with_freqs If true, also build the frequency tree.
-      @return The root of the Huffman decoding (prefix) tree.
-      @throw std::bad_alloc if there is not enough memory.
+      @return The root of the Huffman decoding (prefix) tree, which is of
+      the caller.
+      @throw std::bad_alloc if there is not enough memory. The encoder is
+      then as it was, with its symbols and their frequencies.
       @see build_prefix_encoding Huffman_Decoder_Engine
    */
   BinNode<std::string> *generate_huffman_tree(const bool &with_freqs = false)
@@ -312,57 +407,39 @@ public:
 
     freq_root_ = nullptr;
 
-    while (heap_.size() > 1)  // until only one node remains
+    Code_Map codes;
+    Huffman_Node *huffman_root = nullptr;
+    try
       {
-        Huffman_Node *l_huffman_node = (Huffman_Node *) heap_.getMin();  // left
-        Huffman_Node *r_huffman_node = (Huffman_Node *) heap_.getMin();  // right
-        BinNode<std::string> *bin_node = new BinNode<std::string>;
-        Huffman_Node *huffman_node = new Huffman_Node(bin_node);
-        LLINK(bin_node) = l_huffman_node->bin_node;
-        RLINK(bin_node) = r_huffman_node->bin_node;
-        const size_t new_freq = get_freq(l_huffman_node) + get_freq(r_huffman_node);
-        Aleph::set_freq(huffman_node, new_freq);
+        while (heap_.size() > 1)  // until only one node remains
+          merge_two_nodes(with_freqs);
 
-        if (with_freqs)
-          {
-            Freq_Node *&l_freq_node = l_huffman_node->freq_node;
-            if (l_freq_node == nullptr)
-              {
-                l_freq_node = new Freq_Node;
-                l_freq_node->get_key().first = l_huffman_node->bin_node->get_key();
-                l_freq_node->get_key().second = l_huffman_node->get_key();
-              }
+        // The remaining node has the prefix tree. It stays in the heap, which
+        // is who frees it, while the map of the codes is built
+        huffman_root = static_cast<Huffman_Node *>(heap_.top());
+        BitArray array(0);
+        build_prefix_encoding(huffman_root->bin_node, array, codes);
+      }
+    catch (...)
+      {
+        undo_generation();
+        throw;
+      }
 
-            Freq_Node *&r_freq_node = r_huffman_node->freq_node;
-            if (r_freq_node == nullptr)
-              {
-                r_freq_node = new Freq_Node;
-                r_freq_node->get_key().first = r_huffman_node->bin_node->get_key();
-                r_freq_node->get_key().second = r_huffman_node->get_key();
-              }
-
-            const std::string str = std::to_string(new_freq);
-            Freq_Node *&freq_node = huffman_node->freq_node;
-            freq_node = new Freq_Node;
-            freq_node->get_key().first = str;
-            freq_node->get_key().second = huffman_node->get_key();
-            LLINK(freq_node) = l_freq_node;
-            RLINK(freq_node) = r_freq_node;
-          }
-
-        delete l_huffman_node;
-        delete r_huffman_node;
-        heap_.insert(huffman_node);
-      }  // the remaining node in heap is the prefix tree root
-
-    Huffman_Node *huffman_root = (Huffman_Node *) heap_.getMin();
+    // Nothing throws from here on
+    heap_.getMin_ne();
     root_ = huffman_root->bin_node;
-
     if (with_freqs)
       freq_root_ = huffman_root->freq_node;
-
-    delete huffman_root;
-    build_encoding_map();  // build code map
+    if (not is_leaf(root_))
+      delete huffman_root;  // the node of a symbol goes with the others
+    symbol_map_.traverse([](auto &symbol)
+                         {
+                           delete symbol.second;
+                           return true;
+                         });
+    symbol_map_.empty();
+    code_map_.swap(codes);
 
     return root_;
   }
