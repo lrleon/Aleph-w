@@ -5,6 +5,15 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.7.5](https://github.com/lrleon/Aleph-w/compare/v7.7.4...v7.7.5) (2026-11-21)
+
+
+### Bug Fixes
+
+* **array:** Give a DynArray a new block once it is filled with the default value, instead of losing it or keeping it half filled when a copy of that value throws ([#215](https://github.com/lrleon/Aleph-w/issues/215)) ([ead9c71](https://github.com/lrleon/Aleph-w/commit/ead9c7186594f66bb1a6e967563a24a1f2789558))
+* **heap:** Bound the iterator of a DynArrayHeap by its items instead of its array, which showed the entries that reserve() made as items ([#215](https://github.com/lrleon/Aleph-w/issues/215)) ([ead9c71](https://github.com/lrleon/Aleph-w/commit/ead9c7186594f66bb1a6e967563a24a1f2789558))
+* **heap:** Keep a DynArrayHeap as it was when its comparison throws in an insertion or an extraction, or an insertion runs out of memory, instead of leaving it out of order, losing its minimum or counting an item that it did not have ([#215](https://github.com/lrleon/Aleph-w/issues/215)) ([ead9c71](https://github.com/lrleon/Aleph-w/commit/ead9c7186594f66bb1a6e967563a24a1f2789558))
+
 ## [7.7.4](https://github.com/lrleon/Aleph-w/compare/v7.7.3...v7.7.4) (2026-11-20)
 
 
