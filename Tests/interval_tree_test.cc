@@ -38,6 +38,7 @@
 # include <tpl_interval_tree.H>
 # include <random>
 # include <algorithm>
+# include <memory>
 # include <string>
 # include <vector>
 # include <type_traits>
@@ -1027,11 +1028,93 @@ namespace
     }
   };
 
+  // An endpoint with its copy assignment alone, which may throw: an rvalue
+  // of it is assigned by a copy
+  struct Copy_Only
+  {
+    int value = 0;
+
+    Copy_Only() noexcept = default;
+
+    explicit Copy_Only(const int v) noexcept : value(v) {}
+
+    Copy_Only(const Copy_Only & c) : value(c.value) { a_call(); }
+
+    Copy_Only & operator =(const Copy_Only & c)
+    {
+      a_call();
+      value = c.value;
+      return *this;
+    }
+  };
+
+  static_assert(std::is_move_assignable_v<Copy_Only>);
+  static_assert(not std::is_nothrow_move_assignable_v<Copy_Only>);
+
+  // An endpoint whose move assignment is deleted: only an lvalue of it can
+  // be assigned
+  struct No_Move
+  {
+    int value = 0;
+
+    No_Move() noexcept = default;
+
+    explicit No_Move(const int v) noexcept : value(v) {}
+
+    No_Move(const No_Move & n) : value(n.value) { a_call(); }
+
+    No_Move & operator =(const No_Move & n)
+    {
+      a_call();
+      value = n.value;
+      return *this;
+    }
+
+    No_Move & operator =(No_Move &&) = delete;
+  };
+
+  static_assert(std::is_copy_assignable_v<No_Move>);
+  static_assert(not std::is_move_assignable_v<No_Move>);
+
   int value_of(const int v) noexcept { return v; }
 
   int value_of(const Fragile & f) noexcept { return f.value; }
 
   int value_of(const Brittle & b) noexcept { return b.value; }
+
+  int value_of(const Copy_Only & c) noexcept { return c.value; }
+
+  int value_of(const No_Move & n) noexcept { return n.value; }
+
+  // A comparison of any of those endpoints, which does not throw
+  struct Value_Less
+  {
+    template <class Endpoint>
+    bool operator ()(const Endpoint & a, const Endpoint & b) const noexcept
+    {
+      return value_of(a) < value_of(b);
+    }
+  };
+
+  // The result of a comparison that does not throw, whose conversion to
+  // bool is a call, and so may throw
+  struct Touchy_Bool
+  {
+    bool value;
+
+    operator bool() const
+    {
+      a_call();
+      return value;
+    }
+  };
+
+  struct Touchy_Less
+  {
+    Touchy_Bool operator ()(const int & a, const int & b) const noexcept { return {a < b}; }
+  };
+
+  static_assert(StrictWeakOrder<Touchy_Less, int>);
 
   // A node as it is and where it hangs, to tell a tree that is as it was
   template <class Node>
@@ -1271,7 +1354,21 @@ namespace
     using Tree = Interval_Tree<E, Less>;
     using Node = typename Tree::Node;
 
-    Tree tree(seed);
+    // The tree does not free its nodes: this does, also when an assertion
+    // ends the function
+    struct Owner
+    {
+      Tree tree;
+
+      explicit Owner(const unsigned seed) : tree(seed) {}
+
+      ~Owner()
+      {
+        destroyRec(tree.getRoot());
+        tree.reset_num_nodes();
+      }
+    } owner(seed);
+    Tree & tree = owner.tree;
     Old_Tree<Node, Less> old;
     std::mt19937 gen(seed);
     for (int i = 0; i < operations; ++i)
@@ -1285,44 +1382,41 @@ namespace
           {
           case 0:
             {
-              Node *p = new Node(key);
-              Node *q = new Node(key);
-              if (tree.insert(p) == nullptr)
+              std::unique_ptr<Node> p(new Node(key));
+              std::unique_ptr<Node> q(new Node(key));
+              if (tree.insert(p.get()) == nullptr)
                 {
-                  ASSERT_EQ(old.insert(old.root, q), Node::NullPtr);
-                  delete p;
-                  delete q;
-                  break;
+                  ASSERT_EQ(old.insert(old.root, q.get()), Node::NullPtr);
+                  break; // the two that did not enter are freed
                 }
-              PRIO(q) = PRIO(p);
-              Node *root = old.insert(old.root, q);
+              PRIO(q.get()) = PRIO(p.release()); // the tree has p
+              Node *root = old.insert(old.root, q.get());
               ASSERT_NE(root, Node::NullPtr);
               old.root = root;
+              q.release(); // the old tree has q
               break;
             }
           case 1:
             {
-              Node *p = new Node(key);
-              Node *q = new Node(key);
-              tree.insert_dup(p);
-              PRIO(q) = PRIO(p);
-              old.root = old.insert_dup(old.root, q);
+              std::unique_ptr<Node> p(new Node(key));
+              std::unique_ptr<Node> q(new Node(key));
+              tree.insert_dup(p.get());
+              PRIO(q.get()) = PRIO(p.release());
+              old.root = old.insert_dup(old.root, q.release());
               break;
             }
           default:
             {
-              Node *p = tree.remove(key);
-              Node *q = old.remove(old.root, key);
-              ASSERT_EQ(p == nullptr, q == Node::NullPtr);
+              const std::unique_ptr<Node> p(tree.remove(key));
+              Node *taken = old.remove(old.root, key);
+              const std::unique_ptr<Node> q(taken == Node::NullPtr ? nullptr : taken);
+              ASSERT_EQ(p == nullptr, q == nullptr);
               if (p != nullptr) // it goes out as its reset() leaves it
                 {
-                  EXPECT_EQ(LLINK(p), Node::NullPtr);
-                  EXPECT_EQ(RLINK(p), Node::NullPtr);
-                  EXPECT_EQ(value_of(MAX_EP(p)), value_of(KEY(p).high));
+                  EXPECT_EQ(LLINK(p.get()), Node::NullPtr);
+                  EXPECT_EQ(RLINK(p.get()), Node::NullPtr);
+                  EXPECT_EQ(value_of(MAX_EP(p.get())), value_of(KEY(p.get()).high));
                 }
-              delete p;
-              if (q != Node::NullPtr)
-                delete q;
             }
           }
         ASSERT_TRUE(same(tree.getRoot(), old.root))
@@ -1330,8 +1424,6 @@ namespace
       }
     EXPECT_TRUE(tree.verify());
     EXPECT_GT(tree.size(), 0u);
-    destroyRec(tree.getRoot());
-    tree.reset_num_nodes();
   }
 
   // A tree of n intervals with even endpoints, some of them the same and
@@ -1529,6 +1621,127 @@ TEST(IntervalTreeThrowingMove, AFailedMoveLeavesEveryNodeWhereItWas)
 {
   const long operations = every_failed_call_of_every_operation<Brittle, Brittle_Less>(12, false);
   EXPECT_GT(operations, 900);
+}
+
+// The same limit, for an endpoint that has its copy assignment alone, which
+// assigns an rvalue too and may throw; and for one whose move assignment is
+// deleted, which did not compile: the maximum was always given by a move.
+TEST(IntervalTreeThrowingMove, AFailedCopyOfAnEndpointWithoutAMoveLeavesEveryNodeWhereItWas)
+{
+  const long copied = every_failed_call_of_every_operation<Copy_Only, Value_Less>(8, false);
+  EXPECT_GT(copied, 400);
+  const long not_moved = every_failed_call_of_every_operation<No_Move, Value_Less>(8, false);
+  EXPECT_GT(not_moved, 400);
+}
+
+// A comparison may give something that is not a bool, whose conversion to
+// bool may throw: it is a part of the comparison for the tree, which stays
+// as it was, and for what search() and Interval_Less say that they throw.
+TEST(IntervalTreeThrowingCompare, AConversionToBoolThatThrowsIsAComparisonThatThrows)
+{
+  static_assert(not noexcept(std::declval<const Interval_Tree<int, Touchy_Less> &>()
+                               .search(Interval<int>())));
+  static_assert(not noexcept(std::declval<const DynIntervalTree<int, Touchy_Less> &>()
+                               .search(Interval<int>())));
+  static_assert(not noexcept(std::declval<const Interval_Less<int, Touchy_Less> &>()(Interval<int>(),
+                                                                                    Interval<int>())));
+  static_assert(noexcept(std::declval<const Interval_Less<int> &>()(Interval<int>(), Interval<int>())));
+  static_assert(not noexcept(Interval<int>().overlaps(Interval<int>(), Touchy_Less())));
+  static_assert(not noexcept(Interval<int>().contains(0, Touchy_Less())));
+  static_assert(not noexcept(Interval<int>().is_valid(Touchy_Less())));
+
+  const long operations = every_failed_call_of_every_operation<int, Touchy_Less>(8);
+  EXPECT_GT(operations, 400);
+
+  DynIntervalTree<int, Touchy_Less> tree(7);
+  tree.insert(1, 5);
+  ASSERT_NE(tree.search(Interval<int>(1, 5)), nullptr);
+  for (long k = 0; k < 3; ++k) // [1,6] goes through the three comparisons of [1,5]
+    {
+      calls_left = k;
+      EXPECT_THROW((void) tree.search(Interval<int>(1, 6)), Call_Error) << "conversion " << k;
+      calls_left = -1;
+    }
+  EXPECT_EQ(tree.search(Interval<int>(1, 6)), nullptr);
+}
+
+// The constructor of a node from an rvalue, and reset(), copy the high
+// endpoint to the maximum of the node. They were noexcept whatever that copy
+// did: an insertion by move of DynIntervalTree ended the program there.
+TEST(IntervalTreeThrowingCopy, ANodeThatCannotCopyItsEndpointSaysSo)
+{
+  using Node = Interval_Tree<Fragile, Fragile_Less>::Node;
+  using Node_Vtl = Interval_Tree_Vtl<Fragile, Fragile_Less>::Node;
+  static_assert(std::is_nothrow_constructible_v<Interval_Tree<int>::Node, Interval<int> &&>);
+  static_assert(std::is_nothrow_constructible_v<Interval_Tree_Vtl<int>::Node, Interval<int> &&>);
+  static_assert(not std::is_nothrow_constructible_v<Node, Interval<Fragile> &&>);
+  static_assert(not std::is_nothrow_constructible_v<Node_Vtl, Interval<Fragile> &&>);
+  static_assert(noexcept(std::declval<Interval_Tree<int>::Node &>().reset()));
+  static_assert(noexcept(std::declval<Interval_Tree_Vtl<int>::Node &>().reset()));
+  static_assert(not noexcept(std::declval<Node &>().reset()));
+  static_assert(not noexcept(std::declval<Node_Vtl &>().reset()));
+
+  calls_left = 0;
+  EXPECT_THROW(Node(Interval<Fragile>(Fragile(1), Fragile(5))), Call_Error);
+  calls_left = 0;
+  EXPECT_THROW(Node_Vtl(Interval<Fragile>(Fragile(1), Fragile(5))), Call_Error);
+  calls_left = -1;
+
+  // reset() keeps the links of a node whose endpoint it could not copy
+  Node a(Interval<Fragile>(Fragile(1), Fragile(5)));
+  Node b(Interval<Fragile>(Fragile(2), Fragile(9)));
+  LLINK(&a) = &b;
+  MAX_EP(&a) = Fragile(9);
+  calls_left = 0;
+  EXPECT_THROW(a.reset(), Call_Error);
+  calls_left = -1;
+  EXPECT_EQ(LLINK(&a), &b);
+  EXPECT_EQ(MAX_EP(&a).value, 9);
+  a.reset();
+  EXPECT_EQ(LLINK(&a), Node::NullPtr);
+  EXPECT_EQ(MAX_EP(&a).value, 5);
+
+  // The insertion by move of DynIntervalTree, with each copy failing in
+  // turn: that of the node, and those of the maxima that change
+  using Tree = DynIntervalTree<Fragile, Fragile_Less>;
+  const auto listed = [](const Tree & tree)
+  {
+    std::string s;
+    tree.for_each([&s](const Interval<Fragile> & iv)
+                  {
+                    s += "[" + std::to_string(iv.low.value) + "," + std::to_string(iv.high.value) + "]";
+                  });
+    return s;
+  };
+  long failed = 0;
+  for (long k = 0; ; ++k)
+    {
+      Tree tree(7);
+      for (int i = 0; i < 9; ++i)
+        tree.insert_dup(Grove<Fragile, Fragile_Less>::interval(i));
+      const std::string before = listed(tree);
+      bool thrown = false;
+      calls_left = k;
+      try
+        {
+          tree.insert(Interval<Fragile>(Fragile(15), Fragile(999)));
+        }
+      catch (const Call_Error &)
+        {
+          thrown = true;
+        }
+      calls_left = -1;
+      EXPECT_TRUE(tree.verify());
+      if (not thrown)
+        {
+          EXPECT_EQ(tree.size(), 10u);
+          break;
+        }
+      ++failed;
+      EXPECT_EQ(listed(tree), before) << "copy " << k;
+      EXPECT_EQ(tree.size(), 9u);
+    }
+  EXPECT_GT(failed, 2);
 }
 
 // DynIntervalTree frees the node of an insertion that throws: the tree must

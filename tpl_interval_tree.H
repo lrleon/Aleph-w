@@ -139,7 +139,7 @@ namespace Aleph
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool overlaps(const Interval & other,
                                 const Compare & cmp = Compare()) const
-      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
+      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
     {
       // [a,b] overlaps [c,d] iff a <= d and c <= b
       return not cmp(other.high, low) and not cmp(high, other.low);
@@ -155,7 +155,7 @@ namespace Aleph
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool contains(const T & p,
                                 const Compare & cmp = Compare()) const
-      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
+      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
     {
       return not cmp(p, low) and not cmp(high, p);
     }
@@ -168,7 +168,7 @@ namespace Aleph
      */
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool is_valid(const Compare & cmp = Compare()) const
-      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
+      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
     {
       return not cmp(high, low);
     }
@@ -222,7 +222,7 @@ namespace Aleph
      *  @throws none
      */
     bool operator ()(const Interval<T> & a, const Interval<T> & b) const
-      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
+      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
     {
       if (cmp(a.low, b.low))
         return true;
@@ -328,10 +328,12 @@ namespace Aleph
     }
 
     Interval_Tree_Node(Key && k)
-      noexcept(std::is_nothrow_move_constructible_v<Key>)
+      noexcept(std::is_nothrow_move_constructible_v<Key> and
+               std::is_nothrow_default_constructible_v<Data> and
+               std::is_nothrow_copy_assignable_v<Endpoint>)
       : key(std::move(k)), lLink(NullPtr), rLink(NullPtr)
     {
-      this->getMaxEndpoint() = key.high;
+      this->getMaxEndpoint() = std::as_const(key).high;
     }
 
     Interval_Tree_Node(const Interval_Tree_Node & node)
@@ -356,10 +358,15 @@ namespace Aleph
       /* empty */
     }
 
+    /** @brief Leave the node as one that is in no tree: without links, and
+     *         with the high endpoint of its interval as its maximum.
+     *  @throws what the copy assignment of an endpoint throws, with the
+     *          links as they were.
+     */
     void reset() noexcept(std::is_nothrow_copy_assignable_v<Endpoint>)
     {
       Data::reset();
-      this->getMaxEndpoint() = key.high;
+      this->getMaxEndpoint() = std::as_const(key).high;
       rLink = lLink = NullPtr;
     }
 
@@ -421,10 +428,12 @@ namespace Aleph
     }
 
     Interval_Tree_NodeVtl(Key && k)
-      noexcept(std::is_nothrow_move_constructible_v<Key>)
+      noexcept(std::is_nothrow_move_constructible_v<Key> and
+               std::is_nothrow_default_constructible_v<Data> and
+               std::is_nothrow_copy_assignable_v<Endpoint>)
       : key(std::move(k)), lLink(NullPtr), rLink(NullPtr)
     {
-      this->getMaxEndpoint() = key.high;
+      this->getMaxEndpoint() = std::as_const(key).high;
     }
 
     Interval_Tree_NodeVtl(const Interval_Tree_NodeVtl & node)
@@ -452,10 +461,15 @@ namespace Aleph
     /** @brief Virtual destructor. */
     virtual ~Interval_Tree_NodeVtl() = default;
 
+    /** @brief Leave the node as one that is in no tree: without links, and
+     *         with the high endpoint of its interval as its maximum.
+     *  @throws what the copy assignment of an endpoint throws, with the
+     *          links as they were.
+     */
     void reset() noexcept(std::is_nothrow_copy_assignable_v<Endpoint>)
     {
       Data::reset();
-      this->getMaxEndpoint() = key.high;
+      this->getMaxEndpoint() = std::as_const(key).high;
       rLink = lLink = NullPtr;
     }
 
@@ -523,7 +537,10 @@ namespace Aleph
      *         endpoint whose copy assignment may throw.
      *
      *  It keeps a copy of the new maximum, made when it is noted and thus
-     *  before the tree changes, so that giving it is a move.
+     *  before the tree changes. Giving it assigns that copy as an rvalue: a
+     *  move, for an endpoint that has a move assignment, and a copy for one
+     *  that has only its copy assignment. If the move assignment is deleted,
+     *  the copy is assigned as it is.
      *
      *  @tparam T the type of the endpoints.
      */
@@ -541,12 +558,17 @@ namespace Aleph
 
       /** @brief Give the node its new maximum, if it has one.
        *  @param[out] max the maximum of the node.
-       *  @throws what the move assignment of an endpoint throws.
+       *  @throws what the assignment of an endpoint throws: its move
+       *          assignment, or its copy assignment if it has no other.
        */
       void give(T & max) noexcept(std::is_nothrow_move_assignable_v<T>)
       {
-        if (copy.has_value())
+        if (not copy.has_value())
+          return;
+        if constexpr (std::is_move_assignable_v<T>)
           max = std::move(*copy);
+        else
+          max = *copy; // its move assignment is deleted
       }
     };
   }
@@ -1032,7 +1054,7 @@ namespace Aleph
      */
     const Node * search(const Key & key) const
       noexcept(std::is_nothrow_copy_constructible_v<Compare> and
-               std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
+               std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
     {
       Node *ret_val = searchInBinTree(tree_root, key, key_comp());
       return ret_val == Node::NullPtr ? nullptr : ret_val;
@@ -1044,9 +1066,14 @@ namespace Aleph
      *  @return p if inserted, nullptr if duplicate
      *  @throws what the comparison or the copy of an endpoint throw, with
      *          the tree as it was and `p` out of it.
-     *  @note A move assignment of an endpoint that throws, for an endpoint
-     *        whose copy assignment may throw too, leaves `p` out of the
-     *        tree and the maxima of some nodes changed.
+     *  @note The maxima are given at the end, with assignments of
+     *        endpoints that do not throw for most types. They may throw for
+     *        an endpoint whose copy assignment may throw and whose move
+     *        assignment may throw too, or that has none. Then no node has
+     *        moved, and `p` is out of the tree, but the maxima of some nodes may be
+     *        left changed: the queries may miss intervals, and neither an
+     *        insertion nor a removal repairs them. Such a tree must be
+     *        destroyed, or built again from its intervals.
      */
     Node * insert(Node *p)
     {
@@ -1065,8 +1092,8 @@ namespace Aleph
      *  @return the p pointer
      *  @throws what the comparison or the copy of an endpoint throw, with
      *          the tree as it was and `p` out of it.
-     *  @note A move assignment of an endpoint that throws leaves the tree
-     *        as insert() says.
+     *  @note If an assignment of an endpoint throws when the maxima are
+     *        given, the tree is left as insert() says.
      */
     Node * insert_dup(Node *p)
     {
@@ -1084,9 +1111,14 @@ namespace Aleph
      *  @return pointer to removed node if found, nullptr otherwise
      *  @throws what the comparison or the copy of an endpoint throw, with
      *          the tree as it was.
-     *  @note A move assignment of an endpoint that throws, for an endpoint
-     *        whose copy assignment may throw too, leaves the node in the
-     *        tree and the maxima of some nodes changed.
+     *  @note The maxima are given at the end, with assignments of
+     *        endpoints that do not throw for most types. They may throw for
+     *        an endpoint whose copy assignment may throw and whose move
+     *        assignment may throw too, or that has none. Then no node has
+     *        moved, and the node is still in the tree, but the maxima of some nodes may be
+     *        left changed: the queries may miss intervals, and neither an
+     *        insertion nor a removal repairs them. Such a tree must be
+     *        destroyed, or built again from its intervals.
      */
     Node * remove(const Key & key)
     {
@@ -1372,6 +1404,11 @@ namespace Aleph
      *          if the interval already exists in the tree.
      *  @throws what the comparison or the copy of an endpoint throw, and
      *          std::bad_alloc, with the tree as it was.
+     *  @note If an assignment of an endpoint throws when the maxima are
+     *        given, which only an endpoint whose copy assignment and whose
+     *        move assignment may throw allows, the maxima of some nodes may
+     *        be left changed: see Gen_Interval_Tree::insert(). The tree must then
+     *        be destroyed, or built again from its intervals.
      */
     Key &insert(const Key & iv)
     {
@@ -1394,6 +1431,11 @@ namespace Aleph
      *          if the interval already exists in the tree.
      *  @throws what the comparison or the copy of an endpoint throw, and
      *          std::bad_alloc, with the tree as it was.
+     *  @note If an assignment of an endpoint throws when the maxima are
+     *        given, which only an endpoint whose copy assignment and whose
+     *        move assignment may throw allows, the maxima of some nodes may
+     *        be left changed: see Gen_Interval_Tree::insert(). The tree must then
+     *        be destroyed, or built again from its intervals.
      */
     Key &insert(Key && iv)
     {
@@ -1435,6 +1477,11 @@ namespace Aleph
      *  @throws std::domain_error if iv.low > iv.high.
      *  @throws what the comparison or the copy of an endpoint throw, and
      *          std::bad_alloc, with the tree as it was.
+     *  @note If an assignment of an endpoint throws when the maxima are
+     *        given, which only an endpoint whose copy assignment and whose
+     *        move assignment may throw allows, the maxima of some nodes may
+     *        be left changed: see Gen_Interval_Tree::insert(). The tree must then
+     *        be destroyed, or built again from its intervals.
      */
     Key &insert_dup(const Key & iv)
     {
@@ -1464,6 +1511,11 @@ namespace Aleph
      *  @return true if removed, false if not found.
      *  @throws what the comparison or the copy of an endpoint throw, with
      *          the tree as it was.
+     *  @note If an assignment of an endpoint throws when the maxima are
+     *        given, which only an endpoint whose copy assignment and whose
+     *        move assignment may throw allows, the maxima of some nodes may
+     *        be left changed: see Gen_Interval_Tree::remove(). The tree must then
+     *        be destroyed, or built again from its intervals.
      */
     bool remove(const Key & iv)
     {
