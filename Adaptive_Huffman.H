@@ -280,11 +280,16 @@ public:
   /** @brief Append the current code for one byte, then update the tree.
    *  @param symbol Byte to encode, including NUL and values above 127.
    *  @param[out] output Bit array to append to (its existing prefix is kept).
-   *  @return Number of appended bits, between 1 and 264.
+   *  @return Number of appended bits, between 1 and 263: a known byte takes
+   *          at most 256, and an unseen one at most 255 and its eight bits.
    *  @throws std::overflow_error if the frequency or output size would overflow.
+   *          The output size can only overflow where size_t has 32 bits: with
+   *          64 bits a BitArray cannot hold that many bits.
    *  @throws std::bad_alloc if BitArray cannot allocate output storage.
    *  @note On an allocation failure the model is unchanged, but output may
    *        contain a partial codeword. Restore its previous size before retrying.
+   *  @note O((h + 1) log 256), apart from output allocation, where h is the
+   *        tree height: the code is read in O(h) and the update takes the rest.
    */
   size_t encode(const unsigned char symbol, BitArray &output)
   {
@@ -321,6 +326,8 @@ public:
    *  @note Successfully encoded bytes remain committed on an exception;
    *        the failing byte has the exception guarantee of encode(unsigned char,
    *        BitArray &).
+   *  @note O(n (h + 1) log 256) for n input bytes, apart from output
+   *        allocation, where h is the tree height (at most 256).
    */
   size_t encode(const std::string_view input, BitArray &output)
   {
@@ -466,11 +473,18 @@ public:
    *  @param[out] output String to append to, preserving embedded NULs.
    *  @return Number of bytes appended; incomplete codewords remain buffered.
    *  @throws std::invalid_argument, std::domain_error or std::overflow_error
-   *          under the same conditions as decode_bit().
+   *          under the same conditions as decode_bit(), for a chunk that is
+   *          not empty: an empty one consumes nothing and returns zero.
    *  @throws std::bad_alloc or std::length_error if output cannot grow.
+   *  @note On an exception the bytes decoded before it, in the same chunk,
+   *        stay in output, and the return value is lost: compare output.size(),
+   *        or symbols_processed(), with their values before the call.
    *  @note On an output exception the last decoded byte has already been
    *        consumed. Use decode_bit() when the caller must control output
    *        allocation or retry delivery. Input and output are caller-owned.
+   *  @note O(b + m (h + 1) log 256) for b input bits that complete m bytes,
+   *        apart from output allocation: each bit is a step down the tree, and
+   *        each completed byte a tree update, where h is the tree height.
    */
   size_t decode(const BitArray &input, std::string &output)
   {
