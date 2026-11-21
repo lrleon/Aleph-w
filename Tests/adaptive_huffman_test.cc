@@ -1,3 +1,26 @@
+/*
+  Aleph-w: Data structures & Algorithms
+  Copyright (c) 2026 Leandro Rabindranath Leon
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
 /** @file adaptive_huffman_test.cc
  *  @brief Adaptive Huffman wire-format, streaming and tree-invariant tests.
  */
@@ -53,6 +76,10 @@ namespace
   }
 
   /** @brief Check exact counts, topology and Gallager's sibling property.
+   *
+   *  Every check is fatal: the callers stop at the first one that fails, with
+   *  ASSERT_NO_FATAL_FAILURE, so that a broken tree is reported once and is
+   *  not walked further (a cycle of parents would never end).
    *  @param model Adaptive tree after a complete update.
    *  @param counts Independently accumulated byte frequencies.
    */
@@ -64,7 +91,7 @@ namespace
       {
         total += counts[symbol];
         if (counts[symbol] == 0)
-          EXPECT_EQ(model.leaves[symbol], -1);
+          ASSERT_EQ(model.leaves[symbol], -1);
         else
           {
             ++distinct;
@@ -72,19 +99,19 @@ namespace
             ASSERT_GE(leaf, 0);
             ASSERT_LT(leaf, model.used);
             ASSERT_TRUE(model.nodes[leaf].is_leaf());
-            EXPECT_EQ(model.nodes[leaf].symbol, symbol);
-            EXPECT_EQ(model.nodes[leaf].weight, counts[symbol]);
+            ASSERT_EQ(model.nodes[leaf].symbol, symbol);
+            ASSERT_EQ(model.nodes[leaf].weight, counts[symbol]);
           }
       }
-    EXPECT_EQ(model.distinct, distinct);
+    ASSERT_EQ(model.distinct, distinct);
     ASSERT_EQ(model.used, 2 * distinct + 1);
-    EXPECT_EQ(model.nodes[Model::root].parent, -1);
-    EXPECT_EQ(model.nodes[Model::root].weight, total);
-    EXPECT_EQ(model.nodes[Model::root].order, Model::max_nodes - 1);
+    ASSERT_EQ(model.nodes[Model::root].parent, -1);
+    ASSERT_EQ(model.nodes[Model::root].weight, total);
+    ASSERT_EQ(model.nodes[Model::root].order, Model::max_nodes - 1);
     ASSERT_GE(model.nyt, 0);
     ASSERT_LT(model.nyt, model.used);
-    EXPECT_TRUE(model.nodes[model.nyt].is_leaf());
-    EXPECT_EQ(model.nodes[model.nyt].weight, 0u);
+    ASSERT_TRUE(model.nodes[model.nyt].is_leaf());
+    ASSERT_EQ(model.nodes[model.nyt].weight, 0u);
 
     const int first = Model::max_nodes - model.used;
     for (int order = first; order < Model::max_nodes; ++order)
@@ -93,16 +120,16 @@ namespace
         ASSERT_GE(id, 0);
         ASSERT_LT(id, model.used);
         const auto &node = model.nodes[id];
-        EXPECT_EQ(node.order, order);
+        ASSERT_EQ(node.order, order);
         if (order != first)
-          EXPECT_LE(model.nodes[model.by_order[order - 1]].weight, node.weight);
+          ASSERT_LE(model.nodes[model.by_order[order - 1]].weight, node.weight);
         if (id != Model::root)
           {
             ASSERT_GE(node.parent, 0);
             ASSERT_LT(node.parent, model.used);
             const auto &parent = model.nodes[node.parent];
-            EXPECT_GT(parent.order, order); // Also excludes cycles.
-            EXPECT_TRUE(parent.left == id or parent.right == id);
+            ASSERT_GT(parent.order, order); // Also excludes cycles.
+            ASSERT_TRUE(parent.left == id or parent.right == id);
           }
         if (not node.is_leaf())
           {
@@ -112,15 +139,15 @@ namespace
             ASSERT_LT(node.right, model.used);
             const auto &left = model.nodes[node.left];
             const auto &right = model.nodes[node.right];
-            EXPECT_EQ(left.parent, id);
-            EXPECT_EQ(right.parent, id);
-            EXPECT_EQ(left.order + 1, right.order);
-            EXPECT_EQ(left.order % 2, 0);
-            EXPECT_EQ(node.weight, left.weight + right.weight);
+            ASSERT_EQ(left.parent, id);
+            ASSERT_EQ(right.parent, id);
+            ASSERT_EQ(left.order + 1, right.order);
+            ASSERT_EQ(left.order % 2, 0);
+            ASSERT_EQ(node.weight, left.weight + right.weight);
           }
       }
     for (int order = first; order + 1 < Model::max_nodes; order += 2)
-      EXPECT_EQ(model.nodes[model.by_order[order]].parent,
+      ASSERT_EQ(model.nodes[model.by_order[order]].parent,
                 model.nodes[model.by_order[order + 1]].parent);
   }
 
@@ -414,6 +441,98 @@ namespace
     EXPECT_THROW(decoder.decode(bit_literal(path), output), std::invalid_argument);
     EXPECT_EQ(output.size(), 256u);
     EXPECT_EQ(decoder.symbols_processed(), 256u);
+
+    // The decoder asks for a reset, as after the escape of a known byte; a
+    // bit that is not binary is refused first, as on any decoder
+    unsigned char byte = 99;
+    EXPECT_THROW(decoder.decode_bit(0, byte), std::domain_error);
+    EXPECT_THROW(decoder.decode_bit(1, byte), std::domain_error);
+    EXPECT_THROW(decoder.decode_bit(2, byte), std::out_of_range);
+    EXPECT_THROW(decoder.finish(), std::domain_error);
+    EXPECT_EQ(byte, 99);
+    decoder.reset();
+    EXPECT_NO_THROW(decoder.finish());
+  }
+
+  // decode() keeps in the output the bytes that it decoded before the bad
+  // codeword of the same chunk, and the decoder counts exactly those
+  TEST(AdaptiveHuffman, MalformedChunkKeepsTheBytesBeforeTheBadCodeword)
+  {
+    Adaptive_Huffman_Encoder encoder;
+    BitArray chunk;
+    encoder.encode("AB", chunk);
+    for (const char c : std::string("00" "01000001")) // the NYT path, then A again
+      chunk.push(c == '1');
+    Adaptive_Huffman_Decoder decoder;
+    std::string output = "kept:";
+    EXPECT_THROW(decoder.decode(chunk, output), std::invalid_argument);
+    EXPECT_EQ(output, "kept:AB");
+    EXPECT_EQ(decoder.symbols_processed(), 2u);
+    EXPECT_THROW(decoder.finish(), std::domain_error);
+    EXPECT_EQ(decoder.decode(BitArray(), output), 0u); // an empty chunk consumes nothing
+  }
+
+  // encode(byte) returns the bits that it appended: for a known byte, and for
+  // an unseen one behind an NYT path that is not empty
+  TEST(AdaptiveHuffman, EncodeByteReturnsTheBitsItAppended)
+  {
+    Adaptive_Huffman_Encoder encoder;
+    BitArray bits = bit_literal("101");
+    size_t known = 0;
+    size_t unseen_deep = 0;
+    for (const unsigned char byte : std::string_view("abracadabra: every byte reports its own bits"))
+      {
+        const bool first = encoder.frequency(byte) == 0;
+        const size_t before = bits.size();
+        const size_t returned = encoder.encode(byte, bits);
+        EXPECT_EQ(returned, bits.size() - before);
+        if (first)
+          {
+            EXPECT_GE(returned, 8u);
+            unseen_deep += returned > 8;
+          }
+        else
+          {
+            EXPECT_GE(returned, 1u);
+            ++known;
+          }
+      }
+    EXPECT_GT(known, 0u); // both kinds were exercised
+    EXPECT_GT(unseen_deep, 0u);
+  }
+
+  // With Fibonacci counts the tree is a chain, and its codewords are as long
+  // as the number of distinct bytes: 17,710 bytes of 20 values give 20 bits.
+  // No other test goes deeper than 11 levels
+  TEST(AdaptiveHuffman, FibonacciFrequenciesGiveCodewordsAsDeepAsTheAlphabet)
+  {
+    constexpr int distinct = 20;
+    std::string input;
+    std::uint64_t a = 1;
+    std::uint64_t b = 1;
+    for (int symbol = 0; symbol < distinct; ++symbol)
+      {
+        input.append(a, static_cast<char>(200 + symbol));
+        const auto next = a + b;
+        a = b;
+        b = next;
+      }
+    Adaptive_Huffman_Encoder encoder;
+    BitArray bits;
+    encoder.encode(input, bits);
+    size_t longest = 0;
+    for (int symbol = 0; symbol < distinct; ++symbol)
+      {
+        auto probe = encoder; // the code of a known byte, without changing the encoder
+        BitArray code;
+        longest = std::max(longest, probe.encode(static_cast<unsigned char>(200 + symbol), code));
+      }
+    EXPECT_EQ(longest, static_cast<size_t>(distinct));
+    Adaptive_Huffman_Decoder decoder;
+    std::string output;
+    EXPECT_EQ(decoder.decode(bits, output), input.size());
+    EXPECT_NO_THROW(decoder.finish());
+    EXPECT_EQ(output, input);
   }
 
   TEST(AdaptiveHuffman, ResetRestoresInitialWireFormatAndPendingState)
@@ -543,14 +662,15 @@ namespace
   TEST(AdaptiveHuffmanTree, CounterLimitDoesNotWrapAndResetRecovers)
   {
     Model model;
-    model.update('A');
+    constexpr unsigned char a = 'A';
+    model.update(a);
     constexpr auto limit = std::numeric_limits<std::uint64_t>::max();
-    model.nodes[model.leaves['A']].weight = limit - 1;
+    model.nodes[model.leaves[a]].weight = limit - 1;
     model.nodes[Model::root].weight = limit - 1;
     ASSERT_NO_THROW(model.check_capacity());
-    model.update('A');
+    model.update(a);
     EXPECT_EQ(model.nodes[Model::root].weight, limit);
-    EXPECT_EQ(model.nodes[model.leaves['A']].weight, limit);
+    EXPECT_EQ(model.nodes[model.leaves[a]].weight, limit);
     EXPECT_THROW(model.check_capacity(), std::overflow_error);
     model.reset();
     EXPECT_NO_THROW(model.check_capacity());
