@@ -39,6 +39,22 @@
 
 #include <bitArray.H>
 
+// Under ASan, the bytes that the program has allocated can be read: a test
+// checks with them that a move allocates nothing. DynArray takes its
+// directory from malloc(), which the operator new of a test cannot count
+#if defined(__SANITIZE_ADDRESS__)
+#  define BITARRAY_TEST_READS_ALLOCATED_BYTES 1
+#elif defined(__has_feature)
+#  if __has_feature(address_sanitizer)
+#    define BITARRAY_TEST_READS_ALLOCATED_BYTES 1
+#  endif
+#endif
+#ifdef BITARRAY_TEST_READS_ALLOCATED_BYTES
+#  include <cstddef>
+// Of the runtime of ASan. GCC does not ship <sanitizer/allocator_interface.h>
+extern "C" size_t __sanitizer_get_current_allocated_bytes();
+#endif
+
 #include <cstdint>
 #include <limits>
 #include <random>
@@ -664,6 +680,56 @@ TEST(BitArrayCopyMove, move_constructor_and_assignment)
   c = std::move(b);
   EXPECT_EQ(c.get_bit_str(), original);
   EXPECT_EQ(b.size(), 0u); // b should be empty after move
+}
+
+// The move constructor built an empty array first, whose directory is an
+// allocation, inside a constructor that is noexcept: without memory for it,
+// the program ended. It takes the bytes of its source, which is left
+// without them and takes bits again.
+TEST(BitArrayCopyMove, move_constructor_leaves_a_source_that_takes_bits_again)
+{
+  static_assert(std::is_nothrow_move_constructible_v<BitArray>);
+
+  for (const size_t n : {0u, 1u, 8u, 9u, 100u, 40000u})
+    {
+      BitArray a;
+      for (size_t i = 0; i < n; ++i)
+        a.push(i % 3 == 0);
+      const string original = a.get_bit_str();
+
+#ifdef BITARRAY_TEST_READS_ALLOCATED_BYTES
+      const size_t allocated = __sanitizer_get_current_allocated_bytes();
+#endif
+      BitArray b(std::move(a));
+#ifdef BITARRAY_TEST_READS_ALLOCATED_BYTES
+      EXPECT_EQ(__sanitizer_get_current_allocated_bytes(), allocated) << "the move allocated";
+#endif
+      EXPECT_EQ(b.size(), n);
+      EXPECT_EQ(b.get_bit_str(), original);
+      EXPECT_EQ(a.size(), 0u);
+      EXPECT_EQ(a.get_bit_str(), "");
+      EXPECT_THROW(a.read_bit(0), std::out_of_range);
+
+      // the source is an empty array, which grows, is copied and is moved
+      a.push(1);
+      a.push(0);
+      a.push(1);
+      EXPECT_EQ(a.get_bit_str(), "101");
+      const BitArray c(a);
+      EXPECT_EQ(c.get_bit_str(), "101");
+      a.pop();
+      EXPECT_EQ(a.get_bit_str(), "10");
+      a.reserve(64); // which sets its size
+      EXPECT_EQ(a.size(), 64u);
+      EXPECT_EQ(a.read_bit(0), 1);
+      EXPECT_EQ(a.read_bit(63), 0);
+      EXPECT_EQ(b.get_bit_str(), original); // and what it gave is untouched
+
+      BitArray d(std::move(b));
+      BitArray e(std::move(b)); // from a source already moved from
+      EXPECT_EQ(d.get_bit_str(), original);
+      EXPECT_EQ(e.size(), 0u);
+    }
 }
 
 TEST(BitArrayCopyMove, swap)

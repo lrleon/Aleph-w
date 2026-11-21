@@ -37,6 +37,7 @@
 #include "moved_from.H"
 
 #include <DP_Optimizations.H>
+#include <bitArray.H>
 #include <compact-cuckoo-filter.H>
 #include <compact-quotient-filter.H>
 #include <count-min-sketch.H>
@@ -469,6 +470,30 @@ template <> struct Moved_From_Case<Quotient_Filter<int>>
 template <> struct Moved_From_Case<Compact_Quotient_Filter<int>>
   : Quotient_Filter_Case<Compact_Quotient_Filter<int>> {};
 
+template <> struct Moved_From_Case<BitArray>
+{
+  static BitArray make(const size_t n)
+  {
+    BitArray a;
+    for (size_t i = 0; i < n; ++i)
+      a.push((i * 37 + 11) % 3 == 0);
+    return a;
+  }
+  static bool is_empty(const BitArray & a) { return a.size() == 0; }
+  static void use(BitArray & a)
+  {
+    const size_t n = a.size();
+    a.push(1);
+    a.push(0);
+    EXPECT_EQ(a.size(), n + 2);
+    EXPECT_EQ(a.read_bit(n), 1);
+    EXPECT_EQ(a.read_bit(n + 1), 0);
+    a.pop();
+    EXPECT_EQ(a.size(), n + 1);
+    EXPECT_EQ(a.get_bit_str().size(), n + 1);
+  }
+};
+
 template <> struct Moved_From_Case<DynArrayHeap<int>>
 {
   static DynArrayHeap<int> make(const size_t n)
@@ -806,7 +831,7 @@ using Structures = ::testing::Types<HyperLogLog<int>, Count_Min_Sketch<int>, Min
                                     Euler_Tour_LCA<int>, Cartesian_Tree_RMQ<int>,
                                     Cuckoo_Filter<int>, Compact_Cuckoo_Filter<int>,
                                     Quotient_Filter<int>, Compact_Quotient_Filter<int>,
-                                    DynArrayHeap<int>, B_Tree<int>, BPlus_Tree<int>,
+                                    BitArray, DynArrayHeap<int>, B_Tree<int>, BPlus_Tree<int>,
                                     PersistentVector<int>, PersistentHashMap<int, int>,
                                     DynSkipList<int>, Rand_Tree<int>, Random_Set<int>,
                                     Pointer_Table, Li_Chao_Tree<long>,

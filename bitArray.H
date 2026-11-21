@@ -500,10 +500,18 @@ namespace Aleph
       array_of_bytes.swap(array.array_of_bytes);
     }
 
+    /** Move constructor; it allocates nothing.
+
+        It takes the bytes of `array`. It does not build an empty array
+        first, which allocates a directory: without memory for it, a
+        constructor that is `noexcept` would end the program.
+
+        @param[in,out] array the source, left empty and reusable.
+    */
     BitArray(BitArray && array) noexcept
-      : BitArray()
+      : current_size(array.current_size), array_of_bytes(std::move(array.array_of_bytes))
     {
-      swap(array);
+      array.current_size = 0;
     }
 
     BitArray &operator=(BitArray && array) noexcept
