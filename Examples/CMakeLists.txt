@@ -54,12 +54,22 @@ if(BUILD_TESTS)
         add_test(NAME AdaptiveHuffmanExample.VisualGallery
                  COMMAND $<TARGET_FILE:adaptive_huffman_visual_example>
                          ${CMAKE_CURRENT_BINARY_DIR}/adaptive_huffman_gallery.html)
+        # These two read the page that the example writes: the empty message
+        # must give its initial frame alone, and markup characters must stay text
+        set(_VERIFY_ADAPTIVE_HUFFMAN_GALLERY
+            ${CMAKE_CURRENT_SOURCE_DIR}/verify_adaptive_huffman_gallery.cmake)
         add_test(NAME AdaptiveHuffmanExample.EmptyGallery
-                 COMMAND $<TARGET_FILE:adaptive_huffman_visual_example>
-                         ${CMAKE_CURRENT_BINARY_DIR}/adaptive_huffman_empty.html "")
+                 COMMAND ${CMAKE_COMMAND}
+                         -DEXAMPLE_PATH=$<TARGET_FILE:adaptive_huffman_visual_example>
+                         -DOUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/adaptive_huffman_empty.html
+                         -DMODE=empty
+                         -P ${_VERIFY_ADAPTIVE_HUFFMAN_GALLERY})
         add_test(NAME AdaptiveHuffmanExample.EscapedGallery
-                 COMMAND $<TARGET_FILE:adaptive_huffman_visual_example>
-                         ${CMAKE_CURRENT_BINARY_DIR}/adaptive_huffman_escaped.html "<A&\"'B>")
+                 COMMAND ${CMAKE_COMMAND}
+                         -DEXAMPLE_PATH=$<TARGET_FILE:adaptive_huffman_visual_example>
+                         -DOUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/adaptive_huffman_escaped.html
+                         -DMODE=escaped
+                         -P ${_VERIFY_ADAPTIVE_HUFFMAN_GALLERY})
     endif()
 
     set(_VERIFY_REFERENCE_EXAMPLE

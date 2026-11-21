@@ -1,3 +1,26 @@
+/*
+  Aleph-w: Data structures & Algorithms
+  Copyright (c) 2026 Leandro Rabindranath Leon
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
 /** @file adaptive_huffman_visual_example.cc
  *  @brief Generate an offline, interactive gallery of real FGK tree states.
  *
@@ -52,6 +75,22 @@ namespace
     return result;
   }
 
+  /** @brief Label a message for the selector, with printable text alone.
+   *  @param text Message bytes.
+   *  @return The printable ASCII bytes as they are, and each other byte as its
+   *          byte_label() between brackets, so that the page stays valid UTF-8.
+   */
+  std::string message_label(const std::string_view text)
+  {
+    std::string result;
+    for (const unsigned char byte : text)
+      if (byte >= 32 and byte <= 126)
+        result += static_cast<char>(byte);
+      else
+        result += '[' + byte_label(byte) + ']';
+    return result;
+  }
+
   /** @brief Draw an exact tree snapshot, highlighting the latest byte's new path.
    *  @param out Destination HTML stream.
    *  @param tree Tree after the update.
@@ -67,8 +106,8 @@ namespace
       if (node.symbol == current)
         current_code = node.code;
     out << "<svg class='tree' role='img' aria-label='Huffman tree after the update' "
-        << "viewBox='0 0 " << width << ' ' << height << "' style='min-width:"
-        << std::min(width, 660.0) << "px'><title>Current adaptive Huffman tree</title>"
+        << "viewBox='0 0 " << width << ' ' << height << "' style='min-width:" << width
+        << "px'><title>Current adaptive Huffman tree</title>"
         << "<desc>Left edges are zero, right edges are one. Node weights are frequencies. "
         << "NYT represents unseen bytes. The last byte's new path is highlighted.</desc>"
         << "<g transform='translate(" << (width - actual_width) / 2 << ",0)'>";
@@ -248,7 +287,7 @@ namespace
 )HTML";
     for (size_t i = 0; i < messages.size(); ++i)
       out << "<option value='" << i << "'>"
-          << (messages[i].empty() ? "Empty message" : escape(messages[i])) << "</option>";
+          << (messages[i].empty() ? "Empty message" : escape(message_label(messages[i]))) << "</option>";
     out << R"HTML(</select><div class="transport"><button id="previous" type="button" aria-label="Previous byte">Previous</button><button id="play" type="button" aria-pressed="false">Play</button><button id="next" type="button" aria-label="Next byte">Next</button></div></div>
 <div class="slider-row"><label for="step">Processed bytes</label><input id="step" type="range" min="0" value="0" max="0"><output id="position" for="step" aria-live="polite"></output></div>
 )HTML";

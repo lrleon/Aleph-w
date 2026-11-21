@@ -1,3 +1,26 @@
+/*
+  Aleph-w: Data structures & Algorithms
+  Copyright (c) 2026 Leandro Rabindranath Leon
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
 /** @file adaptive_huffman_demo_support.H
  *  @brief Shared, public-API-only traces for the adaptive Huffman examples.
  *
@@ -17,6 +40,7 @@
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace adaptive_huffman_demo
 {
@@ -211,7 +235,7 @@ namespace adaptive_huffman_demo
     Aleph::Adaptive_Huffman_Decoder decoder;
     Frame initial;
     initial.tree = snapshot(encoder);
-    frames.append(initial);
+    frames.append(std::move(initial));
     size_t total = 0;
     for (const unsigned char byte : input)
       {
@@ -237,7 +261,7 @@ namespace adaptive_huffman_demo
         ah_logic_error_if(decoded != byte) << "Online Huffman round trip failed";
         frame.total_bits = total;
         frame.tree = snapshot(encoder);
-        frames.append(frame);
+        frames.append(std::move(frame));
       }
     return frames;
   }
