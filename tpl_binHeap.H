@@ -309,9 +309,12 @@ namespace Aleph
     Compare cmp;
 
     // The operations that compare keys throw only if the comparison does,
-    // or the conversion of its result to bool
+    // or the conversion of its result to bool: the one that a condition
+    // makes, which for a result of a class type may be another function
+    // than that of an implicit conversion
     static constexpr bool nothrow_cmp =
-      std::is_nothrow_invocable_r_v<bool, Compare &, Key &, Key &>;
+      noexcept(static_cast<bool>(std::declval<Compare &>()(std::declval<Key &>(),
+                                                           std::declval<Key &>())));
 
   public:
     using Node = NodeType<Key>;
@@ -546,19 +549,15 @@ namespace Aleph
         swap_with_parent(p);
     }
 
-    /// Takes back down the node p, which went up, until it is the node
-    /// under the node pp again, or the last one if pp is null. The nodes
-    /// that p passed are those of the way from its place up to it: p goes
-    /// down by its child on that way
-    void back_down(Node *p, Node *pp) noexcept
+    /// Takes back down the node p, which went up, to the place of the node
+    /// c, which is below it. The nodes that p passed are those of the way
+    /// from c up to p: p exchanges with each one of them, from the top, so
+    /// it goes over the way once
+    void back_down(Node *p, Node *c) noexcept
     {
-      while (pp != nullptr ? ULINK(p) != pp : p != last)
-        {
-          Node *c = pp != nullptr ? pp : last;
-          while (ULINK(c) != p)
-            c = ULINK(c);
-          swap_with_parent(c);
-        }
+      if (Node *over = ULINK(c); over != p)
+        back_down(p, over); // first to the place over that of c
+      swap_with_parent(c);
     }
 
     /// Undoes what sift_down(p) and sift_up(p) did before the comparison
@@ -572,14 +571,15 @@ namespace Aleph
       if (q == pp)
         back_up(p, pp);
       else
-        back_down(p, pp);
+        back_down(p, pp); // pp is at the place of p, which went up
     }
 
     /// Undoes an insertion whose sift_up(p) threw: takes p back down to the
     /// last place, where it was linked, and unlinks it
     [[gnu::cold, gnu::noinline]] void undo_insert(Node *p) noexcept
     {
-      back_down(p, nullptr);
+      if (p != last)
+        back_down(p, last);
       remove_last();
     }
 

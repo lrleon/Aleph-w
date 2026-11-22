@@ -298,8 +298,8 @@ TEST(BinHeapComparison, RemoveAllAndDeleteDoesNotCompare)
 }
 
 // A remove() that threw took the node out of the heap, which could be left
-// out of order. Now it compares before it unlinks, so the node stays in the
-// heap, which is as it was.
+// out of order. Now it puts the node back at its place, and the last node
+// at the end, so the node stays in the heap, which is as it was.
 TEST(BinHeapComparison, RemoveLeavesTheNodeInTheHeapIfTheComparisonThrows)
 {
   const std::vector<int> values = {7, 3, 11, 0, 5, 9, 1, 8, 4, 6};
@@ -633,14 +633,29 @@ namespace
           err << "an empty heap has a root; ";
         return err.str();
       }
+    if (root == nullptr)
+      {
+        err << "a heap of " << n << " nodes has no root; ";
+        return err.str();
+      }
     at[0] = parent_of(root);
     at[1] = root;
     for (size_t i = 1; i <= n; ++i)
       {
+        if (at[i] == nullptr)
+          { // nothing below it can be looked at
+            err << "no node at the place " << i << "; ";
+            return err.str();
+          }
         if (2*i <= n)
           at[2*i] = at[i]->getL();
         if (2*i + 1 <= n)
           at[2*i + 1] = at[i]->getR();
+      }
+    if (at[0] == nullptr)
+      {
+        err << "the root has no header node; ";
+        return err.str();
       }
     std::vector<Node *> sorted(at.begin() + 1, at.end());
     std::sort(sorted.begin(), sorted.end());
@@ -669,14 +684,37 @@ namespace
     return err.str();
   }
 
-  // The nodes of a heap by their places, after checking its representation
+  // The nodes of a heap by their places, after checking its representation.
+  // A heap that does not have it ends the test, with an exception that no
+  // test expects: what follows would use places that are not what they say
   template <class Heap>
   std::vector<typename Heap::Node *> places(const Heap & heap)
   {
     std::vector<typename Heap::Node *> at;
-    EXPECT_EQ(shape_errors(heap, at), "") << heap.size() << " nodes";
+    const std::string err = shape_errors(heap, at);
+    if (not err.empty())
+      {
+        ADD_FAILURE() << heap.size() << " nodes: " << err;
+        throw std::logic_error("the heap does not have its shape");
+      }
     return at;
   }
+
+  // Frees the nodes that are in a heap when the test leaves it, by a fatal
+  // failure too. A heap that does not have its shape is not walked: its
+  // nodes are left, and the failure that ended the test says why
+  template <class Heap>
+  struct Freed_At_Exit
+  {
+    Heap & heap;
+
+    ~Freed_At_Exit()
+    {
+      std::vector<typename Heap::Node *> at;
+      if (shape_errors(heap, at).empty())
+        heap.remove_all_and_delete();
+    }
+  };
 }
 
 // After each insertion and each extraction, the links of all the nodes are
@@ -686,6 +724,7 @@ TEST(BinHeapShape, InsertionsAndExtractionsKeepTheTreeAndItsList)
   std::mt19937 rng(20261121);
   std::uniform_int_distribution<int> keys(0, 1000);
   BinHeap<int> heap;
+  Freed_At_Exit<BinHeap<int>> nodes{heap};
   places(heap);
   for (int k = 0; k < 600; ++k)
     {
@@ -712,6 +751,7 @@ TEST(BinHeapShape, RemovalsAndUpdatesKeepTheTreeAndItsList)
         {
           SCOPED_TRACE(testing::Message() << "n " << n << ", place " << i << ", op " << op);
           BinHeap<int> heap;
+          Freed_At_Exit<BinHeap<int>> nodes{heap};
           for (size_t k = 0; k < n; ++k)
             heap.insert(new BinHeap<int>::Node(keys(rng)));
           const auto at = places(heap);
@@ -721,10 +761,13 @@ TEST(BinHeapShape, RemovalsAndUpdatesKeepTheTreeAndItsList)
             {
               at[i]->get_key() = op == 1 ? -1 : 2000;
               heap.update(at[i]);
-              EXPECT_EQ(heap.top(), op == 1 ? at[i] : heap.top());
+              if (op == 1)
+                {
+                  EXPECT_EQ(heap.top(), at[i]);
+                }
             }
           places(heap);
-          heap.remove_all_and_delete();
+          EXPECT_TRUE(heap.verify_heap());
         }
 }
 
@@ -739,6 +782,7 @@ TEST(BinHeapShape, TheLastNodeIsTheOneAtThePlaceN)
       {
         long calls = 0;
         Failing_Heap heap(Failing_Less{&calls, 0});
+        Freed_At_Exit<Failing_Heap> nodes{heap};
         for (size_t k = 0; k < n; ++k)
           heap.insert(new Failing_Heap::Node(keys(rng)));
         const auto at = places(heap);
@@ -746,7 +790,6 @@ TEST(BinHeapShape, TheLastNodeIsTheOneAtThePlaceN)
         delete heap.remove(at[i]);
         // the root of a heap of 2 nodes leaves it with one: nothing to compare
         EXPECT_EQ(calls == before, i == n or n == 2) << "n " << n << ", place " << i;
-        heap.remove_all_and_delete();
       }
 }
 
@@ -754,6 +797,7 @@ TEST(BinHeapShape, TheLastNodeIsTheOneAtThePlaceN)
 TEST(BinHeapShape, TheHeapOfTenNodesOfTheDescription)
 {
   BinHeap<int> heap;
+  Freed_At_Exit<BinHeap<int>> nodes{heap};
   for (int k = 1; k <= 10; ++k)
     heap.insert(new BinHeap<int>::Node(k)); // in order: the node of key k is at the place k
   const auto at = places(heap);
@@ -785,7 +829,6 @@ TEST(BinHeapShape, TheHeapOfTenNodesOfTheDescription)
   EXPECT_EQ(at[5]->getR(), p);
   EXPECT_EQ(p->getL(), at[10]); // after the last one in the list
   EXPECT_EQ(p->getR(), at[6]);  // 5 left the list: 6 is its first node now
-  heap.remove_all_and_delete();
 }
 
 // verify_heap() went down by the right child only where there were two, so
@@ -795,6 +838,7 @@ TEST(BinHeapShape, VerifyHeapLooksAtEveryNode)
   for (int n = 1; n <= 40; ++n)
     {
       BinHeap<int> heap;
+      Freed_At_Exit<BinHeap<int>> nodes{heap};
       for (int k = 1; k <= n; ++k)
         heap.insert(new BinHeap<int>::Node(10*k)); // the node of key 10 k is at the place k
       const auto at = places(heap);
@@ -806,7 +850,6 @@ TEST(BinHeapShape, VerifyHeapLooksAtEveryNode)
           at[i]->get_key() = 10*i;
         }
       EXPECT_TRUE(heap.verify_heap()) << n << " nodes";
-      heap.remove_all_and_delete();
     }
 }
 
@@ -947,6 +990,7 @@ TEST(BinHeapThrowingCompare, SameComparisonsAndPlacesAsBefore)
   std::uniform_int_distribution<int> values(0, 50); // many keys of a same priority
   Calls calls, old_calls;
   Counted_Heap heap(Counted_Less{&calls});
+  Freed_At_Exit<Counted_Heap> nodes{heap};
   Old_Heap old{.cmp = Counted_Less{&old_calls}};
   size_t updates = 0, removals = 0, extractions = 0;
   for (int k = 0; k < 6000; ++k)
@@ -994,7 +1038,6 @@ TEST(BinHeapThrowingCompare, SameComparisonsAndPlacesAsBefore)
   EXPECT_GT(removals, 500u);
   EXPECT_GT(extractions, 500u);
   EXPECT_GT(heap.size(), 100u);
-  heap.remove_all_and_delete();
 }
 
 // Each failed comparison of an insertion, an extraction, a removal or an
@@ -1026,6 +1069,7 @@ TEST(BinHeapThrowingCompare, EveryFailedCallLeavesTheHeapAsItWas)
                            << where << ", call " << at_call);
               Calls calls;
               Counted_Heap heap(Counted_Less{&calls});
+              Freed_At_Exit<Counted_Heap> nodes{heap};
               for (const Pri & x : keys)
                 heap.insert(new Counted_Heap::Node(x));
               std::vector<Counted_Heap::Node *> at = places(heap);
@@ -1078,7 +1122,6 @@ TEST(BinHeapThrowingCompare, EveryFailedCallLeavesTheHeapAsItWas)
                     node.release(); // it is in the heap
                   delete out;
                 }
-              heap.remove_all_and_delete();
               if (not thrown)
                 break;
             }
@@ -1117,6 +1160,115 @@ static_assert(not noexcept(std::declval<Touchy_Heap &>().update(nullptr)));
 static_assert(not noexcept(std::declval<Touchy_Dyn_Heap &>().update(std::declval<int &>())));
 static_assert(not noexcept(std::declval<Touchy_Dyn_Heap &>().remove(std::declval<int &>())));
 static_assert(not noexcept(std::declval<Failing_Heap &>().insert(nullptr)));
+
+namespace
+{
+  // What a comparison returns. Its implicit conversion to bool does not
+  // throw; the explicit one, which a condition chooses for a result that
+  // has no name, may
+  struct Sly_Bool
+  {
+    bool value;
+    long *conversions; // those of the conditions, so far
+    long throw_at;     // the one that throws (0: none)
+
+    operator bool() const & noexcept { return value; }
+
+    explicit operator bool() &&
+    {
+      if (++*conversions == throw_at)
+        throw std::runtime_error("conversion");
+      return value;
+    }
+  };
+
+  // A comparison that does not throw. For two keys that are not const, as
+  // the heap compares those of its nodes, the conversion of its result in
+  // a condition may
+  struct Sly_Less
+  {
+    long *conversions;
+    long *throw_at;
+
+    bool operator()(const int & a, const int & b) const noexcept { return a < b; }
+
+    Sly_Bool operator()(int & a, int & b) const noexcept { return {a < b, conversions, *throw_at}; }
+  };
+
+  using Sly_Heap = BinHeap<int, Sly_Less>;
+}
+
+// The conversion that counts is the one that the conditions of the sifts
+// make, not the implicit one, which this comparison has without throwing
+static_assert(std::is_nothrow_invocable_r_v<bool, Sly_Less &, int &, int &>);
+static_assert(not noexcept(std::declval<Sly_Heap &>().insert(nullptr)));
+static_assert(not noexcept(std::declval<Sly_Heap &>().getMin_ne()));
+static_assert(not noexcept(std::declval<Sly_Heap &>().update(nullptr)));
+
+// With that comparison the operations said that they were noexcept, and
+// the conversion that threw in a sift ended the program. Now what it
+// throws reaches the caller, from a heap that is as it was
+TEST(BinHeapThrowingCompare, AConversionInAConditionThatThrowsIsUndone)
+{
+  size_t failed = 0;
+  for (int op = 0; op < 4; ++op) // insert, getMin, remove, update
+    for (long at_conversion = 1; ; ++at_conversion)
+      {
+        SCOPED_TRACE(testing::Message() << "op " << op << ", conversion " << at_conversion);
+        long conversions = 0, throw_at = 0;
+        Sly_Heap heap(Sly_Less{&conversions, &throw_at});
+        Freed_At_Exit<Sly_Heap> nodes{heap};
+        for (const int key : {10, 20, 30, 40, 50, 60, 70})
+          heap.insert(new Sly_Heap::Node(key));
+        const auto at = places(heap);
+        std::vector<decltype(links_of(at[0]))> links;
+        for (size_t i = 1; i <= 7; ++i)
+          links.push_back(links_of(at[i]));
+        std::unique_ptr<Sly_Heap::Node> node(new Sly_Heap::Node(5)); // it goes up to the root
+        if (op == 3)
+          at[7]->get_key() = 1; // the last node goes up to the root too
+
+        conversions = 0;
+        throw_at = at_conversion;
+        bool thrown = false;
+        Sly_Heap::Node *out = nullptr;
+        try
+          {
+            switch (op)
+              {
+              case 0: heap.insert(node.get()); break;
+              case 1: out = heap.getMin(); break;
+              case 2: out = heap.remove(at[2]); break;
+              default: heap.update(at[7]);
+              }
+          }
+        catch (const std::runtime_error &)
+          {
+            thrown = true;
+          }
+        throw_at = 0;
+        if (not thrown)
+          {
+            places(heap);
+            if (op == 0)
+              {
+                EXPECT_EQ(heap.top(), node.release()); // it is in the heap, at the root
+              }
+            if (op == 3)
+              {
+                EXPECT_EQ(heap.top(), at[7]);
+              }
+            delete out;
+            break;
+          }
+        ++failed;
+        EXPECT_EQ(out, nullptr);
+        EXPECT_EQ(places(heap), at);
+        for (size_t i = 1; i <= 7; ++i)
+          EXPECT_EQ(links_of(at[i]), links[i - 1]) << "place " << i;
+      }
+  EXPECT_GT(failed, 8u);
+}
 
 // Each failed comparison of an insertion, an extraction, a removal or an
 // update of a DynBinHeap leaves it as it was: the same nodes at the same
@@ -1216,7 +1368,8 @@ TEST(BinHeapShape, AComparisonThatContradictsItselfKeepsTheTree)
   std::mt19937 bits(99), rng(3);
   using Heap = BinHeap<int, Random_Less>;
   Heap heap(Random_Less{&bits});
-  std::vector<Heap::Node *> out;
+  Freed_At_Exit<Heap> nodes{heap};
+  std::vector<std::unique_ptr<Heap::Node>> out; // those that left the heap
   size_t removals = 0, updates = 0;
   for (int k = 0; k < 20000; ++k)
     {
@@ -1227,7 +1380,7 @@ TEST(BinHeapShape, AComparisonThatContradictsItselfKeepsTheTree)
       if (op < 3)
         heap.insert(new Heap::Node(k));
       else if (op == 3)
-        out.push_back(heap.getMin());
+        out.emplace_back(heap.getMin());
       else
         {
           std::vector<Heap::Node *> at;
@@ -1235,8 +1388,9 @@ TEST(BinHeapShape, AComparisonThatContradictsItselfKeepsTheTree)
           Heap::Node *p = at[1 + rng() % size];
           if (op == 4)
             {
-              ASSERT_EQ(heap.remove(p), p);
-              out.push_back(p);
+              Heap::Node *removed = heap.remove(p);
+              out.emplace_back(removed);
+              ASSERT_EQ(removed, p);
               ++removals;
             }
           else
@@ -1248,11 +1402,8 @@ TEST(BinHeapShape, AComparisonThatContradictsItselfKeepsTheTree)
       std::vector<Heap::Node *> at;
       ASSERT_EQ(shape_errors(heap, at), "") << "operation " << k;
       ASSERT_EQ(heap.size(), op < 3 ? size + 1 : op <= 4 ? size - 1 : size);
-      for (Heap::Node *p : out)
-        delete p;
       out.clear();
     }
   EXPECT_GT(removals, 1000u);
   EXPECT_GT(updates, 1000u);
-  heap.remove_all_and_delete();
 }
