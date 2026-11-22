@@ -66,12 +66,109 @@
 #include <ah-errors.H>
 #include <ah-iterator.H>
 
+#include <bit>
+#include <memory>
+#include <type_traits>
+#include <utility>
+
 namespace Aleph
 {
+  // The sifts exchange an item with its parent, or with a child, level by
+  // level, as they compare. An exchange is undone by another one, which
+  // compares nothing: if the comparison throws, they take the item back to
+  // its entry before the exception goes on, so that the range is as it was.
+  // A comparison that does not throw leaves nothing to undo, and the
+  // compiler drops that part.
+  namespace arrayheap_detail
+  {
+    /** @brief Take back down an item that sift_up() took up.
+     *
+     *  The item is exchanged with each item of its way, which the indexes
+     *  give: the ancestors of an entry are its index without its last bits.
+     *
+     *  @param[in,out] ptr 1-based array of the heap.
+     *  @param[in] i the entry where the item is.
+     *  @param[in] r the entry where it was: `i`, or one below it.
+     */
+    template <typename T>
+    inline
+    void undo_sift_up(T *ptr, size_t i, const size_t r)
+    {
+      for (auto levels = std::bit_width(r) - std::bit_width(i); levels != 0; )
+        {
+          const size_t c = r >> --levels; // the child of i on the way to r
+          std::swap(ptr[i], ptr[c]);
+          i = c;
+        }
+    }
+
+    /** @brief Take back up an item that sift_down() took down.
+     *
+     *  @param[in,out] ptr 1-based array of the heap.
+     *  @param[in] i the entry where the item is.
+     *  @param[in] l the entry where it was: `i`, or one above it.
+     */
+    template <typename T>
+    inline
+    void undo_sift_down(T *ptr, size_t i, const size_t l)
+    {
+      for (; i != l; i = u_index(i))
+        std::swap(ptr[i], ptr[u_index(i)]);
+    }
+
+    /** @brief Move the element at position `l` downwards to its place.
+     *
+     *  What sift_down() does, with its result.
+     *
+     *  @param[in,out] ptr 1-based array backing the heap.
+     *  @param[in] l left boundary (inclusive) / starting index.
+     *  @param[in] r right boundary (inclusive).
+     *  @param[in] cmp comparison criteria.
+     *  @return the entry where the element went: `l`, or one below it.
+     *  @throws what the comparison throws, with the range as it was if the
+     *          exchange of two items does not throw.
+     */
+    template <typename T, class Compare>
+    inline
+    size_t sift_down(T *ptr, const size_t l, const size_t r, Compare & cmp)
+    {
+      size_t i = l;
+      try
+        {
+          while (true)
+            {
+              size_t c = l_index(i); // left child index (c = 2 * i)
+              if (c > r) [[unlikely]] // does it have a left child?
+                return i; // no ==> stop
+
+              // Prefetch grandchildren for next iteration
+              if (const size_t gc = l_index(c); gc <= r)
+                __builtin_prefetch(std::addressof(ptr[gc]), 0, 1);
+
+              if (c + 1 <= r) // does it have a right child?
+                if (cmp(ptr[c + 1], ptr[c])) // yes ==> pick the smaller child
+                  c++;
+
+              if (cmp(ptr[i], ptr[c])) [[likely]] // does the heap property hold?
+                return i; // yes ==> stop
+
+              std::swap(ptr[c], ptr[i]);
+              i = c;
+            }
+        }
+      catch (...)
+        {
+          undo_sift_down(ptr, i, l);
+          throw;
+        }
+    }
+  }
+
   /** Restore the heap property by moving the element at position `r` upwards.
 
       This operation assumes the range `[l, r-1]` already satisfies the heap
-      property and then restores it for the whole range `[l, r]`.
+      property and then restores it for the whole range `[l, r]`. If the
+      comparison throws, the element goes back to `r`.
 
       @tparam T element type
       @tparam Compare comparator defining the heap order
@@ -80,6 +177,8 @@ namespace Aleph
       @param[in] r right boundary (inclusive)
       @param[in] cmp comparison criteria
       @return a mutable reference to the element after it has been placed
+      @throws what the comparison throws, with the range as it was if the
+              exchange of two items does not throw.
       @ingroup Algorithms
   */
   template <typename T, class Compare>
@@ -87,18 +186,26 @@ namespace Aleph
   T &sift_up(T *ptr, const size_t l, const size_t r, Compare & cmp)
   {
     size_t i = r;
-    for (size_t p; i > l; i = p)
+    try
       {
-        p = u_index(i); // parent index (p = i / 2)
+        for (size_t p; i > l; i = p)
+          {
+            p = u_index(i); // parent index (p = i / 2)
 
-        // Prefetch grandparent for next iteration
-        if (const size_t gp = u_index(p); gp >= l)
-          __builtin_prefetch(&ptr[gp], 0, 1);
+            // Prefetch grandparent for next iteration
+            if (const size_t gp = u_index(p); gp >= l)
+              __builtin_prefetch(std::addressof(ptr[gp]), 0, 1);
 
-        if (cmp(ptr[p], ptr[i])) [[likely]] // does the heap property hold?
-            return ptr[i]; // yes, the entire range is already a heap
+            if (cmp(ptr[p], ptr[i])) [[likely]] // does the heap property hold?
+              return ptr[i]; // yes, the entire range is already a heap
 
-        std::swap(ptr[p], ptr[i]); // swap nodes and restore level p
+            std::swap(ptr[p], ptr[i]); // swap nodes and restore level p
+          }
+      }
+    catch (...)
+      {
+        arrayheap_detail::undo_sift_up(ptr, i, r);
+        throw;
       }
 
     return ptr[i];
@@ -107,7 +214,8 @@ namespace Aleph
   /** Restore the heap property by moving the element at position `l` downwards.
 
       This operation assumes the subtrees below `l` satisfy the heap property
-      and then restores it for the whole range `[l, r]`.
+      and then restores it for the whole range `[l, r]`. If the comparison
+      throws, the element goes back to `l`.
 
       @tparam T element type
       @tparam Compare comparator defining the heap order
@@ -115,33 +223,15 @@ namespace Aleph
       @param[in] l left boundary (inclusive) / starting index
       @param[in] r right boundary (inclusive)
       @param[in] cmp comparison criteria
+      @throws what the comparison throws, with the range as it was if the
+              exchange of two items does not throw.
       @ingroup Algorithms
   */
   template <typename T, class Compare>
   inline
   void sift_down(T *ptr, const size_t l, const size_t r, Compare & cmp)
   {
-    size_t i = l;
-    while (true)
-      {
-        size_t c = l_index(i); // left child index (c = 2 * i)
-        if (c > r) [[unlikely]] // does it have a left child?
-            return; // no ==> stop
-
-        // Prefetch grandchildren for next iteration
-        if (const size_t gc = l_index(c); gc <= r)
-          __builtin_prefetch(&ptr[gc], 0, 1);
-
-        if (c + 1 <= r) // does it have a right child?
-          if (cmp(ptr[c + 1], ptr[c])) // yes ==> pick the smaller child
-            c++;
-
-        if (cmp(ptr[i], ptr[c])) [[likely]] // does the heap property hold?
-            return; // yes ==> stop
-
-        std::swap(ptr[c], ptr[i]);
-        i = c;
-      }
+    arrayheap_detail::sift_down(ptr, l, r, cmp);
   }
 
   /** Restore the heap property by sifting down and then sifting up.
@@ -155,6 +245,8 @@ namespace Aleph
       @param[in] i position to update
       @param[in] r right boundary (inclusive)
       @param[in] cmp comparison criteria
+      @throws what the comparison throws, with the range as it was if the
+              exchange of two items does not throw.
       @ingroup Algorithms
   */
   template <typename T, class Compare>
@@ -162,8 +254,16 @@ namespace Aleph
   void sift_down_up(T *ptr, const size_t l, const size_t i, const size_t r,
                     Compare & cmp)
   {
-    sift_down<T, Compare>(ptr, i, r, cmp);
-    sift_up<T, Compare>(ptr, l, i, cmp);
+    const size_t down = arrayheap_detail::sift_down(ptr, i, r, cmp);
+    try
+      {
+        sift_up<T, Compare>(ptr, l, i, cmp);
+      }
+    catch (...)
+      { // sift_up() left the range as sift_down() left it
+        arrayheap_detail::undo_sift_down(ptr, down, i);
+        throw;
+      }
   }
 
   /** Sort an array using the heapsort algorithm.
@@ -422,26 +522,54 @@ namespace Aleph
 
         @param[in] key value to insert
         @return a mutable reference to the inserted element
+        @throws what the comparison or the copy of @p key throw, with the
+                heap as it was if the exchange of two items does not throw.
         @warning This method does not check for overflow.
         @see insert()
     */
     T &insert_ne(const T & key)
     {
-      array[++num_items] = key; // place the new element
-      return sift_up(array, 1, num_items, cmp);
+      // The element is counted once it is in its place: if the comparison
+      // throws, sift_up() takes it back to the entry after the last one,
+      // which is not of the heap
+      const size_t r = num_items + 1;
+      array[r] = key;
+      T & ret = sift_up(array, 1, r, cmp);
+      num_items = r;
+      return ret;
     }
 
     /** Insert an element without checking capacity (move overload).
 
         @param[in] key value to insert
         @return a mutable reference to the inserted element
+        @throws what the comparison throws, with the heap as it was if the
+                exchange of two items does not throw, and @p key too, which
+                takes its item back by a move assignment. If that
+                assignment throws too, what it throws goes out instead, and
+                the item of @p key is lost.
+        @note @p key may be an item of this heap. The move, which comes
+              before the comparisons, changes that item where it is, and the
+              heap does not put that item in order again.
         @warning This method does not check for overflow.
         @see insert()
     */
     T &insert_ne(T && key)
     {
-      array[++num_items] = std::move(key); // place the new element
-      return sift_up(array, 1, num_items, cmp);
+      const size_t r = num_items + 1;
+      T & entry = array[r]; // not of the heap until it is counted
+      entry = std::move(key);
+      try
+        {
+          T & ret = sift_up(array, 1, r, cmp);
+          num_items = r;
+          return ret;
+        }
+      catch (...)
+        { // sift_up() took the element back to its entry
+          key = std::move(entry);
+          throw;
+        }
     }
 
     /** Insert an element into the heap.
@@ -509,16 +637,36 @@ namespace Aleph
         configured comparator.
 
         @throw underflow_error if the heap is empty.
-        @return a copy of the removed value.
+        @throws what the comparison throws, with the heap as it was if the
+                move of the items and the exchange of two of them do not
+                throw.
+        @return the removed value.
     */
     T getMin()
     {
       ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
-      T ret_val = array[1];
-      array[1] = array[num_items--];
-      if (num_items > 0)
-        sift_down(array, 1, num_items, cmp);
+      // The last item takes the place of the minimum and goes down from it.
+      // If the comparison throws, sift_down() takes it back to the root,
+      // and the two go back to their entries
+      const size_t n = num_items - 1; // the items that stay
+      T ret_val = std::move(array[1]);
+      if (n > 0)
+        {
+          T & last = array[n + 1];
+          array[1] = std::move(last);
+          try
+            {
+              sift_down(array, 1, n, cmp);
+            }
+          catch (...)
+            {
+              last = std::move(array[1]);
+              array[1] = std::move(ret_val);
+              throw;
+            }
+        }
+      num_items = n;
       return ret_val;
     }
 
@@ -555,6 +703,10 @@ namespace Aleph
         `insert()`.
 
         @param[in] data reference to the element inside the heap to update
+        @throws what the comparison throws. Then no item has moved, if the
+                exchange of two items does not throw: the heap is as it was
+                before the call, with @p data at its place, where its new
+                priority may be out of order.
         @see insert()
         @note It is essential that `data` is a valid reference into this heap.
         Results are unpredictable (and probably fatal) if this is not the case.
@@ -563,9 +715,9 @@ namespace Aleph
     {
       ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
-      assert(&data >= array + 1 and &data <= array + num_items);
+      assert(std::addressof(data) >= array + 1 and std::addressof(data) <= array + num_items);
 
-      const auto i = static_cast<size_t>(&data - array);
+      const auto i = static_cast<size_t>(std::addressof(data) - array);
       sift_down_up(array, 1, i, num_items, cmp);
     }
 
@@ -575,23 +727,49 @@ namespace Aleph
 
         @param[in,out] item reference to the element to remove
         @throw underflow_error if the heap is empty
+        @throws what the comparison throws, with the heap as it was if the
+                exchange of two items does not throw.
         @note It is essential that `item` is a valid reference into this heap.
     */
     void remove(T & item)
     {
       ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
-      assert(&item >= array + 1 and &item <= array + num_items);
+      assert(std::addressof(item) >= array + 1 and std::addressof(item) <= array + num_items);
 
-      const auto idx = static_cast<size_t>(&item - array);
+      const auto idx = static_cast<size_t>(std::addressof(item) - array);
       if (idx == num_items)
         {
           --num_items;
           return;
         }
 
-      array[idx] = std::move(array[num_items--]);
-      sift_down_up(array, 1, idx, num_items, cmp);
+      const size_t n = num_items - 1; // the items that stay
+      T & last = array[n + 1];
+      if constexpr (std::is_nothrow_invocable_r_v<bool, Compare &, T &, T &>)
+        { // nothing to undo: the last item takes the place of the removed one
+          item = std::move(last);
+          num_items = n;
+          sift_down_up(array, 1, idx, n, cmp);
+          return;
+        }
+
+      // The removed item must outlive the comparisons: it exchanges its
+      // entry with the last one, which goes to its place from there. If the
+      // comparison throws, sift_down_up() takes it back there, and the two
+      // exchange their entries again
+      std::swap(item, last);
+      try
+        {
+          sift_down_up(array, 1, idx, n, cmp);
+        }
+      catch (...)
+        {
+          std::swap(item, last);
+          throw;
+        }
+      num_items = n;
+      last = T(); // the removed item holds nothing from here on
     }
 
     /** Return a mutable reference to the i-th entry (1-based).
