@@ -361,6 +361,86 @@ namespace Aleph
     }
 
     /**
+     * @brief Takes a root out of the root list, after putting its children
+     *        in it as roots.
+     *
+     * min_node is left on any other root, or null if there is none. The
+     * node keeps its data and is left without children.
+     *
+     * @param z The root to take out
+     */
+    void take_root_out(Node *z) noexcept
+    {
+      if (z->child != nullptr)
+        {
+          // First, set all children's parent to nullptr
+          Node *child = z->child;
+          do
+            {
+              child->parent = nullptr;
+              child = child->right;
+            }
+          while (child != z->child);
+
+          // Splice the child list into the root list
+          Node *child_left = z->child->left;
+          Node *z_right = z->right;
+
+          z->right = z->child;
+          z->child->left = z;
+          child_left->right = z_right;
+          z_right->left = child_left;
+
+          z->child = nullptr;
+          z->degree = 0;
+        }
+
+      if (z == z->right)
+        min_node = nullptr; // z was the only root
+      else
+        {
+          z->left->right = z->right;
+          z->right->left = z->left;
+          min_node = z->right;
+        }
+    }
+
+    /**
+     * @brief Undoes take_root_out() after a comparison threw.
+     *
+     * Puts the node back in the root list, in which consolidate() leaves
+     * every tree when the comparison throws, and makes the minimum the node
+     * that was it before. A consolidation may have left that node under one
+     * of an equivalent key: then it is cut from it as decrease_key() cuts a
+     * node, so the one that loses it is marked, or cut too if it was. So the
+     * heap has the elements and the minimum that it had, though its trees
+     * may be others.
+     *
+     * @param z The node that take_root_out() took out
+     * @param min The node that was the minimum, which may be z
+     */
+    void put_root_back(Node *z, Node *min) noexcept
+    {
+      if (min_node == nullptr)
+        z->left = z->right = z;
+      else
+        {
+          z->left = min_node;
+          z->right = min_node->right;
+          min_node->right->left = z;
+          min_node->right = z;
+        }
+      min_node = z; // a root for cut() to link after
+
+      if (Node *over = min->parent; over != nullptr)
+        {
+          cut(min, over);
+          cascading_cut(over); // it has lost a child
+        }
+      min_node = min;
+    }
+
+    /**
      * @brief Deletes all the nodes of the trees in a circular list.
      *
      * Used by clear() for O(n) cleanup instead of O(n log n). Before
@@ -662,8 +742,9 @@ namespace Aleph
      *
      * @return The minimum element (moved out)
      * @throws std::underflow_error if the heap is empty
-     * @throws anything that the comparison throws. Then the element is out
-     *         of the heap and destroyed, and the heap may be out of order.
+     * @throws anything that the comparison throws. Then the heap has the
+     *         elements that it had, the minimum among them, and every
+     *         handle is valid; its trees may be linked otherwise.
      *
      * @note Amortized O(log n) time complexity
      */
@@ -676,49 +757,21 @@ namespace Aleph
       consolidate_array_.reserve(MAX_DEGREE);
 
       Node *z = min_node;
+      take_root_out(z);
+      if (min_node != nullptr)
+        try
+          {
+            consolidate();
+          }
+        catch (...)
+          {
+            put_root_back(z, z);
+            throw;
+          }
 
-      // Add all children of z to the root list
-      if (z->child != nullptr)
-        {
-          // First, set all children's parent to nullptr
-          Node *child = z->child;
-          do
-            {
-              child->parent = nullptr;
-              child = child->right;
-            }
-          while (child != z->child);
-
-          // Splice the child list into the root list
-          Node *child_left = z->child->left;
-          Node *z_right = z->right;
-
-          z->right = z->child;
-          z->child->left = z;
-          child_left->right = z_right;
-          z_right->left = child_left;
-
-          z->child = nullptr;
-        }
-
-      // z leaves the heap before the keys are compared, so that it is freed
-      // and counted out even if the comparison throws
+      // z is out of the heap: it is freed and counted out from here on
       std::unique_ptr<Node> node(z);
       --num_nodes;
-
-      // Remove z from root list
-      if (z == z->right)
-        {
-          // z was the only root
-          min_node = nullptr;
-        }
-      else
-        {
-          z->left->right = z->right;
-          z->right->left = z->left;
-          min_node = z->right;
-          consolidate();
-        }
 
       return std::move(z->data);
     }
@@ -734,9 +787,11 @@ namespace Aleph
      * @param k The new key value (must be <= current key)
      * @throws std::invalid_argument if x is nullptr
      * @throws std::domain_error if k > current key
-     * @throws anything that the comparison throws. Then x is still in the
-     *         heap, with its old key or with the new one, and the heap may
-     *         be out of order.
+     * @throws anything that the comparison throws. Then the heap is as it
+     *         was, and x has its old key.
+     * @throws anything that the assignment of the key throws. Then the heap
+     *         is as it was but for the key of x, which is as the assignment
+     *         left it: if that is not its old key, x may be out of order.
      *
      * @note Amortized O(1) time complexity
      */
@@ -747,16 +802,20 @@ namespace Aleph
       ah_domain_error_if(cmp(x->data, k))
         << "Fibonacci_Heap::decrease_key: new key is greater than current key";
 
-      x->data = k;
+      // The comparisons take the new key, and come before the heap changes;
+      // their results go to bool as a condition converts them
       Node *y = x->parent;
+      const bool is_cut = y != nullptr and cmp(k, y->data);
+      const bool is_min = static_cast<bool>(cmp(k, min_node->data));
 
-      if (y != nullptr && cmp(x->data, y->data))
+      x->data = k;
+      if (is_cut)
         {
           cut(x, y);
           cascading_cut(y);
         }
 
-      if (cmp(x->data, min_node->data))
+      if (is_min)
         min_node = x;
     }
 
@@ -767,7 +826,9 @@ namespace Aleph
      * @param k The new key value (moved into node)
      * @throws std::invalid_argument if x is nullptr
      * @throws std::domain_error if k > current key
-     * @throws anything that the comparison throws, as the copy version.
+     * @throws anything that the comparison or the assignment of the key
+     *         throw, as the copy version; if the comparison throws, k is
+     *         not moved from.
      */
     void decrease_key(Node *x, T && k)
     {
@@ -776,16 +837,20 @@ namespace Aleph
       ah_domain_error_if(cmp(x->data, k))
         << "Fibonacci_Heap::decrease_key: new key is greater than current key";
 
-      x->data = std::move(k);
+      // The comparisons take the new key, and come before the heap changes;
+      // their results go to bool as a condition converts them
       Node *y = x->parent;
+      const bool is_cut = y != nullptr and cmp(k, y->data);
+      const bool is_min = static_cast<bool>(cmp(k, min_node->data));
 
-      if (y != nullptr && cmp(x->data, y->data))
+      x->data = std::move(k);
+      if (is_cut)
         {
           cut(x, y);
           cascading_cut(y);
         }
 
-      if (cmp(x->data, min_node->data))
+      if (is_min)
         min_node = x;
     }
 
@@ -793,16 +858,27 @@ namespace Aleph
      * @brief Updates the key of a node (increase or decrease).
      *
      * Unlike decrease_key, this method handles both increases and
-     * decreases. For increases, it deletes and reinserts the node.
+     * decreases. For increases, the node leaves its tree and goes back to
+     * the heap as a root with the new key, as if it were deleted and
+     * inserted again, but it is the same node: no node is allocated.
      *
      * @param x Handle to the node
      * @param k The new key value
-     * @return Handle to the node (may be different if key increased)
+     * @return Handle to the node, which is x
      * @throws std::invalid_argument if x is nullptr
-     * @throws anything that the comparison throws. If the key decreases, as
-     *         decrease_key(); if it increases, x may be out of the heap and
-     *         destroyed, and the new key not in it. The heap may then be out
-     *         of order.
+     * @throws anything that the comparison throws. Then x has its old key,
+     *         and the heap has the elements that it had, the minimum among
+     *         them, and every handle is valid; if the key increases, its
+     *         trees may be linked otherwise.
+     * @throws anything that the copy of the key throws. If the key
+     *         increases, the copy is made before the heap changes, which is
+     *         then as it was, and it is moved into the node at the end, or
+     *         copied if the key has no move assignment: the above holds if
+     *         that assignment does not throw. If the key decreases, see
+     *         decrease_key().
+     * @throws std::bad_alloc if the key increases and there is no memory
+     *         for the array of the consolidation, which is reserved once,
+     *         before the heap changes.
      *
      * @note O(1) amortized if decreasing, O(log n) amortized if increasing
      */
@@ -817,13 +893,45 @@ namespace Aleph
           decrease_key(x, k);
           return x;
         }
-      if (cmp(x->data, k))
+      if (not cmp(x->data, k))
+        return x; // Keys are equal, do nothing
+
+      // New key is larger: x leaves the heap as in delete_node() and, once
+      // the rest is in order, goes back as a root with the new key, which
+      // is copied first, while a copy that throws changes nothing
+      T key(k);
+      consolidate_array_.reserve(MAX_DEGREE);
+
+      Node *old_min = min_node;
+      if (x->parent != nullptr)
         {
-          // New key is larger, delete and reinsert
-          delete_node(x);
-          return insert(k);
+          Node *parent = x->parent;
+          cut(x, parent);
+          cascading_cut(parent);
         }
-      // Keys are equal, do nothing
+      take_root_out(x);
+
+      bool is_min = true; // if x is the only node
+      try
+        {
+          if (min_node != nullptr)
+            {
+              consolidate();
+              is_min = static_cast<bool>(cmp(k, min_node->data));
+            }
+          if constexpr (std::is_move_assignable_v<T>)
+            x->data = std::move(key);
+          else
+            x->data = std::as_const(key); // its move assignment is deleted
+        }
+      catch (...)
+        {
+          put_root_back(x, old_min);
+          throw;
+        }
+
+      Node *min = is_min ? x : min_node;
+      put_root_back(x, min);
       return x;
     }
 
@@ -834,12 +942,15 @@ namespace Aleph
      *
      * @param x Handle to the node to delete
      * @throws std::invalid_argument if x is nullptr
-     * @throws anything that the comparison throws. Then x is out of the heap
-     *         and destroyed, and the heap may be out of order.
+     * @throws anything that the comparison throws. Then x is still in the
+     *         heap, which has the elements that it had, the minimum among
+     *         them, and every handle is valid; its trees may be linked
+     *         otherwise.
      *
      * @note Amortized O(log n) time complexity
      *
-     * @warning After this call, x is invalid and must not be used.
+     * @warning After this call, if it does not throw, x is invalid and must
+     *          not be used.
      */
     void delete_node(Node *x)
     {
@@ -849,7 +960,9 @@ namespace Aleph
       // As in extract_min(), before the heap changes
       consolidate_array_.reserve(MAX_DEGREE);
 
-      // Step 1: If x is not a root, cut it and perform cascading cuts
+      Node *old_min = min_node;
+
+      // If x is not a root, cut it and perform cascading cuts
       if (x->parent != nullptr)
         {
           Node *parent = x->parent;  // Save parent BEFORE cut
@@ -857,60 +970,22 @@ namespace Aleph
           cascading_cut(parent);     // Use saved parent
         }
 
-      // Step 2: Make x the minimum (by temporarily pointing min_node to it)
-      min_node = x;
+      // x leaves the root list as the minimum does in extract_min(), and
+      // the rest is put in order, which finds the true minimum
+      take_root_out(x);
+      if (min_node != nullptr)
+        try
+          {
+            consolidate();
+          }
+        catch (...)
+          {
+            put_root_back(x, old_min);
+            throw;
+          }
 
-      // Step 3: Extract x (which is now the "minimum")
-      // We need to do extract_min logic but without returning data
-      if (x->child != nullptr)
-        {
-          Node *child = x->child;
-          do
-            {
-              child->parent = nullptr;
-              child = child->right;
-            }
-          while (child != x->child);
-
-          // Splice children into root list
-          Node *child_left = x->child->left;
-          Node *x_right = x->right;
-
-          if (x == x->right)
-            {
-              // x was alone, children become the root list
-              min_node = x->child;
-            }
-          else
-            {
-              x->right = x->child;
-              x->child->left = x;
-              child_left->right = x_right;
-              x_right->left = child_left;
-            }
-        }
-
-      // As in extract_min(), x leaves the heap before the keys are compared
-      std::unique_ptr<Node> node(x);
       --num_nodes;
-
-      // Remove x from root list
-      if (x == x->right)
-        {
-          // x was alone in root list
-          if (min_node == x)
-            min_node = nullptr;  // x had no children either
-          else
-            consolidate();  // x had children, need to find true minimum
-        }
-      else
-        {
-          x->left->right = x->right;
-          x->right->left = x->left;
-          if (min_node == x)
-            min_node = x->right;
-          consolidate();
-        }
+      delete x;
     }
 
     /**

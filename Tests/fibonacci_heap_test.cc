@@ -45,7 +45,10 @@
 # include <set>
 # include <chrono>
 # include <functional>
+# include <map>
 # include <memory>
+# include <ostream>
+# include <sstream>
 # include <stdexcept>
 # include <type_traits>
 # include <utility>
@@ -1599,9 +1602,11 @@ TEST(FibonacciHeapComparison, InsertAndMergeLeaveTheHeapsAsTheyWere)
   EXPECT_EQ(Counted::alive, alive);
 }
 
-// If the comparison throws, extract_min() and delete_node() have taken
-// their node out of the heap, and the heap keeps the other ones
-TEST(FibonacciHeapComparison, ExtractAndDeleteTakeTheirNodeOutIfTheComparisonThrows)
+// If the comparison throws, extract_min() and delete_node() leave their
+// node in the heap, which gives all its elements in order afterwards. They
+// took the node out and destroyed it, and the heap could be left with a
+// minimum that was not the least element
+TEST(FibonacciHeapComparison, ExtractAndDeleteLeaveTheirNodeInIfTheComparisonThrows)
 {
   const std::vector<int> keys = {8, 3, 5, 1, 9, 2, 7, 4, 6, 0};
   const long alive = Counted::alive;
@@ -1618,7 +1623,8 @@ TEST(FibonacciHeapComparison, ExtractAndDeleteTakeTheirNodeOutIfTheComparisonThr
             nodes.push_back(heap.insert(Counted(key)));
           (void) heap.extract_min(); // 0, so that the others are in trees
 
-          std::vector<int> rest = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+          const std::vector<int> all = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+          std::vector<int> rest = all;
           const int out = i < keys.size() ? keys[i] : 1;
           rest.erase(std::find(rest.begin(), rest.end(), out));
 
@@ -1635,15 +1641,604 @@ TEST(FibonacciHeapComparison, ExtractAndDeleteTakeTheirNodeOutIfTheComparisonThr
             {
               thrown = true;
             }
-          EXPECT_EQ(heap.size(), rest.size()) << "node " << i << ", call " << k;
-          std::vector<int> left = drain(heap, count);
-          std::sort(left.begin(), left.end());
-          EXPECT_EQ(left, rest) << "node " << i << ", call " << k;
+          const std::vector<int> & expected = thrown ? all : rest;
+          EXPECT_EQ(heap.size(), expected.size()) << "node " << i << ", call " << k;
+          EXPECT_EQ(drain(heap, count), expected) << "node " << i << ", call " << k; // in order
           if (not thrown)
             break;
         }
     }
   EXPECT_EQ(Counted::alive, alive);
+}
+
+namespace
+{
+  // A key with an identity apart from it; a move takes the identity of its
+  // source away
+  struct Tracked
+  {
+    static constexpr int gone = -1;
+
+    int key = 0;
+    int id = 0;
+
+    Tracked(const int k, const int i) noexcept : key(k), id(i) {}
+    Tracked(const Tracked &) = default;
+    Tracked & operator=(const Tracked &) = default;
+    Tracked(Tracked && o) noexcept : key(o.key), id(std::exchange(o.id, gone)) {}
+    Tracked & operator=(Tracked && o) noexcept
+    {
+      key = o.key;
+      id = std::exchange(o.id, gone);
+      return *this;
+    }
+    bool operator==(const Tracked &) const = default;
+  };
+
+  void PrintTo(const Tracked & x, std::ostream *os) { *os << x.key << '#' << x.id; }
+
+  // Orders Tracked by key and counts its calls in count, which the copies
+  // that the heaps keep share
+  struct Failing_Tracked_Less
+  {
+    Comparisons *count = nullptr;
+
+    bool operator()(const Tracked & a, const Tracked & b) const
+    {
+      if (count != nullptr and ++count->calls == count->fail_at)
+        throw std::runtime_error("comparison failed");
+      return a.key < b.key;
+    }
+  };
+
+  using Tracked_Heap = Fibonacci_Heap<Tracked, Failing_Tracked_Less>;
+
+  // The nodes of a heap, and what is wrong in its trees: the lists of roots
+  // and of children are circular and doubly linked, each node has its
+  // parent and as many children as its degree says, no key is less than
+  // that of its parent, the nodes are as many as size() says, and none has
+  // a key less than that of the minimum
+  std::string tree_errors(const Tracked_Heap & heap, std::vector<Tracked_Heap::Node *> & nodes)
+  {
+    using Node = Tracked_Heap::Node;
+    std::ostringstream err;
+    nodes.clear();
+    Node *min = heap.get_min_node();
+    if (min == nullptr)
+      {
+        if (heap.size() != 0)
+          err << "no minimum in a heap of " << heap.size() << "; ";
+        return err.str();
+      }
+    std::vector<std::pair<Node *, Node *>> lists{{min, nullptr}}; // a node of each, and their parent
+    while (not lists.empty())
+      {
+        const auto [first, parent] = lists.back();
+        lists.pop_back();
+        size_t count = 0;
+        Node *p = first;
+        do
+          {
+            if (++count > heap.size())
+              {
+                err << "a list does not close; ";
+                return err.str();
+              }
+            if (nodes.size() >= heap.size())
+              { // a node is reached again: its children would be walked for ever
+                err << "more nodes than the " << heap.size() << " of the heap; ";
+                return err.str();
+              }
+            nodes.push_back(p);
+            if (p->parent != parent)
+              err << "the parent of " << p->data.id << "; ";
+            if (p->right->left != p or p->left->right != p)
+              err << "the links of " << p->data.id << "; ";
+            if (parent != nullptr and p->data.key < parent->data.key)
+              err << p->data.id << " is less than its parent; ";
+            if (p->child != nullptr)
+              lists.emplace_back(p->child, p);
+            else if (p->degree != 0)
+              err << "the degree of " << p->data.id << ", without children; ";
+            p = p->right;
+          }
+        while (p != first);
+        if (parent != nullptr and parent->degree != count)
+          err << "the degree of " << parent->data.id << "; ";
+      }
+    if (nodes.size() != heap.size())
+      err << nodes.size() << " nodes in a heap of " << heap.size() << "; ";
+    std::vector<Node *> sorted = nodes;
+    std::sort(sorted.begin(), sorted.end());
+    if (std::adjacent_find(sorted.begin(), sorted.end()) != sorted.end())
+      err << "a node is twice in the heap; ";
+    for (Node *p : nodes)
+      if (p->data.key < min->data.key)
+        err << p->data.id << " is less than the minimum; ";
+    return err.str();
+  }
+
+  // Fills heap with trees of several children and levels, some of them with
+  // marked nodes: inserts, extracts to link the roots, decreases keys to
+  // cut nodes and inserts again, so that there are many roots. Many keys
+  // are equal
+  void fill_with_trees(Tracked_Heap & heap, const unsigned seed)
+  {
+    std::mt19937 gen(seed);
+    std::vector<Tracked_Heap::Node *> nodes;
+    for (int i = 0; i < 70; ++i)
+      nodes.push_back(heap.insert(Tracked(int(gen() % 40), i + 1)));
+    auto extract = [&heap, &nodes]
+      {
+        nodes.erase(std::find(nodes.begin(), nodes.end(), heap.get_min_node()));
+        (void) heap.extract_min();
+      };
+    for (int i = 0; i < 6; ++i)
+      extract();
+    for (int i = 0; i < 14; ++i)
+      {
+        auto *p = nodes[gen() % nodes.size()];
+        heap.decrease_key(p, Tracked(p->data.key - int(gen() % 30), p->data.id));
+      }
+    for (int i = 0; i < 3; ++i)
+      extract();
+    for (int i = 0; i < 12; ++i) // roots for the next consolidation to link
+      (void) heap.insert(Tracked(int(gen() % 40), 100 + i));
+  }
+}
+
+// If the comparison throws, in whichever of its calls, extract_min(),
+// delete_node(), decrease_key() and update_key() leave in the heap the
+// elements that it had, each in its node and with its key, and the same
+// node as the minimum; the trees are well formed, and the key of a
+// decrease_key() by move is not moved from. extract_min() and delete_node()
+// destroyed their node, update_key() could destroy it without putting the
+// new key in, decrease_key() could leave the new key in a node under a
+// parent of a greater key, and all of them could leave as the minimum a
+// node that was not the least
+TEST(FibonacciHeapComparison, EveryFailedCallLeavesTheElementsAndTheMinimum)
+{
+  size_t failed = 0, marked = 0, deep = 0;
+  for (int op = 0; op < 6; ++op)
+    for (unsigned seed = 1; seed <= 8; ++seed)
+      for (long k = 1; ; ++k)
+        {
+          SCOPED_TRACE(testing::Message() << "op " << op << ", seed " << seed << ", call " << k);
+          Comparisons count;
+          Tracked_Heap heap(Failing_Tracked_Less{&count});
+          fill_with_trees(heap, seed);
+
+          std::vector<Tracked_Heap::Node *> before;
+          ASSERT_EQ(tree_errors(heap, before), "");
+          std::map<Tracked_Heap::Node *, Tracked> keys;
+          for (auto *p : before)
+            {
+              keys.emplace(p, p->data);
+              marked += p->mark ? 1 : 0;
+              deep += p->parent != nullptr and p->parent->parent != nullptr ? 1 : 0;
+            }
+          Tracked_Heap::Node *min = heap.get_min_node();
+
+          std::mt19937 gen(seed*31 + unsigned(op));
+          Tracked_Heap::Node *x = before[gen() % before.size()];
+          const Tracked less_key(x->data.key - 1 - int(gen() % 30), 1000);
+          const Tracked more_key(x->data.key + 1 + int(gen() % 30), 1000);
+          Tracked moved = less_key;
+
+          count.fail_at = count.calls + k;
+          bool thrown = false;
+          try
+            {
+              switch (op)
+                {
+                case 0: (void) heap.extract_min(); break;
+                case 1: heap.delete_node(x); break;
+                case 2: heap.decrease_key(x, less_key); break;
+                case 3: heap.decrease_key(x, std::move(moved)); break;
+                case 4: ASSERT_EQ(heap.update_key(x, less_key), x); break;
+                default: ASSERT_EQ(heap.update_key(x, more_key), x);
+                }
+            }
+          catch (const std::runtime_error &)
+            {
+              thrown = true;
+            }
+          count.fail_at = 0;
+
+          std::vector<Tracked_Heap::Node *> after;
+          ASSERT_EQ(tree_errors(heap, after), "");
+          if (thrown)
+            {
+              ++failed;
+              EXPECT_EQ(heap.size(), before.size());
+              EXPECT_EQ(heap.get_min_node(), min);
+              std::map<Tracked_Heap::Node *, Tracked> now;
+              for (auto *p : after)
+                now.emplace(p, p->data);
+              EXPECT_EQ(now, keys);
+              EXPECT_EQ(moved, less_key);
+            }
+          else if (op >= 2)
+            {
+              EXPECT_EQ(x->data, op == 5 ? more_key : less_key);
+            }
+
+          std::vector<int> out;
+          while (not heap.is_empty())
+            out.push_back(heap.extract_min().key);
+          EXPECT_TRUE(std::is_sorted(out.begin(), out.end()));
+          EXPECT_EQ(out.size(), before.size() - (not thrown and op < 2 ? 1 : 0));
+          if (not thrown)
+            break;
+        }
+  EXPECT_GT(failed, 300u);
+  EXPECT_GT(marked, 0u); // the heaps had marked nodes
+  EXPECT_GT(deep, 0u);   // and nodes at the third level
+}
+
+// When the comparison throws, a consolidation may have left the node that
+// was the minimum under another one of an equivalent key, and that one
+// under a third. The minimum is cut from it and is a root again, and the
+// node that lost it is marked, as one that loses a child by decrease_key()
+// is: the loss of another child cuts it too. It was left unmarked, so it
+// could lose two children and stay under its parent
+TEST(FibonacciHeapComparison, TheNodeThatLosesTheMinimumIsMarked)
+{
+  size_t marked = 0, cut = 0;
+  for (size_t victim = 0; victim < 10; ++victim)
+    for (long k = 1; ; ++k)
+      {
+        SCOPED_TRACE(testing::Message() << "node " << victim + 1 << ", call " << k);
+        Comparisons count;
+        Tracked_Heap heap(Failing_Tracked_Less{&count});
+        std::vector<Tracked_Heap::Node *> handles;
+        for (int id = 1; id <= 10; ++id)
+          handles.push_back(heap.insert(Tracked(5, id))); // equivalent keys
+        Tracked_Heap::Node *min = heap.get_min_node();
+
+        count.fail_at = count.calls + k;
+        bool thrown = false;
+        try
+          {
+            heap.delete_node(handles[victim]);
+          }
+        catch (const std::runtime_error &)
+          {
+            thrown = true;
+          }
+        count.fail_at = 0;
+        if (not thrown)
+          break;
+
+        std::vector<Tracked_Heap::Node *> nodes;
+        ASSERT_EQ(tree_errors(heap, nodes), "");
+        ASSERT_EQ(heap.get_min_node(), min);
+        // nothing had been cut before, so a marked node is one that lost
+        // the minimum, and it is not a root
+        Tracked_Heap::Node *loser = nullptr;
+        for (auto *p : nodes)
+          if (p->mark)
+            {
+              EXPECT_EQ(loser, nullptr);
+              EXPECT_NE(p->parent, nullptr);
+              loser = p;
+            }
+        if (loser == nullptr)
+          continue;
+        ++marked;
+        if (loser->child == nullptr)
+          continue;
+        // the loss of another child takes it out of its parent
+        Tracked_Heap::Node *child = loser->child;
+        heap.decrease_key(child, Tracked(4, child->data.id));
+        EXPECT_EQ(child->parent, nullptr);
+        EXPECT_EQ(loser->parent, nullptr);
+        EXPECT_FALSE(loser->mark);
+        ASSERT_EQ(tree_errors(heap, nodes), "");
+        ++cut;
+      }
+  EXPECT_GT(marked, 0u);
+  EXPECT_GT(cut, 0u);
+}
+
+namespace
+{
+  // A key whose copies throw when they are told to: its copy constructor
+  // before it writes anything, and its copy assignment once it has written
+  struct Brittle
+  {
+    static inline bool copy_throws = false;
+    static inline bool assignment_throws = false;
+
+    int key = 0;
+    int id = 0;
+
+    Brittle(const int k, const int i) noexcept : key(k), id(i) {}
+
+    Brittle(const Brittle & other) : key(other.key), id(other.id)
+    {
+      if (copy_throws)
+        throw std::runtime_error("copy");
+    }
+
+    Brittle(Brittle &&) noexcept = default;
+
+    Brittle & operator=(const Brittle & other)
+    {
+      key = other.key;
+      id = other.id;
+      if (assignment_throws)
+        throw std::runtime_error("assignment");
+      return *this;
+    }
+
+    Brittle & operator=(Brittle &&) noexcept = default;
+
+    bool operator==(const Brittle &) const = default;
+  };
+
+  void PrintTo(const Brittle & x, std::ostream *os) { *os << x.key << '#' << x.id; }
+
+  struct Brittle_Less
+  {
+    bool operator()(const Brittle & a, const Brittle & b) const noexcept { return a.key < b.key; }
+  };
+}
+
+// update_key() with a greater key assigned the key to the node once the
+// node was out of its tree. An assignment that threw after writing left a
+// heap whose minimum was the node of before, whatever its key was by then.
+// Now the key is copied before the heap changes and moved into the node at
+// the end: a copy that throws changes nothing
+TEST(FibonacciHeapComparison, UpdateKeyCopiesTheKeyBeforeItChangesTheHeap)
+{
+  Fibonacci_Heap<Brittle, Brittle_Less> heap;
+  auto *one = heap.insert(Brittle(1, 1));
+  auto *five = heap.insert(Brittle(5, 2));
+  auto *seven = heap.insert(Brittle(7, 3));
+  (void) heap.insert(Brittle(0, 4));
+  EXPECT_EQ(heap.extract_min(), Brittle(0, 4)); // one and five are roots now
+  ASSERT_EQ(heap.get_min_node(), one);
+  ASSERT_EQ(five->parent, nullptr);
+  ASSERT_EQ(seven->parent, five); // which update_key() cuts from its tree
+  const Brittle nine(9, 5);
+
+  Brittle::copy_throws = true;
+  EXPECT_THROW((void) heap.update_key(one, nine), std::runtime_error);
+  EXPECT_THROW((void) heap.update_key(five, nine), std::runtime_error);
+  EXPECT_THROW((void) heap.update_key(seven, nine), std::runtime_error);
+  Brittle::copy_throws = false;
+  EXPECT_EQ(heap.size(), 3u);
+  EXPECT_EQ(heap.get_min_node(), one);
+  EXPECT_EQ(one->data, Brittle(1, 1));
+  EXPECT_EQ(five->data, Brittle(5, 2));
+  EXPECT_EQ(seven->data, Brittle(7, 3));
+  EXPECT_EQ(seven->parent, five);
+  EXPECT_EQ(five->degree, 1u);
+
+  // the copy assignment, which throws after it writes, is not what puts
+  // the key in the node
+  Brittle::assignment_throws = true;
+  ASSERT_EQ(heap.update_key(one, nine), one);
+  Brittle::assignment_throws = false;
+  EXPECT_EQ(one->data, nine);
+  EXPECT_EQ(heap.size(), 3u);
+  EXPECT_EQ(heap.get_min_node(), five);
+  EXPECT_EQ(heap.extract_min(), Brittle(5, 2));
+  EXPECT_EQ(heap.extract_min(), Brittle(7, 3));
+  EXPECT_EQ(heap.extract_min(), nine);
+  EXPECT_TRUE(heap.is_empty());
+}
+
+namespace
+{
+  // A key that is copied, and assigned from a const reference only: its
+  // move assignment is deleted, and so is the one from a reference that is
+  // not const
+  struct Copied_Only
+  {
+    int key = 0;
+
+    explicit Copied_Only(const int k) noexcept : key(k) {}
+    Copied_Only(const Copied_Only &) = default;
+    Copied_Only & operator=(const Copied_Only &) = default;
+    Copied_Only & operator=(Copied_Only &) = delete;
+    Copied_Only & operator=(Copied_Only &&) = delete;
+
+    bool operator<(const Copied_Only & other) const noexcept { return key < other.key; }
+  };
+}
+
+// update_key() with a greater key deleted the node and inserted a copy of
+// the key: it took a key whose move assignment is deleted, as
+// decrease_key() does, which assigns it from a const reference. Moving the
+// key into the node stopped compiling with such a key, which is copied
+// into it now, from a const reference too
+TEST(FibonacciHeapComparison, UpdateKeyTakesAKeyWithNoMoveAssignment)
+{
+  static_assert(not std::is_move_assignable_v<Copied_Only>);
+  static_assert(std::is_copy_assignable_v<Copied_Only>);
+  Fibonacci_Heap<Copied_Only> heap;
+  const Copied_Only zero(0), one(1), three(3), five(5), seven(7), nine(9);
+  auto *n1 = heap.insert(one);
+  auto *n5 = heap.insert(five);
+  auto *n7 = heap.insert(seven);
+  (void) heap.insert(zero);
+  EXPECT_EQ(heap.extract_min().key, 0);
+  ASSERT_EQ(heap.get_min_node(), n1);
+  ASSERT_EQ(n7->parent, n5);
+
+  ASSERT_EQ(heap.update_key(n7, nine), n7); // a child
+  EXPECT_EQ(n7->data.key, 9);
+  EXPECT_EQ(n7->parent, nullptr);
+  ASSERT_EQ(heap.update_key(n1, seven), n1); // the minimum
+  EXPECT_EQ(n1->data.key, 7);
+  EXPECT_EQ(heap.get_min_node(), n5);
+  ASSERT_EQ(heap.update_key(n7, three), n7); // decreases
+  EXPECT_EQ(heap.get_min_node(), n7);
+  EXPECT_EQ(heap.size(), 3u);
+  EXPECT_EQ(heap.extract_min().key, 3);
+  EXPECT_EQ(heap.extract_min().key, 5);
+  EXPECT_EQ(heap.extract_min().key, 7);
+  EXPECT_TRUE(heap.is_empty());
+}
+
+namespace
+{
+  // What a comparison returns: it converts to bool implicitly by a function
+  // that throws when it is told to, and in a condition by another one
+  struct Wary_Bool
+  {
+    static inline bool armed = false;
+
+    bool value;
+
+    operator bool() const &
+    {
+      if (armed)
+        throw std::runtime_error("implicit conversion");
+      return value;
+    }
+
+    explicit operator bool() && noexcept { return value; }
+  };
+
+  struct Wary_Less
+  {
+    Wary_Bool operator()(const int a, const int b) const noexcept { return Wary_Bool{a < b}; }
+  };
+}
+
+// decrease_key() and update_key() compare before they change the heap, and
+// kept each result in a bool, by its implicit conversion, where they made
+// that of a condition before. With a result whose implicit conversion
+// throws, decrease_key() stopped decreasing. They convert the results now
+// as a condition does
+TEST(FibonacciHeapComparison, TheResultOfAComparisonIsConvertedAsInACondition)
+{
+  Fibonacci_Heap<int, Wary_Less> heap;
+  auto *five = heap.insert(5);
+  auto *seven = heap.insert(7);
+  auto *nine = heap.insert(9);
+  (void) heap.insert(1);
+  EXPECT_EQ(heap.extract_min(), 1);
+  const int six = 6;
+
+  Wary_Bool::armed = true;
+  EXPECT_NO_THROW(heap.decrease_key(nine, 3));  // the key is moved
+  EXPECT_NO_THROW(heap.decrease_key(seven, six)); // and copied
+  EXPECT_NO_THROW((void) heap.update_key(five, 8));
+  Wary_Bool::armed = false;
+  EXPECT_EQ(heap.size(), 3u);
+  EXPECT_EQ(heap.get_min_node(), nine);
+  EXPECT_EQ(heap.extract_min(), 3);
+  EXPECT_EQ(heap.extract_min(), 6);
+  EXPECT_EQ(heap.extract_min(), 8);
+  EXPECT_TRUE(heap.is_empty());
+}
+
+// update_key() with a greater key deleted the node and inserted another one.
+// Now it keeps the node, so the handle is the same and no node is allocated
+TEST(FibonacciHeapComparison, UpdateKeyKeepsTheNodeWhenTheKeyIncreases)
+{
+  Comparisons count;
+  Tracked_Heap heap(Failing_Tracked_Less{&count});
+  fill_with_trees(heap, 5);
+  std::vector<Tracked_Heap::Node *> nodes;
+  ASSERT_EQ(tree_errors(heap, nodes), "");
+  const size_t size = heap.size();
+  int id = 2000;
+  for (auto *p : nodes)
+    {
+      const Tracked key(p->data.key + 7, ++id);
+      ASSERT_EQ(heap.update_key(p, key), p);
+      EXPECT_EQ(p->data, key);
+      std::vector<Tracked_Heap::Node *> now;
+      ASSERT_EQ(tree_errors(heap, now), "");
+      ASSERT_EQ(heap.size(), size);
+    }
+  // the minimum alone, in a heap of one node
+  Tracked_Heap one(Failing_Tracked_Less{&count});
+  auto *p = one.insert(Tracked(3, 1));
+  EXPECT_EQ(one.update_key(p, Tracked(9, 2)), p);
+  EXPECT_EQ(one.get_min(), Tracked(9, 2));
+  EXPECT_EQ(one.size(), 1u);
+}
+
+// With several roots of the least key, a consolidation links the node that
+// was the minimum under another of them. If the comparison throws after
+// that, in delete_node() or in update_key() of another node, that node is
+// the minimum again, and a root
+TEST(FibonacciHeapComparison, AMinimumThatWasLinkedIsTheMinimumAgain)
+{
+  size_t failed = 0;
+  for (int op = 0; op < 2; ++op)
+    for (size_t which = 1; which < 12; ++which) // the consolidation starts after the node that leaves
+      for (long k = 1; ; ++k)
+        {
+          SCOPED_TRACE(testing::Message() << "op " << op << ", node " << which << ", call " << k);
+          Comparisons count;
+          Tracked_Heap heap(Failing_Tracked_Less{&count});
+          std::vector<Tracked_Heap::Node *> nodes;
+          for (int i = 0; i < 12; ++i) // eight roots with the least key
+            nodes.push_back(heap.insert(Tracked(i < 8 ? 5 : 5 + i, i + 1)));
+          Tracked_Heap::Node *min = heap.get_min_node();
+          Tracked_Heap::Node *x = nodes[which];
+          ASSERT_NE(x, min);
+
+          count.fail_at = count.calls + k;
+          bool thrown = false;
+          try
+            {
+              if (op == 0)
+                heap.delete_node(x);
+              else
+                (void) heap.update_key(x, Tracked(99, 50));
+            }
+          catch (const std::runtime_error &)
+            {
+              thrown = true;
+            }
+          count.fail_at = 0;
+
+          std::vector<Tracked_Heap::Node *> after;
+          EXPECT_EQ(tree_errors(heap, after), "");
+          if (not thrown)
+            break;
+          ++failed;
+          EXPECT_EQ(heap.get_min_node(), min);
+          EXPECT_EQ(min->parent, nullptr);
+          EXPECT_EQ(heap.size(), 12u);
+        }
+  EXPECT_GT(failed, 100u);
+}
+
+// A key that increases and is still the least one leaves its node as the
+// minimum; if another key is less than it now, the node of that one is
+TEST(FibonacciHeapComparison, UpdateKeyOfTheMinimumToAGreaterKey)
+{
+  Comparisons count;
+  Tracked_Heap heap(Failing_Tracked_Less{&count});
+  std::vector<Tracked_Heap::Node *> nodes;
+  for (int i = 0; i < 9; ++i)
+    nodes.push_back(heap.insert(Tracked(10*i, i + 1))); // 0, 10, ..., 80
+  EXPECT_EQ(heap.extract_min().key, 0); // the others, in trees
+  std::vector<Tracked_Heap::Node *> now;
+
+  Tracked_Heap::Node *p = heap.get_min_node();
+  ASSERT_EQ(p, nodes[1]);
+  ASSERT_EQ(heap.update_key(p, Tracked(15, 100)), p); // still less than 20
+  EXPECT_EQ(heap.get_min_node(), p);
+  EXPECT_EQ(tree_errors(heap, now), "");
+
+  EXPECT_EQ(heap.update_key(p, Tracked(25, 101)), p); // 20 is the least now
+  EXPECT_EQ(heap.get_min_node(), nodes[2]);
+  EXPECT_EQ(tree_errors(heap, now), "");
+
+  std::vector<int> out;
+  while (not heap.is_empty())
+    out.push_back(heap.extract_min().key);
+  EXPECT_EQ(out, (std::vector<int>{20, 25, 30, 40, 50, 60, 70, 80}));
 }
 
 // Performance test (disabled by default due to time)

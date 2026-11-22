@@ -37,44 +37,163 @@
  *  structure instead of an array. This allows for dynamic sizing and
  *  efficient node-based operations.
  *
+ *  A heap on an array finds the parent and the children of an entry with
+ *  arithmetic on its index, and its last entry at the end of the array. The
+ *  heap of this file has no array and no indexes: it gets the same from the
+ *  links of its nodes, in O(1), because it keeps the nodes of the bottom of
+ *  the tree in a list. The section "Representation" describes how; whoever
+ *  changes this file must read it first.
+ *
  *  ## Heap Types
  *
  *  - **GenBinHeap**: Generic base heap with customizable comparison
  *  - **BinHeap**: Min-heap (smallest element at root)
- *  - **BinHeapMax**: Max-heap (largest element at root)
  *  - **BinHeapVtl**: Min-heap with virtual destructor for polymorphism
+ *
+ *  With the reverse comparison, any of them is a max-heap.
  *
  *  ## Key Features
  *
  *  - Tree-based structure (not array-based)
  *  - Parent pointers for efficient operations
+ *  - The place of an insertion and the last node, each in O(1), from a list
+ *    of the nodes that lack a child
  *  - Supports iteration via Iterator class
- *  - Move semantics for efficient transfers
+ *  - The nodes belong to the caller, which allocates and frees them
  *
  *  ## Complexity
  *
  *  | Operation | Time |
  *  |-----------|------|
  *  | insert | O(log n) |
- *  | getMin/getMax | O(1) |
+ *  | top | O(1) |
+ *  | getMin/getMax | O(log n) |
  *  | remove | O(log n) |
  *  | update | O(log n) |
- *  | build from n elements | O(n) |
  *
  *  ## Usage Example
  *
  *  ```cpp
  *  BinHeap<int> heap;
- *  
- *  heap.insert(5);
- *  heap.insert(3);
- *  heap.insert(7);
- *  
- *  while (!heap.is_empty()) {
- *    int min = heap.getMin();  // Get minimum
- *    heap.getMin();            // Remove minimum
- *  }
+ *  BinHeap<int>::Node a(5), b(3), c(7); // the nodes belong to the caller
+ *
+ *  heap.insert(&a);
+ *  heap.insert(&b);
+ *  heap.insert(&c);
+ *
+ *  while (not heap.is_empty())
+ *    {
+ *      BinHeap<int>::Node *min = heap.getMin(); // removes the minimum
+ *      std::cout << min->get_key() << '\n';     // 3, then 5, then 7
+ *    }
  *  ```
+ *
+ *  ## Representation
+ *
+ *  ### The tree
+ *
+ *  The tree is complete: all its levels are full except, at most, the last
+ *  one, whose nodes are at its left. Number the places of the nodes by
+ *  levels and from left to right, with the root at 1: the place i has its
+ *  parent at i / 2 and its children at 2 i and 2 i + 1, and a heap of n
+ *  nodes fills the places 1 to n. These are the indexes of a heap on an
+ *  array. Here no node knows its own, but the links follow them. The shape
+ *  of the tree depends only on n: the operations change which node is at
+ *  each place.
+ *
+ *  Each node has three links, LLINK, RLINK and ULINK, and two flags: IS_LEAF,
+ *  it has no children, and IS_LEFT, it is the left child of its parent.
+ *  ULINK is its parent; that of the root is the header node of the heap,
+ *  whose right child is the root. The heap keeps the root, the node at n,
+ *  which is called `last`, and n.
+ *
+ *  ### The list of the nodes that lack a child
+ *
+ *  A node with two children has them in LLINK and RLINK, as in any binary
+ *  tree. A node that lacks a child has links to spare, and the heap uses
+ *  those links to keep all such nodes in a circular doubly linked list, in
+ *  the order of their places: RLINK is the next node of the list and LLINK
+ *  the previous one.
+ *
+ *  Those nodes are the ones at the places f to n, where f = (n + 1) / 2,
+ *  that is, n / 2 rounded up: all the leaves and, if n is even, the parent
+ *  of the last node, which has a left child only. The list starts at f and
+ *  ends at `last`, which is followed by the node at f again.
+ *
+ *  If n is even, the first node of the list is the parent of the last one.
+ *  Its LLINK is then its left child and its previous node of the list at
+ *  once, with no conflict, since both are `last`. Its RLINK is its next
+ *  node of the list, not a child.
+ *
+ *  ```text
+ *                         1                      n = 10, f = 5
+ *                   /           \
+ *                 2               3              1 to 4: two children
+ *               /   \           /   \
+ *              4     5         6     7           5: a left child only
+ *             / \   /
+ *            8   9 10                            6 to 10: leaves
+ *
+ *     the list:   5 <-> 6 <-> 7 <-> 8 <-> 9 <-> 10 = last
+ *                 ^                              ^
+ *                 +------------------------------+
+ *
+ *     LLINK(5) = 10: its left child and its previous node of the list
+ *     RLINK(5) = 6:  its next node of the list
+ *  ```
+ *
+ *  A heap of one node has it as its own next and previous node. In an empty
+ *  heap the root is null and `last` is the header node.
+ *
+ *  ### What the list is for
+ *
+ *  The two nodes around `last` in the list are the ones that an insertion
+ *  and a removal need:
+ *
+ *  - RLINK(last), the node at f, is the parent of the place n + 1, because
+ *    (n + 1) / 2 = f. An insertion makes the new node its child, the left
+ *    one if it had none and the right one otherwise, and puts it in the list
+ *    after `last`, as the new last node. A parent that gets its second child
+ *    leaves the list.
+ *  - LLINK(last), the node at n - 1, is the last node once `last` is out. A
+ *    removal takes `last` out of the list, and a parent that loses its
+ *    second child enters the list as its first node.
+ *
+ *  So both find their place in O(1): with no array, no search and no path
+ *  computed from the bits of n. Only the sifts, which exchange a node with
+ *  its parent level by level, take O(log n).
+ *
+ *  ### Reading the links
+ *
+ *  Whether a link is a child or a neighbour of the list comes from the
+ *  flags and from the list itself:
+ *
+ *  - If IS_LEAF(p), both links of p are of the list.
+ *  - Otherwise LLINK(p) is the left child of p, and RLINK(p) is its right
+ *    child unless the left one is the only child. A node is an only child
+ *    when its next node of the list is its own parent, which only happens
+ *    to `last`, when n is even: this is has_sibling().
+ *
+ *  advance_left() and advance_right() give the children of a node by those
+ *  rules, and null where there is none. Whatever walks the tree must use
+ *  them: followed blindly, the links never reach a null pointer, they go
+ *  round the list.
+ *
+ *  ### Exchanges
+ *
+ *  A sift exchanges a node with its parent, swap_with_parent(), and an
+ *  extraction exchanges the root with the last node, swap_root_with_last().
+ *  An exchange gives each of the two nodes the place of the other, in the
+ *  tree and in the list, flags included, so that the shape and the list stay
+ *  those of n. That is why swap_with_parent() tells apart whether the nodes
+ *  are in the list: neither, the child only, or both, which is the case of
+ *  `last` under a parent that has no other child.
+ *
+ *  Since the links depend only on which node is at each place, an exchange
+ *  is undone by exchanging the same two nodes again, and the linking of a
+ *  last node by its removal. That is how an operation leaves the heap as it
+ *  was when the comparison throws: it takes each node back to its place,
+ *  with exchanges, which compare nothing and do not throw.
  *
  *  ## When to Use
  *
@@ -98,6 +217,7 @@
 # ifndef TPL_BINHEAP_H
 # define TPL_BINHEAP_H
 
+# include <type_traits>
 # include <utility>
 
 # include <ah-concepts.H>
@@ -141,6 +261,9 @@ namespace Aleph
 
   DECLARE_BINNODE(BinHeapNode, 64, BinHeapNode_Data);
 
+  // The previous and the next node of a node of the list of the nodes that
+  // lack a child: the links LLINK and RLINK of the node, under the names of
+  // their other use. See "Representation" in the description of this file
 # define PREV(p)      (p->getL())
 # define NEXT(p)      (p->getR())
 # define ULINK(p)     reinterpret_cast<Node*&>((p)->getU())
@@ -150,13 +273,20 @@ namespace Aleph
 
   /** Generic heap of nodes.
 
-      The GenBinHeap class instruments a node heap. This team doesn't
-      is implemented by array, but with a binary tree.
-      This provides the great advantage of being highly dynamic.
-      The memory used is therefore proportional to the amount of
-      nodes of the HEAP.
+      The GenBinHeap class implements a heap of nodes. It is not on an
+      array, but on a binary tree of linked nodes, which makes it highly
+      dynamic: the memory used is proportional to the number of nodes of
+      the heap.
 
-This class is not intended for public use. Its purpose is to provide
+      The tree is complete, and the nodes that lack a child, which are those
+      of its bottom, are also in a circular doubly linked list made with the
+      links that they do not use for children. The node after the last one
+      in that list is the parent of the next node to insert, and the node
+      before it is the last one after a removal, so the heap finds both in
+      O(1). The description of the file tpl_binHeap.H, in its section
+      "Representation", has the whole of it.
+
+      This class is not intended for public use. Its purpose is to provide
       basic functionality to the BinHeap, BinHeapVtl, and
       DynBinHeap.
 
@@ -178,10 +308,13 @@ This class is not intended for public use. Its purpose is to provide
   protected:
     Compare cmp;
 
-    // The operations that compare keys throw only if the comparison does
+    // The operations that compare keys throw only if the comparison does,
+    // or the conversion of its result to bool: the one that a condition
+    // makes, which for a result of a class type may be another function
+    // than that of an implicit conversion
     static constexpr bool nothrow_cmp =
-      noexcept(std::declval<Compare &>()(std::declval<Key &>(),
-                                         std::declval<Key &>()));
+      noexcept(static_cast<bool>(std::declval<Compare &>()(std::declval<Key &>(),
+                                                           std::declval<Key &>())));
 
   public:
     using Node = NodeType<Key>;
@@ -191,10 +324,16 @@ This class is not intended for public use. Its purpose is to provide
     Compare &get_compare() noexcept { return cmp; }
 
   private:
+    /// The header node: the root is its right child
     Node head_node;
+    /// The address of the header node
     Node *head;
+    /// The node at the place 1; null in an empty heap
     Node *& root;
+    /// The node at the place n, where the list of the nodes that lack a
+    /// child ends; the header node in an empty heap
     Node *last;
+    /// The number n of nodes
     size_t num_nodes;
 
   public:
@@ -220,6 +359,8 @@ This class is not intended for public use. Its purpose is to provide
         last = &head_node;
     }
 
+    /// Whether p is in the list of the nodes that lack a child: it is a
+    /// leaf, or its left child is its only one
     static bool is_in_list(Node *p) noexcept
     {
       if (IS_LEAF(p))
@@ -228,31 +369,40 @@ This class is not intended for public use. Its purpose is to provide
       return ULINK(LLINK(p)) == RLINK(LLINK(p));
     }
 
+    /// Whether the parent of p, which is not the root, has another child.
+    /// It does not when the next node of p in the list is that parent,
+    /// which only happens to the last node, if it is a left child
     static bool has_sibling(Node *p) noexcept
     {
       return ULINK(p) != RLINK(p);
     }
 
+    /// Exchanges the node p, which is not the root, with its parent: each
+    /// one takes the place of the other in the tree and in the list of the
+    /// nodes that lack a child, and its flags. The heaps of 2 and of 3
+    /// nodes apart, the cases are three: neither node is in the list, only
+    /// p is, or both are, which is when p is the last node and the only
+    /// child of its parent
     void swap_with_parent(Node *p) noexcept
     {
       assert(num_nodes >= 2);
       assert(p != root);
 
-      Node *pp = ULINK(p); // padre de p
+      Node *pp = ULINK(p); // the parent of p
 
       const bool p_has_sibling = has_sibling(p);
-      const bool p_is_in_list = is_in_list(p); // p is it in the last level?
-      const bool pp_is_in_list = is_in_list(pp); // p == last & LLINK(pp) == last?
-      const bool p_has_child = not IS_LEAF(p); // Does p have children?
+      const bool p_is_in_list = is_in_list(p); // does p lack a child?
+      const bool pp_is_in_list = is_in_list(pp); // is p the only child of pp? then p == last
+      const bool p_has_child = not IS_LEAF(p); // if p is in the list, a left child only
 
       std::swap(CTRL_BITS(pp), CTRL_BITS(p));
 
       if (pp == root)
         root = p;
 
-      Node *ppp = ULINK(pp); // abuelo de p; padre de pp
+      Node *ppp = ULINK(pp); // the parent of pp
 
-      ULINK(pp) = p; // Actualizar ULINK
+      ULINK(pp) = p;
       ULINK(p) = ppp;
 
       if (LLINK(ppp) == pp)
@@ -260,21 +410,22 @@ This class is not intended for public use. Its purpose is to provide
       else
         RLINK(ppp) = p;
 
-      Node *sp = nullptr; // guarda hermano de p
+      Node *sp = nullptr; // the sibling of p
       if (p_has_sibling)
         {
-          sp = p == LLINK(pp) ? RLINK(pp) : LLINK(pp); // hermano de p
+          sp = p == LLINK(pp) ? RLINK(pp) : LLINK(pp);
           assert(ULINK(sp) == pp);
           ULINK(sp) = p;
         }
 
-      if (p == last) // ¿actualizar last?
+      if (p == last)
         last = pp;
 
       if (num_nodes == 2)
         return;
 
-      Node *lcp = LLINK(p); // respaldo de hijos de p
+      // The children of p or, where p lacks one, its neighbours of the list
+      Node *lcp = LLINK(p);
       Node *rcp = RLINK(p);
 
       if (num_nodes == 3)
@@ -295,7 +446,7 @@ This class is not intended for public use. Its purpose is to provide
           return;
         }
 
-      if (not p_is_in_list)
+      if (not p_is_in_list) // lcp and rcp are the children of p
         {
           ULINK(lcp) = ULINK(rcp) = pp;
 
@@ -318,7 +469,7 @@ This class is not intended for public use. Its purpose is to provide
           return;
         }
 
-      if (not pp_is_in_list)
+      if (not pp_is_in_list) // pp takes the place of p in the list
         {
           if (p_has_child)
             ULINK(LLINK(p)) = pp;
@@ -344,6 +495,9 @@ This class is not intended for public use. Its purpose is to provide
           return;
         }
 
+      // p is the last node and pp the first one of the list, which follows
+      // p. They exchange those two places: pp ends as the only child of p,
+      // and so as its previous node too
       RLINK(lcp) = pp;
       LLINK(RLINK(pp)) = p;
       LLINK(pp) = lcp;
@@ -352,17 +506,30 @@ This class is not intended for public use. Its purpose is to provide
       LLINK(p) = pp;
     }
 
+    // The sifts exchange the node with its parent, or with a child, level by
+    // level, as they compare. If the comparison throws they leave the node
+    // where it was by then, and the operation that called them takes it
+    // back to its place: an exchange is undone by another one, which
+    // compares nothing and does not throw, so the heap is as it was before
+    // the exception goes on. That undoing is in functions of its own, cold
+    // and out of line, to keep it out of the way of the code that runs when
+    // nothing throws. A comparison that cannot throw leaves nothing to
+    // undo: the operations are compiled then without it (nothrow_cmp).
+
+    /// Takes p up while its key is less than that of its parent
     virtual void sift_up(Node *p) noexcept(nothrow_cmp)
     {
       while (p != root and cmp(KEY(p), KEY(ULINK(p))))
         swap_with_parent(p);
     }
 
+    /// Takes p down while its key is not less than that of its child with
+    /// the least key
     virtual void sift_down(Node *p) noexcept(nothrow_cmp)
     {
       while (not IS_LEAF(p))
         {
-          Node *cp = LLINK(p); // guarda el menor hijo de p
+          Node *cp = LLINK(p); // the child of p with the least key
           if (has_sibling(cp))
             if (cmp(KEY(RLINK(p)), KEY(LLINK(p))))
               cp = RLINK(p);
@@ -374,6 +541,78 @@ This class is not intended for public use. Its purpose is to provide
         }
     }
 
+    /// Takes back up the node p, which went down from under the node pp,
+    /// until it is under it again
+    void back_up(Node *p, Node *pp) noexcept
+    {
+      while (ULINK(p) != pp)
+        swap_with_parent(p);
+    }
+
+    /// Takes back down the node p, which went up, to the place of the node
+    /// c, which is below it. The nodes that p passed are those of the way
+    /// from c up to p: p exchanges with each one of them, from the top, so
+    /// it goes over the way once
+    void back_down(Node *p, Node *c) noexcept
+    {
+      if (Node *over = ULINK(c); over != p)
+        back_down(p, over); // first to the place over that of c
+      swap_with_parent(c);
+    }
+
+    /// Undoes what sift_down(p) and sift_up(p) did before the comparison
+    /// threw: takes p, which is below or above its place, back under the
+    /// node pp, which was over it
+    [[gnu::cold, gnu::noinline]] void back_under(Node *p, Node *pp) noexcept
+    {
+      Node *q = ULINK(p); // pp is over p if p is below its place, or at it
+      while (q != pp and q != head)
+        q = ULINK(q);
+      if (q == pp)
+        back_up(p, pp);
+      else
+        back_down(p, pp); // pp is at the place of p, which went up
+    }
+
+    /// Undoes an insertion whose sift_up(p) threw: takes p back down to the
+    /// last place, where it was linked, and unlinks it
+    [[gnu::cold, gnu::noinline]] void undo_insert(Node *p) noexcept
+    {
+      if (p != last)
+        back_down(p, last);
+      remove_last();
+    }
+
+    /// Undoes an extraction whose sift_down() threw: the node that took
+    /// the place of the root goes back up to it, the old root is linked
+    /// again as the last node, and the two exchange their places
+    [[gnu::cold, gnu::noinline]] void undo_extraction(Node *moved, Node *old_root) noexcept
+    {
+      back_up(moved, head);
+      link_last(old_root);
+      swap_root_with_last();
+    }
+
+    /// Undoes a removal whose update(p) threw, which left p at the place of
+    /// node: node goes back to it, and p to the end
+    [[gnu::cold, gnu::noinline]] void undo_removal(Node *node, Node *p) noexcept
+    {
+      replace_node(p, node);
+      p->reset();
+      link_last(p);
+    }
+
+    /// Links again as the last nodes two nodes that were taken out: first,
+    /// and then second
+    [[gnu::cold, gnu::noinline]] void link_last_two(Node *first, Node *second) noexcept
+    {
+      link_last(first);
+      link_last(second);
+    }
+
+    /// Exchanges the root with the last node: each one takes the place of
+    /// the other in the tree, and the root that of the last node in the
+    /// list of the nodes that lack a child
     void swap_root_with_last() noexcept
     {
       assert(num_nodes > 1);
@@ -381,7 +620,7 @@ This class is not intended for public use. Its purpose is to provide
       assert(not IS_LEAF(root));
       assert(IS_LEAF(last));
 
-      if (num_nodes > 3) // caso general
+      if (num_nodes > 3) // general case
         {
           Node *lRoot = LLINK(root);
           Node *rRoot = RLINK(root);
@@ -432,7 +671,7 @@ This class is not intended for public use. Its purpose is to provide
           LLINK(root) = RLINK(root) = s_last;
           RLINK(s_last) = LLINK(s_last) = root;
         }
-      else // casos particulares con num_nodes < 3
+      else // special case with 2 nodes
         {
           assert(LLINK(root) == last);
 
@@ -446,6 +685,11 @@ This class is not intended for public use. Its purpose is to provide
       std::swap(root, last);
     }
 
+    /// Takes the last node, which is not the root, out of the tree and of
+    /// the list of the nodes that lack a child, and returns it. Its
+    /// previous node in the list is the new last node, and its parent is
+    /// the first node of the list from then on: it stays so if the last
+    /// node was its only child, and it enters the list if it had two
     Node * remove_last() noexcept
     {
       assert(last != root and num_nodes > 0);
@@ -456,17 +700,17 @@ This class is not intended for public use. Its purpose is to provide
       Node *new_last = LLINK(last);
 
       if (IS_LEFT(last))
-        {
+        { // pp is left without children: its links are both of the list
           IS_LEAF(pp) = true;
           LLINK(pp) = new_last;
         }
       else
-        {
+        { // pp is left with its left child: its right link is of the list
           RLINK(pp) = RLINK(last);
           LLINK(RLINK(last)) = pp;
         }
 
-      RLINK(LLINK(last)) = pp;
+      RLINK(LLINK(last)) = pp; // the list is circular
       last = new_last;
       num_nodes--;
       ret_val->reset();
@@ -474,6 +718,10 @@ This class is not intended for public use. Its purpose is to provide
       return ret_val;
     }
 
+    /// Puts new_node, which is out of the heap, at the place of node, which
+    /// is not the last one: in the tree and, if node lacks a child, in the
+    /// list of the nodes that lack one. The links of node are left as they
+    /// were
     void replace_node(Node *node, Node *new_node) noexcept
     {
       assert(node != new_node);
@@ -503,7 +751,7 @@ This class is not intended for public use. Its purpose is to provide
 
       // Update children
       if (IS_LEAF(node))
-        {
+        { // they are not children, but the neighbours of node in the list
           RLINK(left_child) = new_node;
           LLINK(right_child) = new_node;
         }
@@ -524,6 +772,9 @@ This class is not intended for public use. Its purpose is to provide
       CTRL_BITS(new_node) = CTRL_BITS(node);
     }
 
+    /// Deletes the nodes of the tree of root p. incomplete_node is the node
+    /// with a left child only, whose right link is of the list of the nodes
+    /// that lack a child, or null if there is none
     static void __postorder_delete(Node *p, Node *incomplete_node) noexcept
     {
       if (IS_LEAF(p))
@@ -662,14 +913,50 @@ This class is not intended for public use. Its purpose is to provide
     { /* empty */
     }
 
+  private:
+    /// Links the node p as the last one of a heap that is not empty: after
+    /// the last node in the list of the nodes that lack a child, and under
+    /// the node that follows the last one in that list, which is the first
+    /// one of the list. remove_last() undoes it
+    void link_last(Node *p) noexcept
+    {
+      Node *pp = RLINK(last); // the parent of p
+      LLINK(p) = last;
+      ULINK(p) = pp;
+
+      if (IS_LEFT(last))
+        { // p will be a right child: pp is the parent of the last node too,
+          // and with its second child it leaves the list
+          IS_LEFT(p) = false;
+          RLINK(p) = RLINK(pp);
+          LLINK(RLINK(pp)) = p;
+          RLINK(pp) = p;
+        }
+      else
+        { // p will be a left child: pp stays as the first node of the list,
+          // after p, which is its previous node as well as its child
+          IS_LEFT(p) = true;
+          RLINK(p) = pp;
+          IS_LEAF(pp) = false; // if p is a left child ==> pp was a leaf
+          LLINK(pp) = p;
+        }
+
+      assert(not IS_LEAF(pp));
+
+      RLINK(last) = p;
+      last = p;
+      num_nodes++;
+    }
+
+  public:
     /** Inserts a node into a heap.
 
         insert(p) inserts node p into this heap.
 
         @param[in] p the node to insert.
         @return pointer to the inserted node.
-        @throw anything that the comparison throws. Then p is in the
-        heap, but the heap may be out of order.
+        @throw anything that the comparison throws. Then p is out of the
+        heap, which is as it was, and can be inserted again.
     */
     Node * insert(Node *p) noexcept(nothrow_cmp)
     {
@@ -689,32 +976,20 @@ This class is not intended for public use. Its purpose is to provide
           num_nodes = 1;
           return p;
         }
-      // general insertion
-      Node *pp = RLINK(last); // parent of the current last
-      LLINK(p) = last;
-      ULINK(p) = pp;
 
-      if (IS_LEFT(last))
-        { // p will be a right child
-          IS_LEFT(p) = false;
-          RLINK(p) = RLINK(pp);
-          LLINK(RLINK(pp)) = p;
-          RLINK(pp) = p;
-        }
+      link_last(p);
+      if constexpr (nothrow_cmp)
+        sift_up(p);
       else
-        { // p will be a left child
-          IS_LEFT(p) = true;
-          RLINK(p) = pp;
-          IS_LEAF(pp) = false; // if p is a left child ==> pp was a leaf
-          LLINK(pp) = p;
-        }
-
-      assert(not IS_LEAF(pp));
-
-      RLINK(last) = p;
-      last = p;
-      num_nodes++;
-      sift_up(last);
+        try
+          {
+            sift_up(p);
+          }
+        catch (...)
+          {
+            undo_insert(p);
+            throw;
+          }
       return p;
     }
 
@@ -722,9 +997,8 @@ This class is not intended for public use. Its purpose is to provide
         empty.
 
         @return pointer to the removed node.
-        @throw anything that the comparison throws. Then the node is out
-        of the heap but is not returned, so take it first with top(), and
-        the heap may be out of order.
+        @throw anything that the comparison throws. Then the node is in
+        the heap, which is as it was.
     */
     Node * getMin_ne() noexcept(nothrow_cmp)
     {
@@ -732,6 +1006,7 @@ This class is not intended for public use. Its purpose is to provide
       if (num_nodes == 1)
         {
           root = nullptr;
+          last = &head_node; // as in a heap just built
           ret_val->reset();
           num_nodes = 0;
 
@@ -740,7 +1015,21 @@ This class is not intended for public use. Its purpose is to provide
 
       swap_root_with_last();
       remove_last();
-      sift_down(root);
+      if constexpr (nothrow_cmp)
+        sift_down(root);
+      else
+        {
+          Node *moved = root; // the node that was the last one
+          try
+            {
+              sift_down(moved);
+            }
+          catch (...)
+            {
+              undo_extraction(moved, ret_val);
+              throw;
+            }
+        }
       ret_val->reset();
 
       return ret_val;
@@ -776,14 +1065,32 @@ This class is not intended for public use. Its purpose is to provide
         modified, then the extraction order can be updated.
 
         @param[in] p pointer to the node to update
-        @throw anything that the comparison throws. Then the heap may be
-        out of order.
+        @throw anything that the comparison throws. Then no node has moved:
+        the heap is as it was before the call, with p at its place, where
+        its new priority may be out of order.
         @see insert()
     */
     void update(Node *p) noexcept(nothrow_cmp)
     {
-      sift_down(p);
-      sift_up(p);
+      if constexpr (nothrow_cmp)
+        {
+          sift_down(p);
+          sift_up(p);
+        }
+      else
+        {
+          Node *pp = ULINK(p); // the node over the place of p
+          try
+            {
+              sift_down(p);
+              sift_up(p);
+            }
+          catch (...)
+            {
+              back_under(p, pp);
+              throw;
+            }
+        }
     }
 
     /** Removes node from the heap.
@@ -792,8 +1099,8 @@ This class is not intended for public use. Its purpose is to provide
 
         @param[in] node pointer to the node to remove.
         @throw underflow_error if the heap is empty
-        @throw anything that the comparison throws. Then node is out of the
-        heap and can be inserted again, but the heap may be out of order.
+        @throw anything that the comparison throws. Then node is in the
+        heap, which is as it was.
         @return pointer to the removed node
         @note It is not verified whether node belongs to the heap.
     */
@@ -812,13 +1119,29 @@ This class is not intended for public use. Its purpose is to provide
       if (node == last)
         {
           remove_last();
-          insert(p);
+          try
+            {
+              insert(p);
+            }
+          catch (...)
+            { // insert() left p out: the two go back to the end
+              link_last_two(node, p);
+              throw;
+            }
 
           return node;
         }
       replace_node(node, p);
-      node->reset(); // before update(), which may throw
-      update(p);
+      node->reset(); // undo_removal() gives it the flags of its place again
+      try
+        {
+          update(p);
+        }
+      catch (...)
+        { // update() left p at the place of node
+          undo_removal(node, p);
+          throw;
+        }
 
       return node;
     }
@@ -872,6 +1195,10 @@ This class is not intended for public use. Its purpose is to provide
     bool is_empty() const noexcept { return size() == 0; }
 
   protected:
+    /// The left child of p, or null if it has none. Whatever walks the tree
+    /// must take the children from here and from advance_right(): in the
+    /// nodes that lack a child, the links LLINK and RLINK are those of
+    /// their list, and never null
     static Node * advance_left(Node *p) noexcept
     {
       if (IS_LEAF(p))
@@ -880,6 +1207,9 @@ This class is not intended for public use. Its purpose is to provide
       return LLINK(p);
     }
 
+    /// The right child of p, or null if it has none. A node with a left
+    /// child only has in RLINK its next node of the list of the nodes that
+    /// lack a child
     static Node * advance_right(Node *p) noexcept
     {
       if (IS_LEAF(p))
@@ -891,6 +1221,8 @@ This class is not intended for public use. Its purpose is to provide
       return RLINK(p);
     }
 
+    /// Whether no node of the tree of root p has a key less than that of
+    /// its parent
     virtual bool verify_heap(Node *p) const
     {
       Node *left_link = advance_left(p);
@@ -910,10 +1242,16 @@ This class is not intended for public use. Its purpose is to provide
       if (cmp(KEY(right_link), KEY(p)))
         return false;
 
-      return verify_heap(right_link);
+      return verify_heap(left_link) and verify_heap(right_link);
     }
 
   public:
+    /** Checks the order of the heap.
+
+        @return true if no node has a key less than that of its parent.
+        @throw anything that the comparison throws.
+        @note It visits all the nodes: O(n).
+    */
     bool verify_heap() const
     {
       if (root == nullptr)
@@ -1026,11 +1364,11 @@ This class is not intended for public use. Its purpose is to provide
 
   /** Node heap without virtual destructor.
 
-      The BinHeap class instruments a node heap. This team doesn't
-      is implemented by array, but with a binary tree.
-      This provides the great advantage of being highly dynamic.
-      The memory used is therefore proportional to the amount of
-      nodes of the HEAP.
+      The BinHeap class implements a heap of nodes. It is not on an array,
+      but on a binary tree of linked nodes, which makes it highly dynamic:
+      the memory used is proportional to the number of nodes of the heap.
+      The description of the file tpl_binHeap.H, in its section
+      "Representation", tells how the tree is kept.
 
       @param Key the key that each node keeps.
       @param Compare the criterion of comparison between the keys of the
@@ -1049,14 +1387,14 @@ This class is not intended for public use. Its purpose is to provide
     using GenBinHeap<BinHeapNode, Key, Compare>::GenBinHeap;
   };
 
-  /** Heap of nodes with virtual destroyer.
+  /** Heap of nodes with virtual destructor.
 
-      The BinHeapVtl class instruments a node heap with a destroyer
-      virtual. This team doesn't
-      is implemented by array, but with a binary tree.
-      This provides the great advantage of being highly dynamic.
-      The memory used is therefore proportional to the amount of
-      nodes of the HEAP.
+      The BinHeapVtl class implements a heap of nodes with a virtual
+      destructor. It is not on an array, but on a binary tree of linked
+      nodes, which makes it highly dynamic: the memory used is proportional
+      to the number of nodes of the heap. The description of the file
+      tpl_binHeap.H, in its section "Representation", tells how the tree is
+      kept.
 
       @param Key the key that each node keeps.
       @param Compare the criterion of comparison between the keys of the

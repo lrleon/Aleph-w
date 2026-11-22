@@ -38,6 +38,8 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <limits>
+#include <map>
 #include <memory>
 #include <random>
 #include <stdexcept>
@@ -652,6 +654,92 @@ TYPED_TEST(ArcHeapWithDistance, WhatTheDistanceThrowsLeavesEachArcWithItsHandle)
       Distance_Calls failing;
       failing.fail_at = k;
       EXPECT_THROW(put_and_take(failing), std::runtime_error) << "call " << k;
+    }
+}
+
+// If the distance throws, the heap is as it was before the call: it has the
+// arcs that it had, one for each of their targets, and they come out in
+// order afterwards. ArcHeap could be left out of order, with the new arc
+// in it, or without the arc that it was taking out; ArcFibonacciHeap,
+// without that arc, or with the new arc in a node under a heavier one
+TYPED_TEST(ArcHeapWithDistance, WhatTheDistanceThrowsLeavesTheHeapAsItWas)
+{
+  using Heap = typename TestFixture::template Heap<Shared_Failing_Dist>;
+  auto & nodes = this->nodes;
+  std::vector<std::pair<Arc *, Node *>> puts;
+  for (int round = 0; round < 3; ++round) // lighter and lighter arcs to each target
+    for (int i = 1; i < 8; ++i)
+      puts.emplace_back(this->g.insert_arc(nodes[0], nodes[i], 100 - 30*round + 3*((i*5) % 7)), nodes[i]);
+
+  // Puts the arcs in a heap, taking the minimum out after every third one,
+  // with a distance that fails at the call calls.fail_at. Returns whether
+  // it failed, and leaves in in_steps the calls of those steps
+  long in_steps = 0;
+  auto put_and_take = [&puts, &in_steps](Distance_Calls & calls)
+  {
+    std::unordered_map<Node *, void *> handles;
+    Heap heap(Shared_Failing_Dist{&calls}, VoidMapAccess{&handles});
+    std::map<Node *, Arc *> in_heap; // the arc of each target
+    // The arcs of the heap, as they come out, are those of in_heap by weight
+    auto check = [&heap, &in_heap, &handles]
+    {
+      std::vector<int> expected;
+      for (const auto & entry : in_heap)
+        expected.push_back(entry.second->get_info());
+      std::sort(expected.begin(), expected.end());
+      const auto set = std::count_if(handles.begin(), handles.end(),
+                                     [](const auto & entry) { return entry.second != nullptr; });
+      EXPECT_EQ(static_cast<size_t>(set), in_heap.size());
+      std::vector<int> out;
+      while (not heap.is_empty())
+        out.push_back(heap.get_min_arc()->get_info());
+      EXPECT_EQ(out, expected);
+    };
+    try
+      {
+        size_t step = 0;
+        for (auto [arc, tgt] : puts)
+          {
+            heap.put_arc(arc, tgt);
+            const auto it = in_heap.find(tgt);
+            if (it == in_heap.end() or not (it->second->get_info() < arc->get_info()))
+              in_heap[tgt] = arc;
+            if (++step % 3 != 0)
+              continue;
+            int least = std::numeric_limits<int>::max(); // of the arcs that are in
+            for (const auto & entry : in_heap)
+              least = std::min(least, entry.second->get_info());
+            Arc *min = heap.get_min_arc();
+            EXPECT_EQ(min->get_info(), least);
+            const auto of_min = std::find_if(in_heap.begin(), in_heap.end(),
+                                             [min](const auto & entry) { return entry.second == min; });
+            EXPECT_NE(of_min, in_heap.end());
+            if (of_min != in_heap.end())
+              in_heap.erase(of_min);
+          }
+      }
+    catch (const std::runtime_error &)
+      {
+        calls.fail_at = 0;
+        check();
+        return true;
+      }
+    calls.fail_at = 0; // none of the calls of the steps failed
+    in_steps = calls.calls;
+    check();
+    return false;
+  };
+
+  Distance_Calls calls;
+  EXPECT_FALSE(put_and_take(calls));
+  const long steps_calls = in_steps;
+  EXPECT_GT(steps_calls, 40);
+
+  for (long k = 1; k <= steps_calls; ++k)
+    {
+      Distance_Calls failing;
+      failing.fail_at = k;
+      EXPECT_TRUE(put_and_take(failing)) << "call " << k;
     }
 }
 
