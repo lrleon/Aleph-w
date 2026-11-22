@@ -800,11 +800,13 @@ TEST(ArrayHeap, RemoveReleasesTheItem)
         seen.push_back(p);
         heap.insert(std::move(p));
       }
+    const std::weak_ptr<int> second = heap[2];
     heap.remove(heap[2]); // not the last one
     const auto alive_of = [&seen]
     {
       return std::count_if(seen.begin(), seen.end(), [](const auto & w) { return not w.expired(); });
     };
+    EXPECT_TRUE(second.expired()); // that one, and no other
     EXPECT_EQ(alive_of(), 5);
     heap.remove(heap[heap.size()]); // the last one
     EXPECT_EQ(alive_of(), 5);

@@ -745,11 +745,13 @@ namespace Aleph
                 exchange of two items does not throw.
         @note It is essential that `item` is a valid reference into this heap.
         @note The items need no default constructor.
-        @note With a comparison that may throw, the removed item is emptied
-              before returning if that cannot throw: by a default constructor
-              and a move assignment that do not throw or, failing that, by a
-              move constructor that does not. Otherwise it stays in the array
-              until another item takes its entry or the array is destroyed.
+        @note The last item of the array is removed where it is: it stays in
+              its entry, with what it holds, until another item takes the
+              entry or the array is destroyed. With a comparison that may
+              throw, so does any other item that is removed, unless it can be
+              emptied with no throw: by a default constructor and a move
+              assignment that do not throw or, failing that, by a move
+              constructor that does not.
     */
     void remove(T & item)
     {
