@@ -1835,8 +1835,8 @@ TEST(FibonacciHeapComparison, EveryFailedCallLeavesTheElementsAndTheMinimum)
                 case 1: heap.delete_node(x); break;
                 case 2: heap.decrease_key(x, less_key); break;
                 case 3: heap.decrease_key(x, std::move(moved)); break;
-                case 4: EXPECT_EQ(heap.update_key(x, less_key), x); break;
-                default: EXPECT_EQ(heap.update_key(x, more_key), x);
+                case 4: ASSERT_EQ(heap.update_key(x, less_key), x); break;
+                default: ASSERT_EQ(heap.update_key(x, more_key), x);
                 }
             }
           catch (const std::runtime_error &)
@@ -2019,7 +2019,7 @@ TEST(FibonacciHeapComparison, UpdateKeyCopiesTheKeyBeforeItChangesTheHeap)
   // the copy assignment, which throws after it writes, is not what puts
   // the key in the node
   Brittle::assignment_throws = true;
-  EXPECT_EQ(heap.update_key(one, nine), one);
+  ASSERT_EQ(heap.update_key(one, nine), one);
   Brittle::assignment_throws = false;
   EXPECT_EQ(one->data, nine);
   EXPECT_EQ(heap.size(), 3u);
@@ -2032,7 +2032,9 @@ TEST(FibonacciHeapComparison, UpdateKeyCopiesTheKeyBeforeItChangesTheHeap)
 
 namespace
 {
-  // A key that is copied, and whose move assignment is deleted
+  // A key that is copied, and assigned from a const reference only: its
+  // move assignment is deleted, and so is the one from a reference that is
+  // not const
   struct Copied_Only
   {
     int key = 0;
@@ -2040,6 +2042,7 @@ namespace
     explicit Copied_Only(const int k) noexcept : key(k) {}
     Copied_Only(const Copied_Only &) = default;
     Copied_Only & operator=(const Copied_Only &) = default;
+    Copied_Only & operator=(Copied_Only &) = delete;
     Copied_Only & operator=(Copied_Only &&) = delete;
 
     bool operator<(const Copied_Only & other) const noexcept { return key < other.key; }
@@ -2048,8 +2051,9 @@ namespace
 
 // update_key() with a greater key deleted the node and inserted a copy of
 // the key: it took a key whose move assignment is deleted, as
-// decrease_key() does. Moving the key into the node stopped compiling with
-// such a key, which is copied into it now
+// decrease_key() does, which assigns it from a const reference. Moving the
+// key into the node stopped compiling with such a key, which is copied
+// into it now, from a const reference too
 TEST(FibonacciHeapComparison, UpdateKeyTakesAKeyWithNoMoveAssignment)
 {
   static_assert(not std::is_move_assignable_v<Copied_Only>);
@@ -2064,18 +2068,72 @@ TEST(FibonacciHeapComparison, UpdateKeyTakesAKeyWithNoMoveAssignment)
   ASSERT_EQ(heap.get_min_node(), n1);
   ASSERT_EQ(n7->parent, n5);
 
-  EXPECT_EQ(heap.update_key(n7, nine), n7); // a child
+  ASSERT_EQ(heap.update_key(n7, nine), n7); // a child
   EXPECT_EQ(n7->data.key, 9);
   EXPECT_EQ(n7->parent, nullptr);
-  EXPECT_EQ(heap.update_key(n1, seven), n1); // the minimum
+  ASSERT_EQ(heap.update_key(n1, seven), n1); // the minimum
   EXPECT_EQ(n1->data.key, 7);
   EXPECT_EQ(heap.get_min_node(), n5);
-  EXPECT_EQ(heap.update_key(n7, three), n7); // decreases
+  ASSERT_EQ(heap.update_key(n7, three), n7); // decreases
   EXPECT_EQ(heap.get_min_node(), n7);
   EXPECT_EQ(heap.size(), 3u);
   EXPECT_EQ(heap.extract_min().key, 3);
   EXPECT_EQ(heap.extract_min().key, 5);
   EXPECT_EQ(heap.extract_min().key, 7);
+  EXPECT_TRUE(heap.is_empty());
+}
+
+namespace
+{
+  // What a comparison returns: it converts to bool implicitly by a function
+  // that throws when it is told to, and in a condition by another one
+  struct Wary_Bool
+  {
+    static inline bool armed = false;
+
+    bool value;
+
+    operator bool() const &
+    {
+      if (armed)
+        throw std::runtime_error("implicit conversion");
+      return value;
+    }
+
+    explicit operator bool() && noexcept { return value; }
+  };
+
+  struct Wary_Less
+  {
+    Wary_Bool operator()(const int a, const int b) const noexcept { return Wary_Bool{a < b}; }
+  };
+}
+
+// decrease_key() and update_key() compare before they change the heap, and
+// kept each result in a bool, by its implicit conversion, where they made
+// that of a condition before. With a result whose implicit conversion
+// throws, decrease_key() stopped decreasing. They convert the results now
+// as a condition does
+TEST(FibonacciHeapComparison, TheResultOfAComparisonIsConvertedAsInACondition)
+{
+  Fibonacci_Heap<int, Wary_Less> heap;
+  auto *five = heap.insert(5);
+  auto *seven = heap.insert(7);
+  auto *nine = heap.insert(9);
+  (void) heap.insert(1);
+  EXPECT_EQ(heap.extract_min(), 1);
+  const int six = 6;
+
+  Wary_Bool::armed = true;
+  EXPECT_NO_THROW(heap.decrease_key(nine, 3));  // the key is moved
+  EXPECT_NO_THROW(heap.decrease_key(seven, six)); // and copied
+  EXPECT_NO_THROW((void) heap.update_key(five, 8));
+  Wary_Bool::armed = false;
+  EXPECT_EQ(heap.size(), 3u);
+  EXPECT_EQ(heap.get_min_node(), nine);
+  EXPECT_EQ(heap.extract_min(), 3);
+  EXPECT_EQ(heap.extract_min(), 6);
+  EXPECT_EQ(heap.extract_min(), 8);
   EXPECT_TRUE(heap.is_empty());
 }
 
@@ -2093,7 +2151,7 @@ TEST(FibonacciHeapComparison, UpdateKeyKeepsTheNodeWhenTheKeyIncreases)
   for (auto *p : nodes)
     {
       const Tracked key(p->data.key + 7, ++id);
-      EXPECT_EQ(heap.update_key(p, key), p);
+      ASSERT_EQ(heap.update_key(p, key), p);
       EXPECT_EQ(p->data, key);
       std::vector<Tracked_Heap::Node *> now;
       ASSERT_EQ(tree_errors(heap, now), "");
@@ -2169,7 +2227,7 @@ TEST(FibonacciHeapComparison, UpdateKeyOfTheMinimumToAGreaterKey)
 
   Tracked_Heap::Node *p = heap.get_min_node();
   ASSERT_EQ(p, nodes[1]);
-  EXPECT_EQ(heap.update_key(p, Tracked(15, 100)), p); // still less than 20
+  ASSERT_EQ(heap.update_key(p, Tracked(15, 100)), p); // still less than 20
   EXPECT_EQ(heap.get_min_node(), p);
   EXPECT_EQ(tree_errors(heap, now), "");
 

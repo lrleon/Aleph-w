@@ -802,10 +802,11 @@ namespace Aleph
       ah_domain_error_if(cmp(x->data, k))
         << "Fibonacci_Heap::decrease_key: new key is greater than current key";
 
-      // The comparisons take the new key, and come before the heap changes
+      // The comparisons take the new key, and come before the heap changes;
+      // their results go to bool as a condition converts them
       Node *y = x->parent;
       const bool is_cut = y != nullptr and cmp(k, y->data);
-      const bool is_min = cmp(k, min_node->data);
+      const bool is_min = static_cast<bool>(cmp(k, min_node->data));
 
       x->data = k;
       if (is_cut)
@@ -836,10 +837,11 @@ namespace Aleph
       ah_domain_error_if(cmp(x->data, k))
         << "Fibonacci_Heap::decrease_key: new key is greater than current key";
 
-      // The comparisons take the new key, and come before the heap changes
+      // The comparisons take the new key, and come before the heap changes;
+      // their results go to bool as a condition converts them
       Node *y = x->parent;
       const bool is_cut = y != nullptr and cmp(k, y->data);
-      const bool is_min = cmp(k, min_node->data);
+      const bool is_min = static_cast<bool>(cmp(k, min_node->data));
 
       x->data = std::move(k);
       if (is_cut)
@@ -915,12 +917,12 @@ namespace Aleph
           if (min_node != nullptr)
             {
               consolidate();
-              is_min = cmp(k, min_node->data);
+              is_min = static_cast<bool>(cmp(k, min_node->data));
             }
           if constexpr (std::is_move_assignable_v<T>)
             x->data = std::move(key);
           else
-            x->data = key; // its move assignment is deleted
+            x->data = std::as_const(key); // its move assignment is deleted
         }
       catch (...)
         {
