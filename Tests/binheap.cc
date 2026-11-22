@@ -780,3 +780,25 @@ TEST(BinHeapShape, TheHeapOfTenNodesOfTheDescription)
   EXPECT_EQ(p->getR(), at[6]);  // 5 left the list: 6 is its first node now
   heap.remove_all_and_delete();
 }
+
+// verify_heap() went down by the right child only where there were two, so
+// it did not see a node out of order in a left subtree
+TEST(BinHeapShape, VerifyHeapLooksAtEveryNode)
+{
+  for (int n = 1; n <= 40; ++n)
+    {
+      BinHeap<int> heap;
+      for (int k = 1; k <= n; ++k)
+        heap.insert(new BinHeap<int>::Node(10*k)); // the node of key 10 k is at the place k
+      const auto at = places(heap);
+      EXPECT_TRUE(heap.verify_heap()) << n << " nodes";
+      for (int i = 2; i <= n; ++i)
+        {
+          at[i]->get_key() = 10*(i / 2) - 1; // less than the key of its parent only
+          EXPECT_FALSE(heap.verify_heap()) << n << " nodes, place " << i;
+          at[i]->get_key() = 10*i;
+        }
+      EXPECT_TRUE(heap.verify_heap()) << n << " nodes";
+      heap.remove_all_and_delete();
+    }
+}

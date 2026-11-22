@@ -1061,6 +1061,8 @@ namespace Aleph
       return RLINK(p);
     }
 
+    /// Whether no node of the tree of root p has a key less than that of
+    /// its parent
     virtual bool verify_heap(Node *p) const
     {
       Node *left_link = advance_left(p);
@@ -1080,10 +1082,16 @@ namespace Aleph
       if (cmp(KEY(right_link), KEY(p)))
         return false;
 
-      return verify_heap(right_link);
+      return verify_heap(left_link) and verify_heap(right_link);
     }
 
   public:
+    /** Checks the order of the heap.
+
+        @return true if no node has a key less than that of its parent.
+        @throw anything that the comparison throws.
+        @note It visits all the nodes: O(n).
+    */
     bool verify_heap() const
     {
       if (root == nullptr)
