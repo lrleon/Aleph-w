@@ -576,13 +576,11 @@ TEST(ArrayHeapThrowingCompare, AFailedHeapsortKeepsEveryItem)
               {
                 thrown = true;
               }
-            std::vector<int> ids;
-            for (const Item & x : a)
-              ids.push_back(x.id);
-            std::sort(ids.begin(), ids.end());
-            std::vector<int> all(n);
-            std::iota(all.begin(), all.end(), 1);
-            EXPECT_EQ(ids, all);
+            // each item with its priority, whatever its place
+            std::vector<Item> by_id = a;
+            std::sort(by_id.begin(), by_id.end(),
+                      [](const Item & x, const Item & y) { return x.id < y.id; });
+            EXPECT_EQ(by_id, items);
             if (not thrown)
               {
                 EXPECT_TRUE(std::is_sorted(a.begin(), a.end(),
@@ -820,4 +818,27 @@ TEST(ArrayHeap, RemoveReleasesTheItem)
   check(quiet);
   ArrayHeap<std::shared_ptr<int>, Pointed_Less<false>> loud(8);
   check(loud);
+}
+
+// The heapsorts moved their pointer one item back before they looked at the
+// size. With nothing to sort the pointer may be null, as that of an empty
+// vector, and moving a null pointer is undefined
+TEST(ArrayHeap, HeapsortOfNothingAndOfOneItem)
+{
+  heapsort<int>(nullptr, 0);
+  faster_heapsort<int>(nullptr, 0);
+  std::vector<int> none;
+  heapsort(none.data(), none.size());
+  faster_heapsort(none.data(), none.size());
+  int one = 7;
+  heapsort(&one, 1);
+  EXPECT_EQ(one, 7);
+  faster_heapsort(&one, 1);
+  EXPECT_EQ(one, 7);
+  std::vector<int> two{2, 1};
+  heapsort(two.data(), two.size());
+  EXPECT_EQ(two, (std::vector<int>{1, 2}));
+  two = {2, 1};
+  faster_heapsort(two.data(), two.size());
+  EXPECT_EQ(two, (std::vector<int>{1, 2}));
 }

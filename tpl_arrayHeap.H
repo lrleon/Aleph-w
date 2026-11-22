@@ -286,6 +286,9 @@ namespace Aleph
   inline
   void heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
+    if (n < 2)
+      return; // nothing to sort: array may be null, and is not moved
+
     Inversed_Compare<T, Compare> inv_cmp(cmp);
 
     --array; // shift backwards so array[1] is the first element
@@ -318,6 +321,9 @@ namespace Aleph
   inline
   void faster_heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
+    if (n < 2)
+      return; // nothing to sort: array may be null, and is not moved
+
     Inversed_Compare<T, Compare> inv_cmp(cmp);
 
     --array; // shift backwards so array[1] is the first element
