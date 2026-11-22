@@ -127,8 +127,7 @@ public:
 
   /// Insert or update an arc associated with a target node, keeping the
   /// smallest-distance arc per node in the heap. If the distance throws,
-  /// tgt has in the heap the arc that it had or arc, and the heap may be
-  /// out of order.
+  /// the heap is as it was, and tgt has in it the arc that it had, or none.
   void put_arc(typename GT::Arc *arc, typename GT::Node *tgt)
   {
     auto & handle_storage = access_node(tgt);
@@ -137,9 +136,10 @@ public:
 
     if (heap_node == nullptr) // Is there already an arc inserted into the heap?
       { // No ==> create a new heap node and assign the arc
-        heap_node = new Node;
-        heap_node->get_key() = arc;
-        this->insert(heap_node);
+        std::unique_ptr<Node> node(new Node);
+        node->get_key() = arc;
+        this->insert(node.get()); // if it throws, the node is not in the heap
+        heap_node = node.release();
 
         return;
       }
@@ -152,25 +152,32 @@ public:
       return; // old arc remains in the heap; new one is ignored
 
     // arc_in_heap will be the newly inserted arc
+    typename GT::Arc *old_arc = arc_in_heap;
     arc_in_heap = arc;
-    this->update(heap_node);
+    try
+      {
+        this->update(heap_node);
+      }
+    catch (...)
+      { // update() moved no node: with its arc back, the heap is as it was
+        arc_in_heap = old_arc;
+        throw;
+      }
   }
 
   /// Extract the arc with minimum distance from the heap and clear its
-  /// node-to-heap mapping. If the distance throws while the other arcs
-  /// are put back in order, the arc is already out of the heap, its heap
-  /// node freed and its mapping cleared.
+  /// node-to-heap mapping. If the distance throws, the heap is as it was,
+  /// with the arc in it and its mapping.
   typename GT::Arc * get_min_arc()
   {
-    Node *heap_node = this->top();
-    typename GT::Arc *arc = heap_node->get_key();
-    handle_of(heap_node) = nullptr;
+    Node *top = this->top();
+    handle_type & handle = handle_of(top);
 
-    std::unique_ptr<Node> owner(heap_node); // freed even if getMin_ne() throws
-    [[maybe_unused]] Node *removed = this->getMin_ne();
-    assert(removed == heap_node);
+    std::unique_ptr<Node> heap_node(this->getMin_ne()); // changes nothing if it throws
+    assert(heap_node.get() == top);
+    handle = nullptr;
 
-    return arc;
+    return heap_node->get_key();
   }
 
   /// Remove all heap nodes and delete their memory, after clearing the

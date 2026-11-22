@@ -41,7 +41,7 @@
  *  - O(log n) decrease-key
  *  - Node handles for updates
  *
- *  @see tpl_binHeap.H Array-based heap
+ *  @see tpl_binHeap.H Heap of nodes on a tree, the base of this one
  *  @see tpl_dynArrayHeap.H Array-based dynamic heap
  *  @ingroup Trees
  *  @author Leandro Rabindranath León
@@ -95,11 +95,13 @@ namespace Aleph {
 
     using Node = typename BinHeap<T, Compare>::Node;
 
-    // What the comparison throws leaves the node in the heap, which may then
-    // be out of order
+    // Takes the node p. What the comparison throws leaves p out of the
+    // heap, which is as it was, so p is freed
     T & __insert(Node * p) noexcept(Base::nothrow_cmp)
     {
-      return BinHeap<T, Compare>::insert(p)->get_key();
+      std::unique_ptr<Node> node(p);
+      BinHeap<T, Compare>::insert(p);
+      return node.release()->get_key();
     }
 
     void copy(const DynBinHeap & src)
@@ -162,8 +164,8 @@ namespace Aleph {
         @param[in] item value to insert.
         @return reference to the stored element.
         @throw bad_alloc if allocation fails.
-        @throw anything that the comparison throws. Then the item is in the
-        heap, but the heap may be out of order.
+        @throw anything that the comparison throws. Then the item is not in
+        the heap, which is as it was.
     */
     T & insert(const T & item)
     {
@@ -198,18 +200,16 @@ namespace Aleph {
 
     /** Remove the minimum element (according to @p Compare) and return it.
 
-        @return copy of the removed element.
+        @return the removed element.
         @throw underflow_error if the heap is empty.
-        @throw anything that the comparison throws. Then the element is out
-        of the heap and destroyed, and the heap may be out of order.
+        @throw anything that the comparison throws. Then the element is in
+        the heap, which is as it was.
     */
     T getMin()
     {
-      // The root leaves the heap before the keys are compared, so it is
-      // freed even if the comparison throws; it is null in an empty heap,
-      // for which Base::getMin() throws
-      std::unique_ptr<Node> node(Base::getRoot());
-      Base::getMin();
+      // If Base::getMin() throws, the heap is as it was and there is no
+      // node to free
+      std::unique_ptr<Node> node(Base::getMin());
       return std::move(node->get_key());
     }
 
@@ -228,8 +228,9 @@ namespace Aleph {
     /** Adjust the position of an element after mutating its priority.
 
         @param[in] data reference previously returned by insert().
-        @throw anything that the comparison throws. Then the heap may be out
-        of order.
+        @throw anything that the comparison throws. Then no element has
+        moved: the heap is as it was before the call, with @p data at its
+        place, where its new priority may be out of order.
         @note Behavior is undefined if @p data does not belong to this heap.
     */
     void update(T & data) noexcept(Base::nothrow_cmp)
@@ -245,18 +246,16 @@ namespace Aleph {
 
         @param data element to erase.
         @return true if a node was removed.
-        @throw anything that the comparison throws. Then the element is out
-        of the heap and destroyed, and the heap may be out of order.
+        @throw anything that the comparison throws. Then the element is in
+        the heap, which is as it was.
     */
     bool remove(T & data) noexcept(Base::nothrow_cmp)
     {
       if (this->is_empty())
         return false;
 
-      // The node leaves the heap before the keys are compared, so it is
-      // freed even if the comparison throws
-      std::unique_ptr<Node> node(Node::key_to_node(data));
-      Base::remove(node.get());
+      // If Base::remove() throws, the node is still in the heap
+      delete Base::remove(Node::key_to_node(data));
       return true;
     }
 

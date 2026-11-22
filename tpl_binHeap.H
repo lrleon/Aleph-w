@@ -143,7 +143,7 @@
  *  ```
  *
  *  A heap of one node has it as its own next and previous node. In an empty
- *  heap the root is null.
+ *  heap the root is null and `last` is the header node.
  *
  *  ### What the list is for
  *
@@ -189,6 +189,12 @@
  *  are in the list: neither, the child only, or both, which is the case of
  *  `last` under a parent that has no other child.
  *
+ *  Since the links depend only on which node is at each place, an exchange
+ *  is undone by exchanging the same two nodes again, and the linking of a
+ *  last node by its removal. That is how an operation leaves the heap as it
+ *  was when the comparison throws: it takes each node back to its place,
+ *  with exchanges, which compare nothing and do not throw.
+ *
  *  ## When to Use
  *
  *  Use tree-based heap when:
@@ -211,6 +217,7 @@
 # ifndef TPL_BINHEAP_H
 # define TPL_BINHEAP_H
 
+# include <type_traits>
 # include <utility>
 
 # include <ah-concepts.H>
@@ -301,10 +308,10 @@ namespace Aleph
   protected:
     Compare cmp;
 
-    // The operations that compare keys throw only if the comparison does
+    // The operations that compare keys throw only if the comparison does,
+    // or the conversion of its result to bool
     static constexpr bool nothrow_cmp =
-      noexcept(std::declval<Compare &>()(std::declval<Key &>(),
-                                         std::declval<Key &>()));
+      std::is_nothrow_invocable_r_v<bool, Compare &, Key &, Key &>;
 
   public:
     using Node = NodeType<Key>;
@@ -321,7 +328,7 @@ namespace Aleph
     /// The node at the place 1; null in an empty heap
     Node *& root;
     /// The node at the place n, where the list of the nodes that lack a
-    /// child ends
+    /// child ends; the header node in an empty heap
     Node *last;
     /// The number n of nodes
     size_t num_nodes;
@@ -496,12 +503,25 @@ namespace Aleph
       LLINK(p) = pp;
     }
 
+    // The sifts exchange the node with its parent, or with a child, level by
+    // level, as they compare. If the comparison throws they leave the node
+    // where it was by then, and the operation that called them takes it
+    // back to its place: an exchange is undone by another one, which
+    // compares nothing and does not throw, so the heap is as it was before
+    // the exception goes on. That undoing is in functions of its own, cold
+    // and out of line, to keep it out of the way of the code that runs when
+    // nothing throws. A comparison that cannot throw leaves nothing to
+    // undo: the operations are compiled then without it (nothrow_cmp).
+
+    /// Takes p up while its key is less than that of its parent
     virtual void sift_up(Node *p) noexcept(nothrow_cmp)
     {
       while (p != root and cmp(KEY(p), KEY(ULINK(p))))
         swap_with_parent(p);
     }
 
+    /// Takes p down while its key is not less than that of its child with
+    /// the least key
     virtual void sift_down(Node *p) noexcept(nothrow_cmp)
     {
       while (not IS_LEAF(p))
@@ -516,6 +536,78 @@ namespace Aleph
 
           swap_with_parent(cp);
         }
+    }
+
+    /// Takes back up the node p, which went down from under the node pp,
+    /// until it is under it again
+    void back_up(Node *p, Node *pp) noexcept
+    {
+      while (ULINK(p) != pp)
+        swap_with_parent(p);
+    }
+
+    /// Takes back down the node p, which went up, until it is the node
+    /// under the node pp again, or the last one if pp is null. The nodes
+    /// that p passed are those of the way from its place up to it: p goes
+    /// down by its child on that way
+    void back_down(Node *p, Node *pp) noexcept
+    {
+      while (pp != nullptr ? ULINK(p) != pp : p != last)
+        {
+          Node *c = pp != nullptr ? pp : last;
+          while (ULINK(c) != p)
+            c = ULINK(c);
+          swap_with_parent(c);
+        }
+    }
+
+    /// Undoes what sift_down(p) and sift_up(p) did before the comparison
+    /// threw: takes p, which is below or above its place, back under the
+    /// node pp, which was over it
+    [[gnu::cold, gnu::noinline]] void back_under(Node *p, Node *pp) noexcept
+    {
+      Node *q = ULINK(p); // pp is over p if p is below its place, or at it
+      while (q != pp and q != head)
+        q = ULINK(q);
+      if (q == pp)
+        back_up(p, pp);
+      else
+        back_down(p, pp);
+    }
+
+    /// Undoes an insertion whose sift_up(p) threw: takes p back down to the
+    /// last place, where it was linked, and unlinks it
+    [[gnu::cold, gnu::noinline]] void undo_insert(Node *p) noexcept
+    {
+      back_down(p, nullptr);
+      remove_last();
+    }
+
+    /// Undoes an extraction whose sift_down() threw: the node that took
+    /// the place of the root goes back up to it, the old root is linked
+    /// again as the last node, and the two exchange their places
+    [[gnu::cold, gnu::noinline]] void undo_extraction(Node *moved, Node *old_root) noexcept
+    {
+      back_up(moved, head);
+      link_last(old_root);
+      swap_root_with_last();
+    }
+
+    /// Undoes a removal whose update(p) threw, which left p at the place of
+    /// node: node goes back to it, and p to the end
+    [[gnu::cold, gnu::noinline]] void undo_removal(Node *node, Node *p) noexcept
+    {
+      replace_node(p, node);
+      p->reset();
+      link_last(p);
+    }
+
+    /// Links again as the last nodes two nodes that were taken out: first,
+    /// and then second
+    [[gnu::cold, gnu::noinline]] void link_last_two(Node *first, Node *second) noexcept
+    {
+      link_last(first);
+      link_last(second);
     }
 
     /// Exchanges the root with the last node: each one takes the place of
@@ -821,36 +913,13 @@ namespace Aleph
     { /* empty */
     }
 
-    /** Inserts a node into a heap.
-
-        insert(p) inserts node p into this heap.
-
-        @param[in] p the node to insert.
-        @return pointer to the inserted node.
-        @throw anything that the comparison throws. Then p is in the
-        heap, but the heap may be out of order.
-    */
-    Node * insert(Node *p) noexcept(nothrow_cmp)
+  private:
+    /// Links the node p as the last one of a heap that is not empty: after
+    /// the last node in the list of the nodes that lack a child, and under
+    /// the node that follows the last one in that list, which is the first
+    /// one of the list. remove_last() undoes it
+    void link_last(Node *p) noexcept
     {
-      assert(IS_LEAF(p));
-
-      if (root == nullptr) // Is HEAP empty?
-        { // Yes, initialize
-
-          assert(num_nodes == 0);
-
-          root = p;
-          LLINK(p) = RLINK(p) = p;
-          ULINK(p) = head;
-          IS_LEAF(p) = true;
-          IS_LEFT(p) = false; /* root is right child of header node */
-          last = root;
-          num_nodes = 1;
-          return p;
-        }
-      // general insertion: p goes after the last node in the list of the
-      // nodes that lack a child, and under the node that follows the last
-      // one in that list, which is the first one of the list
       Node *pp = RLINK(last); // the parent of p
       LLINK(p) = last;
       ULINK(p) = pp;
@@ -877,7 +946,50 @@ namespace Aleph
       RLINK(last) = p;
       last = p;
       num_nodes++;
-      sift_up(last);
+    }
+
+  public:
+    /** Inserts a node into a heap.
+
+        insert(p) inserts node p into this heap.
+
+        @param[in] p the node to insert.
+        @return pointer to the inserted node.
+        @throw anything that the comparison throws. Then p is out of the
+        heap, which is as it was, and can be inserted again.
+    */
+    Node * insert(Node *p) noexcept(nothrow_cmp)
+    {
+      assert(IS_LEAF(p));
+
+      if (root == nullptr) // Is HEAP empty?
+        { // Yes, initialize
+
+          assert(num_nodes == 0);
+
+          root = p;
+          LLINK(p) = RLINK(p) = p;
+          ULINK(p) = head;
+          IS_LEAF(p) = true;
+          IS_LEFT(p) = false; /* root is right child of header node */
+          last = root;
+          num_nodes = 1;
+          return p;
+        }
+
+      link_last(p);
+      if constexpr (nothrow_cmp)
+        sift_up(p);
+      else
+        try
+          {
+            sift_up(p);
+          }
+        catch (...)
+          {
+            undo_insert(p);
+            throw;
+          }
       return p;
     }
 
@@ -885,9 +997,8 @@ namespace Aleph
         empty.
 
         @return pointer to the removed node.
-        @throw anything that the comparison throws. Then the node is out
-        of the heap but is not returned, so take it first with top(), and
-        the heap may be out of order.
+        @throw anything that the comparison throws. Then the node is in
+        the heap, which is as it was.
     */
     Node * getMin_ne() noexcept(nothrow_cmp)
     {
@@ -895,6 +1006,7 @@ namespace Aleph
       if (num_nodes == 1)
         {
           root = nullptr;
+          last = &head_node; // as in a heap just built
           ret_val->reset();
           num_nodes = 0;
 
@@ -903,7 +1015,21 @@ namespace Aleph
 
       swap_root_with_last();
       remove_last();
-      sift_down(root);
+      if constexpr (nothrow_cmp)
+        sift_down(root);
+      else
+        {
+          Node *moved = root; // the node that was the last one
+          try
+            {
+              sift_down(moved);
+            }
+          catch (...)
+            {
+              undo_extraction(moved, ret_val);
+              throw;
+            }
+        }
       ret_val->reset();
 
       return ret_val;
@@ -939,14 +1065,32 @@ namespace Aleph
         modified, then the extraction order can be updated.
 
         @param[in] p pointer to the node to update
-        @throw anything that the comparison throws. Then the heap may be
-        out of order.
+        @throw anything that the comparison throws. Then no node has moved:
+        the heap is as it was before the call, with p at its place, where
+        its new priority may be out of order.
         @see insert()
     */
     void update(Node *p) noexcept(nothrow_cmp)
     {
-      sift_down(p);
-      sift_up(p);
+      if constexpr (nothrow_cmp)
+        {
+          sift_down(p);
+          sift_up(p);
+        }
+      else
+        {
+          Node *pp = ULINK(p); // the node over the place of p
+          try
+            {
+              sift_down(p);
+              sift_up(p);
+            }
+          catch (...)
+            {
+              back_under(p, pp);
+              throw;
+            }
+        }
     }
 
     /** Removes node from the heap.
@@ -955,8 +1099,8 @@ namespace Aleph
 
         @param[in] node pointer to the node to remove.
         @throw underflow_error if the heap is empty
-        @throw anything that the comparison throws. Then node is out of the
-        heap and can be inserted again, but the heap may be out of order.
+        @throw anything that the comparison throws. Then node is in the
+        heap, which is as it was.
         @return pointer to the removed node
         @note It is not verified whether node belongs to the heap.
     */
@@ -975,13 +1119,29 @@ namespace Aleph
       if (node == last)
         {
           remove_last();
-          insert(p);
+          try
+            {
+              insert(p);
+            }
+          catch (...)
+            { // insert() left p out: the two go back to the end
+              link_last_two(node, p);
+              throw;
+            }
 
           return node;
         }
       replace_node(node, p);
-      node->reset(); // before update(), which may throw
-      update(p);
+      node->reset(); // undo_removal() gives it the flags of its place again
+      try
+        {
+          update(p);
+        }
+      catch (...)
+        { // update() left p at the place of node
+          undo_removal(node, p);
+          throw;
+        }
 
       return node;
     }
