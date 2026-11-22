@@ -870,9 +870,10 @@ namespace Aleph
      *         trees may be linked otherwise.
      * @throws anything that the copy of the key throws. If the key
      *         increases, the copy is made before the heap changes, which is
-     *         then as it was, and it is moved into the node at the end: the
-     *         above holds if that move assignment does not throw. If the
-     *         key decreases, see decrease_key().
+     *         then as it was, and it is moved into the node at the end, or
+     *         copied if the key has no move assignment: the above holds if
+     *         that assignment does not throw. If the key decreases, see
+     *         decrease_key().
      * @throws std::bad_alloc if the key increases and there is no memory
      *         for the array of the consolidation, which is reserved once,
      *         before the heap changes.
@@ -916,7 +917,10 @@ namespace Aleph
               consolidate();
               is_min = cmp(k, min_node->data);
             }
-          x->data = std::move(key);
+          if constexpr (std::is_move_assignable_v<T>)
+            x->data = std::move(key);
+          else
+            x->data = key; // its move assignment is deleted
         }
       catch (...)
         {

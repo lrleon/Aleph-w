@@ -1995,20 +1995,26 @@ TEST(FibonacciHeapComparison, UpdateKeyCopiesTheKeyBeforeItChangesTheHeap)
   Fibonacci_Heap<Brittle, Brittle_Less> heap;
   auto *one = heap.insert(Brittle(1, 1));
   auto *five = heap.insert(Brittle(5, 2));
-  (void) heap.insert(Brittle(7, 3));
+  auto *seven = heap.insert(Brittle(7, 3));
   (void) heap.insert(Brittle(0, 4));
-  EXPECT_EQ(heap.extract_min(), Brittle(0, 4)); // one, five and seven are in a tree now
+  EXPECT_EQ(heap.extract_min(), Brittle(0, 4)); // one and five are roots now
   ASSERT_EQ(heap.get_min_node(), one);
+  ASSERT_EQ(five->parent, nullptr);
+  ASSERT_EQ(seven->parent, five); // which update_key() cuts from its tree
   const Brittle nine(9, 5);
 
   Brittle::copy_throws = true;
   EXPECT_THROW((void) heap.update_key(one, nine), std::runtime_error);
   EXPECT_THROW((void) heap.update_key(five, nine), std::runtime_error);
+  EXPECT_THROW((void) heap.update_key(seven, nine), std::runtime_error);
   Brittle::copy_throws = false;
   EXPECT_EQ(heap.size(), 3u);
   EXPECT_EQ(heap.get_min_node(), one);
   EXPECT_EQ(one->data, Brittle(1, 1));
   EXPECT_EQ(five->data, Brittle(5, 2));
+  EXPECT_EQ(seven->data, Brittle(7, 3));
+  EXPECT_EQ(seven->parent, five);
+  EXPECT_EQ(five->degree, 1u);
 
   // the copy assignment, which throws after it writes, is not what puts
   // the key in the node
@@ -2021,6 +2027,55 @@ TEST(FibonacciHeapComparison, UpdateKeyCopiesTheKeyBeforeItChangesTheHeap)
   EXPECT_EQ(heap.extract_min(), Brittle(5, 2));
   EXPECT_EQ(heap.extract_min(), Brittle(7, 3));
   EXPECT_EQ(heap.extract_min(), nine);
+  EXPECT_TRUE(heap.is_empty());
+}
+
+namespace
+{
+  // A key that is copied, and whose move assignment is deleted
+  struct Copied_Only
+  {
+    int key = 0;
+
+    explicit Copied_Only(const int k) noexcept : key(k) {}
+    Copied_Only(const Copied_Only &) = default;
+    Copied_Only & operator=(const Copied_Only &) = default;
+    Copied_Only & operator=(Copied_Only &&) = delete;
+
+    bool operator<(const Copied_Only & other) const noexcept { return key < other.key; }
+  };
+}
+
+// update_key() with a greater key deleted the node and inserted a copy of
+// the key: it took a key whose move assignment is deleted, as
+// decrease_key() does. Moving the key into the node stopped compiling with
+// such a key, which is copied into it now
+TEST(FibonacciHeapComparison, UpdateKeyTakesAKeyWithNoMoveAssignment)
+{
+  static_assert(not std::is_move_assignable_v<Copied_Only>);
+  static_assert(std::is_copy_assignable_v<Copied_Only>);
+  Fibonacci_Heap<Copied_Only> heap;
+  const Copied_Only zero(0), one(1), three(3), five(5), seven(7), nine(9);
+  auto *n1 = heap.insert(one);
+  auto *n5 = heap.insert(five);
+  auto *n7 = heap.insert(seven);
+  (void) heap.insert(zero);
+  EXPECT_EQ(heap.extract_min().key, 0);
+  ASSERT_EQ(heap.get_min_node(), n1);
+  ASSERT_EQ(n7->parent, n5);
+
+  EXPECT_EQ(heap.update_key(n7, nine), n7); // a child
+  EXPECT_EQ(n7->data.key, 9);
+  EXPECT_EQ(n7->parent, nullptr);
+  EXPECT_EQ(heap.update_key(n1, seven), n1); // the minimum
+  EXPECT_EQ(n1->data.key, 7);
+  EXPECT_EQ(heap.get_min_node(), n5);
+  EXPECT_EQ(heap.update_key(n7, three), n7); // decreases
+  EXPECT_EQ(heap.get_min_node(), n7);
+  EXPECT_EQ(heap.size(), 3u);
+  EXPECT_EQ(heap.extract_min().key, 3);
+  EXPECT_EQ(heap.extract_min().key, 5);
+  EXPECT_EQ(heap.extract_min().key, 7);
   EXPECT_TRUE(heap.is_empty());
 }
 
