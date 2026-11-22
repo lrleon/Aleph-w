@@ -40,7 +40,9 @@
 #include <memory>
 #include <numeric>
 #include <random>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -586,4 +588,195 @@ TEST(DynBinHeapTest, SwapExchangesTheContents)
   a.insert(1);
   EXPECT_EQ(drain(a), std::vector<int>{1});
   EXPECT_EQ(drain(spare), (std::vector<int>{8, 9}));
+}
+
+// ─────────────────────────────────────────────────────────────────
+// The representation: a complete tree whose nodes that lack a child are in
+// a list
+// ─────────────────────────────────────────────────────────────────
+
+namespace
+{
+  // The parent of a node; that of the root is the header node of its heap
+  template <class Node>
+  Node * parent_of(Node *p)
+  {
+    return reinterpret_cast<Node *&>(p->getU());
+  }
+
+  // The nodes of a heap by their places, which are numbered by levels from
+  // 1 (the entry 0 has the header node), taken through the children of the
+  // nodes that have two, and what in the links of those nodes differs from
+  // the representation that tpl_binHeap.H describes: the node at the place
+  // i has its parent at i / 2 and, if it has them, its children at 2 i and
+  // 2 i + 1, and the nodes at the places (n + 1) / 2 to n are in a circular
+  // doubly linked list, in that order, with their right link as the next
+  // node and their left one as the previous one
+  template <class Heap>
+  std::string shape_errors(const Heap & heap, std::vector<typename Heap::Node *> & at)
+  {
+    using Node = typename Heap::Node;
+    std::ostringstream err;
+    const size_t n = heap.size();
+    Node *root = heap.getRoot();
+    at.assign(n + 1, nullptr);
+    if (n == 0)
+      {
+        if (root != nullptr)
+          err << "an empty heap has a root; ";
+        return err.str();
+      }
+    at[0] = parent_of(root);
+    at[1] = root;
+    for (size_t i = 1; i <= n; ++i)
+      {
+        if (2*i <= n)
+          at[2*i] = at[i]->getL();
+        if (2*i + 1 <= n)
+          at[2*i + 1] = at[i]->getR();
+      }
+    std::vector<Node *> sorted(at.begin() + 1, at.end());
+    std::sort(sorted.begin(), sorted.end());
+    if (std::adjacent_find(sorted.begin(), sorted.end()) != sorted.end())
+      err << "two places have the same node; ";
+    if (at[0]->getR() != root)
+      err << "the root is not the right child of the header node; ";
+    for (size_t i = 1; i <= n; ++i)
+      {
+        Node *p = at[i];
+        if (parent_of(p) != at[i / 2])
+          err << "the parent of " << i << "; ";
+        if (static_cast<bool>(p->get_control_fields().is_left) != (i > 1 and i % 2 == 0))
+          err << "is_left of " << i << "; ";
+        if (static_cast<bool>(p->get_control_fields().is_leaf) != (2*i > n))
+          err << "is_leaf of " << i << "; ";
+      }
+    const size_t first = (n + 1) / 2;
+    for (size_t i = first; i <= n; ++i)
+      {
+        if (at[i]->getR() != at[i == n ? first : i + 1])
+          err << "the next node of " << i << "; ";
+        if (at[i]->getL() != at[i == first ? n : i - 1])
+          err << "the previous node of " << i << "; ";
+      }
+    return err.str();
+  }
+
+  // The nodes of a heap by their places, after checking its representation
+  template <class Heap>
+  std::vector<typename Heap::Node *> places(const Heap & heap)
+  {
+    std::vector<typename Heap::Node *> at;
+    EXPECT_EQ(shape_errors(heap, at), "") << heap.size() << " nodes";
+    return at;
+  }
+}
+
+// After each insertion and each extraction, the links of all the nodes are
+// those of the representation
+TEST(BinHeapShape, InsertionsAndExtractionsKeepTheTreeAndItsList)
+{
+  std::mt19937 rng(20261121);
+  std::uniform_int_distribution<int> keys(0, 1000);
+  BinHeap<int> heap;
+  places(heap);
+  for (int k = 0; k < 600; ++k)
+    {
+      heap.insert(new BinHeap<int>::Node(keys(rng)));
+      places(heap);
+    }
+  while (not heap.is_empty())
+    {
+      delete heap.getMin();
+      places(heap);
+    }
+}
+
+// So they are after the removal of the node at each place of a heap of each
+// size, and after the update of that node with a key that takes it to the
+// root, and with one that takes it down
+TEST(BinHeapShape, RemovalsAndUpdatesKeepTheTreeAndItsList)
+{
+  std::mt19937 rng(7);
+  std::uniform_int_distribution<int> keys(0, 1000);
+  for (size_t n = 1; n <= 40; ++n)
+    for (size_t i = 1; i <= n; ++i)
+      for (int op = 0; op < 3; ++op)
+        {
+          SCOPED_TRACE(testing::Message() << "n " << n << ", place " << i << ", op " << op);
+          BinHeap<int> heap;
+          for (size_t k = 0; k < n; ++k)
+            heap.insert(new BinHeap<int>::Node(keys(rng)));
+          const auto at = places(heap);
+          if (op == 0)
+            delete heap.remove(at[i]);
+          else
+            {
+              at[i]->get_key() = op == 1 ? -1 : 2000;
+              heap.update(at[i]);
+              EXPECT_EQ(heap.top(), op == 1 ? at[i] : heap.top());
+            }
+          places(heap);
+          heap.remove_all_and_delete();
+        }
+}
+
+// The last node of the heap is the one at the place n: its removal compares
+// nothing, and that of any other node does
+TEST(BinHeapShape, TheLastNodeIsTheOneAtThePlaceN)
+{
+  std::mt19937 rng(11);
+  std::uniform_int_distribution<int> keys(0, 1000);
+  for (size_t n = 2; n <= 40; ++n)
+    for (size_t i = 1; i <= n; ++i)
+      {
+        long calls = 0;
+        Failing_Heap heap(Failing_Less{&calls, 0});
+        for (size_t k = 0; k < n; ++k)
+          heap.insert(new Failing_Heap::Node(keys(rng)));
+        const auto at = places(heap);
+        const long before = calls;
+        delete heap.remove(at[i]);
+        // the root of a heap of 2 nodes leaves it with one: nothing to compare
+        EXPECT_EQ(calls == before, i == n or n == 2) << "n " << n << ", place " << i;
+        heap.remove_all_and_delete();
+      }
+}
+
+// What the description of tpl_binHeap.H says of a heap of 10 nodes
+TEST(BinHeapShape, TheHeapOfTenNodesOfTheDescription)
+{
+  BinHeap<int> heap;
+  for (int k = 1; k <= 10; ++k)
+    heap.insert(new BinHeap<int>::Node(k)); // in order: the node of key k is at the place k
+  const auto at = places(heap);
+  for (int k = 1; k <= 10; ++k)
+    ASSERT_EQ(at[k]->get_key(), k);
+
+  // 1 to 4 have two children
+  for (int k = 1; k <= 4; ++k)
+    {
+      EXPECT_EQ(at[k]->getL(), at[2*k]);
+      EXPECT_EQ(at[k]->getR(), at[2*k + 1]);
+    }
+  // the list: 5, 6, 7, 8, 9, 10 and 5 again
+  for (int k = 5; k <= 10; ++k)
+    {
+      EXPECT_EQ(at[k]->getR(), at[k == 10 ? 5 : k + 1]);
+      EXPECT_EQ(at[k]->getL(), at[k == 5 ? 10 : k - 1]);
+    }
+  // 5 has a left child only, 10, which is its previous node of the list too
+  EXPECT_EQ(at[5]->getL(), at[10]);
+  EXPECT_EQ(parent_of(at[10]), at[5]);
+  EXPECT_FALSE(static_cast<bool>(at[5]->get_control_fields().is_leaf));
+  EXPECT_EQ(at[5]->getR(), at[6]);
+  EXPECT_NE(parent_of(at[6]), at[5]);
+
+  // the next node goes under the first one of the list, which follows the last
+  BinHeap<int>::Node *p = heap.insert(new BinHeap<int>::Node(11));
+  EXPECT_EQ(parent_of(p), at[5]);
+  EXPECT_EQ(at[5]->getR(), p);
+  EXPECT_EQ(p->getL(), at[10]); // after the last one in the list
+  EXPECT_EQ(p->getR(), at[6]);  // 5 left the list: 6 is its first node now
+  heap.remove_all_and_delete();
 }
