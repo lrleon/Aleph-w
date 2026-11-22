@@ -410,9 +410,11 @@ namespace Aleph
      *
      * Puts the node back in the root list, in which consolidate() leaves
      * every tree when the comparison throws, and makes the minimum the node
-     * that was it before. A consolidation may have left that node under a
-     * root of an equivalent key: then it is cut from it. So the heap has the
-     * elements and the minimum that it had, though its trees may be others.
+     * that was it before. A consolidation may have left that node under one
+     * of an equivalent key: then it is cut from it as decrease_key() cuts a
+     * node, so the one that loses it is marked, or cut too if it was. So the
+     * heap has the elements and the minimum that it had, though its trees
+     * may be others.
      *
      * @param z The node that take_root_out() took out
      * @param min The node that was the minimum, which may be z
@@ -430,8 +432,11 @@ namespace Aleph
         }
       min_node = z; // a root for cut() to link after
 
-      if (min->parent != nullptr)
-        cut(min, min->parent);
+      if (Node *over = min->parent; over != nullptr)
+        {
+          cut(min, over);
+          cascading_cut(over); // it has lost a child
+        }
       min_node = min;
     }
 
@@ -786,7 +791,7 @@ namespace Aleph
      *         was, and x has its old key.
      * @throws anything that the assignment of the key throws. Then the heap
      *         is as it was but for the key of x, which is as the assignment
-     *         left it.
+     *         left it: if that is not its old key, x may be out of order.
      *
      * @note Amortized O(1) time complexity
      */
@@ -853,7 +858,7 @@ namespace Aleph
      * Unlike decrease_key, this method handles both increases and
      * decreases. For increases, the node leaves its tree and goes back to
      * the heap as a root with the new key, as if it were deleted and
-     * inserted again, but it is the same node: nothing is allocated.
+     * inserted again, but it is the same node: no node is allocated.
      *
      * @param x Handle to the node
      * @param k The new key value
@@ -863,9 +868,14 @@ namespace Aleph
      *         and the heap has the elements that it had, the minimum among
      *         them, and every handle is valid; if the key increases, its
      *         trees may be linked otherwise.
-     * @throws anything that the assignment of the key throws. Then the same
-     *         holds but for the key of x, which is as the assignment left
-     *         it.
+     * @throws anything that the copy of the key throws. If the key
+     *         increases, the copy is made before the heap changes, which is
+     *         then as it was, and it is moved into the node at the end: the
+     *         above holds if that move assignment does not throw. If the
+     *         key decreases, see decrease_key().
+     * @throws std::bad_alloc if the key increases and there is no memory
+     *         for the array of the consolidation, which is reserved once,
+     *         before the heap changes.
      *
      * @note O(1) amortized if decreasing, O(log n) amortized if increasing
      */
@@ -884,7 +894,9 @@ namespace Aleph
         return x; // Keys are equal, do nothing
 
       // New key is larger: x leaves the heap as in delete_node() and, once
-      // the rest is in order, goes back as a root with the new key
+      // the rest is in order, goes back as a root with the new key, which
+      // is copied first, while a copy that throws changes nothing
+      T key(k);
       consolidate_array_.reserve(MAX_DEGREE);
 
       Node *old_min = min_node;
@@ -904,7 +916,7 @@ namespace Aleph
               consolidate();
               is_min = cmp(k, min_node->data);
             }
-          x->data = k;
+          x->data = std::move(key);
         }
       catch (...)
         {

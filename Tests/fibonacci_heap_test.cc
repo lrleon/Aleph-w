@@ -1724,6 +1724,11 @@ namespace
                 err << "a list does not close; ";
                 return err.str();
               }
+            if (nodes.size() >= heap.size())
+              { // a node is reached again: its children would be walked for ever
+                err << "more nodes than the " << heap.size() << " of the heap; ";
+                return err.str();
+              }
             nodes.push_back(p);
             if (p->parent != parent)
               err << "the parent of " << p->data.id << "; ";
@@ -1841,7 +1846,7 @@ TEST(FibonacciHeapComparison, EveryFailedCallLeavesTheElementsAndTheMinimum)
           count.fail_at = 0;
 
           std::vector<Tracked_Heap::Node *> after;
-          EXPECT_EQ(tree_errors(heap, after), "");
+          ASSERT_EQ(tree_errors(heap, after), "");
           if (thrown)
             {
               ++failed;
@@ -1871,8 +1876,156 @@ TEST(FibonacciHeapComparison, EveryFailedCallLeavesTheElementsAndTheMinimum)
   EXPECT_GT(deep, 0u);   // and nodes at the third level
 }
 
+// When the comparison throws, a consolidation may have left the node that
+// was the minimum under another one of an equivalent key, and that one
+// under a third. The minimum is cut from it and is a root again, and the
+// node that lost it is marked, as one that loses a child by decrease_key()
+// is: the loss of another child cuts it too. It was left unmarked, so it
+// could lose two children and stay under its parent
+TEST(FibonacciHeapComparison, TheNodeThatLosesTheMinimumIsMarked)
+{
+  size_t marked = 0, cut = 0;
+  for (size_t victim = 0; victim < 10; ++victim)
+    for (long k = 1; ; ++k)
+      {
+        SCOPED_TRACE(testing::Message() << "node " << victim + 1 << ", call " << k);
+        Comparisons count;
+        Tracked_Heap heap(Failing_Tracked_Less{&count});
+        std::vector<Tracked_Heap::Node *> handles;
+        for (int id = 1; id <= 10; ++id)
+          handles.push_back(heap.insert(Tracked(5, id))); // equivalent keys
+        Tracked_Heap::Node *min = heap.get_min_node();
+
+        count.fail_at = count.calls + k;
+        bool thrown = false;
+        try
+          {
+            heap.delete_node(handles[victim]);
+          }
+        catch (const std::runtime_error &)
+          {
+            thrown = true;
+          }
+        count.fail_at = 0;
+        if (not thrown)
+          break;
+
+        std::vector<Tracked_Heap::Node *> nodes;
+        ASSERT_EQ(tree_errors(heap, nodes), "");
+        ASSERT_EQ(heap.get_min_node(), min);
+        // nothing had been cut before, so a marked node is one that lost
+        // the minimum, and it is not a root
+        Tracked_Heap::Node *loser = nullptr;
+        for (auto *p : nodes)
+          if (p->mark)
+            {
+              EXPECT_EQ(loser, nullptr);
+              EXPECT_NE(p->parent, nullptr);
+              loser = p;
+            }
+        if (loser == nullptr)
+          continue;
+        ++marked;
+        if (loser->child == nullptr)
+          continue;
+        // the loss of another child takes it out of its parent
+        Tracked_Heap::Node *child = loser->child;
+        heap.decrease_key(child, Tracked(4, child->data.id));
+        EXPECT_EQ(child->parent, nullptr);
+        EXPECT_EQ(loser->parent, nullptr);
+        EXPECT_FALSE(loser->mark);
+        ASSERT_EQ(tree_errors(heap, nodes), "");
+        ++cut;
+      }
+  EXPECT_GT(marked, 0u);
+  EXPECT_GT(cut, 0u);
+}
+
+namespace
+{
+  // A key whose copies throw when they are told to: its copy constructor
+  // before it writes anything, and its copy assignment once it has written
+  struct Brittle
+  {
+    static inline bool copy_throws = false;
+    static inline bool assignment_throws = false;
+
+    int key = 0;
+    int id = 0;
+
+    Brittle(const int k, const int i) noexcept : key(k), id(i) {}
+
+    Brittle(const Brittle & other) : key(other.key), id(other.id)
+    {
+      if (copy_throws)
+        throw std::runtime_error("copy");
+    }
+
+    Brittle(Brittle &&) noexcept = default;
+
+    Brittle & operator=(const Brittle & other)
+    {
+      key = other.key;
+      id = other.id;
+      if (assignment_throws)
+        throw std::runtime_error("assignment");
+      return *this;
+    }
+
+    Brittle & operator=(Brittle &&) noexcept = default;
+
+    bool operator==(const Brittle &) const = default;
+  };
+
+  void PrintTo(const Brittle & x, std::ostream *os) { *os << x.key << '#' << x.id; }
+
+  struct Brittle_Less
+  {
+    bool operator()(const Brittle & a, const Brittle & b) const noexcept { return a.key < b.key; }
+  };
+}
+
+// update_key() with a greater key assigned the key to the node once the
+// node was out of its tree. An assignment that threw after writing left a
+// heap whose minimum was the node of before, whatever its key was by then.
+// Now the key is copied before the heap changes and moved into the node at
+// the end: a copy that throws changes nothing
+TEST(FibonacciHeapComparison, UpdateKeyCopiesTheKeyBeforeItChangesTheHeap)
+{
+  Fibonacci_Heap<Brittle, Brittle_Less> heap;
+  auto *one = heap.insert(Brittle(1, 1));
+  auto *five = heap.insert(Brittle(5, 2));
+  (void) heap.insert(Brittle(7, 3));
+  (void) heap.insert(Brittle(0, 4));
+  EXPECT_EQ(heap.extract_min(), Brittle(0, 4)); // one, five and seven are in a tree now
+  ASSERT_EQ(heap.get_min_node(), one);
+  const Brittle nine(9, 5);
+
+  Brittle::copy_throws = true;
+  EXPECT_THROW((void) heap.update_key(one, nine), std::runtime_error);
+  EXPECT_THROW((void) heap.update_key(five, nine), std::runtime_error);
+  Brittle::copy_throws = false;
+  EXPECT_EQ(heap.size(), 3u);
+  EXPECT_EQ(heap.get_min_node(), one);
+  EXPECT_EQ(one->data, Brittle(1, 1));
+  EXPECT_EQ(five->data, Brittle(5, 2));
+
+  // the copy assignment, which throws after it writes, is not what puts
+  // the key in the node
+  Brittle::assignment_throws = true;
+  EXPECT_EQ(heap.update_key(one, nine), one);
+  Brittle::assignment_throws = false;
+  EXPECT_EQ(one->data, nine);
+  EXPECT_EQ(heap.size(), 3u);
+  EXPECT_EQ(heap.get_min_node(), five);
+  EXPECT_EQ(heap.extract_min(), Brittle(5, 2));
+  EXPECT_EQ(heap.extract_min(), Brittle(7, 3));
+  EXPECT_EQ(heap.extract_min(), nine);
+  EXPECT_TRUE(heap.is_empty());
+}
+
 // update_key() with a greater key deleted the node and inserted another one.
-// Now it keeps the node, so the handle is the same and nothing is allocated
+// Now it keeps the node, so the handle is the same and no node is allocated
 TEST(FibonacciHeapComparison, UpdateKeyKeepsTheNodeWhenTheKeyIncreases)
 {
   Comparisons count;
