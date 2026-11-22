@@ -386,6 +386,14 @@ namespace Aleph
 
     Compare cmp;
 
+    // Whether neither the comparison of two items nor the conversion of its
+    // result to bool can throw: the conversion that a condition makes, which
+    // for a result of a class type may be another function than that of an
+    // implicit conversion
+    static constexpr bool nothrow_cmp =
+      noexcept(static_cast<bool>(std::declval<Compare &>()(std::declval<T &>(),
+                                                           std::declval<T &>())));
+
     static size_t r_index(const size_t & i)
     {
       return (i << 1) + 1; // multiply i by 2 and add 1
@@ -736,6 +744,7 @@ namespace Aleph
         @throws what the comparison throws, with the heap as it was if the
                 exchange of two items does not throw.
         @note It is essential that `item` is a valid reference into this heap.
+        @note The items need no default constructor.
     */
     void remove(T & item)
     {
@@ -752,30 +761,38 @@ namespace Aleph
 
       const size_t n = num_items - 1; // the items that stay
       T & last = array[n + 1];
-      if constexpr (std::is_nothrow_invocable_r_v<bool, Compare &, T &, T &>)
+      if constexpr (nothrow_cmp)
         { // nothing to undo: the last item takes the place of the removed one
           item = std::move(last);
           num_items = n;
           sift_down_up(array, 1, idx, n, cmp);
-          return;
         }
-
-      // The removed item must outlive the comparisons: it exchanges its
-      // entry with the last one, which goes to its place from there. If the
-      // comparison throws, sift_down_up() takes it back there, and the two
-      // exchange their entries again
-      std::swap(item, last);
-      try
+      else
         {
-          sift_down_up(array, 1, idx, n, cmp);
-        }
-      catch (...)
-        {
+          // The removed item must outlive the comparisons: it exchanges its
+          // entry with the last one, which goes to its place from there. If
+          // the comparison throws, sift_down_up() takes it back there, and
+          // the two exchange their entries again
           std::swap(item, last);
-          throw;
+          try
+            {
+              sift_down_up(array, 1, idx, n, cmp);
+            }
+          catch (...)
+            {
+              std::swap(item, last);
+              throw;
+            }
+          num_items = n;
+
+          // The removed item holds nothing from here on, where nothing may
+          // throw any more: its entry takes an empty item if building one
+          // cannot throw, and otherwise is left as a move leaves it
+          if constexpr (std::is_nothrow_default_constructible_v<T>)
+            last = T();
+          else
+            [[maybe_unused]] T taken(std::move(last));
         }
-      num_items = n;
-      last = T(); // the removed item holds nothing from here on
     }
 
     /** Return a mutable reference to the i-th entry (1-based).

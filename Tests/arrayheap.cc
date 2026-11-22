@@ -842,3 +842,267 @@ TEST(ArrayHeap, HeapsortOfNothingAndOfOneItem)
   faster_heapsort(two.data(), two.size());
   EXPECT_EQ(two, (std::vector<int>{1, 2}));
 }
+
+namespace
+{
+  // What a comparison returns. Its implicit conversion to bool does not
+  // throw; the explicit one, which a condition chooses for a result that
+  // has no name, may
+  struct Sly_Bool
+  {
+    bool value;
+    long *conversions; // those of the conditions, so far
+    long throw_at;     // the one that throws (0: none)
+
+    operator bool() const & noexcept { return value; }
+
+    explicit operator bool() &&
+    {
+      if (++*conversions == throw_at)
+        throw std::runtime_error("conversion");
+      return value;
+    }
+  };
+
+  // A comparison that does not throw. For two items that are not const, as
+  // a heap compares its own, the conversion of its result in a condition may
+  struct Sly_Less
+  {
+    long *conversions;
+    long *throw_at;
+
+    bool operator()(const int & a, const int & b) const noexcept { return a < b; }
+
+    Sly_Bool operator()(int & a, int & b) const noexcept { return {a < b, conversions, *throw_at}; }
+  };
+
+  static_assert(std::is_nothrow_invocable_r_v<bool, Sly_Less &, int &, int &>);
+  static_assert(not noexcept(static_cast<bool>(std::declval<Sly_Less &>()(std::declval<int &>(),
+                                                                         std::declval<int &>()))));
+}
+
+// remove() takes the way that has nothing to undo only if the comparison
+// cannot throw, with the conversion to bool that the conditions of the
+// sifts make of its result. It asked whether the implicit conversion could
+// throw, which may be another function: with this comparison it lost the
+// item that it took out
+TEST(ArrayHeapThrowingCompare, AConversionInAConditionThatThrowsIsUndone)
+{
+  size_t failed = 0;
+  for (size_t i = 1; i <= 5; ++i)
+    for (long at = 1; ; ++at)
+      {
+        SCOPED_TRACE(testing::Message() << "item " << i << ", conversion " << at);
+        long conversions = 0, throw_at = 0;
+        ArrayHeap<int, Sly_Less> heap(8, Sly_Less{&conversions, &throw_at});
+        for (const int v : {1, 2, 3, 4, 5, 6})
+          heap.insert(v);
+        const auto items_of = [&heap]
+        {
+          std::vector<int> items;
+          for (size_t k = 1; k <= heap.size(); ++k)
+            items.push_back(heap[k]);
+          return items;
+        };
+        const std::vector<int> before = items_of();
+        conversions = 0;
+        throw_at = at;
+        bool thrown = false;
+        try
+          {
+            heap.remove(heap[i]);
+          }
+        catch (const std::runtime_error &)
+          {
+            thrown = true;
+          }
+        throw_at = 0;
+        if (not thrown)
+          {
+            EXPECT_EQ(heap.size(), 5u);
+            std::vector<int> left = items_of(), expected = before;
+            expected.erase(expected.begin() + static_cast<long>(i - 1));
+            std::sort(left.begin(), left.end());
+            std::sort(expected.begin(), expected.end());
+            EXPECT_EQ(left, expected);
+            break;
+          }
+        ++failed;
+        EXPECT_EQ(items_of(), before);
+      }
+  EXPECT_GT(failed, 5u);
+}
+
+namespace
+{
+  // An item that has no default constructor, and holds something that
+  // tells whether it is alive
+  struct Rooted
+  {
+    int pri;
+    int id;
+    std::shared_ptr<int> held;
+
+    Rooted() = delete;
+    Rooted(const int p, const int i) : pri(p), id(i), held(std::make_shared<int>(i)) {}
+  };
+
+  struct Rooted_Nothrow_Less
+  {
+    bool operator()(const Rooted & a, const Rooted & b) const noexcept { return a.pri < b.pri; }
+  };
+
+  // The six items of a test in a heap over a buffer, whose entry 0 a heap
+  // does not use, and what tells whether each one is alive
+  template <class Heap>
+  std::vector<std::weak_ptr<int>> fill_rooted(Heap & heap)
+  {
+    std::vector<std::weak_ptr<int>> seen;
+    int id = 0;
+    for (const int v : {5, 3, 8, 1, 9, 2})
+      {
+        Rooted item(v, ++id);
+        seen.push_back(item.held);
+        heap.insert(std::move(item));
+      }
+    return seen;
+  }
+
+  size_t alive_of(const std::vector<std::weak_ptr<int>> & seen)
+  {
+    return static_cast<size_t>(std::count_if(seen.begin(), seen.end(),
+                                             [](const auto & w) { return not w.expired(); }));
+  }
+
+  // The priority and the identity of each item of a heap, in the order of
+  // its array: no copy of the items, which would keep alive what they hold
+  template <class Heap>
+  std::vector<std::pair<int, int>> rooted_in(const Heap & heap)
+  {
+    std::vector<std::pair<int, int>> items;
+    for (size_t i = 1; i <= heap.size(); ++i)
+      items.emplace_back(heap[i].pri, heap[i].id);
+    return items;
+  }
+}
+
+// A heap over a buffer of its caller takes items that have no default
+// constructor, and remove() worked with them. It stopped compiling, since
+// it built an empty item for the entry of the one that it takes out. Now
+// it builds none with a comparison that cannot throw, and with one that
+// may it takes the item out of its entry by a move where it cannot build
+// an empty one
+TEST(ArrayHeap, RemoveNeedsNoDefaultConstructor)
+{
+  {
+    std::vector<Rooted> buffer(8, Rooted(0, 0));
+    ArrayHeap<Rooted, Rooted_Nothrow_Less> heap(buffer.data(), 7);
+    const auto seen = fill_rooted(heap);
+    heap.remove(heap[2]); // not the last one
+    EXPECT_EQ(heap.size(), 5u);
+    EXPECT_EQ(alive_of(seen), 5u);
+    int last = 0;
+    while (not heap.is_empty())
+      {
+        const Rooted min = heap.getMin();
+        EXPECT_LE(last, min.pri);
+        last = min.pri;
+      }
+  }
+
+  // with a comparison that may throw, at each of its calls in turn
+  size_t failed = 0;
+  for (size_t i = 1; i <= 5; ++i)
+    for (size_t at = 1; ; ++at)
+      {
+        SCOPED_TRACE(testing::Message() << "item " << i << ", call " << at);
+        std::vector<Rooted> buffer(8, Rooted(0, 0));
+        Calls calls;
+        ArrayHeap<Rooted, Counted_Less_Of<Rooted>> heap(buffer.data(), 7, Counted_Less_Of<Rooted>{&calls});
+        const auto seen = fill_rooted(heap);
+        const auto before = rooted_in(heap);
+        calls.throw_at = calls.count + at;
+        bool thrown = false;
+        try
+          {
+            heap.remove(heap[i]);
+          }
+        catch (const std::runtime_error &)
+          {
+            thrown = true;
+          }
+        calls.throw_at = 0;
+        if (not thrown)
+          {
+            EXPECT_EQ(heap.size(), 5u);
+            EXPECT_EQ(alive_of(seen), 5u); // the one that left holds nothing
+            break;
+          }
+        ++failed;
+        EXPECT_EQ(rooted_in(heap), before);
+        EXPECT_EQ(alive_of(seen), 6u);
+      }
+  EXPECT_GT(failed, 5u);
+}
+
+namespace
+{
+  // An item whose default constructor throws when it is told to
+  struct Touchy
+  {
+    static inline bool armed = false;
+    static inline long built = 0; // by default
+
+    int pri = 0;
+    int id = 0;
+
+    Touchy()
+    {
+      ++built;
+      if (armed)
+        throw std::runtime_error("default constructor");
+    }
+
+    Touchy(const int p, const int i) noexcept : pri(p), id(i) {}
+  };
+
+  struct Touchy_Nothrow_Less
+  {
+    bool operator()(const Touchy & a, const Touchy & b) const noexcept { return a.pri < b.pri; }
+  };
+}
+
+// With a comparison that may throw, remove() built an empty item for the
+// entry of the one that it takes out, once that one was out: if the
+// default constructor threw, the exception came out of a heap that had
+// lost the item. Now it builds an item only if building it cannot throw,
+// and none with a comparison that cannot throw
+TEST(ArrayHeapThrowingCompare, RemoveBuildsNoItemWhoseConstructorMayThrow)
+{
+  static_assert(not std::is_nothrow_default_constructible_v<Touchy>);
+  Calls calls;
+  ArrayHeap<Touchy, Counted_Less_Of<Touchy>> heap(8, Counted_Less_Of<Touchy>{&calls});
+  ArrayHeap<Touchy, Touchy_Nothrow_Less> quiet(8);
+  int id = 0;
+  for (const int v : {5, 3, 8, 1, 9, 2})
+    {
+      heap.insert(Touchy(v, ++id));
+      quiet.insert(Touchy(v, id));
+    }
+
+  const long built = Touchy::built;
+  Touchy::armed = true;
+  EXPECT_NO_THROW(heap.remove(heap[2]));
+  EXPECT_NO_THROW(quiet.remove(quiet[2]));
+  Touchy::armed = false;
+  EXPECT_EQ(Touchy::built, built);
+  EXPECT_EQ(heap.size(), 5u);
+  EXPECT_EQ(quiet.size(), 5u);
+  int last = 0;
+  while (not heap.is_empty())
+    {
+      const Touchy min = heap.getMin();
+      EXPECT_LE(last, min.pri);
+      last = min.pri;
+    }
+}
