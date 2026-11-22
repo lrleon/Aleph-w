@@ -38,6 +38,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <memory>
 #include <random>
@@ -705,7 +706,11 @@ TYPED_TEST(ArcHeapWithDistance, WhatTheDistanceThrowsLeavesTheHeapAsItWas)
               in_heap[tgt] = arc;
             if (++step % 3 != 0)
               continue;
+            int least = std::numeric_limits<int>::max(); // of the arcs that are in
+            for (const auto & entry : in_heap)
+              least = std::min(least, entry.second->get_info());
             Arc *min = heap.get_min_arc();
+            EXPECT_EQ(min->get_info(), least);
             const auto of_min = std::find_if(in_heap.begin(), in_heap.end(),
                                              [min](const auto & entry) { return entry.second == min; });
             EXPECT_NE(of_min, in_heap.end());
