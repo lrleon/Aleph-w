@@ -5,6 +5,26 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.8.0](https://github.com/lrleon/Aleph-w/compare/v7.7.5...v7.8.0) (2026-11-22)
+
+
+### Features
+
+* **huffman:** Add Adaptive_Huffman.H, a one-pass adaptive Huffman codec of bytes (FGK) whose encoder and decoder take their input in chunks ([#213](https://github.com/lrleon/Aleph-w/issues/213)) ([cab9f92](https://github.com/lrleon/Aleph-w/commit/cab9f92d643bb42e2ad6050424730680febc54be))
+
+
+### Bug Fixes
+
+* **bitarray:** Move a BitArray without the allocation of an empty one, which ended the program when memory ran out ([#217](https://github.com/lrleon/Aleph-w/issues/217)) ([9885d0b](https://github.com/lrleon/Aleph-w/commit/9885d0b9a50c21e42d419926036605e3919c9815))
+* **heap:** Keep the elements and the minimum of Fibonacci_Heap and ArcFibonacciHeap when the comparison throws in extract_min(), delete_node(), decrease_key() or update_key(), which keeps its node when the key increases ([#219](https://github.com/lrleon/Aleph-w/issues/219)) ([07acbba](https://github.com/lrleon/Aleph-w/commit/07acbba3868aef912cf45d446254042b80ce42b7))
+* **heap:** Leave ArrayHeap as it was when the copy of an item throws in insert(), which counted the item before copying it, and make getMin() move its items instead of copying them ([#219](https://github.com/lrleon/Aleph-w/issues/219)) ([07acbba](https://github.com/lrleon/Aleph-w/commit/07acbba3868aef912cf45d446254042b80ce42b7))
+* **heap:** Leave ArrayHeap, BinHeap, DynBinHeap and ArcHeap as they were when the comparison throws in an insertion, an extraction, a removal or an update, instead of counting or linking an item out of order or losing the one taken out ([#219](https://github.com/lrleon/Aleph-w/issues/219)) ([07acbba](https://github.com/lrleon/Aleph-w/commit/07acbba3868aef912cf45d446254042b80ce42b7))
+* **heap:** Make heapsort() and faster_heapsort() return before they move their pointer when there is nothing to sort, since an offset applied to a null pointer is undefined ([#219](https://github.com/lrleon/Aleph-w/issues/219)) ([07acbba](https://github.com/lrleon/Aleph-w/commit/07acbba3868aef912cf45d446254042b80ce42b7))
+* **heap:** Make verify_heap() of the node heap look at every node, instead of going down by the right children only ([#219](https://github.com/lrleon/Aleph-w/issues/219)) ([07acbba](https://github.com/lrleon/Aleph-w/commit/07acbba3868aef912cf45d446254042b80ce42b7))
+* **huffman:** Leave a Huffman encoder with its symbols when the generation of its tree runs out of memory, instead of losing the nodes that were out of the heap ([#217](https://github.com/lrleon/Aleph-w/issues/217)) ([9885d0b](https://github.com/lrleon/Aleph-w/commit/9885d0b9a50c21e42d419926036605e3919c9815))
+* **trees:** Keep an interval tree as it was when its comparison, or a copy of an endpoint, throws in an insertion or a removal, instead of keeping a freed node, leaving nodes that hang twice or losing the node taken out ([#217](https://github.com/lrleon/Aleph-w/issues/217)) ([9885d0b](https://github.com/lrleon/Aleph-w/commit/9885d0b9a50c21e42d419926036605e3919c9815))
+* **trees:** Make search() of DynIntervalTree noexcept only when its comparison does not throw, and remove the prev() of its iterator, which did not compile ([#217](https://github.com/lrleon/Aleph-w/issues/217)) ([9885d0b](https://github.com/lrleon/Aleph-w/commit/9885d0b9a50c21e42d419926036605e3919c9815))
+
 ## [7.7.5](https://github.com/lrleon/Aleph-w/compare/v7.7.4...v7.7.5) (2026-11-21)
 
 
