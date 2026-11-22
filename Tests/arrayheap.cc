@@ -1106,3 +1106,178 @@ TEST(ArrayHeapThrowingCompare, RemoveBuildsNoItemWhoseConstructorMayThrow)
       last = min.pri;
     }
 }
+
+namespace
+{
+  // An item whose default constructor does not throw and whose move
+  // assignment throws when its source is empty, as no item of a heap is.
+  // A move leaves its source empty
+  struct Fussy
+  {
+    int pri = 0;
+    int id = 0; // none: empty
+
+    Fussy() noexcept = default;
+    Fussy(const int p, const int i) noexcept : pri(p), id(i) {}
+    Fussy(const Fussy &) = default;
+    Fussy & operator=(const Fussy &) = default;
+    Fussy(Fussy && o) noexcept : pri(o.pri), id(std::exchange(o.id, 0)) {}
+
+    Fussy & operator=(Fussy && o)
+    {
+      if (o.id == 0)
+        throw std::runtime_error("move assignment from an empty item");
+      pri = o.pri;
+      id = std::exchange(o.id, 0);
+      return *this;
+    }
+  };
+
+  // The identities, in order, of the items that a heap gives, which must
+  // come by priority: pri_and_id gives the two of an item
+  template <class Heap, class Pri_And_Id>
+  std::vector<int> drained_ids(Heap & heap, Pri_And_Id pri_and_id)
+  {
+    std::vector<int> ids;
+    int last = 0;
+    while (not heap.is_empty())
+      {
+        const auto min = heap.getMin();
+        const std::pair<int, int> item = pri_and_id(min);
+        EXPECT_LE(last, item.first);
+        last = item.first;
+        ids.push_back(item.second);
+      }
+    std::sort(ids.begin(), ids.end());
+    return ids;
+  }
+
+  // The identities from 1 to n but one
+  std::vector<int> all_but(const int n, const int out)
+  {
+    std::vector<int> ids;
+    for (int i = 1; i <= n; ++i)
+      if (i != out)
+        ids.push_back(i);
+    return ids;
+  }
+}
+
+// With a comparison that may throw, remove() emptied the entry of the item
+// that it takes out by assigning an empty item to it, once that one was
+// out: if the assignment threw, the exception came out of a heap that had
+// lost the item, where trying again with the same reference took another
+// one out. Now nothing that may throw runs once the item is out: such an
+// item is moved out of its entry
+TEST(ArrayHeapThrowingCompare, RemoveAssignsNoEmptyItemIfThatMayThrow)
+{
+  static_assert(std::is_nothrow_default_constructible_v<Fussy>);
+  static_assert(not std::is_nothrow_move_assignable_v<Fussy>);
+  static_assert(std::is_nothrow_move_constructible_v<Fussy>);
+  std::vector<Fussy> buffer(8);
+  Calls calls;
+  ArrayHeap<Fussy, Counted_Less_Of<Fussy>> heap(buffer.data(), 7, Counted_Less_Of<Fussy>{&calls});
+  int id = 0;
+  for (const int v : {5, 3, 8, 1, 9, 2})
+    heap.insert(Fussy(v, ++id));
+  const int removed = heap[2].id;
+  ASSERT_NE(removed, 0);
+
+  EXPECT_NO_THROW(heap.remove(heap[2]));
+  EXPECT_EQ(heap.size(), 5u);
+  EXPECT_EQ(buffer[6].id, 0); // the entry of the item that left, past the end
+  EXPECT_EQ(drained_ids(heap, [](const Fussy & x) { return std::make_pair(x.pri, x.id); }),
+            all_but(6, removed));
+}
+
+namespace
+{
+  // The part of an item that the standard library exchanges by its own
+  // swap, with no move, and whose default and move constructors throw when
+  // they are told to. It holds something that tells whether it is alive
+  struct Welded
+  {
+    static inline bool armed = false;
+
+    int pri = 0;
+    int id = 0;
+    std::shared_ptr<int> held;
+
+    Welded()
+    {
+      if (armed)
+        throw std::runtime_error("default constructor");
+    }
+
+    Welded(const int p, const int i) : pri(p), id(i), held(std::make_shared<int>(i)) {}
+    Welded(const Welded &) = default;
+    Welded & operator=(const Welded &) = default;
+
+    Welded(Welded && o) : pri(o.pri), id(o.id), held(o.held)
+    {
+      if (armed)
+        throw std::runtime_error("move constructor");
+    }
+
+    Welded & operator=(Welded &&) noexcept = default;
+
+    friend void swap(Welded & a, Welded & b) noexcept
+    {
+      std::swap(a.pri, b.pri);
+      std::swap(a.id, b.id);
+      a.held.swap(b.held);
+    }
+  };
+
+  // std::swap() of a pair calls the swap of each of its members: this item
+  // is exchanged with no move, as a std::deque is, whose move constructor
+  // may throw in some standard libraries
+  using Welded_Item = std::pair<Welded, int>;
+
+  struct Welded_Less
+  {
+    bool operator()(const Welded_Item & a, const Welded_Item & b) const // may throw
+    {
+      return a.first.pri < b.first.pri;
+    }
+  };
+}
+
+// With a comparison that may throw and an item that it could not empty
+// otherwise, remove() moved the item out of its entry once it was out of
+// the heap: if the move constructor threw, the exception came out of a
+// heap that had lost the item. An exchange that does not throw, which is
+// what the heap asks of its items, does not mean a move that does not. Now
+// such an item stays in its entry until another one takes it
+TEST(ArrayHeapThrowingCompare, RemoveMovesNoItemOutIfThatMayThrow)
+{
+  static_assert(noexcept(std::swap(std::declval<Welded_Item &>(), std::declval<Welded_Item &>())));
+  static_assert(not std::is_nothrow_default_constructible_v<Welded_Item>);
+  static_assert(not std::is_nothrow_move_constructible_v<Welded_Item>);
+  std::vector<Welded_Item> buffer(8);
+  ArrayHeap<Welded_Item, Welded_Less> heap(buffer.data(), 7);
+  std::vector<std::weak_ptr<int>> seen;
+  int id = 0;
+  for (const int v : {5, 3, 8, 1, 9, 2})
+    {
+      Welded_Item item(Welded(v, ++id), v);
+      seen.push_back(item.first.held);
+      heap.insert(std::move(item));
+    }
+  const int removed = heap[2].first.id;
+
+  Welded::armed = true;
+  EXPECT_NO_THROW(heap.remove(heap[2]));
+  Welded::armed = false;
+  EXPECT_EQ(heap.size(), 5u);
+  EXPECT_EQ(buffer[6].first.id, removed); // in its entry, which is past the end
+  EXPECT_EQ(alive_of(seen), 6u);
+
+  Welded_Item seventh(Welded(4, ++id), 4);
+  seen.push_back(seventh.first.held);
+  heap.insert(std::move(seventh)); // takes that entry
+  EXPECT_EQ(alive_of(seen), 6u);
+  EXPECT_TRUE(seen[static_cast<size_t>(removed) - 1].expired());
+  EXPECT_EQ(drained_ids(heap, [](const Welded_Item & x) { return std::make_pair(x.first.pri, x.first.id); }),
+            all_but(7, removed));
+}

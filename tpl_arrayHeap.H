@@ -745,6 +745,11 @@ namespace Aleph
                 exchange of two items does not throw.
         @note It is essential that `item` is a valid reference into this heap.
         @note The items need no default constructor.
+        @note With a comparison that may throw, the removed item is emptied
+              before returning if that cannot throw: by a default constructor
+              and a move assignment that do not throw or, failing that, by a
+              move constructor that does not. Otherwise it stays in the array
+              until another item takes its entry or the array is destroyed.
     */
     void remove(T & item)
     {
@@ -785,12 +790,14 @@ namespace Aleph
             }
           num_items = n;
 
-          // The removed item holds nothing from here on, where nothing may
-          // throw any more: its entry takes an empty item if building one
-          // cannot throw, and otherwise is left as a move leaves it
-          if constexpr (std::is_nothrow_default_constructible_v<T>)
+          // The item is out, and nothing may throw any more. Its entry is
+          // emptied by what cannot throw: it takes an empty item or, failing
+          // that, the item is moved out of it. With neither, the item stays
+          // there until another one takes the entry
+          if constexpr (std::is_nothrow_default_constructible_v<T> and
+                        std::is_nothrow_move_assignable_v<T>)
             last = T();
-          else
+          else if constexpr (std::is_nothrow_move_constructible_v<T>)
             [[maybe_unused]] T taken(std::move(last));
         }
     }
