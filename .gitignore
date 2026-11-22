@@ -252,6 +252,8 @@ __pycache__/
 
 # Generated example artifacts
 Examples/*.eepicaux
+# What adaptive_huffman_visual_example writes when it is run without a path
+/adaptive_huffman_gallery.html
 *_output.csv
 timeList-stl
 timeMap-aleph
