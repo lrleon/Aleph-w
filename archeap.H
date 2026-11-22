@@ -308,8 +308,7 @@ public:
 
   /// Insert or update an arc associated with a target node, keeping the
   /// smallest-distance arc per node in the heap. If the distance throws,
-  /// tgt has in the heap the arc that it had or arc in its place, and the
-  /// heap may be out of order; if tgt had no arc in the heap, it has none.
+  /// the heap is as it was, and tgt has in it the arc that it had, or none.
   void put_arc(typename GT::Arc *arc, typename GT::Node *tgt)
   {
     auto & heap_node = handle_ref(tgt);
@@ -331,9 +330,8 @@ public:
   }
 
   /// Extract the arc with minimum distance from the heap and clear its
-  /// node-to-heap mapping. If the distance throws while the other arcs
-  /// are put back in order, the arc is already out of the heap, its heap
-  /// node freed and its mapping cleared.
+  /// node-to-heap mapping. If the distance throws, or there is no memory,
+  /// the arc is still in the heap, as its minimum, with its mapping.
   typename GT::Arc * get_min_arc()
   {
     ah_underflow_error_if(heap.is_empty()) << "ArcFibonacciHeap is empty";
@@ -342,20 +340,7 @@ public:
     auto *arc = heap_node->data;
     handle_type & handle = handle_of(heap_node);
 
-    // Without memory, extract_min() throws before it changes the heap, and
-    // the node keeps its handle; if the distance throws, the node is
-    // already out of the heap and freed
-    const size_t num_nodes = heap.size();
-    try
-      {
-        (void) heap.extract_min();
-      }
-    catch (...)
-      {
-        if (heap.size() != num_nodes)
-          handle = nullptr;
-        throw;
-      }
+    (void) heap.extract_min(); // if it throws, the node is in the heap
     handle = nullptr;
 
     return arc;
