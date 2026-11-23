@@ -467,6 +467,15 @@ namespace Aleph
 
     // The block is in memory of malloc(), as the gsl_rng of before was, so
     // that it does not count among the allocations of operator new
+    //
+    // TODO (7.9.0): redesign the generator of the structures so that their
+    // moves do not allocate. A structure makes this block when it is built,
+    // and so does the move of a DynSetTree on Treap, Treap_Rk or Rand_Tree,
+    // which builds a tree for the set that it moves from: a malloc() of
+    // some 2.5 KB and the seeding of the generator, in a move that is
+    // noexcept and so ends the program when there is no memory. A move
+    // should neither allocate nor seed: the generator may live in the
+    // structure, and a move copy the state of the other one
     struct Free_Block
     {
       void operator () (Block * b) const noexcept
