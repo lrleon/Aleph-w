@@ -45,6 +45,7 @@
 #define TPL_ARRAYSTACK_H
 
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <type_traits>
 #include <aleph.H>
@@ -406,13 +407,23 @@ class FixedStack : public LocateFunctions<FixedStack<T>, T>,
 public:
   using Item_Type = T;  /// The type of element
 
-  /// Construct a fixed stack of maximum `d` items
+  /** Construct a fixed stack of maximum `d` items.
+
+      @param[in] d capacity of the stack
+      @throw overflow_error if the bytes of `d` items do not fit in a
+             `size_t`.
+      @throw bad_alloc if there is no memory for the array
+  */
   FixedStack(const size_t d = 1024)
     // Don't change the default value because you would risk of
     // breaking the tests
-    : array(new T[d]), head(0), dim(d)
+    : array(nullptr), head(0), dim(d)
   {
-    /* empty */
+    // Before new[]: for d items whose bytes do not fit in a size_t, what
+    // new[] asks of the allocator depends on the compiler
+    ah_overflow_error_if(d > std::numeric_limits<size_t>::max() / sizeof(T))
+      << "FixedStack capacity overflow";
+    array = new T[d];
   }
 
   ~FixedStack()

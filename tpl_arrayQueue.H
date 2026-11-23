@@ -45,6 +45,8 @@
 #ifndef TPL_ARRAYQUEUE_H
 #define TPL_ARRAYQUEUE_H
 
+#include <bit>
+#include <limits>
 #include <ahAssert.H>
 #include <ahDefs.H>
 #include <htlist.H>
@@ -727,15 +729,27 @@ public:
       The resulting capacity will be the first number such \f$2^k
       \geq d\f$,
 
-      @param[in] d minimum capacity
+      @param[in] d minimum capacity; 0 gives a capacity of 1.
+      @throw overflow_error if that power of two, or its bytes, do not fit
+             in a `size_t`.
+      @throw bad_alloc if there is no memory for the array
    */
   FixedQueue(size_t d = 1024)
     // Don't change the default value because you would risk of
     // breaking the tests
     : dim(0), array(nullptr), front_index(0), rear_index(0), mask(0), num_items(0)
   {
-    size_t k = log2(d);
-    dim = is_power_of_2(d) ? d : size_t(1) << ++k;
+    // Without the logarithm of a double: log2(0) is -inf, and past 2^63
+    // the shift 1 << (log2(d) + 1) is of 64 bits or more. bit_ceil() is
+    // computed when the program is compiled for a capacity known then, as
+    // that logarithm was
+    ah_overflow_error_if(d > (std::numeric_limits<size_t>::max() >> 1) + 1)
+      << "FixedQueue: no power of two that a size_t holds is at least " << d;
+    dim = std::bit_ceil(d);
+    // Before new[]: for dim items whose bytes do not fit in a size_t, what
+    // new[] asks of the allocator depends on the compiler
+    ah_overflow_error_if(dim > std::numeric_limits<size_t>::max() / sizeof(T))
+      << "FixedQueue capacity overflow";
     mask = dim - 1;
     array = new T[dim];
   }
