@@ -151,6 +151,37 @@ TEST(DynArrayReserve, reserve_and_access)
     EXPECT_EQ(arr.access(i), static_cast<int>(i * 2));
 }
 
+// The constructor refuses a dimension past Max_Dim_Allowed, but touch() and
+// operator[] took an index past it, and reserve() and adjust() began to
+// allocate every block up to it; with 2^61, the directory asked for 32 TiB
+// before it failed. Now they refuse it as the constructor does, before
+// anything grows, and the array is as it was
+TEST(DynArrayReserve, an_index_past_the_limit_is_refused)
+{
+  constexpr size_t max = numeric_limits<size_t>::max();
+  const size_t limit = DynArray<int>::Max_Dim_Allowed;
+  for (const size_t i : {limit, limit + 1, size_t(1) << 61, max - 1, max})
+    {
+      SCOPED_TRACE(i);
+      DynArray<int> arr;
+      arr.append(5);
+      arr.append(6);
+      EXPECT_THROW(arr.reserve(i == max ? max : i + 1), length_error);
+      EXPECT_THROW(arr.reserve(1, i), length_error);
+      EXPECT_THROW((void) arr.touch(i), length_error);
+      EXPECT_THROW(arr[i] = 7, length_error);
+      EXPECT_THROW(arr.adjust(i == max ? max : i + 1), length_error);
+      ASSERT_EQ(arr.size(), 2u);
+      EXPECT_EQ(arr(0), 5);
+      EXPECT_EQ(arr(1), 6);
+
+      arr.append(7); // and it goes on
+      EXPECT_EQ(arr.size(), 3u);
+      EXPECT_EQ(arr(2), 7);
+    }
+  EXPECT_THROW(DynArray<int> too_big(limit + 1), length_error);
+}
+
 TEST(DynArrayIterator, get_it_position)
 {
   DynArray<int> arr;

@@ -402,6 +402,12 @@ private:
   void resize_dir(const size_t i)  // resize dir to fit index i
   {
     assert(i >= max_dim);
+    // As the constructor does, before anything grows: past that limit the
+    // array would take an index that it does not allow, or its directory
+    // would ask for terabytes
+    ah_length_error_if(i >= Max_Dim_Allowed)
+      << "DynArray: index " << i << " is not less than the maximum dimension allowed "
+      << Max_Dim_Allowed;
     ensure_dir();  // realloc() must extend a fully initialized directory
 
     size_t new_pow_dir = pow_dir + 1;
@@ -1116,6 +1122,8 @@ public:
 
       @param[in] i index to touch
       @throw bad_alloc if there is no enough memory
+      @throw length_error if i is not less than Max_Dim_Allowed; the
+             array is then as it was.
       @see cut
    */
   T &touch(const size_t i)
@@ -1167,6 +1175,8 @@ public:
       allocated by this call are released before the exception
       propagates.
       @throw domain_error if l is greater than r
+      @throw length_error if r is not less than Max_Dim_Allowed; the
+             array is then as it was.
       @note If every entry of the range is already allocated, the call
       performs no heap allocation.
    */
@@ -1271,6 +1281,8 @@ public:
 
       @param[in] dim number of entries to allocate.
       @throw bad_alloc if there is no enough memory.
+      @throw length_error if dim is greater than Max_Dim_Allowed; the
+             array is then as it was.
       @warning Unlike `std::vector::reserve()` and `Array::reserve()`, this
                does not just reserve capacity: size() becomes dim if it was
                smaller. Do not follow it with append(), which writes after
@@ -1377,6 +1389,9 @@ public:
       the current dimension is adjusted.
 
       @param[in] dim new dimension value
+      @throw bad_alloc if there is no enough memory.
+      @throw length_error if dim is greater than Max_Dim_Allowed; the
+             array is then as it was.
    */
   void adjust(const size_t dim)
   {
@@ -1448,6 +1463,8 @@ public:
       @param[in] i index of the entry; it may be greater than size().
       @return Proxy to entry i.
       @throw bad_alloc if the directory cannot be grown.
+      @throw length_error if i is not less than Max_Dim_Allowed; the
+             array is then as it was.
   */
   Proxy operator [] (const size_t i)
   {
@@ -1623,7 +1640,8 @@ public:
       @param[in] item Value to insert; it may be an entry of this array,
                  as in `a.insert(a.access(1))`.
       @return Reference to the inserted copy, now entry 0.
-      @throws std::bad_alloc or an exception from T.
+      @throws std::bad_alloc, std::length_error if the array has already
+              Max_Dim_Allowed entries, or an exception from T.
       @note O(n): every entry shifts one position. The array is unchanged
             if the copy or the allocation throws.
   */
@@ -1641,7 +1659,8 @@ public:
       @param[in] item Value to insert; it may be an entry of this array,
                  which is then left moved from.
       @return Reference to the inserted item, now entry 0.
-      @throws std::bad_alloc or an exception from T.
+      @throws std::bad_alloc, std::length_error if the array has already
+              Max_Dim_Allowed entries, or an exception from T.
       @note O(n): every entry shifts one position. `item` is untouched if
             the allocation throws.
   */
