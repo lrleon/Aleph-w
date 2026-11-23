@@ -886,17 +886,39 @@ public:
       this->append(itor.get_curr());
   }
 
-  /**  Move constructor; all items of `list` are moved.
+  /** @brief Move constructor: takes in constant time the items of `list`,
+      which is left empty.
 
-       The construction time is constant, independently of number of
-       items of `list`
+      The header node of a list holds an item. This is the constructor for
+      a `T` whose default construction cannot throw: the item of the new
+      header node is built so.
 
-       \param[in] list to be moved
-       \throw bad_alloc if there is no enough memory
+      @param[in,out] list the list to move from.
   */
-  DynDlist(DynDlist<T> &&list) noexcept : DynDlist()
+  DynDlist(DynDlist &&list) noexcept
+    requires std::is_nothrow_default_constructible_v<T>
+    : DynDlist()
   {
     swap(list);
+  }
+
+  /** @brief Move constructor for a `T` whose default construction may
+      throw, as one that allocates: takes in constant time the items of
+      `list`, which is left empty.
+
+      The header node of the new list takes the place of that of `list`,
+      and its item by a move, so that no item is built.
+
+      @param[in,out] list the list to move from.
+      @throws what the move constructor of `T` throws, for the item of the
+      header node; nothing when it is `noexcept`. Then `list` keeps its
+      items.
+  */
+  DynDlist(DynDlist &&list) noexcept(std::is_nothrow_move_constructible_v<T>)
+    requires (not std::is_nothrow_default_constructible_v<T>)
+    : Dnode<T>(std::move(static_cast<Dnode<T> &>(list))), num_elem(list.num_elem)
+  {
+    list.num_elem = 0;
   }
 
   /** Assignment by moving.

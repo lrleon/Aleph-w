@@ -37,6 +37,10 @@
  */
 # include <gtest/gtest.h>
 
+# include <stdexcept>
+# include <type_traits>
+# include <utility>
+
 # include <tpl_dynDlist.H>
 # include <ah-unique.H>
 # include <ah-convert.H>
@@ -762,4 +766,96 @@ TEST(DynDlist, EqualityOperator)
 
   DynDlist<int> empty1, empty2;
   EXPECT_TRUE(empty1 == empty2);
+}
+
+namespace
+{
+  // Counts its default constructions
+  struct Default_Counted
+  {
+    static inline int defaults = 0;
+    int value = 0;
+
+    Default_Counted() { ++defaults; }
+    Default_Counted(int v) noexcept : value(v) {}
+  };
+} // namespace
+
+namespace
+{
+  // Its default construction may throw, and its move throws while fail is
+  // true
+  struct Fragile_Default_And_Move
+  {
+    static inline bool fail = false;
+    int value = 0;
+
+    Fragile_Default_And_Move() {}
+    Fragile_Default_And_Move(int v) noexcept : value(v) {}
+    Fragile_Default_And_Move(const Fragile_Default_And_Move &) = default;
+    Fragile_Default_And_Move(Fragile_Default_And_Move && c) : value(c.value)
+    {
+      if (fail)
+        throw std::runtime_error("move failed");
+    }
+    Fragile_Default_And_Move & operator = (const Fragile_Default_And_Move &) = default;
+  };
+} // namespace
+
+// The move built the header node of the new list with an item built by
+// default, in a constructor that was noexcept: an item whose default
+// construction throws, as one that allocates, ended the program. For such
+// an item the header node now takes the place and the item of that of the
+// other list, so the move is noexcept when that of the item is. When the
+// default construction cannot throw, the move builds the item as before
+static_assert(std::is_nothrow_move_constructible_v<DynDlist<int>>);
+static_assert(std::is_nothrow_move_constructible_v<DynDlist<Fragile_Move>>);
+static_assert(std::is_nothrow_move_constructible_v<DynDlist<Default_Counted>>);
+static_assert(not std::is_nothrow_move_constructible_v<DynDlist<Fragile_Default_And_Move>>);
+
+TEST(DynDlist, AMoveOfTheListBuildsNoItem)
+{
+  DynDlist<Default_Counted> source;
+  for (int i = 1; i <= 5; ++i)
+    source.append(Default_Counted(i));
+
+  Default_Counted::defaults = 0;
+  DynDlist<Default_Counted> target(std::move(source));
+  EXPECT_EQ(Default_Counted::defaults, 0);
+
+  EXPECT_TRUE(source.is_empty());
+  EXPECT_EQ(source.size(), 0u);
+  ASSERT_EQ(target.size(), 5u);
+  int expected = 1;
+  for (auto it = target.get_it(); it.has_curr(); it.next_ne())
+    EXPECT_EQ(it.get_curr().value, expected++);
+
+  // both lists go on as any other
+  source.append(Default_Counted(7));
+  source.insert(Default_Counted(6));
+  target.append(Default_Counted(6));
+  ASSERT_EQ(source.size(), 2u);
+  EXPECT_EQ(source.get_first().value, 6);
+  EXPECT_EQ(source.get_last().value, 7);
+  ASSERT_EQ(target.size(), 6u);
+  EXPECT_EQ(target.get_first().value, 1);
+  EXPECT_EQ(target.get_last().value, 6);
+}
+
+// The item of the header node moves before the nodes change hands
+TEST(DynDlist, AMoveOfTheListThatThrowsLeavesItAsItWas)
+{
+  using Item = Fragile_Default_And_Move;
+  DynDlist<Item> source;
+  for (int i = 1; i <= 3; ++i)
+    source.append(Item(i));
+
+  Item::fail = true;
+  EXPECT_THROW({ DynDlist<Item> target(std::move(source)); }, std::runtime_error);
+  Item::fail = false;
+
+  ASSERT_EQ(source.size(), 3u);
+  int expected = 1;
+  for (auto it = source.get_it(); it.has_curr(); it.next_ne())
+    EXPECT_EQ(it.get_curr().value, expected++);
 }
