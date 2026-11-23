@@ -336,6 +336,9 @@ namespace Aleph
         write().
 
         @throw bad_alloc if not enough memory
+        @throw length_error if dim bits need more bytes than a DynArray
+               holds (`DynArray::Max_Dim_Allowed`).
+        @note If it throws, the array is as it was.
      */
     void reserve(const size_t dim)
     {
@@ -345,11 +348,19 @@ namespace Aleph
     /// Returns the dimension of the bit array
     [[nodiscard]] constexpr size_t size() const noexcept { return current_size; }
 
-    /// Resets the dimension of the array
+    /** Resets the dimension of the array.
+
+        @param[in] sz the new number of bits
+        @throw bad_alloc if not enough memory
+        @throw length_error if sz bits need more bytes than a DynArray
+               holds (`DynArray::Max_Dim_Allowed`).
+        @note If it throws, the array is as it was.
+     */
     void set_size(const size_t sz)
     {
       const size_t old_size = current_size;
-      const size_t array_size = (sz + 7) / 8;
+      // Without the sum sz + 7, which wraps for the last seven sizes of size_t
+      const size_t array_size = sz / 8 + (sz % 8 != 0 ? 1 : 0);
 
       array_of_bytes.adjust(array_size); // allocate for fast read()/write()
       current_size = sz;
@@ -970,7 +981,7 @@ namespace Aleph
           ensure_num_bytes(get_num_bytes());
         }
 
-      const size_t rhs_num_bytes = (rhs.size() + 7) / 8;
+      const size_t rhs_num_bytes = rhs.get_num_bytes();
       const size_t rhs_used_bits_in_last_byte = rhs.size() % 8;
       for (size_t i = 0; i < rhs_num_bytes; ++i)
         {

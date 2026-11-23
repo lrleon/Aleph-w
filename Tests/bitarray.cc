@@ -260,6 +260,48 @@ TEST(BitArraySizing, set_size_computes_byte_count_correctly)
   }
 }
 
+// set_size() computed its bytes as (size + 7) / 8, which wraps for the last
+// seven sizes of size_t: the array freed its bytes and took the size, so
+// that an array that held 101 read 000. A size whose bytes do not fit in a
+// DynArray is refused now, before anything is allocated, and the array
+// keeps its bits
+TEST(BitArraySizing, set_size_refuses_a_size_that_it_cannot_hold)
+{
+  constexpr size_t max = numeric_limits<size_t>::max();
+  const size_t max_bytes = DynArray<Byte>::Max_Dim_Allowed;
+  for (const size_t sz : {max, max - 1, max - 6, max - 7, max - 8, size_t(1) << 62,
+                          size_t(1) << 61, max_bytes * 8 + 1, max_bytes * 8 + 8})
+    {
+      SCOPED_TRACE(sz);
+      BitArray a;
+      a.set_bit_str("101");
+      EXPECT_THROW(a.set_size(sz), length_error);
+      EXPECT_THROW(a.reserve(sz), length_error);
+      ASSERT_EQ(a.size(), 3u); // before the bits of an array that took the size
+      EXPECT_EQ(a.get_bit_str(), "101");
+
+      a.set_size(10); // and it goes on
+      EXPECT_EQ(a.size(), 10u);
+      EXPECT_EQ(a.get_bit_str(), "1010000000");
+    }
+}
+
+// set_size() keeps the bytes of its size and no more: after shrinking to a
+// multiple of 8 bits, the bits that come back when the array grows again
+// are 0, not those that the byte after them held
+TEST(BitArraySizing, bits_that_come_back_after_shrinking_are_zero)
+{
+  for (const size_t down : {0u, 1u, 7u, 8u, 9u, 15u})
+    {
+      SCOPED_TRACE(down);
+      BitArray a;
+      a.set_bit_str("1111111111111111");
+      a.set_size(down);
+      a.set_size(16);
+      EXPECT_EQ(a.get_bit_str(), string(down, '1') + string(16 - down, '0'));
+    }
+}
+
 TEST(BitArrayAccess, reserve_enables_fast_read_write)
 {
   BitArray a;
