@@ -45,7 +45,7 @@ Releases proceed `Genius` (2022) → `3.0.0` → `3.1.0` → `3.1.1` →
 `7.1.0` → `7.1.1` → `7.1.2` → `7.2.0` → `7.2.1` → `7.2.2` → `7.3.0` →
 `7.3.1` → `7.3.2` → `7.3.3` → `7.3.4` → `7.3.5` → `7.3.6` → `7.4.0` →
 `7.5.0` → `7.6.0` → `7.6.1` → `7.6.2` → `7.7.0` → `7.7.1` → `7.7.2` → `7.7.3` →
-`7.7.4` → `7.7.5` → `7.8.0`.
+`7.7.4` → `7.7.5` → `7.8.0` → `7.8.1`.
 There are no published `1.x` or `2.x` releases: those numbers appear in
 older internal documents (e.g. the cellular-automata roadmap milestone
 "v2.0") and in the historical `version 2.0.0b` banner of header
@@ -153,6 +153,7 @@ in the consumer's translation units, plus a small static library
 | 7.7.4 | Yes (fixes, with a behavior change in the `noexcept` of the constructors, moves and swaps of the trees, the buckets of the open hash tables and the sifts of `DynArrayHeap`; see `docs/release-notes/7.7.4.md`) | No (recompile) |
 | 7.7.5 | Yes (fixes; the iterator of `DynArrayHeap` goes through its items alone and no longer derives from that of `DynArray`; see `docs/release-notes/7.7.5.md`) | No (recompile) |
 | 7.8.0 | Yes (additive: `Adaptive_Huffman.H`, adaptive Huffman coding of bytes in one pass; fixes, with behavior changes in the heaps, where a node or an item whose extraction or removal fails stays in the heap and `Fibonacci_Heap::update_key()` keeps its node, and in `DynIntervalTree`, whose iterator loses a `prev()` that did not compile; see `docs/release-notes/7.8.0.md`) | No (recompile) |
+| 7.8.1 | Yes (fixes, with behavior changes in the containers of arrays, which refuse a size that they cannot hold: `DynArray` and `BitArray` with `std::length_error`, and `MemArray`, `ArrayHeap`, `FixedQueue` and `FixedStack` with `std::overflow_error`, where 7.8.0 took it or left it to `new[]`; see `docs/release-notes/7.8.1.md`) | No (recompile) |
 
 ## Release automation
 
