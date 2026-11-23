@@ -202,12 +202,16 @@ public:
    *  constant time O(1). No elements are copied or moved individually.
    *
    *  @param[in,out] mat The matrix to swap with.
+   *
+   *  @throws What the swap of the default values throws; nothing when it
+   *          is `noexcept`. It goes first, so that if it throws, the
+   *          dimensions and the entries stay where they were.
    */
-  void swap(DynMatrix & mat) noexcept
+  void swap(DynMatrix & mat) noexcept(std::is_nothrow_swappable_v<T>)
   {
+    std::swap(default_value, mat.default_value);
     std::swap(n, mat.n);
     std::swap(m, mat.m);
-    std::swap(default_value, mat.default_value);
     std::swap(array_ptr, mat.array_ptr);
   }
 
@@ -291,8 +295,11 @@ public:
    *
    *  @note This constructor is provided primarily for container compatibility.
    *        Most operations will fail on an uninitialized matrix.
+   *
+   *  @throws What the default construction of `T` throws, for the default
+   *          value of the matrix; nothing when it is `noexcept`.
    */
-  DynMatrix() noexcept = default;
+  DynMatrix() noexcept(std::is_nothrow_default_constructible_v<T>) = default;
 
   /** @brief Destructor - releases all allocated memory.
    */
@@ -321,20 +328,23 @@ public:
 
   /** @brief Move constructor.
    *
-   *  Transfers ownership of resources from @p mat to this matrix.
-   *  After this operation, @p mat is left in a valid but unspecified state.
+   *  Takes the dimensions, the entries and the default value of @p mat,
+   *  which is left as a matrix built by default: without dimensions, and
+   *  with a `T` built by default as its default value.
    *
    *  @param[in,out] mat The matrix to move from.
+   *
+   *  @throws What the default construction of `T` throws, for the default
+   *          value that @p mat is left with, and then @p mat is as it was;
+   *          or what the swap of the default values throws. Nothing when
+   *          both are `noexcept`.
    */
-  DynMatrix(DynMatrix<T> && mat) noexcept
-    : n(mat.n),
-      m(mat.m),
-      array_ptr(mat.array_ptr),
-      default_value(std::move(mat.default_value))
+  DynMatrix(DynMatrix<T> && mat)
+    noexcept(std::is_nothrow_default_constructible_v<T> and
+             std::is_nothrow_swappable_v<T>)
+    : DynMatrix()
   {
-    mat.n = mat.m = 0;
-    mat.array_ptr = nullptr;
-    mat.default_value = T();
+    swap(mat);
   }
 
   /** @brief Copy assignment operator.
@@ -368,22 +378,22 @@ public:
    *
    *  @param[in,out] mat The matrix to move from.
    *  @return Reference to this matrix.
+   *
+   *  @throws What the default construction of `T` throws, for the default
+   *          value that @p mat is left with, and then both matrices are as
+   *          they were; or what the swap of the default values throws.
+   *          Nothing when both are `noexcept`.
    */
-  DynMatrix<T> & operator = (DynMatrix<T> && mat) noexcept
+  DynMatrix<T> & operator = (DynMatrix<T> && mat)
+    noexcept(std::is_nothrow_default_constructible_v<T> and
+             std::is_nothrow_swappable_v<T>)
   {
     if (this == &mat)
       return *this;
 
-    delete array_ptr;
-
-    n = mat.n;
-    m = mat.m;
-    default_value = std::move(mat.default_value);
-    array_ptr = mat.array_ptr;
-
-    mat.n = mat.m = 0;
-    mat.array_ptr = nullptr;
-    mat.default_value = T();
+    DynMatrix taken; // before anything changes: its default value may throw
+    taken.swap(mat); // mat is left as a matrix built by default
+    swap(taken);     // and what this matrix had is freed with taken
 
     return *this;
   }

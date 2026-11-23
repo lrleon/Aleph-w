@@ -52,6 +52,8 @@
 #include <vector>
 #include <limits>
 #include <stdexcept>
+#include <type_traits>
+#include <utility>
 #include <cmath>
 
 #include <tpl_dynMat.H>
@@ -1079,6 +1081,141 @@ TEST(DynMatrixSetDimension, StrongGuaranteeWhenItThrows)
   EXPECT_EQ(m.rows(), 4u);
   EXPECT_EQ(m.cols(), 5u);
   EXPECT_EQ(m.read(3, 4), -1);  // the default value is kept
+}
+
+// =============================================================================
+// The moves of a matrix whose default value cannot be built
+// =============================================================================
+
+namespace
+{
+  // Its default construction throws while fail is true
+  struct Fragile_Zero
+  {
+    static inline bool fail = false;
+    int value = 0;
+
+    Fragile_Zero()
+    {
+      if (fail)
+        throw std::runtime_error("default construction failed");
+    }
+
+    Fragile_Zero(int v) noexcept : value(v) {}
+  };
+} // namespace
+
+// A move leaves the matrix that it moves from with a default value built
+// by default, and the constructor by default builds one too. They were
+// noexcept: a default construction that threw, as one that allocates,
+// ended the program. Their noexcept follows it now
+static_assert(std::is_nothrow_default_constructible_v<DynMatrix<double>>);
+static_assert(std::is_nothrow_move_constructible_v<DynMatrix<double>>);
+static_assert(std::is_nothrow_move_assignable_v<DynMatrix<double>>);
+static_assert(std::is_nothrow_move_constructible_v<DynMatrix<std::string>>);
+static_assert(std::is_nothrow_move_assignable_v<DynMatrix<std::string>>);
+static_assert(not std::is_nothrow_default_constructible_v<DynMatrix<Fragile_Zero>>);
+static_assert(not std::is_nothrow_move_constructible_v<DynMatrix<Fragile_Zero>>);
+static_assert(not std::is_nothrow_move_assignable_v<DynMatrix<Fragile_Zero>>);
+
+TEST(DynMatrixMove, ADefaultValueThatCannotBeBuiltLeavesTheMatricesAsTheyWere)
+{
+  DynMatrix<Fragile_Zero> source(2, 3, Fragile_Zero(7));
+  source.write(1, 2, Fragile_Zero(5));
+  DynMatrix<Fragile_Zero> other(1, 1, Fragile_Zero(9));
+  other.write(0, 0, Fragile_Zero(4));
+
+  Fragile_Zero::fail = true;
+  EXPECT_THROW({ DynMatrix<Fragile_Zero> fresh; }, std::runtime_error);
+  EXPECT_THROW({ DynMatrix<Fragile_Zero> target(std::move(source)); }, std::runtime_error);
+  EXPECT_THROW(other = std::move(source), std::runtime_error);
+  Fragile_Zero::fail = false;
+
+  ASSERT_EQ(source.rows(), 2u);
+  ASSERT_EQ(source.cols(), 3u);
+  EXPECT_EQ(source.read(1, 2).value, 5);
+  EXPECT_EQ(source.read(0, 0).value, 7);
+  ASSERT_EQ(other.rows(), 1u);
+  ASSERT_EQ(other.cols(), 1u);
+  EXPECT_EQ(other.read(0, 0).value, 4);
+  EXPECT_EQ(other.get_default_value().value, 9);
+}
+
+TEST(DynMatrixMove, TheMatrixThatWasMovedFromIsAsOneBuiltByDefault)
+{
+  DynMatrix<Fragile_Zero> source(2, 3, Fragile_Zero(7));
+  source.write(1, 2, Fragile_Zero(5));
+
+  DynMatrix<Fragile_Zero> target(std::move(source));
+  ASSERT_EQ(target.rows(), 2u);
+  ASSERT_EQ(target.cols(), 3u);
+  EXPECT_EQ(target.read(1, 2).value, 5);
+  EXPECT_EQ(target.read(0, 1).value, 7);
+  EXPECT_EQ(source.rows(), 0u);
+  EXPECT_EQ(source.cols(), 0u);
+  EXPECT_EQ(source.get_default_value().value, 0);
+
+  DynMatrix<Fragile_Zero> other(1, 1, Fragile_Zero(9));
+  other = std::move(target);
+  ASSERT_EQ(other.rows(), 2u);
+  ASSERT_EQ(other.cols(), 3u);
+  EXPECT_EQ(other.read(1, 2).value, 5);
+  EXPECT_EQ(other.read(0, 1).value, 7);
+  EXPECT_EQ(target.rows(), 0u);
+  EXPECT_EQ(target.get_default_value().value, 0);
+
+  // the ones that were moved from take dimensions again
+  source.set_dimension(2, 2);
+  source.write(1, 1, Fragile_Zero(3));
+  EXPECT_EQ(source.read(1, 1).value, 3);
+  EXPECT_EQ(source.read(0, 0).value, 0);
+}
+
+namespace
+{
+  // Its move assignment throws while fail is true
+  struct Fragile_Assignment
+  {
+    static inline bool fail = false;
+    int value = 0;
+
+    Fragile_Assignment() noexcept = default;
+    Fragile_Assignment(int v) noexcept : value(v) {}
+    Fragile_Assignment(const Fragile_Assignment &) noexcept = default;
+    Fragile_Assignment & operator = (const Fragile_Assignment &) noexcept = default;
+    Fragile_Assignment(Fragile_Assignment &&) noexcept = default;
+    Fragile_Assignment & operator = (Fragile_Assignment && other)
+    {
+      if (fail)
+        throw std::runtime_error("move assignment failed");
+      value = other.value;
+      return *this;
+    }
+  };
+} // namespace
+
+// swap() exchanges the default values first, the only step that may throw
+static_assert(noexcept(std::declval<DynMatrix<double> &>().swap(std::declval<DynMatrix<double> &>())));
+static_assert(not noexcept(std::declval<DynMatrix<Fragile_Assignment> &>()
+                             .swap(std::declval<DynMatrix<Fragile_Assignment> &>())));
+
+TEST(DynMatrixMove, ASwapOfTheDefaultValuesThatThrowsLeavesTheEntriesWhereTheyWere)
+{
+  DynMatrix<Fragile_Assignment> a(2, 3, Fragile_Assignment(7));
+  a.write(1, 2, Fragile_Assignment(5));
+  DynMatrix<Fragile_Assignment> b(1, 1, Fragile_Assignment(9));
+  b.write(0, 0, Fragile_Assignment(4));
+
+  Fragile_Assignment::fail = true;
+  EXPECT_THROW(a.swap(b), std::runtime_error);
+  Fragile_Assignment::fail = false;
+
+  ASSERT_EQ(a.rows(), 2u);
+  ASSERT_EQ(a.cols(), 3u);
+  EXPECT_EQ(a.read(1, 2).value, 5);
+  ASSERT_EQ(b.rows(), 1u);
+  ASSERT_EQ(b.cols(), 1u);
+  EXPECT_EQ(b.read(0, 0).value, 4);
 }
 
 int main(int argc, char **argv)
