@@ -156,8 +156,7 @@ namespace Aleph
             return *this;
           }
 
-        bucket = new DLBucket(key, record);
-        table.Base::insert(bucket);
+        bucket = table.take(new DLBucket(key, record));
         return *this;
       }
 
@@ -172,8 +171,7 @@ namespace Aleph
             return *this;
           }
 
-        bucket = new DLBucket(key, proxy.bucket->record);
-        table.Base::insert(bucket);
+        bucket = table.take(new DLBucket(key, proxy.bucket->record));
         return *this;
       }
     };
@@ -280,11 +278,40 @@ namespace Aleph
     }
 
   private:
+    // Puts in the table a bucket whose key it does not hold, and returns
+    // it. If the insertion throws before the bucket is in a list, without
+    // memory for the lists of a table that a move left without them, the
+    // bucket is freed
+    DLBucket * take(DLBucket *bucket)
+    {
+      try
+        {
+          Base::insert(bucket);
+        }
+      catch (...)
+        {
+          hash_dry_detail::free_bucket_not_taken(bucket);
+          throw;
+        }
+      return bucket;
+    }
+
     // The table refuses a key that it holds already; the bucket is then
-    // freed
+    // freed, as when the insertion throws before it takes it
     Record * __insert(DLBucket *bucket)
     {
-      if (Base::insert(bucket) == nullptr)
+      DLBucket *taken = nullptr;
+      try
+        {
+          taken = static_cast<DLBucket *>(Base::insert(bucket));
+        }
+      catch (...)
+        {
+          hash_dry_detail::free_bucket_not_taken(bucket);
+          throw;
+        }
+
+      if (taken == nullptr)
         {
           delete bucket;
           return nullptr;

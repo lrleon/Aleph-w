@@ -3488,3 +3488,43 @@ namespace
     EXPECT_EQ(map.find(4L), 41);
   }
 } // namespace
+
+// A move of the table left the other one without lists and took its hash
+// function, so that a search in it divided by zero. It copies the function
+// now, and a table without lists finds nothing and takes buckets again
+TEST(LhashTable, TheTableThatWasMovedFromTakesBucketsAgain)
+{
+  using Bucket = LhashBucket<int>;
+  LhashTable<int> src(5);
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(src.insert(new Bucket(i)), nullptr);
+  const size_t capacity = src.capacity();
+  Bucket * const where = src.search(7);
+
+  LhashTable<int> dst(std::move(src));
+  ASSERT_EQ(dst.size(), 20u);
+  EXPECT_EQ(dst.capacity(), capacity);
+  EXPECT_EQ(dst.search(7), where); // the very bucket
+  EXPECT_EQ(src.size(), 0u);
+  EXPECT_EQ(src.capacity(), 0u);
+  EXPECT_EQ(src.current_alpha(), 0.0f);
+  EXPECT_EQ(src.search(3), nullptr);
+  EXPECT_FALSE(src.contains(3));
+  EXPECT_FALSE(LhashTable<int>::Iterator(src).has_curr());
+
+  ASSERT_NE(src.insert(new Bucket(3)), nullptr); // its first bucket
+  EXPECT_EQ(src.capacity(), Primes::DefaultPrime);
+  EXPECT_NE(src.search(3), nullptr);
+  EXPECT_EQ(src.search(4), nullptr);
+
+  src = std::move(dst); // the move assignment
+  EXPECT_EQ(src.size(), 20u);
+  EXPECT_EQ(src.search(7), where);
+  EXPECT_EQ(dst.size(), 0u);
+  EXPECT_EQ(dst.capacity(), 0u);
+  Bucket * const mine = new Bucket(8);
+  EXPECT_EQ(dst.search_or_insert(mine), mine);
+  EXPECT_EQ(dst.search(8), mine);
+  EXPECT_EQ(dst.resize(31), 31u);
+  EXPECT_EQ(dst.search(8), mine);
+}

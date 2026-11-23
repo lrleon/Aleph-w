@@ -47,6 +47,8 @@
 
 # include <algorithm>
 # include <typeinfo>
+# include <type_traits>
+# include <utility>
 # include <ahDry.H>
 # include <ahIterator.H>
 # include <primes.H>
@@ -153,9 +155,12 @@ namespace Aleph
         @note The const_cast on get_compare() is necessary because the base
         class's get_compare() method is not marked const. This is a limitation
         of the base HashTable class.
+
+        @note The copy of a table that a move left without lists has those
+        of the default capacity.
     */
     DynHashTable(const DynHashTable & other)
-      : Base(other.len, other.hash_fct,
+      : Base(other.len == 0 ? Primes::DefaultPrime : other.len, other.hash_fct,
              const_cast<DynHashTable &>(other).get_compare(),
              other.lower_alpha, other.upper_alpha, true,
              other.get_with_resize())
@@ -163,7 +168,44 @@ namespace Aleph
       copy(other);
     }
 
+    /** @brief Move constructor over a table that a move of its own takes,
+        as the one of chained lists (DynSetLhash): takes the lists and the
+        keys of `other`.
+
+        @param[in,out] other The table to move from. It is left empty and
+        without lists, with capacity zero, and it keeps its hash function,
+        its comparator, its load thresholds and its resizing policy. It
+        is still usable: the first insertion gives it the lists of the
+        default capacity.
+        @note It allocates nothing: `other` is not given the lists of a
+        table of its capacity, which could not be allocated without
+        memory.
+    */
     DynHashTable(DynHashTable && other) noexcept
+      requires std::is_nothrow_move_constructible_v<Base>
+      : Base(std::move(static_cast<Base &>(other)))
+    {
+      // empty
+    }
+
+    /** @brief Move constructor over a table that no move of its own
+        takes, as the linear one (DynSetLinHash): builds an empty table
+        of the capacity of `other` and swaps them.
+
+        @param[in,out] other The table to move from. It is left empty,
+        with its capacity, its hash function, its comparator and its load
+        thresholds, and it resizes itself.
+        @note The table that is built makes the directory of its array,
+        and a default value of the array, which holds a key built by
+        default. Without memory for them, or if that construction throws,
+        the program ends, since the move is noexcept.
+    */
+    // TODO (7.9.0): a DynArray that makes its directory and its default
+    // value when it first needs them, so that building a linear table
+    // allocates nothing and this move cannot throw. Then the note above
+    // goes, and the cases that Tests/noexcept_allocation_test.cc leaves out
+    DynHashTable(DynHashTable && other) noexcept
+      requires (not std::is_nothrow_move_constructible_v<Base>)
       : Base(other.len, other.hash_fct, other.get_compare(),
              other.lower_alpha, other.upper_alpha, true, true)
     {
@@ -232,9 +274,22 @@ namespace Aleph
     }
 
   protected:
+    // The table takes the bucket, or it is freed: when the key is in the
+    // table already, and when the insertion throws before the bucket is
+    // in a list
     Key * insert_bucket(Bucket *bucket)
     {
-      auto *ret_val = static_cast<Bucket *>(this->Base::insert(bucket));
+      Bucket *ret_val = nullptr;
+      try
+        {
+          ret_val = static_cast<Bucket *>(this->Base::insert(bucket));
+        }
+      catch (...)
+        {
+          hash_dry_detail::free_bucket_not_taken(bucket);
+          throw;
+        }
+
       if (ret_val == nullptr) // is the key in the table?
         { // yes! ==> free bucket
           delete bucket;
@@ -244,9 +299,21 @@ namespace Aleph
       return &ret_val->get_key();
     }
 
+    // As insert_bucket(), for a search that inserts the key if it is not
+    // in the table
     std::pair<Key *, bool> search_or_insert_bucket(Bucket *bucket)
     {
-      auto *ret_val = static_cast<Bucket *>(this->Base::search_or_insert(bucket));
+      Bucket *ret_val = nullptr;
+      try
+        {
+          ret_val = static_cast<Bucket *>(this->Base::search_or_insert(bucket));
+        }
+      catch (...)
+        {
+          hash_dry_detail::free_bucket_not_taken(bucket);
+          throw;
+        }
+
       if (ret_val != bucket) // is the key in the table?
         { // yes! ==> free bucket
           delete bucket;
