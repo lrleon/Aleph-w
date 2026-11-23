@@ -943,7 +943,7 @@ namespace Aleph
 
     DynList<Key> keys() const
     {
-      return this->template maps<Key>([](auto p) { return p.first; });
+      return this->template maps<Key>([](const auto & p) { return p.first; });
     }
 
     /** @brief Returns the values of the map.
@@ -954,7 +954,7 @@ namespace Aleph
     */
     DynList<Data> values() const
     {
-      return this->template maps<Data>([](auto p) { return p.second; });
+      return this->template maps<Data>([](const auto & p) { return p.second; });
     }
 
     DynList<Data *> values_ptr()

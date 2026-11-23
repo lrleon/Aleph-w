@@ -504,7 +504,7 @@ namespace Aleph
       C<T> items;
       size_t n = 0;
       C<size_t> indexes;
-      c.for_each([&items, &n, &indexes](auto k)
+      c.for_each([&items, &n, &indexes](const auto & k)
       {
         items.append(k);
         indexes.append(n++);
@@ -574,7 +574,7 @@ namespace Aleph
       C<T> items;
       size_t n = 0;
       C<size_t> indexes;
-      c.for_each([&items, &n, &indexes](auto k)
+      c.for_each([&items, &n, &indexes](const auto & k)
       {
         items.append(k);
         indexes.append(n++);
@@ -588,7 +588,7 @@ namespace Aleph
       for (size_t i = 0; i < n; ++i)
         {
           auto idx = indexes(i);
-          ret(idx) = P(items(idx), i);
+          ret(idx) = P(std::move(items(idx)), i); // items is ours, and each idx comes once
         }
       return ret;
     }
