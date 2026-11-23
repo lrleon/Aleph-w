@@ -130,7 +130,7 @@ public:
   /// Copy constructor
   Random_Set(const Random_Set & s) : Random_Set()
   {
-    s.for_each([this] (auto item) { this->append(item); });
+    s.for_each([this] (const auto & item) { this->append(item); });
   }
 
   /** @brief Take the items and the generator of another set, which is left
@@ -153,7 +153,7 @@ public:
       return *this;
 
     array.cut(0);  // Clear the array first
-    s.for_each([this] (auto item) { this->append(item); });
+    s.for_each([this] (const auto & item) { this->append(item); });
 
     return *this;
   }

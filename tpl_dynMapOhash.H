@@ -606,7 +606,7 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    */
   [[nodiscard]] DynList<Key> keys() const
   {
-    return this->template maps<Key>([](auto p)
+    return this->template maps<Key>([](const auto & p)
       {
         return p.first;
       });
@@ -618,7 +618,7 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
    */
   [[nodiscard]] DynList<Data> values() const
   {
-    return this->template maps<Data>([](auto p)
+    return this->template maps<Data>([](const auto & p)
       {
         return p.second;
       });
