@@ -5,6 +5,24 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.8.1](https://github.com/lrleon/Aleph-w/compare/v7.8.0...v7.8.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **array:** Compute the capacity of FixedQueue with std::bit_ceil(), instead of a shift that was undefined for 0 and past 2^63 and gave FixedQueue(2^63 + 1) a capacity of 1 ([#221](https://github.com/lrleon/Aleph-w/issues/221)) ([911b3f8](https://github.com/lrleon/Aleph-w/commit/911b3f8d84c76de043254eb50c3586a2e2caa14d))
+* **array:** Refuse in MemArray, ArrayHeap, FixedQueue and FixedStack a capacity whose bytes do not fit in a size_t before new[], for which GCC with items that have a destructor, and Clang with any, asked the allocator for SIZE_MAX bytes ([#221](https://github.com/lrleon/Aleph-w/issues/221)) ([911b3f8](https://github.com/lrleon/Aleph-w/commit/911b3f8d84c76de043254eb50c3586a2e2caa14d))
+* **bitarray:** Compute the bytes of BitArray::set_size() without the sum that wrapped for the last seven sizes of size_t and lost the bits of the array, and refuse a size whose bytes a DynArray cannot hold ([#221](https://github.com/lrleon/Aleph-w/issues/221)) ([911b3f8](https://github.com/lrleon/Aleph-w/commit/911b3f8d84c76de043254eb50c3586a2e2caa14d))
+* **dynarray:** Refuse an index past Max_Dim_Allowed in touch(), operator[], reserve() and adjust() of DynArray, as its constructor does, instead of taking it or beginning to allocate every block up to it ([#221](https://github.com/lrleon/Aleph-w/issues/221)) ([911b3f8](https://github.com/lrleon/Aleph-w/commit/911b3f8d84c76de043254eb50c3586a2e2caa14d))
+* **heap:** Refuse an ArrayHeap whose array of d + 1 entries does not fit in a size_t, which wrapped to none for SIZE_MAX, so that the first insertion wrote past it ([#221](https://github.com/lrleon/Aleph-w/issues/221)) ([911b3f8](https://github.com/lrleon/Aleph-w/commit/911b3f8d84c76de043254eb50c3586a2e2caa14d))
+
+
+### Performance Improvements
+
+* **maps:** Take the pairs by reference in keys() and values() of DynMapTree, DynMapHashTable and MapOpenHash, which copied the key and the value of each pair before copying the one that they return ([#220](https://github.com/lrleon/Aleph-w/issues/220)) ([99ff02c](https://github.com/lrleon/Aleph-w/commit/99ff02ce0f313d35d93678ebd0672faf61a8f202))
+* **random:** Copy each item once in the copy constructor and the assignment of Random_Set, which took it by value before appending it ([#220](https://github.com/lrleon/Aleph-w/issues/220)) ([99ff02c](https://github.com/lrleon/Aleph-w/commit/99ff02ce0f313d35d93678ebd0672faf61a8f202))
+* **sort:** Copy each item of the list once in ranks() and pair_ranks(), which took it by value and, in pair_ranks(), copied it again to its pair ([#220](https://github.com/lrleon/Aleph-w/issues/220)) ([99ff02c](https://github.com/lrleon/Aleph-w/commit/99ff02ce0f313d35d93678ebd0672faf61a8f202))
+
 ## [7.8.0](https://github.com/lrleon/Aleph-w/compare/v7.7.5...v7.8.0) (2026-11-22)
 
 
