@@ -252,6 +252,10 @@ protected:
     static_assert(std::is_default_constructible_v<T>,
                   "MemArray<T> requires a default-constructible T (storage is new T[dim])");
     assert(is_power_of_2(dim));
+    // Before new[]: for dim items whose bytes do not fit in a size_t, what
+    // new[] asks of the allocator depends on the compiler
+    ah_overflow_error_if(dim > std::numeric_limits<size_t>::max() / sizeof(T))
+      << "MemArray capacity overflow";
     ptr = new T[dim];
     contract_threshold = dim / 4;
     annotate(dim, n);
@@ -439,6 +443,8 @@ public:
       @param[in] _dim proposed dimension of array which could be
       adjusted to the next two power greater than `_dim`
       @throw bad_alloc if there is not enough memory.
+      @throw overflow_error if that power of two, or its bytes, do not fit
+             in a size_t.
   */
   MemArray(size_t _dim = Min_Dim) : ptr(nullptr), n(0)
   {

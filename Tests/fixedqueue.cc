@@ -43,6 +43,10 @@
 
 # include <ahFunctional.H>
 
+# include <limits>
+# include <stdexcept>
+# include <utility>
+
 using namespace std;
 using namespace testing;
 using namespace Aleph;
@@ -80,6 +84,21 @@ TEST(FixedQueue, empty_queue)
   FixedQueue<int> q;
   EXPECT_TRUE(q.is_empty());
   EXPECT_EQ(q.size(), 0);
+}
+
+// The capacity is the least power of two not less than the one asked for.
+// It was 1 << (log2(d) + 1), with the logarithm of a double: log2(0) is
+// -inf, which a size_t does not hold, and past 2^63 that shift is of 64
+// bits or more, so that FixedQueue<int>(2^63 + 1) had a capacity of 1
+TEST(FixedQueue, capacity_is_the_least_power_of_two_not_less_than_the_one_asked)
+{
+  const pair<size_t, size_t> cases[] = {{0, 1}, {1, 1}, {2, 2}, {3, 4}, {5, 8},
+                                        {1000, 1024}, {1024, 1024}, {1025, 2048}};
+  for (const auto & [d, capacity] : cases)
+    EXPECT_EQ(FixedQueue<int>(d).capacity(), capacity) << d;
+
+  EXPECT_THROW((void) FixedQueue<int>((size_t(1) << 63) + 1), overflow_error);
+  EXPECT_THROW((void) FixedQueue<int>(numeric_limits<size_t>::max()), overflow_error);
 }
 
 TEST(FixedQueue, fill_and_empty_queue)

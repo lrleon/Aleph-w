@@ -50,6 +50,7 @@
 #include <ah-concepts.H>
 #include <algorithm>
 #include <cstddef>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -404,10 +405,20 @@ namespace Aleph
 
         @param[in] new_dim new capacity (number of usable heap slots)
         @throw invalid_argument if `new_dim == 0`
+        @throw overflow_error if the array of `new_dim` + 1 entries, with
+               the entry 0 that a heap does not use, does not fit in a
+               `size_t`. Then the heap is as it was.
+        @throw bad_alloc if there is no memory for the array; the heap is
+               then as it was.
     */
     void allocate_storage(const size_t new_dim)
     {
       ah_invalid_argument_if(new_dim == 0) << "Heap capacity must be positive";
+      // Before new[]: its count new_dim + 1 wraps for the maximum of size_t,
+      // and for a count whose bytes do not fit, what new[] asks of the
+      // allocator depends on the compiler
+      ah_overflow_error_if(new_dim >= std::numeric_limits<size_t>::max() / sizeof(T))
+        << "ArrayHeap: capacity " << new_dim << " and the entry 0 do not fit in a size_t";
 
       T *ptr = new T[new_dim + 1];
       if (array_allocated)
@@ -443,6 +454,9 @@ namespace Aleph
         @param[in] d capacity (number of usable heap slots)
         @param[in] cmp_fct comparator
         @throw invalid_argument if `d == 0`
+        @throw overflow_error if the array of `d` + 1 entries, with the
+               entry 0 that a heap does not use, does not fit in a `size_t`
+        @throw bad_alloc if there is no memory for the array
     */
     ArrayHeap(const size_t d = 1024, Compare cmp_fct = Compare())
       : array(nullptr), cmp(cmp_fct)
