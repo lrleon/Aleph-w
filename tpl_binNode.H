@@ -130,6 +130,27 @@
 
 namespace Aleph
 {
+  namespace bin_node_detail
+  {
+    /** @brief Whether building a `Key` by default throws nothing.
+     *
+     *  A `std::pair`, the key of the nodes of a map, is looked into: its
+     *  default constructor builds its two members by default and nothing
+     *  else, but the one of libstdc++ is not declared `noexcept`, and
+     *  those of libc++ and of the library of MSVC are.
+     *
+     *  @tparam Key The type of the key of a node.
+     */
+    template <typename Key>
+    inline constexpr bool nothrow_default_key_v =
+      std::is_nothrow_default_constructible_v<Key>;
+
+    /// A pair is built by default without throwing when its two members are
+    template <typename First, typename Second>
+    inline constexpr bool nothrow_default_key_v<std::pair<First, Second>> =
+      nothrow_default_key_v<First> and nothrow_default_key_v<Second>;
+  } // namespace bin_node_detail
+
   struct Empty_Node
   {
     Empty_Node() = default;
@@ -216,7 +237,7 @@ public:                                                               \
     and the copy of the base, which a base given to the macro may     \
     make throw */                                                     \
  Name(const Control_Data & control_data)                              \
-   noexcept(std::is_nothrow_default_constructible_v<Key> and          \
+   noexcept(Aleph::bin_node_detail::nothrow_default_key_v<Key> and    \
             std::is_nothrow_copy_constructible_v<Control_Data>) :     \
    Control_Data(control_data),                                        \
    lLink(NullPtr), rLink(NullPtr)                                     \
@@ -224,9 +245,9 @@ public:                                                               \
    /* Empty */                                                        \
  }                                                                    \
  /* noexcept as the default construction of Key, which this builds, \
-    and that of the base */                                           \
+    and that of the base. That of a std::pair is seen in its members */ \
  Name()                                                               \
-   noexcept(std::is_nothrow_default_constructible_v<Key> and          \
+   noexcept(Aleph::bin_node_detail::nothrow_default_key_v<Key> and    \
             std::is_nothrow_default_constructible_v<Control_Data>)    \
  : lLink(NullPtr), rLink(NullPtr)                                     \
  {                                                                    \
