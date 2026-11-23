@@ -589,8 +589,7 @@ namespace Aleph
                     Cmp cmp = Cmp(),
                     float lower_alpha = hash_default_lower_alpha,
                     float upper_alpha = hash_default_upper_alpha)
-      : Base(len, std::bind(map_hash_fct<Key, Data, Hash_Fct>,
-                            hash_fct, std::placeholders::_1),
+      : Base(len, hash_fct_detail::map_hash_of<Key, Data>(hash_fct),
              Dft_Pair_Cmp<Key, Data, Cmp>(cmp), lower_alpha, upper_alpha),
         original_hash_fct(hash_fct) {}
 
@@ -647,8 +646,7 @@ namespace Aleph
     */
     void set_hash_fct(Hash_Fct_Ptr fct)
     {
-      Base::set_hash_fct(std::bind(map_hash_fct<Key, Data, Hash_Fct>,
-                                   fct, std::placeholders::_1));
+      Base::set_hash_fct(hash_fct_detail::map_hash_of<Key, Data>(fct));
       original_hash_fct = fct;
     }
 

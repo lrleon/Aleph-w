@@ -182,8 +182,8 @@ struct MapOpenHash : public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Da
               float upper_alpha = hash_default_upper_alpha,
               bool with_resize = true)
     : Base(len,
-           std::bind(map_hash_fct<Key, Data, Hash_Fct>, first_hash_fct, std::placeholders::_1),
-           std::bind(map_hash_fct<Key, Data, Hash_Fct>, second_hash_fct, std::placeholders::_1),
+           hash_fct_detail::map_hash_of<Key, Data>(first_hash_fct),
+           hash_fct_detail::map_hash_of<Key, Data>(second_hash_fct),
            Dft_Pair_Cmp<Key, Data, Cmp>(cmp),
            lower_alpha,
            upper_alpha,

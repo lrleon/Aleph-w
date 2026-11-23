@@ -1139,6 +1139,27 @@ inline std::uint16_t get16bits(const void * p) noexcept
     return fct(p.first);
   }
 
+  namespace hash_fct_detail
+  {
+    /** @brief The hash function of the pairs of a map, from that of its keys.
+     *
+     *  @tparam Key The type of the keys.
+     *  @tparam Data The type of the values.
+     *  @param[in] fct The hash function of the keys.
+     *  @return A function object that gives, for a pair, the hash that `fct`
+     *          gives for its key.
+     *  @note The object holds only the pointer `fct`, so that the
+     *        `std::function` of a hash table keeps it in its own buffer: its
+     *        copies do not allocate, as those of a `std::bind` of
+     *        map_hash_fct() do.
+     */
+    template <typename Key, typename Data>
+    [[nodiscard]] inline auto map_hash_of(size_t (*fct)(const Key &)) noexcept
+    {
+      return [fct] (const std::pair<Key, Data> & p) noexcept { return fct(p.first); };
+    }
+  } // namespace hash_fct_detail
+
   template <typename K1, typename K2>
     requires requires(const K1 & k1, const K2 & k2)
     {
