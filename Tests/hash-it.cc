@@ -3766,25 +3766,38 @@ TEST(DynSetLhash, AComparatorThatCannotBeMovedIsSwappedThroughItsCopies)
 
 # endif // the tables that MSVC cannot build with such a comparator
 
-// The other tables with the same comparator, in what they do with it. Not
-// yet: the move assignment of ODhashTable and OLhashTable, the moves of
-// DynSetLinHash and swap() in ODhashTable, OLhashTable and LinearHashTable,
-// which swap the comparator with std::swap(); nor the raw LinearHashTable,
-// which has no moves of its own
+// The other tables with the same comparator: they are swapped, moved and
+// move assigned with it, as the tables of chained lists. The raw
+// LinearHashTable has no moves of its own and cannot be copied
 TEST(HashTables, TheyAreMovedWithAComparatorThatCannotBeMoved)
 {
+  auto check_table = [] (auto a)
   {
-    ODhashTable<int, Copied_Not_Moved_Eq> a;
+    using Table = decltype(a);
+    Table b;
+    a.get_compare().id = 1;
+    b.get_compare().id = 2;
     ASSERT_NE(a.insert(1), nullptr);
-    ODhashTable<int, Copied_Not_Moved_Eq> b(std::move(a));
+    ASSERT_NE(b.insert(2), nullptr);
+
+    a.swap(b);
+    EXPECT_EQ(a.get_compare().id, 2);
+    EXPECT_EQ(b.get_compare().id, 1);
+    EXPECT_NE(a.search(2), nullptr);
     EXPECT_NE(b.search(1), nullptr);
-  }
-  {
-    OLhashTable<int, Copied_Not_Moved_Eq> a;
-    ASSERT_NE(a.insert(1), nullptr);
-    OLhashTable<int, Copied_Not_Moved_Eq> b(std::move(a));
-    EXPECT_NE(b.search(1), nullptr);
-  }
+
+    Table c(std::move(a));
+    EXPECT_EQ(c.get_compare().id, 2);
+    EXPECT_NE(c.search(2), nullptr);
+
+    b = std::move(c);
+    EXPECT_EQ(b.get_compare().id, 2);
+    EXPECT_NE(b.search(2), nullptr);
+  };
+  check_table(ODhashTable<int, Copied_Not_Moved_Eq>());
+  check_table(OLhashTable<int, Copied_Not_Moved_Eq>());
+  check_table(DynSetLinHash<int, Copied_Not_Moved_Eq>());
+
   auto check_map = [] (auto a)
   {
     using Map = decltype(a);

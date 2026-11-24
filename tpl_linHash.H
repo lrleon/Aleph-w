@@ -425,6 +425,9 @@ public:
       and the state of the expansion.
 
       @param[in,out] other Table to swap with.
+      @note A comparator that can be copied and not moved is swapped
+      through its copies; if one of them throws, `std::terminate` is
+      called.
   */
   void swap(GenLinearHashTable & other) noexcept
   {
@@ -433,7 +436,7 @@ public:
     table.swap(other.table);
     entries_list.swap(other.entries_list);
     std::swap(hash_fct, other.hash_fct);
-    std::swap(cmp, other.cmp);
+    hash_dry_detail::swap_compare(cmp, other.cmp);
     std::swap(M, other.M);
     std::swap(N, other.N);
     std::swap(busy_slots_counter, other.busy_slots_counter);
@@ -504,6 +507,19 @@ public:
     if (remove_all_buckets)
       empty();
   }
+
+  /** @brief Not copyable: the copy that the compiler would write copies
+      the links of the lists, which would point to the buckets of the
+      other table: destroying one table frees the buckets that the other
+      one still holds.
+
+      The table has no moves of its own either; `swap()` exchanges two
+      tables in constant time.
+  */
+  GenLinearHashTable(const GenLinearHashTable &) = delete;
+
+  /// Not copyable, for the same reason as the copy constructor.
+  GenLinearHashTable & operator = (const GenLinearHashTable &) = delete;
 
 private:
 

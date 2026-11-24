@@ -463,13 +463,16 @@ namespace Aleph
         policy.
 
         @param[in,out] other Table to swap with.
+        @note A comparator that can be copied and not moved is swapped
+        through its copies; if one of them throws, `std::terminate` is
+        called.
     */
     void swap(ODhashTable & other) noexcept
     {
       std::swap(table, other.table);
       std::swap(hash_fct, other.hash_fct);
       std::swap(second_hash_fct, other.second_hash_fct);
-      std::swap(cmp, other.cmp);
+      hash_dry_detail::swap_compare(cmp, other.cmp);
       std::swap(N, other.N);
       std::swap(len, other.len);
       std::swap(lower_alpha, other.lower_alpha);

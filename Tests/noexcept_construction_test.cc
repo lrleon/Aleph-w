@@ -139,6 +139,28 @@ namespace
       }
   }
 
+  // A tree built by default with a comparison whose default construction
+  // throws must let what it throws through, and not say that it cannot
+  // throw
+  template <class Tree>
+  void expect_that_the_default_construction_lets_the_comparison_throw()
+  {
+    EXPECT_FALSE(std::is_nothrow_default_constructible_v<Tree>);
+    EXPECT_GT(failures_through([] { Tree tree; }), 0);
+  }
+
+  // A tree built from a temporary comparison: what the copy of it throws,
+  // if it throws, must reach the caller, and the constructor must not say
+  // that it cannot throw
+  template <class Tree, class Less>
+  void expect_that_the_copy_of_the_comparison_lets_it_throw()
+  {
+    if (failures_through([] { Tree tree((Less())); }) > 0)
+      {
+        EXPECT_FALSE((std::is_nothrow_constructible_v<Tree, Less>));
+      }
+  }
+
   // A key whose default construction may throw; the rest cannot
   struct Key_Default_Throws
   {
@@ -441,6 +463,47 @@ TYPED_TEST(Noexcept_Construction, ASetBuiltByDefaultLetsTheFailureOfTheCompariso
   EXPECT_THROW(Set set, Asked_Failure);
   EXPECT_THROW(Inheriting inheriting, Asked_Failure);
   EXPECT_THROW(Map map, Asked_Failure);
+}
+
+// A tree built by default with a comparison whose default construction
+// throws lets what it throws through. Most trees inherit their
+// constructors, and those took the comparison as a default argument,
+// which GCC and Clang do not count in the noexcept of the implicit default
+// constructor: the program ended
+TYPED_TEST(Noexcept_Construction, ATreeBuiltByDefaultLetsTheFailureOfTheComparisonThrough)
+{
+  expect_that_the_default_construction_lets_the_comparison_throw<
+    typename TypeParam::template Tree<int, Less_Default_Throws<int>>>();
+}
+
+// A tree that takes its comparison by value copies it from one that is not
+// const: its noexcept follows that copy, and what the copy throws reaches
+// the caller. One that takes it by a const reference copies from that
+TYPED_TEST(Noexcept_Construction, ATreeBuiltFromAComparisonLetsTheFailureOfItsCopyThrough)
+{
+  expect_that_the_copy_of_the_comparison_lets_it_throw<
+    typename TypeParam::template Tree<int, Less_Mutable_Copy_Throws<int>>,
+    Less_Mutable_Copy_Throws<int>>();
+}
+
+// What a tree whose nodes have a virtual destructor does with the
+// comparison: they share the constructors of the others, but for the ones
+// that inherit those of HtdRbTree and HtdRbTreeRk
+TEST(Noexcept_Construction_Trees, TheTreesOfVirtualNodesLetTheFailureOfTheComparisonThrough)
+{
+  using L = Less_Default_Throws<int>;
+  expect_that_the_default_construction_lets_the_comparison_throw<BinTreeVtl<int, L>>();
+  expect_that_the_default_construction_lets_the_comparison_throw<Avl_Tree_Vtl<int, L>>();
+  expect_that_the_default_construction_lets_the_comparison_throw<Avl_Tree_Rk_Vtl<int, L>>();
+  expect_that_the_default_construction_lets_the_comparison_throw<Rb_Tree_Vtl<int, L>>();
+  expect_that_the_default_construction_lets_the_comparison_throw<Rb_Tree_Rk_Vtl<int, L>>();
+  expect_that_the_default_construction_lets_the_comparison_throw<Splay_Tree_Vtl<int, L>>();
+  expect_that_the_default_construction_lets_the_comparison_throw<HtdRbTreeVtl<int, L>>();
+  expect_that_the_default_construction_lets_the_comparison_throw<HtdRbTreeRkVtl<int, L>>();
+
+  using M = Less_Mutable_Copy_Throws<int>;
+  expect_that_the_copy_of_the_comparison_lets_it_throw<HtdRbTreeVtl<int, M>, M>();
+  expect_that_the_copy_of_the_comparison_lets_it_throw<HtdRbTreeRkVtl<int, M>, M>();
 }
 
 // What the default construction of the key throws in the move of a set

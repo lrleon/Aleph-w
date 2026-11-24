@@ -38,11 +38,13 @@
 #include <gtest/gtest.h>
 
 #include <tpl_linHash.H>
+#include <tpl_dynSetHash.H>
 #include <random>
 #include <map>
 #include <set>
 #include <vector>
 #include <algorithm>
+#include <type_traits>
 
 using namespace std;
 using namespace Aleph;
@@ -67,6 +69,26 @@ TEST(LinearHashTable, EmptyTableProperties)
   EXPECT_GT(table.capacity(), 0u);
   EXPECT_EQ(table.busy_slots(), 0u);
   EXPECT_EQ(table.expansions(), 0u);
+}
+
+// The copy that the compiler would write copies the links of the lists,
+// which would point to the buckets of the other table: destroying one
+// table freed the buckets that the other one still held. Neither it nor
+// the assignment by copy exist
+TEST(LinearHashTable, ATableCannotBeCopied)
+{
+  static_assert(not std::is_copy_constructible_v<LinearHashTable<int>>);
+  static_assert(not std::is_copy_assignable_v<LinearHashTable<int>>);
+  static_assert(not std::is_copy_constructible_v<LinearHashTableVtl<int>>);
+  static_assert(not std::is_copy_assignable_v<LinearHashTableVtl<int>>);
+
+  // the sets and the maps on a linear table copy their keys
+  static_assert(std::is_copy_constructible_v<DynSetLinHash<int>>);
+  DynSetLinHash<int> set;
+  set.insert(1);
+  DynSetLinHash<int> copy(set);
+  EXPECT_NE(copy.search(1), nullptr);
+  EXPECT_NE(set.search(1), nullptr);
 }
 
 TEST(LinearHashTable, SearchOnEmptyTableReturnsNull)

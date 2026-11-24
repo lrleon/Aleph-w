@@ -347,12 +347,23 @@ namespace Aleph
         delete[] table;
     }
 
+    /** @brief Swaps this table with `other` in constant time.
+
+        The keys travel with everything that rules them: the hash
+        function, the comparator, the load thresholds and the resizing
+        policy.
+
+        @param[in,out] other Table to swap with.
+        @note A comparator that can be copied and not moved is swapped
+        through its copies; if one of them throws, `std::terminate` is
+        called.
+    */
     void swap(OLhashTable &other) noexcept
     {
       std::swap(table, other.table);
       std::swap(N, other.N);
       std::swap(len, other.len);
-      std::swap(cmp, other.cmp);
+      hash_dry_detail::swap_compare(cmp, other.cmp);
       std::swap(hash_fct, other.hash_fct);
       std::swap(lower_alpha, other.lower_alpha);
       std::swap(upper_alpha, other.upper_alpha);
