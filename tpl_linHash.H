@@ -425,6 +425,9 @@ public:
       and the state of the expansion.
 
       @param[in,out] other Table to swap with.
+      @note A comparator that can be copied and not moved is swapped
+      through its copies; if one of them throws, `std::terminate` is
+      called.
   */
   void swap(GenLinearHashTable & other) noexcept
   {
@@ -433,7 +436,7 @@ public:
     table.swap(other.table);
     entries_list.swap(other.entries_list);
     std::swap(hash_fct, other.hash_fct);
-    std::swap(cmp, other.cmp);
+    hash_dry_detail::swap_compare(cmp, other.cmp);
     std::swap(M, other.M);
     std::swap(N, other.N);
     std::swap(busy_slots_counter, other.busy_slots_counter);
