@@ -3726,9 +3726,12 @@ TEST(DynLhashTable, AComparatorThatCannotBeMovedIsSwappedThroughItsCopies)
 
 TEST(DynSetLhash, AComparatorThatCannotBeMovedIsSwappedThroughItsCopies)
 {
+  // built by default and numbered afterwards: MSVC moves the comparator
+  // that is given to the constructor that DynSetLhash inherits
   using Set = DynSetLhash<int, Copied_Not_Moved_Eq>;
-  Set a(11, dft_hash_ptr_fct<int>, Copied_Not_Moved_Eq(1));
-  Set b(11, dft_hash_ptr_fct<int>, Copied_Not_Moved_Eq(2));
+  Set a, b;
+  a.get_compare().id = 1;
+  b.get_compare().id = 2;
   ASSERT_NE(a.insert(1), nullptr);
   ASSERT_NE(b.insert(2), nullptr);
   ASSERT_NE(b.insert(3), nullptr);
