@@ -302,9 +302,14 @@ namespace
   {
     auto name = [&of] (const char * container) { return container + ("<" + of + ">"); };
     const auto w = With<T>();
-# define CHECK(Container, how, ...)                                          \
+    // two macros, and not one with __VA_OPT__, which the preprocessor of
+    // MSVC does not take
+# define CHECK(Container, how)                                               \
     expect_that_what_is_noexcept_does_not_allocate<Container<T>>             \
-      (name(#Container).c_str(), w.how __VA_OPT__(,) __VA_ARGS__)
+      (name(#Container).c_str(), w.how)
+# define CHECK_FIXED(Container, how)                                         \
+    expect_that_what_is_noexcept_does_not_allocate<Container<T>>             \
+      (name(#Container).c_str(), w.how, its_use_after_a_move)
 
     CHECK(DynList, append);
     CHECK(DynDlist, append);
@@ -312,19 +317,20 @@ namespace
     CHECK(DynListQueue, put);
     CHECK(ArrayStack, push);
     CHECK(ArrayQueue, put);
-    CHECK(FixedStack, push, its_use_after_a_move);
-    CHECK(FixedQueue, put, its_use_after_a_move);
+    CHECK_FIXED(FixedStack, push);
+    CHECK_FIXED(FixedQueue, put);
     CHECK(DynArray, append);
     CHECK(Array, append);
     CHECK(MemArray, append);
     CHECK(DynArrayHeap, insert);
-    CHECK(ArrayHeap, insert, its_use_after_a_move);
+    CHECK_FIXED(ArrayHeap, insert);
     CHECK(DynBinHeap, insert);
     CHECK(DynSkipList, insert);
     CHECK(FlatSet, insert);
     CHECK(Random_Set, put);
     CHECK(DynMatrix, write);
 # undef CHECK
+# undef CHECK_FIXED
     expect_that_what_is_noexcept_does_not_allocate<SmallVector<T, 4>>
       (name("SmallVector").c_str(), w.push_back);
     expect_that_what_is_noexcept_does_not_allocate<FlatMap<int, T>>
