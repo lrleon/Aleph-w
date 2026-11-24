@@ -1265,6 +1265,216 @@ namespace
   }
 } // namespace
 
+// ==========================================================================
+// The move of a table of chained lists
+// ==========================================================================
+
+namespace
+{
+  size_t chained_hash(const int & k) noexcept
+  {
+    return static_cast<size_t>(k) * 2654435761u + 13;
+  }
+
+  size_t chained_key_hash(const long & k) noexcept
+  {
+    return static_cast<size_t>(k) * 40503u + 7;
+  }
+} // namespace
+
+// A move built, for the table that it moved from, the lists of a table of
+// its capacity, in a constructor that is noexcept: megabytes for a table
+// of a million keys, which it could not say that it had no memory for. It
+// takes the lists now: the table that it moved from has none, and takes
+// those of the default capacity when a key enters it
+TEST(DynSetLhashMove, TakesTheListsAndLeavesAUsableTableWithoutThem)
+{
+  static_assert(std::is_nothrow_move_constructible_v<DynSetLhash<int>>);
+
+  DynSetLhash<int> source;
+  for (int i = 0; i < 2000; ++i)
+    ASSERT_NE(source.insert(i), nullptr);
+  const size_t capacity = source.capacity();
+  const int * const where = source.search(1234);
+
+  DynSetLhash<int> target(std::move(source));
+
+  ASSERT_EQ(target.size(), 2000u);
+  EXPECT_EQ(target.capacity(), capacity);
+  EXPECT_EQ(target.search(1234), where); // the very bucket
+  for (int i = 0; i < 2000; ++i)
+    ASSERT_TRUE(target.contains(i));
+
+  EXPECT_TRUE(source.is_empty());
+  EXPECT_EQ(source.size(), 0u);
+  EXPECT_EQ(source.capacity(), 0u);
+  EXPECT_EQ(source.current_alpha(), 0.0f);
+  EXPECT_EQ(source.search(5), nullptr);
+  EXPECT_FALSE(source.contains(5));
+  EXPECT_THROW(source.remove(5), std::domain_error);
+  EXPECT_FALSE(source.get_it().has_curr());
+  size_t visited = 0;
+  source.for_each([&visited] (const int &) { ++visited; });
+  EXPECT_EQ(visited, 0u);
+  source.empty();
+
+  ASSERT_NE(source.insert(7), nullptr); // its first key
+  EXPECT_EQ(source.capacity(), Primes::DefaultPrime);
+  for (int i = 0; i < 1000; ++i)
+    (void) source.insert(i);
+  ASSERT_EQ(source.size(), 1000u);
+  for (int i = 0; i < 1000; ++i)
+    ASSERT_TRUE(source.contains(i));
+  for (int i = 0; i < 1000; i += 2)
+    source.remove(i);
+  EXPECT_EQ(source.size(), 500u);
+  EXPECT_FALSE(source.contains(0));
+  EXPECT_TRUE(source.contains(1));
+
+  ASSERT_NE(target.insert(5000), nullptr); // the target goes on as any table
+  EXPECT_EQ(target.size(), 2001u);
+}
+
+namespace
+{
+  // The hash function of the tests above, which counts its calls
+  size_t counted_hash_calls = 0;
+
+  size_t counted_hash(const int & k) noexcept
+  {
+    ++counted_hash_calls;
+    return chained_hash(k);
+  }
+}
+
+// The table that was moved from keeps what rules it: its hash function, its
+// load thresholds and whether it resizes itself
+TEST(DynSetLhashMove, TheTableThatWasMovedFromKeepsItsFunctionAndItsPolicy)
+{
+  DynSetLhash<int> source(101, counted_hash);
+  for (int i = 0; i < 300; ++i)
+    ASSERT_NE(source.insert(i), nullptr);
+  source.set_with_resize(false);
+
+  DynSetLhash<int> target(std::move(source));
+  EXPECT_FALSE(target.get_with_resize());
+  EXPECT_FALSE(source.get_with_resize());
+  counted_hash_calls = 0;
+  for (int i = 0; i < 300; ++i)
+    ASSERT_TRUE(target.contains(i));
+  EXPECT_EQ(counted_hash_calls, 300u); // the keys went with their function
+
+  // without resizing, the lists of the default capacity are the ones that
+  // it keeps
+  counted_hash_calls = 0;
+  for (int i = 0; i < 1000; ++i)
+    ASSERT_NE(source.insert(i), nullptr);
+  EXPECT_EQ(counted_hash_calls, 1000u); // and the source keeps its own
+  EXPECT_EQ(source.capacity(), Primes::DefaultPrime);
+  for (int i = 0; i < 1000; ++i)
+    ASSERT_TRUE(source.contains(i));
+}
+
+// With thresholds that are not the default ones: the table that was moved
+// from grows when it holds twice as many keys as lists, where one with
+// the default thresholds would have grown long before
+TEST(DynSetLhashMove, TheTableThatWasMovedFromKeepsItsLoadThresholds)
+{
+  ASSERT_LT(hash_default_upper_alpha, 1.5f);
+  DynSetLhash<int> source(101, counted_hash, Aleph::equal_to<int>(), 0.5f, 2.0f);
+  for (int i = 0; i < 50; ++i)
+    ASSERT_NE(source.insert(i), nullptr);
+
+  DynSetLhash<int> target(std::move(source));
+  ASSERT_EQ(source.capacity(), 0u);
+  EXPECT_EQ(target.size(), 50u);
+
+  const int lists = static_cast<int>(Primes::DefaultPrime);
+  for (int i = 0; i < 2 * lists - 1; ++i)
+    ASSERT_NE(source.insert(i), nullptr);
+  EXPECT_EQ(source.capacity(), Primes::DefaultPrime); // a load below 2
+  ASSERT_NE(source.insert(2 * lists - 1), nullptr);   // and a load of 2
+  EXPECT_GT(source.capacity(), Primes::DefaultPrime);
+  for (int i = 0; i < 2 * lists; ++i)
+    ASSERT_TRUE(source.contains(i));
+}
+
+// A table without lists is copied, moved, swapped, assigned and resized,
+// and it takes another hash function
+TEST(DynSetLhashMove, ATableWithoutListsIsATableLikeAnyOther)
+{
+  DynSetLhash<int> source;
+  for (int i = 0; i < 50; ++i)
+    ASSERT_NE(source.insert(i), nullptr);
+  DynSetLhash<int> target(std::move(source));
+  ASSERT_EQ(source.capacity(), 0u);
+
+  DynSetLhash<int> copy(source); // a copy has the lists of the default capacity
+  EXPECT_TRUE(copy.is_empty());
+  EXPECT_EQ(copy.capacity(), Primes::DefaultPrime);
+  ASSERT_NE(copy.insert(3), nullptr);
+  EXPECT_TRUE(copy.contains(3));
+
+  DynSetLhash<int> moved(std::move(source)); // neither has lists
+  EXPECT_EQ(moved.capacity(), 0u);
+  EXPECT_EQ(source.capacity(), 0u);
+  ASSERT_NE(moved.insert(4), nullptr);
+  EXPECT_TRUE(moved.contains(4));
+
+  source.swap(target);
+  EXPECT_EQ(source.size(), 50u);
+  EXPECT_EQ(target.capacity(), 0u);
+  target = source; // the copy assignment
+  EXPECT_EQ(target.size(), 50u);
+  EXPECT_TRUE(target.contains(49));
+  moved = std::move(target); // the move assignment: the tables change hands
+  EXPECT_EQ(moved.size(), 50u);
+  EXPECT_TRUE(target.is_empty());
+
+  DynSetLhash<int> without(std::move(moved));
+  ASSERT_EQ(moved.capacity(), 0u);
+  EXPECT_EQ(moved.resize(31), 31u);
+  EXPECT_EQ(moved.capacity(), 31u);
+  ASSERT_NE(moved.insert(6), nullptr);
+  EXPECT_TRUE(moved.contains(6));
+
+  DynSetLhash<int> rehashed(std::move(without));
+  ASSERT_EQ(without.capacity(), 0u);
+  without.set_hash_fct(chained_hash);
+  ASSERT_NE(without.insert(8), nullptr);
+  EXPECT_TRUE(without.contains(8));
+  EXPECT_EQ(rehashed.size(), 50u);
+}
+
+// The maps: a move takes the pairs, and the map that was moved from finds
+// nothing and takes pairs again, with its hash function of the keys
+TEST(DynMapHashMove, TakesThePairsAndLeavesAUsableMap)
+{
+  static_assert((std::is_nothrow_move_constructible_v<DynMapHash<long, std::string>>));
+
+  DynMapHash<long, std::string> source(101, chained_key_hash);
+  for (long k = 0; k < 500; ++k)
+    source.insert(k, std::to_string(k));
+  const auto * const where = source.search(77);
+
+  DynMapHash<long, std::string> target(std::move(source));
+
+  ASSERT_EQ(target.size(), 500u);
+  EXPECT_EQ(target.search(77), where); // the very pair
+  EXPECT_EQ(target.find(499), "499");
+  EXPECT_TRUE(source.is_empty());
+  EXPECT_EQ(source.capacity(), 0u);
+  EXPECT_EQ(source.search(77), nullptr);
+  EXPECT_FALSE(source.has(77));
+
+  source.insert(77, "again");
+  EXPECT_EQ(source.find(77), "again");
+  for (long k = 1000; k < 1300; ++k)
+    source.insert(k, std::to_string(k));
+  EXPECT_EQ(source.size(), 301u);
+  EXPECT_EQ(source.find(1299), "1299");
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

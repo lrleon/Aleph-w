@@ -785,8 +785,16 @@ public:
       }
   }
 
-  /// Move constructor
-  FixedQueue(FixedQueue &&q) noexcept : FixedQueue()
+  /** @brief Move constructor: takes the array and the items of `q`.
+
+      @param[in,out] q the queue to move from. It is left empty, without
+      array and with a capacity of 0, as a moved-from FixedStack: it must
+      be assigned another queue before it takes an item.
+      @note It allocates nothing: `q` is not given an array of the
+      default capacity, which could not be allocated without memory.
+  */
+  FixedQueue(FixedQueue &&q) noexcept
+    : dim(0), array(nullptr), front_index(0), rear_index(0), mask(0), num_items(0)
   {
     swap(q);
   }
@@ -1022,9 +1030,11 @@ public:
     using Base::Base;
     using Set_Type = FixedQueue;
 
-    /// Iterator on the modifiable queue `q`, from the oldest item.
+    /// Iterator on the modifiable queue `q`, from the oldest item. The
+    /// index of the youngest one is taken with the mask, which a queue
+    /// without array, as a moved-from one, has too: its capacity is 0.
     Iterator(FixedQueue &q) noexcept
-      : Base(q.array, q.dim, q.num_items, q.front_index, (q.rear_index - 1) % q.dim)
+      : Base(q.array, q.dim, q.num_items, q.front_index, (q.rear_index - 1) & q.mask)
     {}
 
     /// A constant queue is iterated through Const_Iterator.

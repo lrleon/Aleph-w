@@ -45,6 +45,7 @@
 
 # include <limits>
 # include <stdexcept>
+# include <type_traits>
 # include <utility>
 
 using namespace std;
@@ -546,4 +547,63 @@ TEST(FixedQueue, copy_operations)
   }
 }
 
+// The move built a queue of the default capacity, of 1024 items, for the
+// queue that it moved from, in a constructor that is noexcept: it could
+// not say that there was no memory for them. It takes the array now, and
+// the queue that it moved from has none, as a moved-from FixedStack
+TEST(FixedQueue, a_move_takes_the_array_and_leaves_a_queue_without_capacity)
+{
+  static_assert(std::is_nothrow_move_constructible_v<FixedQueue<int>>);
 
+  for (const size_t capacity : {size_t(1), size_t(8), size_t(1024), size_t(4096)})
+    {
+      FixedQueue<int> source(capacity);
+      for (size_t i = 0; i < capacity / 2; ++i) // so that the items wrap around
+        {
+          source.put(-1);
+          (void) source.get();
+        }
+      for (size_t i = 0; i < capacity; ++i)
+        source.put(static_cast<int>(i));
+      const int * const where = &source.front();
+
+      FixedQueue<int> target(std::move(source));
+
+      ASSERT_EQ(target.capacity(), capacity);
+      ASSERT_EQ(target.size(), capacity);
+      EXPECT_EQ(&target.front(), where); // the very array
+      for (size_t i = 0; i < capacity; ++i)
+        ASSERT_EQ(target.front(i), static_cast<int>(i));
+
+      // the queue that was moved from: empty and without capacity. It can
+      // be read, traversed, compared, copied and moved
+      EXPECT_EQ(source.capacity(), 0u);
+      EXPECT_EQ(source.size(), 0u);
+      EXPECT_TRUE(source.is_empty());
+      EXPECT_FALSE(source.get_it().has_curr());
+      size_t visited = 0;
+      EXPECT_TRUE(source.traverse([&visited] (int) { ++visited; return true; }));
+      EXPECT_EQ(visited, 0u);
+      FixedQueue<int> copy(source);
+      EXPECT_EQ(copy.capacity(), 0u);
+      EXPECT_TRUE(copy == source);
+      FixedQueue<int> again(std::move(source));
+      EXPECT_EQ(again.capacity(), 0u);
+      EXPECT_EQ(source.capacity(), 0u);
+
+      // and it takes items once it is assigned a queue
+      source = FixedQueue<int>(4);
+      source.put(1);
+      source.put(2);
+      EXPECT_EQ(source.capacity(), 4u);
+      EXPECT_EQ(source.get(), 1);
+      EXPECT_EQ(source.get(), 2);
+
+      source = std::move(target); // the move assignment swaps
+      ASSERT_EQ(source.size(), capacity);
+      EXPECT_EQ(target.capacity(), 4u);
+      int expected = 0;
+      for (auto it = source.get_it(); it.has_curr(); it.next_ne())
+        ASSERT_EQ(it.get_curr(), expected++);
+    }
+}

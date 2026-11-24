@@ -205,7 +205,31 @@ template<typename Key, typename Data, class Cmp = std::equal_to<Key>>
 struct Dft_Pair_Cmp
 {
   Cmp cmp;
-  Dft_Pair_Cmp(Cmp __cmp = Cmp()) : cmp(__cmp) {}
+
+  /** @brief Builds the comparator of the keys by default.
+   *
+   *  It is a constructor apart from the one that takes the comparator,
+   *  and not a default argument of that one: GCC and Clang do not count
+   *  a default argument in the `noexcept` of the implicit default
+   *  constructor of a class that holds or inherits this one, and what
+   *  that argument threw would end the program there.
+   *
+   *  @throws What the default construction of `Cmp` throws; nothing when
+   *          it is `noexcept`, so that a map whose comparator has no
+   *          state is built without throwing, and its tree too.
+   */
+  Dft_Pair_Cmp() noexcept(std::is_nothrow_default_constructible_v<Cmp>)
+    : cmp() {}
+
+  /** @brief Wraps the comparator `__cmp` of the keys.
+   *
+   *  @param[in] __cmp The comparator, which is copied.
+   *  @throws What the copy of `__cmp` throws: a copy from a `Cmp` that
+   *          is not const, which a comparator may have apart from the one
+   *          from a const one.
+   */
+  Dft_Pair_Cmp(Cmp __cmp) noexcept(std::is_nothrow_constructible_v<Cmp, Cmp &>)
+    : cmp(__cmp) {}
 
   /// Pair vs Pair comparison; it throws what `cmp` throws
   bool operator()(const std::pair<Key, Data> &p1,

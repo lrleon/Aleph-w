@@ -46,6 +46,7 @@
 # define TPL_DYNSETTREE_H
 
 # include <cassert>
+# include <concepts>
 # include <typeinfo>
 # include <type_traits>
 # include <utility>
@@ -457,8 +458,71 @@ namespace Aleph
       std::swap(arena_allocator, dset.arena_allocator);
     }
 
-    /// Instantiate a dynamic set
-    DynSetTree(const Compare & cmp = Compare())
+  private:
+    /** @brief Whether building an empty tree with a comparison built by
+     *         default throws nothing.
+     *
+     *  The header nodes of the tree hold a key built by default, and it
+     *  copies the comparison. A randomized tree makes its generator of
+     *  random numbers too, in memory of malloc(), so that its constructor
+     *  is not noexcept.
+     */
+    static constexpr bool nothrow_empty_tree =
+      std::is_nothrow_default_constructible_v<Compare> and
+      std::is_nothrow_constructible_v<Tree<Key, Compare>, Compare>;
+
+    /** @brief The same, for the tree that a move builds for the set that
+     *         it moves from.
+     *
+     *  A randomized tree, which is known by its rng(), is asked for its
+     *  node and the copy of its comparison: the allocation of its
+     *  generator is not counted. See the note and the TODO of the move
+     *  constructor.
+     */
+    static constexpr bool nothrow_empty_tree_of_a_move =
+      nothrow_empty_tree or
+      (std::is_nothrow_default_constructible_v<Compare> and
+       requires (Tree<Key, Compare> & t)
+         { { t.rng() } -> std::same_as<Gsl_Compatible_Rng &>; } and
+       std::is_nothrow_default_constructible_v<Node> and
+       std::is_nothrow_copy_constructible_v<Compare>);
+
+  public:
+    /** @brief Builds an empty set, with a comparison criteria built by
+     *         default.
+     *
+     *  It is a constructor apart from the one that takes the comparison,
+     *  and it builds the comparison itself, instead of leaving it to a
+     *  default argument: GCC and Clang do not count a default argument in
+     *  the `noexcept` of an implicit default constructor, as that of a
+     *  class that inherits the constructors of this one, or that of a
+     *  tree that inherits its own, and what the construction of the
+     *  comparison threw would end the program there.
+     *
+     *  @throw what the default construction of the comparison throws, or
+     *         what building the tree throws: the default construction of
+     *         the key of its header nodes, the copy of the comparison, or
+     *         `std::bad_alloc` when there is no memory for the generator
+     *         of random numbers of a randomized tree. The constructor is
+     *         noexcept exactly when none of them may throw.
+     */
+    DynSetTree() noexcept(nothrow_empty_tree)
+      : tree(Compare()), num_nodes(0)
+    {
+      // empty
+    }
+
+    /** @brief Builds an empty set with the comparison criteria `cmp`.
+     *  @param[in] cmp the comparison criteria, which the tree copies.
+     *  @throw what building the tree throws: the default construction of
+     *         the key of its header nodes, the copy of `cmp`, or
+     *         `std::bad_alloc` when there is no memory for the generator
+     *         of random numbers of a randomized tree. The constructor is
+     *         noexcept exactly when none of them may throw.
+     */
+    DynSetTree(const Compare & cmp)
+      noexcept(std::is_nothrow_constructible_v<Tree<Key, Compare>,
+                                               const Compare &>)
       : tree(cmp), num_nodes(0)
     {
       // empty
@@ -502,13 +566,32 @@ namespace Aleph
 
     /** @brief Take the elements of another set, which is left empty.
      *  @param[in,out] srcTree the set to move from.
-     *  @throw what swapping the trees throws: the comparison of a tree may
-     *         have a swap of its own that throws. The move is noexcept
-     *         exactly when that swap is.
+     *  @throw what building an empty tree throws, which the move does for
+     *         `srcTree`, so that it stays usable: the default construction
+     *         of the key of its header nodes, or the default construction
+     *         and the copy of the comparison. Then `srcTree` keeps its
+     *         elements. Or what swapping the trees throws: the comparison
+     *         of a tree may have a swap of its own that throws. The move is
+     *         noexcept when none of them may throw.
+     *  @note A randomized tree (Treap, Treap_Rk, Rand_Tree) makes its
+     *        generator of random numbers too when it is built, in memory
+     *        of malloc(). The noexcept of the move does not count that
+     *        allocation: without memory for it the program ends. And it
+     *        follows the default construction of the key on the three of
+     *        them, though Rand_Tree has no header node.
      */
+    // TODO (7.9.0): a move of a tree that builds nothing, so that this one
+    // neither allocates nor throws: the header node may take the key of
+    // that of the other tree, and the generator the state of the other one
+    // (see the TODO of Gsl_Compatible_Rng_Owner in ah-random.H). Then the
+    // move is noexcept for every key again, and the note above goes
     DynSetTree(DynSetTree && srcTree)
-      noexcept(noexcept(swap(srcTree))) : num_nodes(0)
+      noexcept(nothrow_empty_tree_of_a_move and noexcept(swap(srcTree)))
+      : tree(Compare()), num_nodes(0)
     {
+      // The comparison of the empty tree is built above, as the default
+      // constructor does, and not as the default argument of the
+      // constructor of the tree
       swap(srcTree);
     }
 

@@ -51,6 +51,7 @@
 # define TPL_DYNBINHEAP_H
 
 # include <memory>
+# include <type_traits>
 
 # include <ah-concepts.H>
 # include <ahDry.H>
@@ -114,9 +115,19 @@ namespace Aleph {
 
   public:
 
-    DynBinHeap(Compare & cmp) noexcept : Base(cmp) { /* empty */ }
+    /** @brief Builds an empty heap with the comparison `cmp`.
 
-    DynBinHeap(Compare && cmp = Compare()) noexcept : BinHeap<T, Compare>(cmp)
+        @param[in] cmp the criterion of comparison, which the heap copies.
+        @throws what the default construction of the key of the header node
+        or the copy of `cmp` throws; nothing when both are `noexcept`.
+    */
+    DynBinHeap(Compare & cmp) noexcept(std::is_nothrow_constructible_v<Base, Compare &>)
+      : Base(cmp) { /* empty */ }
+
+    /// \overload DynBinHeap(Compare & cmp)
+    DynBinHeap(Compare && cmp = Compare())
+      noexcept(std::is_nothrow_constructible_v<Base, Compare &>)
+      : BinHeap<T, Compare>(cmp)
     { /* empty */ }
 
     DynBinHeap(const DynBinHeap & h) : Base(h.cmp)

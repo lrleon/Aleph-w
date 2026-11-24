@@ -37,6 +37,8 @@
  */
 #include <gtest/gtest.h>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 #include <tpl_dynMapOhash.H>
 
@@ -965,6 +967,55 @@ TEST_F(MapODhashTest, ExistsMethod)
   });
 
   EXPECT_FALSE(has_ten);
+}
+
+// =============================================================================
+// The hash function of the pairs
+// =============================================================================
+
+namespace
+{
+  size_t a_key_hash(const long & k) noexcept
+  {
+    return static_cast<size_t>(k) * 40503u + 7;
+  }
+} // namespace
+
+// The hash function of the pairs of a map holds only the pointer to that
+// of the keys, so that the std::function of the table keeps it in its
+// buffer and copies it without allocating. It was a std::bind of
+// map_hash_fct(), which did not fit: a move of a map, which copies its
+// functions, allocated, although it is noexcept
+TEST(MapHashOf, GivesAPairTheHashOfItsKey)
+{
+  const auto pair_hash = hash_fct_detail::map_hash_of<long, std::string>(a_key_hash);
+  static_assert(sizeof(pair_hash) == sizeof(void *));
+  static_assert(std::is_trivially_copyable_v<decltype(pair_hash)>);
+  static_assert(std::is_nothrow_copy_constructible_v<decltype(pair_hash)>);
+
+  for (long k = -5; k < 100; ++k)
+    EXPECT_EQ(pair_hash(std::pair<long, std::string>(k, "v")), a_key_hash(k));
+}
+
+// A map with a hash function of its own finds its pairs by it, as before
+TEST(MapHashOf, AMapFindsItsPairsWithAHashFunctionOfItsOwn)
+{
+  MapODhash<long, std::string> od(101, a_key_hash, a_key_hash);
+  MapOLhash<long, std::string> ol(101, a_key_hash);
+  for (long k = 0; k < 500; ++k)
+    {
+      od.insert(k, std::to_string(k));
+      ol.insert(k, std::to_string(k));
+    }
+  for (long k = 0; k < 500; ++k)
+    {
+      ASSERT_NE(od.search(k), nullptr) << k;
+      EXPECT_EQ(od.search(k)->second, std::to_string(k));
+      ASSERT_NE(ol.search(k), nullptr) << k;
+      EXPECT_EQ(ol.search(k)->second, std::to_string(k));
+    }
+  EXPECT_EQ(od.search(500), nullptr);
+  EXPECT_EQ(ol.search(500), nullptr);
 }
 
 // =============================================================================

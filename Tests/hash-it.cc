@@ -43,6 +43,7 @@
 # include <tpl_olhash.H>
 # include <tpl_odhash.H>
 # include <tpl_lhash.H>
+# include <tpl_dynLhash.H>
 # include <tpl_hash.H>
 # include <algorithm>
 # include <deque>
@@ -3488,3 +3489,317 @@ namespace
     EXPECT_EQ(map.find(4L), 41);
   }
 } // namespace
+
+// A move of the table left the other one without lists and took its hash
+// function, so that a search in it divided by zero. The move constructor
+// copies the function now, and a table without lists finds nothing and
+// takes buckets again
+TEST(LhashTable, TheTableThatWasMovedFromTakesBucketsAgain)
+{
+  using Bucket = LhashBucket<int>;
+  LhashTable<int> src(5);
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(src.insert(new Bucket(i)), nullptr);
+  const size_t capacity = src.capacity();
+  Bucket * const where = src.search(7);
+
+  LhashTable<int> dst(std::move(src));
+  ASSERT_EQ(dst.size(), 20u);
+  EXPECT_EQ(dst.capacity(), capacity);
+  EXPECT_EQ(dst.search(7), where); // the very bucket
+  EXPECT_EQ(src.size(), 0u);
+  EXPECT_EQ(src.capacity(), 0u);
+  EXPECT_EQ(src.current_alpha(), 0.0f);
+  EXPECT_EQ(src.search(3), nullptr);
+  EXPECT_FALSE(src.contains(3));
+  EXPECT_FALSE(LhashTable<int>::Iterator(src).has_curr());
+
+  ASSERT_NE(src.insert(new Bucket(3)), nullptr); // its first bucket
+  EXPECT_EQ(src.capacity(), Primes::DefaultPrime);
+  EXPECT_NE(src.search(3), nullptr);
+  EXPECT_EQ(src.search(4), nullptr);
+
+  src = std::move(dst); // the move assignment
+  EXPECT_EQ(src.size(), 20u);
+  EXPECT_EQ(src.search(7), where);
+  EXPECT_EQ(dst.size(), 0u);
+  EXPECT_EQ(dst.capacity(), 0u);
+  Bucket * const mine = new Bucket(8);
+  EXPECT_EQ(dst.search_or_insert(mine), mine);
+  EXPECT_EQ(dst.search(8), mine);
+  EXPECT_EQ(dst.resize(31), 31u);
+  EXPECT_EQ(dst.search(8), mine);
+}
+
+namespace
+{
+  // Two hash functions that count their calls
+  size_t first_hash_calls = 0;
+  size_t second_hash_calls = 0;
+
+  size_t first_counted_hash(const int & k) noexcept
+  {
+    ++first_hash_calls;
+    return static_cast<size_t>(k);
+  }
+
+  size_t second_counted_hash(const int & k) noexcept
+  {
+    ++second_hash_calls;
+    return static_cast<size_t>(k) * 31u;
+  }
+}
+
+// The move constructor copies the hash function, so that the table that
+// it moves from goes on with its own
+TEST(LhashTable, TheTableThatWasMovedFromKeepsItsHashFunction)
+{
+  using Bucket = LhashBucket<int>;
+  LhashTable<int> src(11, first_counted_hash);
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(src.insert(new Bucket(i)), nullptr);
+
+  LhashTable<int> dst(std::move(src));
+  first_hash_calls = second_hash_calls = 0;
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(dst.search(i), nullptr);
+  EXPECT_EQ(first_hash_calls, 20u);
+
+  first_hash_calls = 0;
+  ASSERT_NE(src.insert(new Bucket(7)), nullptr);
+  EXPECT_NE(src.search(7), nullptr);
+  EXPECT_EQ(first_hash_calls, 2u); // one for the insertion and one for the search
+}
+
+// The move assignment copies no function: the two tables swap what rules
+// them, so that the one that was moved from goes on with the hash function
+// that the other one had
+TEST(LhashTable, AMoveAssignmentSwapsWhatRulesTheTables)
+{
+  using Bucket = LhashBucket<int>;
+  LhashTable<int> src(11, first_counted_hash);
+  LhashTable<int> dst(11, second_counted_hash);
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(src.insert(new Bucket(i)), nullptr);
+  ASSERT_NE(dst.insert(new Bucket(100)), nullptr); // the assignment frees it
+
+  dst = std::move(src);
+  ASSERT_EQ(dst.size(), 20u);
+  EXPECT_EQ(dst.search(100), nullptr);
+  EXPECT_EQ(src.size(), 0u);
+  EXPECT_EQ(src.capacity(), 0u);
+
+  first_hash_calls = second_hash_calls = 0;
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(dst.search(i), nullptr); // with the function that put them there
+  EXPECT_EQ(first_hash_calls, 20u);
+  EXPECT_EQ(second_hash_calls, 0u);
+
+  ASSERT_NE(src.insert(new Bucket(7)), nullptr); // with the one that dst had
+  EXPECT_NE(src.search(7), nullptr);
+  EXPECT_EQ(second_hash_calls, 2u);
+  EXPECT_EQ(first_hash_calls, 20u);
+}
+
+// A table that does not own its buckets does not free them when it is
+// assigned another one, nor does it count them any more: the table that
+// was moved from, which takes what ruled this one, is left empty
+TEST(LhashTable, AMoveAssignmentOfATableThatDoesNotOwnItsBucketsLeavesTheOtherEmpty)
+{
+  using Bucket = LhashBucket<int>;
+  LhashTable<int> src(11, first_counted_hash);
+  for (int i = 0; i < 5; ++i)
+    ASSERT_NE(src.insert(new Bucket(i)), nullptr);
+
+  Bucket * const mine[3] = {new Bucket(100), new Bucket(101), new Bucket(102)};
+  LhashTable<int> dst(11, second_counted_hash, Aleph::equal_to<int>(),
+                      hash_default_lower_alpha, hash_default_upper_alpha,
+                      false, true);
+  for (Bucket * bucket : mine)
+    ASSERT_NE(dst.insert(bucket), nullptr);
+  ASSERT_EQ(dst.size(), 3u);
+
+  dst = std::move(src);
+  for (Bucket * bucket : mine) // they were never of the table
+    delete bucket;
+
+  ASSERT_EQ(dst.size(), 5u);
+  for (int i = 0; i < 5; ++i)
+    EXPECT_NE(dst.search(i), nullptr);
+  EXPECT_EQ(dst.search(100), nullptr);
+  EXPECT_EQ(src.size(), 0u);
+  EXPECT_TRUE(src.is_empty());
+  EXPECT_EQ(src.capacity(), 0u);
+  EXPECT_EQ(src.search(100), nullptr);
+}
+
+namespace
+{
+  // A comparator that can be copied and not moved, which EqualityComparator
+  // admits and std::swap() does not take. Its number tells the copies apart.
+  struct Copied_Not_Moved_Eq
+  {
+    int id = 0;
+
+    Copied_Not_Moved_Eq() = default;
+
+    Copied_Not_Moved_Eq(const Copied_Not_Moved_Eq &) = default;
+
+    Copied_Not_Moved_Eq & operator = (const Copied_Not_Moved_Eq &) = default;
+
+    Copied_Not_Moved_Eq(Copied_Not_Moved_Eq &&) = delete;
+
+    bool operator () (int a, int b) const noexcept { return a == b; }
+  };
+
+  static_assert(EqualityComparator<Copied_Not_Moved_Eq, int>);
+  static_assert(not std::is_move_constructible_v<Copied_Not_Moved_Eq>);
+
+  // MSVC builds a class through a constructor that it inherits with a
+  // function of its own, which moves the arguments to the constructor of
+  // the base. LhashTable and LhashTableVtl inherit those of GenLhashTable,
+  // and DynLhashTable and DynSetLhash are built through them: with a
+  // comparator whose move constructor is deleted, none of them can be
+  // built there (C2280). GCC, Clang and clang-cl initialize the parameters
+  // from the arguments, and the tests below are theirs
+# if !defined(_MSC_VER) || defined(__clang__)
+
+  // swap() and the move assignment of a table of chained lists swap a
+  // comparator that cannot be moved, and the table that was moved from
+  // takes keys again
+  template <class Table>
+  void expect_that_the_comparators_are_swapped()
+  {
+    using Bucket = typename Table::Bucket;
+    Table a, b;
+    a.get_compare().id = 1;
+    b.get_compare().id = 2;
+    ASSERT_NE(a.insert(new Bucket(1)), nullptr);
+    ASSERT_NE(b.insert(new Bucket(2)), nullptr);
+    ASSERT_NE(b.insert(new Bucket(3)), nullptr);
+
+    a.swap(b);
+    EXPECT_EQ(a.get_compare().id, 2);
+    EXPECT_EQ(b.get_compare().id, 1);
+    ASSERT_EQ(a.size(), 2u);
+    ASSERT_EQ(b.size(), 1u);
+    EXPECT_NE(a.search(3), nullptr);
+    EXPECT_NE(b.search(1), nullptr);
+
+    a = std::move(b); // frees the keys 2 and 3
+    EXPECT_EQ(a.get_compare().id, 1);
+    EXPECT_EQ(b.get_compare().id, 2);
+    ASSERT_EQ(a.size(), 1u);
+    EXPECT_NE(a.search(1), nullptr);
+    EXPECT_EQ(b.size(), 0u);
+    EXPECT_EQ(b.capacity(), 0u);
+
+    ASSERT_NE(b.insert(new Bucket(5)), nullptr);
+    EXPECT_NE(b.search(5), nullptr);
+  }
+
+# endif // the tables that MSVC cannot build with such a comparator
+}
+
+# if !defined(_MSC_VER) || defined(__clang__) // see above
+
+// The move assignment swaps the two tables, and std::swap() asks for a
+// comparator that can be moved: with this one, it did not compile
+TEST(LhashTable, AComparatorThatCannotBeMovedIsSwappedThroughItsCopies)
+{
+  expect_that_the_comparators_are_swapped<LhashTable<int, Copied_Not_Moved_Eq>>();
+  expect_that_the_comparators_are_swapped<LhashTableVtl<int, Copied_Not_Moved_Eq>>();
+}
+
+TEST(DynLhashTable, AComparatorThatCannotBeMovedIsSwappedThroughItsCopies)
+{
+  DynLhashTable<int, int, Copied_Not_Moved_Eq> a, b;
+  a.get_compare().id = 1;
+  b.get_compare().id = 2;
+  ASSERT_NE(a.insert(1, 10), nullptr);
+  ASSERT_NE(b.insert(2, 20), nullptr);
+  ASSERT_NE(b.insert(3, 30), nullptr);
+
+  a.swap(b);
+  EXPECT_EQ(a.get_compare().id, 2);
+  EXPECT_EQ(b.get_compare().id, 1);
+  ASSERT_NE(a.search(3), nullptr);
+  EXPECT_EQ(*a.search(3), 30);
+
+  a = std::move(b);
+  EXPECT_EQ(a.get_compare().id, 1);
+  EXPECT_EQ(b.get_compare().id, 2);
+  ASSERT_NE(a.search(1), nullptr);
+  EXPECT_EQ(*a.search(1), 10);
+  EXPECT_EQ(b.size(), 0u);
+  ASSERT_NE(b.insert(5, 50), nullptr);
+  EXPECT_NE(b.search(5), nullptr);
+}
+
+TEST(DynSetLhash, AComparatorThatCannotBeMovedIsSwappedThroughItsCopies)
+{
+  using Set = DynSetLhash<int, Copied_Not_Moved_Eq>;
+  Set a, b;
+  a.get_compare().id = 1;
+  b.get_compare().id = 2;
+  ASSERT_NE(a.insert(1), nullptr);
+  ASSERT_NE(b.insert(2), nullptr);
+  ASSERT_NE(b.insert(3), nullptr);
+
+  a.swap(b);
+  EXPECT_EQ(a.get_compare().id, 2);
+  EXPECT_EQ(b.get_compare().id, 1);
+  EXPECT_NE(a.search(3), nullptr);
+
+  a = std::move(b);
+  EXPECT_EQ(a.get_compare().id, 1);
+  EXPECT_EQ(b.get_compare().id, 2);
+  EXPECT_NE(a.search(1), nullptr);
+  EXPECT_EQ(b.size(), 0u);
+  ASSERT_NE(b.insert(5), nullptr);
+  EXPECT_NE(b.search(5), nullptr);
+
+  Set c(std::move(a));
+  EXPECT_EQ(c.get_compare().id, 1);
+  EXPECT_NE(c.search(1), nullptr);
+}
+
+# endif // the tables that MSVC cannot build with such a comparator
+
+// The other tables with the same comparator, in what they do with it. Not
+// yet: the move assignment of ODhashTable and OLhashTable, the moves of
+// DynSetLinHash and swap() in ODhashTable, OLhashTable and LinearHashTable,
+// which swap the comparator with std::swap(); nor the raw LinearHashTable,
+// which has no moves of its own
+TEST(HashTables, TheyAreMovedWithAComparatorThatCannotBeMoved)
+{
+  {
+    ODhashTable<int, Copied_Not_Moved_Eq> a;
+    ASSERT_NE(a.insert(1), nullptr);
+    ODhashTable<int, Copied_Not_Moved_Eq> b(std::move(a));
+    EXPECT_NE(b.search(1), nullptr);
+  }
+  {
+    OLhashTable<int, Copied_Not_Moved_Eq> a;
+    ASSERT_NE(a.insert(1), nullptr);
+    OLhashTable<int, Copied_Not_Moved_Eq> b(std::move(a));
+    EXPECT_NE(b.search(1), nullptr);
+  }
+  auto check_map = [] (auto a)
+  {
+    using Map = decltype(a);
+    ASSERT_NE(a.insert(1, 10), nullptr);
+    Map b(std::move(a));
+    ASSERT_NE(b.search(1), nullptr);
+    Map c;
+    c = std::move(b);
+    c.swap(a);
+    ASSERT_NE(a.search(1), nullptr);
+    EXPECT_EQ(a.search(1)->second, 10);
+  };
+  check_map(MapODhash<int, int, Copied_Not_Moved_Eq>());
+  check_map(MapOLhash<int, int, Copied_Not_Moved_Eq>());
+# if !defined(_MSC_VER) || defined(__clang__) // its table is a LhashTable: see above
+  check_map(DynMapHash<int, int, Copied_Not_Moved_Eq>());
+# endif
+}

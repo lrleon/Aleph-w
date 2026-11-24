@@ -1271,6 +1271,58 @@ public:
 };
 
 
+namespace hash_dry_detail
+{
+  /** @brief Frees a bucket that a hash table of lists was given and did not
+      take.
+
+      The insertion of a bucket may throw before it puts the bucket in a list
+      of the table: without memory for the lists of a table that a move left
+      without them, or for those of a linear table. Then nothing else holds
+      the bucket. It may also throw afterwards, without memory to grow the
+      table, and then the bucket is in the table, which owns it.
+
+      @tparam Bucket The type of the bucket, which derives from Dlink through
+      the node of its list.
+      @param[in] bucket The bucket that the insertion that threw was given.
+      @ingroup Hash
+  */
+  template <class Bucket>
+  inline void free_bucket_not_taken(Bucket * bucket) noexcept
+  {
+    if (static_cast<Aleph::Dlink *>(bucket)->is_empty())
+      delete bucket;
+  }
+
+  /** @brief Swaps the comparators of two hash tables.
+
+      `std::swap()` asks for a type that can be moved. A comparator that
+      can be copied and not moved, which `EqualityComparator` admits, is
+      swapped through its copies: one copy construction and two copy
+      assignments.
+
+      @tparam Cmp The type of the comparators.
+      @param[in,out] a A comparator.
+      @param[in,out] b The other comparator.
+      @note If a move or a copy throws, `std::terminate` is called, as in
+      the moves of the tables.
+      @ingroup Hash
+  */
+  template <class Cmp>
+  inline void swap_compare(Cmp & a, Cmp & b) noexcept
+  {
+    if constexpr (std::is_move_constructible_v<Cmp>
+                  and std::is_move_assignable_v<Cmp>)
+      std::swap(a, b);
+    else
+      {
+        Cmp t(a);
+        a = b;
+        b = t;
+      }
+  }
+} // namespace hash_dry_detail
+
 /** @brief CRTP mixin providing statistics and configuration for chained hash tables.
     
     This class provides statistics gathering and load factor configuration
@@ -1383,7 +1435,8 @@ public:
         avg += lens(i)*i;
         sum += lens(i);
       }
-    avg /= sum;
+    if (sum > 0) // a table without lists, as a moved-from one, has no chains
+      avg /= sum;
 
     float var = 0;
     for (size_t i = 0; i < lens.size(); ++i)
@@ -1391,7 +1444,8 @@ public:
         float s = i - avg;
         var += lens(i)*s*s;
       }
-    var /= sum;
+    if (sum > 0)
+      var /= sum;
 
     Stats stats;
     stats.avg = avg;
@@ -1416,7 +1470,7 @@ public:
          << "busy slots = " << const_me()->busy_slots_counter << '\n'
          << "Average    = " << stats.avg << '\n'
          << "Desv       = " << sqrt(stats.var) << '\n'
-         << "alpha      = " << (1.0*const_me()->size())/const_me()->capacity() 
+         << "alpha      = " << const_me()->current_alpha()
          << '\n';
     for (size_t i = 0; i < stats.lens.size(); ++i)
       std::cout << "    " << i << " = " << stats.lens(i) << '\n';

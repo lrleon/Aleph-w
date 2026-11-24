@@ -44,8 +44,12 @@
 
 #include <cstdlib>
 #include <new>
+#include <string>
+#include <utility>
 #include <vector>
 
+#include <tpl_dynLhash.H>
+#include <tpl_dynSetHash.H>
 #include <tpl_lhash.H>
 #include <tpl_linHash.H>
 #include <tpl_odhash.H>
@@ -288,4 +292,237 @@ TEST_F(HashTableWithoutMemory, LinearContractionKeepsTheTable)
   EXPECT_EQ(table.search(4096 + len), special);
   for (size_t i = removed; i < fillers.size(); ++i)
     EXPECT_EQ(table.search(fillers[i]->get_key()), fillers[i]) << i;
+}
+
+namespace
+{
+  // A key that counts those that are alive: a bucket that is not freed
+  // keeps one
+  struct Live_Key
+  {
+    static inline long alive = 0;
+    int value = 0;
+
+    Live_Key() noexcept { ++alive; }
+    Live_Key(const int v) noexcept : value(v) { ++alive; }
+    Live_Key(const Live_Key & k) noexcept : value(k.value) { ++alive; }
+    Live_Key & operator = (const Live_Key &) noexcept = default;
+    ~Live_Key() { --alive; }
+
+    bool operator == (const Live_Key & k) const noexcept { return value == k.value; }
+  };
+
+  size_t aleph_hash_value(const Live_Key & k) noexcept
+  {
+    return static_cast<size_t>(k.value) * 40503u;
+  }
+
+  // The first insertion in `moved_from`, a set that a move left, fails for
+  // want of memory after the bucket of the key was made: the bucket must
+  // be freed, the set must be as it was, and with memory it takes the key
+  template <class Set>
+  void expect_a_failed_first_insertion_to_leak_nothing(Set & moved_from, const size_t failing)
+  {
+    const long alive = Live_Key::alive;
+    const size_t capacity = moved_from.capacity();
+    {
+      const Fail_At fail_at(failing);
+      EXPECT_THROW((void) moved_from.insert(Live_Key(7)), std::bad_alloc);
+    }
+    EXPECT_EQ(Live_Key::alive, alive);
+    EXPECT_TRUE(moved_from.is_empty());
+    EXPECT_EQ(moved_from.capacity(), capacity);
+    EXPECT_FALSE(moved_from.contains(Live_Key(7)));
+
+    ASSERT_NE(moved_from.insert(Live_Key(7)), nullptr);
+    EXPECT_EQ(Live_Key::alive, alive + 1);
+    EXPECT_TRUE(moved_from.contains(Live_Key(7)));
+  }
+}
+
+// A table of chained lists that a move left without lists takes those of
+// the default capacity when a key enters it. Without memory for them the
+// insertion throws, when the bucket of the key is made already: nothing
+// else holds it, so it must be freed
+TEST_F(HashTableWithoutMemory, AFailedFirstInsertionInAChainedSetWithoutListsFreesItsBucket)
+{
+  DynSetLhash<Live_Key> source;
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(source.insert(Live_Key(i)), nullptr);
+  DynSetLhash<Live_Key> target(std::move(source));
+  ASSERT_EQ(source.capacity(), 0u);
+
+  // the bucket is the first allocation of the insertion, and the lists
+  // are the second one
+  expect_a_failed_first_insertion_to_leak_nothing(source, 2);
+  EXPECT_EQ(source.capacity(), Primes::DefaultPrime);
+  EXPECT_EQ(target.size(), 20u);
+}
+
+TEST_F(HashTableWithoutMemory, AFailedFirstInsertionInAChainedMapWithoutListsFreesItsBucket)
+{
+  const long before = Live_Key::alive;
+  {
+    DynMapHash<int, Live_Key> source;
+    for (int i = 0; i < 20; ++i)
+      source.insert(i, Live_Key(i));
+    DynMapHash<int, Live_Key> target(std::move(source));
+    ASSERT_EQ(source.capacity(), 0u);
+
+    const long alive = Live_Key::alive;
+    {
+      const Fail_At fail_at(2);
+      EXPECT_THROW((void) source.insert(7, Live_Key(7)), std::bad_alloc);
+    }
+    EXPECT_EQ(Live_Key::alive, alive);
+    EXPECT_TRUE(source.is_empty());
+    EXPECT_EQ(source.search(7), nullptr);
+
+    source.insert(7, Live_Key(70));
+    EXPECT_EQ(source.find(7).value, 70);
+    EXPECT_EQ(target.size(), 20u);
+  }
+  EXPECT_EQ(Live_Key::alive, before);
+}
+
+TEST_F(HashTableWithoutMemory, AFailedFirstInsertionInADynLhashTableWithoutListsFreesItsBucket)
+{
+  const long before = Live_Key::alive;
+  {
+    DynLhashTable<int, Live_Key> source;
+    for (int i = 0; i < 20; ++i)
+      ASSERT_NE(source.insert(i, Live_Key(i)), nullptr);
+    DynLhashTable<int, Live_Key> target(std::move(source));
+    ASSERT_EQ(source.search(3), nullptr);
+
+    const long alive = Live_Key::alive;
+    {
+      const Fail_At fail_at(2);
+      EXPECT_THROW((void) source.insert(7, Live_Key(7)), std::bad_alloc);
+    }
+    EXPECT_EQ(Live_Key::alive, alive);
+    {
+      const Fail_At fail_at(2);
+      EXPECT_THROW(source[8] = Live_Key(8), std::bad_alloc);
+    }
+    EXPECT_EQ(Live_Key::alive, alive);
+    EXPECT_EQ(source.search(7), nullptr);
+    EXPECT_EQ(source.search(8), nullptr);
+
+    ASSERT_NE(source.insert(7, Live_Key(70)), nullptr);
+    source[8] = Live_Key(80);
+    ASSERT_NE(source.search(7), nullptr);
+    EXPECT_EQ(source.search(7)->value, 70);
+    ASSERT_NE(source.search(8), nullptr);
+    EXPECT_EQ(source.search(8)->value, 80);
+    ASSERT_NE(target.search(3), nullptr);
+  }
+  EXPECT_EQ(Live_Key::alive, before);
+}
+
+// The first key of a list of a linear table makes that list, in a block
+// of the array of the table. Without memory for the block the insertion
+// throws, when the bucket of the key is made already: it was not freed
+TEST_F(HashTableWithoutMemory, AFailedInsertionInALinearSetFreesItsBucket)
+{
+  const long before = Live_Key::alive;
+  {
+    DynSetLinHash<Live_Key> set;
+    const long alive = Live_Key::alive;
+    bool threw = false;
+    // the allocation that fails is the first one after that of the bucket
+    // that the insertion makes for the array of the table
+    for (size_t failing = 2; failing < 6 and not threw; ++failing)
+      {
+        const Fail_At fail_at(failing);
+        try
+          {
+            (void) set.insert(Live_Key(7));
+          }
+        catch (const std::bad_alloc &)
+          {
+            threw = true;
+          }
+        if (not threw)
+          {
+            ASSERT_TRUE(set.contains(Live_Key(7)));
+            set.remove(Live_Key(7));
+          }
+      }
+    if (threw) // an array that allocates with malloc() does not fail here
+      {
+        EXPECT_EQ(Live_Key::alive, alive);
+        EXPECT_TRUE(set.is_empty());
+        EXPECT_FALSE(set.contains(Live_Key(7)));
+      }
+    ASSERT_NE(set.insert(Live_Key(7)), nullptr);
+    EXPECT_TRUE(set.contains(Live_Key(7)));
+  }
+  EXPECT_EQ(Live_Key::alive, before);
+}
+
+// The searches that insert the key that they do not find take the lists as
+// insert() does
+TEST_F(HashTableWithoutMemory, AFailedFirstSearchOrInsertInAChainedSetWithoutListsFreesItsBucket)
+{
+  DynSetLhash<Live_Key> source;
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(source.insert(Live_Key(i)), nullptr);
+  DynSetLhash<Live_Key> target(std::move(source));
+  ASSERT_EQ(source.capacity(), 0u);
+
+  const long alive = Live_Key::alive;
+  {
+    const Fail_At fail_at(2);
+    EXPECT_THROW((void) source.search_or_insert(Live_Key(7)), std::bad_alloc);
+  }
+  EXPECT_EQ(Live_Key::alive, alive);
+  {
+    const Fail_At fail_at(2);
+    EXPECT_THROW((void) source.contains_or_insert(Live_Key(7)), std::bad_alloc);
+  }
+  EXPECT_EQ(Live_Key::alive, alive);
+  EXPECT_TRUE(source.is_empty());
+  EXPECT_EQ(source.capacity(), 0u);
+
+  ASSERT_NE(source.search_or_insert(Live_Key(7)), nullptr);
+  EXPECT_TRUE(source.contains(Live_Key(7)));
+  EXPECT_EQ(Live_Key::alive, alive + 1);
+}
+
+// An insertion that fills a table makes it grow. Without memory for the
+// larger table the insertion throws, when the bucket is in its list
+// already: the table has the key, and owns its bucket
+TEST_F(HashTableWithoutMemory, AFailedGrowthKeepsTheKeyThatWasInserted)
+{
+  // the number of keys whose insertion makes a table grow for the first time
+  int growing = 0;
+  {
+    DynSetLhash<Live_Key> probe;
+    const size_t capacity = probe.capacity();
+    while (probe.capacity() == capacity)
+      ASSERT_NE(probe.insert(Live_Key(growing++)), nullptr);
+  }
+  ASSERT_GT(growing, 1);
+
+  const long before = Live_Key::alive;
+  {
+    DynSetLhash<Live_Key> set;
+    for (int i = 0; i < growing - 1; ++i)
+      ASSERT_NE(set.insert(Live_Key(i)), nullptr);
+    const size_t capacity = set.capacity();
+    const long alive = Live_Key::alive;
+    {
+      // the bucket is the first allocation, and the larger table the second
+      const Fail_At fail_at(2);
+      EXPECT_THROW((void) set.insert(Live_Key(growing - 1)), std::bad_alloc);
+    }
+    EXPECT_EQ(set.capacity(), capacity);
+    EXPECT_EQ(set.size(), static_cast<size_t>(growing));
+    EXPECT_TRUE(set.contains(Live_Key(growing - 1)));
+    EXPECT_EQ(Live_Key::alive, alive + 1);
+    for (int i = 0; i < growing; ++i)
+      ASSERT_TRUE(set.contains(Live_Key(i))) << i;
+  }
+  EXPECT_EQ(Live_Key::alive, before); // each bucket was freed once
 }

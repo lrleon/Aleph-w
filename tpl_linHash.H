@@ -428,7 +428,9 @@ public:
   */
   void swap(GenLinearHashTable & other) noexcept
   {
-    std::swap(table, other.table);
+    // Not std::swap(), which goes through a third array, built with a
+    // default value of its own: a list header, which holds a Key
+    table.swap(other.table);
     entries_list.swap(other.entries_list);
     std::swap(hash_fct, other.hash_fct);
     std::swap(cmp, other.cmp);

@@ -89,9 +89,14 @@ namespace Aleph
 
     /**
      * @brief Move constructor.
-     * @param other The mapping to move from
+     * @param other The mapping to move from, which is left empty
+     * @throws What the move of its map throws, which builds an empty tree
+     *         for `other`: the default construction of a key or of a
+     *         value. It is noexcept exactly when that move is: it was
+     *         declared noexcept without a condition, and what the map
+     *         threw ended the program.
      */
-    AHMapping(AHMapping && other) noexcept = default;
+    AHMapping(AHMapping && other) = default;
 
     /**
      * @brief Constructs a mapping from a list of key-value pairs.

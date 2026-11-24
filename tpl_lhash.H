@@ -267,13 +267,16 @@ namespace Aleph
         policy.
 
         @param[in,out] other Table to swap with.
+        @note A comparator that can be copied and not moved is swapped
+        through its copies; if one of them throws, `std::terminate` is
+        called.
     */
     void swap(GenLhashTable & other) noexcept
     {
       std::swap(hash_fct, other.hash_fct);
       std::swap(table, other.table);
       std::swap(len, other.len);
-      std::swap(cmp, other.cmp);
+      hash_dry_detail::swap_compare(cmp, other.cmp);
       std::swap(lower_alpha, other.lower_alpha);
       std::swap(upper_alpha, other.upper_alpha);
       std::swap(N, other.N);
@@ -286,11 +289,28 @@ namespace Aleph
 
     GenLhashTable &operator=(const GenLhashTable &) = delete;
 
+    /** @brief Takes the lists and the buckets of `other`.
+
+        @param[in,out] other Table to take the buckets from. It is left
+        empty and without lists, with capacity zero. It is still usable:
+        the first insertion gives it the lists of the default capacity.
+
+        @note Only the hash function and the comparator are copied, so
+        that `other` keeps them: a table that took keys again with another
+        hash function, or with another comparator, than the one that it
+        was built with would not find them. If copying one of them throws,
+        `std::terminate` is called. A function pointer and a comparator
+        without state never throw. The copy of a hash function allocates
+        when what it holds does not fit in the buffer of a
+        `std::function`, as a function object with more state than a
+        pointer or two: without memory for it, the program ends. The move
+        assignment copies nothing but a comparator that cannot be moved.
+    */
     GenLhashTable(GenLhashTable && other) noexcept
-      : hash_fct(std::move(other.hash_fct)),
+      : hash_fct(other.hash_fct),
         table(other.table),
         len(other.len),
-        cmp(std::move(other.cmp)),
+        cmp(other.cmp),
         lower_alpha(other.lower_alpha),
         upper_alpha(other.upper_alpha),
         N(other.N),
@@ -304,6 +324,18 @@ namespace Aleph
       other.busy_slots_counter = 0;
     }
 
+    /** @brief Frees the buckets and the lists of this table, and takes
+        those of `other`, with what rules them: the hash function, the
+        comparator, the load thresholds and the policies.
+
+        @param[in,out] other Table to take the buckets from. It is left
+        empty, without lists and usable, with what ruled this table: the
+        two tables swap their hash functions, their comparators, their
+        load thresholds and their policies, so that nothing is copied
+        and nothing is allocated. Only a comparator that can be copied and
+        not moved is copied: swap() swaps it through its copies.
+        @return A reference to this table.
+    */
     GenLhashTable &operator=(GenLhashTable && other) noexcept
     {
       if (this != &other)
@@ -312,21 +344,13 @@ namespace Aleph
             empty();
           delete [] table;
 
-          hash_fct = std::move(other.hash_fct);
-          table = other.table;
-          len = other.len;
-          cmp = std::move(other.cmp);
-          lower_alpha = other.lower_alpha;
-          upper_alpha = other.upper_alpha;
-          N = other.N;
-          busy_slots_counter = other.busy_slots_counter;
-          remove_all_buckets = other.remove_all_buckets;
-          with_resize = other.with_resize;
-
-          other.table = nullptr;
-          other.len = 0;
-          other.N = 0;
-          other.busy_slots_counter = 0;
+          // this table is now one without lists, as a move leaves one;
+          // the swap gives it what other has, and other what rules it
+          table = nullptr;
+          len = 0;
+          N = 0;
+          busy_slots_counter = 0;
+          swap(other);
         }
       return *this;
     }
@@ -393,6 +417,9 @@ namespace Aleph
     Bucket * search_with_custom_hash(HashFunc hash_func,
                                        const SearchKey & search_key) const noexcept
     {
+      if (len == 0) [[unlikely]] // a table that a move left without lists
+        return nullptr;
+
       const auto bucket_idx = hash_func(search_key) % len;
 
       for (BucketItor it(table[bucket_idx]); it.has_curr(); it.next_ne())
@@ -446,13 +473,36 @@ namespace Aleph
       set_hash_fct(Hash_Fct(fct));
     }
 
-    /// return the current table load
-    float current_alpha() const noexcept { return 1.0 * N / len; }
+    /// return the current table load; zero for a table without lists
+    float current_alpha() const noexcept { return len == 0 ? 0.0f : load(); }
+
+  private:
+    // The load of a table that has lists
+    float load() const noexcept { return 1.0 * N / len; }
+
+    // The lists of the default capacity, for a table that a move left
+    // without them and that a bucket is about to enter
+    [[gnu::cold, gnu::noinline]] void make_default_lists()
+    {
+      const size_t default_len = Primes::next_prime(Primes::DefaultPrime);
+      table = new BucketList [default_len];
+      len = default_len;
+    }
+
+  public:
 
     /// Inserts bucket into the table and returns its address if the key is not
     /// already in the table; otherwise returns nullptr.
+    /// @throws std::bad_alloc if there is no memory for the lists of a
+    /// table that a move left without them: the bucket is then not in
+    /// the table. Or if there is none for the lists that the table grows
+    /// to: the bucket is then in the table, which keeps the lists that it
+    /// had, and the table owns it as any other.
     Bucket * insert(Bucket *bucket)
     {
+      if (table == nullptr) [[unlikely]]
+        make_default_lists();
+
       const auto i = hash_fct(bucket->get_key()) % len;
       auto & list = table[i];
 
@@ -465,16 +515,20 @@ namespace Aleph
       list.append(bucket); // insert bucket at the end
       ++N;
 
-      if (with_resize and current_alpha() >= upper_alpha)
+      if (with_resize and load() >= upper_alpha)
         resize(next_prime(2 * len));
 
       return bucket;
     }
 
     // Search bucket->key. If found, returns the bucket address inside the table.
-    // Otherwise, inserts and returns bucket.
+    // Otherwise, inserts and returns bucket. It throws std::bad_alloc as
+    // insert() does, with the bucket out of the table or in it
     Bucket * search_or_insert(Bucket *bucket)
     {
+      if (table == nullptr) [[unlikely]]
+        make_default_lists();
+
       const auto i = hash_fct(bucket->get_key()) % len;
       auto & list = table[i];
 
@@ -488,7 +542,7 @@ namespace Aleph
       list.append(bucket); // insert bucket at the end
       ++N;
 
-      if (with_resize and current_alpha() >= upper_alpha)
+      if (with_resize and load() >= upper_alpha)
         resize(next_prime(2 * len));
 
       return bucket;
@@ -498,6 +552,9 @@ namespace Aleph
     /// bucket if found; otherwise nullptr.
     Bucket * search(const Key & key) const noexcept
     {
+      if (len == 0) [[unlikely]] // a table that a move left without lists
+        return nullptr;
+
       const auto i = hash_fct(key) % len;
       return search_in_bucket_list(table[i], key);
     }
@@ -531,7 +588,7 @@ namespace Aleph
 
       // next_prime() gives a prime of its table, so half of 211 is 211;
       // over the upper threshold, resize() would grow the table again
-      if (with_resize and current_alpha() < lower_alpha)
+      if (with_resize and load() < lower_alpha)
         if (const size_t new_len = next_prime(len / 2);
             new_len < len and 1.0f*N/new_len < upper_alpha)
           try
@@ -557,7 +614,7 @@ namespace Aleph
         placed without growing on the way.
 
         @param[in] new_size The number of lists; 0 leaves the table as it
-        is.
+        is. A table that a move left without lists takes them here.
         @return The capacity of the table.
         @throws std::bad_alloc if there is no memory for the lists; the
         table is then left as it was.
@@ -566,8 +623,6 @@ namespace Aleph
     */
     size_t resize(const size_t new_size)
     {
-      assert(len > 0);
-
       if (new_size == 0)
         return len;
 

@@ -242,8 +242,34 @@ public:
     (void) splay_impl(key);
   }
 
-  /// Constructor
-  GenTdSplayTreeRk(Compare __cmp = Compare())
+  /** @brief Builds an empty tree with a comparison criteria built by
+   *         default.
+   *
+   *  It is a constructor apart from the one that takes the comparison,
+   *  and not a default argument of that one: GCC and Clang do not count
+   *  a default argument in the `noexcept` of the implicit default
+   *  constructor of a tree that inherits these, and what the
+   *  construction of the comparison threw would end the program there.
+   *
+   *  @throws What the default construction of the comparison throws, and
+   *          nothing else: this tree has no header node, so that it
+   *          builds no key.
+   */
+  GenTdSplayTreeRk() noexcept(std::is_nothrow_default_constructible_v<Compare>)
+    : root(Node::NullPtr), cmp()
+  {
+    // Empty
+  }
+
+  /** @brief Builds an empty tree with the comparison criteria `__cmp`.
+   *
+   *  @param[in] __cmp The comparison criteria, which is copied.
+   *  @throws What the copy of `__cmp` throws, and nothing else: a copy
+   *          from a `Compare` that is not const, which a comparison may
+   *          have apart from the one from a const one.
+   */
+  GenTdSplayTreeRk(Compare __cmp)
+    noexcept(std::is_nothrow_constructible_v<Compare, Compare &>)
     : root(Node::NullPtr), cmp(__cmp)
   {
     // Empty

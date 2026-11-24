@@ -45,6 +45,7 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -1406,4 +1407,99 @@ TEST(BinHeapShape, AComparisonThatContradictsItselfKeepsTheTree)
     }
   EXPECT_GT(removals, 1000u);
   EXPECT_GT(updates, 1000u);
+}
+
+namespace
+{
+  // Its default construction throws while fail is true
+  struct Fragile_Default_Key
+  {
+    static inline bool fail = false;
+    int value = 0;
+
+    Fragile_Default_Key()
+    {
+      if (fail)
+        throw std::runtime_error("default construction failed");
+    }
+
+    Fragile_Default_Key(int v) noexcept : value(v) {}
+
+    bool operator < (const Fragile_Default_Key & other) const noexcept
+    {
+      return value < other.value;
+    }
+  };
+} // namespace
+
+// The constructors of the heaps were noexcept, but they build the header
+// node, whose key is built by default: a key whose default construction
+// throws, as one that allocates, ended the program
+TEST(BinHeapConstruction, ItsNoexceptFollowsTheDefaultConstructionOfTheKey)
+{
+  static_assert(std::is_nothrow_default_constructible_v<BinHeap<int>>);
+  static_assert(std::is_nothrow_default_constructible_v<BinHeapVtl<int>>);
+  static_assert(std::is_nothrow_default_constructible_v<DynBinHeap<int>>);
+  static_assert(std::is_nothrow_default_constructible_v<DynBinHeap<std::string>>);
+  static_assert(not std::is_nothrow_default_constructible_v<BinHeap<Fragile_Default_Key>>);
+  static_assert(not std::is_nothrow_default_constructible_v<BinHeapVtl<Fragile_Default_Key>>);
+  static_assert(not std::is_nothrow_default_constructible_v<DynBinHeap<Fragile_Default_Key>>);
+
+  Fragile_Default_Key::fail = true;
+  EXPECT_THROW({ BinHeap<Fragile_Default_Key> heap; }, std::runtime_error);
+  EXPECT_THROW({ DynBinHeap<Fragile_Default_Key> heap; }, std::runtime_error);
+  Aleph::less<Fragile_Default_Key> cmp;
+  EXPECT_THROW({ DynBinHeap<Fragile_Default_Key> heap(cmp); }, std::runtime_error);
+  Fragile_Default_Key::fail = false;
+
+  DynBinHeap<Fragile_Default_Key> heap;
+  for (int i = 5; i > 0; --i)
+    heap.insert(Fragile_Default_Key(i));
+  ASSERT_EQ(heap.size(), 5u);
+  EXPECT_EQ(heap.top().value, 1);
+}
+
+namespace
+{
+  // A comparison with two copies: the one from a comparison that is not
+  // const may throw, and the one from a const one cannot
+  struct Mutable_Copy_Less
+  {
+    static inline bool fail = false;
+
+    Mutable_Copy_Less() noexcept = default;
+    Mutable_Copy_Less(const Mutable_Copy_Less &) noexcept = default;
+
+    Mutable_Copy_Less(Mutable_Copy_Less &)
+    {
+      if (fail)
+        throw std::runtime_error("the copy of the comparison");
+    }
+
+    Mutable_Copy_Less(Mutable_Copy_Less &&) noexcept = default;
+    Mutable_Copy_Less & operator = (const Mutable_Copy_Less &) noexcept = default;
+    Mutable_Copy_Less & operator = (Mutable_Copy_Less &&) noexcept = default;
+
+    bool operator () (const int a, const int b) const noexcept { return a < b; }
+  };
+}
+
+// The heap takes its comparison by value and copies it, from a comparison
+// that is not const: its noexcept follows that copy, and what it throws
+// reaches the caller
+TEST(BinHeapConstruction, ItsNoexceptFollowsTheCopyOfTheComparisonThatItTakes)
+{
+  using Less = Mutable_Copy_Less;
+  using Heap = BinHeap<int, Less>;
+  static_assert(std::is_nothrow_copy_constructible_v<Less>);
+  static_assert(not std::is_nothrow_constructible_v<Less, Less &>);
+  static_assert(not std::is_nothrow_constructible_v<Heap, Less>);
+  static_assert(std::is_nothrow_constructible_v<BinHeap<int>, Aleph::less<int>>);
+
+  Less::fail = true;
+  EXPECT_THROW({ Heap heap{Less()}; }, std::runtime_error);
+  Less::fail = false;
+
+  Heap heap{Less()};
+  EXPECT_TRUE(heap.is_empty());
 }

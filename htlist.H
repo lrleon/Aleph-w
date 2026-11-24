@@ -1263,8 +1263,8 @@ public:
     return num_items;
   }
 
-  /// Initialize an empty list
-  DynList()
+  /// Initialize an empty list. It allocates nothing
+  DynList() noexcept
   { /* empty */
   }
 

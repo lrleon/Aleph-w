@@ -43,6 +43,7 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
+#include <utility>
 
 #include <tpl_dynSetHash.H>
 
@@ -118,4 +119,23 @@ TEST(HashChainStats, ChainLongerThanSeveralHistogramBlocks)
   EXPECT_EQ(st.lens(n / 2), 0u);
   EXPECT_EQ(num_chains(st), table.capacity());
   EXPECT_EQ(num_entries(st), static_cast<size_t>(n));
+}
+
+// A table of chained lists that a move left without lists has no chain.
+// stats() divided by the number of chains, which gave an average and a
+// variance that are not numbers
+TEST(HashChainStats, ATableWithoutListsHasNoChains)
+{
+  DynSetLhash<int> source;
+  for (int i = 0; i < 100; ++i)
+    ASSERT_NE(source.insert(i), nullptr);
+  const DynSetLhash<int> target(std::move(source));
+  ASSERT_EQ(target.size(), 100u);
+  ASSERT_EQ(source.capacity(), 0u);
+
+  const auto st = source.stats();
+  EXPECT_EQ(st.lens.size(), 0u);
+  EXPECT_EQ(st.avg, 0.0f);
+  EXPECT_EQ(st.var, 0.0f);
+  EXPECT_EQ(source.current_alpha(), 0.0f);
 }
