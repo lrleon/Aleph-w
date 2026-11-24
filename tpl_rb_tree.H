@@ -438,15 +438,39 @@ public:
   Compare & get_compare() noexcept { return cmp; }
   const Compare & get_compare() const noexcept { return cmp; }
 
+  /** @brief Builds an empty tree with a comparison criteria built by
+      default.
+
+      It is a constructor apart from the one that takes the comparison,
+      and not a default argument of that one: GCC and Clang do not count
+      a default argument in the `noexcept` of the implicit default
+      constructor of a tree that inherits these, and what the
+      construction of the comparison threw would end the program there.
+
+      @throws what the default construction of the key of a header node
+      or of the comparison, or the copy of the comparison, throws;
+      nothing when they are `noexcept`.
+  */
+  Gen_Rb_Tree()
+    noexcept(std::is_nothrow_default_constructible_v<Node> and
+             std::is_nothrow_default_constructible_v<Compare> and
+             std::is_nothrow_constructible_v<Compare, Compare &>)
+    : Gen_Rb_Tree(Compare())
+  {
+    // empty
+  }
+
   /** @brief Builds an empty tree with the comparison criteria `__cmp`.
 
       @param[in] __cmp the comparison criteria, which the tree copies.
       @throws what the default construction of the key of a header node
-      or the copy of `__cmp` throws; nothing when both are `noexcept`.
+      or the copy of `__cmp` throws; nothing when both are `noexcept`. The
+      copy is from a `Compare` that is not const, which a comparison may
+      have apart from the one from a const one.
   */
-  Gen_Rb_Tree(Compare __cmp = Compare())
+  Gen_Rb_Tree(Compare __cmp)
     noexcept(std::is_nothrow_default_constructible_v<Node> and
-             std::is_nothrow_copy_constructible_v<Compare>)
+             std::is_nothrow_constructible_v<Compare, Compare &>)
     : head(&head_node), root(head_node.getR()),
       cmp(__cmp), num_nodes(0)
   {

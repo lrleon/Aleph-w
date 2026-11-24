@@ -902,6 +902,28 @@ namespace Aleph
       return __level_traverse(getRoot(), operation);
     }
 
+    /** @brief Builds an empty heap with a comparison built by default.
+
+        It is a constructor apart from the one that takes the comparison,
+        and not a default argument of that one: GCC and Clang do not count
+        a default argument in the `noexcept` of the implicit default
+        constructor of a heap that inherits these, as `BinHeap`, and what
+        the construction of the comparison threw would end the program
+        there.
+
+        @throws what the default construction of the key of the header node
+        or of the comparison, or the copy of the comparison, throws; nothing
+        when they are `noexcept`.
+    */
+    GenBinHeap()
+      noexcept(std::is_nothrow_default_constructible_v<Node> and
+               std::is_nothrow_default_constructible_v<Compare> and
+               std::is_nothrow_constructible_v<Compare, Compare &>)
+      : GenBinHeap(Compare())
+    {
+      // empty
+    }
+
     /** @brief Builds an empty heap with the comparison `__cmp`.
 
         @param[in] __cmp the criterion of comparison, which the heap copies.
@@ -910,7 +932,7 @@ namespace Aleph
         copy is from a `Compare` that is not const, which a comparison may
         have apart from the one from a const one.
     */
-    GenBinHeap(Compare __cmp = Compare())
+    GenBinHeap(Compare __cmp)
       noexcept(std::is_nothrow_default_constructible_v<Node> and
                std::is_nothrow_constructible_v<Compare, Compare &>)
       : cmp(__cmp), head(&head_node), root(RLINK(head)), last(&head_node),

@@ -1503,3 +1503,44 @@ TEST(BinHeapConstruction, ItsNoexceptFollowsTheCopyOfTheComparisonThatItTakes)
   Heap heap{Less()};
   EXPECT_TRUE(heap.is_empty());
 }
+
+namespace
+{
+  // A comparison whose default construction may throw, when asked
+  struct Default_Throws_Less
+  {
+    static inline bool fail = false;
+
+    Default_Throws_Less()
+    {
+      if (fail)
+        throw std::runtime_error("the default construction of the comparison");
+    }
+
+    bool operator () (const int a, const int b) const noexcept { return a < b; }
+  };
+}
+
+// BinHeap and BinHeapVtl inherit the constructors of GenBinHeap: had the
+// comparison been a default argument of the one that takes it, their
+// implicit default constructor would be noexcept without counting it, and
+// what its construction throws would end the program
+TEST(BinHeapConstruction, BuiltByDefaultItLetsTheFailureOfTheComparisonThrough)
+{
+  using Less = Default_Throws_Less;
+  using Heap = BinHeap<int, Less>;
+  using Heap_Vtl = BinHeapVtl<int, Less>;
+  using Dyn_Heap = DynBinHeap<int, Less>;
+  static_assert(not std::is_nothrow_default_constructible_v<Heap>);
+  static_assert(not std::is_nothrow_default_constructible_v<Heap_Vtl>);
+  static_assert(not std::is_nothrow_default_constructible_v<Dyn_Heap>);
+
+  Less::fail = true;
+  EXPECT_THROW({ Heap heap; }, std::runtime_error);
+  EXPECT_THROW({ Heap_Vtl heap; }, std::runtime_error);
+  EXPECT_THROW({ Dyn_Heap heap; }, std::runtime_error);
+  Less::fail = false;
+
+  Heap heap;
+  EXPECT_TRUE(heap.is_empty());
+}
