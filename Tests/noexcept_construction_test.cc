@@ -211,6 +211,21 @@ namespace
     bool operator () (const Key & a, const Key & b) const noexcept { return a < b; }
   };
 
+  // A comparison with two copies: the one from a comparison that is not
+  // const may throw, and the one from a const one cannot
+  template <typename Key>
+  struct Less_Mutable_Copy_Throws
+  {
+    Less_Mutable_Copy_Throws() noexcept = default;
+    Less_Mutable_Copy_Throws(const Less_Mutable_Copy_Throws &) noexcept = default;
+    Less_Mutable_Copy_Throws(Less_Mutable_Copy_Throws &) { maybe_fail(); }
+    Less_Mutable_Copy_Throws(Less_Mutable_Copy_Throws &&) noexcept = default;
+    Less_Mutable_Copy_Throws & operator = (const Less_Mutable_Copy_Throws &) noexcept = default;
+    Less_Mutable_Copy_Throws & operator = (Less_Mutable_Copy_Throws &&) noexcept = default;
+
+    bool operator () (const Key & a, const Key & b) const noexcept { return a < b; }
+  };
+
   // A comparison whose call may throw
   struct Less_Call_Throws
   {
@@ -551,6 +566,24 @@ TEST(Noexcept_Construction_Trees, TheTreeWithoutHeaderNodesLetsTheFailureOfItsCo
 
   const Failing_At failing(0);
   EXPECT_THROW(Tree tree, Asked_Failure);
+}
+
+// A constructor that takes its comparison by value and copies it copies
+// from a comparison that is not const: its noexcept follows that copy, and
+// not the one from a const comparison, and what it throws reaches the
+// caller
+TEST(Noexcept_Construction_Trees, TheCopyOfAComparisonTakenByValueIsFromOneThatIsNotConst)
+{
+  using Less = Less_Mutable_Copy_Throws<int>;
+  ASSERT_TRUE(std::is_nothrow_copy_constructible_v<Less>);
+  ASSERT_FALSE((std::is_nothrow_constructible_v<Less, Less &>));
+  EXPECT_FALSE((std::is_nothrow_constructible_v<Splay_Tree_Rk<int, Less>, Less>));
+  EXPECT_FALSE((std::is_nothrow_constructible_v<Dft_Pair_Cmp<int, std::string, Less>, Less>));
+  EXPECT_TRUE((std::is_nothrow_constructible_v<Splay_Tree_Rk<int>, Aleph::less<int>>));
+
+  const Failing_At failing(0);
+  EXPECT_THROW((Splay_Tree_Rk<int, Less>(Less())), Asked_Failure);
+  EXPECT_THROW((Dft_Pair_Cmp<int, std::string, Less>(Less())), Asked_Failure);
 }
 
 // The comparison of the pairs of a map is built as that of its keys, and

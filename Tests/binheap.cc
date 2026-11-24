@@ -1458,3 +1458,48 @@ TEST(BinHeapConstruction, ItsNoexceptFollowsTheDefaultConstructionOfTheKey)
   ASSERT_EQ(heap.size(), 5u);
   EXPECT_EQ(heap.top().value, 1);
 }
+
+namespace
+{
+  // A comparison with two copies: the one from a comparison that is not
+  // const may throw, and the one from a const one cannot
+  struct Mutable_Copy_Less
+  {
+    static inline bool fail = false;
+
+    Mutable_Copy_Less() noexcept = default;
+    Mutable_Copy_Less(const Mutable_Copy_Less &) noexcept = default;
+
+    Mutable_Copy_Less(Mutable_Copy_Less &)
+    {
+      if (fail)
+        throw std::runtime_error("the copy of the comparison");
+    }
+
+    Mutable_Copy_Less(Mutable_Copy_Less &&) noexcept = default;
+    Mutable_Copy_Less & operator = (const Mutable_Copy_Less &) noexcept = default;
+    Mutable_Copy_Less & operator = (Mutable_Copy_Less &&) noexcept = default;
+
+    bool operator () (const int a, const int b) const noexcept { return a < b; }
+  };
+}
+
+// The heap takes its comparison by value and copies it, from a comparison
+// that is not const: its noexcept follows that copy, and what it throws
+// reaches the caller
+TEST(BinHeapConstruction, ItsNoexceptFollowsTheCopyOfTheComparisonThatItTakes)
+{
+  using Less = Mutable_Copy_Less;
+  using Heap = BinHeap<int, Less>;
+  static_assert(std::is_nothrow_copy_constructible_v<Less>);
+  static_assert(not std::is_nothrow_constructible_v<Less, Less &>);
+  static_assert(not std::is_nothrow_constructible_v<Heap, Less>);
+  static_assert(std::is_nothrow_constructible_v<BinHeap<int>, Aleph::less<int>>);
+
+  Less::fail = true;
+  EXPECT_THROW({ Heap heap{Less()}; }, std::runtime_error);
+  Less::fail = false;
+
+  Heap heap{Less()};
+  EXPECT_TRUE(heap.is_empty());
+}

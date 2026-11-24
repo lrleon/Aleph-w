@@ -906,11 +906,13 @@ namespace Aleph
 
         @param[in] __cmp the criterion of comparison, which the heap copies.
         @throws what the default construction of the key of the header node
-        or the copy of `__cmp` throws; nothing when both are `noexcept`.
+        or the copy of `__cmp` throws; nothing when both are `noexcept`. The
+        copy is from a `Compare` that is not const, which a comparison may
+        have apart from the one from a const one.
     */
     GenBinHeap(Compare __cmp = Compare())
       noexcept(std::is_nothrow_default_constructible_v<Node> and
-               std::is_nothrow_copy_constructible_v<Compare>)
+               std::is_nothrow_constructible_v<Compare, Compare &>)
       : cmp(__cmp), head(&head_node), root(RLINK(head)), last(&head_node),
         num_nodes(0)
     {

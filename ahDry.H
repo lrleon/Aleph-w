@@ -224,9 +224,11 @@ struct Dft_Pair_Cmp
   /** @brief Wraps the comparator `__cmp` of the keys.
    *
    *  @param[in] __cmp The comparator, which is copied.
-   *  @throws What the copy of `__cmp` throws.
+   *  @throws What the copy of `__cmp` throws: a copy from a `Cmp` that
+   *          is not const, which a comparator may have apart from the one
+   *          from a const one.
    */
-  Dft_Pair_Cmp(Cmp __cmp) noexcept(std::is_nothrow_copy_constructible_v<Cmp>)
+  Dft_Pair_Cmp(Cmp __cmp) noexcept(std::is_nothrow_constructible_v<Cmp, Cmp &>)
     : cmp(__cmp) {}
 
   /// Pair vs Pair comparison; it throws what `cmp` throws

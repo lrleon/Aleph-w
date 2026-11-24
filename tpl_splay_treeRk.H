@@ -264,10 +264,12 @@ public:
   /** @brief Builds an empty tree with the comparison criteria `__cmp`.
    *
    *  @param[in] __cmp The comparison criteria, which is copied.
-   *  @throws What the copy of `__cmp` throws, and nothing else.
+   *  @throws What the copy of `__cmp` throws, and nothing else: a copy
+   *          from a `Compare` that is not const, which a comparison may
+   *          have apart from the one from a const one.
    */
   GenTdSplayTreeRk(Compare __cmp)
-    noexcept(std::is_nothrow_copy_constructible_v<Compare>)
+    noexcept(std::is_nothrow_constructible_v<Compare, Compare &>)
     : root(Node::NullPtr), cmp(__cmp)
   {
     // Empty
