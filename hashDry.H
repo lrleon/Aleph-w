@@ -1293,6 +1293,34 @@ namespace hash_dry_detail
     if (static_cast<Aleph::Dlink *>(bucket)->is_empty())
       delete bucket;
   }
+
+  /** @brief Swaps the comparators of two hash tables.
+
+      `std::swap()` asks for a type that can be moved. A comparator that
+      can be copied and not moved, which `EqualityComparator` admits, is
+      swapped through its copies: one copy construction and two copy
+      assignments.
+
+      @tparam Cmp The type of the comparators.
+      @param[in,out] a A comparator.
+      @param[in,out] b The other comparator.
+      @note If a move or a copy throws, `std::terminate` is called, as in
+      the moves of the tables.
+      @ingroup Hash
+  */
+  template <class Cmp>
+  inline void swap_compare(Cmp & a, Cmp & b) noexcept
+  {
+    if constexpr (std::is_move_constructible_v<Cmp>
+                  and std::is_move_assignable_v<Cmp>)
+      std::swap(a, b);
+    else
+      {
+        Cmp t(a);
+        a = b;
+        b = t;
+      }
+  }
 } // namespace hash_dry_detail
 
 /** @brief CRTP mixin providing statistics and configuration for chained hash tables.

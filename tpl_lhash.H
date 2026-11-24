@@ -267,13 +267,16 @@ namespace Aleph
         policy.
 
         @param[in,out] other Table to swap with.
+        @note A comparator that can be copied and not moved is swapped
+        through its copies; if one of them throws, `std::terminate` is
+        called.
     */
     void swap(GenLhashTable & other) noexcept
     {
       std::swap(hash_fct, other.hash_fct);
       std::swap(table, other.table);
       std::swap(len, other.len);
-      std::swap(cmp, other.cmp);
+      hash_dry_detail::swap_compare(cmp, other.cmp);
       std::swap(lower_alpha, other.lower_alpha);
       std::swap(upper_alpha, other.upper_alpha);
       std::swap(N, other.N);
@@ -301,7 +304,7 @@ namespace Aleph
         when what it holds does not fit in the buffer of a
         `std::function`, as a function object with more state than a
         pointer or two: without memory for it, the program ends. The move
-        assignment copies nothing.
+        assignment copies nothing but a comparator that cannot be moved.
     */
     GenLhashTable(GenLhashTable && other) noexcept
       : hash_fct(other.hash_fct),
@@ -329,7 +332,8 @@ namespace Aleph
         empty, without lists and usable, with what ruled this table: the
         two tables swap their hash functions, their comparators, their
         load thresholds and their policies, so that nothing is copied
-        and nothing is allocated.
+        and nothing is allocated. Only a comparator that can be copied and
+        not moved is copied: swap() swaps it through its copies.
         @return A reference to this table.
     */
     GenLhashTable &operator=(GenLhashTable && other) noexcept
