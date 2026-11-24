@@ -205,11 +205,16 @@ public:
    *
    *  @throws What the swap of the default values throws; nothing when it
    *          is `noexcept`. It goes first, so that if it throws, the
-   *          dimensions and the entries stay where they were.
+   *          dimensions and the entries stay where they were. It is the
+   *          swap of `T` found by its arguments, if it has one, and
+   *          `std::swap()` otherwise.
    */
   void swap(DynMatrix & mat) noexcept(std::is_nothrow_swappable_v<T>)
   {
-    std::swap(default_value, mat.default_value);
+    // the swap that the specification evaluates, and not std::swap()
+    // alone, whose moves may throw where a swap of T does not
+    using std::swap;
+    swap(default_value, mat.default_value);
     std::swap(n, mat.n);
     std::swap(m, mat.m);
     std::swap(array_ptr, mat.array_ptr);

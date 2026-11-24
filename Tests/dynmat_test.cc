@@ -1218,6 +1218,72 @@ TEST(DynMatrixMove, ASwapOfTheDefaultValuesThatThrowsLeavesTheEntriesWhereTheyWe
   EXPECT_EQ(b.read(0, 0).value, 4);
 }
 
+namespace
+{
+  // An item with a swap of its own, which cannot throw, and a move
+  // assignment that may: std::swap() of two of them, which moves them, may
+  // throw
+  struct Own_Swap
+  {
+    static inline bool fail = false;
+    static inline int swaps = 0;
+
+    int value = 0;
+
+    Own_Swap() noexcept = default;
+    Own_Swap(int v) noexcept : value(v) {}
+    Own_Swap(const Own_Swap &) = default;
+    Own_Swap(Own_Swap && other) noexcept : value(other.value) {}
+    Own_Swap & operator = (const Own_Swap &) = default;
+
+    Own_Swap & operator = (Own_Swap && other)
+    {
+      if (fail)
+        throw std::runtime_error("the move assignment of the item");
+      value = other.value;
+      return *this;
+    }
+
+    friend void swap(Own_Swap & a, Own_Swap & b) noexcept
+    {
+      ++swaps;
+      std::swap(a.value, b.value);
+    }
+  };
+}
+
+static_assert(std::is_nothrow_swappable_v<Own_Swap>);
+static_assert(not std::is_nothrow_move_assignable_v<Own_Swap>);
+static_assert(std::is_nothrow_move_constructible_v<DynMatrix<Own_Swap>>);
+static_assert(std::is_nothrow_move_assignable_v<DynMatrix<Own_Swap>>);
+
+// The noexcept of swap() is that of the swap of the item found by its
+// arguments, so that one is the swap that it calls: std::swap() alone
+// would move the items, and their move may throw where their swap cannot
+TEST(DynMatrixMove, TheSwapOfTheDefaultValuesIsTheOneOfTheItem)
+{
+  DynMatrix<Own_Swap> a(2, 3, Own_Swap(7));
+  a.write(1, 2, Own_Swap(5));
+  DynMatrix<Own_Swap> b(1, 1, Own_Swap(9));
+  b.write(0, 0, Own_Swap(4));
+
+  Own_Swap::swaps = 0;
+  Own_Swap::fail = true; // a move assignment of an item would end the program
+  a.swap(b);
+  EXPECT_EQ(Own_Swap::swaps, 1);
+  DynMatrix<Own_Swap> c(std::move(a)); // what b had
+  EXPECT_EQ(Own_Swap::swaps, 2);
+  b = std::move(c);
+  EXPECT_EQ(Own_Swap::swaps, 4);
+  Own_Swap::fail = false;
+
+  ASSERT_EQ(b.rows(), 1u);
+  ASSERT_EQ(b.cols(), 1u);
+  EXPECT_EQ(b.read(0, 0).value, 4);
+  EXPECT_EQ(a.rows(), 0u);
+  EXPECT_EQ(c.rows(), 0u);
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
