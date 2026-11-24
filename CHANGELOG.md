@@ -5,6 +5,24 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.8.2](https://github.com/lrleon/Aleph-w/compare/v7.8.1...v7.8.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* **array:** Take the array in the move of FixedQueue, which allocated a queue of 1024 items for the queue that it moved from, and leave that one without capacity, as a moved-from FixedStack ([#223](https://github.com/lrleon/Aleph-w/issues/223)) ([fd55078](https://github.com/lrleon/Aleph-w/commit/fd55078b126413d41e692e78b87e85c6355442c7))
+* **hash:** Free the bucket of a key whose insertion in a DynSetLinHash or a DynMapLinHash throws for want of memory, and swap two linear hash tables without building a third array ([#223](https://github.com/lrleon/Aleph-w/issues/223)) ([fd55078](https://github.com/lrleon/Aleph-w/commit/fd55078b126413d41e692e78b87e85c6355442c7))
+* **hash:** Take the lists of the other table in the move of DynSetLhash, DynSetHash and DynMapHash, which allocated for it the lists of a table of its capacity in a constructor that is noexcept, and let a table without lists take keys again ([#223](https://github.com/lrleon/Aleph-w/issues/223)) ([fd55078](https://github.com/lrleon/Aleph-w/commit/fd55078b126413d41e692e78b87e85c6355442c7))
+* **heap:** Let the constructors of BinHeap, BinHeapVtl and DynBinHeap throw what the default construction of the key of their header node throws ([#223](https://github.com/lrleon/Aleph-w/issues/223)) ([fd55078](https://github.com/lrleon/Aleph-w/commit/fd55078b126413d41e692e78b87e85c6355442c7))
+* **list:** Take the header node of the other list in the move of a DynDlist of items whose default construction may throw, instead of building one in a constructor that was noexcept ([#223](https://github.com/lrleon/Aleph-w/issues/223)) ([fd55078](https://github.com/lrleon/Aleph-w/commit/fd55078b126413d41e692e78b87e85c6355442c7))
+* **matrix:** Let the default constructor, the moves and swap() of DynMatrix throw what the default construction of its default value throws, with the matrices as they were ([#223](https://github.com/lrleon/Aleph-w/issues/223)) ([fd55078](https://github.com/lrleon/Aleph-w/commit/fd55078b126413d41e692e78b87e85c6355442c7))
+* **tree:** Let the move of DynSetTree, DynMapTree and AHMapping throw what the default construction of the key of the header nodes of its empty tree throws, instead of ending the program in a constructor that was noexcept; it stays noexcept when that construction cannot throw ([#223](https://github.com/lrleon/Aleph-w/issues/223)) ([fd55078](https://github.com/lrleon/Aleph-w/commit/fd55078b126413d41e692e78b87e85c6355442c7))
+
+
+### Performance Improvements
+
+* **hash:** Hash the pairs of MapODhash, MapOLhash, HashMap, DynMapHash and DynMapLinHash through a function object that holds the pointer to the hash function of the keys, instead of a std::bind that each copy and each move of the map allocated ([#223](https://github.com/lrleon/Aleph-w/issues/223)) ([fd55078](https://github.com/lrleon/Aleph-w/commit/fd55078b126413d41e692e78b87e85c6355442c7))
+
 ## [7.8.1](https://github.com/lrleon/Aleph-w/compare/v7.8.0...v7.8.1) (2026-11-23)
 
 
