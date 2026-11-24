@@ -3643,8 +3643,6 @@ namespace
 
     Copied_Not_Moved_Eq() = default;
 
-    explicit Copied_Not_Moved_Eq(int i) noexcept : id(i) {}
-
     Copied_Not_Moved_Eq(const Copied_Not_Moved_Eq &) = default;
 
     Copied_Not_Moved_Eq & operator = (const Copied_Not_Moved_Eq &) = default;
@@ -3659,13 +3657,16 @@ namespace
 
   // swap() and the move assignment of a table of chained lists swap a
   // comparator that cannot be moved, and the table that was moved from
-  // takes keys again
+  // takes keys again. The tables are built by default and their
+  // comparators numbered afterwards: MSVC moves the comparator that is
+  // given to the constructors that LhashTable and LhashTableVtl inherit
   template <class Table>
   void expect_that_the_comparators_are_swapped()
   {
     using Bucket = typename Table::Bucket;
-    Table a(11, dft_hash_ptr_fct<int>, Copied_Not_Moved_Eq(1));
-    Table b(11, dft_hash_ptr_fct<int>, Copied_Not_Moved_Eq(2));
+    Table a, b;
+    a.get_compare().id = 1;
+    b.get_compare().id = 2;
     ASSERT_NE(a.insert(new Bucket(1)), nullptr);
     ASSERT_NE(b.insert(new Bucket(2)), nullptr);
     ASSERT_NE(b.insert(new Bucket(3)), nullptr);
