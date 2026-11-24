@@ -3655,11 +3655,18 @@ namespace
   static_assert(EqualityComparator<Copied_Not_Moved_Eq, int>);
   static_assert(not std::is_move_constructible_v<Copied_Not_Moved_Eq>);
 
+  // MSVC builds a class through a constructor that it inherits with a
+  // function of its own, which moves the arguments to the constructor of
+  // the base. LhashTable and LhashTableVtl inherit those of GenLhashTable,
+  // and DynLhashTable and DynSetLhash are built through them: with a
+  // comparator whose move constructor is deleted, none of them can be
+  // built there (C2280). GCC, Clang and clang-cl initialize the parameters
+  // from the arguments, and the tests below are theirs
+# if !defined(_MSC_VER) || defined(__clang__)
+
   // swap() and the move assignment of a table of chained lists swap a
   // comparator that cannot be moved, and the table that was moved from
-  // takes keys again. The tables are built by default and their
-  // comparators numbered afterwards: MSVC moves the comparator that is
-  // given to the constructors that LhashTable and LhashTableVtl inherit
+  // takes keys again
   template <class Table>
   void expect_that_the_comparators_are_swapped()
   {
@@ -3690,7 +3697,11 @@ namespace
     ASSERT_NE(b.insert(new Bucket(5)), nullptr);
     EXPECT_NE(b.search(5), nullptr);
   }
+
+# endif // the tables that MSVC cannot build with such a comparator
 }
+
+# if !defined(_MSC_VER) || defined(__clang__) // see above
 
 // The move assignment swaps the two tables, and std::swap() asks for a
 // comparator that can be moved: with this one, it did not compile
@@ -3727,8 +3738,6 @@ TEST(DynLhashTable, AComparatorThatCannotBeMovedIsSwappedThroughItsCopies)
 
 TEST(DynSetLhash, AComparatorThatCannotBeMovedIsSwappedThroughItsCopies)
 {
-  // built by default and numbered afterwards: MSVC moves the comparator
-  // that is given to the constructor that DynSetLhash inherits
   using Set = DynSetLhash<int, Copied_Not_Moved_Eq>;
   Set a, b;
   a.get_compare().id = 1;
@@ -3754,6 +3763,8 @@ TEST(DynSetLhash, AComparatorThatCannotBeMovedIsSwappedThroughItsCopies)
   EXPECT_EQ(c.get_compare().id, 1);
   EXPECT_NE(c.search(1), nullptr);
 }
+
+# endif // the tables that MSVC cannot build with such a comparator
 
 // The other tables with the same comparator, in what they do with it. Not
 // yet: the move assignment of ODhashTable and OLhashTable, the moves of
@@ -3788,5 +3799,7 @@ TEST(HashTables, TheyAreMovedWithAComparatorThatCannotBeMoved)
   };
   check_map(MapODhash<int, int, Copied_Not_Moved_Eq>());
   check_map(MapOLhash<int, int, Copied_Not_Moved_Eq>());
+# if !defined(_MSC_VER) || defined(__clang__) // its table is a LhashTable: see above
   check_map(DynMapHash<int, int, Copied_Not_Moved_Eq>());
+# endif
 }
