@@ -105,7 +105,9 @@
 #include <tpl_treap.H>
 #include <tpl_treapRk.H>
 
+#include <array>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -214,6 +216,11 @@ namespace
         const size_t before = allocations;
         to = std::move(from);
         EXPECT_EQ(allocations - before, 0u) << "its move assignment";
+        if (not out.use_after_move)
+          {
+            fill(from, 40); // the one that was moved from takes items
+            fill(to, 50);   // and so does the one that took them
+          }
       }
 
     if constexpr (nothrow_swap<C>)
@@ -480,6 +487,61 @@ TEST_F(NoexceptAllocation, AMapThatTookAnotherHashFunctionMovesWithoutAllocating
     };
   expect_that_what_is_noexcept_does_not_allocate<DynMapHash<int, int>>
     ("DynMapHash<int, int> after set_hash_fct()", fill);
+}
+
+namespace
+{
+  // A hash function with 128 bytes of state: it does not fit in the buffer
+  // of a std::function, which keeps it in the heap and allocates to copy it
+  struct Large_Hash
+  {
+    std::array<size_t, 16> salt{};
+
+    size_t operator () (const int & k) const noexcept
+    {
+      return static_cast<size_t>(k) * 40503u + salt[0];
+    }
+  };
+}
+
+// The move assignment of a table of chained lists copies no hash function:
+// the two tables swap them. So it allocates nothing even with a hash
+// function whose copy allocates. The move constructor copies it, so that
+// the table that it moves from keeps it: with such a function it
+// allocates, in a constructor that is noexcept
+TEST_F(NoexceptAllocation, AMoveAssignmentOfATableOfChainedListsCopiesNoHashFunction)
+{
+  using Fct = std::function<size_t(const int &)>;
+  {
+    const Fct large{Large_Hash()};
+    const size_t before = allocations;
+    const Fct copy(large);
+    ASSERT_GT(allocations - before, 0u) << "the hash function of this test must not fit";
+  }
+
+  LhashTable<int> from(101), to(101);
+  from.set_hash_fct(Fct(Large_Hash()));
+  to.set_hash_fct(Fct(Large_Hash()));
+  for (int i = 0; i < 3; ++i)
+    ASSERT_NE(from.insert(new LhashBucket<int>(i)), nullptr);
+  size_t before = allocations;
+  to = std::move(from);
+  EXPECT_EQ(allocations - before, 0u) << "the move assignment of LhashTable";
+  EXPECT_NE(to.search(1), nullptr);
+  ASSERT_NE(from.insert(new LhashBucket<int>(9)), nullptr); // it goes on
+  EXPECT_NE(from.search(9), nullptr);
+
+  DynSetLhash<int> set_from, set_to;
+  set_from.set_hash_fct(Fct(Large_Hash()));
+  set_to.set_hash_fct(Fct(Large_Hash()));
+  for (int i = 0; i < 3; ++i)
+    ASSERT_NE(set_from.insert(i), nullptr);
+  before = allocations;
+  set_to = std::move(set_from);
+  EXPECT_EQ(allocations - before, 0u) << "the move assignment of DynSetLhash";
+  EXPECT_TRUE(set_to.contains(1));
+  ASSERT_NE(set_from.insert(9), nullptr);
+  EXPECT_TRUE(set_from.contains(9));
 }
 
 TEST_F(NoexceptAllocation, Graphs)

@@ -3490,8 +3490,9 @@ namespace
 } // namespace
 
 // A move of the table left the other one without lists and took its hash
-// function, so that a search in it divided by zero. It copies the function
-// now, and a table without lists finds nothing and takes buckets again
+// function, so that a search in it divided by zero. The move constructor
+// copies the function now, and a table without lists finds nothing and
+// takes buckets again
 TEST(LhashTable, TheTableThatWasMovedFromTakesBucketsAgain)
 {
   using Bucket = LhashBucket<int>;
@@ -3527,4 +3528,106 @@ TEST(LhashTable, TheTableThatWasMovedFromTakesBucketsAgain)
   EXPECT_EQ(dst.search(8), mine);
   EXPECT_EQ(dst.resize(31), 31u);
   EXPECT_EQ(dst.search(8), mine);
+}
+
+namespace
+{
+  // Two hash functions that count their calls
+  size_t first_hash_calls = 0;
+  size_t second_hash_calls = 0;
+
+  size_t first_counted_hash(const int & k) noexcept
+  {
+    ++first_hash_calls;
+    return static_cast<size_t>(k);
+  }
+
+  size_t second_counted_hash(const int & k) noexcept
+  {
+    ++second_hash_calls;
+    return static_cast<size_t>(k) * 31u;
+  }
+}
+
+// The move constructor copies the hash function, so that the table that
+// it moves from goes on with its own
+TEST(LhashTable, TheTableThatWasMovedFromKeepsItsHashFunction)
+{
+  using Bucket = LhashBucket<int>;
+  LhashTable<int> src(11, first_counted_hash);
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(src.insert(new Bucket(i)), nullptr);
+
+  LhashTable<int> dst(std::move(src));
+  first_hash_calls = second_hash_calls = 0;
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(dst.search(i), nullptr);
+  EXPECT_EQ(first_hash_calls, 20u);
+
+  first_hash_calls = 0;
+  ASSERT_NE(src.insert(new Bucket(7)), nullptr);
+  EXPECT_NE(src.search(7), nullptr);
+  EXPECT_EQ(first_hash_calls, 2u); // one for the insertion and one for the search
+}
+
+// The move assignment copies no function: the two tables swap what rules
+// them, so that the one that was moved from goes on with the hash function
+// that the other one had
+TEST(LhashTable, AMoveAssignmentSwapsWhatRulesTheTables)
+{
+  using Bucket = LhashBucket<int>;
+  LhashTable<int> src(11, first_counted_hash);
+  LhashTable<int> dst(11, second_counted_hash);
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(src.insert(new Bucket(i)), nullptr);
+  ASSERT_NE(dst.insert(new Bucket(100)), nullptr); // the assignment frees it
+
+  dst = std::move(src);
+  ASSERT_EQ(dst.size(), 20u);
+  EXPECT_EQ(dst.search(100), nullptr);
+  EXPECT_EQ(src.size(), 0u);
+  EXPECT_EQ(src.capacity(), 0u);
+
+  first_hash_calls = second_hash_calls = 0;
+  for (int i = 0; i < 20; ++i)
+    ASSERT_NE(dst.search(i), nullptr); // with the function that put them there
+  EXPECT_EQ(first_hash_calls, 20u);
+  EXPECT_EQ(second_hash_calls, 0u);
+
+  ASSERT_NE(src.insert(new Bucket(7)), nullptr); // with the one that dst had
+  EXPECT_NE(src.search(7), nullptr);
+  EXPECT_EQ(second_hash_calls, 2u);
+  EXPECT_EQ(first_hash_calls, 20u);
+}
+
+// A table that does not own its buckets does not free them when it is
+// assigned another one, nor does it count them any more: the table that
+// was moved from, which takes what ruled this one, is left empty
+TEST(LhashTable, AMoveAssignmentOfATableThatDoesNotOwnItsBucketsLeavesTheOtherEmpty)
+{
+  using Bucket = LhashBucket<int>;
+  LhashTable<int> src(11, first_counted_hash);
+  for (int i = 0; i < 5; ++i)
+    ASSERT_NE(src.insert(new Bucket(i)), nullptr);
+
+  Bucket * const mine[3] = {new Bucket(100), new Bucket(101), new Bucket(102)};
+  LhashTable<int> dst(11, second_counted_hash, Aleph::equal_to<int>(),
+                      hash_default_lower_alpha, hash_default_upper_alpha,
+                      false, true);
+  for (Bucket * bucket : mine)
+    ASSERT_NE(dst.insert(bucket), nullptr);
+  ASSERT_EQ(dst.size(), 3u);
+
+  dst = std::move(src);
+  for (Bucket * bucket : mine) // they were never of the table
+    delete bucket;
+
+  ASSERT_EQ(dst.size(), 5u);
+  for (int i = 0; i < 5; ++i)
+    EXPECT_NE(dst.search(i), nullptr);
+  EXPECT_EQ(dst.search(100), nullptr);
+  EXPECT_EQ(src.size(), 0u);
+  EXPECT_TRUE(src.is_empty());
+  EXPECT_EQ(src.capacity(), 0u);
+  EXPECT_EQ(src.search(100), nullptr);
 }

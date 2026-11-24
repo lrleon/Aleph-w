@@ -1335,11 +1335,23 @@ TEST(DynSetLhashMove, TakesTheListsAndLeavesAUsableTableWithoutThem)
   EXPECT_EQ(target.size(), 2001u);
 }
 
+namespace
+{
+  // The hash function of the tests above, which counts its calls
+  size_t counted_hash_calls = 0;
+
+  size_t counted_hash(const int & k) noexcept
+  {
+    ++counted_hash_calls;
+    return chained_hash(k);
+  }
+}
+
 // The table that was moved from keeps what rules it: its hash function, its
 // load thresholds and whether it resizes itself
 TEST(DynSetLhashMove, TheTableThatWasMovedFromKeepsItsFunctionAndItsPolicy)
 {
-  DynSetLhash<int> source(101, chained_hash);
+  DynSetLhash<int> source(101, counted_hash);
   for (int i = 0; i < 300; ++i)
     ASSERT_NE(source.insert(i), nullptr);
   source.set_with_resize(false);
@@ -1347,15 +1359,43 @@ TEST(DynSetLhashMove, TheTableThatWasMovedFromKeepsItsFunctionAndItsPolicy)
   DynSetLhash<int> target(std::move(source));
   EXPECT_FALSE(target.get_with_resize());
   EXPECT_FALSE(source.get_with_resize());
+  counted_hash_calls = 0;
   for (int i = 0; i < 300; ++i)
     ASSERT_TRUE(target.contains(i));
+  EXPECT_EQ(counted_hash_calls, 300u); // the keys went with their function
 
   // without resizing, the lists of the default capacity are the ones that
   // it keeps
+  counted_hash_calls = 0;
   for (int i = 0; i < 1000; ++i)
     ASSERT_NE(source.insert(i), nullptr);
+  EXPECT_EQ(counted_hash_calls, 1000u); // and the source keeps its own
   EXPECT_EQ(source.capacity(), Primes::DefaultPrime);
   for (int i = 0; i < 1000; ++i)
+    ASSERT_TRUE(source.contains(i));
+}
+
+// With thresholds that are not the default ones: the table that was moved
+// from grows when it holds twice as many keys as lists, where one with
+// the default thresholds would have grown long before
+TEST(DynSetLhashMove, TheTableThatWasMovedFromKeepsItsLoadThresholds)
+{
+  ASSERT_LT(hash_default_upper_alpha, 1.5f);
+  DynSetLhash<int> source(101, counted_hash, Aleph::equal_to<int>(), 0.5f, 2.0f);
+  for (int i = 0; i < 50; ++i)
+    ASSERT_NE(source.insert(i), nullptr);
+
+  DynSetLhash<int> target(std::move(source));
+  ASSERT_EQ(source.capacity(), 0u);
+  EXPECT_EQ(target.size(), 50u);
+
+  const int lists = static_cast<int>(Primes::DefaultPrime);
+  for (int i = 0; i < 2 * lists - 1; ++i)
+    ASSERT_NE(source.insert(i), nullptr);
+  EXPECT_EQ(source.capacity(), Primes::DefaultPrime); // a load below 2
+  ASSERT_NE(source.insert(2 * lists - 1), nullptr);   // and a load of 2
+  EXPECT_GT(source.capacity(), Primes::DefaultPrime);
+  for (int i = 0; i < 2 * lists; ++i)
     ASSERT_TRUE(source.contains(i));
 }
 

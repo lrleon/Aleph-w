@@ -293,9 +293,15 @@ namespace Aleph
         the first insertion gives it the lists of the default capacity.
 
         @note Only the hash function and the comparator are copied, so
-        that `other` keeps them. If copying one of them throws,
+        that `other` keeps them: a table that took keys again with another
+        hash function, or with another comparator, than the one that it
+        was built with would not find them. If copying one of them throws,
         `std::terminate` is called. A function pointer and a comparator
-        without state never throw.
+        without state never throw. The copy of a hash function allocates
+        when what it holds does not fit in the buffer of a
+        `std::function`, as a function object with more state than a
+        pointer or two: without memory for it, the program ends. The move
+        assignment copies nothing.
     */
     GenLhashTable(GenLhashTable && other) noexcept
       : hash_fct(other.hash_fct),
@@ -320,11 +326,11 @@ namespace Aleph
         comparator, the load thresholds and the policies.
 
         @param[in,out] other Table to take the buckets from. It is left
-        as the move constructor leaves it: empty, without lists, and
-        usable.
+        empty, without lists and usable, with what ruled this table: the
+        two tables swap their hash functions, their comparators, their
+        load thresholds and their policies, so that nothing is copied
+        and nothing is allocated.
         @return A reference to this table.
-        @note The hash function and the comparator are copied, as in the
-        move constructor.
     */
     GenLhashTable &operator=(GenLhashTable && other) noexcept
     {
@@ -334,21 +340,13 @@ namespace Aleph
             empty();
           delete [] table;
 
-          hash_fct = other.hash_fct;
-          table = other.table;
-          len = other.len;
-          cmp = other.cmp;
-          lower_alpha = other.lower_alpha;
-          upper_alpha = other.upper_alpha;
-          N = other.N;
-          busy_slots_counter = other.busy_slots_counter;
-          remove_all_buckets = other.remove_all_buckets;
-          with_resize = other.with_resize;
-
-          other.table = nullptr;
-          other.len = 0;
-          other.N = 0;
-          other.busy_slots_counter = 0;
+          // this table is now one without lists, as a move leaves one;
+          // the swap gives it what other has, and other what rules it
+          table = nullptr;
+          len = 0;
+          N = 0;
+          busy_slots_counter = 0;
+          swap(other);
         }
       return *this;
     }
@@ -492,8 +490,10 @@ namespace Aleph
     /// Inserts bucket into the table and returns its address if the key is not
     /// already in the table; otherwise returns nullptr.
     /// @throws std::bad_alloc if there is no memory for the lists of a
-    /// table that a move left without them, or for those that it grows
-    /// to; the bucket is then not in the table.
+    /// table that a move left without them: the bucket is then not in
+    /// the table. Or if there is none for the lists that the table grows
+    /// to: the bucket is then in the table, which keeps the lists that it
+    /// had, and the table owns it as any other.
     Bucket * insert(Bucket *bucket)
     {
       if (table == nullptr) [[unlikely]]
@@ -518,7 +518,8 @@ namespace Aleph
     }
 
     // Search bucket->key. If found, returns the bucket address inside the table.
-    // Otherwise, inserts and returns bucket.
+    // Otherwise, inserts and returns bucket. It throws std::bad_alloc as
+    // insert() does, with the bucket out of the table or in it
     Bucket * search_or_insert(Bucket *bucket)
     {
       if (table == nullptr) [[unlikely]]
