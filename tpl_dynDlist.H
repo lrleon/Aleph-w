@@ -903,8 +903,8 @@ public:
   }
 
   /** @brief Move constructor for a `T` whose default construction may
-      throw, as one that allocates: takes in constant time the items of
-      `list`, which is left empty.
+      throw, as one that allocates, and that can be moved: takes in
+      constant time the items of `list`, which is left empty.
 
       The header node of the new list takes the place of that of `list`,
       and its item by a move, so that no item is built.
@@ -915,10 +915,31 @@ public:
       items.
   */
   DynDlist(DynDlist &&list) noexcept(std::is_nothrow_move_constructible_v<T>)
-    requires (not std::is_nothrow_default_constructible_v<T>)
+    requires (not std::is_nothrow_default_constructible_v<T> and
+              std::is_move_constructible_v<T>)
     : Dnode<T>(std::move(static_cast<Dnode<T> &>(list))), num_elem(list.num_elem)
   {
     list.num_elem = 0;
+  }
+
+  /** @brief Move constructor for a `T` whose default construction may
+      throw and that cannot be moved, as one whose move constructor is
+      deleted: takes in constant time the items of `list`, which is left
+      empty.
+
+      The item of the header node cannot be taken from that of `list`, so
+      it is built by default.
+
+      @param[in,out] list the list to move from.
+      @throws what the default construction of `T` throws, for the item of
+      the header node. Then `list` keeps its items.
+  */
+  DynDlist(DynDlist &&list)
+    requires (not std::is_nothrow_default_constructible_v<T> and
+              not std::is_move_constructible_v<T>)
+    : DynDlist()
+  {
+    swap(list);
   }
 
   /** Assignment by moving.

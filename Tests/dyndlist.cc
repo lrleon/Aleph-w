@@ -859,3 +859,51 @@ TEST(DynDlist, AMoveOfTheListThatThrowsLeavesItAsItWas)
   for (auto it = source.get_it(); it.has_curr(); it.next_ne())
     EXPECT_EQ(it.get_curr().value, expected++);
 }
+
+namespace
+{
+  // An item that cannot be moved, and whose default construction may throw
+  struct Copy_Only
+  {
+    int value = 0;
+
+    Copy_Only() {}
+    Copy_Only(int v) : value(v) {}
+    Copy_Only(const Copy_Only &) = default;
+    Copy_Only(Copy_Only &&) = delete;
+    Copy_Only & operator = (const Copy_Only &) = default;
+  };
+}
+
+static_assert(not std::is_move_constructible_v<Copy_Only>);
+static_assert(std::is_move_constructible_v<DynDlist<Copy_Only>>);
+static_assert(not std::is_nothrow_move_constructible_v<DynDlist<Copy_Only>>);
+
+// A list of items that cannot be moved is moved all the same: the item of
+// its header node, which cannot be taken from that of the other list, is
+// built by default
+TEST(DynDlist, AListOfItemsThatCannotBeMovedIsMoved)
+{
+  DynDlist<Copy_Only> empty;
+  DynDlist<Copy_Only> from_empty(std::move(empty));
+  EXPECT_TRUE(from_empty.is_empty());
+  EXPECT_TRUE(empty.is_empty());
+
+  DynDlist<Copy_Only> source;
+  for (int i = 1; i <= 3; ++i)
+    {
+      const Copy_Only item(i);
+      source.append(item);
+    }
+  DynDlist<Copy_Only> target(std::move(source));
+  EXPECT_TRUE(source.is_empty());
+  ASSERT_EQ(target.size(), 3u);
+  int expected = 1;
+  for (auto it = target.get_it(); it.has_curr(); it.next_ne())
+    EXPECT_EQ(it.get_curr().value, expected++);
+
+  const Copy_Only another(9); // the list that was moved from goes on
+  source.append(another);
+  ASSERT_EQ(source.size(), 1u);
+  EXPECT_EQ(source.get_first().value, 9);
+}
