@@ -505,6 +505,19 @@ public:
       empty();
   }
 
+  /** @brief Not copyable: the copy that the compiler would write copies
+      the links of the lists, which would point to the buckets of the
+      other table: destroying one table frees the buckets that the other
+      one still holds.
+
+      The table has no moves of its own either; `swap()` exchanges two
+      tables in constant time.
+  */
+  GenLinearHashTable(const GenLinearHashTable &) = delete;
+
+  /// Not copyable, for the same reason as the copy constructor.
+  GenLinearHashTable & operator = (const GenLinearHashTable &) = delete;
+
 private:
 
   // The bucket of list whose key is equivalent to key, which may be of
