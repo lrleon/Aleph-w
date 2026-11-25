@@ -38,6 +38,7 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <random>
 
 #include <opBinTree.H>
@@ -90,6 +91,14 @@ namespace
     return n == 0 ? 0 : at(1, n);
   }
 
+  // Frees the tree of a test when the test leaves it, also if a check
+  // throws on the way: the checked read of a weight does, for a key that
+  // is not one of the keys
+  struct Destroy_Tree
+  {
+    void operator () (Node * root) const noexcept { destroyRec(root); }
+  };
+
   void expect_an_optimal_tree(Array<double> & p)
   {
     const size_t n = p.size();
@@ -97,13 +106,12 @@ namespace
     for (size_t i = 0; i < n; ++i)
       keys(i) = static_cast<int>(i);
 
-    Node * root = build_optimal_tree<Node, int>(n == 0 ? nullptr : &keys(0),
-                                                n == 0 ? nullptr : &p(0), n);
+    const std::unique_ptr<Node, Destroy_Tree> tree(
+      build_optimal_tree<Node, int>(n == 0 ? nullptr : &keys(0), n == 0 ? nullptr : &p(0), n));
     int next = 0;
-    const double cost = cost_of(root, p, 1, next);
+    const double cost = cost_of(tree.get(), p, 1, next);
     EXPECT_EQ(next, static_cast<int>(n)) << "the nodes of the tree, with " << n << " keys";
     EXPECT_NEAR(cost, least_cost(p), 1e-9) << "with " << n << " keys";
-    destroyRec(root);
   }
 }
 
