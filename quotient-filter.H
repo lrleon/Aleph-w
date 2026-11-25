@@ -72,7 +72,7 @@
  *  | insert    | O(1)    | O(n)       |
  *  | contains  | O(1)    | O(n)       |
  *  | remove    | O(1)    | O(n)       |
- *  | merge     | O(2^q)  | O(2^q)     |
+ *  | merge     | O(2^q)  | O(4^q)     |
  *  | space     | (r+3) * 2^q bits     |
  *
  *  ## Usage Example
@@ -382,6 +382,43 @@ template <typename T> class Quotient_Filter
       }
   }
 
+  // Whether the run of the quotient `fq` holds the remainder `fr`.
+  [[nodiscard]] bool holds(const size_t fq, const uint64_t fr) const noexcept
+  {
+    if (not get_occ(fq))
+      return false;
+
+    size_t s = find_run_start(fq);
+    do
+      {
+        const uint64_t cur = get_rem(s);
+        if (cur == fr)
+          return true;
+        if (cur > fr)
+          return false;
+        s = incr(s);
+    } while (get_cont(s));
+
+    return false;
+  }
+
+  // Calls op(fq, fr) with the quotient and the remainder of each element.
+  template <class Op> void for_each_fingerprint(Op op) const
+  {
+    for (size_t fq = 0; fq < num_slots_; ++fq)
+      {
+        if (not get_occ(fq))
+          continue;
+
+        size_t s = find_run_start(fq);
+        do
+          {
+            op(fq, get_rem(s));
+            s = incr(s);
+        } while (get_cont(s));
+      }
+  }
+
   enum class Insert_Result
   {
     inserted,
@@ -389,13 +426,11 @@ template <typename T> class Quotient_Filter
     full
   };
 
-  // Core insert of a pre-computed (fq, fr) pair.
+  // Core insert of a pre-computed (fq, fr) pair. The remainder is looked
+  // for before the room: a filter holds its elements once, full or not.
   [[nodiscard]] Insert_Result do_insert(size_t fq, uint64_t fr)
   {
-    if (num_elems_ >= num_slots_)
-      return Insert_Result::full;
-
-    // Case 1: canonical slot is completely empty.
+    // Case 1: canonical slot is completely empty. A full filter has none.
     if (slot_empty(fq))
       {
         slots_(fq) = OCC_BIT | ((fr & rem_mask()) << 3);
@@ -403,10 +438,7 @@ template <typename T> class Quotient_Filter
         return Insert_Result::inserted;
       }
 
-    const bool was_occupied = get_occ(fq);
-    set_occ(fq, true);
-
-    if (was_occupied)
+    if (get_occ(fq))
       {
         // A run for this quotient already exists.
         const size_t s = find_run_start(fq);
@@ -422,6 +454,9 @@ template <typename T> class Quotient_Filter
               break;
             pos = incr(pos);
         } while (get_cont(pos));
+
+        if (num_elems_ >= num_slots_)
+          return Insert_Result::full;
 
         // `pos` is where we insert (before element at pos).
         // If we scanned past the last continuation without finding
@@ -441,10 +476,14 @@ template <typename T> class Quotient_Filter
         return Insert_Result::inserted;
       }
 
+    if (num_elems_ >= num_slots_)
+      return Insert_Result::full;
+
     // No run for this quotient exists yet.  We must find where the
     // new single-element run should be inserted within the cluster.
-    // Since we already set occupied(fq), find_run_start now locates
-    // the correct position for this new run.
+    // With occupied(fq) set, find_run_start locates the correct
+    // position for this new run.
+    set_occ(fq, true);
     const size_t s = find_run_start(fq);
 
     const size_t empty = find_first_unused(s);
@@ -586,23 +625,16 @@ public:
   /** @brief Insert an element.
    *
    *  After insertion, `contains(item)` is guaranteed true.
-   *  Duplicates are silently ignored.
+   *  Duplicates are silently ignored, in a full filter too.
    *
-   *  @throws std::overflow_error if the filter is full.
+   *  @throws std::overflow_error if the filter is full and does not hold
+   *          the element.
    */
   Quotient_Filter &insert(const T &item)
   {
     auto [fq, fr] = fingerprint(item);
-    switch (do_insert(fq, fr))
-      {
-      case Insert_Result::inserted:
-      case Insert_Result::duplicate:
-        return *this;
-      case Insert_Result::full:
-        if (contains(item))
-          return *this;
-        ah_overflow_error() << "Quotient_Filter::insert: filter is full (" << num_elems_ << "/" << num_slots_ << ")";
-      }
+    ah_overflow_error_if(do_insert(fq, fr) == Insert_Result::full)
+      << "Quotient_Filter::insert: filter is full (" << num_elems_ << "/" << num_slots_ << ")";
     return *this;
   }
 
@@ -613,22 +645,7 @@ public:
   [[nodiscard]] bool contains(const T &item) const noexcept
   {
     auto [fq, fr] = fingerprint(item);
-
-    if (not get_occ(fq))
-      return false;
-
-    size_t s = find_run_start(fq);
-    do
-      {
-        uint64_t cur = get_rem(s);
-        if (cur == fr)
-          return true;
-        if (cur > fr)
-          return false;
-        s = incr(s);
-    } while (get_cont(s));
-
-    return false;
+    return holds(fq, fr);
   }
 
   /** @brief Remove an element.
@@ -733,28 +750,48 @@ public:
     num_elems_ = 0;
   }
 
-  /** @brief Merge another filter (same q, r, seed). O(2^q).
+  /** @brief Merge another filter (same q, r, seed).
+   *
+   *  The filter is left with its elements and those of @p other, each one
+   *  once: an element that the two hold takes no slot.
+   *
+   *  It takes O(2^q) on average at the loads that a filter is made for.
+   *  Each element costs the length of its cluster, so the time grows up to
+   *  O(4^q) as the filters fill. When the sizes of the two filters say
+   *  that the elements of @p other may not fit, they are first looked for
+   *  in this filter, which is a second pass over @p other.
+   *
+   *  @param[in] other filter whose elements are taken; it is not changed.
    *  @throws std::domain_error on parameter mismatch.
+   *  @throws std::overflow_error if the elements of @p other that this
+   *          filter does not hold are more than its free slots. The filter
+   *          is then left as it was.
    */
   void merge(const Quotient_Filter &other)
   {
     ah_domain_error_if(q_ != other.q_ or r_ != other.r_) << "Quotient_Filter::merge: parameter mismatch";
     ah_domain_error_if(seed_ != other.seed_) << "Quotient_Filter::merge: seed mismatch";
+    if (this == &other) // it holds its elements already
+      return;
 
-    for (size_t canonical = 0; canonical < other.num_slots_; ++canonical)
+    // The elements of the other that this one does not hold are counted
+    // before any of them enters, when the two sizes say that they may not
+    // fit: a filter that cannot take them all is left as it was.
+    const size_t room = num_slots_ - num_elems_;
+    if (other.num_elems_ > room)
       {
-        if (not other.get_occ(canonical))
-          continue;
-
-        size_t s = other.find_run_start(canonical);
-        do
-          {
-            const auto result = do_insert(canonical, other.get_rem(s));
-            ah_overflow_error_if(result == Insert_Result::full)
-              << "Quotient_Filter::merge: destination filter is full (" << num_elems_ << "/" << num_slots_ << ")";
-            s = other.incr(s);
-        } while (other.get_cont(s));
+        size_t missing = 0;
+        other.for_each_fingerprint([this, &missing](const size_t fq, const uint64_t fr)
+        {
+          if (not holds(fq, fr))
+            ++missing;
+        });
+        ah_overflow_error_if(missing > room)
+          << "Quotient_Filter::merge: " << missing << " elements of the other filter do not fit in the " << room
+          << " free slots of this one";
       }
+
+    other.for_each_fingerprint([this](const size_t fq, const uint64_t fr) { (void) do_insert(fq, fr); });
   }
 
   /** @brief Estimate (q, r) for n elements and target FP rate. */
