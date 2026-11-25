@@ -168,23 +168,23 @@ template <typename T> class Quotient_Filter
 
   [[nodiscard]] bool get_occ(size_t i) const noexcept
   {
-    return (slots_[i] & OCC_BIT) != 0;
+    return (slots_(i) & OCC_BIT) != 0;
   }
 
   [[nodiscard]] bool get_cont(size_t i) const noexcept
   {
-    return (slots_[i] & CONT_BIT) != 0;
+    return (slots_(i) & CONT_BIT) != 0;
   }
 
   [[nodiscard]] bool get_shft(size_t i) const noexcept
   {
-    return (slots_[i] & SHFT_BIT) != 0;
+    return (slots_(i) & SHFT_BIT) != 0;
   }
 
   // A slot is truly empty when it holds no data and no occupied marker.
   [[nodiscard]] bool slot_empty(size_t i) const noexcept
   {
-    return slots_[i] == 0;
+    return slots_(i) == 0;
   }
 
   // A slot holds data if continuation or shifted is set, or if it
@@ -256,7 +256,7 @@ template <typename T> class Quotient_Filter
   // This is the same as !slot_empty(i).
   [[nodiscard]] bool has_element(const size_t i) const noexcept
   {
-    return (slots_[i] & META_MASK) != 0;
+    return (slots_(i) & META_MASK) != 0;
   }
 
   // A slot is a "run start" if it has data and is_continuation is false.
@@ -291,12 +291,12 @@ template <typename T> class Quotient_Filter
 
   [[nodiscard]] uint64_t get_rem(const size_t i) const noexcept
   {
-    return (slots_[i] >> 3) & rem_mask();
+    return (slots_(i) >> 3) & rem_mask();
   }
 
   void set_rem(const size_t i, const uint64_t rem) noexcept
   {
-    slots_(i) = (slots_[i] & META_MASK) | ((rem & rem_mask()) << 3);
+    slots_(i) = (slots_(i) & META_MASK) | ((rem & rem_mask()) << 3);
   }
 
   // Set the full "element data" portion of a slot (cont, shft, rem),
@@ -375,7 +375,7 @@ template <typename T> class Quotient_Filter
       {
         const size_t prev         = decr(empty);
         const bool   occ_at_empty = get_occ(empty);
-        slots_(empty)             = slots_[prev];
+        slots_(empty)             = slots_(prev);
         set_occ(empty, occ_at_empty);  // restore occupied at destination
         set_shft(empty, true);         // everything shifted is shifted
         empty = prev;
@@ -479,7 +479,7 @@ template <typename T> class Quotient_Filter
           while (not get_occ(quot));
 
         const bool occ_at_curr = get_occ(curr);
-        slots_(curr)           = slots_[nxt];
+        slots_(curr)           = slots_(nxt);
         set_occ(curr, occ_at_curr);
 
         if (promote)

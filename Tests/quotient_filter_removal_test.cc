@@ -46,6 +46,7 @@
 #include <gtest/gtest.h>
 
 #include <random>
+#include <utility>
 
 #include <compact-quotient-filter.H>
 #include <quotient-filter.H>
@@ -91,6 +92,28 @@ namespace
       if (not f.contains(in(i)))
         ++n;
     return n;
+  }
+
+  // Fills a filter, whatever it holds, with as many items as it has slots,
+  // asks for them all, removes them one by one and clears it: every slot is
+  // read and written
+  template <class Filter>
+  void expect_that_every_slot_serves(Filter & f, const char * state)
+  {
+    f.clear();
+    const Array<int> in = fill(f, f.capacity());
+    EXPECT_EQ(f.size(), f.capacity()) << state;
+    EXPECT_EQ(denied(f, in), 0u) << state;
+    for (size_t i = 0; i < in.size(); ++i)
+      {
+        EXPECT_TRUE(f.remove(in(i))) << state << ", removal " << i;
+        EXPECT_EQ(denied(f, in, i + 1), 0u) << state << ", removal " << i;
+      }
+    EXPECT_TRUE(f.is_empty()) << state;
+    f.insert(item(0));
+    f.clear();
+    EXPECT_TRUE(f.is_empty()) << state;
+    EXPECT_FALSE(f.contains(item(0))) << state;
   }
 }
 
@@ -159,4 +182,42 @@ TYPED_TEST(QuotientFilterRemoval, RandomRemovalsAgreeWithTheExactSet)
                 << "q = " << q << ", r = " << r << ", seed " << seed << ", operation " << op;
             }
         }
+}
+
+// The filters read and write their slots without a check of the range,
+// which the constructors guarantee by reserving them all: every slot of a
+// filter serves in each of the states that it may come to be in, with
+// remainders from one bit to as many as the filter takes
+TYPED_TEST(QuotientFilterRemoval, EverySlotServesInEachStateOfAFilter)
+{
+  for (const int q : {1, 2, 4, 7})
+    for (const int r : {1, 5, 31, 57})
+      {
+        SCOPED_TRACE(testing::Message() << "q = " << q << ", r = " << r);
+
+        TypeParam built(q, r);
+        expect_that_every_slot_serves(built, "built");
+
+        built.insert(item(1));
+        TypeParam copied(built);
+        expect_that_every_slot_serves(copied, "copied");
+
+        TypeParam assigned(1, r);
+        assigned = built;
+        expect_that_every_slot_serves(assigned, "copy assigned");
+
+        TypeParam moved(std::move(built));
+        expect_that_every_slot_serves(moved, "moved to");
+        expect_that_every_slot_serves(built, "moved from");
+
+        TypeParam move_assigned(1, r);
+        move_assigned = std::move(moved);
+        expect_that_every_slot_serves(move_assigned, "move assigned");
+        expect_that_every_slot_serves(moved, "moved from by an assignment");
+
+        TypeParam a(q, r), b(1, r);
+        a.swap(b);
+        expect_that_every_slot_serves(a, "swapped, the small one");
+        expect_that_every_slot_serves(b, "swapped, the large one");
+      }
 }
