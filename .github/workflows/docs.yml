@@ -36,8 +36,14 @@ jobs:
       - name: Build Doxygen HTML
         run: |
           rm -rf docs/html
-          doxygen Doxyfile
+          # The site carries the version of VERSION.txt, which each release sets:
+          # with "-", Doxygen reads its configuration from the standard input and
+          # keeps the last value of an option. The empty echo ends the last line
+          # of the Doxyfile, in case it has no newline
+          version=$(tr -d "[:space:]" < VERSION.txt)
+          ( cat Doxyfile; echo; echo "PROJECT_NUMBER = \"${version}\"" ) | doxygen -
           test -f docs/html/index.html
+          grep -Eq "id=\"projectnumber\">[^<]*${version//./\\.}<" docs/html/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v6
