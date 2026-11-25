@@ -1025,6 +1025,35 @@ TEST_F(ThreadPoolTest, ParallelExecution)
   EXPECT_GT(max_concurrent.load(), 1);
 }
 
+// Each task waits until all of them have started, which a pool that ran
+// fewer tasks at once than it has threads would never let happen: it checks
+// without a clock what a speedup would, and a busy machine only delays it.
+// The deadline, far beyond what such a machine needs to start them, makes
+// such a pool fail the test instead of hanging it
+TEST_F(ThreadPoolTest, RunsAsManyTasksAtOnceAsItHasThreads)
+{
+  const size_t num_threads = 8;
+  ThreadPool pool(num_threads);
+  std::mutex m;
+  std::condition_variable all_started;
+  size_t started = 0;
+  std::atomic<size_t> met{0};
+  const auto deadline = std::chrono::steady_clock::now() + 30s;
+
+  for (size_t i = 0; i < num_threads; ++i)
+    pool.enqueue_detached([&] {
+      std::unique_lock<std::mutex> lock(m);
+      if (++started == num_threads)
+        all_started.notify_all();
+      if (all_started.wait_until(lock, deadline,
+                                 [&] { return started == num_threads; }))
+        ++met;
+    });
+  pool.wait_all();
+
+  EXPECT_EQ(met.load(), num_threads);
+}
+
 // ============================================================================
 // Performance Tests (not strictly unit tests, but useful)
 // ============================================================================
@@ -2577,7 +2606,11 @@ TEST_F(ThreadPoolTest, BenchmarkVsSequential)
   size_t num_threads = std::min<size_t>(usable_cpus(), 8);
   ThreadPool pool(num_threads);
 
-  // The best of three tries: a busy machine slows a try down, not the pool
+  // The best of three tries, so that what it prints is the time of the pool
+  // rather than that of a busy machine. It asserts no speedup: on a machine
+  // whose cores are all busy no pool goes faster than one thread, and the
+  // test failed so on the runners of the CI. That the pool runs its tasks at
+  // once is what RunsAsManyTasksAtOnceAsItHasThreads checks, without a clock
   int pool_sum = 0;
   auto pool_duration = std::chrono::milliseconds::max();
   for (int attempt = 0; attempt < 3; ++attempt)
@@ -2594,14 +2627,12 @@ TEST_F(ThreadPoolTest, BenchmarkVsSequential)
       auto pool_end = std::chrono::high_resolution_clock::now();
       pool_duration = std::min(pool_duration,
                                std::chrono::duration_cast<std::chrono::milliseconds>(pool_end - pool_start));
-      if (static_cast<double>(seq_duration.count()) / pool_duration.count() > 1.2)
-        break;
     }
 
   EXPECT_EQ(seq_sum, pool_sum);
-  
+
   double speedup = static_cast<double>(seq_duration.count()) / pool_duration.count();
-  
+
   std::cout << "\n=== Benchmark: ThreadPool vs Sequential ===\n";
   std::cout << "Tasks: " << num_tasks << ", Work per task: 100μs\n";
   std::cout << "Threads: " << num_threads << "\n";
@@ -2609,10 +2640,6 @@ TEST_F(ThreadPoolTest, BenchmarkVsSequential)
   std::cout << "ThreadPool: " << pool_duration.count() << " ms\n";
   std::cout << "Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n";
   std::cout << "============================================\n\n";
-  
-  // Should achieve at least some speedup with multiple cores
-  if (num_threads > 1)
-    EXPECT_GT(speedup, 1.2);
 }
 
 TEST_F(ThreadPoolTest, BenchmarkEnqueueOverhead)
