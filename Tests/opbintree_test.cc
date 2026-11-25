@@ -53,16 +53,18 @@ namespace
 
   // The cost of a tree whose keys are the indexes of p: the sum of the
   // weight of each key times its depth, with the root at depth 1. `next`
-  // follows the keys in order: it ends as the count of the keys only if
-  // they are 0, 1, 2... in the inorder of the tree
+  // counts the nodes in order, and each one must hold the key of its
+  // place: the inorder of the tree is then 0, 1, 2..., with no key twice,
+  // which the cost does not tell of a key whose weight is zero. The weight
+  // is read with a checked access: the key is whatever the tree holds
   double cost_of(Node * root, const Array<double> & p, const int depth, int & next)
   {
     if (root == Node::NullPtr)
       return 0;
     double cost = cost_of(LLINK(root), p, depth + 1, next);
-    if (KEY(root) == next)
-      ++next;
-    cost += p(KEY(root)) * depth;
+    EXPECT_EQ(KEY(root), next) << "the key at the place " << next << " of the inorder";
+    ++next;
+    cost += p[static_cast<size_t>(KEY(root))] * depth;
     return cost + cost_of(RLINK(root), p, depth + 1, next);
   }
 
@@ -99,7 +101,7 @@ namespace
                                                 n == 0 ? nullptr : &p(0), n);
     int next = 0;
     const double cost = cost_of(root, p, 1, next);
-    EXPECT_EQ(next, static_cast<int>(n)) << "the keys are not in order, with " << n << " keys";
+    EXPECT_EQ(next, static_cast<int>(n)) << "the nodes of the tree, with " << n << " keys";
     EXPECT_NEAR(cost, least_cost(p), 1e-9) << "with " << n << " keys";
     destroyRec(root);
   }
