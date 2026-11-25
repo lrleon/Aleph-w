@@ -1033,12 +1033,14 @@ TEST_F(ThreadPoolTest, ParallelExecution)
 TEST_F(ThreadPoolTest, RunsAsManyTasksAtOnceAsItHasThreads)
 {
   const size_t num_threads = 8;
-  ThreadPool pool(num_threads);
   std::mutex m;
   std::condition_variable all_started;
   size_t started = 0;
   std::atomic<size_t> met{0};
   const auto deadline = std::chrono::steady_clock::now() + 30s;
+  // The pool last: were an enqueue to throw, it joins its threads before
+  // what their tasks capture by reference is destroyed
+  ThreadPool pool(num_threads);
 
   for (size_t i = 0; i < num_threads; ++i)
     pool.enqueue_detached([&] {
