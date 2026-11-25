@@ -2899,7 +2899,7 @@ struct GenericItems
   */
   [[nodiscard]] Aleph::DynList<T> items() const
   {
-    return static_cast<const Container *>(this)->Container::template maps<T>([] (const T & key)
+    return static_cast<const Container *>(this)->Container::template maps<T>([] (const T & key) -> const T &
       {
         return key;
       });
