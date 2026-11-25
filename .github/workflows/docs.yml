@@ -15,14 +15,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
-    name: build-and-deploy (GitHub Pages)
+  build:
+    name: build (Doxygen)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
@@ -53,6 +49,33 @@ jobs:
         with:
           path: docs/html
 
+  # The deployment, in a job of its own. GitHub has answered "Fetching
+  # artifact metadata failed" to a deployment right after the upload, in
+  # the same job, with the artifact there: the deployment tries once more a
+  # minute later. And re-running this job deploys the artifact of the build
+  # again, where re-running a job that uploads it too fails, with two
+  # artifacts of the same name in the run
+  deploy:
+    name: deploy (GitHub Pages)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url || steps.again.outputs.page_url }}
+
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+
+      - name: Wait before deploying again
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 60
+
+      - name: Deploy to GitHub Pages again
+        id: again
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v5
