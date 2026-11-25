@@ -7,7 +7,9 @@
 
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = "Aleph-w"
-PROJECT_NUMBER         = "3.0"
+# The number of the version: .github/workflows/docs.yml gives the site the
+# one of VERSION.txt, which each release sets
+PROJECT_NUMBER         =
 PROJECT_BRIEF          = "A C++ Library for Data Structures and Algorithms"
 PROJECT_LOGO           =
 OUTPUT_DIRECTORY       = docs
