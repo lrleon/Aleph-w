@@ -460,7 +460,9 @@ The repository ships two complementary workflows:
   `build-macos` (`macos-13`/`macos-14`), `build-arm64-linux`
   (`ubuntu-24.04-arm`) and `build-windows` (`windows-2022` × `msvc` with
   GSL, `clang-cl` without it). The Windows leg runs on `workflow_dispatch`, the weekly
-  cron and `master` pushes; the others gate every PR.
+  cron and `master` pushes; the others gate every PR. A dispatch may run the
+  Windows leg alone, with one toolchain and only some test programs:
+  `gh workflow run ci-platform.yml --ref <branch> -f windows_only=true -f toolchain=msvc -f targets="hash-it lin-hash"`.
 
 Per-platform test exclusions and the rationale for each sanitizer
 exemption live in
