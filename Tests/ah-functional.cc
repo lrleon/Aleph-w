@@ -1673,8 +1673,8 @@ TEST(all_unique_overload, single_element)
 // the conversion of an item in the first, an accumulator in the second.
 // With an item whose conversion throws, as one that allocates, the program
 // ended instead of the exception reaching the caller. Between items of one
-// type the first builds nothing now: it gives the item, and whoever takes
-// it makes its one copy.
+// type the first builds a copy, as it did: maps() of the mixins does not
+// call it there, and copies each item once.
 namespace
 {
   struct From_Int_May_Throw
@@ -1710,17 +1710,18 @@ namespace
   static_assert(noexcept(Dft_Map_Op<double, int>()(std::declval<const int &>())));
   static_assert(not noexcept(Dft_Map_Op<std::string, const char *>()(std::declval<const char * const &>())));
   static_assert(not noexcept(Dft_Map_Op<From_Int_May_Throw, int>()(std::declval<const int &>())));
-  static_assert(noexcept(Dft_Map_Op<std::string, std::string>()(std::declval<const std::string &>())));
+  static_assert(not noexcept(Dft_Map_Op<std::string, std::string>()(std::declval<const std::string &>())));
+  static_assert(noexcept(Dft_Map_Op<int, int>()(std::declval<const int &>())));
   static_assert(noexcept(Dft_Fold_Op<int, std::string>()(std::declval<const int &>(),
                                                        std::declval<const std::string &>())));
   static_assert(not noexcept(Dft_Fold_Op<Default_May_Throw, int>()(std::declval<const Default_May_Throw &>(),
                                                                    std::declval<const int &>())));
 
-  // the first converts to the type of the result, and between items of one
-  // type it gives the item
+  // the first gives an item of the type of the result, which between items
+  // of one type is a copy, and not a reference to its argument
   static_assert(std::is_same_v<std::invoke_result_t<Dft_Map_Op<long, int>, const int &>, long>);
   static_assert(std::is_same_v<std::invoke_result_t<Dft_Map_Op<std::string, std::string>, const std::string &>,
-                               const std::string &>);
+                               std::string>);
 
   // and they are not there for what cannot be built: asking for it, as the
   // requires clause of maps() does, is an answer and not an error
@@ -1751,8 +1752,9 @@ TEST(default_operations, what_they_return)
 {
   EXPECT_EQ((Dft_Map_Op<long, int>()(7)), 7L);
   EXPECT_EQ((Dft_Map_Op<std::string, const char *>()("seven")), "seven");
-  const std::string item = "seven";
-  EXPECT_EQ(&(Dft_Map_Op<std::string, std::string>()(item)), &item);
+  // a copy bound to a reference outlives the argument that it was made from
+  const std::string & kept = Dft_Map_Op<std::string, std::string>()(std::string(40, 'x'));
+  EXPECT_EQ(kept, std::string(40, 'x'));
   EXPECT_EQ((Dft_Fold_Op<int, std::string>()(5, "x")), 0);
   EXPECT_EQ((Dft_Fold_Op<std::string, int>()("acc", 5)), "");
 }

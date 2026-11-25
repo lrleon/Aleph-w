@@ -759,10 +759,16 @@ public:
     Operation &operation) const
   {
     Container<concepts_detail::map_result_t<R, Operation &, Type>> ret_val;
-    for_each([&ret_val, &operation](const Type &item)
-      {
-        ret_val.append(std::invoke(operation, item));
-      });
+    // The default operation between items of one type is their copy: the
+    // container makes it here, once, where the operation would build a
+    // copy for the container to move, or to copy again
+    if constexpr (std::is_same_v<std::remove_cv_t<Operation>, Dft_Map_Op<Type, Type>>)
+      for_each([&ret_val](const Type &item) { ret_val.append(item); });
+    else
+      for_each([&ret_val, &operation](const Type &item)
+        {
+          ret_val.append(std::invoke(operation, item));
+        });
     return ret_val;
   }
 

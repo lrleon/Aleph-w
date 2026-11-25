@@ -136,10 +136,13 @@ struct Some : public Found_Item<T>
   }
 };
 
-/** @brief Default mapping operation: the conversion of the item.
+/** @brief Default mapping operation: the conversion of the item, which is
+ *         its copy when the two types are the same.
  *
  *  It is not callable when the item does not convert to the result, so
  *  asking whether it is, as a `requires` clause does, is not an error.
+ *  maps() of the mixins does not call it between items of one type: it
+ *  copies each item into its result, once.
  *
  *  @tparam tgtT Type of the result.
  *  @tparam srcT Type of the item.
@@ -158,25 +161,6 @@ struct Dft_Map_Op
     requires requires(const srcT &x) { static_cast<tgtT>(x); }
   {
     return static_cast<tgtT>(item);
-  }
-};
-
-/** @brief Default mapping operation between items of one type: the item
- *         itself, which whoever takes it copies once.
- *
- *  @tparam T Type of the item and of the result.
- */
-template <typename T>
-struct Dft_Map_Op<T, T>
-{
-  /** @brief Gives the item as it is.
-   *
-   *  @param[in] item The item.
-   *  @return A reference to `item`, which must outlive its use.
-   */
-  const T &operator()(const T &item) const noexcept
-  {
-    return item;
   }
 };
 
