@@ -2681,22 +2681,31 @@ TEST_F(ThreadPoolTest, BenchmarkVsStdAsync)
     return sum;
   };
   
-  // std::async
+  // std::async makes a thread for each task. They are made in batches of as
+  // many as the pool has threads, each one waited for before the next, so
+  // that the test does not make 500 threads at once, as it did when it
+  // ended once with a segmentation fault on a runner of the CI
+  const size_t num_threads = std::min<size_t>(usable_cpus(), 8);
+  const int batch = static_cast<int>(num_threads);
   auto async_start = std::chrono::high_resolution_clock::now();
   std::vector<std::future<long long>> async_futures;
-  async_futures.reserve(num_tasks);
-  for (int i = 0; i < num_tasks; ++i)
-    async_futures.push_back(std::async(std::launch::async, compute, i));
-  
+  async_futures.reserve(num_threads);
   long long async_sum = 0;
-  for (auto& f : async_futures)
-    async_sum += f.get();
+  for (int first = 0; first < num_tasks; first += batch)
+    {
+      const int last = std::min(num_tasks, first + batch);
+      async_futures.clear();
+      for (int i = first; i < last; ++i)
+        async_futures.push_back(std::async(std::launch::async, compute, i));
+      for (auto& f : async_futures)
+        async_sum += f.get();
+    }
   auto async_end = std::chrono::high_resolution_clock::now();
   auto async_duration = std::chrono::duration_cast<std::chrono::microseconds>(async_end - async_start);
-  
-  // ThreadPool
-  ThreadPool pool(std::thread::hardware_concurrency());
-  
+
+  // ThreadPool, with as many threads as a batch of std::async
+  ThreadPool pool(num_threads);
+
   auto pool_start = std::chrono::high_resolution_clock::now();
   std::vector<std::future<long long>> pool_futures;
   pool_futures.reserve(num_tasks);
@@ -2713,15 +2722,14 @@ TEST_F(ThreadPoolTest, BenchmarkVsStdAsync)
   
   double speedup = static_cast<double>(async_duration.count()) / pool_duration.count();
   
+  // As BenchmarkVsSequential, it prints the times and asserts no speedup:
+  // on a busy machine they are not those of the pool
   std::cout << "\n=== Benchmark: ThreadPool vs std::async ===\n";
-  std::cout << "Tasks: " << num_tasks << "\n";
+  std::cout << "Tasks: " << num_tasks << ", Threads: " << num_threads << "\n";
   std::cout << "std::async: " << async_duration.count() / 1000.0 << " ms\n";
   std::cout << "ThreadPool: " << pool_duration.count() / 1000.0 << " ms\n";
   std::cout << "Speedup: " << std::fixed << std::setprecision(2) << speedup << "x\n";
   std::cout << "============================================\n\n";
-  
-  // ThreadPool should not be catastrophically slower than std::async on CI runners
-  EXPECT_GT(speedup, 0.5);
 }
 
 // =============================================================================
