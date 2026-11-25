@@ -32,8 +32,9 @@
 
 /**
  * @file quotient_filter_limits_test.cc
- * @brief A quotient filter holds an item once, full or not, and takes
- *        the items of another filter all or none
+ * @brief A quotient filter holds an item once, full or not, takes the
+ *        items of another filter all or none, and is not built for a count
+ *        of items and a rate of false positives that it cannot have
  */
 
 // Compact_Quotient_Filter::merge() dropped without a word the items of the
@@ -42,11 +43,16 @@
 // Quotient_Filter::merge() threw for an item that the full filter held
 // already, and left a filter that could not take the other with some of
 // its items. Compact_Quotient_Filter::insert() threw for an item that the
-// full filter held. These tests fill filters, and merge them against the
-// insertion of the same items one by one.
+// full filter held. And from_capacity() and estimate() gave, for a count of
+// items and a rate that ask for more bits than the hash has, a filter with
+// fewer slots than items, or with another rate. These tests fill filters,
+// merge them against the insertion of the same items one by one, and ask
+// for the filters that cannot be had.
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <limits>
 #include <random>
 #include <stdexcept>
 
@@ -247,4 +253,130 @@ TYPED_TEST(QuotientFilterLimits, AFilterMergedWithItselfIsAsItWas)
         EXPECT_EQ(differences(f, before, item(static_cast<int>(2 * f.capacity()))), 0u);
         EXPECT_EQ(denied(f, in), 0u);
       }
+}
+
+// estimate() gives the fewest slots that hold the items at a load of 75 %
+// or less and the fewest remainder bits that give the rate, and
+// from_capacity() builds the filter of those two
+TYPED_TEST(QuotientFilterLimits, TheEstimateHoldsTheItemsAtTheRate)
+{
+  const Array<size_t> counts = {1, 2, 3, 4, 96, 97, 1000, 5000};
+  for (const size_t n : counts)
+    for (const double rate : {0.9, 0.5, 0.3, 0.01, 1e-6, 1e-12})
+      {
+        SCOPED_TRACE(testing::Message() << n << " items at a rate of " << rate);
+        const auto [q, r] = TypeParam::estimate(n, rate);
+        ASSERT_GE(q, 1);
+        ASSERT_LE(q, 32);
+        ASSERT_GE(r, 1);
+        ASSERT_LE(r, 60);
+        EXPECT_GE(std::ldexp(0.75, q), static_cast<double>(n));
+        if (q > 1)
+          {
+            EXPECT_LT(std::ldexp(0.75, q - 1), static_cast<double>(n));
+          }
+        EXPECT_LE(std::ldexp(1.0, -r), rate);
+        if (r > 1)
+          {
+            EXPECT_GT(std::ldexp(1.0, -(r - 1)), rate);
+          }
+
+        const TypeParam f = TypeParam::from_capacity(n, rate);
+        EXPECT_EQ(f.q(), q);
+        EXPECT_EQ(f.r(), r);
+        EXPECT_GE(f.capacity(), n);
+        EXPECT_LE(f.false_positive_rate(), rate);
+      }
+}
+
+// The remainder bits of a rate are counted, not rounded: a rate just under
+// a power of two asks for one bit more than the power, which a logarithm
+// in floating point gives to the power
+TYPED_TEST(QuotientFilterLimits, TheBitsOfARateNextToAPowerOfTwo)
+{
+  const auto bits = [] (const double rate) { return static_cast<int>(TypeParam::estimate(1, rate).second); };
+  for (int k = 1; k <= 59; ++k)
+    {
+      SCOPED_TRACE(testing::Message() << "2^-" << k);
+      const double power = std::ldexp(1.0, -k), under = std::nextafter(power, 0.0);
+      EXPECT_EQ(bits(power), k);
+      EXPECT_EQ(bits(std::nextafter(power, 1.0)), k);
+      EXPECT_EQ(bits(under), k + 1);
+      EXPECT_LE(TypeParam::from_capacity(1, under).false_positive_rate(), under);
+    }
+
+  // the last power that a filter has, and the rate under it
+  const double last = std::ldexp(1.0, -60);
+  EXPECT_EQ(bits(last), 60);
+  EXPECT_THROW((void) TypeParam::estimate(1, std::nextafter(last, 0.0)), std::domain_error);
+  EXPECT_THROW((void) TypeParam::from_capacity(1, std::nextafter(last, 0.0)), std::domain_error);
+
+  // 20 bits for the slots: 44 for the remainder fit in the hash, and 45 do not
+  const double fits = std::ldexp(1.0, -44);
+  const auto [q, r] = TypeParam::estimate(750000, fits);
+  EXPECT_EQ(q, 20);
+  EXPECT_EQ(r, 44);
+  EXPECT_THROW((void) TypeParam::estimate(750000, std::nextafter(fits, 0.0)), std::domain_error);
+  EXPECT_THROW((void) TypeParam::from_capacity(750000, std::nextafter(fits, 0.0)), std::domain_error);
+}
+
+// No filter has a rate that asks for more than 60 remainder bits, more
+// than 2^32 slots, or more bits than the 64 of the hash for the two
+TYPED_TEST(QuotientFilterLimits, NoFilterForACountAndARateThatItCannotHave)
+{
+  struct Request
+  {
+    size_t n;
+    double rate;
+  };
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  const Array<Request> requests = {
+    {100, 1e-18},                 // 8 bits and 60: 68 of the hash
+    {100, std::ldexp(1.0, -57)},  // 8 and 57: 65
+    {1000000000, 1e-12},          // 31 and 40
+    {1, std::ldexp(1.0, -61)},    // 61 remainder bits
+    {100, 1e-19},                 // 64
+    {100, 1e-80},                 // 266, which is 10 in a uint8_t
+    {100, 1e-300},                // 997
+    {100, std::numeric_limits<double>::denorm_min()},
+    {size_t{1} << 32, 0.5},       // 2^33 slots
+    {size_t{1} << 40, 0.01},      // 2^41
+    {std::numeric_limits<size_t>::max(), 0.5},
+    {100, nan},
+    {100, 0.0},
+    {100, 1.0},
+    {100, -0.5},
+    {100, 2.0},
+    {0, 0.01}};
+  for (size_t i = 0; i < requests.size(); ++i)
+    {
+      const Request & request = requests(i);
+      SCOPED_TRACE(testing::Message() << request.n << " items at a rate of " << request.rate);
+      EXPECT_THROW((void) TypeParam::estimate(request.n, request.rate), std::domain_error);
+      EXPECT_THROW((void) TypeParam::from_capacity(request.n, request.rate), std::domain_error);
+    }
+
+  // the most that fits: 60 remainder bits and 16 slots; 2^32 slots is not
+  // built here
+  EXPECT_NO_THROW((void) TypeParam::from_capacity(12, 1e-18));
+  const auto [q, r] = TypeParam::estimate((size_t{1} << 32) / 4 * 3, 0.01);
+  EXPECT_EQ(q, 32);
+  EXPECT_EQ(r, 7);
+}
+
+// from_capacity() gives its seed to the filter that it builds
+TYPED_TEST(QuotientFilterLimits, FromCapacityGivesTheSeedToTheFilter)
+{
+  const TypeParam f = TypeParam::from_capacity(100, 0.01, 12345u);
+  EXPECT_EQ(f.seed(), 12345u);
+  EXPECT_EQ(TypeParam::from_capacity(100, 0.01).seed(), TypeParam(8, 7).seed());
+
+  // so it merges with a filter of its seed, and not with one of another
+  TypeParam same(f.q(), f.r(), 12345u), other(f.q(), f.r());
+  same.insert(1);
+  other.insert(1);
+  TypeParam g(f);
+  EXPECT_NO_THROW(g.merge(same));
+  EXPECT_TRUE(g.contains(1));
+  EXPECT_THROW(g.merge(other), std::domain_error);
 }

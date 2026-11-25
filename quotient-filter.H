@@ -603,22 +603,22 @@ public:
 
   /** @brief Construct from desired capacity and false positive rate.
    *
+   *  The filter has the quotient and the remainder bits that estimate()
+   *  gives: slots for @p expected_n elements at a load of 75 % or less.
+   *
    *  @param[in] expected_n Expected number of elements.
    *  @param[in] fp_rate    Target false positive probability.
    *  @param[in] seed       Hash seed.
-   *  @throws std::domain_error if expected_n == 0 or fp_rate not in (0,1).
+   *  @throws std::domain_error if expected_n == 0, if fp_rate is not in
+   *          (0, 1), or if no filter has the two, as estimate() says.
    */
   static Quotient_Filter from_capacity(size_t expected_n, double fp_rate, uint32_t seed = 0x5F3759DF)
   {
     ah_domain_error_if(expected_n == 0) << "Quotient_Filter::from_capacity: expected_n must be > 0";
-    ah_domain_error_if(fp_rate <= 0.0 or fp_rate >= 1.0)
+    ah_domain_error_if(not (fp_rate > 0.0 and fp_rate < 1.0))
       << "Quotient_Filter::from_capacity: fp_rate must be in (0, 1) (got " << fp_rate << ")";
 
-    const double slots_needed = static_cast<double>(expected_n) / 0.75;
-    auto         q_v          = static_cast<uint8_t>(std::max(1.0, std::ceil(std::log2(slots_needed))));
-    auto         r_v          = static_cast<uint8_t>(std::max(1.0, std::ceil(-std::log2(fp_rate))));
-    if (q_v + r_v > 64)
-      q_v = static_cast<uint8_t>(64 - r_v);
+    const auto [q_v, r_v] = estimate(expected_n, fp_rate);
     return Quotient_Filter(q_v, r_v, seed);
   }
 
@@ -794,17 +794,41 @@ public:
     other.for_each_fingerprint([this](const size_t fq, const uint64_t fr) { (void) do_insert(fq, fr); });
   }
 
-  /** @brief Estimate (q, r) for n elements and target FP rate. */
+  /** @brief The quotient and the remainder bits of a filter for `n`
+   *         elements and a target FP rate.
+   *
+   *  The slots are the least power of two that holds `n` elements at a
+   *  load of 75 % or less, and the remainder bits are the fewest that give
+   *  the rate.
+   *
+   *  @param[in] n       Expected number of elements.
+   *  @param[in] fp_rate Target false positive probability.
+   *  @return The pair `(q, r)`, as the constructor takes them.
+   *  @throws std::domain_error if `n == 0`, if `fp_rate` is not in (0, 1),
+   *          or if no filter has the two: the rate asks for more than 60
+   *          remainder bits, the elements for more than 2^32 slots, or the
+   *          two together for more than the 64 bits of the hash.
+   */
   [[nodiscard]] static std::pair<uint8_t, uint8_t> estimate(size_t n, double fp_rate)
   {
-    ah_domain_error_if(n == 0) << "n must be > 0";
-    ah_domain_error_if(fp_rate <= 0.0 or fp_rate >= 1.0) << "fp_rate must be in (0, 1)";
+    ah_domain_error_if(n == 0) << "Quotient_Filter::estimate: n must be > 0";
+    ah_domain_error_if(not (fp_rate > 0.0 and fp_rate < 1.0))
+      << "Quotient_Filter::estimate: fp_rate must be in (0, 1) (got " << fp_rate << ")";
+
+    // as int: a rate may ask for up to 1074 bits, more than a uint8_t holds.
+    // They are counted in its exponent, which is exact: a logarithm rounds
+    // a rate just under a power of two to the power, one bit short
     const double slots = static_cast<double>(n) / 0.75;
-    auto         qv    = static_cast<uint8_t>(std::max(1.0, std::ceil(std::log2(slots))));
-    auto         rv    = static_cast<uint8_t>(std::max(1.0, std::ceil(-std::log2(fp_rate))));
-    if (qv + rv > 64)
-      qv = static_cast<uint8_t>(64 - rv);
-    return {qv, rv};
+    const int    qv    = static_cast<int>(std::max(1.0, std::ceil(std::log2(slots))));
+    const int    rv    = -std::ilogb(fp_rate);
+
+    ah_domain_error_if(rv > 60) << "Quotient_Filter::estimate: a rate of " << fp_rate << " asks for " << rv
+                                << " remainder bits, and a filter has 60 at most";
+    ah_domain_error_if(qv > 32) << "Quotient_Filter::estimate: " << n << " elements ask for 2^" << qv
+                                << " slots, and a filter has 2^32 at most";
+    ah_domain_error_if(qv + rv > 64) << "Quotient_Filter::estimate: " << n << " elements at a rate of " << fp_rate
+                                     << " ask for " << qv + rv << " bits of the hash, which has 64";
+    return {static_cast<uint8_t>(qv), static_cast<uint8_t>(rv)};
   }
 
   /** @brief Swap in O(1). */
