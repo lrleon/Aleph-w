@@ -330,24 +330,38 @@ template <typename T> class Compact_Quotient_Filter
     return true;
   }
 
-  void shift_elements_left(const size_t pos) noexcept
+  // Core delete: shift one slot to the left the elements that follow the
+  // removed one, at `pos`, to the end of its cluster. The occupied bit is
+  // preserved at each index.
+  //
+  // `quot` is the quotient of the run of the removed element, and `promote`
+  // says that the element next to it is a continuation of that run, which
+  // takes its place as the start of the run. A run start is no longer
+  // shifted when it lands on the slot of its own quotient, and the quotient
+  // of each run that moves is the next occupied one after that of the run
+  // before it. The occupied bit of the slot does not tell it: it may be
+  // that of a later run, whose elements are further to the right.
+  void shift_elements_left(const size_t pos, size_t quot, bool promote) noexcept
   {
     size_t curr = pos;
     size_t nxt  = incr(curr);
 
     while (has_element(nxt) and get_shft(nxt))
       {
+        if (not get_cont(nxt))  // the start of the run of the next quotient
+          do
+            quot = incr(quot);
+          while (not get_occ(quot));
+
         const bool occ_at_curr = get_occ(curr);
 
-        const bool     nxt_cont = get_cont(nxt);
-        const bool     nxt_shft = get_shft(nxt);
+        const bool     nxt_cont = get_cont(nxt) and not promote;
         const uint64_t nxt_rem  = get_rem(nxt);
+        promote                 = false;
 
-        set_element(curr, nxt_cont, nxt_shft, nxt_rem);
+        // shifted unless it is a run start that lands on its own slot
+        set_element(curr, nxt_cont, nxt_cont or quot != curr, nxt_rem);
         set_occ(curr, occ_at_curr);
-
-        if (not get_cont(curr) and get_occ(curr))
-          set_shft(curr, false);
 
         curr = nxt;
         nxt  = incr(nxt);
@@ -531,13 +545,11 @@ public:
       const size_t nxt           = incr(pos);
       const bool   nxt_is_cont   = has_element(nxt) and get_cont(nxt);
 
-      if (was_run_start and nxt_is_cont)
-        set_cont(nxt, false);
-
       if (was_run_start and not nxt_is_cont)
         set_occ(fq, false);
 
-      shift_elements_left(pos);
+      // the next of the run, if any, takes the place of its start
+      shift_elements_left(pos, fq, was_run_start and nxt_is_cont);
       --num_elems_;
       return true;
     }
