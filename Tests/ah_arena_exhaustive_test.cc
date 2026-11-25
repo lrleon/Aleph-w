@@ -812,11 +812,14 @@ static long long least_nanoseconds(Run && run, const int runs = 7)
 
 // What the arena takes to give its blocks, next to malloc() and free(): a
 // bump of a pointer, typically 10 to 100 times as fast. Each side is timed
-// several times and the least times are printed: the arena and the arrays
-// of pointers are made before the clock starts, so that what is timed is
-// the allocations alone. It asserts no speedup: the times of a runner do
-// not decide a job, and in a Debug build the arena is not optimized while
-// the malloc() of the system is.
+// several times and the least times are printed. The arena and the arrays
+// of pointers are made before the clock starts. What is timed, on the side
+// of malloc(), is its calls and those of free(); on the side of the arena,
+// its reset() and the calls of alloc(); and on both, the emptying of the
+// array of pointers, which is reserved already, and the appends to it: the
+// speedup that is printed compares those two. It asserts none: the times
+// of a runner do not decide a job, and in a Debug build the arena is not
+// optimized while the malloc() of the system is.
 TEST(ArenaPerformance, CompareWithMalloc)
 {
   const size_t NUM_ALLOCS = 10000;
@@ -848,7 +851,7 @@ TEST(ArenaPerformance, CompareWithMalloc)
   for (const void* ptr : arena_ptrs)
     ASSERT_NE(ptr, nullptr);
 
-  std::cout << "  [malloc: " << malloc_ns / 1000.0 << "μs, "
+  std::cout << "  [malloc and free: " << malloc_ns / 1000.0 << "μs, "
             << "arena: " << arena_ns / 1000.0 << "μs, the least of 7 runs; "
             << "speedup: " << double(malloc_ns) / double(arena_ns > 0 ? arena_ns : 1) << "x]"
             << std::endl;
