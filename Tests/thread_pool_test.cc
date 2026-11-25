@@ -1507,14 +1507,12 @@ TEST_F(ThreadPoolTest, WaitAllBlocks)
 TEST_F(ThreadPoolTest, WaitAllOnEmptyPool)
 {
   ThreadPool pool(2);
-  
-  // Should return immediately
-  auto start = std::chrono::high_resolution_clock::now();
+
+  // With nothing to wait for it returns at once. Without a clock: a wait of
+  // no time at all succeeds only if the pool is idle already, and a
+  // wait_all() that blocked would never end the test
+  EXPECT_TRUE(pool.wait_all_for(0ms));
   pool.wait_all();
-  auto end = std::chrono::high_resolution_clock::now();
-  
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  EXPECT_LT(duration.count(), 100);  // Should be nearly instant
 }
 
 // ============================================================================
@@ -1917,14 +1915,19 @@ TEST_F(ThreadPoolTest, LowLatencySmallTasks)
   for (int i = 0; i < num_tasks; ++i)
     futures.push_back(pool.enqueue([i] { return i; }));
   
+  long long sum = 0;
   for (auto& f : futures)
-    f.get();
-  
+    sum += f.get();
+
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  
-  // Should complete 1000 trivial tasks in less than 100ms
-  EXPECT_LT(duration.count(), 100000);
+
+  // Every task ran and gave its own result. The time that the 1000 trivial
+  // tasks took, typically far less than 100 ms, is printed and not bounded:
+  // on a busy machine it is not that of the pool
+  EXPECT_EQ(sum, static_cast<long long>(num_tasks) * (num_tasks - 1) / 2);
+  std::cout << "  [" << num_tasks << " trivial tasks: "
+            << duration.count() / 1000.0 << " ms]\n";
 }
 
 // ============================================================================
@@ -2552,17 +2555,15 @@ TEST_F(ThreadPoolTest, TryEnqueueNonBlockingBehavior)
   pool.enqueue_detached([] {});
   pool.enqueue_detached([] {});
   
-  // Measure time for try_enqueue when queue is full
-  auto start = std::chrono::high_resolution_clock::now();
+  // With the queue full, each call says so at once instead of waiting for
+  // room. Without a clock: the worker stays blocked until after the loop, so
+  // that a call that waited would never end the test
+  int refused = 0;
   for (int i = 0; i < 1000; ++i)
-    pool.try_enqueue([] { return 0; });  // Should all fail fast
-  auto end = std::chrono::high_resolution_clock::now();
-  
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  
-  // 1000 non-blocking calls should complete in < 10ms
-  EXPECT_LT(duration.count(), 10000);
-  
+    if (not pool.try_enqueue([] { return 0; }).has_value())
+      ++refused;
+  EXPECT_EQ(refused, 1000);
+
   worker_blocked = false;
   pool.wait_all();
 }
