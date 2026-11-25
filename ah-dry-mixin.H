@@ -761,8 +761,10 @@ public:
     Container<concepts_detail::map_result_t<R, Operation &, Type>> ret_val;
     // The default operation between items of one type is their copy: the
     // container makes it here, once, where the operation would build a
-    // copy for the container to move, or to copy again
-    if constexpr (std::is_same_v<std::remove_cv_t<Operation>, Dft_Map_Op<Type, Type>>)
+    // copy for the container to move, or to copy again. A container that
+    // takes only rvalues is given what the operation builds
+    if constexpr (std::is_same_v<std::remove_cv_t<Operation>, Dft_Map_Op<Type, Type>> and
+                  requires(decltype(ret_val) &l, const Type &item) { l.append(item); })
       for_each([&ret_val](const Type &item) { ret_val.append(item); });
     else
       for_each([&ret_val, &operation](const Type &item)

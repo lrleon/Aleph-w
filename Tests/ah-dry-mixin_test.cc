@@ -328,6 +328,14 @@ namespace
     Counted_Copy & operator = (const Counted_Copy &) = default;
   };
 
+  // A container for a result that takes its items by rvalue alone
+  template <typename T>
+  struct Only_Rvalues
+  {
+    DynList<T> items;
+    void append(T && item) { items.append(std::move(item)); }
+  };
+
   template <class C, class R>
   concept Maps_To = requires (const C & c) { c.template maps<R>(); };
 
@@ -399,6 +407,29 @@ TEST(FunctionalMixin, MapsWithoutOperationCopiesEachItemOnce)
   const DynList<Counted_Copy> copies = w.maps();
   EXPECT_EQ(Counted_Copy::copies, 5);
   EXPECT_EQ(copies.maps<int>([] (const Counted_Copy & c) { return c.v; }), build_dynlist<int>(0, 1, 2, 3, 4));
+}
+
+// maps() copies the item itself into a container that takes it so. One
+// whose append() takes only an rvalue is given what the default operation
+// builds, as before: maps() into it did not compile with the copy alone
+TEST(FunctionalMixin, MapsWithoutOperationIntoAContainerOfRvalues)
+{
+  MixinVector<int> v = {3, 1, 2};
+  const Only_Rvalues<int> same = v.maps<void, Only_Rvalues>();
+  EXPECT_EQ(same.items, build_dynlist<int>(3, 1, 2));
+  const Only_Rvalues<int> named = v.maps<int, Only_Rvalues>();
+  EXPECT_EQ(named.items, build_dynlist<int>(3, 1, 2));
+  const Only_Rvalues<double> wide = v.maps<double, Only_Rvalues>();
+  EXPECT_EQ(wide.items, build_dynlist<double>(3.0, 1.0, 2.0));
+
+  MixinVector<Counted_Item> items;
+  for (int i = 0; i < 5; ++i)
+    items.append(Counted_Item(i));
+  Counted_Item::copies = Counted_Item::moves = 0;
+  const Only_Rvalues<Counted_Item> moved = items.maps<void, Only_Rvalues>();
+  EXPECT_EQ(Counted_Item::copies, 5);
+  EXPECT_EQ(Counted_Item::moves, 5);
+  EXPECT_EQ(moved.items.size(), 5u);
 }
 
 TEST(FunctionalMixin, MapsWithoutOperationLetsACopyThrow)
