@@ -5,6 +5,15 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.8.3](https://github.com/lrleon/Aleph-w/compare/v7.8.2...v7.8.3) (2026-11-24)
+
+
+### Bug Fixes
+
+* **hash:** Delete the copy of a LinearHashTable, which shared the buckets of the other table, so that destroying one of the two freed those that the other one still held ([#225](https://github.com/lrleon/Aleph-w/issues/225)) ([53125e6](https://github.com/lrleon/Aleph-w/commit/53125e6fd931de35ee0bb5803a708bba6ee96b8f))
+* **hash:** Swap through its copies a comparator that can be copied and not moved in ODhashTable, OLhashTable and the linear tables, whose swap() and move assignment did not compile with it, nor the moves of DynSetLinHash ([#225](https://github.com/lrleon/Aleph-w/issues/225)) ([53125e6](https://github.com/lrleon/Aleph-w/commit/53125e6fd931de35ee0bb5803a708bba6ee96b8f))
+* **tree:** Let a tree or a binary heap built by default, or from a comparison, throw what the default construction or the copy of the comparison throws, instead of ending the program ([#225](https://github.com/lrleon/Aleph-w/issues/225)) ([53125e6](https://github.com/lrleon/Aleph-w/commit/53125e6fd931de35ee0bb5803a708bba6ee96b8f))
+
 ## [7.8.2](https://github.com/lrleon/Aleph-w/compare/v7.8.1...v7.8.2) (2026-11-24)
 
 
