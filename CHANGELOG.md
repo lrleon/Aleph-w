@@ -5,6 +5,20 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.8.4](https://github.com/lrleon/Aleph-w/compare/v7.8.3...v7.8.4) (2026-11-25)
+
+
+### Bug Fixes
+
+* **filter:** Keep the items of a quotient filter when another one is removed: remove() of Quotient_Filter and of Compact_Quotient_Filter left the filter denying items that it held, or looping for ever ([#230](https://github.com/lrleon/Aleph-w/issues/230)) ([93c2729](https://github.com/lrleon/Aleph-w/commit/93c27297cb862c78b4c96ce2cc389b1d9f86cd85))
+
+
+### Performance Improvements
+
+* Copy each item once, with no move, in keys(), values() and items() of the maps, the lists and the mixins ([#230](https://github.com/lrleon/Aleph-w/issues/230)) ([93c2729](https://github.com/lrleon/Aleph-w/commit/93c27297cb862c78b4c96ce2cc389b1d9f86cd85))
+* **filter:** Read and write the slots of the quotient filters without checks, which their constructors make needless: from 8 to 48 % fewer instructions in insert(), contains() and remove() ([#230](https://github.com/lrleon/Aleph-w/issues/230)) ([93c2729](https://github.com/lrleon/Aleph-w/commit/93c27297cb862c78b4c96ce2cc389b1d9f86cd85))
+* **opBinTree:** Read with no check the entries that build_optimal_tree() wrote before: 37 to 60 % fewer instructions ([#230](https://github.com/lrleon/Aleph-w/issues/230)) ([93c2729](https://github.com/lrleon/Aleph-w/commit/93c27297cb862c78b4c96ce2cc389b1d9f86cd85))
+
 ## [7.8.3](https://github.com/lrleon/Aleph-w/compare/v7.8.2...v7.8.3) (2026-11-24)
 
 
