@@ -45,8 +45,11 @@
 
 #include <gtest/gtest.h>
 
+#include <ah-convert.H>
+#include <ah-dry-mixin.H>
 #include <ahSort.H>
 #include <htlist.H>
+#include <tpl_array.H>
 #include <tpl_dynDlist.H>
 #include <tpl_dynMapOhash.H>
 #include <tpl_dynMapTree.H>
@@ -58,12 +61,13 @@ using namespace Aleph;
 
 namespace
 {
-  // An item that counts its copies, those of an item that holds a value:
-  // the arrays fill their blocks with copies of a default item, which hold
-  // none
+  // An item that counts its copies and its moves, those of an item that
+  // holds a value: the arrays fill their blocks with copies of a default
+  // item, which hold none
   struct Counted
   {
     static inline long copies = 0;
+    static inline long moves = 0;
 
     int v = -1;
 
@@ -71,7 +75,7 @@ namespace
     explicit Counted(const int x) noexcept : v(x) {}
 
     Counted(const Counted & o) : v(o.v) { copies += v >= 0 ? 1 : 0; }
-    Counted(Counted && o) noexcept : v(o.v) {}
+    Counted(Counted && o) noexcept : v(o.v) { moves += v >= 0 ? 1 : 0; }
 
     Counted & operator=(const Counted & o)
     {
@@ -83,11 +87,48 @@ namespace
     Counted & operator=(Counted && o) noexcept
     {
       v = o.v;
+      moves += v >= 0 ? 1 : 0;
       return *this;
     }
 
     bool operator<(const Counted & o) const noexcept { return v < o.v; }
     bool operator==(const Counted & o) const noexcept { return v == o.v; }
+  };
+
+  // For the hash tables whose key is a Counted
+  size_t aleph_hash_value(const Counted & c) noexcept
+  {
+    return static_cast<size_t>(c.v) * 0x9E3779B97F4A7C15ull;
+  }
+
+  // A container made of the mixins of ah-dry-mixin.H, for KeysMixin::keys()
+  class Mixed : public TraverseMixin<Mixed, Counted>,
+                public FunctionalMixin<Mixed, Counted>,
+                public KeysMixin<Mixed, Counted>
+  {
+    Array<Counted> data;
+
+  public:
+    using Item_Type = Counted;
+
+    void append(const Counted & c) { data.append(c); }
+
+    class Iterator
+    {
+      const Array<Counted> * items = nullptr;
+      size_t pos = 0;
+
+    public:
+      Iterator() = default;
+      Iterator(const Mixed & c) : items(&c.data) {}
+
+      [[nodiscard]] bool has_curr() const noexcept { return pos < items->size(); }
+      [[nodiscard]] Counted & get_curr() const { return const_cast<Counted &>((*items)(pos)); }
+      void next() { ++pos; }
+      void next_ne() noexcept { ++pos; }
+    };
+
+    [[nodiscard]] Iterator get_it() const { return Iterator(*this); }
   };
 
   template <class Map>
@@ -101,6 +142,19 @@ namespace
                                 DynMapLinHash<int, Counted>, MapODhash<int, Counted>,
                                 MapOLhash<int, Counted>, FlatMap<int, Counted>>;
   TYPED_TEST_SUITE(MapCopies, Maps);
+
+  // The same maps, with the counted item as their key
+  template <class Map>
+  class MapKeyCopies : public ::testing::Test
+  {};
+
+  using Maps_By_Counted = ::testing::Types<DynMapAvlTree<Counted, int>, DynMapRbTree<Counted, int>,
+                                           DynMapSplayTree<Counted, int>, DynMapTreap<Counted, int>,
+                                           DynMapRandTree<Counted, int>, DynMapBinTree<Counted, int>,
+                                           DynMapTreapRk<Counted, int>, DynMapHash<Counted, int>,
+                                           DynMapLinHash<Counted, int>, MapODhash<Counted, int>,
+                                           MapOLhash<Counted, int>, FlatMap<Counted, int>>;
+  TYPED_TEST_SUITE(MapKeyCopies, Maps_By_Counted);
 }
 
 TYPED_TEST(MapCopies, KeysCopyNoValueAndValuesCopyEachValueOnce)
@@ -110,18 +164,76 @@ TYPED_TEST(MapCopies, KeysCopyNoValueAndValuesCopyEachValueOnce)
   for (int i = 0; i < n; ++i)
     (void) m.insert(i, Counted(i));
 
-  Counted::copies = 0;
+  Counted::copies = Counted::moves = 0;
   const auto keys = m.keys();
   EXPECT_EQ(keys.size(), static_cast<size_t>(n));
   EXPECT_EQ(Counted::copies, 0);
+  EXPECT_EQ(Counted::moves, 0);
 
-  Counted::copies = 0;
+  // each value is copied into the list, and not copied and then moved
+  Counted::copies = Counted::moves = 0;
   const auto values = m.values();
   EXPECT_EQ(values.size(), static_cast<size_t>(n));
   EXPECT_EQ(Counted::copies, n);
+  EXPECT_EQ(Counted::moves, 0);
   int sum = 0;
   values.for_each([&sum] (const Counted & c) { sum += c.v; });
   EXPECT_EQ(sum, n * (n - 1) / 2);
+}
+
+TYPED_TEST(MapKeyCopies, KeysCopyEachKeyOnceAndMoveNone)
+{
+  constexpr int n = 20;
+  TypeParam m;
+  for (int i = 0; i < n; ++i)
+    (void) m.insert(Counted(i), i);
+
+  Counted::copies = Counted::moves = 0;
+  const auto keys = m.keys();
+  EXPECT_EQ(keys.size(), static_cast<size_t>(n));
+  EXPECT_EQ(Counted::copies, n);
+  EXPECT_EQ(Counted::moves, 0);
+  int sum = 0;
+  keys.for_each([&sum] (const Counted & c) { sum += c.v; });
+  EXPECT_EQ(sum, n * (n - 1) / 2);
+}
+
+// The list that a container gives of its items copies each one into the
+// list: the function that maps() applies returns a reference to the item,
+// and not a copy that maps() would then move
+TEST(ItemCopies, TheListOfTheItemsOfAContainerCopiesEachOnceAndMovesNone)
+{
+  constexpr int n = 10;
+  DynList<Counted> list;
+  DynDlist<Counted> dlist;
+  Array<Counted> array;
+  Mixed mixed;
+  for (int i = 0; i < n; ++i)
+    {
+      list.append(Counted(i));
+      dlist.append(Counted(i));
+      array.append(Counted(i));
+      mixed.append(Counted(i));
+    }
+
+  auto expect_one_copy = [n] (const char * what, auto && make)
+    {
+      Counted::copies = Counted::moves = 0;
+      const auto items = make();
+      EXPECT_EQ(items.size(), static_cast<size_t>(n)) << what;
+      EXPECT_EQ(Counted::copies, n) << what;
+      EXPECT_EQ(Counted::moves, 0) << what;
+      int sum = 0;
+      items.for_each([&sum] (const Counted & c) { sum += c.v; });
+      EXPECT_EQ(sum, n * (n - 1) / 2) << what;
+    };
+  expect_one_copy("DynList::items()", [&list] { return list.items(); });
+  expect_one_copy("DynList::keys()", [&list] { return list.keys(); });
+  expect_one_copy("DynDlist::items()", [&dlist] { return dlist.items(); });
+  expect_one_copy("to_dynlist(DynDlist)", [&dlist] { return to_dynlist(dlist); });
+  expect_one_copy("to_DynList(Array)", [&array] { return to_DynList(array); });
+  expect_one_copy("KeysMixin::keys()", [&mixed] { return mixed.keys(); });
+  expect_one_copy("KeysMixin::items()", [&mixed] { return mixed.items(); });
 }
 
 TEST(ItemCopies, TheRanksOfAListCopyEachItemOnce)

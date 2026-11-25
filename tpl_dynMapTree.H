@@ -434,7 +434,7 @@ namespace Aleph {
 
     DynList<Key> keys() const
     {
-      return this->template maps<Key>([] (const auto & p) { return p.first; });
+      return this->template maps<Key>([] (const auto & p) -> const Key & { return p.first; });
     }
 
     /** @brief Collect all values.
@@ -443,7 +443,7 @@ namespace Aleph {
      */
     DynList<Data> values() const
     {
-      return this->template maps<Data>([] (const auto & p) { return p.second; });
+      return this->template maps<Data>([] (const auto & p) -> const Data & { return p.second; });
     }
 
     /** @brief Collect pointers to all values.

@@ -1972,7 +1972,7 @@ public:
   template <template <typename> class Container = DynList>
   [[nodiscard]] Container<Type> keys() const
   {
-    return self().template maps<Type, Container>([](const Type &key)
+    return self().template maps<Type, Container>([](const Type &key) -> const Type &
       {
         return key;
       });
