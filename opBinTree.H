@@ -61,6 +61,13 @@ namespace Aleph {
 # define COST(i,j) (cost[(i)*(n+1) + (j)])
 # define TREE(i,j) (tree[(i)*(n+1) + (j)])
 
+// The same entries, read once they are written: the recurrence reads only
+// those of shorter intervals, which it filled before, so that it reads them
+// with access(), which neither tests whether the entry is there nor may
+// allocate it, as operator [] does
+# define COST_OF(i,j) (cost.access((i)*(n+1) + (j)))
+# define ROOT_OF(i,j) (tree.access((i)*(n+1) + (j)))
+
 /** @brief Compute optimal costs and tree structure using dynamic programming.
  *
  *  Fills the cost and tree matrices using the recurrence:
@@ -88,7 +95,8 @@ static inline void compute_optimal_costs(DynArray<double> & cost, double p[],
 
   // sum_p(i, j) = prefix[j] - prefix[i-1] for 1-indexed i,j
   auto sum_p = [&prefix](size_t i, size_t j) noexcept -> double {
-    return prefix[j] - prefix[i - 1];
+    // written above, up to n: read without the check of operator []
+    return prefix.access(j) - prefix.access(i - 1);
   };
 
   // Base cases: empty intervals have zero cost
@@ -111,15 +119,15 @@ static inline void compute_optimal_costs(DynArray<double> & cost, double p[],
           const size_t j = i + len - 1;
 
           // Knuth bounds: root[i,j-1] <= root[i,j] <= root[i+1,j]
-          const size_t lo = static_cast<size_t>(TREE(i, j - 1));
-          const size_t hi = static_cast<size_t>(TREE(i + 1, j));
+          const size_t lo = static_cast<size_t>(ROOT_OF(i, j - 1));
+          const size_t hi = static_cast<size_t>(ROOT_OF(i + 1, j));
 
           double min_cost = std::numeric_limits<double>::max();
           size_t best_root = lo;
 
           for (size_t r = lo; r <= hi; ++r)
             {
-              const double c = COST(i, r - 1) + COST(r + 1, j);
+              const double c = COST_OF(i, r - 1) + COST_OF(r + 1, j);
               if (c < min_cost)
                 {
                   min_cost = c;
@@ -151,7 +159,7 @@ template <class Node, typename Key>
   if (i > j) 
     return Node::NullPtr;
 
-  const int root_idx = TREE(i, j);
+  const int root_idx = ROOT_OF(i, j);
   Node * root = new Node(keys[root_idx - 1]);
   LLINK(root) = compute_tree<Node, Key>(keys, tree, n, i, root_idx - 1);
   RLINK(root) = compute_tree<Node, Key>(keys, tree, n, root_idx + 1, j);
@@ -199,6 +207,8 @@ template <class Node, typename Key>
 
 # undef COST
 # undef TREE
+# undef COST_OF
+# undef ROOT_OF
 } // end namespace Aleph
 # endif // OPBINTREE_H
 

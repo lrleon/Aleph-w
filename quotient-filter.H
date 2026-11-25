@@ -168,23 +168,23 @@ template <typename T> class Quotient_Filter
 
   [[nodiscard]] bool get_occ(size_t i) const noexcept
   {
-    return (slots_[i] & OCC_BIT) != 0;
+    return (slots_(i) & OCC_BIT) != 0;
   }
 
   [[nodiscard]] bool get_cont(size_t i) const noexcept
   {
-    return (slots_[i] & CONT_BIT) != 0;
+    return (slots_(i) & CONT_BIT) != 0;
   }
 
   [[nodiscard]] bool get_shft(size_t i) const noexcept
   {
-    return (slots_[i] & SHFT_BIT) != 0;
+    return (slots_(i) & SHFT_BIT) != 0;
   }
 
   // A slot is truly empty when it holds no data and no occupied marker.
   [[nodiscard]] bool slot_empty(size_t i) const noexcept
   {
-    return slots_[i] == 0;
+    return slots_(i) == 0;
   }
 
   // A slot holds data if continuation or shifted is set, or if it
@@ -256,7 +256,7 @@ template <typename T> class Quotient_Filter
   // This is the same as !slot_empty(i).
   [[nodiscard]] bool has_element(const size_t i) const noexcept
   {
-    return (slots_[i] & META_MASK) != 0;
+    return (slots_(i) & META_MASK) != 0;
   }
 
   // A slot is a "run start" if it has data and is_continuation is false.
@@ -291,12 +291,12 @@ template <typename T> class Quotient_Filter
 
   [[nodiscard]] uint64_t get_rem(const size_t i) const noexcept
   {
-    return (slots_[i] >> 3) & rem_mask();
+    return (slots_(i) >> 3) & rem_mask();
   }
 
   void set_rem(const size_t i, const uint64_t rem) noexcept
   {
-    slots_(i) = (slots_[i] & META_MASK) | ((rem & rem_mask()) << 3);
+    slots_(i) = (slots_(i) & META_MASK) | ((rem & rem_mask()) << 3);
   }
 
   // Set the full "element data" portion of a slot (cont, shft, rem),
@@ -375,7 +375,7 @@ template <typename T> class Quotient_Filter
       {
         const size_t prev         = decr(empty);
         const bool   occ_at_empty = get_occ(empty);
-        slots_(empty)             = slots_[prev];
+        slots_(empty)             = slots_(prev);
         set_occ(empty, occ_at_empty);  // restore occupied at destination
         set_shft(empty, true);         // everything shifted is shifted
         empty = prev;
@@ -455,23 +455,40 @@ template <typename T> class Quotient_Filter
     return Insert_Result::inserted;
   }
 
-  // Core delete: shift elements left after removing position `pos`.
-  // The occupied bit is preserved at each index.
-  void shift_elements_left(size_t pos) noexcept
+  // Core delete: shift one slot to the left the elements that follow the
+  // removed one, at `pos`, to the end of its cluster. The occupied bit is
+  // preserved at each index.
+  //
+  // `quot` is the quotient of the run of the removed element, and `promote`
+  // says that the element next to it is a continuation of that run, which
+  // takes its place as the start of the run. A run start is no longer
+  // shifted when it lands on the slot of its own quotient, and the quotient
+  // of each run that moves is the next occupied one after that of the run
+  // before it. The occupied bit of the slot does not tell it: it may be
+  // that of a later run, whose elements are further to the right.
+  void shift_elements_left(size_t pos, size_t quot, bool promote) noexcept
   {
     size_t curr = pos;
     size_t nxt  = incr(curr);
 
     while (has_element(nxt) and get_shft(nxt))
       {
+        if (not get_cont(nxt))  // the start of the run of the next quotient
+          do
+            quot = incr(quot);
+          while (not get_occ(quot));
+
         const bool occ_at_curr = get_occ(curr);
-        slots_(curr)           = slots_[nxt];
+        slots_(curr)           = slots_(nxt);
         set_occ(curr, occ_at_curr);
 
-        // A run start that lands at its canonical slot is no longer shifted.
-        // By the quotient ordering invariant, a run start at position i
-        // where occupied(i) is set must be the run for quotient i.
-        if (not get_cont(curr) and get_occ(curr))
+        if (promote)
+          {
+            set_cont(curr, false);
+            promote = false;
+          }
+
+        if (not get_cont(curr) and quot == curr)
           set_shft(curr, false);
 
         curr = nxt;
@@ -644,13 +661,11 @@ public:
       size_t     nxt           = incr(pos);
       bool       nxt_is_cont   = has_element(nxt) and get_cont(nxt);
 
-      if (was_run_start and nxt_is_cont)
-        set_cont(nxt, false);  // promote next to run start
-
       if (was_run_start and not nxt_is_cont)
         set_occ(fq, false);  // run becomes empty
 
-      shift_elements_left(pos);
+      // the next of the run, if any, takes the place of its start
+      shift_elements_left(pos, fq, was_run_start and nxt_is_cont);
       --num_elems_;
       return true;
     }

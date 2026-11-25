@@ -147,7 +147,7 @@ namespace Aleph
 template <class T>
 [[nodiscard]] DynList<T> to_DynList(const Array<T> & a)
 {
-  return a.template maps<T>([] (const auto & item) { return item; });
+  return a.template maps<T>([] (const auto & item) -> const T & { return item; });
 }
 
 /** @brief Convert a container to an Array.

@@ -103,6 +103,11 @@ template <typename T> class Compact_Quotient_Filter
   //   bit 1: is_continuation
   //   bit 2: is_shifted
   //   bits 3..(r+2): remainder
+  //
+  // Every constructor reserves the bits of all the slots, and a slot is
+  // indexed below their count: the accesses below are the unchecked ones
+  // of BitArray, fast_read() and fast_write(), which neither test the
+  // range nor may allocate.
   BitArray bits_;
 
   [[nodiscard]] size_t bits_per_slot() const noexcept
@@ -122,12 +127,12 @@ template <typename T> class Compact_Quotient_Filter
 
   [[nodiscard]] bool get_bit_at(const size_t slot, const size_t bit_idx) const noexcept
   {
-    return bits_.read_bit(slot_offset(slot) + bit_idx) != 0;
+    return bits_.fast_read(slot_offset(slot) + bit_idx) != 0;
   }
 
   void set_bit_at(const size_t slot, const size_t bit_idx, const bool v) noexcept
   {
-    bits_.write_bit(slot_offset(slot) + bit_idx, v ? 1 : 0);
+    bits_.fast_write(slot_offset(slot) + bit_idx, v ? 1 : 0);
   }
 
   [[nodiscard]] bool get_occ(const size_t i) const noexcept
@@ -149,7 +154,7 @@ template <typename T> class Compact_Quotient_Filter
   {
     const size_t off = slot_offset(i);
     for (size_t b = 0; b < bits_per_slot(); ++b)
-      if (bits_.read_bit(off + b))
+      if (bits_.fast_read(off + b))
         return false;
     return true;
   }
@@ -184,7 +189,7 @@ template <typename T> class Compact_Quotient_Filter
     uint64_t     rem = 0;
     const size_t off = slot_offset(i) + 3;
     for (size_t b = 0; b < r_; ++b)
-      if (bits_.read_bit(off + b))
+      if (bits_.fast_read(off + b))
         rem |= (1ULL << b);
     return rem;
   }
@@ -193,7 +198,7 @@ template <typename T> class Compact_Quotient_Filter
   {
     const size_t off = slot_offset(i) + 3;
     for (size_t b = 0; b < r_; ++b)
-      bits_.write_bit(off + b, (rem & (1ULL << b)) ? 1 : 0);
+      bits_.fast_write(off + b, (rem & (1ULL << b)) ? 1 : 0);
   }
 
   void set_element(const size_t i, const bool cont, const bool shft, const uint64_t rem) noexcept
@@ -330,24 +335,38 @@ template <typename T> class Compact_Quotient_Filter
     return true;
   }
 
-  void shift_elements_left(const size_t pos) noexcept
+  // Core delete: shift one slot to the left the elements that follow the
+  // removed one, at `pos`, to the end of its cluster. The occupied bit is
+  // preserved at each index.
+  //
+  // `quot` is the quotient of the run of the removed element, and `promote`
+  // says that the element next to it is a continuation of that run, which
+  // takes its place as the start of the run. A run start is no longer
+  // shifted when it lands on the slot of its own quotient, and the quotient
+  // of each run that moves is the next occupied one after that of the run
+  // before it. The occupied bit of the slot does not tell it: it may be
+  // that of a later run, whose elements are further to the right.
+  void shift_elements_left(const size_t pos, size_t quot, bool promote) noexcept
   {
     size_t curr = pos;
     size_t nxt  = incr(curr);
 
     while (has_element(nxt) and get_shft(nxt))
       {
+        if (not get_cont(nxt))  // the start of the run of the next quotient
+          do
+            quot = incr(quot);
+          while (not get_occ(quot));
+
         const bool occ_at_curr = get_occ(curr);
 
-        const bool     nxt_cont = get_cont(nxt);
-        const bool     nxt_shft = get_shft(nxt);
+        const bool     nxt_cont = get_cont(nxt) and not promote;
         const uint64_t nxt_rem  = get_rem(nxt);
+        promote                 = false;
 
-        set_element(curr, nxt_cont, nxt_shft, nxt_rem);
+        // shifted unless it is a run start that lands on its own slot
+        set_element(curr, nxt_cont, nxt_cont or quot != curr, nxt_rem);
         set_occ(curr, occ_at_curr);
-
-        if (not get_cont(curr) and get_occ(curr))
-          set_shft(curr, false);
 
         curr = nxt;
         nxt  = incr(nxt);
@@ -531,13 +550,11 @@ public:
       const size_t nxt           = incr(pos);
       const bool   nxt_is_cont   = has_element(nxt) and get_cont(nxt);
 
-      if (was_run_start and nxt_is_cont)
-        set_cont(nxt, false);
-
       if (was_run_start and not nxt_is_cont)
         set_occ(fq, false);
 
-      shift_elements_left(pos);
+      // the next of the run, if any, takes the place of its start
+      shift_elements_left(pos, fq, was_run_start and nxt_is_cont);
       --num_elems_;
       return true;
     }
@@ -602,7 +619,7 @@ public:
   {
     const size_t total_bits = num_slots_ * bits_per_slot();
     for (size_t i = 0; i < total_bits; ++i)
-      bits_.write_bit(i, 0);
+      bits_.fast_write(i, 0);
     num_elems_ = 0;
   }
 

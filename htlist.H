@@ -2081,7 +2081,7 @@ public:
 template <class Container>
 inline DynList<typename Container::Item_Type> to_dynlist(const Container &c)
 {
-  return c.template maps<typename Container::Item_Type>([](const auto &d)
+  return c.template maps<typename Container::Item_Type>([](const auto &d) -> const auto &
     {
       return d;
     });

@@ -12,6 +12,13 @@ name: CI Platform
 #     because the MSVC and clang-cl matrix builds + dependency setup
 #     dominate the runner budget. Push events on `master` also fire it
 #     so the badge stays current on the main branch.
+#   * A dispatch, which checks a branch on Windows, may leave out the jobs
+#     of macOS and ARM64 Linux, which its pull request runs already, build
+#     with one of the toolchains, and build and run only some of the test
+#     programs, as in
+#       gh workflow run ci-platform.yml --ref <branch> -f windows_only=true \
+#         -f toolchain=msvc -f targets="hash-it lin-hash"
+#     which takes minutes instead of the half an hour of the whole build.
 #   * Windows does not build the tests that need POSIX-only facilities and
 #     does not run a few that need external programs — see
 #     docs/ci_sanitizer_policy.md for the full per-platform skip list.
@@ -23,6 +30,20 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+    inputs:
+      windows_only:
+        description: Run only the Windows jobs, not those of macOS and ARM64 Linux
+        type: boolean
+        default: false
+      toolchain:
+        description: The Windows toolchains to build with
+        type: choice
+        options: [both, msvc, clang-cl]
+        default: both
+      targets:
+        description: The test programs to build and run on Windows, separated by spaces; all of them if empty
+        type: string
+        default: ''
   schedule:
     # Mondays 04:30 UTC: weekly Windows full sweep.
     - cron: '30 4 * * 1'
@@ -77,9 +98,10 @@ jobs:
 
   build-macos:
     name: build-macos (${{ matrix.os }}, AppleClang, ${{ matrix.build_type }})
-    # Not on a push to master whose pull request ran it (already-tested)
+    # Not on a push to master whose pull request ran it (already-tested),
+    # nor on a dispatch that asks only for Windows (windows_only)
     needs: already-tested
-    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' && !inputs.windows_only }}
     runs-on: ${{ matrix.os }}
     # The Intel runners vary about twofold in speed; without a warm ccache
     # the Intel Release job has run past 60 minutes.
@@ -192,9 +214,10 @@ jobs:
 
   build-arm64-linux:
     name: build-arm64-linux (ubuntu-24.04-arm, ${{ matrix.compiler }}, ${{ matrix.build_type }})
-    # Not on a push to master whose pull request ran it (already-tested)
+    # Not on a push to master whose pull request ran it (already-tested),
+    # nor on a dispatch that asks only for Windows (windows_only)
     needs: already-tested
-    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' }}
+    if: ${{ !cancelled() && needs.already-tested.outputs.tested != 'true' && !inputs.windows_only }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
 
@@ -313,7 +336,7 @@ jobs:
             build/CMakeCache.txt
 
   build-windows:
-    name: build-windows (${{ matrix.toolchain }}, ${{ matrix.build_type }}${{ matrix.gsl == 'OFF' && ', without GSL' || '' }})
+    name: build-windows (${{ matrix.toolchain }}, ${{ matrix.build_type }}${{ matrix.toolchain == 'clang-cl' && ', without GSL' || '' }})
     # Costly job: only on master push, dispatch, or the weekly cron.
     if: >-
       github.event_name == 'schedule' ||
@@ -331,16 +354,11 @@ jobs:
         # takes its GSL too (ALEPH_WITH_GSL=ON, the default of 7.x), whose
         # import libraries are the hardest to link; clang-cl builds without
         # GSL (OFF, the default from 8.0.0), which MSYS2 then does not
-        # install.
-        toolchain: [msvc, clang-cl]
+        # install. A dispatch may ask for one of them (its input toolchain);
+        # the steps, and not an include of the matrix, which would add back
+        # the toolchain that it leaves out, say which one takes GSL.
+        toolchain: ${{ fromJSON(inputs.toolchain == 'msvc' && '["msvc"]' || inputs.toolchain == 'clang-cl' && '["clang-cl"]' || '["msvc", "clang-cl"]') }}
         build_type: [Release]
-        include:
-          - toolchain: msvc
-            gsl: 'ON'
-            msys2_gsl: mingw-w64-x86_64-gsl
-          - toolchain: clang-cl
-            gsl: 'OFF'
-            msys2_gsl: ''
 
     env:
       VCPKG_DEFAULT_TRIPLET: x64-windows
@@ -365,7 +383,7 @@ jobs:
           install: >-
             mingw-w64-x86_64-gmp
             mingw-w64-x86_64-mpfr
-            ${{ matrix.msys2_gsl }}
+            ${{ matrix.toolchain == 'msvc' && 'mingw-w64-x86_64-gsl' || '' }}
             mingw-w64-x86_64-pkg-config
 
       - name: Install ninja
@@ -402,7 +420,7 @@ jobs:
             -DCMAKE_PREFIX_PATH=%RUNNER_TEMP%\msys64\mingw64 ^
             -DBUILD_EXAMPLES=OFF ^
             -DBUILD_TESTS=ON ^
-            -DALEPH_WITH_GSL=${{ matrix.gsl }} ^
+            -DALEPH_WITH_GSL=ON ^
             -DALEPH_BUILD_X11_VIEWER=OFF
 
       - name: Configure (clang-cl)
@@ -418,24 +436,54 @@ jobs:
             -DCMAKE_PREFIX_PATH=%RUNNER_TEMP%\msys64\mingw64 ^
             -DBUILD_EXAMPLES=OFF ^
             -DBUILD_TESTS=ON ^
-            -DALEPH_WITH_GSL=${{ matrix.gsl }} ^
+            -DALEPH_WITH_GSL=OFF ^
             -DALEPH_BUILD_X11_VIEWER=OFF
 
       - name: Build
-        run: cmake --build build --parallel
+        env:
+          # The test programs that a dispatch names (its input targets),
+          # through the environment, which the shell does not read as code
+          TARGETS: ${{ inputs.targets }}
+        run: |
+          $targets = @("$env:TARGETS" -split '\s+' | Where-Object { $_ })
+          foreach ($t in $targets) {
+            if ($t -notmatch '^[A-Za-z0-9_.+-]+$') { throw "Not the name of a test program: '$t'" }
+          }
+          if ($targets.Count -gt 0) {
+            # Those programs, and what they need, such as the library
+            cmake --build build --parallel --target @targets
+          } else {
+            cmake --build build --parallel
+          }
 
       - name: Test (CA sub-suite, skip POSIX-only tests)
         shell: pwsh
+        env:
+          TARGETS: ${{ inputs.targets }}
         run: |
           # Add MSYS2 mingw64 bin to PATH so that test executables can find
           # the GMP/MPFR/GSL DLLs (libgmp-10.dll, libmpfr-6.dll, etc.) at
           # runtime.  Without this the executables crash on load and
           # LastTest.log remains empty.
           $env:PATH = "$env:RUNNER_TEMP\msys64\mingw64\bin;$env:PATH"
+          # With the test programs that a dispatch names, only the tests that
+          # they run: those of the programs that were not built would fail
+          $only = @()
+          $targets = @("$env:TARGETS" -split '\s+' | Where-Object { $_ })
+          if ($targets.Count -gt 0) {
+            $names = @((ctest --test-dir build --show-only=json-v1 | ConvertFrom-Json).tests |
+              Where-Object { $_.command -and $targets -contains [IO.Path]::GetFileNameWithoutExtension($_.command[0]) } |
+              ForEach-Object { $_.name })
+            if ($names.Count -eq 0) { throw "No test runs a program of '$env:TARGETS'" }
+            $list = Join-Path $env:RUNNER_TEMP 'aleph-dispatch-tests.txt'
+            Set-Content -Path $list -Value $names
+            Write-Output "$($names.Count) tests of $($targets -join ', ')"
+            $only = @('--tests-from-file', $list)
+          }
           # The tests that need POSIX-only facilities are not built on
           # Windows. These are built but not run; docs/ci_sanitizer_policy.md
           # says why. CTest names are GoogleTest names (Suite.Test).
-          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 `
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 @only `
             -E 'PlanarityTest\.External|PlanarityTest\.ExternalGephi|CompilerSdk\.InstallHeadersSmoke|ThreadPoolTest\.BenchmarkVsStdAsync'
 
       - name: Upload test logs on failure
