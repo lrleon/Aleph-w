@@ -330,11 +330,16 @@ prepare_source() {
     # names, in the tree or in the clone ($GIT_DIR/info/attributes), and a
     # test whose source is missing is left out of the build without an
     # error: the record and the status would name a tree whose files did
-    # not all build. Every file of the tree must have come
-    local missing
-    missing=$(comm -z -23 <(git -C "${ROOT_DIR}" ls-tree -r -z --name-only "${what}" | sort -z) \
-                          <(cd "${SRC}" && find . \( -type f -o -type l \) -printf '%P\0' | sort -z) |
-                tr '\0' '\n')
+    # not all build. Every file of the tree must have come. The two lists
+    # go to files, so that a failure of either stops the run: the status of
+    # a process substitution is lost, and a list cut short would let a
+    # missing file pass
+    local in_tree="${WORK}/tree.list" came="${WORK}/src-rev.list" missing
+    git -C "${ROOT_DIR}" ls-tree -r -z --name-only "${what}" | sort -z > "${in_tree}" ||
+      die "cannot list the files of ${what:0:12}"
+    (cd "${SRC}" && find . \( -type f -o -type l \) -printf '%P\0') | sort -z > "${came}" ||
+      die "cannot list the files that git archive extracted into ${SRC}"
+    missing=$(comm -z -23 "${in_tree}" "${came}" | tr '\0' '\n')
     if [ -n "${missing}" ]; then
       die "git archive left out of ${what:0:12} $(wc -l <<< "${missing}") of its files, as an attribute export-ignore does: $(head -3 <<< "${missing}" | paste -sd ' ')"
     fi
