@@ -45,7 +45,7 @@ Releases proceed `Genius` (2022) → `3.0.0` → `3.1.0` → `3.1.1` →
 `7.1.0` → `7.1.1` → `7.1.2` → `7.2.0` → `7.2.1` → `7.2.2` → `7.3.0` →
 `7.3.1` → `7.3.2` → `7.3.3` → `7.3.4` → `7.3.5` → `7.3.6` → `7.4.0` →
 `7.5.0` → `7.6.0` → `7.6.1` → `7.6.2` → `7.7.0` → `7.7.1` → `7.7.2` → `7.7.3` →
-`7.7.4` → `7.7.5` → `7.8.0` → `7.8.1` → `7.8.2` → `7.8.3` → `7.8.4`.
+`7.7.4` → `7.7.5` → `7.8.0` → `7.8.1` → `7.8.2` → `7.8.3` → `7.8.4` → `7.8.5`.
 There are no published `1.x` or `2.x` releases: those numbers appear in
 older internal documents (e.g. the cellular-automata roadmap milestone
 "v2.0") and in the historical `version 2.0.0b` banner of header
@@ -157,6 +157,7 @@ in the consumer's translation units, plus a small static library
 | 7.8.2 | Yes (fixes, with behavior changes in the moves of the containers: a set or a map on a tree is nothrow move constructible only when the default construction of its key and value is `noexcept`, and a moved-from `FixedQueue` or hash table of chained lists has no capacity; see `docs/release-notes/7.8.2.md`) | No (recompile) |
 | 7.8.3 | Yes (fixes, with behavior changes: a raw `LinearHashTable` can no longer be copied, which corrupted the memory, and the trees and binary heaps whose comparison may throw when it is built or copied are not nothrow default constructible; see `docs/release-notes/7.8.3.md`) | No (recompile) |
 | 7.8.4 | Yes (fixes: the quotient filters keep every item that they hold through the removals of the others; see `docs/release-notes/7.8.4.md`) | No (recompile) |
+| 7.8.5 | Yes (fixes, with behavior changes: `merge()` of the quotient filters takes every item or throws, where it dropped items or threw with some of them in; the quotient, cuckoo and Bloom filters, the hash tables, `Simplex` and `Static_Event_Table` refuse a count, a rate or a size that they cannot have, where they gave another filter or left it to `new[]`; `maps<R>()` of the mixins, without an operation, converts each item once; and the functions that take what a comparison or a filter returns as a condition are `noexcept` only when its conversion to `bool` is; see `docs/release-notes/7.8.5.md`) | No (recompile) |
 
 ## Release automation
 
