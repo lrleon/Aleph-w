@@ -49,6 +49,7 @@
 
 #include <gtest/gtest.h>
 
+#include <tpl_array.H>
 #include <tpl_arrayHeap.H>
 
 using namespace Aleph;
@@ -843,6 +844,65 @@ TEST(ArrayHeap, HeapsortOfNothingAndOfOneItem)
   two = {2, 1};
   faster_heapsort(two.data(), two.size());
   EXPECT_EQ(two, (std::vector<int>{1, 2}));
+}
+
+// The heapsorts number the items from 1, and took them through a pointer to
+// one item before the array, which may not be formed. They take them now
+// through From_One, whose items a constant expression gives: there, a
+// pointer out of the array does not compile
+namespace
+{
+  struct Constant_Less
+  {
+    constexpr bool operator () (const int & a, const int & b) const noexcept { return a < b; }
+  };
+
+  // The two heapsorts of eight items in a constant expression. There, a
+  // pointer to an entry before the array is an error that the compiler
+  // sees, and no sanitizer sees it in the program that runs
+  constexpr bool the_heapsorts_sort()
+  {
+    int a[] = {5, 3, 8, 1, 9, 2, 7, 3};
+    int b[] = {5, 3, 8, 1, 9, 2, 7, 3};
+    heapsort(a, 8, Constant_Less());
+    faster_heapsort(b, 8, Constant_Less());
+    for (int i = 1; i < 8; ++i)
+      if (a[i - 1] > a[i] or b[i - 1] > b[i])
+        return false;
+    return a[0] == 1 and a[7] == 9 and b[0] == 1 and b[7] == 9;
+  }
+  static_assert(the_heapsorts_sort());
+}
+
+TEST(ArrayHeap, TheHeapsortsTakeTheItemsFromOneInsideTheArray)
+{
+  static constexpr int three[] = {10, 20, 30};
+  static_assert(arrayheap_detail::From_One<const int>{three}[1] == 10);
+  static_assert(arrayheap_detail::From_One<const int>{three}[3] == 30);
+  static_assert(&arrayheap_detail::From_One<const int>{three}[2] == three + 1);
+
+  // each count of items from 2 to 70, with items that repeat
+  unsigned long x = 20261125;
+  for (size_t n = 2; n <= 70; ++n)
+    for (int trial = 0; trial < 4; ++trial)
+      {
+        Array<int> items(n, 0), counts(16, 0);
+        for (size_t i = 0; i < n; ++i)
+          {
+            x = x * 6364136223846793005UL + 1442695040888963407UL;
+            items(i) = static_cast<int>((x >> 33) % 16);
+            ++counts(static_cast<size_t>(items(i)));
+          }
+        Array<int> other = items;
+        heapsort(&items(0), n);
+        faster_heapsort(&other(0), n);
+        Array<int> sorted;
+        for (int v = 0; v < 16; ++v)
+          for (int k = 0; k < counts(static_cast<size_t>(v)); ++k)
+            sorted.append(v);
+        ASSERT_EQ(items, sorted) << n << " items, trial " << trial;
+        ASSERT_EQ(other, sorted) << n << " items, trial " << trial;
+      }
 }
 
 namespace

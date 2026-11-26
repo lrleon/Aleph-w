@@ -201,7 +201,7 @@ extern bool resize_process_stack(size_t new_size);
 
     @ingroup Utilities
 */
-inline size_t u_index(const size_t &i)
+inline constexpr size_t u_index(const size_t &i)
 {
   return i >> 1;  // divide i entre 2
 }
@@ -215,7 +215,7 @@ inline size_t u_index(const size_t &i)
 
     @ingroup Utilities
 */
-inline size_t l_index(const size_t i)
+inline constexpr size_t l_index(const size_t i)
 {
   return i << 1;
 }
