@@ -63,6 +63,7 @@
 #include <ahFunction.H>
 #include <filter_iterator.H>
 #include <htlist.H>
+#include <tpl_agraph.H>
 #include <tpl_array.H>
 #include <tpl_arrayHeap.H>
 #include <tpl_arrayQueue.H>
@@ -257,6 +258,54 @@ namespace
       return static_cast<typename GT::Node *>(a->tgt_node);
     }
   };
+
+  // A filter that tells an item that has a name from one that has none,
+  // and counts the calls with each: only the second one is noexcept
+  template <class Item>
+  struct Two_Calls
+  {
+    static inline size_t named = 0, unnamed = 0;
+
+    bool operator () (Item *&) const
+    {
+      ++named;
+      return true;
+    }
+
+    bool operator () (Item *&&) const noexcept
+    {
+      ++unnamed;
+      return true;
+    }
+  };
+
+  // Whether next_ne() of the iterator It, built with args and taken to
+  // its end, is noexcept exactly when no call that It made of its
+  // filter is the one that may throw
+  template <class It, class Item, class... Args>
+  bool says_what_it_calls(Args &&... args)
+  {
+    Two_Calls<Item>::named = Two_Calls<Item>::unnamed = 0;
+    for (It it(std::forward<Args>(args)...); it.has_curr(); it.next_ne())
+      ;
+    const size_t named = Two_Calls<Item>::named;
+    return named + Two_Calls<Item>::unnamed > 0
+           and noexcept(std::declval<It &>().next_ne()) == (named == 0);
+  }
+
+  // The five filtered iterators of a graph type
+  template <class GT>
+  void each_iterator_says_what_it_calls()
+  {
+    using Arcs = Two_Calls<typename GT::Arc>;
+    using Nodes = Two_Calls<typename GT::Node>;
+    Triangle<GT> t;
+    EXPECT_TRUE((says_what_it_calls<Node_Arc_Iterator<GT, Arcs>, typename GT::Arc>(t.a)));
+    EXPECT_TRUE((says_what_it_calls<Arc_Iterator<GT, Arcs>, typename GT::Arc>(t.g)));
+    EXPECT_TRUE((says_what_it_calls<Out_Iterator<GT, Arcs>, typename GT::Arc>(t.a)));
+    EXPECT_TRUE((says_what_it_calls<In_Iterator<GT, Arcs>, typename GT::Arc>(t.g, t.c)));
+    EXPECT_TRUE((says_what_it_calls<Node_Iterator<GT, Nodes>, typename GT::Node>(t.g)));
+  }
 }
 
 // The functors that compare by default return a bool: they convert what
@@ -457,6 +506,44 @@ TEST(ConditionConversions, ArcsIntoANodeOfADigraph)
   In in(d.g, d.c);
   const Arm arm;
   EXPECT_THROW(in.next_ne(), Conversion_Error);
+}
+
+// A specification looks at the call of the filter that the iterator
+// makes, with the item as the iterator gives it: the walk on the arcs
+// into a node of a digraph gives an arc that has a name, and the other
+// iterators give one that has none. A filter may tell the two apart
+TEST(ConditionConversions, EachFilteredIteratorLooksAtTheCallThatItMakes)
+{
+  using Named = Two_Calls<Arrows::Arc>;
+  static_assert(not NothrowPredicateWith<Named &, Arrows::Arc *&>);
+  static_assert(NothrowPredicateWith<Named &, Arrows::Arc *>);
+  static_assert(not noexcept(std::declval<In_Iterator<Arrows, Named> &>().next_ne()));
+  static_assert(noexcept(std::declval<Out_Iterator<Arrows, Named> &>().next_ne()));
+
+  {
+    SCOPED_TRACE("List_Graph");
+    each_iterator_says_what_it_calls<Edges>();
+  }
+  {
+    SCOPED_TRACE("List_Digraph");
+    each_iterator_says_what_it_calls<Arrows>();
+  }
+  {
+    SCOPED_TRACE("List_SGraph");
+    each_iterator_says_what_it_calls<List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>>();
+  }
+  {
+    SCOPED_TRACE("List_SDigraph");
+    each_iterator_says_what_it_calls<List_SDigraph<Graph_Snode<int>, Graph_Sarc<int>>>();
+  }
+  {
+    SCOPED_TRACE("Array_Graph");
+    each_iterator_says_what_it_calls<Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>>();
+  }
+  {
+    SCOPED_TRACE("Array_Digraph");
+    each_iterator_says_what_it_calls<Array_Digraph<Graph_Anode<int>, Graph_Aarc<int>>>();
+  }
 }
 
 // The filtered iterator of the containers
@@ -834,6 +921,17 @@ TEST(ConditionConversions, PaintedArcsOfKruskal)
   const Filter painted(show);
   Edges::Arc * arc = u.g.get_first_arc();
   EXPECT_FALSE(painted(arc));
+
+  // it gives the filter of the caller the arc by its name
+  using Named = Two_Calls<Edges::Arc>;
+  using Through = Kruskal::Paint_Filt<Edges, Named>;
+  static_assert(not noexcept(std::declval<const Through &>()(std::declval<Edges::Arc *>())));
+  Named named;
+  const Through through(named);
+  Named::named = Named::unnamed = 0;
+  EXPECT_FALSE(through(arc));
+  EXPECT_EQ(Named::named, 1u);
+  EXPECT_EQ(Named::unnamed, 0u);
 
   const Arm arm;
   EXPECT_THROW((void) painted(arc), Conversion_Error);

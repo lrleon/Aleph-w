@@ -140,8 +140,9 @@ namespace Aleph::graph_dry_detail
     Node *tgt = nullptr;
     SA show_arc;
 
-    // Whether show_arc throws nothing, and so the moves without checks
-    static constexpr bool shows_ne = NothrowPredicateWith<SA &, Arc *>;
+    // Whether show_arc throws nothing, called as forward() and backward()
+    // call it, with an arc that has a name, and so the moves without checks
+    static constexpr bool shows_ne = NothrowPredicateWith<SA &, Arc *&>;
 
     // Moves forward, from the current arc, to the first one into tgt that
     // show_arc shows, or to the end
@@ -617,6 +618,14 @@ struct Cmp_Dlink_Node
   { /* empty */
   }
 
+  /** @brief Whether `cmp` puts the node of `d1` before the node of `d2`.
+   *
+   *  @param[in] d1 the link of a node.
+   *  @param[in] d2 the link of another node.
+   *  @return what `cmp` says of the two nodes, converted to `bool`.
+   *  @throws anything that `cmp` or that conversion throws; `noexcept`
+   *          when they throw nothing.
+   */
   bool operator ()(Dlink *d1, Dlink *d2) const
     noexcept(noexcept(static_cast<bool>(std::declval<Cmp &>()(std::declval<Node *&>(),
                                                              std::declval<Node *&>()))))
@@ -645,6 +654,14 @@ struct Cmp_Dlink_Arc
   { /* empty */
   }
 
+  /** @brief Whether `cmp` puts the arc of `d1` before the arc of `d2`.
+   *
+   *  @param[in] d1 the link of an arc.
+   *  @param[in] d2 the link of another arc.
+   *  @return what `cmp` says of the two arcs, converted to `bool`.
+   *  @throws anything that `cmp` or that conversion throws; `noexcept`
+   *          when they throw nothing.
+   */
   bool operator ()(Dlink *d1, Dlink *d2) const
     noexcept(noexcept(static_cast<bool>(std::declval<Cmp &>()(std::declval<Arc *&>(),
                                                              std::declval<Arc *&>()))))
@@ -3322,6 +3339,8 @@ public:
       // empty
     }
 
+    /// next() without its check: the current arc must exist. `noexcept`
+    /// when the filter is (shows_ne); else what the filter throws goes out
     void next_ne() noexcept(shows_ne) { it.next_ne(); }
 
     /// Advance to next arc. Throw `overflow_error` if there is no

@@ -416,4 +416,17 @@ TEST(SizeLimits, CuckooFiltersAndTheEstimateOfABloomFilter)
   EXPECT_EQ(k, 7u);
   // and the most bits that a size_t counts, at a probability of 1/2
   EXPECT_NO_THROW((void) Bloom_Filter<int>::estimate(max_size / 4, 0.5));
+  // and bits past half of what a size_t counts, where fewer than twice
+  // what it counts are refused: the limit is its width
+  EXPECT_NO_THROW((void) Bloom_Filter<int>::estimate(max_size / 2, 0.5));
+  EXPECT_THROW((void) Bloom_Filter<int>::estimate(max_size / 8, 0.01), std::overflow_error);
+
+  // a probability that is not a number is not in (0, 1): its bits were
+  // not a number either, which no limit refuses, and their conversion
+  // gave 2^63 with GCC 14
+  const double not_a_number = std::numeric_limits<double>::quiet_NaN();
+  EXPECT_THROW((void) Bloom_Filter<int>::estimate(1000, not_a_number), std::invalid_argument);
+  EXPECT_THROW((Bloom_Filter<int>(1000, not_a_number)), std::invalid_argument);
+  for (const double p : {0.0, 1.0, -0.5, 2.0, std::numeric_limits<double>::infinity()})
+    EXPECT_THROW((void) Bloom_Filter<int>::estimate(1000, p), std::invalid_argument) << p;
 }

@@ -141,8 +141,17 @@ namespace Aleph
 
       Paint_Filt(GT_SA & __sa) : sa(__sa) { /* empty */ }
 
+      /** @brief Whether the filter of the caller shows `a` and `a` is
+       *         painted as an arc of the spanning tree.
+       *
+       *  @param[in] a the arc.
+       *  @return true if `sa` shows `a` and `a` has the bit `Spanning_Tree`.
+       *  @throws anything that `sa`, called with `a`, or the conversion of
+       *          what it returns to `bool` throws; `noexcept` when they
+       *          throw nothing.
+       */
       bool operator ()(typename G::Arc *a) const
-        noexcept(NothrowPredicateWith<GT_SA &, typename G::Arc *>)
+        noexcept(NothrowPredicateWith<GT_SA &, typename G::Arc *&>)
       {
         if (not static_cast<bool>(sa(a)))
           return false;

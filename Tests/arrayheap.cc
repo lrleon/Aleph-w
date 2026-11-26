@@ -36,6 +36,7 @@
  */
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <new>
 #include <numeric>
@@ -881,15 +882,17 @@ TEST(ArrayHeap, TheHeapsortsTakeTheItemsFromOneInsideTheArray)
   static_assert(arrayheap_detail::From_One<const int>{three}[3] == 30);
   static_assert(&arrayheap_detail::From_One<const int>{three}[2] == three + 1);
 
-  // each count of items from 2 to 70, with items that repeat
-  unsigned long x = 20261125;
+  // each count of items from 2 to 70, with items that repeat. The state
+  // has 64 bits wherever it is compiled: the items come from its high
+  // bits, and a long has 32 on Windows
+  std::uint64_t x = 20261125;
   for (size_t n = 2; n <= 70; ++n)
     for (int trial = 0; trial < 4; ++trial)
       {
         Array<int> items(n, 0), counts(16, 0);
         for (size_t i = 0; i < n; ++i)
           {
-            x = x * 6364136223846793005UL + 1442695040888963407UL;
+            x = x * 6364136223846793005ULL + 1442695040888963407ULL;
             items(i) = static_cast<int>((x >> 33) % 16);
             ++counts(static_cast<size_t>(items(i)));
           }

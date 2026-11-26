@@ -391,6 +391,14 @@ namespace Aleph
 
     explicit unary_negate (const _Predicate& __x) : _M_pred(__x) {}
 
+    /** @brief The negation of what the predicate says of `__x`.
+     *
+     *  @param[in] __x the argument of the predicate.
+     *  @return true if what the predicate returns, converted to `bool`,
+     *          is false.
+     *  @throws anything that the predicate or that conversion throws;
+     *          `noexcept` when they throw nothing.
+     */
     bool operator () (const typename _Predicate::argument_type& __x)
       const noexcept(noexcept(not static_cast<bool>(_M_pred(__x))))
     { 
@@ -1147,6 +1155,11 @@ class Inversed_Compare
 
 public:
 
+  /** @brief The inversion of `__cmp`, which is not copied.
+   *
+   *  @param[in] __cmp the comparison. The object keeps a reference to
+   *             it: `__cmp` must outlive the object.
+   */
   constexpr Inversed_Compare(const Compare & __cmp) noexcept : cmp(__cmp) { /* empty */ }
 
   Inversed_Compare(Compare && cmp = Compare()) noexcept

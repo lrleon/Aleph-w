@@ -1807,6 +1807,8 @@ namespace Aleph
       it.next();
     }
 
+    /// next() without its check: the current arc must exist. `noexcept`
+    /// when the filter is (shows_ne); else what the filter throws goes out
     void next_ne() noexcept(shows_ne)
     {
       it.next_ne();

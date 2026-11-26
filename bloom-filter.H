@@ -179,14 +179,17 @@ namespace Aleph
     [[nodiscard]] static std::tuple<size_t, size_t> estimate(const size_t n, const double p)
     {
       ah_invalid_argument_if(n == 0) << "n must be > 0";
-      ah_invalid_argument_if(p <= 0 or p >= 1) << "p must be in (0, 1)";
+      // written so that a p that is not a number is refused too
+      ah_invalid_argument_if(not (p > 0 and p < 1)) << "p must be in (0, 1)";
       const double log2 = std::log(2);
       // the bits as a double first: for a count next to the largest size_t
       // they are more than a size_t counts, and the conversion of such a
-      // double is undefined
+      // double is undefined. The limit is one past the largest size_t, of
+      // whatever width, which a double holds exactly
+      constexpr double limit = 2.0 * static_cast<double>(std::numeric_limits<size_t>::max() / 2 + 1);
       const double bits = std::ceil(-(n * std::log(p)) / (log2 * log2));
-      ah_overflow_error_if(bits >= 0x1p64) << n << " items at a probability of " << p
-                                           << " ask for more bits than a size_t counts";
+      ah_overflow_error_if(bits >= limit) << n << " items at a probability of " << p
+                                          << " ask for more bits than a size_t counts";
       const auto m = static_cast<size_t>(bits);
       const auto k = static_cast<size_t>(std::ceil((1.0 * m / n) * log2));
       return std::make_tuple(m, k);
