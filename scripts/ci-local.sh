@@ -526,9 +526,11 @@ run_job() {  # job; writes its status and its time to the logs
 
 # Where --publish posts: the repository in GitHub, and whether the commit
 # is there, as a status goes only on a commit that GitHub has. GitHub says
-# that it has no such commit with a 422; any other failure of the query,
-# as an error of the service, stops the run, which would otherwise end
-# without posting what it was asked to
+# that it has no such commit with a 422 whose message is "No commit found
+# for SHA"; any other failure of the query stops the run, which would
+# otherwise end without posting what it was asked to: an error of the
+# service, a 404, or a 422 for another cause, which GitHub gives for a
+# request that it refuses
 SLUG=""
 ON_GITHUB=0
 find_on_github() {
@@ -537,7 +539,7 @@ find_on_github() {
   local out
   if out=$(gh api "repos/${SLUG}/commits/${HEAD_SHA}" --silent 2>&1); then
     ON_GITHUB=1
-  elif [[ "${out}" != *"(HTTP 422)"* && "${out}" != *"(HTTP 404)"* ]]; then
+  elif [[ "${out}" != *"No commit found for SHA"*"(HTTP 422)"* ]]; then
     die "cannot ask GitHub whether it has ${HEAD_SHA:0:12}: ${out%%$'\n'*}"
   fi
 }

@@ -76,9 +76,10 @@ again, unless `--clean` asks for new builds; without the first run,
 `--publish` runs them, and the status is `pending` while they run,
 and a `failure` if one fails, so that the success of an earlier run of the
 same merge does not stand. `--dry-run` prints the statuses instead of
-posting them. If `--publish` cannot ask GitHub whether it has the commit,
-as on an error of the service, it stops; if GitHub has no such commit
-yet, it says to push it.
+posting them. If GitHub does not answer whether it has the commit, as on
+an error of the service or for a request that it refuses, `--publish`
+stops; if GitHub says that it has no such commit yet, `--publish` says
+to push it.
 
 The status is for the merge into the `master` of the moment. If `master`
 moves before the push, `--publish` after it merges into the new one, as
