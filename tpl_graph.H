@@ -1042,7 +1042,7 @@ namespace Aleph
   template <class GT, class SA>
   inline constexpr bool nothrow_arc_filter_v =
     std::is_nothrow_copy_constructible_v<SA> and std::is_nothrow_move_constructible_v<SA>
-    and std::is_nothrow_invocable_r_v<bool, SA &, typename GT::Arc *>;
+    and NothrowPredicateWith<SA &, typename GT::Arc *>;
 
   /** \addtogroup Graphs
         @{
@@ -1788,6 +1788,11 @@ namespace Aleph
     /// end() need
     static constexpr bool goes_to_last = Itor::goes_to_last;
 
+    /// Whether what the filter says of an arc cannot throw, nor its
+    /// conversion to bool: the moves without checks and the resets are
+    /// noexcept then
+    static constexpr bool shows_ne = noexcept(std::declval<Itor &>().next_ne());
+
     /// Initialize an iterator on adjacent arcs (incoming or outcoming) of `p`
     Digraph_Iterator(typename GT::Node *p)
       : filt(p), it(p, filt)
@@ -1802,7 +1807,7 @@ namespace Aleph
       it.next();
     }
 
-    void next_ne() noexcept
+    void next_ne() noexcept(shows_ne)
     {
       it.next_ne();
     }
@@ -1872,14 +1877,14 @@ namespace Aleph
     }
 
     /// Reset the iterator to the first arc
-    void reset_first() noexcept
+    void reset_first() noexcept(shows_ne)
     {
       it.reset_first();
     }
 
     /// Reset the iterator to the last arc. Only where the iterator goes to
     /// its last arc (goes_to_last)
-    void reset_last() noexcept requires goes_to_last
+    void reset_last() noexcept(shows_ne) requires goes_to_last
     {
       it.reset_last();
     }
@@ -1935,13 +1940,13 @@ namespace Aleph
 
     void goto_first_valid()
     {
-      while (Base::has_curr() and not show_arc(Base::get_curr_ne()))
+      while (Base::has_curr() and not static_cast<bool>(show_arc(Base::get_curr_ne())))
         Base::next_ne();
     }
 
     void goto_last_valid()
     {
-      while (Base::has_curr() and not show_arc(Base::get_curr_ne()))
+      while (Base::has_curr() and not static_cast<bool>(show_arc(Base::get_curr_ne())))
         Base::prev();
     }
 
@@ -1964,7 +1969,7 @@ namespace Aleph
 
     /// next() without the check of the current arc; noexcept when the
     /// filter is, else what the filter throws goes out
-    void next_ne() noexcept(std::is_nothrow_invocable_r_v<bool, Show_Arc &, typename GT::Arc *>)
+    void next_ne() noexcept(NothrowPredicateWith<Show_Arc &, typename GT::Arc *>)
     {
       Base::next_ne();
       goto_first_valid();
@@ -2038,13 +2043,13 @@ namespace Aleph
 
     void goto_first_valid()
     {
-      while (Base::has_curr() and not show_arc(Base::get_curr_ne()))
+      while (Base::has_curr() and not static_cast<bool>(show_arc(Base::get_curr_ne())))
         Base::next_ne();
     }
 
     void goto_last_valid()
     {
-      while (Base::has_curr() and not show_arc(Base::get_curr_ne()))
+      while (Base::has_curr() and not static_cast<bool>(show_arc(Base::get_curr_ne())))
         Base::prev();
     }
 
@@ -2112,7 +2117,7 @@ namespace Aleph
 
     /// next() without the check of the current arc; noexcept when the
     /// filter is, else what the filter throws goes out
-    void next_ne() noexcept(std::is_nothrow_invocable_r_v<bool, SA &, typename GT::Arc *>)
+    void next_ne() noexcept(NothrowPredicateWith<SA &, typename GT::Arc *>)
     {
       Base::next_ne();
       goto_first_valid();

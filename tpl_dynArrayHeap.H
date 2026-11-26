@@ -683,7 +683,7 @@ namespace Aleph
       noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
       for (size_t i = 1; i <= num_items; ++i)  // the items are entries 1 to num_items
-        if (not operation(array.access(i)))
+        if (not static_cast<bool>(operation(array.access(i))))
           return false;
       return true;
     }
@@ -694,7 +694,7 @@ namespace Aleph
       noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
       for (size_t i = 1; i <= num_items; ++i)
-        if (not operation(static_cast<const T &>(array.access(i))))
+        if (not static_cast<bool>(operation(static_cast<const T &>(array.access(i)))))
           return false;
       return true;
     }

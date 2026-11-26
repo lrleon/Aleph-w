@@ -415,7 +415,7 @@ public:
   {
     for (typename Container::Iterator it(*static_cast<Container *>(this)); it.has_curr();
          Aleph::dry_detail::advance(it))
-      if (not operation(Aleph::dry_detail::current(it)))
+      if (not static_cast<bool>(operation(Aleph::dry_detail::current(it))))
         return false;
     return true;
   }
@@ -444,7 +444,7 @@ public:
          Aleph::dry_detail::advance(it))
       {
         const auto & item = Aleph::dry_detail::current(it);
-        if (not operation(item))
+        if (not static_cast<bool>(operation(item)))
           return false;
       }
     return true;
@@ -564,22 +564,26 @@ class LocateFunctions
   }
 
   // True if calling `operation` with an item, through the constant
-  // traversal of the container, cannot throw.
+  // traversal of the container, cannot throw, nor the conversion of its
+  // result to bool that the search makes, as a condition does.
   template <class Operation>
   static constexpr bool const_search_is_noexcept() noexcept
   {
     using C = typename Aleph::concepts_detail::defer<Container, Operation>::type;
-    return std::is_nothrow_invocable_v<Operation &, const Type &>
+    return requires (Operation & op, const Type & item)
+             { { static_cast<bool>(std::invoke(op, item)) } noexcept; }
            and Aleph::dry_detail::const_traversal_is_noexcept<C, Type>;
   }
 
   // True if calling `operation` with an item, through the modifiable
-  // traversal of the container, cannot throw.
+  // traversal of the container, cannot throw, nor the conversion of its
+  // result to bool that the search makes, as a condition does.
   template <class Operation>
   static constexpr bool mutable_search_is_noexcept() noexcept
   {
     using C = typename Aleph::concepts_detail::defer<Container, Operation>::type;
-    return std::is_nothrow_invocable_v<Operation &, Type &>
+    return requires (Operation & op, Type & item)
+             { { static_cast<bool>(std::invoke(op, item)) } noexcept; }
            and Aleph::dry_detail::mutable_traversal_is_noexcept<C, Type>;
   }
 
@@ -606,7 +610,7 @@ class LocateFunctions
     const Type * ptr = nullptr;
     const_me()->traverse([&ptr, &operation] (const Type & item)
       {
-        if (std::invoke(operation, item))
+        if (static_cast<bool>(std::invoke(operation, item)))
           {
             ptr = &item;
             return false;
@@ -824,7 +828,7 @@ public:
     Type * ptr = nullptr;
     me()->traverse([&ptr, &operation] (Type & item)
       {
-        if (std::invoke(operation, item))
+        if (static_cast<bool>(std::invoke(operation, item)))
           {
             ptr = &item;
             return false;
@@ -920,7 +924,7 @@ public:
     size_t i = 0;
     const_me()->traverse([&i, &operation] (const Type & item)
       {
-        if (std::invoke(operation, item))
+        if (static_cast<bool>(std::invoke(operation, item)))
           return false;
         ++i;
         return true;

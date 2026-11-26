@@ -980,7 +980,7 @@ public:
   {
     assert(ptr or n == 0);
     for (size_t i = 0; i < n; i++)
-      if (not operation(ptr[i]))
+      if (not static_cast<bool>(operation(ptr[i])))
         return false;
 
     return true;
@@ -1002,7 +1002,7 @@ public:
   {
     assert(ptr or n == 0);
     for (size_t i = 0; i < n; i++)
-      if (not operation(static_cast<const T &>(ptr[i])))
+      if (not static_cast<bool>(operation(static_cast<const T &>(ptr[i]))))
         return false;
 
     return true;

@@ -654,7 +654,7 @@ public:
   bool traverse(Operation &operation) noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
   {
     for (size_t i = 0; i < head; i++)
-      if (not operation(array[i]))
+      if (not static_cast<bool>(operation(array[i])))
         return false;
 
     return true;
@@ -667,7 +667,7 @@ public:
     noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
     for (size_t i = 0; i < head; i++)
-      if (not operation(static_cast<const T &>(array[i])))
+      if (not static_cast<bool>(operation(static_cast<const T &>(array[i]))))
         return false;
     return true;
   }

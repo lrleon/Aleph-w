@@ -580,7 +580,7 @@ public:
       return true;
 
     for (size_t i = 0, idx = front_index; i < this->n; increase_index(idx), ++i)
-      if (not operation(this->access(idx)))
+      if (not static_cast<bool>(operation(this->access(idx))))
         return false;
     return true;
   }
@@ -595,7 +595,7 @@ public:
       return true;
 
     for (size_t i = 0, idx = front_index; i < this->n; increase_index(idx), ++i)
-      if (not operation(static_cast<const T &>(this->access(idx))))
+      if (not static_cast<bool>(operation(static_cast<const T &>(this->access(idx)))))
         return false;
     return true;
   }
@@ -980,7 +980,7 @@ public:
     if (num_items == 0)
       return true;
     for (size_t i = 0, idx = front_index; i < num_items; increase_index(idx), ++i)
-      if (not operation(array[idx]))
+      if (not static_cast<bool>(operation(array[idx])))
         return false;
     return true;
   }
@@ -995,7 +995,7 @@ public:
       return true;
 
     for (size_t i = 0, idx = front_index; i < num_items; increase_index(idx), ++i)
-      if (not operation(static_cast<const T &>(array[idx])))
+      if (not static_cast<bool>(operation(static_cast<const T &>(array[idx]))))
         return false;
     return true;
   }

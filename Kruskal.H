@@ -142,9 +142,9 @@ namespace Aleph
       Paint_Filt(GT_SA & __sa) : sa(__sa) { /* empty */ }
 
       bool operator ()(typename G::Arc *a) const
-        noexcept(std::is_nothrow_invocable_r_v<bool, GT_SA &, typename G::Arc *>)
+        noexcept(NothrowPredicateWith<GT_SA &, typename G::Arc *>)
       {
-        if (not sa(a))
+        if (not static_cast<bool>(sa(a)))
           return false;
 
         return IS_ARC_VISITED(a, Aleph::Spanning_Tree);

@@ -96,19 +96,21 @@ namespace Aleph
 
   namespace function_detail
   {
-    /// Whether x < y compiles and cannot throw. A type without < gives
-    /// false, not an error, as noexcept(x < y) would give where the
-    /// exception specification of less<T>::operator() is needed, as in
+    /// Whether x < y compiles and cannot throw, nor the conversion of its
+    /// result to bool, which less<T> makes. A type without < gives false,
+    /// not an error, as noexcept(x < y) would give where the exception
+    /// specification of less<T>::operator() is needed, as in
     /// std::invocable<less<T>, T, T>: less<T> declares its operator() for
     /// any T, as it did
     template <class T>
     concept nothrow_less_than = requires (const T & x, const T & y)
     {
-      { x < y } noexcept;
+      { static_cast<bool>(x < y) } noexcept;
     };
 
     // The same for the operators of the other functors below; those that
-    // give a _Tp count its construction from the result too
+    // give a _Tp count its construction from the result too, and those
+    // that give a bool, the conversion of the result to it
 
     /// Whether T(x + y) compiles and cannot throw, for plus
     template <class T>
@@ -156,56 +158,56 @@ namespace Aleph
     template <class T>
     concept nothrow_equal_to = requires (const T & x, const T & y)
     {
-      { x == y } noexcept;
+      { static_cast<bool>(x == y) } noexcept;
     };
 
     /// Whether x != y compiles and cannot throw, for not_equal_to
     template <class T>
     concept nothrow_not_equal_to = requires (const T & x, const T & y)
     {
-      { x != y } noexcept;
+      { static_cast<bool>(x != y) } noexcept;
     };
 
     /// Whether x > y compiles and cannot throw, for greater
     template <class T>
     concept nothrow_greater = requires (const T & x, const T & y)
     {
-      { x > y } noexcept;
+      { static_cast<bool>(x > y) } noexcept;
     };
 
     /// Whether x >= y compiles and cannot throw, for greater_equal
     template <class T>
     concept nothrow_greater_equal = requires (const T & x, const T & y)
     {
-      { x >= y } noexcept;
+      { static_cast<bool>(x >= y) } noexcept;
     };
 
     /// Whether x <= y compiles and cannot throw, for less_equal
     template <class T>
     concept nothrow_less_equal = requires (const T & x, const T & y)
     {
-      { x <= y } noexcept;
+      { static_cast<bool>(x <= y) } noexcept;
     };
 
     /// Whether x and y compiles and cannot throw, for logical_and
     template <class T>
     concept nothrow_logical_and = requires (const T & x, const T & y)
     {
-      { x and y } noexcept;
+      { static_cast<bool>(x and y) } noexcept;
     };
 
     /// Whether x or y compiles and cannot throw, for logical_or
     template <class T>
     concept nothrow_logical_or = requires (const T & x, const T & y)
     {
-      { x or y } noexcept;
+      { static_cast<bool>(x or y) } noexcept;
     };
 
     /// Whether not x compiles and cannot throw, for logical_not
     template <class T>
     concept nothrow_logical_not = requires (const T & x)
     {
-      { not x } noexcept;
+      { static_cast<bool>(not x) } noexcept;
     };
   }
 
@@ -282,7 +284,7 @@ namespace Aleph
     bool operator () (const _Tp& __x, const _Tp& __y) const
       noexcept(function_detail::nothrow_equal_to<_Tp>)
     { 
-      return __x == __y; 
+      return static_cast<bool>(__x == __y);
     }
   };
 
@@ -293,7 +295,7 @@ namespace Aleph
     bool operator()(const _Tp& __x, const _Tp& __y) const
       noexcept(function_detail::nothrow_not_equal_to<_Tp>)
     { 
-      return __x != __y; 
+      return static_cast<bool>(__x != __y);
     }
   };
 
@@ -304,7 +306,7 @@ namespace Aleph
     bool operator () (const _Tp& __x, const _Tp& __y) const
       noexcept(function_detail::nothrow_greater<_Tp>)
     { 
-      return __x > __y; 
+      return static_cast<bool>(__x > __y);
     }
   };
 
@@ -317,7 +319,7 @@ namespace Aleph
     bool operator () (const _Tp& __x, const _Tp& __y) const
       noexcept(function_detail::nothrow_less_than<_Tp>)
     { 
-      return __x < __y; 
+      return static_cast<bool>(__x < __y);
     }
   };
 
@@ -328,7 +330,7 @@ namespace Aleph
     bool operator () (const _Tp& __x, const _Tp& __y) const
       noexcept(function_detail::nothrow_greater_equal<_Tp>)
     { 
-      return __x >= __y; 
+      return static_cast<bool>(__x >= __y);
     }
   };
 
@@ -339,7 +341,7 @@ namespace Aleph
     bool operator () (const _Tp& __x, const _Tp& __y) const
       noexcept(function_detail::nothrow_less_equal<_Tp>)
     { 
-      return __x <= __y; 
+      return static_cast<bool>(__x <= __y);
     }
   };
 
@@ -350,7 +352,7 @@ namespace Aleph
     bool operator () (const _Tp& __x, const _Tp& __y) const
       noexcept(function_detail::nothrow_logical_and<_Tp>)
     { 
-      return __x and __y; 
+      return static_cast<bool>(__x and __y);
     }
   };
 
@@ -361,7 +363,7 @@ namespace Aleph
     bool operator () (const _Tp& __x, const _Tp& __y) const
       noexcept(function_detail::nothrow_logical_or<_Tp>)
     { 
-      return __x or __y; 
+      return static_cast<bool>(__x or __y);
     }
   };
 
@@ -372,7 +374,7 @@ namespace Aleph
     bool operator () (const _Tp& __x) const
       noexcept(function_detail::nothrow_logical_not<_Tp>)
     { 
-      return not __x; 
+      return static_cast<bool>(not __x);
     }
   };
 
@@ -390,9 +392,9 @@ namespace Aleph
     explicit unary_negate (const _Predicate& __x) : _M_pred(__x) {}
 
     bool operator () (const typename _Predicate::argument_type& __x)
-      const noexcept(noexcept(not _M_pred(__x)))
+      const noexcept(noexcept(not static_cast<bool>(_M_pred(__x))))
     { 
-      return not _M_pred(__x); 
+      return not static_cast<bool>(_M_pred(__x));
     }
   };
 
@@ -1154,9 +1156,10 @@ public:
   // noexcept as the comparison: heapsort() and the heapsort to which
   // introsort() falls back compare through it, and a comparator that threw
   // ended the program where introsort() promises to let it through
-  bool operator () (const T & op1, const T & op2) const noexcept(noexcept(cmp(op2, op1)))
+  bool operator () (const T & op1, const T & op2) const
+    noexcept(noexcept(static_cast<bool>(cmp(op2, op1))))
   {
-    return cmp(op2, op1);
+    return static_cast<bool>(cmp(op2, op1));
   }
 };
 

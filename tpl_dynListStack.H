@@ -464,15 +464,17 @@ public:
    *
    *  @warning The returned pointer is invalidated if the element is removed.
    */
-  T * search(const T & key) noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
+  T * search(const T & key)
+    noexcept(noexcept(static_cast<bool>(std::declval<const T &>() == std::declval<const T &>())))
   {
-    return this->find_ptr([&key](const T & item) { return item == key; });
+    return this->find_ptr([&key](const T & item) { return static_cast<bool>(item == key); });
   }
 
   /// @overload search(const T & key)
-  const T * search(const T & key) const noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
+  const T * search(const T & key) const
+    noexcept(noexcept(static_cast<bool>(std::declval<const T &>() == std::declval<const T &>())))
   {
-    return this->find_ptr([&key](const T & item) { return item == key; });
+    return this->find_ptr([&key](const T & item) { return static_cast<bool>(item == key); });
   }
 
   /** @brief Check if the stack contains a specific value.
@@ -483,14 +485,14 @@ public:
    *  @return true if @p key is found in the stack, false otherwise.
    */
   [[nodiscard]] bool contains(const T & key) const
-    noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
+    noexcept(noexcept(static_cast<bool>(std::declval<const T &>() == std::declval<const T &>())))
   {
     return search(key) != nullptr;
   }
 
   /// @brief Alias for contains().
   [[nodiscard]] bool has(const T & key) const
-    noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
+    noexcept(noexcept(static_cast<bool>(std::declval<const T &>() == std::declval<const T &>())))
   {
     return contains(key);
   }

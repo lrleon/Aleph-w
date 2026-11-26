@@ -342,9 +342,8 @@ template <template <typename> class Container, typename T, StrictWeakOrder<T> Co
  *  @ingroup Algorithms
  */
 template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
-inline void selection_sort(T *a, const size_t n,
-                           const Compare &cmp = Compare()) noexcept(noexcept(cmp(a[0], a[0])) &&
-                                                                    std::is_nothrow_swappable_v<T>)
+inline void selection_sort(T *a, const size_t n, const Compare &cmp = Compare()) noexcept(
+  noexcept(static_cast<bool>(cmp(a[0], a[0]))) and std::is_nothrow_swappable_v<T>)
 {
   if (n < 2)
     return;
@@ -478,27 +477,27 @@ public:
 
   /** @brief Compares two nodes based on their data. */
   bool operator () (Tlink *l1, Tlink *l2) const
-    noexcept(noexcept(std::declval<const Compare &>()(std::declval<const T &>(),
-                                                      std::declval<const T &>())))
+    noexcept(noexcept(static_cast<bool>(std::declval<const Compare &>()(
+      std::declval<Tnode<T> *>()->get_data(), std::declval<Tnode<T> *>()->get_data()))))
   {
     auto *n1 = static_cast<Tnode<T> *>(l1);
     auto *n2 = static_cast<Tnode<T> *>(l2);
 
     assert(n1 == l1 and n2 == l2);
 
-    return cmp(n1->get_data(), n2->get_data());
+    return static_cast<bool>(cmp(n1->get_data(), n2->get_data()));
   }
 
   /** @brief Compares a node's data with a value. */
   bool operator () (Tlink *l, const T &x) const
-    noexcept(noexcept(std::declval<const Compare &>()(std::declval<const T &>(),
-                                                      std::declval<const T &>())))
+    noexcept(noexcept(static_cast<bool>(std::declval<const Compare &>()(
+      std::declval<Tnode<T> *>()->get_data(), x))))
   {
     auto *n = static_cast<Tnode<T> *>(l);
 
     assert(n == l);
 
-    return cmp(n->get_data(), x);
+    return static_cast<bool>(cmp(n->get_data(), x));
   }
 };
 
@@ -937,7 +936,7 @@ inline const T *search_max(const DynDlist<T> &list, const Compare &cmp = Compare
  */
 template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void insertion_sort(T *a, const long l, const long r, const Compare &cmp = Compare()) noexcept(
-  noexcept(cmp(std::declval<T &>(), std::declval<T &>())) and
+  noexcept(static_cast<bool>(cmp(std::declval<T &>(), std::declval<T &>()))) and
   std::is_nothrow_move_constructible_v<T> and std::is_nothrow_move_assignable_v<T>)
 {
   if (l >= r)
@@ -945,7 +944,7 @@ inline void insertion_sort(T *a, const long l, const long r, const Compare &cmp 
   for (long i = l + 1, j; i <= r; ++i)
     {
       T tmp = std::move(a[i]);  // store a[i], since it will be overwritten
-      for (j = i; j > l and cmp(tmp, a[j - 1]); --j)
+      for (j = i; j > l and static_cast<bool>(cmp(tmp, a[j - 1])); --j)
         a[j] = std::move(a[j - 1]);  // shift to the right
 
       a[j] = std::move(tmp);  // insert tmp into the gap
@@ -971,7 +970,7 @@ inline void insert_sorted(Dlink &list, Dlink *p, const Compare &cmp)
   // p goes after the last item that is not greater than it, so that equal
   // items keep the order in which they came
   Dlink *q = list.get_last();
-  while (q != &list and cmp(p, q))
+  while (q != &list and static_cast<bool>(cmp(p, q)))
     q = q->get_prev();
   q->insert(p);  // after q, or first if q is the header
 }
@@ -981,13 +980,13 @@ inline void insert_sorted(HTList &list, Slinknc *p, const Compare &cmp)
 {
   // p goes after the items that are not greater, so that equal items keep
   // the order in which they came
-  if (list.is_empty() or cmp(p, list.get_first()))  // p < first
+  if (list.is_empty() or static_cast<bool>(cmp(p, list.get_first())))  // p < first
     {
       list.insert(p);
       return;
     }
 
-  if (not cmp(p, list.get_last()))  // p >= last
+  if (not static_cast<bool>(cmp(p, list.get_last())))  // p >= last
     {
       list.append(p);
       return;
@@ -1026,7 +1025,7 @@ inline void list_insertion_sort(ListType &list, const Compare &cmp)
 
   // Only the comparison can throw, before the node is linked; then the
   // node, the sorted ones and the rest go back to list
-  if constexpr (noexcept(cmp(aux.get_first(), aux.get_first())))
+  if constexpr (noexcept(static_cast<bool>(cmp(aux.get_first(), aux.get_first()))))
     while (not list.is_empty())
       insert_sorted<Compare>(aux, list.remove_first(), cmp);
   else
@@ -1175,7 +1174,7 @@ inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
   long i = 0;
   long j = m + 1;
   long k = l;
-  if constexpr (noexcept(cmp(a[l], a[l])))
+  if constexpr (noexcept(static_cast<bool>(cmp(a[l], a[l]))))
     while (i < s and j <= r)
       if (cmp(a[j], b[i]))
         a[k++] = std::move(a[j++]);
@@ -1325,7 +1324,7 @@ inline void merge_lists(Tlist &l1, Tlist &l2, Tlist &result, const Compare &cmp 
 
   // with equal items, that of l1 goes first, so that the merge is stable
   while (not l1.is_empty() and not l2.is_empty())
-    if (not cmp(l2.get_first_ne(), l1.get_first_ne()))
+    if (not static_cast<bool>(cmp(l2.get_first_ne(), l1.get_first_ne())))
       result.append(l1.remove_first_ne());
     else
       result.append(l2.remove_first_ne());
@@ -1397,7 +1396,7 @@ inline void mergesort(Tlist &list, const Compare &cmp = Compare())
   // Only the comparison can throw; then what is not merged yet goes back
   // to list. A comparison that does not throw needs no handler, which
   // would change the code of the sort.
-  if constexpr (noexcept(cmp(l.get_first_ne(), r.get_first_ne())))
+  if constexpr (noexcept(static_cast<bool>(cmp(l.get_first_ne(), r.get_first_ne()))))
     {
       mergesort<Tlist, Compare>(l, cmp);
       mergesort<Tlist, Compare>(r, cmp);
@@ -1440,7 +1439,7 @@ inline void __link_mergeinsertsort(Tlist &list, const size_t n, const Compare &c
   list.split_list_ne(l, r);  // l takes the first n - n / 2 nodes
   const size_t nl = n - n / 2;
 
-  if constexpr (noexcept(cmp(l.get_first_ne(), r.get_first_ne())))
+  if constexpr (noexcept(static_cast<bool>(cmp(l.get_first_ne(), r.get_first_ne()))))
     {
       __link_mergeinsertsort<Tlist, Tlink, Compare>(l, nl, cmp, lsz);
       __link_mergeinsertsort<Tlist, Tlink, Compare>(r, n - nl, cmp, lsz);
@@ -1612,9 +1611,8 @@ inline DynList<T> mergesort(DynList<T> &&list, const Compare &cmp = Compare())
  *  @return Index of the selected pivot.
  */
 template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
-inline long select_pivot(T *a, long l, long r,
-                         const Compare &cmp = Compare()) noexcept(noexcept(cmp(a[0], a[0])) &&
-                                                                  std::is_nothrow_swappable_v<T>);
+inline long select_pivot(T *a, long l, long r, const Compare &cmp = Compare()) noexcept(
+  noexcept(static_cast<bool>(cmp(a[0], a[0]))) and std::is_nothrow_swappable_v<T>);
 
 /** @brief Partition an array range [l, r] around a pivot.
  *
@@ -1634,9 +1632,8 @@ inline long select_pivot(T *a, long l, long r,
  *  @return The final index of the pivot.
  */
 template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
-inline long partition(T *a, const long l, const long r,
-                      const Compare &cmp = Compare()) noexcept(noexcept(cmp(a[0], a[0])) &&
-                                                               std::is_nothrow_swappable_v<T>)
+inline long partition(T *a, const long l, const long r, const Compare &cmp = Compare()) noexcept(
+  noexcept(static_cast<bool>(cmp(a[0], a[0]))) and std::is_nothrow_swappable_v<T>)
 {
   if (l >= r)
     return l;
@@ -1774,9 +1771,8 @@ inline void quicksort_rec_min(T *a, const long l, const long r, const Compare &c
 }
 
 template <typename T, StrictWeakOrder<T> Compare>
-inline long select_pivot(T *a, const long l, const long r,
-                         const Compare &cmp) noexcept(noexcept(cmp(a[0], a[0])) &&
-                                                      std::is_nothrow_swappable_v<T>)
+inline long select_pivot(T *a, const long l, const long r, const Compare &cmp) noexcept(
+  noexcept(static_cast<bool>(cmp(a[0], a[0]))) and std::is_nothrow_swappable_v<T>)
 {
   const long m = l + (r - l) / 2;
 
@@ -3781,9 +3777,9 @@ public:
 
   /// Compare in reverse order: returns cmp(e2, e1).
   bool operator () (const T &e1, const T &e2) const
-    noexcept(noexcept(std::declval<const Compare &>()(e2, e1)))
+    noexcept(noexcept(static_cast<bool>(std::declval<const Compare &>()(e2, e1))))
   {
-    return cmp(e2, e1);
+    return static_cast<bool>(cmp(e2, e1));
   }
 };
 
@@ -6081,13 +6077,14 @@ namespace bucket_sort_detail {
 template <typename T, class Compare>
 void insertion_sort_range(T *a, const size_t lo, const size_t hi, const Compare &cmp) noexcept(
   std::is_nothrow_move_constructible_v<T> and std::is_nothrow_move_assignable_v<T> and
-  noexcept(std::declval<const Compare &>()(std::declval<const T &>(), std::declval<const T &>())))
+  noexcept(static_cast<bool>(std::declval<const Compare &>()(std::declval<T &>(),
+                                                             std::declval<T &>()))))
 {
   for (size_t i = lo + 1; i < hi; ++i)
     {
       T tmp = std::move(a[i]);
       size_t j = i;
-      while (j > lo and cmp(tmp, a[j - 1]))
+      while (j > lo and static_cast<bool>(cmp(tmp, a[j - 1])))
         {
           a[j] = std::move(a[j - 1]);
           --j;
@@ -6563,8 +6560,8 @@ void binary_insertion_sort(
   T *a, const size_t lo, const size_t hi, const size_t start,
   const Compare &cmp) noexcept(std::is_nothrow_move_constructible_v<T> and
                                std::is_nothrow_move_assignable_v<T> and
-                               noexcept(std::declval<const Compare &>()(std::declval<const T &>(),
-                                                                        std::declval<const T &>())))
+                               noexcept(static_cast<bool>(std::declval<const Compare &>()(
+                                 std::declval<T &>(), std::declval<T &>()))))
 
 {
   size_t i = (start <= lo) ? lo + 1 : start;
@@ -6611,8 +6608,8 @@ void binary_insertion_sort(
 template <typename T, class Compare>
 size_t gallop_left(
   const T &key, const T *a, const size_t len, const size_t hint,
-  const Compare &cmp) noexcept(noexcept(std::declval<const Compare &>()(std::declval<const T &>(),
-                                                                        std::declval<const T &>())))
+  const Compare &cmp) noexcept(noexcept(static_cast<bool>(std::declval<const Compare &>()(
+    std::declval<const T &>(), std::declval<const T &>()))))
 {
   size_t last_ofs = 0;
   size_t ofs = 1;
@@ -6620,7 +6617,7 @@ size_t gallop_left(
   if (cmp(a[hint], key))  // key > a[hint]: search right
     {
       const size_t max_ofs = len - hint;
-      while (ofs < max_ofs and cmp(a[hint + ofs], key))
+      while (ofs < max_ofs and static_cast<bool>(cmp(a[hint + ofs], key)))
         {
           last_ofs = ofs;
           ofs = (ofs << 1) + 1;
@@ -6633,7 +6630,7 @@ size_t gallop_left(
   else  // key <= a[hint]: search left
     {
       const size_t max_ofs = hint + 1;
-      while (ofs < max_ofs and not cmp(a[hint - ofs], key))
+      while (ofs < max_ofs and not static_cast<bool>(cmp(a[hint - ofs], key)))
         {
           last_ofs = ofs;
           ofs = (ofs << 1) + 1;
@@ -6680,8 +6677,8 @@ size_t gallop_left(
 template <typename T, class Compare>
 size_t gallop_right(
   const T &key, const T *a, const size_t len, const size_t hint,
-  const Compare &cmp) noexcept(noexcept(std::declval<const Compare &>()(std::declval<const T &>(),
-                                                                        std::declval<const T &>())))
+  const Compare &cmp) noexcept(noexcept(static_cast<bool>(std::declval<const Compare &>()(
+    std::declval<const T &>(), std::declval<const T &>()))))
 {
   size_t last_ofs = 0;
   size_t ofs = 1;
@@ -6689,7 +6686,7 @@ size_t gallop_right(
   if (cmp(key, a[hint]))  // key < a[hint]: search left
     {
       const size_t max_ofs = hint + 1;
-      while (ofs < max_ofs and cmp(key, a[hint - ofs]))
+      while (ofs < max_ofs and static_cast<bool>(cmp(key, a[hint - ofs])))
         {
           last_ofs = ofs;
           ofs = (ofs << 1) + 1;
@@ -6706,7 +6703,7 @@ size_t gallop_right(
   else  // key >= a[hint]: search right
     {
       const size_t max_ofs = len - hint;
-      while (ofs < max_ofs and not cmp(key, a[hint + ofs]))
+      while (ofs < max_ofs and not static_cast<bool>(cmp(key, a[hint + ofs])))
         {
           last_ofs = ofs;
           ofs = (ofs << 1) + 1;

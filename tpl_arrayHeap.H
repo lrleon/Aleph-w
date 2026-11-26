@@ -866,7 +866,7 @@ namespace Aleph
     bool traverse_impl(Operation & operation)
     {
       for (size_t i = 1; i <= num_items; ++i)
-        if (not operation(array[i]))
+        if (not static_cast<bool>(operation(array[i])))
           return false;
 
       return true;
@@ -877,7 +877,7 @@ namespace Aleph
     bool const_traverse_impl(Operation & operation) const
     {
       for (size_t i = 1; i <= num_items; ++i)
-        if (not operation(static_cast<const T &>(array[i])))
+        if (not static_cast<bool>(operation(static_cast<const T &>(array[i]))))
           return false;
 
       return true;
