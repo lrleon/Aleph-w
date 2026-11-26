@@ -437,17 +437,17 @@ def moved_from_checked_file?(path)
 end
 
 # The failures of a pull request: the classes of the headers that it
-# changes that have the pattern and that the base did not have with it.
-# files_details are those of ci_policy_checks.rb; the base of each header
-# comes from origin/base
-def moved_from_failures(base, files_details)
+# changes that have the pattern and that they did not have with it before.
+# files_details are those of ci_policy_checks.rb, and before is the
+# revision that their changes start from (merge_base() there)
+def moved_from_failures(before, files_details)
   checked = files_details.select { |d| moved_from_checked_file?(d[:path]) and File.exist?(d[:path]) }
   return [] if checked.empty?
 
   tests_text, headers_text = moved_from_context
   scalar_names = moved_from_scalar_names(headers_text)
   checked.flat_map do |d|
-    previous, = Open3.capture2('git', 'show', "origin/#{base}:#{d[:old_path] || d[:path]}", err: File::NULL)
+    previous, = Open3.capture2('git', 'show', "#{before}:#{d[:old_path] || d[:path]}", err: File::NULL)
     known = moved_from_problems(previous, tests_text, headers_text, scalar_names).map { |_, m| m[/\A\w+/] }
     moved_from_problems(File.read(d[:path]), tests_text, headers_text, scalar_names).filter_map do |line, msg|
       "#{d[:path]}:#{line}: #{msg}" unless known.include?(msg[/\A\w+/])
