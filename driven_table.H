@@ -99,6 +99,7 @@
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
 # include <functional>
+# include <limits>
 # include <memory>
 # include <type_traits>
 
@@ -416,6 +417,20 @@ private:
     table[i] = Event_Handler();
   }
 
+  /// The handlers of a table of `num_events` events, all of them empty;
+  /// none for a table without events
+  static Event_Handler * allocate(const size_t num_events)
+  {
+    if (num_events == 0)
+      return nullptr;
+
+    // Before new[]: for a count whose bytes do not fit in a size_t, what
+    // new[] asks of the allocator depends on the compiler
+    ah_overflow_error_if(num_events > std::numeric_limits<size_t>::max() / sizeof(Event_Handler))
+      << "Static_Event_Table: " << num_events << " events do not fit in a size_t";
+    return new Event_Handler[num_events];
+  }
+
 public:
   /// Get table size (implements Event_Table virtual method)
   [[nodiscard]] size_t size() const override { return size_table; }
@@ -425,9 +440,12 @@ public:
    *  All event slots are initialized to empty.
    *
    *  @param num_events Number of event slots to allocate (default: 0)
+   *  @throw std::overflow_error if the bytes of `num_events` handlers do
+   *         not fit in a `size_t`
+   *  @throw std::bad_alloc if there is no memory for the handlers
    */
   explicit Static_Event_Table(const size_t num_events = 0)
-    : table(num_events > 0 ? new Event_Handler[num_events] : nullptr),
+    : table(allocate(num_events)),
       size_table(num_events)
   {
   }

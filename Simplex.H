@@ -692,6 +692,16 @@ namespace Aleph
         << "Restriction index " << i << " out of range [0, " << num_rest << ")";
     }
 
+    // An array of `n` coefficients, with room in a size_t for the bytes of
+    // `spare` more. Before new[]: for a count whose bytes do not fit in a
+    // size_t, what new[] asks of the allocator depends on the compiler
+    static T * allocate(const size_t n, const size_t spare = 0)
+    {
+      ah_overflow_error_if(n > std::numeric_limits<size_t>::max() / sizeof(T) - spare)
+        << "Simplex: the bytes of " << n << " coefficients do not fit in a size_t";
+      return new T[n];
+    }
+
     // Creates a new restriction array initialized to zero. The tableau,
     // once built, does not grow: a restriction added after it would make
     // the solver read past it
@@ -700,7 +710,7 @@ namespace Aleph
       ah_logic_error_if(m != nullptr)
         << "A restriction cannot be added after prepare_linear_program()";
 
-      T *ptr = new T[num_var + 1];
+      T *ptr = allocate(num_var + 1);
       rest_list.append(ptr);
       rest_types.append(type);
       ++num_rest;
@@ -877,13 +887,15 @@ namespace Aleph
      * @param[in] n Number of decision variables in the system.
      * @param[in] type Optimization type: Maximize (default) or Minimize.
      *
+     * @throw std::overflow_error If the bytes of a restriction of n
+     *        variables, n + 1 coefficients, do not fit in a size_t.
      * @throw std::bad_alloc If memory allocation fails.
      * @throw std::invalid_argument If n is zero.
      */
     explicit Simplex(const size_t n,
                      OptimizationType type = OptimizationType::Maximize)
-      : m(nullptr), objetive(new T[n]), num_var(n), num_rest(0),
-        num_artificial(0), solution(new T[n]), state(Not_Solved),
+      : m(nullptr), objetive(allocate(n, 1)), num_var(n), num_rest(0),
+        num_artificial(0), solution(allocate(n)), state(Not_Solved),
         opt_type(type), pivot_rule(PivotRule::Dantzig),
         eps(std::numeric_limits<T>::epsilon() * 100)
     {

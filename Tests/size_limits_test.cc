@@ -46,29 +46,40 @@
 // for SIZE_MAX bytes; and FixedQueue shifted 1 by 64 bits or more past 2^63.
 // These tests give each container that takes a size the sizes that it cannot
 // hold, those whose bytes do not fit in a size_t and, for the arrays of
-// DynArray, those past its limit. Each one must refuse them before it
+// DynArray, those past its limit. Static_Event_Table, Simplex and the hash
+// tables left such a count to new[] too, the tables after a search for the
+// next prime, which past the table of primes is by trial division. Each one must refuse them before it
 // allocates: with an exception that is not a failed allocation, since a
 // request of that size never gets memory, and under ASan the attempt itself
 // ends the program. And the container must be as it was.
 
 #include <gtest/gtest.h>
 
+#include <Simplex.H>
 #include <bitArray.H>
+#include <driven_table.H>
 #include <tpl_array.H>
 #include <tpl_arrayHeap.H>
 #include <tpl_arrayQueue.H>
 #include <tpl_arrayStack.H>
 #include <tpl_dynArray.H>
 #include <tpl_dynArrayHeap.H>
+#include <tpl_dynLhash.H>
+#include <tpl_dynMapOhash.H>
+#include <tpl_dynSetHash.H>
 #include <tpl_flat_map.H>
 #include <tpl_flat_set.H>
+#include <tpl_lhash.H>
 #include <tpl_memArray.H>
+#include <tpl_odhash.H>
+#include <tpl_olhash.H>
 #include <tpl_small_vector.H>
 
 #include <cstddef>
 #include <exception>
 #include <limits>
 #include <new>
+#include <stdexcept>
 #include <string>
 #include <typeinfo>
 
@@ -290,4 +301,87 @@ TEST(SizeLimits, SmallVector)
       EXPECT_EQ(v[0], "five");
       EXPECT_EQ(refusal_of([&] { SmallVector<std::string, 4> b(n, "x"); }), "");
     }
+}
+
+TEST(SizeLimits, StaticEventTable)
+{
+  using Table = Static_Event_Table<int(int)>;
+  for (const size_t n : sizes_beyond_bytes(sizeof(Table::Event_Handler)))
+    {
+      SCOPED_TRACE(n);
+      EXPECT_EQ(refusal_of([&] { Table t(n); }), "");
+    }
+  EXPECT_EQ(Table(3).size(), 3u);
+  EXPECT_EQ(Table().size(), 0u);
+}
+
+TEST(SizeLimits, Simplex)
+{
+  for (const size_t n : sizes_beyond_bytes(sizeof(double)))
+    {
+      SCOPED_TRACE(n);
+      EXPECT_EQ(refusal_of([&] { Simplex<double> s(n); }), "");
+    }
+  // a restriction has one coefficient more than the variables: the largest
+  // count of variables whose bytes fit leaves no room for it
+  EXPECT_EQ(refusal_of([&] { Simplex<double> s(max_size / sizeof(double)); }), "");
+
+  Simplex<double> s(2);
+  const double row[] = {1.0, 1.0, 4.0};
+  EXPECT_NE(s.put_restriction(row), nullptr);
+}
+
+// The hash tables take the count of buckets asked for to the next prime:
+// they refuse before that search a count whose bytes do not fit, in their
+// constructors and in resize(), which leaves the table as it was. Each
+// table is given the counts past its own buckets, which have from 8 to 48
+// bytes, and must say overflow_error: a count that passed the check would
+// reach new[] after the search, which says another thing
+TEST(SizeLimits, HashTables)
+{
+  const auto refuses = [] (const char * name, const size_t bucket_size, const auto & build)
+    {
+      for (const size_t n : sizes_beyond_bytes(bucket_size))
+        {
+          SCOPED_TRACE(testing::Message() << name << " of " << n << " buckets of " << bucket_size << " bytes");
+          EXPECT_THROW(build(n), std::overflow_error);
+        }
+    };
+  refuses("ODhashTable", sizeof(ODhashTable<int>::Bucket), [] (const size_t n) { ODhashTable<int> t(n); });
+  refuses("OLhashTable", sizeof(OLhashTable<int>::Bucket), [] (const size_t n) { OLhashTable<int> t(n); });
+  refuses("LhashTable", sizeof(Dlink), [] (const size_t n) { LhashTable<int> t(n); });
+  refuses("DynSetLhash", sizeof(Dlink), [] (const size_t n) { DynSetLhash<int> t(n); });
+  refuses("DynMapHash", sizeof(Dlink), [] (const size_t n) { DynMapHash<int, int> t(n); });
+  refuses("DynLhashTable", sizeof(Dlink), [] (const size_t n) { DynLhashTable<int, int> t(n); });
+  refuses("MapODhash", sizeof(MapODhash<int, std::string>::Bucket),
+          [] (const size_t n) { MapODhash<int, std::string> t(n); });
+  refuses("MapOLhash", sizeof(MapOLhash<int, std::string>::Bucket),
+          [] (const size_t n) { MapOLhash<int, std::string> t(n); });
+  // the sizes of the buckets are not all the same: the counts differ
+  static_assert(sizeof(ODhashTable<int>::Bucket) > sizeof(OLhashTable<int>::Bucket));
+  static_assert(sizeof(MapODhash<int, std::string>::Bucket) > sizeof(Dlink));
+
+  ODhashTable<int> d;
+  ASSERT_NE(d.insert(5), nullptr);
+  const size_t d_cap = d.capacity();
+  refuses("ODhashTable::resize()", sizeof(ODhashTable<int>::Bucket), [&d] (const size_t n) { d.resize(n); });
+  EXPECT_EQ(d.size(), 1u);
+  EXPECT_EQ(d.capacity(), d_cap);
+  EXPECT_TRUE(d.has(5));
+
+  OLhashTable<int> l;
+  ASSERT_NE(l.insert(5), nullptr);
+  const size_t l_cap = l.capacity();
+  refuses("OLhashTable::resize()", sizeof(OLhashTable<int>::Bucket), [&l] (const size_t n) { l.resize(n); });
+  EXPECT_EQ(l.size(), 1u);
+  EXPECT_EQ(l.capacity(), l_cap);
+  EXPECT_TRUE(l.has(5));
+
+  DynSetLhash<int> lists;
+  lists.insert(5);
+  const size_t lists_cap = lists.capacity();
+  refuses("DynSetLhash::resize()", sizeof(Dlink), [&lists] (const size_t n) { lists.resize(n); });
+  EXPECT_EQ(lists.size(), 1u);
+  EXPECT_EQ(lists.capacity(), lists_cap);
+  EXPECT_TRUE(lists.has(5));
 }

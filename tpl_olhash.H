@@ -250,10 +250,11 @@ namespace Aleph
    public:
 
     /// Instantiate a hash table with hash function __hash_fct and
-    /// dimension len.
+    /// dimension len. It throws overflow_error if the bytes of that many
+    /// buckets do not fit in a size_t.
     OLhashTable(const size_t l, Hash_Fct hash_f, Cmp cmp_f,
                 const float l_alpha, const float u_alpha, const bool resize)
-      : table(nullptr), N(0), len(Primes::next_prime(l)),
+      : table(nullptr), N(0), len(hash_dry_detail::prime_table_len<Bucket>(l)),
         lower_alpha(l_alpha), upper_alpha(u_alpha), cmp(cmp_f),
         hash_fct(hash_f), with_resize(resize)
     {
