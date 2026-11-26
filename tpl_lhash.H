@@ -227,7 +227,7 @@ namespace Aleph
                   const float lower, const float upper,
                   const bool remove_all, const bool resize)
       : hash_fct(hash_f), table(nullptr),
-        len(Primes::next_prime(table_size)), cmp(cpm_fct),
+        len(hash_dry_detail::prime_table_len<BucketList>(table_size)), cmp(cpm_fct),
         lower_alpha(lower), upper_alpha(upper),
         N(0), busy_slots_counter(0), remove_all_buckets(remove_all),
         with_resize(resize)
@@ -247,6 +247,8 @@ namespace Aleph
         the destructor is invoked.
         @param with_resize if true, the table is resized when the load factor
         exceeds upper_alpha.
+        @throw overflow_error if the bytes of `table_size` lists do not fit
+        in a `size_t`.
         @throw bad_alloc if there is not enough memory to allocate the table.
     */
     GenLhashTable(size_t table_size = Primes::DefaultPrime,
@@ -616,8 +618,9 @@ namespace Aleph
         @param[in] new_size The number of lists; 0 leaves the table as it
         is. A table that a move left without lists takes them here.
         @return The capacity of the table.
-        @throws std::bad_alloc if there is no memory for the lists; the
-        table is then left as it was.
+        @throws std::overflow_error if the bytes of the lists do not fit
+        in a `size_t`, and std::bad_alloc if there is no memory for them;
+        the table is then left as it was.
         @pre The hash function and the comparison do not throw, as in every
         operation of the table.
     */
@@ -629,10 +632,13 @@ namespace Aleph
       // the load factor as current_alpha() computes it, which insert()
       // compares with upper_alpha: below it with size lists, none of the
       // insertions below grows the table
-      size_t size = new_size;
+      // The size is checked before it grows, and each time that it does:
+      // one that no table has is refused at once, and twice a size that
+      // a table has is a size_t
+      size_t size = hash_dry_detail::checked_table_len<BucketList>(new_size);
       if (with_resize and upper_alpha > 0)
         while (static_cast<float>(1.0 * N / size) >= upper_alpha)
-          size = next_prime(2 * size);
+          size = hash_dry_detail::prime_table_len<BucketList>(2 * size);
 
       auto *new_table = new BucketList [size];
       BucketList *old_table = table; // save current table state

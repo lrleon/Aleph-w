@@ -633,13 +633,9 @@ namespace Aleph
           else
             RLINK(f_last) = root;
 
-          if (RLINK(root) != last)
-            std::swap(ULINK(root), ULINK(last));
-          else
-            {
-              ULINK(root) = last;
-              ULINK(root) = head;
-            }
+          // with more than 3 nodes the last one is not a child of the root
+          assert(f_last != root);
+          std::swap(ULINK(root), ULINK(last));
 
           std::swap(LLINK(root), LLINK(last));
           std::swap(RLINK(root), RLINK(last));

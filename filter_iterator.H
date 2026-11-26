@@ -173,8 +173,7 @@ class Filter_Iterator : public It
 
   // what the filter says of an item cannot throw
   static constexpr bool shows_ne =
-    std::is_nothrow_invocable_r_v<bool, Show_Item &,
-                                  decltype(std::declval<It &>().get_curr())>;
+    NothrowPredicateWith<Show_Item &, decltype(std::declval<It &>().get_curr())>;
 
   // the base iterator has get_curr_ne() and next_ne(), which do from an
   // item what get_curr() and next() do, without their checks
@@ -200,7 +199,7 @@ class Filter_Iterator : public It
    */
   void goto_first_valid_item()
   {
-    while (this->It::has_curr() and not show_item(base_curr()))
+    while (this->It::has_curr() and not static_cast<bool>(show_item(base_curr())))
       if constexpr (unchecked)
         this->It::next_ne();
       else
@@ -241,7 +240,8 @@ class Filter_Iterator : public It
           return forward_without_curr();
         do
           this->It::next_ne();
-        while (this->It::has_curr() and not show_item(this->It::get_curr_ne()));
+        while (this->It::has_curr()
+               and not static_cast<bool>(show_item(this->It::get_curr_ne())));
       }
     else
       {
@@ -269,7 +269,7 @@ class Filter_Iterator : public It
   void goto_last_valid_item()
   {
     this->It::reset_last();
-    while (this->It::has_curr() and not show_item(this->It::get_curr()))
+    while (this->It::has_curr() and not static_cast<bool>(show_item(this->It::get_curr())))
       this->It::prev();
   }
 
@@ -293,7 +293,7 @@ class Filter_Iterator : public It
       {
         return; // before the first item, as it was
       }
-    while (this->It::has_curr() and not show_item(this->It::get_curr()))
+    while (this->It::has_curr() and not static_cast<bool>(show_item(this->It::get_curr())))
       this->It::prev();
   }
 

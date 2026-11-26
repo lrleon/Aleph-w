@@ -139,10 +139,11 @@ namespace Aleph
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool overlaps(const Interval & other,
                                 const Compare & cmp = Compare()) const
-      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
+      noexcept(NothrowPredicateWith<const Compare &, const T &, const T &>)
     {
       // [a,b] overlaps [c,d] iff a <= d and c <= b
-      return not cmp(other.high, low) and not cmp(high, other.low);
+      return not static_cast<bool>(cmp(other.high, low))
+        and not static_cast<bool>(cmp(high, other.low));
     }
 
     /** @brief Return true if this interval contains the point `p`.
@@ -155,9 +156,9 @@ namespace Aleph
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool contains(const T & p,
                                 const Compare & cmp = Compare()) const
-      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
+      noexcept(NothrowPredicateWith<const Compare &, const T &, const T &>)
     {
-      return not cmp(p, low) and not cmp(high, p);
+      return not static_cast<bool>(cmp(p, low)) and not static_cast<bool>(cmp(high, p));
     }
 
     /** @brief Return true if low <= high.
@@ -168,20 +169,21 @@ namespace Aleph
      */
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool is_valid(const Compare & cmp = Compare()) const
-      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
+      noexcept(NothrowPredicateWith<const Compare &, const T &, const T &>)
     {
-      return not cmp(high, low);
+      return not static_cast<bool>(cmp(high, low));
     }
 
     /** @brief Equality operator.
      *  @param[in] other Interval to compare with.
      *  @return true if endpoints are equal.
-     *  @throws none
+     *  @throws Anything that the `==` of `T` throws, or the conversion of
+     *          its result to `bool`.
      */
     bool operator ==(const Interval & other) const
-      noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
+      noexcept(noexcept(static_cast<bool>(std::declval<const T &>() == std::declval<const T &>())))
     {
-      return low == other.low and high == other.high;
+      return static_cast<bool>(low == other.low) and static_cast<bool>(high == other.high);
     }
 
     /** @brief Inequality operator.
@@ -222,13 +224,13 @@ namespace Aleph
      *  @throws none
      */
     bool operator ()(const Interval<T> & a, const Interval<T> & b) const
-      noexcept(std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
+      noexcept(NothrowPredicateWith<const Compare &, const T &, const T &>)
     {
-      if (cmp(a.low, b.low))
+      if (static_cast<bool>(cmp(a.low, b.low)))
         return true;
-      if (cmp(b.low, a.low))
+      if (static_cast<bool>(cmp(b.low, a.low)))
         return false;
-      return cmp(a.high, b.high);
+      return static_cast<bool>(cmp(a.high, b.high));
     }
   };
 
@@ -649,7 +651,7 @@ namespace Aleph
         return true;
       if (cmp(b.low, a.low))
         return false;
-      return cmp(a.high, b.high);
+      return static_cast<bool>(cmp(a.high, b.high));
     }
 
     /// The side of `b` where `a` goes: -1 before it, 1 after it, and 0 if
@@ -1054,7 +1056,7 @@ namespace Aleph
      */
     const Node * search(const Key & key) const
       noexcept(std::is_nothrow_copy_constructible_v<Compare> and
-               std::is_nothrow_invocable_r_v<bool, const Compare &, const T &, const T &>)
+               NothrowPredicateWith<const Compare &, const T &, const T &>)
     {
       Node *ret_val = searchInBinTree(tree_root, key, key_comp());
       return ret_val == Node::NullPtr ? nullptr : ret_val;

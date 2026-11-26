@@ -82,18 +82,40 @@ namespace Aleph
   // compiler drops that part.
   namespace arrayheap_detail
   {
+    /** @brief The items of an array, numbered from 1.
+     *
+     *  The sifts number the items of a heap from 1. An array whose first
+     *  item is the item 1 has no entry 0, and a pointer to it may not be
+     *  formed: this gives the items by their numbers instead.
+     *
+     *  @tparam T the type of the items.
+     */
+    template <typename T>
+    struct From_One
+    {
+      T *first; ///< The item 1.
+
+      /** @brief The item of a number.
+       *  @param[in] i the number of the item, from 1.
+       *  @return the item.
+       */
+      constexpr T & operator [] (const size_t i) const noexcept { return first[i - 1]; }
+    };
+
     /** @brief Take back down an item that sift_up() took up.
      *
      *  The item is exchanged with each item of its way, which the indexes
      *  give: the ancestors of an entry are its index without its last bits.
      *
-     *  @param[in,out] ptr 1-based array of the heap.
+     *  @tparam A the items numbered from 1: a pointer to the entry 0 of
+     *          the array, or a From_One.
+     *  @param[in,out] ptr the items of the heap.
      *  @param[in] i the entry where the item is.
      *  @param[in] r the entry where it was: `i`, or one below it.
      */
-    template <typename T>
-    inline
-    void undo_sift_up(T *ptr, size_t i, const size_t r)
+    template <class A>
+    inline constexpr
+    void undo_sift_up(A ptr, size_t i, const size_t r)
     {
       for (auto levels = std::bit_width(r) - std::bit_width(i); levels != 0; )
         {
@@ -105,13 +127,15 @@ namespace Aleph
 
     /** @brief Take back up an item that sift_down() took down.
      *
-     *  @param[in,out] ptr 1-based array of the heap.
+     *  @tparam A the items numbered from 1: a pointer to the entry 0 of
+     *          the array, or a From_One.
+     *  @param[in,out] ptr the items of the heap.
      *  @param[in] i the entry where the item is.
      *  @param[in] l the entry where it was: `i`, or one above it.
      */
-    template <typename T>
-    inline
-    void undo_sift_down(T *ptr, size_t i, const size_t l)
+    template <class A>
+    inline constexpr
+    void undo_sift_down(A ptr, size_t i, const size_t l)
     {
       for (; i != l; i = u_index(i))
         std::swap(ptr[i], ptr[u_index(i)]);
@@ -121,7 +145,9 @@ namespace Aleph
      *
      *  What sift_down() does, with its result.
      *
-     *  @param[in,out] ptr 1-based array backing the heap.
+     *  @tparam A the items numbered from 1: a pointer to the entry 0 of
+     *          the array, or a From_One.
+     *  @param[in,out] ptr the items of the heap.
      *  @param[in] l left boundary (inclusive) / starting index.
      *  @param[in] r right boundary (inclusive).
      *  @param[in] cmp comparison criteria.
@@ -129,9 +155,9 @@ namespace Aleph
      *  @throws what the comparison throws, with the range as it was if the
      *          exchange of two items does not throw.
      */
-    template <typename T, class Compare>
-    inline
-    size_t sift_down(T *ptr, const size_t l, const size_t r, Compare & cmp)
+    template <class A, class Compare>
+    inline constexpr
+    size_t sift_down(A ptr, const size_t l, const size_t r, Compare & cmp)
     {
       size_t i = l;
       try
@@ -142,8 +168,8 @@ namespace Aleph
               if (c > r) [[unlikely]] // does it have a left child?
                 return i; // no ==> stop
 
-              // Prefetch grandchildren for next iteration
-              if (const size_t gc = l_index(c); gc <= r)
+              // Prefetch grandchildren for next iteration, in the program that runs
+              if (const size_t gc = l_index(c); gc <= r and not std::is_constant_evaluated())
                 __builtin_prefetch(std::addressof(ptr[gc]), 0, 1);
 
               if (c + 1 <= r) // does it have a right child?
@@ -162,6 +188,50 @@ namespace Aleph
           undo_sift_down(ptr, i, l);
           throw;
         }
+    }
+
+    /** @brief Move the element at position `r` upwards to its place.
+     *
+     *  What sift_up() does, on the items of any array numbered from 1.
+     *
+     *  @tparam A the items numbered from 1: a pointer to the entry 0 of
+     *          the array, or a From_One.
+     *  @param[in,out] ptr the items of the heap.
+     *  @param[in] l left boundary (inclusive).
+     *  @param[in] r right boundary (inclusive) / starting index.
+     *  @param[in] cmp comparison criteria.
+     *  @return a mutable reference to the element after it has been placed.
+     *  @throws what the comparison throws, with the range as it was if the
+     *          exchange of two items does not throw.
+     */
+    template <class A, class Compare>
+    inline constexpr
+    decltype(auto) sift_up(A ptr, const size_t l, const size_t r, Compare & cmp)
+    {
+      size_t i = r;
+      try
+        {
+          for (size_t p; i > l; i = p)
+            {
+              p = u_index(i); // parent index (p = i / 2)
+
+              // Prefetch grandparent for next iteration, in the program that runs
+              if (const size_t gp = u_index(p); gp >= l and not std::is_constant_evaluated())
+                __builtin_prefetch(std::addressof(ptr[gp]), 0, 1);
+
+              if (cmp(ptr[p], ptr[i])) [[likely]] // does the heap property hold?
+                return ptr[i]; // yes, the entire range is already a heap
+
+              std::swap(ptr[p], ptr[i]); // swap nodes and restore level p
+            }
+        }
+      catch (...)
+        {
+          undo_sift_up(ptr, i, r);
+          throw;
+        }
+
+      return ptr[i];
     }
   }
 
@@ -186,30 +256,7 @@ namespace Aleph
   inline
   T &sift_up(T *ptr, const size_t l, const size_t r, Compare & cmp)
   {
-    size_t i = r;
-    try
-      {
-        for (size_t p; i > l; i = p)
-          {
-            p = u_index(i); // parent index (p = i / 2)
-
-            // Prefetch grandparent for next iteration
-            if (const size_t gp = u_index(p); gp >= l)
-              __builtin_prefetch(std::addressof(ptr[gp]), 0, 1);
-
-            if (cmp(ptr[p], ptr[i])) [[likely]] // does the heap property hold?
-              return ptr[i]; // yes, the entire range is already a heap
-
-            std::swap(ptr[p], ptr[i]); // swap nodes and restore level p
-          }
-      }
-    catch (...)
-      {
-        arrayheap_detail::undo_sift_up(ptr, i, r);
-        throw;
-      }
-
-    return ptr[i];
+    return arrayheap_detail::sift_up(ptr, l, r, cmp);
   }
 
   /** Restore the heap property by moving the element at position `l` downwards.
@@ -284,7 +331,7 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
     requires StrictWeakOrder<Compare, T>
-  inline
+  inline constexpr
   void heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
     if (n < 2)
@@ -292,13 +339,14 @@ namespace Aleph
 
     Inversed_Compare<T, Compare> inv_cmp(cmp);
 
-    --array; // shift backwards so array[1] is the first element
+    // the items from 1, with no pointer to an entry before the array
+    const arrayheap_detail::From_One<T> items{array};
     for (size_t i = 2; i <= n; ++i)
-      sift_up<T, Inversed_Compare<T, Compare>>(array, 1, i, inv_cmp);
+      arrayheap_detail::sift_up(items, 1, i, inv_cmp);
     for (size_t i = n; i > 1; --i)
       {
-        std::swap(array[1], array[i]); // place the i-th item at the root
-        sift_down<T, Inversed_Compare<T, Compare>>(array, 1, i - 1, inv_cmp);
+        std::swap(items[1], items[i]); // place the i-th item at the root
+        arrayheap_detail::sift_down(items, 1, i - 1, inv_cmp);
       }
   }
 
@@ -319,7 +367,7 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
     requires StrictWeakOrder<Compare, T>
-  inline
+  inline constexpr
   void faster_heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
     if (n < 2)
@@ -327,13 +375,14 @@ namespace Aleph
 
     Inversed_Compare<T, Compare> inv_cmp(cmp);
 
-    --array; // shift backwards so array[1] is the first element
+    // the items from 1, with no pointer to an entry before the array
+    const arrayheap_detail::From_One<T> items{array};
     for (size_t i = n / 2; i >= 1; --i)
-      sift_down(array, i, n, inv_cmp);
+      arrayheap_detail::sift_down(items, i, n, inv_cmp);
     for (size_t i = n; i > 1; --i)
       {
-        std::swap(array[1], array[i]); // place the i-th item at the root
-        sift_down(array, 1, i - 1, inv_cmp);
+        std::swap(items[1], items[i]); // place the i-th item at the root
+        arrayheap_detail::sift_down(items, 1, i - 1, inv_cmp);
       }
   }
 
@@ -365,6 +414,21 @@ namespace Aleph
       The heap stores elements from index 1 to `num_items` and keeps
       index 0 as sentinel, which simplifies the `parent/child`
       arithmetic.
+
+      @par What an exception leaves
+      Each operation says what it leaves when the comparison throws: the
+      heap as it was, if the exchange of two items does not throw. When an
+      operation of an item throws, its copy, its move or its exchange with
+      another item, the guarantee is the basic one, as in the containers
+      of the standard library: the heap has the count that it had or the
+      one that the operation was giving it, which is that of the other
+      heap in a copy assignment and one item fewer in remove(), and each
+      of its entries holds an item in the state in which that operation
+      left it. An item may then be lost or moved from, and the items may
+      be out of order, so that the heap no longer gives its least item
+      first: it may be destroyed or assigned to. A heap of items whose move
+      and exchange do not throw, as nearly all are, comes to that only in
+      its copy assignment, when the copy of an item throws.
 
       @tparam T element type
       @tparam Compare comparator defining the priority order
@@ -866,7 +930,7 @@ namespace Aleph
     bool traverse_impl(Operation & operation)
     {
       for (size_t i = 1; i <= num_items; ++i)
-        if (not operation(array[i]))
+        if (not static_cast<bool>(operation(array[i])))
           return false;
 
       return true;
@@ -877,7 +941,7 @@ namespace Aleph
     bool const_traverse_impl(Operation & operation) const
     {
       for (size_t i = 1; i <= num_items; ++i)
-        if (not operation(static_cast<const T &>(array[i])))
+        if (not static_cast<bool>(operation(static_cast<const T &>(array[i]))))
           return false;
 
       return true;

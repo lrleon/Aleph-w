@@ -924,7 +924,7 @@ public:
     noexcept(Aleph::NothrowPredicateWith<Operation &, const Key &>)
   {
     for (auto it = begin(); it.has_curr(); it.next_ne())
-      if (not op(static_cast<const Key &>(it.get_curr_ne())))
+      if (not static_cast<bool>(op(static_cast<const Key &>(it.get_curr_ne()))))
         return false;
     return true;
   }

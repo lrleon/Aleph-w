@@ -487,7 +487,7 @@ namespace Aleph
                 const float lower, const float upper, const bool resize)
       : table(nullptr), hash_fct(fst_hash_fct),
         second_hash_fct(snd_hash_fct), cmp(cpm_fct),
-        len(Primes::next_prime(l)),
+        len(hash_dry_detail::prime_table_len<Bucket>(l)),
         lower_alpha(lower), upper_alpha(upper),
         N(0), with_resize(resize)
     {
@@ -517,6 +517,8 @@ namespace Aleph
          load factor thresholds are crossed.
         @param[in] len table size.
 
+        @throw overflow_error if the bytes of `len` buckets do not fit in a
+        `size_t`.
         @throw bad_alloc if there is no memory for the bucket table.
     */
     using Base = OhashCommon<ODhashTable<Key, Cmp>, Key>;

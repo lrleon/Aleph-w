@@ -140,15 +140,16 @@ namespace Aleph::graph_dry_detail
     Node *tgt = nullptr;
     SA show_arc;
 
-    // Whether show_arc throws nothing, and so the moves without checks
-    static constexpr bool shows_ne = std::is_nothrow_invocable_r_v<bool, SA &, Arc *>;
+    // Whether show_arc throws nothing, called as forward() and backward()
+    // call it, with an arc that has a name, and so the moves without checks
+    static constexpr bool shows_ne = NothrowPredicateWith<SA &, Arc *&>;
 
     // Moves forward, from the current arc, to the first one into tgt that
     // show_arc shows, or to the end
     void forward()
     {
       for (; arcs->has_curr(); arcs->next_ne())
-        if (Arc *a = arcs->get_curr_ne(); a->tgt_node == tgt and show_arc(a))
+        if (Arc *a = arcs->get_curr_ne(); a->tgt_node == tgt and static_cast<bool>(show_arc(a)))
           return;
     }
 
@@ -157,7 +158,7 @@ namespace Aleph::graph_dry_detail
     void backward()
     {
       for (; arcs->has_curr(); arcs->prev())
-        if (Arc *a = arcs->get_curr_ne(); a->tgt_node == tgt and show_arc(a))
+        if (Arc *a = arcs->get_curr_ne(); a->tgt_node == tgt and static_cast<bool>(show_arc(a)))
           return;
     }
 
@@ -617,13 +618,21 @@ struct Cmp_Dlink_Node
   { /* empty */
   }
 
+  /** @brief Whether `cmp` puts the node of `d1` before the node of `d2`.
+   *
+   *  @param[in] d1 the link of a node.
+   *  @param[in] d2 the link of another node.
+   *  @return what `cmp` says of the two nodes, converted to `bool`.
+   *  @throws anything that `cmp` or that conversion throws; `noexcept`
+   *          when they throw nothing.
+   */
   bool operator ()(Dlink *d1, Dlink *d2) const
-    noexcept(noexcept(std::declval<Cmp &>()(std::declval<Node *>(),
-                                           std::declval<Node *>())))
+    noexcept(noexcept(static_cast<bool>(std::declval<Cmp &>()(std::declval<Node *&>(),
+                                                             std::declval<Node *&>()))))
   {
     Node *p1 = static_cast<Node *>(d1);
     Node *p2 = static_cast<Node *>(d2);
-    return cmp(p1, p2);
+    return static_cast<bool>(cmp(p1, p2));
   }
 };
 
@@ -645,13 +654,21 @@ struct Cmp_Dlink_Arc
   { /* empty */
   }
 
+  /** @brief Whether `cmp` puts the arc of `d1` before the arc of `d2`.
+   *
+   *  @param[in] d1 the link of an arc.
+   *  @param[in] d2 the link of another arc.
+   *  @return what `cmp` says of the two arcs, converted to `bool`.
+   *  @throws anything that `cmp` or that conversion throws; `noexcept`
+   *          when they throw nothing.
+   */
   bool operator ()(Dlink *d1, Dlink *d2) const
-    noexcept(noexcept(std::declval<Cmp &>()(std::declval<Arc *>(),
-                                           std::declval<Arc *>())))
+    noexcept(noexcept(static_cast<bool>(std::declval<Cmp &>()(std::declval<Arc *&>(),
+                                                             std::declval<Arc *&>()))))
   {
     Arc *arc1 = static_cast<Arc *>(d1);
     Arc *arc2 = static_cast<Arc *>(d2);
-    return cmp(arc1, arc2);
+    return static_cast<bool>(cmp(arc1, arc2));
   }
 };
 
@@ -2901,9 +2918,10 @@ public:
       \return a valid pointer to a node if there is one mathing `info`
       or `nullptr` otherwise.
    */
-  Node * find_node(const Node_Type & info) const noexcept
+  Node * find_node(const Node_Type & info) const
+    noexcept(noexcept(static_cast<bool>(std::declval<Node_Type &>() == std::declval<const Node_Type &>())))
   {
-    return search_node([&info](auto p) { return p->get_info() == info; });
+    return search_node([&info](auto p) { return static_cast<bool>(p->get_info() == info); });
   }
 
   /** Linear search of an arc.
@@ -2954,9 +2972,10 @@ public:
       \return a valid pointer to a arc if there is one mathing `info`
       or `nullptr` otherwise.
   */
-  Arc * find_arc(const Arc_Type & info) const noexcept
+  Arc * find_arc(const Arc_Type & info) const
+    noexcept(noexcept(static_cast<bool>(std::declval<Arc_Type &>() == std::declval<const Arc_Type &>())))
   {
-    return search_arc([&info](auto a) { return a->get_info() == info; });
+    return search_arc([&info](auto a) { return static_cast<bool>(a->get_info() == info); });
   }
 
   /** Linear search of an arc.
@@ -3298,6 +3317,11 @@ public:
     Itor it;
 
   public:
+    /// Whether what the filter says of an arc cannot throw, nor its
+    /// conversion to bool: the moves without checks and the resets are
+    /// noexcept then
+    static constexpr bool shows_ne = noexcept(std::declval<Itor &>().next_ne());
+
     using Item_Type = typename Itor::Item_Type; /// the type of items (Arc*)
 
     using Iterator_Type = Itor;
@@ -3315,7 +3339,9 @@ public:
       // empty
     }
 
-    void next_ne() noexcept { it.next_ne(); }
+    /// next() without its check: the current arc must exist. `noexcept`
+    /// when the filter is (shows_ne); else what the filter throws goes out
+    void next_ne() noexcept(shows_ne) { it.next_ne(); }
 
     /// Advance to next arc. Throw `overflow_error` if there is no
     /// current arc
@@ -3368,11 +3394,11 @@ public:
     auto get_tgt_node() const { return get_node(); }
 
     /// Reset the iterator to first arc
-    void reset_first() noexcept { it.reset_first(); }
+    void reset_first() noexcept(shows_ne) { it.reset_first(); }
 
     /// Reset the iterator to last arc. Only where the iterator goes to
     /// its last arc (goes_to_last)
-    void reset_last() noexcept requires goes_to_last { it.reset_last(); }
+    void reset_last() noexcept(shows_ne) requires goes_to_last { it.reset_last(); }
   };
 
   /** Alias for `Digraph_Iterator` */
@@ -4186,10 +4212,13 @@ public:
   static constexpr bool has_arc_dlink_v =
     requires(U & u) { { u.get_arc_dlink() } -> std::same_as<Dlink&>; };
 
-  // Whether cmp, which compares pointers to T, does not throw
+  // Whether cmp, which compares pointers to T, does not throw, nor the
+  // conversion of what it returns to bool: what Cmp_Dlink_Node and
+  // Cmp_Dlink_Arc do with it
   template <class Compare, class T>
   static constexpr bool nothrow_cmp_v =
-    noexcept(std::declval<Compare &>()(std::declval<T *>(), std::declval<T *>()));
+    noexcept(static_cast<bool>(std::declval<Compare &>()(std::declval<T *&>(),
+                                                         std::declval<T *&>())));
 
   template <class Compare>
   void sort_nodes(Compare & cmp) noexcept(nothrow_cmp_v<Compare, Node>)

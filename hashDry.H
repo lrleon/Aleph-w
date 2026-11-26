@@ -54,6 +54,7 @@
  *  @author Leandro Rabindranath León
 */
 
+# include <limits>
 # include <type_traits>
 # include <utility>
 
@@ -62,6 +63,47 @@
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
 # include <ah-iterator.H>
+
+namespace hash_dry_detail
+{
+  /** @brief Checks that the bytes of a table of buckets fit in a `size_t`.
+
+      For a count of buckets whose bytes do not fit, what `new[]` asks of
+      the allocator depends on the compiler: some ask for the largest
+      `size_t`, which under a sanitizer ends the program.
+
+      @tparam Bucket the type of the buckets of the table.
+      @param[in] len the count of buckets.
+      @return `len`.
+      @throw std::overflow_error if the bytes of `len` buckets do not fit in
+             a `size_t`.
+  */
+  template <class Bucket>
+  [[nodiscard]] inline size_t checked_table_len(const size_t len)
+  {
+    ah_overflow_error_if(len > std::numeric_limits<size_t>::max() / sizeof(Bucket))
+      << "hash table: the bytes of " << len << " buckets do not fit in a size_t";
+    return len;
+  }
+
+  /** @brief The length of a table for a request of `len` buckets: the next
+      prime.
+
+      The request is checked before it is taken to a prime, which past the
+      table of primes is searched by trial division, and the prime after it.
+
+      @tparam Bucket the type of the buckets of the table.
+      @param[in] len the buckets asked for.
+      @return The first prime that is `len` or more.
+      @throw std::overflow_error if the bytes of `len` buckets, or of that
+             prime, do not fit in a `size_t`.
+  */
+  template <class Bucket>
+  [[nodiscard]] inline size_t prime_table_len(const size_t len)
+  {
+    return checked_table_len<Bucket>(Primes::next_prime(checked_table_len<Bucket>(len)));
+  }
+} // namespace hash_dry_detail
 
 /** @brief CRTP mixin providing common operations for open addressing hash tables.
 
@@ -205,13 +247,15 @@ protected:
       of them are placed. The buckets of removed keys are left behind.
 
       @param new_len Number of new buckets. It must leave an empty bucket.
-      @throw std::bad_alloc If there is no memory for the new buckets, and
-             anything that copying a key throws. The table is left as it
-             was.
+      @throw std::overflow_error If the bytes of the new buckets do not fit
+             in a `size_t`, std::bad_alloc if there is no memory for them,
+             and anything that copying a key throws. The table is left as
+             it was.
   */
   void rebuild(const size_t new_len)
   {
-    auto * new_table = new typename HashTbl::Bucket[new_len];
+    auto * new_table =
+      new typename HashTbl::Bucket[hash_dry_detail::checked_table_len<typename HashTbl::Bucket>(new_len)];
     typename HashTbl::Bucket * old_table = me()->table;
     const size_t old_len = me()->len;
     const size_t old_N = me()->N;
@@ -833,7 +877,8 @@ public:
       @param new_size The new capacity (should be a prime number).
       @return The actual new capacity (may differ from requested if
               new_size was 0 or equal to current capacity).
-      @throw std::overflow_error If new_size is too small for current entries.
+      @throw std::overflow_error If new_size is too small for current entries,
+             or the bytes of that many buckets do not fit in a `size_t`.
       @throw std::bad_alloc If there is no memory for the new buckets, and
              anything that copying a key throws when its swap may throw.
              The table is left as it was.

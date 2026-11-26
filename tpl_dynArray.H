@@ -2066,12 +2066,12 @@ private:
         if (const T *entry = test(i); entry != nullptr)
           {
             for (size_t k = 0; k < count; ++k)
-              if (not operation(entry[k]))
+              if (not static_cast<bool>(operation(entry[k])))
                 return false;
           }
         else
           for (size_t k = 0; k < count; ++k)
-            if (not operation(static_cast<const T &>(default_initial_value)))
+            if (not static_cast<bool>(operation(static_cast<const T &>(default_initial_value))))
               return false;
         i += count;
       }
@@ -2091,7 +2091,7 @@ private:
         const size_t count = std::min(block_size - index_in_block(i), current_dim - i);
         T *entry = &touch(i);  // the count entries from i lie in the same block
         for (size_t k = 0; k < count; ++k)
-          if (not operation(entry[k]))
+          if (not static_cast<bool>(operation(entry[k])))
             return false;
         i += count;
       }
