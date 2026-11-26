@@ -57,6 +57,9 @@
 
 #include <Simplex.H>
 #include <bitArray.H>
+#include <bloom-filter.H>
+#include <compact-cuckoo-filter.H>
+#include <cuckoo-filter.H>
 #include <driven_table.H>
 #include <tpl_array.H>
 #include <tpl_arrayHeap.H>
@@ -384,4 +387,33 @@ TEST(SizeLimits, HashTables)
   EXPECT_EQ(lists.size(), 1u);
   EXPECT_EQ(lists.capacity(), lists_cap);
   EXPECT_TRUE(lists.has(5));
+}
+
+// The cuckoo filters compute their buckets, and the estimate of a Bloom
+// filter its bits, as a double: for a count next to the largest size_t
+// they are more than a size_t counts, and the conversion of such a double
+// is undefined. A cuckoo filter of one entry per bucket was built there
+// with one bucket
+TEST(SizeLimits, CuckooFiltersAndTheEstimateOfABloomFilter)
+{
+  for (const size_t n : {max_size, max_size - 1, max_size / 2 + 1, max_size / 2, max_size / 4})
+    {
+      SCOPED_TRACE(n);
+      EXPECT_THROW((Cuckoo_Filter<int, 8, 1>(n, 42)), std::overflow_error);
+      EXPECT_THROW((Cuckoo_Filter<int, 8, 4>(n, 42)), std::overflow_error);
+      EXPECT_THROW((Compact_Cuckoo_Filter<int, 8, 1>(n, 42)), std::overflow_error);
+      EXPECT_THROW((Compact_Cuckoo_Filter<int, 8, 4>(n, 42)), std::overflow_error);
+      EXPECT_THROW((void) Bloom_Filter<int>::estimate(n, 0.01), std::overflow_error);
+    }
+
+  // those that fit are built as before
+  const Cuckoo_Filter<int, 8, 1> one(1000, 42);
+  EXPECT_GE(one.capacity(), 1000u);
+  const Compact_Cuckoo_Filter<int, 8, 4> four(1000, 42);
+  EXPECT_GE(four.capacity(), 1000u);
+  const auto [m, k] = Bloom_Filter<int>::estimate(1000, 0.01);
+  EXPECT_EQ(m, 9586u);
+  EXPECT_EQ(k, 7u);
+  // and the most bits that a size_t counts, at a probability of 1/2
+  EXPECT_NO_THROW((void) Bloom_Filter<int>::estimate(max_size / 4, 0.5));
 }

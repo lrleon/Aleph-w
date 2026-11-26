@@ -219,6 +219,8 @@ public:
    *             Pass a fixed value in tests to eliminate flakiness.
    *             Defaults to a non-deterministic device seed.
    * @throws std::bad_alloc if memory allocation fails.
+   * @throws std::overflow_error if the capacity asks for more buckets than
+   *         a size_t counts, or than their array holds.
    * @note O(capacity / EntriesPerBucket).
    */
   explicit Cuckoo_Filter(size_t capacity,
@@ -226,8 +228,13 @@ public:
     : rng_(seed.has_value() ? std::mt19937(seed.value())
                             : std::mt19937(std::random_device{}()))
   {
-    const size_t needed_buckets =
-      static_cast<size_t>(std::ceil(capacity / (EntriesPerBucket * kTargetLoad)));
+    // The buckets as a double first: for a capacity next to the largest
+    // size_t they are more than a size_t counts, the conversion of such a
+    // double is undefined, and past 2^63 they have no next power of two
+    const double needed = std::ceil(capacity / (EntriesPerBucket * kTargetLoad));
+    ah_overflow_error_if(needed > 0x1p63)
+      << "Cuckoo_Filter: " << capacity << " items ask for more buckets than a size_t counts";
+    const auto needed_buckets = static_cast<size_t>(needed);
     // Round up to a power of 2 so that bucket_mask works as a modulo
     num_buckets = next_power_of_2(needed_buckets);
     if (num_buckets == 0)
