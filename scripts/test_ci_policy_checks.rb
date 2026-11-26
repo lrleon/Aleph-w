@@ -266,29 +266,29 @@ class TestCiPolicyChecks < Minitest::Test
     refute std_checked_library_file?('Tests/tpl_net_test.cc')
     refute std_checked_library_file?('benchmarks/ca/bench_support.H')
     refute std_checked_library_file?('ah-convert.H')
-      refute std_checked_library_file?('README.md')
-end
-
-def test_std_checked_test_files
-  assert std_checked_test_file?('Tests/tpl_net_test.cc')
-  assert std_checked_test_file?('Tests/moved_from.H')
-  refute std_checked_test_file?('Tests/ah-stl-zip_test.cc')
-  refute std_checked_test_file?('Tests/ah_convert_composition_test.cc')
-  refute std_checked_test_file?('tpl_net.H')
-  refute std_checked_test_file?('Examples/dijkstra_example.cc')
-  refute std_checked_test_file?('Tests/CMakeLists.txt')
-end
-
-def test_a_test_adds_only_what_it_did_not_have
-  path = 'Tests/x_test.cc'
-  old_content = "std::vector<int> a;\nstd::vector<int> b;\n"
-  new_content = old_content + "std::vector<int> c;\n" \
-                "std::sort(a.begin(), a.end()); // std-interop: an independent oracle\n"
-  def_mock_git_show({ "origin/main:#{path}" => old_content }) do
-    def_mock_file_read({ path => new_content }) do
-      assert_equal({ 'vector' => 1 }, added_std_uses('main', path))
-    end
+    refute std_checked_library_file?('README.md')
   end
+
+  def test_std_checked_test_files
+    assert std_checked_test_file?('Tests/tpl_net_test.cc')
+    assert std_checked_test_file?('Tests/moved_from.H')
+    refute std_checked_test_file?('Tests/ah-stl-zip_test.cc')
+    refute std_checked_test_file?('Tests/ah_convert_composition_test.cc')
+    refute std_checked_test_file?('tpl_net.H')
+    refute std_checked_test_file?('Examples/dijkstra_example.cc')
+    refute std_checked_test_file?('Tests/CMakeLists.txt')
+  end
+
+  def test_a_test_adds_only_what_it_did_not_have
+    path = 'Tests/x_test.cc'
+    old_content = "std::vector<int> a;\nstd::vector<int> b;\n"
+    new_content = old_content + "std::vector<int> c;\n" \
+                  "std::sort(a.begin(), a.end()); // std-interop: an independent oracle\n"
+    def_mock_git_show({ "origin/main:#{path}" => old_content }) do
+      def_mock_file_read({ path => new_content }) do
+        assert_equal({ 'vector' => 1 }, added_std_uses('main', path))
+      end
+    end
   end
 
   private
