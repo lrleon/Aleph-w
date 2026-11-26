@@ -262,6 +262,189 @@ TEST(FunctionalMixin, MapsTypeConversion)
   strs.for_each([&](const string& s) { EXPECT_EQ(s, expected[i++]); });
 }
 
+// Without an operation, maps() copies the items and maps<R>() converts each
+// one to R. The default operation had its two types exchanged: an item went
+// to R, back to its own type and to R again, which is not the same value
+// for every item, and did not compile for an R from which the type of the
+// items is not built. And it was noexcept: a copy that threw ended the
+// program.
+namespace
+{
+  // Counts its constructions from an int, to which it converts back
+  struct Counted_From_Int
+  {
+    static inline int built = 0;
+    int v;
+    Counted_From_Int(const int x) : v(x) { ++built; }
+    operator int () const { return v; }
+  };
+
+  struct Meters
+  {
+    double v;
+  };
+
+  // Built from Meters, and Meters is not built from it
+  struct Feet
+  {
+    double v;
+    explicit Feet(const Meters & m) : v(m.v * 3.28084) {}
+  };
+
+  struct Copy_May_Throw
+  {
+    static inline bool fail = false;
+    int v = 0;
+    Copy_May_Throw() = default;
+    Copy_May_Throw(const int x) : v(x) {}
+    Copy_May_Throw(const Copy_May_Throw & c) : v(c.v)
+    {
+      if (fail)
+        throw std::runtime_error("the copy fails");
+    }
+    Copy_May_Throw & operator = (const Copy_May_Throw &) = default;
+  };
+
+  // An item that counts its copies and its moves
+  struct Counted_Item
+  {
+    static inline int copies = 0, moves = 0;
+    int v = 0;
+    Counted_Item() = default;
+    Counted_Item(const int x) : v(x) {}
+    Counted_Item(const Counted_Item & c) : v(c.v) { ++copies; }
+    Counted_Item(Counted_Item && c) noexcept : v(c.v) { ++moves; }
+    Counted_Item & operator = (const Counted_Item &) = default;
+  };
+
+  // An item that counts its copies and has no move: its rvalues are copied
+  struct Counted_Copy
+  {
+    static inline int copies = 0;
+    int v = 0;
+    Counted_Copy() = default;
+    Counted_Copy(const int x) : v(x) {}
+    Counted_Copy(const Counted_Copy & c) : v(c.v) { ++copies; }
+    Counted_Copy & operator = (const Counted_Copy &) = default;
+  };
+
+  // A container for a result that takes its items by rvalue alone
+  template <typename T>
+  struct Only_Rvalues
+  {
+    DynList<T> items;
+    void append(T && item) { items.append(std::move(item)); }
+  };
+
+  template <class C, class R>
+  concept Maps_To = requires (const C & c) { c.template maps<R>(); };
+
+  // Asking whether a container maps without operation to a type is an
+  // answer, also when its items do not convert to the type
+  static_assert(Maps_To<MixinVector<int>, double>);
+  static_assert(Maps_To<MixinVector<Meters>, Meters>);
+  static_assert(Maps_To<MixinVector<Meters>, Feet>);
+  static_assert(not Maps_To<MixinVector<Feet>, Meters>);
+  static_assert(not Maps_To<MixinVector<Meters>, int>);
+}
+
+TEST(FunctionalMixin, MapsWithoutOperationCopiesTheItems)
+{
+  MixinVector<int> v = {3, 1, 2};
+
+  const DynList<int> copy = v.maps();
+  EXPECT_EQ(copy, build_dynlist<int>(3, 1, 2));
+  EXPECT_EQ(v.maps<int>(), copy);
+  EXPECT_TRUE(MixinVector<int>().maps().is_empty());
+}
+
+TEST(FunctionalMixin, MapsWithoutOperationConvertsEachItemOnce)
+{
+  MixinVector<int> v = {3, 1, 2};
+  Counted_From_Int::built = 0;
+  const DynList<Counted_From_Int> counted = v.maps<Counted_From_Int>();
+  EXPECT_EQ(Counted_From_Int::built, 3);
+  EXPECT_EQ(counted.maps<int>([] (const Counted_From_Int & c) { return c.v; }), build_dynlist<int>(3, 1, 2));
+
+  // the largest 64-bit integer is not a double, and the nearest one, 2^63,
+  // is not a 64-bit integer: there is no way back from it
+  MixinVector<long long> big = {std::numeric_limits<long long>::max(), 5, -7};
+  EXPECT_EQ(big.maps<double>(), build_dynlist<double>(9223372036854775808.0, 5.0, -7.0));
+
+  MixinVector<double> halves = {3.75, -0.5};
+  EXPECT_EQ(halves.maps<int>(), build_dynlist<int>(3, 0));
+
+  MixinVector<Meters> lengths = {Meters{1.0}, Meters{2.0}};
+  const DynList<Feet> feet = lengths.maps<Feet>();
+  EXPECT_EQ(feet.maps<double>([] (const Feet & f) { return f.v; }), build_dynlist<double>(3.28084, 6.56168));
+}
+
+// The copy of maps() without operation took each item twice: the default
+// operation built a copy, and the container moved it, or copied it again
+// when the item has no move
+TEST(FunctionalMixin, MapsWithoutOperationCopiesEachItemOnce)
+{
+  MixinVector<Counted_Item> v;
+  MixinVector<Counted_Copy> w;
+  for (int i = 0; i < 5; ++i)
+    {
+      v.append(Counted_Item(i));
+      w.append(Counted_Copy(i));
+    }
+
+  Counted_Item::copies = Counted_Item::moves = 0;
+  const DynList<Counted_Item> items = v.maps();
+  EXPECT_EQ(Counted_Item::copies, 5);
+  EXPECT_EQ(Counted_Item::moves, 0);
+  EXPECT_EQ(items.maps<int>([] (const Counted_Item & c) { return c.v; }), build_dynlist<int>(0, 1, 2, 3, 4));
+
+  Counted_Item::copies = Counted_Item::moves = 0;
+  EXPECT_EQ(v.maps<Counted_Item>().size(), 5u);
+  EXPECT_EQ(Counted_Item::copies, 5);
+  EXPECT_EQ(Counted_Item::moves, 0);
+
+  Counted_Copy::copies = 0;
+  const DynList<Counted_Copy> copies = w.maps();
+  EXPECT_EQ(Counted_Copy::copies, 5);
+  EXPECT_EQ(copies.maps<int>([] (const Counted_Copy & c) { return c.v; }), build_dynlist<int>(0, 1, 2, 3, 4));
+}
+
+// maps() copies the item itself into a container that takes it so. One
+// whose append() takes only an rvalue is given what the default operation
+// builds, as before: maps() into it did not compile with the copy alone
+TEST(FunctionalMixin, MapsWithoutOperationIntoAContainerOfRvalues)
+{
+  MixinVector<int> v = {3, 1, 2};
+  const Only_Rvalues<int> same = v.maps<void, Only_Rvalues>();
+  EXPECT_EQ(same.items, build_dynlist<int>(3, 1, 2));
+  const Only_Rvalues<int> named = v.maps<int, Only_Rvalues>();
+  EXPECT_EQ(named.items, build_dynlist<int>(3, 1, 2));
+  const Only_Rvalues<double> wide = v.maps<double, Only_Rvalues>();
+  EXPECT_EQ(wide.items, build_dynlist<double>(3.0, 1.0, 2.0));
+
+  MixinVector<Counted_Item> items;
+  for (int i = 0; i < 5; ++i)
+    items.append(Counted_Item(i));
+  Counted_Item::copies = Counted_Item::moves = 0;
+  const Only_Rvalues<Counted_Item> moved = items.maps<void, Only_Rvalues>();
+  EXPECT_EQ(Counted_Item::copies, 5);
+  EXPECT_EQ(Counted_Item::moves, 5);
+  EXPECT_EQ(moved.items.size(), 5u);
+}
+
+TEST(FunctionalMixin, MapsWithoutOperationLetsACopyThrow)
+{
+  MixinVector<Copy_May_Throw> v;
+  for (int i = 0; i < 5; ++i)
+    v.append(Copy_May_Throw(i));
+
+  Copy_May_Throw::fail = true;
+  EXPECT_THROW((void) v.maps(), std::runtime_error);
+  EXPECT_THROW((void) v.maps<Copy_May_Throw>(), std::runtime_error);
+  Copy_May_Throw::fail = false;
+  EXPECT_EQ(v.maps().size(), 5u);
+}
+
 TEST(FunctionalMixin, Filter)
 {
   MixinVector<int> v = {1, 2, 3, 4, 5, 6};

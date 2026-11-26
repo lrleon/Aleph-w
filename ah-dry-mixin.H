@@ -88,8 +88,8 @@ class DynList;
 
 // Dft_Map_Op is defined in ahFunctional.H, we just forward declare here
 // to avoid circular dependency. When ahFunctional.H is included, it provides
-// the actual definition.
-template <typename T, typename R>
+// the actual definition. The type of the result goes first.
+template <typename tgtT, typename srcT>
 struct Dft_Map_Op;
 
 // =============================================================================
@@ -727,7 +727,8 @@ public:
    *          `const`.
    *  @tparam Container Result container type (default: DynList).
    *  @tparam Operation Callable with signature `R(const Type&)`, or a
-   *          pointer to member; without operation, the items are copied.
+   *          pointer to member; without operation, each item is converted
+   *          to `R`, or copied if `R` is not given.
    *  @param operation Transformation function.
    *  @return New container with transformed elements.
    *
@@ -750,8 +751,7 @@ public:
    *  auto longs = nums.maps<long>([](int x) { return x; });
    *  @endcode
    */
-  template <typename R = void, template <typename> class Container = Aleph::DynList,
-            class Operation = Dft_Map_Op<Type, std::conditional_t<std::is_void_v<R>, Type, R>>>
+  template <typename R = void, template <typename> class Container = Aleph::DynList, class Operation>
     requires std::invocable<Operation &, const Type &> and
     requires(Container<concepts_detail::map_result_t<R, Operation &, Type>> &l, Operation &op,
              const Type &item) { l.append(std::invoke(op, item)); }
@@ -759,16 +759,24 @@ public:
     Operation &operation) const
   {
     Container<concepts_detail::map_result_t<R, Operation &, Type>> ret_val;
-    for_each([&ret_val, &operation](const Type &item)
-      {
-        ret_val.append(std::invoke(operation, item));
-      });
+    // The default operation between items of one type is their copy: the
+    // container makes it here, once, where the operation would build a
+    // copy for the container to move, or to copy again. A container that
+    // takes only rvalues is given what the operation builds
+    if constexpr (std::is_same_v<std::remove_cv_t<Operation>, Dft_Map_Op<Type, Type>> and
+                  requires(decltype(ret_val) &l, const Type &item) { l.append(item); })
+      for_each([&ret_val](const Type &item) { ret_val.append(item); });
+    else
+      for_each([&ret_val, &operation](const Type &item)
+        {
+          ret_val.append(std::invoke(operation, item));
+        });
     return ret_val;
   }
 
   /// @overload
   template <typename R = void, template <typename> class Container = Aleph::DynList,
-            class Operation = Dft_Map_Op<Type, std::conditional_t<std::is_void_v<R>, Type, R>>>
+            class Operation = Dft_Map_Op<std::conditional_t<std::is_void_v<R>, Type, R>, Type>>
     requires std::invocable<Operation &, const Type &> and
     requires(Container<concepts_detail::map_result_t<R, Operation &, Type>> &l, Operation &op,
              const Type &item) { l.append(std::invoke(op, item)); }

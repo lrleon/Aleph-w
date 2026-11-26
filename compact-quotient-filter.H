@@ -282,23 +282,64 @@ template <typename T> class Compact_Quotient_Filter
       }
   }
 
-  bool do_insert(const size_t fq, const uint64_t fr)
+  // Whether the run of the quotient `fq` holds the remainder `fr`.
+  [[nodiscard]] bool holds(const size_t fq, const uint64_t fr) const noexcept
   {
-    if (num_elems_ >= num_slots_)
+    if (not get_occ(fq))
       return false;
 
+    size_t s = find_run_start(fq);
+    do
+      {
+        const uint64_t cur = get_rem(s);
+        if (cur == fr)
+          return true;
+        if (cur > fr)
+          return false;
+        s = incr(s);
+    } while (get_cont(s));
+
+    return false;
+  }
+
+  // Calls op(fq, fr) with the quotient and the remainder of each element.
+  template <class Op> void for_each_fingerprint(Op op) const
+  {
+    for (size_t fq = 0; fq < num_slots_; ++fq)
+      {
+        if (not get_occ(fq))
+          continue;
+
+        size_t s = find_run_start(fq);
+        do
+          {
+            op(fq, get_rem(s));
+            s = incr(s);
+        } while (get_cont(s));
+      }
+  }
+
+  enum class Insert_Result
+  {
+    inserted,
+    duplicate,
+    full
+  };
+
+  // Core insert of a pre-computed (fq, fr) pair. The remainder is looked
+  // for before the room: a filter holds its elements once, full or not.
+  [[nodiscard]] Insert_Result do_insert(const size_t fq, const uint64_t fr)
+  {
+    // The canonical slot is completely empty. A full filter has none.
     if (slot_empty(fq))
       {
         set_occ(fq, true);
         set_rem(fq, fr);
         ++num_elems_;
-        return true;
+        return Insert_Result::inserted;
       }
 
-    const bool was_occupied = get_occ(fq);
-    set_occ(fq, true);
-
-    if (was_occupied)
+    if (get_occ(fq))
       {
         const size_t s   = find_run_start(fq);
         size_t       pos = s;
@@ -307,11 +348,14 @@ template <typename T> class Compact_Quotient_Filter
           {
             uint64_t cur = get_rem(pos);
             if (cur == fr)
-              return false;
+              return Insert_Result::duplicate;
             if (cur > fr)
               break;
             pos = incr(pos);
         } while (get_cont(pos));
+
+        if (num_elems_ >= num_slots_)
+          return Insert_Result::full;
 
         const size_t empty = find_first_unused(pos);
         shift_elements_right(pos, empty);
@@ -323,16 +367,22 @@ template <typename T> class Compact_Quotient_Filter
           set_cont(incr(pos), true);
 
         ++num_elems_;
-        return true;
+        return Insert_Result::inserted;
       }
 
+    if (num_elems_ >= num_slots_)
+      return Insert_Result::full;
+
+    // With occupied(fq) set, find_run_start locates the place of the new
+    // run, of one element.
+    set_occ(fq, true);
     const size_t s     = find_run_start(fq);
     const size_t empty = find_first_unused(s);
     shift_elements_right(s, empty);
 
     set_element(s, false, s != fq, fr);
     ++num_elems_;
-    return true;
+    return Insert_Result::inserted;
   }
 
   // Core delete: shift one slot to the left the elements that follow the
@@ -445,54 +495,38 @@ public:
 
   /** @brief Construct from desired capacity and false positive rate.
    *
+   *  The filter has the quotient and the remainder bits that estimate()
+   *  gives: slots for @p expected_n elements at a load of 75 % or less.
+   *
    *  @param[in] expected_n Expected number of elements.
    *  @param[in] fp_rate    Target false positive probability.
    *  @param[in] seed       Hash seed.
-   *  @throws std::domain_error if expected_n == 0, fp_rate not in (0,1),
-   *          or the requested (expected_n, fp_rate) cannot be represented
-   *          within the supported parameter ranges.
+   *  @throws std::domain_error if expected_n == 0, if fp_rate is not in
+   *          (0, 1), or if no filter has the two, as estimate() says.
    */
   static Compact_Quotient_Filter from_capacity(size_t expected_n, double fp_rate, uint32_t seed = 0x5F3759DF)
   {
     ah_domain_error_if(expected_n == 0) << "Compact_Quotient_Filter::from_capacity: expected_n must be > 0";
-    ah_domain_error_if(fp_rate <= 0.0 or fp_rate >= 1.0)
+    ah_domain_error_if(not (fp_rate > 0.0 and fp_rate < 1.0))
       << "Compact_Quotient_Filter::from_capacity: fp_rate must be in (0, 1) (got " << fp_rate << ")";
 
-    const double slots_needed = static_cast<double>(expected_n) / 0.75;
-    const auto q_d = std::max(1.0, std::ceil(std::log2(slots_needed)));
-    const auto r_d = std::max(1.0, std::ceil(-std::log2(fp_rate)));
-
-    int q_v = static_cast<int>(q_d);
-    int r_v = static_cast<int>(r_d);
-
-    ah_domain_error_if(r_v < 1 or r_v > 60)
-      << "Compact_Quotient_Filter::from_capacity: requested fp_rate requires r = " << r_v
-      << " remainder bits, which is outside the supported range [1, 60]";
-
-    if (q_v + r_v > 64)
-      q_v = 64 - r_v;
-
-    ah_domain_error_if(q_v < 1 or q_v > 32)
-      << "Compact_Quotient_Filter::from_capacity: requested (expected_n, fp_rate) leads to q = " << q_v
-      << ", which is outside the supported range [1, 32]";
-
-    return Compact_Quotient_Filter(static_cast<uint8_t>(q_v), static_cast<uint8_t>(r_v), seed);
+    const auto [q_v, r_v] = estimate(expected_n, fp_rate);
+    return Compact_Quotient_Filter(q_v, r_v, seed);
   }
 
   /** @brief Insert an element.
    *
    *  After insertion, `contains(item)` is guaranteed true.
-   *  Duplicates are silently ignored.
+   *  Duplicates are silently ignored, in a full filter too.
    *
-   *  @throws std::overflow_error if the filter is full.
+   *  @throws std::overflow_error if the filter is full and does not hold
+   *          the element.
    */
   Compact_Quotient_Filter &insert(const T &item)
   {
-    ah_overflow_error_if(num_elems_ >= num_slots_)
-      << "Compact_Quotient_Filter::insert: filter is full (" << num_elems_ << "/" << num_slots_ << ")";
-
     auto [fq, fr] = fingerprint(item);
-    do_insert(fq, fr);
+    ah_overflow_error_if(do_insert(fq, fr) == Insert_Result::full)
+      << "Compact_Quotient_Filter::insert: filter is full (" << num_elems_ << "/" << num_slots_ << ")";
     return *this;
   }
 
@@ -503,22 +537,7 @@ public:
   [[nodiscard]] bool contains(const T &item) const noexcept
   {
     auto [fq, fr] = fingerprint(item);
-
-    if (not get_occ(fq))
-      return false;
-
-    size_t s = find_run_start(fq);
-    do
-      {
-        uint64_t cur = get_rem(s);
-        if (cur == fr)
-          return true;
-        if (cur > fr)
-          return false;
-        s = incr(s);
-    } while (get_cont(s));
-
-    return false;
+    return holds(fq, fr);
   }
 
   /** @brief Remove an element.
@@ -623,39 +642,85 @@ public:
     num_elems_ = 0;
   }
 
-  /** @brief Merge another filter (same q, r, seed). O(2^q).
+  /** @brief Merge another filter (same q, r, seed).
+   *
+   *  The filter is left with its elements and those of @p other, each one
+   *  once: an element that the two hold takes no slot.
+   *
+   *  It takes O(2^q) on average at the loads that a filter is made for.
+   *  Each element costs the length of its cluster, so the time grows up to
+   *  O(4^q) as the filters fill. When the sizes of the two filters say
+   *  that the elements of @p other may not fit, they are first looked for
+   *  in this filter, which is a second pass over @p other.
+   *
+   *  @param[in] other filter whose elements are taken; it is not changed.
    *  @throws std::domain_error on parameter mismatch.
+   *  @throws std::overflow_error if the elements of @p other that this
+   *          filter does not hold are more than its free slots. The filter
+   *          is then left as it was.
    */
   void merge(const Compact_Quotient_Filter &other)
   {
     ah_domain_error_if(q_ != other.q_ or r_ != other.r_) << "Compact_Quotient_Filter::merge: parameter mismatch";
     ah_domain_error_if(seed_ != other.seed_) << "Compact_Quotient_Filter::merge: seed mismatch";
+    if (this == &other) // it holds its elements already
+      return;
 
-    for (size_t canonical = 0; canonical < other.num_slots_; ++canonical)
+    // The elements of the other that this one does not hold are counted
+    // before any of them enters, when the two sizes say that they may not
+    // fit: a filter that cannot take them all is left as it was.
+    const size_t room = num_slots_ - num_elems_;
+    if (other.num_elems_ > room)
       {
-        if (not other.get_occ(canonical))
-          continue;
-
-        size_t s = other.find_run_start(canonical);
-        do
-          {
-            do_insert(canonical, other.get_rem(s));
-            s = other.incr(s);
-        } while (other.get_cont(s));
+        size_t missing = 0;
+        other.for_each_fingerprint([this, &missing](const size_t fq, const uint64_t fr)
+        {
+          if (not holds(fq, fr))
+            ++missing;
+        });
+        ah_overflow_error_if(missing > room)
+          << "Compact_Quotient_Filter::merge: " << missing << " elements of the other filter do not fit in the "
+          << room << " free slots of this one";
       }
+
+    other.for_each_fingerprint([this](const size_t fq, const uint64_t fr) { (void) do_insert(fq, fr); });
   }
 
-  /** @brief Estimate (q, r) for n elements and target FP rate. */
+  /** @brief The quotient and the remainder bits of a filter for `n`
+   *         elements and a target FP rate.
+   *
+   *  The slots are the least power of two that holds `n` elements at a
+   *  load of 75 % or less, and the remainder bits are the fewest that give
+   *  the rate.
+   *
+   *  @param[in] n       Expected number of elements.
+   *  @param[in] fp_rate Target false positive probability.
+   *  @return The pair `(q, r)`, as the constructor takes them.
+   *  @throws std::domain_error if `n == 0`, if `fp_rate` is not in (0, 1),
+   *          or if no filter has the two: the rate asks for more than 60
+   *          remainder bits, the elements for more than 2^32 slots, or the
+   *          two together for more than the 64 bits of the hash.
+   */
   [[nodiscard]] static std::pair<uint8_t, uint8_t> estimate(size_t n, double fp_rate)
   {
-    ah_domain_error_if(n == 0) << "n must be > 0";
-    ah_domain_error_if(fp_rate <= 0.0 or fp_rate >= 1.0) << "fp_rate must be in (0, 1)";
+    ah_domain_error_if(n == 0) << "Compact_Quotient_Filter::estimate: n must be > 0";
+    ah_domain_error_if(not (fp_rate > 0.0 and fp_rate < 1.0))
+      << "Compact_Quotient_Filter::estimate: fp_rate must be in (0, 1) (got " << fp_rate << ")";
+
+    // as int: a rate may ask for up to 1074 bits, more than a uint8_t holds.
+    // They are counted in its exponent, which is exact: a logarithm rounds
+    // a rate just under a power of two to the power, one bit short
     const double slots = static_cast<double>(n) / 0.75;
-    auto         qv    = static_cast<uint8_t>(std::max(1.0, std::ceil(std::log2(slots))));
-    auto         rv    = static_cast<uint8_t>(std::max(1.0, std::ceil(-std::log2(fp_rate))));
-    if (qv + rv > 64)
-      qv = static_cast<uint8_t>(64 - rv);
-    return {qv, rv};
+    const int    qv    = static_cast<int>(std::max(1.0, std::ceil(std::log2(slots))));
+    const int    rv    = -std::ilogb(fp_rate);
+
+    ah_domain_error_if(rv > 60) << "Compact_Quotient_Filter::estimate: a rate of " << fp_rate << " asks for " << rv
+                                << " remainder bits, and a filter has 60 at most";
+    ah_domain_error_if(qv > 32) << "Compact_Quotient_Filter::estimate: " << n << " elements ask for 2^" << qv
+                                << " slots, and a filter has 2^32 at most";
+    ah_domain_error_if(qv + rv > 64) << "Compact_Quotient_Filter::estimate: " << n << " elements at a rate of "
+                                     << fp_rate << " ask for " << qv + rv << " bits of the hash, which has 64";
+    return {static_cast<uint8_t>(qv), static_cast<uint8_t>(rv)};
   }
 
   /** @brief Swap in O(1). */

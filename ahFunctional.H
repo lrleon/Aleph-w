@@ -136,21 +136,51 @@ struct Some : public Found_Item<T>
   }
 };
 
-/** @brief Default mapping operation (identity). */
+/** @brief Default mapping operation: the conversion of the item, which is
+ *         its copy when the two types are the same.
+ *
+ *  It is not callable when the item does not convert to the result, so
+ *  asking whether it is, as a `requires` clause does, is not an error.
+ *  maps() of the mixins does not call it between items of one type: it
+ *  copies each item into its result, once.
+ *
+ *  @tparam tgtT Type of the result.
+ *  @tparam srcT Type of the item.
+ */
 template <typename tgtT, typename srcT>
 struct Dft_Map_Op
 {
-  tgtT operator()(const srcT &item) const noexcept
+  /** @brief Converts an item to the type of the result.
+   *
+   *  @param[in] item The item.
+   *  @return `item` as a `tgtT`.
+   *  @throws Anything that the conversion throws; it is `noexcept` when
+   *          the conversion is.
+   */
+  tgtT operator()(const srcT &item) const noexcept(noexcept(static_cast<tgtT>(item)))
+    requires requires(const srcT &x) { static_cast<tgtT>(x); }
   {
     return static_cast<tgtT>(item);
   }
 };
 
-/** @brief Default folding operation (returns default-constructed accumulator). */
+/** @brief Default folding operation (returns default-constructed accumulator).
+ *
+ *  @tparam TR Type of the accumulator.
+ *  @tparam TD Type of the items.
+ */
 template <typename TR, typename TD>
 struct Dft_Fold_Op
 {
-  TR operator()(const TR & /*acc */, const TD & /* val */) const noexcept
+  /** @brief Builds an accumulator by default, whatever it is given.
+   *
+   *  @return `TR()`.
+   *  @throws Anything that the default constructor of `TR` throws; it is
+   *          `noexcept` when that constructor is.
+   */
+  TR operator()(const TR & /*acc */, const TD & /* val */) const
+    noexcept(std::is_nothrow_default_constructible_v<TR>)
+    requires requires { TR(); }
   {
     return TR();
   }
