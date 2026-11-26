@@ -1892,10 +1892,13 @@ namespace Aleph
     }
 
     /// Put the iterator in end state. Only where the iterator goes to its
-    /// last arc (goes_to_last)
-    void end() noexcept requires goes_to_last
+    /// last arc (goes_to_last). `noexcept` when the filter is (shows_ne);
+    /// else what the filter throws goes out
+    void end() noexcept(shows_ne) requires goes_to_last
     {
-      put_itor_at_the_end(*this);
+      it.reset_last();
+      if (it.has_curr())
+        it.next_ne();
     }
   };
 

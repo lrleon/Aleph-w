@@ -676,6 +676,9 @@ TEST(ConditionConversions, ArcsOfANodeThroughAFilterOfTheCaller)
   static_assert(not Member::shows_ne);
   static_assert(not noexcept(std::declval<Free &>().next_ne()));
   static_assert(not noexcept(std::declval<Free &>().reset_first()));
+  static_assert(not noexcept(std::declval<Free &>().reset_last()));
+  static_assert(not noexcept(std::declval<Free &>().end()));
+  static_assert(noexcept(std::declval<Aleph::Digraph_Iterator<Edges, __Out_Filt<Edges>> &>().end()));
   static_assert(not noexcept(std::declval<Member &>().next_ne()));
   static_assert(not noexcept(std::declval<Member &>().reset_first()));
   // and with the filters of the library they are, as before
@@ -703,6 +706,8 @@ TEST(ConditionConversions, ArcsOfANodeThroughAFilterOfTheCaller)
   const Arm arm;
   EXPECT_THROW(free.next_ne(), Conversion_Error);
   EXPECT_THROW(free.reset_first(), Conversion_Error);
+  EXPECT_THROW(free.reset_last(), Conversion_Error);
+  EXPECT_THROW(free.end(), Conversion_Error);
   EXPECT_THROW(member.next_ne(), Conversion_Error);
   EXPECT_THROW(member.reset_first(), Conversion_Error);
 }
