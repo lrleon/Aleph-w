@@ -64,19 +64,19 @@ jobs:
         run: |
           ruby scripts/test_ci_already_tested.rb
 
-  # Whether the local CI already passed the required Linux jobs on what
-  # this pull request merges (docs/ci-local.md). scripts/ci-local.sh
-  # --merge --publish posts on the head of the pull request the status
+  # Whether the local CI already passed the required Linux jobs on what this
+  # pull request merges (docs/ci-local.md). scripts/ci-local.sh --merge
+  # --publish posts on the head of the pull request the status
   # ci-local/required, with the fingerprint of this workflow and of the
-  # script, the master of the merge and the week of its images; then the
-  # build-and-test jobs and sanitizers skip their steps and pass, which
-  # keeps the required checks of master. Only on a pull request of this
-  # repository with the label ci-local, for a status that a trusted user
-  # posted (CI_LOCAL_TRUSTED, by default the owner of the repository), that
-  # matches this merge, and whose images are of this week or of the last.
-  # The job waits for it up to CI_LOCAL_WAIT_MINUTES (default 20, at most
-  # 25, within its timeout), as long as the label is there; otherwise, or
-  # on any error, those jobs run here.
+  # script, the master and the tree of the merge and the week of its images;
+  # then the build-and-test jobs and sanitizers skip their steps and pass,
+  # which keeps the required checks of master. Only on a pull request of
+  # this repository with the label ci-local, for a status that a trusted
+  # user posted (CI_LOCAL_TRUSTED, by default the owner of the repository),
+  # that matches this merge, and whose images are of this week or of the
+  # last. The job waits for it up to CI_LOCAL_WAIT_MINUTES (default 20, at
+  # most 25, within its timeout), as long as the label is there; otherwise,
+  # or on any error, those jobs run here.
   local-ci:
     name: local-ci
     runs-on: ubuntu-24.04
@@ -145,9 +145,15 @@ jobs:
             finish
           fi
           # The fingerprint that scripts/ci-local.sh computes on the merge,
-          # and the weeks whose images a status may name
+          # the tree of this merge, which a local merge of the same commits
+          # may not give, and the weeks whose images a status may name
           fp=$(cat .github/workflows/ci.yml scripts/ci-local.sh | sha256sum | cut -c1-12)
-          want="fp=${fp} base=${base:0:12}"
+          tree=$(git rev-parse 'HEAD^{tree}' 2> /dev/null) || tree=""
+          if [ -z "${tree}" ]; then
+            echo "No tree for this checkout: the required Linux jobs run here."
+            finish
+          fi
+          want="fp=${fp} base=${base:0:12} tree=${tree:0:12}"
           week=$(date -u +%G-W%V)
           last_week=$(date -u -d '7 days ago' +%G-W%V)
           echo "Waiting up to ${WAIT_MINUTES} minutes for ci-local/required \"${want} img=${week} or ${last_week}\" on ${HEAD_SHA}"

@@ -24,6 +24,7 @@ already passed on the machine of a maintainer: the hybrid CI.
    - `fp=`, the fingerprint of `ci.yml` and of `scripts/ci-local.sh` in the
      merge;
    - `base=`, the `master` of the merge;
+   - `tree=`, the tree of the merge that the jobs tested;
    - `img=`, the week of the images, and the versions of their compilers.
 
    It needs Docker and images on x86_64 (amd64), as the runners of the
@@ -34,7 +35,9 @@ already passed on the machine of a maintainer: the hybrid CI.
    - posted by a trusted user: the repository variable `CI_LOCAL_TRUSTED`,
      a list of logins separated by commas, by default the owner of the
      repository;
-   - with the fingerprint and the `master` of the merge that the CI tests;
+   - with the fingerprint, the `master` and the tree of the merge that the
+     CI tests: the same commits may merge into another tree in a clone,
+     with a merge driver of its own, and a result is only for its tree;
    - from images of this week or of the last.
 
    It waits for the status up to `CI_LOCAL_WAIT_MINUTES` (a repository
@@ -67,13 +70,23 @@ git push
 scripts/ci-local.sh --merge --publish   # after it: posts the result of the run above
 ```
 
-A result that passed for the same commit, `master`, workflow and week of
-the images is posted without running the jobs again; without the first
-run, `--publish` runs them, and the status is `pending` while they run,
+A result that passed for the same commit, `master`, tree of the merge,
+workflow and week of the images is posted without running the jobs
+again, unless `--clean` asks for new builds; without the first run,
+`--publish` runs them, and the status is `pending` while they run,
 and a `failure` if one fails, so that the success of an earlier run of the
 same merge does not stand. `--dry-run` prints the statuses instead of
-posting them. If `master` moves before the CI starts, the status no longer
-matches: run `scripts/ci-local.sh --merge --publish` again.
+posting them. If `--publish` cannot ask GitHub whether it has the commit,
+as on an error of the service, it stops; if GitHub has no such commit
+yet, it says to push it.
+
+The status is for the merge into the `master` of the moment. If `master`
+moves before the push, `--publish` after it merges into the new one, as
+the CI does. If it moves after the push, the run of the CI keeps the
+merge of that push, and neither a new `--publish` nor re-running
+`local-ci` gives a status for it: bring `master` into the branch and push
+again, which starts a new run, and run `--merge --publish` for it; or let
+the required jobs run in GitHub.
 
 The CI does not run again when a label is added or a status posted: if
 `local-ci` ended before them, re-run that job, which re-runs the required
@@ -84,9 +97,9 @@ the button of the job in GitHub.
 
 - The pull request has no label `ci-local`, or comes from a fork.
 - No status of a trusted user arrives within the wait.
-- The status is of another merge: `master` moved, or the merge changes
-  `ci.yml` or `scripts/ci-local.sh` (the fingerprint); or its images are
-  older than last week.
+- The status is of another merge: `master` moved, the merge changes
+  `ci.yml` or `scripts/ci-local.sh` (the fingerprint), or its tree is not
+  that of the merge of GitHub; or its images are older than last week.
 - The label is taken off while `local-ci` waits.
 - `local-ci` fails, or GitHub does not answer it.
 

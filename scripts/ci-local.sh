@@ -28,8 +28,8 @@
 #                  skip them (see docs/ci-local.md); the status is pending
 #                  while the jobs run, and a failure if one fails; a
 #                  result that passed before for the same commit, master,
-#                  workflow and week is posted without running the jobs
-#                  again
+#                  tree of the merge, workflow and week is posted without
+#                  running the jobs again, unless with --clean
 #   --dry-run      with --publish, print the status instead of posting it
 #   --clean        start the build directories of the jobs from scratch
 #   --list         list the jobs and the groups
@@ -525,21 +525,30 @@ run_job() {  # job; writes its status and its time to the logs
 }
 
 # Where --publish posts: the repository in GitHub, and whether the commit
-# is there, as a status goes only on a commit that GitHub has
+# is there, as a status goes only on a commit that GitHub has. GitHub says
+# that it has no such commit with a 422; any other failure of the query,
+# as an error of the service, stops the run, which would otherwise end
+# without posting what it was asked to
 SLUG=""
 ON_GITHUB=0
 find_on_github() {
   SLUG=$(cd "${ROOT_DIR}" && gh repo view --json nameWithOwner --jq .nameWithOwner) ||
     die "gh does not find the repository on GitHub (gh auth login?)"
-  if gh api "repos/${SLUG}/commits/${HEAD_SHA}" --silent >/dev/null 2>&1; then ON_GITHUB=1; fi
+  local out
+  if out=$(gh api "repos/${SLUG}/commits/${HEAD_SHA}" --silent 2>&1); then
+    ON_GITHUB=1
+  elif [[ "${out}" != *"(HTTP 422)"* && "${out}" != *"(HTTP 404)"* ]]; then
+    die "cannot ask GitHub whether it has ${HEAD_SHA:0:12}: ${out%%$'\n'*}"
+  fi
 }
 
 # Post on the commit the status ci-local/required in a state, success,
 # pending or failure, whose description carries the fingerprint, the
-# master of the merge and the week of the images, and then what the state
-# says; the job local-ci of the CI takes only a success
+# master and the tree of the merge and the week of the images, and then
+# what the state says; the job local-ci of the CI takes only a success,
+# and only for the tree of the merge that it checked out
 post_status() {  # state, what follows the week
-  local desc="fp=${FP} base=${BASE:0:12} img=${WEEK}; $2"
+  local desc="fp=${FP} base=${BASE:0:12} tree=${TREE:0:12} img=${WEEK}; $2"
   desc=${desc:0:140}
   if (( DRY_RUN )); then
     say "would post on ${HEAD_SHA:0:12} the status ${STATUS_CONTEXT} ($1): ${desc}"
@@ -629,13 +638,16 @@ if (( PUBLISH )) && [ "${IMG_ARCH}" != amd64 ]; then
 fi
 if (( PUBLISH && ! DRY_RUN )); then find_on_github; fi
 
-# A merge that passed is recorded by commit, master, fingerprint, week and
-# architecture of the images, so that --publish after the push posts it
-# without running the jobs again, and never a result of another machine
+# A merge that passed is recorded by commit, master, tree of the merge,
+# fingerprint, week and architecture of the images, so that --publish
+# after the push posts it without running the jobs again, and never a
+# result of another machine. The same commits may merge into another tree,
+# as with a merge driver of this clone, and a result is for its tree.
+# --clean runs the jobs again, from new builds
 RECORD=""
-(( MERGE )) && RECORD="${WORK}/passed/${HEAD_SHA}-${BASE}-${FP}-${WEEK}-${IMG_ARCH:-none}"
+(( MERGE )) && RECORD="${WORK}/passed/${HEAD_SHA}-${BASE}-${TREE}-${FP}-${WEEK}-${IMG_ARCH:-none}"
 recorded=0
-if (( PUBLISH )) && [ -f "${RECORD}" ]; then
+if (( PUBLISH && ! CLEAN )) && [ -f "${RECORD}" ]; then
   recorded=1
   for j in "${SELECTED[@]}"; do
     if ! grep -qx "job ${j}" "${RECORD}"; then recorded=0; fi
