@@ -326,6 +326,18 @@ prepare_source() {
     SRC="${WORK}/src-rev"
     rm -rf "${SRC}"; mkdir -p "${SRC}"
     git -C "${ROOT_DIR}" archive "${what}" | tar -x -C "${SRC}"
+    # git archive leaves out the files that an attribute export-ignore
+    # names, in the tree or in the clone ($GIT_DIR/info/attributes), and a
+    # test whose source is missing is left out of the build without an
+    # error: the record and the status would name a tree whose files did
+    # not all build. Every file of the tree must have come
+    local missing
+    missing=$(comm -z -23 <(git -C "${ROOT_DIR}" ls-tree -r -z --name-only "${what}" | sort -z) \
+                          <(cd "${SRC}" && find . \( -type f -o -type l \) -printf '%P\0' | sort -z) |
+                tr '\0' '\n')
+    if [ -n "${missing}" ]; then
+      die "git archive left out of ${what:0:12} $(wc -l <<< "${missing}") of its files, as an attribute export-ignore does: $(head -3 <<< "${missing}" | paste -sd ' ')"
+    fi
     # git archive gives the files the date of the commit, or the current one
     # for a tree: an object newer than a changed source would look up to
     # date, so these build anew
