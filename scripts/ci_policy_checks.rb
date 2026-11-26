@@ -33,6 +33,14 @@ STD_INTEROP_FILES = %w[
   ah-stl-zip.H ah-uni-functional.H ah-zip.H ah-zip-utils.H
 ].freeze
 
+# The tests of those files, whose purpose is the same
+STD_INTEROP_TEST_FILES = %w[
+  Tests/ah-convert.cc Tests/ah_convert_composition_test.cc
+  Tests/ah_convert_composition_other.cc Tests/ah-stl-functional_test.cc
+  Tests/ah-stl-utils.cc Tests/ah-stl-zip_test.cc Tests/ah-uni-functional_test.cc
+  Tests/ah-zip.cc Tests/ah-zip-utils_test.cc
+].freeze
+
 
 def vendored_path?(path)
   VENDORED_PATH_PREFIXES.any? { |prefix| path.start_with?(prefix) }
@@ -131,6 +139,15 @@ end
 def std_checked_library_file?(path)
   !path.include?('/') && (HEADER_EXTS + ['.C']).include?(File.extname(path)) &&
     !STD_INTEROP_FILES.include?(path)
+end
+
+
+# Whether path is a test, in Tests/, that must not add them either: the
+# tests that a pull request writes use the containers of Aleph too, and
+# those that the tests have already do not count (added_std_uses())
+def std_checked_test_file?(path)
+  path.start_with?('Tests/') && (TEST_EXTS + HEADER_EXTS).include?(File.extname(path)) &&
+    !STD_INTEROP_TEST_FILES.include?(path)
 end
 
 
@@ -276,7 +293,7 @@ def main
 
   files_details.each do |detail|
     path = detail[:path]
-    next unless std_checked_library_file?(path) && File.exist?(path)
+    next unless (std_checked_library_file?(path) || std_checked_test_file?(path)) && File.exist?(path)
 
     added = added_std_uses(base, path, detail[:old_path])
     next if added.empty?
@@ -285,7 +302,8 @@ def main
     failures << "#{path} adds standard containers or sorts that Aleph has: #{names}; " \
                 'use those of Aleph (Array, DynList, DynSetTree, DynMapTree, DynBinHeap, ' \
                 'DynListQueue, in_place_sort(), mergesort()...), or end each line that ' \
-                "interoperates with the standard library with `// #{STD_INTEROP_MARKER} <why>`"
+                'interoperates with the standard library, or that uses it in a test as an ' \
+                "independent oracle, with `// #{STD_INTEROP_MARKER} <why>`"
   end
 
   failures.concat(moved_from_failures(base, files_details))

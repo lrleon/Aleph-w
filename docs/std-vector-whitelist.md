@@ -61,3 +61,12 @@ ends with `// std-interop: <why>`, and is not counted. The files whose
 purpose is that interoperation are not checked: `ah-convert.H`,
 `ah-convert-common.H`, `ah-stl-functional.H`, `ah-stl-utils.H`,
 `ah-stl-zip.H`, `ah-uni-functional.H`, `ah-zip.H` and `ah-zip-utils.H`.
+
+## The tests
+
+The same check runs on the tests, in `Tests/`: a pull request that adds a
+standard container or sort that Aleph has to a test fails, and the uses
+that a test has already do not count. A line that interoperates with the
+standard library, or that uses it as an independent oracle (`std::sort`
+to check a sort of Aleph, `std::set` to check a tree), ends with
+`// std-interop: <why>`. The tests of the files above are not checked.
