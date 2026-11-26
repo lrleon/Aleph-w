@@ -5,6 +5,23 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.8.5](https://github.com/lrleon/Aleph-w/compare/v7.8.4...v7.8.5) (2026-11-26)
+
+
+### Bug Fixes
+
+* **filter:** Give the remainder bit that it asks for to a rate just under a power of two, in from_capacity() and estimate() of the quotient filters, which rounded it to the power and gave a filter of a rate above the one asked ([#233](https://github.com/lrleon/Aleph-w/issues/233)) ([e47bc63](https://github.com/lrleon/Aleph-w/commit/e47bc6350656d9ecdcba1d0a4b4d07309742b414))
+* **filter:** Keep every item when two quotient filters are merged: merge() of Compact_Quotient_Filter dropped without a word the items that did not fit, and the filter then denied items that it had taken; the two filters now take all the items or throw and stay as they were ([#233](https://github.com/lrleon/Aleph-w/issues/233)) ([e47bc63](https://github.com/lrleon/Aleph-w/commit/e47bc6350656d9ecdcba1d0a4b4d07309742b414))
+* **filter:** Refuse in Bloom_Filter::estimate() a probability that is not a number, with invalid_argument, where it gave a filter of 2^63 bits ([#235](https://github.com/lrleon/Aleph-w/issues/235)) ([592f792](https://github.com/lrleon/Aleph-w/commit/592f792d5eac1a55e97d36e2513e196c34eb20b0))
+* **filter:** Refuse in from_capacity() and estimate() of the quotient filters a count of items and a rate that no filter has, which gave a filter with fewer slots than items, or with another rate ([#233](https://github.com/lrleon/Aleph-w/issues/233)) ([e47bc63](https://github.com/lrleon/Aleph-w/commit/e47bc6350656d9ecdcba1d0a4b4d07309742b414))
+* **filter:** Refuse in the cuckoo filters and in Bloom_Filter::estimate() a count of items whose buckets or bits a size_t does not count, with overflow_error, where a filter of one bucket was built ([#235](https://github.com/lrleon/Aleph-w/issues/235)) ([592f792](https://github.com/lrleon/Aleph-w/commit/592f792d5eac1a55e97d36e2513e196c34eb20b0))
+* **filter:** Take again an item that a full quotient filter holds, in insert() of Compact_Quotient_Filter and in merge() of Quotient_Filter, which threw overflow_error for it ([#233](https://github.com/lrleon/Aleph-w/issues/233)) ([e47bc63](https://github.com/lrleon/Aleph-w/commit/e47bc6350656d9ecdcba1d0a4b4d07309742b414))
+* **functional:** Convert each item once in maps&lt;R&gt;() without an operation, in the containers of the mixins, where it went to R, back and to R again; copy it once in maps(), where it was copied and moved; and let the copy of an item throw there instead of ending the program ([#233](https://github.com/lrleon/Aleph-w/issues/233)) ([e47bc63](https://github.com/lrleon/Aleph-w/commit/e47bc6350656d9ecdcba1d0a4b4d07309742b414))
+* **graph:** Look in In_Iterator of a digraph and in the filter of the arcs that Kruskal paints at the call of the arc filter that they make, and let end() of Digraph_Iterator throw what its filter throws, where they ended the program ([#235](https://github.com/lrleon/Aleph-w/issues/235)) ([592f792](https://github.com/lrleon/Aleph-w/commit/592f792d5eac1a55e97d36e2513e196c34eb20b0))
+* **heap:** Sort with heapsort() and faster_heapsort() without a pointer to one item before the array ([#235](https://github.com/lrleon/Aleph-w/issues/235)) ([592f792](https://github.com/lrleon/Aleph-w/commit/592f792d5eac1a55e97d36e2513e196c34eb20b0))
+* Let the conversion to bool of what a comparison or a filter returns throw where it is a condition, in the trees of intervals, the filtered iterators of the graphs and of the containers, Kruskal, the searches, the sorts and the functors that compare by default, as Aleph::less, which ended the program ([#235](https://github.com/lrleon/Aleph-w/issues/235)) ([592f792](https://github.com/lrleon/Aleph-w/commit/592f792d5eac1a55e97d36e2513e196c34eb20b0))
+* Refuse in Static_Event_Table, Simplex and the hash tables a size whose bytes do not fit in a size_t, with overflow_error, where new[] was left to ask the allocator for the largest size_t ([#235](https://github.com/lrleon/Aleph-w/issues/235)) ([592f792](https://github.com/lrleon/Aleph-w/commit/592f792d5eac1a55e97d36e2513e196c34eb20b0))
+
 ## [7.8.4](https://github.com/lrleon/Aleph-w/compare/v7.8.3...v7.8.4) (2026-11-25)
 
 
