@@ -415,6 +415,21 @@ namespace Aleph
       index 0 as sentinel, which simplifies the `parent/child`
       arithmetic.
 
+      @par What an exception leaves
+      Each operation says what it leaves when the comparison throws: the
+      heap as it was, if the exchange of two items does not throw. When an
+      operation of an item throws, its copy, its move or its exchange with
+      another item, the guarantee is the basic one, as in the containers
+      of the standard library: the heap has the count that it had or the
+      one that the operation was giving it, which is that of the other
+      heap in a copy assignment and one item fewer in remove(), and each
+      of its entries holds an item in the state in which that operation
+      left it. An item may then be lost or moved from, and the items may
+      be out of order, so that the heap no longer gives its least item
+      first: it may be destroyed or assigned to. A heap of items whose move
+      and exchange do not throw, as nearly all are, comes to that only in
+      its copy assignment, when the copy of an item throws.
+
       @tparam T element type
       @tparam Compare comparator defining the priority order
 
