@@ -905,9 +905,14 @@ public:
 
   /** @brief Disconnect arc `arc` from the graph without deleting it.
    *
+   * Virtual, as remove_arc(): a derived network that keeps something for
+   * its arcs, as Net_Cap_Graph its auxiliary network, learns that one
+   * left also through a reference to Net_Graph.
+   *
+   * @param[in] arc Arc to disconnect.
    * @throw bad_alloc as remove_arc().
    */
-  void disconnect_arc(Arc *arc)
+  virtual void disconnect_arc(Arc *arc)
   {
     register_ends_of_leaving(arc);
     Graph::disconnect_arc(arc);  // base disconnection
@@ -971,8 +976,17 @@ public:
       }
   }
 
-  /// Swap contents with another network. O(1) operation.
-  void swap(Net_Graph &other) noexcept
+protected:
+  /** @brief Exchange the nodes, the arcs and the rest of the state of
+   *  this network with those of `other`, as swap() does, without calling
+   *  swapped(). O(1).
+   *
+   * For the swap() of a derived network that exchanges too what it keeps
+   * for its nodes and arcs, which then goes with them.
+   *
+   * @param[in,out] other Network to exchange with.
+   */
+  void swap_contents(Net_Graph &other) noexcept
   {
     Graph::common_swap(other);  // swap num_nodes, num_arcs, digraph, cookie
     Graph::get_node_dlink().swap(other.get_node_dlink());
@@ -986,12 +1000,35 @@ public:
     std::swap(super_sink_node, other.super_sink_node);
   }
 
+  /** @brief What swap() calls on each of its two networks, once their
+   *  nodes and arcs are exchanged: nothing, in Net_Graph.
+   *
+   * A derived network that keeps something for its nodes and arcs, as
+   * Net_Cap_Graph its auxiliary network, overrides it: a swap(), a move
+   * or an assignment through a reference to Net_Graph exchange the nodes
+   * and the arcs, and not what the derived network keeps for them.
+   */
+  virtual void swapped() noexcept {}
+
+public:
+  /** @brief Swap contents with another network. O(1) operation.
+   *
+   * @param[in,out] other Network to swap with.
+   */
+  void swap(Net_Graph &other) noexcept
+  {
+    swap_contents(other);
+    swapped();
+    other.swapped();
+  }
+
   /// Move-construct a network. O(1) operation.
   Net_Graph(Net_Graph &&other) noexcept
     : Infinity(std::numeric_limits<typename Arc::Flow_Type>::max()), with_super_source(false),
       with_super_sink(false)
   {
-    swap(other);
+    swap_contents(other);
+    other.swapped();  // nothing is kept for this one yet
   }
 
   /// Move-assign a network. O(1) operation.
