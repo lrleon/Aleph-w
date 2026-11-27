@@ -1013,6 +1013,12 @@ protected:
    * Net_Cap_Graph its auxiliary network, overrides it: a swap(), a move
    * or an assignment through a reference to Net_Graph exchange the nodes
    * and the arcs, and not what the derived network keeps for them.
+   *
+   * Net_Cap_Graph and Net_Sup_Dem_Graph make it final, since what they
+   * do in it has to be done: a network derived from one of them is told
+   * of no exchange, neither through a reference to Net_Graph nor through
+   * one to its base, and must keep nothing for the nodes and the arcs
+   * that such an exchange would leave behind.
    */
   virtual void swapped() noexcept {}
 

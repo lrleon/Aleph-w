@@ -226,7 +226,8 @@ public:
  * reference to Net_Graph, by its swap(), its move or its assignments:
  * they are then nodes like the others of the network that has them, and
  * this one has no auxiliary network. Its own swap() and moves take them
- * along.
+ * along. A network derived from this one is told of none of these
+ * exchanges: see Net_Graph::swapped().
  *
  * @tparam NodeT Node type (default: Net_Sup_Dem_Node with double flow)
  * @tparam ArcT Arc type (default: Net_Arc with double flow)
@@ -294,9 +295,11 @@ protected:
    * went with the rest: they are then nodes like the others of the
    * network that has them, which this one no longer is. The swap() and
    * the moves of Net_Sup_Dem_Graph, which take them along, do not call
-   * it.
+   * it. It is final: an override in a network derived from this one, if
+   * it did not call this, would leave the pointers to nodes that are
+   * gone.
    */
-  void swapped() noexcept override
+  void swapped() noexcept final
   {
     super_source = nullptr;
     super_sink = nullptr;
