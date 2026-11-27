@@ -55,32 +55,32 @@ class TestCiPolicyChecks < Minitest::Test
 
   def test_header_has_code_changes_identical
     path = "test.H"
-    base = "main"
+    before = "origin/main"
     content = "void foo();"
     
-    def_mock_git_show({ "origin/#{base}:#{path}" => content }) do
+    def_mock_git_show({ "#{before}:#{path}" => content }) do
       def_mock_file_read({ path => content }) do
-        refute header_has_code_changes?(base, path), "Identical files should NOT be counted as code changes"
+        refute header_has_code_changes?(before, path), "Identical files should NOT be counted as code changes"
       end
     end
   end
 
   def test_header_has_code_changes_whitespace_only
     path = "test.H"
-    base = "main"
+    before = "origin/main"
     old_content = "void foo();"
     new_content = "  void   foo ( ) ; "
     
-    def_mock_git_show({ "origin/#{base}:#{path}" => old_content }) do
+    def_mock_git_show({ "#{before}:#{path}" => old_content }) do
       def_mock_file_read({ path => new_content }) do
-        refute header_has_code_changes?(base, path), "Whitespace-only changes should NOT be counted as code changes"
+        refute header_has_code_changes?(before, path), "Whitespace-only changes should NOT be counted as code changes"
       end
     end
   end
 
   def test_header_has_code_changes_doc_only
     path = "test.H"
-    base = "main"
+    before = "origin/main"
     
     old_content = <<~CPP
       /** @brief Old doc */
@@ -93,23 +93,23 @@ class TestCiPolicyChecks < Minitest::Test
       void foo();
     CPP
     
-    def_mock_git_show({ "origin/#{base}:#{path}" => old_content }) do
+    def_mock_git_show({ "#{before}:#{path}" => old_content }) do
       def_mock_file_read({ path => new_content }) do
-        refute header_has_code_changes?(base, path), "Doc-only changes should NOT be counted as code changes"
+        refute header_has_code_changes?(before, path), "Doc-only changes should NOT be counted as code changes"
       end
     end
   end
 
   def test_header_has_code_changes_real_code
     path = "test.H"
-    base = "main"
+    before = "origin/main"
     
     old_content = "void foo();"
     new_content = "void foo(int x);"
     
-    def_mock_git_show({ "origin/#{base}:#{path}" => old_content }) do
+    def_mock_git_show({ "#{before}:#{path}" => old_content }) do
       def_mock_file_read({ path => new_content }) do
-        assert header_has_code_changes?(base, path), "Real code changes SHOULD be counted as code changes"
+        assert header_has_code_changes?(before, path), "Real code changes SHOULD be counted as code changes"
       end
     end
   end
@@ -117,12 +117,12 @@ class TestCiPolicyChecks < Minitest::Test
   def test_header_has_code_changes_rename_no_code_change
     old_path = "old.H"
     new_path = "new.H"
-    base = "main"
+    before = "origin/main"
     content = "void foo();"
     
-    def_mock_git_show({ "origin/#{base}:#{old_path}" => content }) do
+    def_mock_git_show({ "#{before}:#{old_path}" => content }) do
       def_mock_file_read({ new_path => content }) do
-        refute header_has_code_changes?(base, new_path, old_path), "Rename with NO code changes should NOT be counted as code changes"
+        refute header_has_code_changes?(before, new_path, old_path), "Rename with NO code changes should NOT be counted as code changes"
       end
     end
   end
@@ -130,20 +130,20 @@ class TestCiPolicyChecks < Minitest::Test
   def test_header_has_code_changes_rename_with_code_change
     old_path = "old.H"
     new_path = "new.H"
-    base = "main"
+    before = "origin/main"
     old_content = "void foo();"
     new_content = "void bar();"
     
-    def_mock_git_show({ "origin/#{base}:#{old_path}" => old_content }) do
+    def_mock_git_show({ "#{before}:#{old_path}" => old_content }) do
       def_mock_file_read({ new_path => new_content }) do
-        assert header_has_code_changes?(base, new_path, old_path), "Rename WITH code changes SHOULD be counted as code changes"
+        assert header_has_code_changes?(before, new_path, old_path), "Rename WITH code changes SHOULD be counted as code changes"
       end
     end
   end
 
   def test_header_has_code_changes_new_header_doc_only
     path = "new.H"
-    base = "main"
+    before = "origin/main"
     
     content = <<~CPP
       /** @brief New header with only docs */
@@ -151,26 +151,26 @@ class TestCiPolicyChecks < Minitest::Test
     
     def_mock_git_show({}) do
       def_mock_file_read({ path => content }) do
-        refute header_has_code_changes?(base, path), "A new header with ONLY docs should NOT require tests"
+        refute header_has_code_changes?(before, path), "A new header with ONLY docs should NOT require tests"
       end
     end
   end
 
   def test_header_has_code_changes_new_header_with_code
     path = "new.H"
-    base = "main"
+    before = "origin/main"
     
     content = "void bar();"
     
     def_mock_git_show({}) do
       def_mock_file_read({ path => content }) do
-        assert header_has_code_changes?(base, path), "A new header with CODE should require tests"
+        assert header_has_code_changes?(before, path), "A new header with CODE should require tests"
       end
     end
   end
 
   def test_changed_files_parses_rename
-    def_mock_run(["", "R100\told.H\tnew.H\n"]) do
+    def_mock_run(["", "b0\n", "R100\told.H\tnew.H\n"]) do
       result = changed_files('main')
       assert_equal 1, result.size
       assert_equal 'R', result[0][:status]
@@ -180,7 +180,7 @@ class TestCiPolicyChecks < Minitest::Test
   end
 
   def test_changed_files_parses_copy
-    def_mock_run(["", "C100\tsrc.H\tdst.H\n"]) do
+    def_mock_run(["", "b0\n", "C100\tsrc.H\tdst.H\n"]) do
       result = changed_files('main')
       assert_equal 1, result.size
       assert_equal 'C', result[0][:status]
@@ -190,7 +190,7 @@ class TestCiPolicyChecks < Minitest::Test
   end
 
   def test_changed_files_parses_added
-    def_mock_run(["", "A\tnew.H\n"]) do
+    def_mock_run(["", "b0\n", "A\tnew.H\n"]) do
       result = changed_files('main')
       assert_equal 1, result.size
       assert_equal 'A', result[0][:status]
@@ -200,7 +200,7 @@ class TestCiPolicyChecks < Minitest::Test
 
   def test_changed_files_parses_multiple_entries
     git_output = "A\tadded.H\nM\tmodified.cc\nR090\told.H\tnew.H\nC100\tsrc.cc\tdst.cc\n"
-    def_mock_run(["", git_output]) do
+    def_mock_run(["", "b0\n", git_output]) do
       result = changed_files('main')
       assert_equal 4, result.size
       assert_equal 'new.H',    result[2][:path]
@@ -226,36 +226,36 @@ class TestCiPolicyChecks < Minitest::Test
 
   def test_added_std_uses_reports_what_a_file_adds
     path = 'tpl_x.H'
-    base = 'main'
+    before = 'origin/main'
     old_content = "std::vector<int> a;\nstd::vector<int> b;\n"
     new_content = "std::vector<int> b;\nstd::vector<int> a;\nstd::vector<int> c;\n" \
                   "void f() { std::sort(p, q); }\n"
-    def_mock_git_show({ "origin/#{base}:#{path}" => old_content }) do
+    def_mock_git_show({ "#{before}:#{path}" => old_content }) do
       def_mock_file_read({ path => new_content }) do
-        assert_equal({ 'vector' => 1, 'sort' => 1 }, added_std_uses(base, path))
+        assert_equal({ 'vector' => 1, 'sort' => 1 }, added_std_uses(before, path))
       end
     end
   end
 
   def test_added_std_uses_ignores_moved_and_removed_uses
     path = 'tpl_x.H'
-    base = 'main'
+    before = 'origin/main'
     old_content = "std::vector<int> a;\nstd::sort(p, q);\n"
     new_content = "void g();\nstd::vector<int> a;\n"
-    def_mock_git_show({ "origin/#{base}:#{path}" => old_content }) do
+    def_mock_git_show({ "#{before}:#{path}" => old_content }) do
       def_mock_file_read({ path => new_content }) do
-        assert_empty added_std_uses(base, path)
+        assert_empty added_std_uses(before, path)
       end
     end
   end
 
   def test_added_std_uses_of_a_new_and_of_a_renamed_file
-    base = 'main'
+    before = 'origin/main'
     code = "std::map<int, int> m;\n"
-    def_mock_git_show({ "origin/#{base}:old.H" => code }) do
+    def_mock_git_show({ "#{before}:old.H" => code }) do
       def_mock_file_read({ 'new.H' => code, 'fresh.H' => code }) do
-        assert_empty added_std_uses(base, 'new.H', 'old.H')
-        assert_equal({ 'map' => 1 }, added_std_uses(base, 'fresh.H'))
+        assert_empty added_std_uses(before, 'new.H', 'old.H')
+        assert_equal({ 'map' => 1 }, added_std_uses(before, 'fresh.H'))
       end
     end
   end
@@ -269,7 +269,96 @@ class TestCiPolicyChecks < Minitest::Test
     refute std_checked_library_file?('README.md')
   end
 
+  def test_std_checked_test_files
+    assert std_checked_test_file?('Tests/tpl_net_test.cc')
+    assert std_checked_test_file?('Tests/moved_from.H')
+    refute std_checked_test_file?('Tests/ah-stl-zip_test.cc')
+    refute std_checked_test_file?('Tests/ah_convert_composition_test.cc')
+    refute std_checked_test_file?('tpl_net.H')
+    refute std_checked_test_file?('Examples/dijkstra_example.cc')
+    refute std_checked_test_file?('Tests/CMakeLists.txt')
+  end
+
+  def test_a_test_adds_only_what_it_did_not_have
+    path = 'Tests/x_test.cc'
+    old_content = "std::vector<int> a;\nstd::vector<int> b;\n"
+    new_content = old_content + "std::vector<int> c;\n" \
+                  "std::sort(a.begin(), a.end()); // std-interop: an independent oracle\n"
+    def_mock_git_show({ "origin/main:#{path}" => old_content }) do
+      def_mock_file_read({ path => new_content }) do
+        assert_equal({ 'vector' => 1 }, added_std_uses('origin/main', path))
+      end
+    end
+  end
+
+  # What each file had before comes from the merge base of HEAD and the
+  # base, not from the tip of the base: the merge that the CI checks out, of
+  # an event before master moved, adds nothing by changing an assertion in a
+  # test whose master then dropped one of its std::vector
+  def test_the_merge_of_an_event_before_master_moved_adds_nothing
+    in_a_repository_whose_master_moved do |git, c|
+      git.call('switch', '-q', '--detach', c[:b0])
+      git.call('merge', '-q', '--no-ff', '-m', 'merge', c[:assertion])
+      assert_equal ['Tests/x_test.cc'], changed_files('master').map { |d| d[:path] }
+      assert_empty added_std_uses(merge_base('master'), 'Tests/x_test.cc')
+    end
+  end
+
+  # Nor does the head of that pull request, behind master
+  def test_the_head_of_a_pull_request_behind_master_adds_nothing
+    in_a_repository_whose_master_moved do |git, c|
+      git.call('switch', '-q', '--detach', c[:assertion])
+      assert_equal ['Tests/x_test.cc'], changed_files('master').map { |d| d[:path] }
+      assert_empty added_std_uses(merge_base('master'), 'Tests/x_test.cc')
+    end
+  end
+
+  # And a std::vector that a pull request adds there counts once, not with
+  # the one that master dropped
+  def test_a_use_added_before_master_moved_counts_once
+    in_a_repository_whose_master_moved do |git, c|
+      git.call('switch', '-q', '--detach', c[:b0])
+      git.call('merge', '-q', '--no-ff', '-m', 'merge', c[:addition])
+      changed_files('master')
+      assert_equal({ 'vector' => 1 }, added_std_uses(merge_base('master'), 'Tests/x_test.cc'))
+    end
+  end
+
   private
+
+  # A test with two std::vector, a and b, apart from the assertion that a
+  # pull request changes, so that the changes merge
+  X_TEST = "#include <vector>\nstd::vector<int> a;\nint f() { return 1; }\n" \
+           "int g() { return 3; }\nint h() { return 4; }\nint k() { return 5; }\n" \
+           "std::vector<int> b;\n"
+
+  # Yields, in a repository of its own whose origin is a bare repository,
+  # the commits by name: b0 has X_TEST in Tests/x_test.cc; assertion, from
+  # b0, changes its assertion; addition, from b0, adds a third std::vector;
+  # and b1, from b0 and the master of origin, drops b
+  def in_a_repository_whose_master_moved
+    Dir.mktmpdir do |dir|
+      run!(['git', 'init', '-q', '--bare', '-b', 'master', "#{dir}/origin.git"])
+      run!(['git', 'clone', '-q', "#{dir}/origin.git", "#{dir}/work"])
+      Dir.chdir("#{dir}/work") do
+        git = ->(*args) { run!(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *args]).strip }
+        commit = lambda do |from, text, message|
+          git.call('switch', '-q', '--detach', from) if from
+          FileUtils.mkdir_p('Tests')
+          File.write('Tests/x_test.cc', text)
+          git.call('add', '-A')
+          git.call('commit', '-q', '-m', message)
+          git.call('rev-parse', 'HEAD')
+        end
+        c = { b0: commit.call(nil, X_TEST, 'b0') }
+        c[:assertion] = commit.call(c[:b0], X_TEST.sub('return 1', 'return 2'), 'assertion')
+        c[:addition] = commit.call(c[:b0], "#{X_TEST}std::vector<int> c;\n", 'addition')
+        c[:b1] = commit.call(c[:b0], X_TEST.sub("std::vector<int> b;\n", ''), 'b1')
+        git.call('push', '-q', 'origin', "#{c[:b1]}:refs/heads/master")
+        yield git, c
+      end
+    end
+  end
 
   def def_mock_run(results)
     call_count = 0
@@ -471,9 +560,9 @@ class TestMovedFromCheck < Minitest::Test
         detail = [{ path: 'storage.H', old_path: 'storage.H' }]
         begin
           Open3.singleton_class.send(:define_method, :capture2) { |*_a, **_k| [STORAGE, nil] }
-          assert_empty moved_from_failures('master', detail)
+          assert_empty moved_from_failures('origin/master', detail)
           Open3.singleton_class.send(:define_method, :capture2) { |*_a, **_k| ['', nil] }
-          assert_equal 1, moved_from_failures('master', detail).size
+          assert_equal 1, moved_from_failures('origin/master', detail).size
         ensure
           Open3.singleton_class.send(:define_method, :capture2, old)
         end
