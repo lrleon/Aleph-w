@@ -217,6 +217,18 @@ public:
  * - Arc capacities from super-source equal supply values
  * - Arc capacities to super-sink equal demand values (absolute)
  *
+ * ## A change of the network
+ *
+ * The super-source and the super-sink are nodes of the network, which
+ * remembers which they are. It forgets one that is removed, by
+ * remove_node(), by clear_graph() or by a copy_graph() into the network,
+ * and the two when its nodes and its arcs are exchanged through a
+ * reference to Net_Graph, by its swap(), its move or its assignments:
+ * they are then nodes like the others of the network that has them, and
+ * this one has no auxiliary network. Its own swap() and moves take them
+ * along. A network derived from this one is told of none of these
+ * exchanges: see Net_Graph::swapped().
+ *
  * @tparam NodeT Node type (default: Net_Sup_Dem_Node with double flow)
  * @tparam ArcT Arc type (default: Net_Arc with double flow)
  *
@@ -274,6 +286,25 @@ private:
       return a->flow == a->cap;
   }
 
+protected:
+  /** @brief Forgets the super nodes: Net_Graph calls it once the nodes
+   *  and the arcs of the network were exchanged through a reference to
+   *  it, by its swap(), its move or its assignments.
+   *
+   * The super-source and the super-sink are nodes of the network, and
+   * went with the rest: they are then nodes like the others of the
+   * network that has them, which this one no longer is. The swap() and
+   * the moves of Net_Sup_Dem_Graph, which take them along, do not call
+   * it. It is final: an override in a network derived from this one, if
+   * it did not call this, would leave the pointers to nodes that are
+   * gone.
+   */
+  void swapped() noexcept final
+  {
+    super_source = nullptr;
+    super_sink = nullptr;
+  }
+
 public:
   /// @name Constructors and Destructor
   /// @{
@@ -314,11 +345,12 @@ public:
 
   /// Move constructor. O(1).
   Net_Sup_Dem_Graph(Net_Sup_Dem_Graph && other) noexcept
-    : Net_Class(std::move(other)),
+    : Net_Class(),
       super_source(std::exchange(other.super_source, nullptr)),
       super_sink(std::exchange(other.super_sink, nullptr))
   {
-    // empty
+    // not the move of Net_Graph, which tells other that its nodes went
+    Net_Class::swap_contents(other);
   }
 
   /**
@@ -350,12 +382,34 @@ public:
   /// Swaps the networks, with their super nodes. O(1).
   void swap(Net_Sup_Dem_Graph & other) noexcept
   {
-    Net_Class::swap(other);
+    Net_Class::swap_contents(other); // not swap(), which forgets those of the two
     std::swap(super_source, other.super_source);
     std::swap(super_sink, other.super_sink);
   }
 
   /// @}
+
+  /** @brief Remove node `p` and all its arcs from the network, as
+   *  Net_Graph::remove_node() does.
+   *
+   * If `p` is the super-source or the super-sink, the network forgets
+   * it: the auxiliary network is then without it, as when no node
+   * supplies or none demands.
+   *
+   * @param[in] p Node to remove.
+   * @throw std::bad_alloc as Net_Graph::remove_node(). Then `p` is in
+   *        the network, and remembered if it is a super node.
+   */
+  void remove_node(Node *p) override
+  {
+    const bool source = p == super_source;
+    const bool sink = p == super_sink;
+    Net_Class::remove_node(p);
+    if (source)
+      super_source = nullptr;
+    if (sink)
+      super_sink = nullptr;
+  }
 
   // Bring base class insert_node overloads into scope; those below with
   // an info hide that of Net_Graph, which a call with an info would find
@@ -533,6 +587,8 @@ public:
    * Also clears the residual network if it exists.
    *
    * @throw std::domain_error if auxiliary network doesn't exist
+   * @throw std::bad_alloc as remove_node(). Then the network remembers
+   *        the super nodes that it still has, and another call goes on.
    */
   void free_aux_net()
   {
@@ -601,10 +657,14 @@ public:
    * supply node that does not ship all its supply is one whose arc from
    * the super-source the flow does not fill, and a demand node that does
    * not receive all its demand, one whose arc to the super-sink it does
-   * not fill, with the same tolerance for a floating flow, so that the
-   * lists are empty if and only if is_feasible(). The fields `out_flow`
-   * and `in_flow` of the nodes, which the network does not write, do not
-   * count.
+   * not fill, with the same tolerance for a floating flow. Without a
+   * super-source or without a super-sink nothing is shipped, as
+   * is_feasible() says: every node that supplies and every node that
+   * demands is then in its list, whatever the flow. So the lists are
+   * empty if and only if is_feasible(), while some node supplies or
+   * demands, as when compute_aux_net() made the auxiliary network. The
+   * fields `out_flow` and `in_flow` of the nodes, which the network does
+   * not write, do not count.
    *
    * @param[out] supply_list Nodes that do not ship all their supply
    * @param[out] demand_list Nodes that do not receive all their demand
@@ -619,15 +679,25 @@ public:
     ah_domain_error_if(not exist_aux_net())
       << "Auxiliary net has not been computed";
 
-    if (super_source != nullptr)
-      for (typename Net_Class::Node_Arc_Iterator it(super_source); it.has_curr(); it.next_ne())
-        if (Arc* a = it.get_curr(); not filled(a))
-          supply_list.append(this->get_tgt_node(a));
+    if (super_source == nullptr or super_sink == nullptr)
+      {
+        // nothing is shipped: no supply leaves and no demand is met, also
+        // if a flow fills the arcs of the super node that there is
+        for (Node_Iterator<Net_Sup_Dem_Graph> it(*this); it.has_curr(); it.next_ne())
+          if (Node* p = it.get_curr(); p->supply_flow > 0)
+            supply_list.append(p);
+          else if (p->supply_flow < 0)
+            demand_list.append(p);
+        return;
+      }
 
-    if (super_sink != nullptr)
-      for (typename Net_Class::Node_Arc_Iterator it(super_sink); it.has_curr(); it.next_ne())
-        if (Arc* a = it.get_curr(); not filled(a))
-          demand_list.append(this->get_src_node(a));
+    for (typename Net_Class::Node_Arc_Iterator it(super_source); it.has_curr(); it.next_ne())
+      if (Arc* a = it.get_curr(); not filled(a))
+        supply_list.append(this->get_tgt_node(a));
+
+    for (typename Net_Class::Node_Arc_Iterator it(super_sink); it.has_curr(); it.next_ne())
+      if (Arc* a = it.get_curr(); not filled(a))
+        demand_list.append(this->get_src_node(a));
   }
 
   /// @}

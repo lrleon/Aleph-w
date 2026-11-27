@@ -298,6 +298,12 @@ using Net_Node = Graph_Anode<Node_Info>;
  * - NodeT: node type (must derive from Net_Node).
  * - ArcT: arc type (must derive from Net_Arc).
  *
+ * @warning A network is an Array_Graph, whose swap(), moves, assignments
+ * and disconnect_arc() know nothing of what Net_Graph and the networks
+ * derived from it keep for the nodes and the arcs, as the sets of the
+ * sources and of the sinks: do not exchange or assign a network, nor
+ * disconnect an arc of it, through a reference to Array_Graph.
+ *
  * @ingroup Networks
  */
 template <class NodeT = Net_Node<Empty_Class>, class ArcT = Net_Arc<Empty_Class, double>>
@@ -1007,16 +1013,26 @@ protected:
    * Net_Cap_Graph its auxiliary network, overrides it: a swap(), a move
    * or an assignment through a reference to Net_Graph exchange the nodes
    * and the arcs, and not what the derived network keeps for them.
+   *
+   * Net_Cap_Graph and Net_Sup_Dem_Graph make it final, since what they
+   * do in it has to be done: a network derived from one of them is told
+   * of no exchange, neither through a reference to Net_Graph nor through
+   * one to its base, and must keep nothing for the nodes and the arcs
+   * that such an exchange would leave behind.
    */
   virtual void swapped() noexcept {}
 
 public:
   /** @brief Swap contents with another network. O(1) operation.
    *
+   * A network swapped with itself stays as it is, and is told nothing.
+   *
    * @param[in,out] other Network to swap with.
    */
   void swap(Net_Graph &other) noexcept
   {
+    if (this == &other)
+      return;  // nothing is exchanged
     swap_contents(other);
     swapped();
     other.swapped();

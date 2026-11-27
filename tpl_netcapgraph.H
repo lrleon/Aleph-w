@@ -427,8 +427,10 @@ private:
 
   // The swap(), a move or an assignment of Net_Graph, through a reference
   // to it, exchanged the nodes and the arcs, and not the auxiliary
-  // network, which maps to those that went
-  void swapped() noexcept override { aux_stamp.stale = true; }
+  // network, which maps to those that went. Final: an override in a
+  // network derived from this one, if it did not call this, would leave
+  // the auxiliary network unmarked
+  void swapped() noexcept final { aux_stamp.stale = true; }
 
 public:
   /** @brief Default constructor.

@@ -924,6 +924,480 @@ TEST(FloatingFeasibilityTest, AnInfiniteSupplyIsMetOnlyByAnInfiniteFlow)
       }
 }
 
+// =============================================================================
+// The super nodes when the network changes
+// =============================================================================
+//
+// The network keeps the pointers of its super nodes: whatever changes it,
+// through the network or through a reference to Net_Graph, must leave it
+// remembering the super nodes that it has, and no other. The tests below
+// take every way of changing it, by what the way does to the super nodes:
+//   - it takes all the nodes away through the base, by the assignments,
+//     the swap() and the move of Net_Graph;
+//   - it removes nodes: remove_node() of a super node or of another,
+//     clear_graph() and a copy_graph() into the network;
+//   - it takes the super nodes along: the swap(), the moves and the copies
+//     of the network itself;
+//   - it leaves them: an insertion, a change of the arcs, another order of
+//     the nodes, and what is done to the network with itself;
+// each with every auxiliary network that a network may have: the two
+// super nodes, the super source alone and the super sink alone. Through a
+// reference to Array_Graph none of this holds: see Net_Graph.
+
+namespace
+{
+  using SimpleBase = SimpleNet::Net_Class;
+
+  // The auxiliary networks that a network may have: with the two super
+  // nodes, with the super source alone, when nothing demands, and with the
+  // super sink alone, when nothing supplies
+  enum class Aux { both, source, sink };
+  constexpr Aux every_aux[] = {Aux::both, Aux::source, Aux::sink};
+
+  const char * name_of(const Aux aux)
+  {
+    return aux == Aux::both ? "with the two super nodes"
+      : aux == Aux::source ? "with the super source alone" : "with the super sink alone";
+  }
+
+  // whether p is a node of net
+  bool is_node_of(const SimpleNet & net, const SimpleNode * p)
+  {
+    for (Node_Iterator<SimpleNet> it(net); it.has_curr(); it.next_ne())
+      if (it.get_curr() == p)
+        return true;
+    return false;
+  }
+
+  // Two nodes joined by an arc, with the auxiliary network asked for; it
+  // keeps the super nodes as compute_aux_net() made them
+  struct Shipment
+  {
+    SimpleNet net;
+    SimpleNode * s = nullptr;
+    SimpleNode * t = nullptr;
+    SimpleArc * st = nullptr;
+    SimpleNode * source = nullptr;
+    SimpleNode * sink = nullptr;
+
+    explicit Shipment(const Aux aux)
+    {
+      s = net.insert_node(aux == Aux::sink ? 0 : 10);
+      t = net.insert_node(aux == Aux::source ? 0 : -10);
+      st = net.insert_arc(s, t, 20);
+      net.compute_aux_net();
+      source = net.get_super_source();
+      sink = net.get_super_sink();
+    }
+
+    // how many super nodes it was made with
+    size_t supers() const { return size_t(source != nullptr) + size_t(sink != nullptr); }
+  };
+
+  // puts in net three nodes and two arcs
+  void fill_plain(SimpleBase & net)
+  {
+    auto x = net.insert_node();
+    auto y = net.insert_node();
+    auto z = net.insert_node();
+    net.insert_arc(x, y, 1);
+    net.insert_arc(y, z, 1);
+  }
+
+  // net says that it has no auxiliary network, and has the nodes given
+  void expect_no_aux_net(SimpleNet & net, const size_t nodes)
+  {
+    ASSERT_FALSE(net.exist_aux_net());
+    EXPECT_EQ(net.get_super_source(), nullptr);
+    EXPECT_EQ(net.get_super_sink(), nullptr);
+    EXPECT_EQ(net.get_aux_net(), nullptr);
+    EXPECT_THROW(net.free_aux_net(), std::domain_error);
+    EXPECT_THROW((void) net.is_feasible(), std::domain_error);
+    EXPECT_EQ(net.get_num_nodes(), nodes);
+  }
+
+  // net remembers the super nodes given, which are nodes of it, besides
+  // `own` nodes; and free_aux_net() takes them away, and only them
+  void expect_aux_net(SimpleNet & net, const SimpleNode * source, const SimpleNode * sink,
+                      const size_t own)
+  {
+    ASSERT_EQ(net.get_super_source(), source);
+    ASSERT_EQ(net.get_super_sink(), sink);
+    const size_t supers = size_t(source != nullptr) + size_t(sink != nullptr);
+    if (supers == 0)
+      {
+        expect_no_aux_net(net, own);
+        return;
+      }
+    ASSERT_TRUE(source == nullptr or is_node_of(net, source));
+    ASSERT_TRUE(sink == nullptr or is_node_of(net, sink));
+    EXPECT_TRUE(net.exist_aux_net());
+    EXPECT_EQ(net.get_aux_net(), &net);
+    EXPECT_EQ(net.get_num_nodes(), own + supers);
+    if (supers == 1)
+      {
+        EXPECT_FALSE(net.is_feasible()); // without one of them, nothing is shipped
+      }
+    net.free_aux_net();
+    EXPECT_FALSE(net.exist_aux_net());
+    EXPECT_EQ(net.get_num_nodes(), own);
+  }
+}
+
+TEST(NetSupDemChangedNetwork, AnExchangeThroughTheBaseTakesTheSuperNodesAway)
+{
+  for (const Aux aux : every_aux)
+    {
+      SCOPED_TRACE(name_of(aux));
+      {
+        // the copy assignment of Net_Graph frees the nodes of the network,
+        // its super nodes among them
+        Shipment sh(aux);
+        SimpleBase other;
+        fill_plain(other);
+        SimpleBase & base = sh.net;
+        base = other;
+        expect_no_aux_net(sh.net, 3);
+
+        // and the network that came takes an auxiliary network of its own
+        sh.net.set_supply_flow(sh.net.get_first_node(), 5);
+        sh.net.compute_aux_net();
+        ASSERT_NE(sh.net.get_super_source(), nullptr);
+        expect_aux_net(sh.net, sh.net.get_super_source(), nullptr, 3);
+      }
+      {
+        // the move assignment swaps: the other network has them then, as
+        // nodes like the others
+        Shipment sh(aux);
+        SimpleBase other;
+        fill_plain(other);
+        SimpleBase & base = sh.net;
+        base = std::move(other);
+        expect_no_aux_net(sh.net, 3);
+        EXPECT_EQ(other.get_num_nodes(), 2 + sh.supers());
+      }
+      {
+        // so does swap()
+        Shipment sh(aux);
+        SimpleBase other;
+        fill_plain(other);
+        SimpleBase & base = sh.net;
+        base.swap(other);
+        expect_no_aux_net(sh.net, 3);
+        EXPECT_EQ(other.get_num_nodes(), 2 + sh.supers());
+      }
+      {
+        // and the move construction of a Net_Graph, which empties it
+        Shipment sh(aux);
+        SimpleBase & base = sh.net;
+        SimpleBase taken(std::move(base));
+        EXPECT_EQ(taken.get_num_nodes(), 2 + sh.supers());
+        expect_no_aux_net(sh.net, 0);
+      }
+      for (const Aux aux2 : every_aux)
+        {
+          // between two networks with their auxiliary networks, each one
+          // has then the super nodes of the other, and remembers none
+          SCOPED_TRACE(name_of(aux2));
+          Shipment sh(aux), sh2(aux2);
+          sh2.net.insert_node(0);
+          SimpleBase & base = sh.net;
+          SimpleBase & base2 = sh2.net;
+          base.swap(base2);
+          expect_no_aux_net(sh.net, 3 + sh2.supers());
+          expect_no_aux_net(sh2.net, 2 + sh.supers());
+        }
+    }
+}
+
+TEST(NetSupDemChangedNetwork, ARemovedSuperNodeIsForgotten)
+{
+  for (const Aux aux : every_aux)
+    for (const bool the_source : {true, false})
+      for (const bool through_the_base : {false, true})
+        {
+          Shipment sh(aux);
+          SimpleNode * const gone = the_source ? sh.source : sh.sink;
+          if (gone == nullptr)
+            continue; // it has no such super node
+          SCOPED_TRACE(std::string(name_of(aux)) + (the_source ? ", its super source" : ", its super sink")
+                       + (through_the_base ? ", through the base" : ""));
+          // remove_node() is virtual: through a reference to the base too
+          if (through_the_base)
+            static_cast<SimpleBase &>(sh.net).remove_node(gone);
+          else
+            sh.net.remove_node(gone);
+          expect_aux_net(sh.net, the_source ? nullptr : sh.source, the_source ? sh.sink : nullptr, 2);
+        }
+}
+
+TEST(NetSupDemChangedNetwork, AnotherNodeRemovedIsNoneOfThem)
+{
+  for (const Aux aux : every_aux)
+    {
+      SCOPED_TRACE(name_of(aux));
+      {
+        // a node without arcs
+        Shipment sh(aux);
+        sh.net.remove_node(sh.net.insert_node(0));
+        expect_aux_net(sh.net, sh.source, sh.sink, 2);
+      }
+      {
+        // a node with an arc of a super node, which goes with it
+        Shipment sh(aux);
+        sh.net.remove_node(aux == Aux::sink ? sh.t : sh.s);
+        expect_aux_net(sh.net, sh.source, sh.sink, 1);
+      }
+    }
+}
+
+TEST(NetSupDemChangedNetwork, ClearGraphAndCopyGraphTakeTheSuperNodesAway)
+{
+  for (const Aux aux : every_aux)
+    {
+      SCOPED_TRACE(name_of(aux));
+      {
+        Shipment sh(aux);
+        clear_graph(sh.net);
+        expect_no_aux_net(sh.net, 0);
+      }
+      for (const Aux aux2 : every_aux)
+        {
+          // copy_graph() empties the network first; the super nodes of the
+          // network that it copies come as nodes like the others
+          SCOPED_TRACE(name_of(aux2));
+          Shipment sh(aux), from(aux2);
+          copy_graph(sh.net, from.net);
+          expect_no_aux_net(sh.net, 2 + from.supers());
+          expect_aux_net(from.net, from.source, from.sink, 2);
+        }
+    }
+}
+
+TEST(NetSupDemChangedNetwork, AChangeThatLeavesTheSuperNodesKeepsThem)
+{
+  // each way returns how many nodes the network has then, besides its
+  // super nodes
+  struct Way
+  {
+    const char * name;
+    size_t (*change)(Shipment &);
+  };
+  const Way ways[] = {
+    {"nothing", [] (Shipment &) -> size_t { return 2; }},
+    {"a node inserted", [] (Shipment & sh) -> size_t
+      {
+        sh.net.insert_node(0);
+        return 3;
+      }},
+    {"an arc inserted", [] (Shipment & sh) -> size_t
+      {
+        sh.net.insert_arc(sh.t, sh.s, 1);
+        return 2;
+      }},
+    {"an arc removed", [] (Shipment & sh) -> size_t
+      {
+        sh.net.remove_arc(sh.st);
+        return 2;
+      }},
+    {"the arcs of the super nodes removed", [] (Shipment & sh) -> size_t
+      {
+        DynDlist<SimpleArc *> arcs;
+        for (SimpleNode * p : {sh.source, sh.sink})
+          if (p != nullptr)
+            for (SimpleBase::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
+              arcs.append(it.get_curr());
+        for (auto it = arcs.get_it(); it.has_curr(); it.next_ne())
+          sh.net.remove_arc(it.get_curr());
+        return 2;
+      }},
+    {"an arc disconnected and connected again", [] (Shipment & sh) -> size_t
+      {
+        sh.net.disconnect_arc(sh.st);
+        sh.net.connect_arc(sh.st);
+        return 2;
+      }},
+    {"another order of the nodes", [] (Shipment & sh) -> size_t
+      {
+        sh.net.sort_nodes([] (SimpleNode * p, SimpleNode * q) { return p->supply_flow < q->supply_flow; });
+        return 2;
+      }},
+    {"swapped with itself through the base", [] (Shipment & sh) -> size_t
+      {
+        SimpleBase & base = sh.net;
+        base.swap(base);
+        return 2;
+      }},
+    {"assigned to itself through the base", [] (Shipment & sh) -> size_t
+      {
+        SimpleBase & base = sh.net;
+        const SimpleBase & same = sh.net;
+        base = same;
+        return 2;
+      }},
+    {"moved to itself through the base", [] (Shipment & sh) -> size_t
+      {
+        SimpleBase & base = sh.net;
+        SimpleBase & same = sh.net;
+        base = std::move(same);
+        return 2;
+      }},
+    {"swapped with itself", [] (Shipment & sh) -> size_t
+      {
+        sh.net.swap(sh.net);
+        return 2;
+      }},
+    {"assigned to itself", [] (Shipment & sh) -> size_t
+      {
+        const SimpleNet & same = sh.net;
+        sh.net = same;
+        return 2;
+      }},
+    {"moved to itself", [] (Shipment & sh) -> size_t
+      {
+        SimpleNet & same = sh.net;
+        sh.net = std::move(same);
+        return 2;
+      }}
+  };
+  for (const Aux aux : every_aux)
+    for (const Way & way : ways)
+      {
+        SCOPED_TRACE(std::string(name_of(aux)) + ", " + way.name);
+        Shipment sh(aux);
+        const size_t own = way.change(sh);
+        expect_aux_net(sh.net, sh.source, sh.sink, own);
+      }
+}
+
+TEST(NetSupDemChangedNetwork, ItsOwnSwapMovesAndCopiesTakeTheSuperNodesAlong)
+{
+  for (const Aux aux : every_aux)
+    {
+      SCOPED_TRACE(name_of(aux));
+      {
+        Shipment sh(aux);
+        SimpleNet moved(std::move(sh.net));
+        expect_no_aux_net(sh.net, 0);
+        expect_aux_net(moved, sh.source, sh.sink, 2);
+
+        // the network that was moved from takes an auxiliary network again
+        sh.net.insert_node(7);
+        sh.net.compute_aux_net();
+        ASSERT_NE(sh.net.get_super_source(), nullptr);
+        expect_aux_net(sh.net, sh.net.get_super_source(), nullptr, 1);
+      }
+      {
+        // a copy has super nodes of its own, at the places of those of the
+        // network, which keeps its own
+        Shipment sh(aux);
+        SimpleNet copy(sh.net);
+        EXPECT_EQ(copy.get_super_source() != nullptr, sh.source != nullptr);
+        EXPECT_EQ(copy.get_super_sink() != nullptr, sh.sink != nullptr);
+        if (sh.source != nullptr)
+          {
+            EXPECT_NE(copy.get_super_source(), sh.source);
+          }
+        if (sh.sink != nullptr)
+          {
+            EXPECT_NE(copy.get_super_sink(), sh.sink);
+          }
+        expect_aux_net(copy, copy.get_super_source(), copy.get_super_sink(), 2);
+        expect_aux_net(sh.net, sh.source, sh.sink, 2);
+      }
+      for (const Aux aux2 : every_aux)
+        {
+          SCOPED_TRACE(name_of(aux2));
+          {
+            // the move assignment exchanges them, as swap()
+            Shipment sh(aux), target(aux2);
+            target.net.insert_node(0);
+            target.net = std::move(sh.net);
+            expect_aux_net(target.net, sh.source, sh.sink, 2);
+            expect_aux_net(sh.net, target.source, target.sink, 3);
+          }
+          {
+            Shipment sh(aux), sh2(aux2);
+            sh2.net.insert_node(0);
+            sh.net.swap(sh2.net);
+            expect_aux_net(sh.net, sh2.source, sh2.sink, 3);
+            expect_aux_net(sh2.net, sh.source, sh.sink, 2);
+          }
+          {
+            // the copy assignment frees those that the target had
+            Shipment sh(aux), target(aux2);
+            target.net.insert_node(0);
+            target.net = sh.net;
+            EXPECT_EQ(target.net.get_super_source() != nullptr, sh.source != nullptr);
+            EXPECT_EQ(target.net.get_super_sink() != nullptr, sh.sink != nullptr);
+            expect_aux_net(target.net, target.net.get_super_source(), target.net.get_super_sink(), 2);
+            expect_aux_net(sh.net, sh.source, sh.sink, 2);
+          }
+        }
+    }
+}
+
+namespace
+{
+  // is_feasible() says `feasible`, and non_feasible_nodes() gives the
+  // nodes given, if any: two empty lists if and only if it is feasible
+  void expect_unmet(SimpleNet & net, const bool feasible, const SimpleNode * supply,
+                    const SimpleNode * demand)
+  {
+    EXPECT_EQ(net.is_feasible(), feasible);
+    DynDlist<SimpleNode *> supplies, demands;
+    net.non_feasible_nodes(supplies, demands);
+    ASSERT_EQ(supplies.size(), supply == nullptr ? 0u : 1u);
+    ASSERT_EQ(demands.size(), demand == nullptr ? 0u : 1u);
+    if (supply != nullptr)
+      {
+        EXPECT_EQ(supplies.get_first(), supply);
+      }
+    if (demand != nullptr)
+      {
+        EXPECT_EQ(demands.get_first(), demand);
+      }
+    EXPECT_EQ(supplies.is_empty() and demands.is_empty(), feasible);
+  }
+}
+
+// Without one of the super nodes nothing is shipped, whatever the flow:
+// when compute_aux_net() made one alone, and when the other was removed.
+// A flow fills then the arcs of the super node that there is, towards a
+// sink of the network or from a source of it
+TEST(NetSupDemChangedNetwork, WithoutASuperNodeNoSupplyNorDemandIsMet)
+{
+  for (const Aux aux : every_aux)
+    for (const bool with_flow : {false, true})
+      for (const int removed : {0, 1, 2}) // nothing, the super source, the super sink
+        {
+          Shipment sh(aux);
+          if ((removed == 1 and sh.source == nullptr) or (removed == 2 and sh.sink == nullptr))
+            continue; // it has no such super node
+          SCOPED_TRACE(std::string(name_of(aux)) + (with_flow ? ", after a maximum flow" : ", without a flow")
+                       + (removed == 1 ? ", its super source removed" : removed == 2 ? ", its super sink removed" : ""));
+          if (with_flow)
+            (void) edmonds_karp_maximum_flow(sh.net);
+          if (removed == 1)
+            sh.net.remove_node(sh.source);
+          else if (removed == 2)
+            sh.net.remove_node(sh.sink);
+
+          if (not sh.net.exist_aux_net())
+            {
+              // its only super node went
+              DynDlist<SimpleNode *> supplies, demands;
+              EXPECT_THROW(sh.net.non_feasible_nodes(supplies, demands), std::domain_error);
+              continue;
+            }
+          if (aux == Aux::both and removed == 0 and with_flow)
+            expect_unmet(sh.net, true, nullptr, nullptr); // all of it is shipped
+          else
+            expect_unmet(sh.net, false, sh.s->supply_flow > 0 ? sh.s : nullptr,
+                         sh.t->supply_flow < 0 ? sh.t : nullptr);
+        }
+}
+
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

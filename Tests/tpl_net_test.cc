@@ -43,8 +43,12 @@
 #include <set>
 #include <vector>
 
+#include <tpl_dynDlist.H>
 #include <tpl_maxflow.H>
 #include <tpl_net.H>
+#include <tpl_net_sup_dem.H>
+#include <tpl_netcapgraph.H>
+#include <tpl_netcost.H>
 
 using namespace Aleph;
 
@@ -656,6 +660,20 @@ TEST(NetGraphDerived, ASwapTellsItsTwoNetworks)
   EXPECT_EQ(one.swaps, 4);
 }
 
+// a network swapped with itself keeps its nodes and its arcs: nothing to
+// tell
+TEST(NetGraphDerived, ASwapWithItselfTellsNothing)
+{
+  Told_Net net;
+  build_single_arc(net, 5);
+  Net &base = net;
+
+  base.swap(base);
+  EXPECT_EQ(net.swaps, 0);
+  EXPECT_EQ(net.get_num_nodes(), 2U);
+  EXPECT_EQ(net.get_num_arcs(), 1U);
+}
+
 // disconnect_arc() is virtual, as remove_arc()
 TEST(NetGraphDerived, ADisconnectionThroughTheBaseIsThatOfTheDerivedNetwork)
 {
@@ -669,4 +687,292 @@ TEST(NetGraphDerived, ADisconnectionThroughTheBaseIsThatOfTheDerivedNetwork)
 
   base.connect_arc(sn.st);
   EXPECT_EQ(net.get_num_arcs(), 1U);
+}
+
+// =============================================================================
+// Every network derived from Net_Graph, once its nodes and arcs changed
+// through a reference to the base
+// =============================================================================
+//
+// A network may keep something for its nodes and its arcs: Net_Graph its
+// super nodes and its sets of sources and of sinks, Net_Cap_Graph an
+// auxiliary network that points to them, Net_Sup_Dem_Graph its two super
+// nodes, and Net_Cost_Graph nothing, since the costs are in the arcs.
+// Whatever changes the nodes and the arcs through a reference to Net_Graph
+// must leave the network either with what it keeps or knowing that it lost
+// it: the use of what it keeps says so, and touches no node nor arc that
+// the network no longer has, which the sanitizers see. A network derived
+// from Net_Graph that is not in Derived_Networks is not checked here: add
+// it, with its Kept_By.
+
+namespace
+{
+  // For a network derived from Net_Graph: fill() gives it nodes, arcs and
+  // what it keeps for them; use() uses all that it keeps and returns
+  // whether the network had it; apart says whether it stays when the nodes
+  // and the arcs go to another network
+  template <class N>
+  struct Kept_By;
+
+  // its super source, over two sources
+  template <>
+  struct Kept_By<Net_Graph<>>
+  {
+    static constexpr bool apart = false;
+
+    static void fill(Net_Graph<> &net)
+    {
+      auto a = net.insert_node();
+      auto b = net.insert_node();
+      auto c = net.insert_node();
+      net.insert_arc(a, c, 1.0, 0.0);
+      net.insert_arc(b, c, 1.0, 0.0);
+      net.make_super_source();
+    }
+
+    static bool use(Net_Graph<> &net)
+    {
+      if (not net.with_super_source)
+        return false;
+      net.unmake_super_source();
+      return true;
+    }
+  };
+
+  // its auxiliary network, whose arcs point to its nodes and arcs
+  template <>
+  struct Kept_By<Net_Cap_Graph<>>
+  {
+    static constexpr bool apart = true;
+
+    static void fill(Net_Cap_Graph<> &net)
+    {
+      auto a = net.insert_node(10.0);
+      auto b = net.insert_node(5.0);
+      auto c = net.insert_node(10.0);
+      net.insert_arc(a, b, 8.0, 0.0);
+      net.insert_arc(b, c, 8.0, 0.0);
+      net.compute_aux_net();
+    }
+
+    static bool use(Net_Cap_Graph<> &net)
+    {
+      if (not net.has_aux_net())
+        return false;
+      bool used = true;
+      try
+        {
+          net.update();
+        }
+      catch (const std::domain_error &)
+        {
+          used = false;
+        }
+      net.free_aux_net();
+      return used;
+    }
+  };
+
+  // its super source and its super sink, which are nodes of it
+  template <>
+  struct Kept_By<Net_Sup_Dem_Graph<>>
+  {
+    static constexpr bool apart = true;
+
+    static void fill(Net_Sup_Dem_Graph<> &net)
+    {
+      auto s = net.insert_node(10.0);
+      auto t = net.insert_node(-10.0);
+      net.insert_arc(s, t, 20.0, 0.0);
+      net.compute_aux_net();
+    }
+
+    static bool use(Net_Sup_Dem_Graph<> &net)
+    {
+      if (not net.exist_aux_net())
+        return false;
+      (void) net.is_feasible();
+      DynDlist<Net_Sup_Dem_Graph<>::Node *> supplies, demands;
+      net.non_feasible_nodes(supplies, demands);
+      net.free_aux_net();
+      return true;
+    }
+  };
+
+  // nothing: the costs go with the arcs
+  template <>
+  struct Kept_By<Net_Cost_Graph<>>
+  {
+    static constexpr bool apart = false;
+
+    static void fill(Net_Cost_Graph<> &net)
+    {
+      auto a = net.insert_node();
+      auto b = net.insert_node();
+      net.insert_arc(a, b, 5.0, 2.0);
+    }
+
+    static bool use(Net_Cost_Graph<> &net)
+    {
+      (void) net.flow_cost();
+      return true;
+    }
+  };
+
+  // Whether the numbers of nodes and of arcs of net are those that its
+  // iterators see, and its sources and its sinks are nodes of it
+  template <class B>
+  bool sound(const B &net)
+  {
+    size_t nodes = 0, arcs = 0;
+    for (typename B::Node_Iterator it(net); it.has_curr(); it.next_ne())
+      ++nodes;
+    for (typename B::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+      ++arcs;
+    if (nodes != net.get_num_nodes() or arcs != net.get_num_arcs())
+      return false;
+    auto is_node = [&net] (typename B::Node *p)
+      {
+        for (typename B::Node_Iterator it(net); it.has_curr(); it.next_ne())
+          if (it.get_curr() == p)
+            return true;
+        return false;
+      };
+    for (auto it = net.get_src_nodes().get_it(); it.has_curr(); it.next_ne())
+      if (not is_node(it.get_curr()))
+        return false;
+    for (auto it = net.get_sink_nodes().get_it(); it.has_curr(); it.next_ne())
+      if (not is_node(it.get_curr()))
+        return false;
+    return true;
+  }
+
+  // three nodes in a chain, with nothing kept for them
+  template <class B>
+  void fill_chain(B &net)
+  {
+    auto x = net.insert_node();
+    auto y = net.insert_node();
+    auto z = net.insert_node();
+    net.insert_arc(x, y, 1.0, 0.0);
+    net.insert_arc(y, z, 1.0, 0.0);
+  }
+
+  template <class N>
+  class NetDerivedChanged : public ::testing::Test
+  {};
+
+  using Derived_Networks = ::testing::Types<Net_Graph<>, Net_Cap_Graph<>, Net_Sup_Dem_Graph<>, Net_Cost_Graph<>>;
+}
+
+TYPED_TEST_SUITE(NetDerivedChanged, Derived_Networks);
+
+// The ways that take all the nodes and the arcs of the network to another
+// one, or free them: the assignments, the swap() and the move of Net_Graph
+TYPED_TEST(NetDerivedChanged, ItKnowsThatItsNodesWentThroughTheBase)
+{
+  using N = TypeParam;
+  using B = Net_Graph<typename N::Node, typename N::Arc>;
+  using K = Kept_By<N>;
+  const char *const ways[] = {"a copy assignment", "a move assignment", "a swap()", "a move construction",
+                              "a swap() with another one that keeps the same"};
+  // with the other network alive when what the network keeps is used, and
+  // gone, which frees the nodes that it took
+  for (const bool gone : {false, true})
+    for (int way = 0; way < 5; ++way)
+      {
+        SCOPED_TRACE(std::string(ways[way]) + (gone ? ", and the other network gone" : ""));
+        N net;
+        K::fill(net);
+        B &base = net;
+        auto plain = std::make_unique<B>();
+        fill_chain(*plain);
+        auto other = std::make_unique<N>();
+        K::fill(*other);
+        if (way == 0)
+          base = *plain;
+        else if (way == 1)
+          base = std::move(*plain);
+        else if (way == 2)
+          base.swap(*plain);
+        else if (way == 3)
+          *plain = B(std::move(base));
+        else
+          base.swap(static_cast<B &>(*other));
+        if (gone)
+          {
+            plain.reset();
+            other.reset();
+          }
+
+        const bool used = K::use(net);
+        if (K::apart)
+          {
+            EXPECT_FALSE(used); // what it kept was for the nodes that went
+          }
+        EXPECT_TRUE(sound(base));
+        if (not gone)
+          {
+            if (way == 4)
+              {
+                const bool other_used = K::use(*other);
+                if (K::apart)
+                  {
+                    EXPECT_FALSE(other_used);
+                  }
+              }
+            EXPECT_TRUE(sound(*plain));
+            EXPECT_TRUE(sound(static_cast<B &>(*other)));
+          }
+      }
+}
+
+// The ways that take some of them, or none: what the network keeps is used
+// then, or refused, and nothing that is gone is touched
+TYPED_TEST(NetDerivedChanged, ItUsesNothingThatIsGoneAfterAChangeThroughTheBase)
+{
+  using N = TypeParam;
+  using B = Net_Graph<typename N::Node, typename N::Arc>;
+  using K = Kept_By<N>;
+  const char *const ways[] = {"nothing", "a swap() with itself", "an assignment to itself", "a move to itself",
+                              "remove_node() of its first node", "remove_arc() of its first arc",
+                              "an arc disconnected and freed", "clear_graph()", "copy_graph() into it"};
+  for (int way = 0; way < 9; ++way)
+    {
+      SCOPED_TRACE(ways[way]);
+      N net;
+      K::fill(net);
+      B &base = net;
+      B &same = net;
+      B plain;
+      fill_chain(plain);
+      if (way == 1)
+        base.swap(same);
+      else if (way == 2)
+        base = static_cast<const B &>(same);
+      else if (way == 3)
+        base = std::move(same);
+      else if (way == 4)
+        base.remove_node(base.get_first_node());
+      else if (way == 5)
+        base.remove_arc(base.get_first_arc());
+      else if (way == 6)
+        {
+          auto a = base.get_first_arc();
+          base.disconnect_arc(a);
+          delete a;
+        }
+      else if (way == 7)
+        clear_graph(base);
+      else if (way == 8)
+        copy_graph(base, plain);
+
+      const bool used = K::use(net);
+      if (way < 4)
+        {
+          EXPECT_TRUE(used); // the network is the one that it was
+        }
+      EXPECT_TRUE(sound(base));
+      EXPECT_TRUE(sound(plain));
+    }
 }

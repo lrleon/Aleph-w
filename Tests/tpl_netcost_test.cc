@@ -620,16 +620,11 @@ protected:
   // - a->t: cap=3, cost=3
   // - b->t: cap=2, cost=1
   //
-  // Max flow = min(3+2, 3+2) = 4 (limited by sink capacity)
-  // For max flow of 4, optimal routing:
-  //   s->a: 2, a->t: 2 (cost = 2*1 + 2*3 = 8)
-  //   s->b: 2, b->t: 2 (cost = 2*2 + 2*1 = 6)
-  //   Total cost = 14
-  //
-  // Alternative: s->a:3, s->b:1, but a->t limited to 3
+  // Max flow = min(3+2, 3+2) = 5, which fills the arcs of s and those
+  // of t and leaves b->a empty: it is the only flow of 5
   //   s->a: 3, a->t: 3 (cost = 3*1 + 3*3 = 12)
-  //   s->b: 1, b->t: 1 (cost = 1*2 + 1*1 = 3)
-  //   Total = 15 (worse)
+  //   s->b: 2, b->t: 2 (cost = 2*2 + 2*1 = 6)
+  //   Total cost = 18
 
   Net build_textbook_network()
   {
@@ -835,12 +830,11 @@ TEST_F(MaxFlowMinCostIntegrationTest, TextbookNetwork)
   // Max flow analysis:
   // Source capacity: s->a (3) + s->b (2) = 5
   // Sink capacity: a->t (3) + b->t (2) = 5
-  // So max flow could be up to 5, but need to check paths
-  EXPECT_GT(max_flow, 0);
-  EXPECT_LE(max_flow, 5.0);
+  // The only flow of 5 fills those four arcs and leaves b->a empty
+  EXPECT_DOUBLE_EQ(max_flow, 5.0);
 
-  // Total cost should be non-negative
-  EXPECT_GE(total_cost, 0);
+  // 3*1 + 2*2 + 3*3 + 2*1
+  EXPECT_DOUBLE_EQ(total_cost, 18.0);
 
   // Print actual results for debugging
   std::cout << "Textbook network: max_flow=" << max_flow
@@ -892,8 +886,11 @@ TEST_F(MaxFlowMinCostIntegrationTest, LargerNetwork)
 
   EXPECT_TRUE(verify_flow_conservation(net));
   EXPECT_TRUE(verify_capacity_constraints(net));
-  EXPECT_GT(max_flow, 0);
-  EXPECT_GE(total_cost, 0);
+  // The arcs of s carry 8, as those of t, and every flow of 8 costs the
+  // same: 12 through those of s, 16 through the middle and 8 through
+  // those of t
+  EXPECT_DOUBLE_EQ(max_flow, 8.0);
+  EXPECT_DOUBLE_EQ(total_cost, 36.0);
 
   std::cout << "Larger network: max_flow=" << max_flow
             << ", total_cost=" << total_cost
