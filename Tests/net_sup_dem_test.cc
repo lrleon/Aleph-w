@@ -1337,6 +1337,67 @@ TEST(NetSupDemChangedNetwork, ItsOwnSwapMovesAndCopiesTakeTheSuperNodesAlong)
     }
 }
 
+namespace
+{
+  // is_feasible() says `feasible`, and non_feasible_nodes() gives the
+  // nodes given, if any: two empty lists if and only if it is feasible
+  void expect_unmet(SimpleNet & net, const bool feasible, const SimpleNode * supply,
+                    const SimpleNode * demand)
+  {
+    EXPECT_EQ(net.is_feasible(), feasible);
+    DynDlist<SimpleNode *> supplies, demands;
+    net.non_feasible_nodes(supplies, demands);
+    ASSERT_EQ(supplies.size(), supply == nullptr ? 0u : 1u);
+    ASSERT_EQ(demands.size(), demand == nullptr ? 0u : 1u);
+    if (supply != nullptr)
+      {
+        EXPECT_EQ(supplies.get_first(), supply);
+      }
+    if (demand != nullptr)
+      {
+        EXPECT_EQ(demands.get_first(), demand);
+      }
+    EXPECT_EQ(supplies.is_empty() and demands.is_empty(), feasible);
+  }
+}
+
+// Without one of the super nodes nothing is shipped, whatever the flow:
+// when compute_aux_net() made one alone, and when the other was removed.
+// A flow fills then the arcs of the super node that there is, towards a
+// sink of the network or from a source of it
+TEST(NetSupDemChangedNetwork, WithoutASuperNodeNoSupplyNorDemandIsMet)
+{
+  for (const Aux aux : every_aux)
+    for (const bool with_flow : {false, true})
+      for (const int removed : {0, 1, 2}) // nothing, the super source, the super sink
+        {
+          Shipment sh(aux);
+          if ((removed == 1 and sh.source == nullptr) or (removed == 2 and sh.sink == nullptr))
+            continue; // it has no such super node
+          SCOPED_TRACE(std::string(name_of(aux)) + (with_flow ? ", after a maximum flow" : ", without a flow")
+                       + (removed == 1 ? ", its super source removed" : removed == 2 ? ", its super sink removed" : ""));
+          if (with_flow)
+            (void) edmonds_karp_maximum_flow(sh.net);
+          if (removed == 1)
+            sh.net.remove_node(sh.source);
+          else if (removed == 2)
+            sh.net.remove_node(sh.sink);
+
+          if (not sh.net.exist_aux_net())
+            {
+              // its only super node went
+              DynDlist<SimpleNode *> supplies, demands;
+              EXPECT_THROW(sh.net.non_feasible_nodes(supplies, demands), std::domain_error);
+              continue;
+            }
+          if (aux == Aux::both and removed == 0 and with_flow)
+            expect_unmet(sh.net, true, nullptr, nullptr); // all of it is shipped
+          else
+            expect_unmet(sh.net, false, sh.s->supply_flow > 0 ? sh.s : nullptr,
+                         sh.t->supply_flow < 0 ? sh.t : nullptr);
+        }
+}
+
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

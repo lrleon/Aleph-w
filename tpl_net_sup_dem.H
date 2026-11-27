@@ -654,10 +654,14 @@ public:
    * supply node that does not ship all its supply is one whose arc from
    * the super-source the flow does not fill, and a demand node that does
    * not receive all its demand, one whose arc to the super-sink it does
-   * not fill, with the same tolerance for a floating flow, so that the
-   * lists are empty if and only if is_feasible(). The fields `out_flow`
-   * and `in_flow` of the nodes, which the network does not write, do not
-   * count.
+   * not fill, with the same tolerance for a floating flow. Without a
+   * super-source or without a super-sink nothing is shipped, as
+   * is_feasible() says: every node that supplies and every node that
+   * demands is then in its list, whatever the flow. So the lists are
+   * empty if and only if is_feasible(), while some node supplies or
+   * demands, as when compute_aux_net() made the auxiliary network. The
+   * fields `out_flow` and `in_flow` of the nodes, which the network does
+   * not write, do not count.
    *
    * @param[out] supply_list Nodes that do not ship all their supply
    * @param[out] demand_list Nodes that do not receive all their demand
@@ -672,15 +676,25 @@ public:
     ah_domain_error_if(not exist_aux_net())
       << "Auxiliary net has not been computed";
 
-    if (super_source != nullptr)
-      for (typename Net_Class::Node_Arc_Iterator it(super_source); it.has_curr(); it.next_ne())
-        if (Arc* a = it.get_curr(); not filled(a))
-          supply_list.append(this->get_tgt_node(a));
+    if (super_source == nullptr or super_sink == nullptr)
+      {
+        // nothing is shipped: no supply leaves and no demand is met, also
+        // if a flow fills the arcs of the super node that there is
+        for (Node_Iterator<Net_Sup_Dem_Graph> it(*this); it.has_curr(); it.next_ne())
+          if (Node* p = it.get_curr(); p->supply_flow > 0)
+            supply_list.append(p);
+          else if (p->supply_flow < 0)
+            demand_list.append(p);
+        return;
+      }
 
-    if (super_sink != nullptr)
-      for (typename Net_Class::Node_Arc_Iterator it(super_sink); it.has_curr(); it.next_ne())
-        if (Arc* a = it.get_curr(); not filled(a))
-          demand_list.append(this->get_src_node(a));
+    for (typename Net_Class::Node_Arc_Iterator it(super_source); it.has_curr(); it.next_ne())
+      if (Arc* a = it.get_curr(); not filled(a))
+        supply_list.append(this->get_tgt_node(a));
+
+    for (typename Net_Class::Node_Arc_Iterator it(super_sink); it.has_curr(); it.next_ne())
+      if (Arc* a = it.get_curr(); not filled(a))
+        demand_list.append(this->get_src_node(a));
   }
 
   /// @}

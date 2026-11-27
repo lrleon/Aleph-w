@@ -4230,7 +4230,54 @@ TEST(ExhaustiveSupplyDemand, TheAuxiliaryNetworkMatchesTheOracle)
   Check aux("compute_aux_net()");
   Check feasible("is_feasible(), after a maximum flow");
   Check trivial("is_feasible(), without supplies or without demands");
+  Check lists("non_feasible_nodes(), against is_feasible() and the flows of the network");
   Check freed("free_aux_net()");
+
+  // What non_feasible_nodes() must give: without one of the super nodes,
+  // every node that supplies and every node that demands; with the two,
+  // those whose balance of flow over the arcs of the network, without
+  // those of the super nodes, is not their supply or their demand; and two
+  // empty lists if and only if is_feasible(). Returns what is wrong, if
+  // something is
+  auto lists_error = [] (Built_Net<Net> & b, const Spec & sup) -> std::string
+    {
+      DynDlist<Net::Node *> supplies, demands;
+      b.net.non_feasible_nodes(supplies, demands);
+      if ((supplies.is_empty() and demands.is_empty()) != b.net.is_feasible())
+        return "the lists of non_feasible_nodes() and is_feasible() disagree";
+      const bool both = b.net.get_super_source() != nullptr and b.net.get_super_sink() != nullptr;
+      size_t want_supplies = 0, want_demands = 0;
+      for (size_t v = 0; v < b.nodes.size(); ++v)
+        {
+          const long w = long(sup.w[v]);
+          if (w == 0)
+            continue;
+          auto p = b.nodes[v];
+          long shipped = 0; // what leaves p less what enters it
+          for (Net::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
+            {
+              auto a = it.get_curr();
+              auto src = b.net.get_src_node(a);
+              auto tgt = b.net.get_tgt_node(a);
+              if (src == b.net.get_super_source() or tgt == b.net.get_super_sink())
+                continue;
+              if (src == p)
+                shipped += a->flow;
+              if (tgt == p)
+                shipped -= a->flow;
+            }
+          const bool unmet = not both or shipped != w;
+          bool listed = false;
+          for (auto it = (w > 0 ? supplies : demands).get_it(); it.has_curr(); it.next_ne())
+            listed = listed or it.get_curr() == p;
+          if (listed != unmet)
+            return "the node " + std::to_string(v) + (unmet ? " is not in its list" : " is in its list");
+          (w > 0 ? want_supplies : want_demands) += unmet;
+        }
+      if (supplies.size() != want_supplies or demands.size() != want_demands)
+        return "a list has a node that is not of it, or one twice";
+      return "";
+    };
 
   for_each_spec(class_domain(), true, [&] (const Spec & raw)
     {
@@ -4307,6 +4354,19 @@ TEST(ExhaustiveSupplyDemand, TheAuxiliaryNetworkMatchesTheOracle)
                   trivial.run();
                   if (b.net.is_feasible())
                     trivial.fail(s, what + "says feasible");
+                  // a flow may fill the arcs of its only super node, to a
+                  // sink of the network or from a source of it: nothing
+                  // is shipped all the same
+                  if (b.net.is_single_source() and b.net.is_single_sink())
+                    {
+                      edmonds_karp_maximum_flow(b.net);
+                      trivial.run();
+                      if (b.net.is_feasible())
+                        trivial.fail(s, what + "says feasible after a flow");
+                    }
+                  lists.run();
+                  if (const std::string why = lists_error(b, sup); not why.empty())
+                    lists.fail(s, what + why);
                 }
               else if (not (b.net.is_single_source() and b.net.is_single_sink()))
                 aux.fail(s, what + std::to_string(b.net.get_src_nodes().size()) + " sources and "
@@ -4317,6 +4377,9 @@ TEST(ExhaustiveSupplyDemand, TheAuxiliaryNetworkMatchesTheOracle)
                   edmonds_karp_maximum_flow(b.net);
                   if (b.net.is_feasible() != want)
                     feasible.fail(s, what + (want ? "says infeasible" : "says feasible"));
+                  lists.run();
+                  if (const std::string why = lists_error(b, sup); not why.empty())
+                    lists.fail(s, what + why);
                 }
 
               freed.run();
@@ -4330,6 +4393,7 @@ TEST(ExhaustiveSupplyDemand, TheAuxiliaryNetworkMatchesTheOracle)
   aux.expect();
   feasible.expect();
   trivial.expect();
+  lists.expect();
   freed.expect();
 }
 
