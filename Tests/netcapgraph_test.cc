@@ -1019,6 +1019,128 @@ TEST_F(NetCapGraphFuzz, ExtremeCapacityValues)
 }
 
 // =============================================================================
+// A CHANGE OF THE NETWORK AFTER compute_aux_net()
+// =============================================================================
+
+namespace
+{
+  // a -> b -> c, with its auxiliary network, whose arcs carry a flow of 1
+  struct Chain
+  {
+    DefaultNet net;
+    DefaultNet::Node * a = net.insert_node(10.0);
+    DefaultNet::Node * b = net.insert_node(5.0);
+    DefaultNet::Node * c = net.insert_node(10.0);
+    DefaultNet::Arc * ab = net.insert_arc(a, b, 8.0, 0.0);
+    DefaultNet::Arc * bc = net.insert_arc(b, c, 8.0, 0.0);
+
+    Chain()
+    {
+      auto aux = net.compute_aux_net();
+      for (DefaultNet::Aux_Net::Arc_Iterator it(*aux); it.has_curr(); it.next_ne())
+        it.get_curr()->flow = 1.0;
+    }
+  };
+}
+
+TEST(NetCapGraphChangedNetwork, UpdateTakesAnUnchangedNetwork)
+{
+  Chain ch;
+  ASSERT_NO_THROW(ch.net.update());
+  EXPECT_EQ(ch.ab->flow, 1.0);
+  EXPECT_EQ(ch.bc->flow, 1.0);
+  EXPECT_EQ(ch.b->in_flow, 1.0);
+}
+
+TEST(NetCapGraphChangedNetwork, UpdateRefusesItAfterACopyOverTheNetwork)
+{
+  Chain ch;
+  DefaultNet other;
+  auto x = other.insert_node(1.0);
+  auto y = other.insert_node(1.0);
+  other.insert_arc(x, y, 1.0, 0.0);
+
+  // it removes the nodes and the arcs that the auxiliary network points to
+  copy_graph(ch.net, other);
+  EXPECT_THROW(ch.net.update(), std::domain_error);
+
+  // the auxiliary network stays, to be freed and computed again
+  ASSERT_TRUE(ch.net.has_aux_net());
+  ch.net.free_aux_net();
+  ch.net.compute_aux_net();
+  EXPECT_NO_THROW(ch.net.update());
+}
+
+TEST(NetCapGraphChangedNetwork, UpdateRefusesItAfterARemoval)
+{
+  {
+    Chain ch;
+    ch.net.remove_arc(ch.bc);
+    EXPECT_THROW(ch.net.update(), std::domain_error);
+    EXPECT_EQ(ch.ab->flow, 0.0); // nothing written
+  }
+  {
+    Chain ch;
+    ch.net.remove_node(ch.c);
+    EXPECT_THROW(ch.net.update(), std::domain_error);
+    EXPECT_EQ(ch.ab->flow, 0.0);
+  }
+  {
+    // remove_arc() is virtual: through a reference to the base too
+    Chain ch;
+    DefaultNet::Net_Class & base = ch.net;
+    base.remove_arc(ch.ab);
+    EXPECT_THROW(ch.net.update(), std::domain_error);
+  }
+  {
+    // a removal and an insertion leave the numbers of arcs as they were
+    Chain ch;
+    ch.net.remove_arc(ch.bc);
+    ch.net.insert_arc(ch.b, ch.c, 8.0, 0.0);
+    EXPECT_THROW(ch.net.update(), std::domain_error);
+  }
+}
+
+TEST(NetCapGraphChangedNetwork, UpdateRefusesItAfterAnInsertion)
+{
+  {
+    Chain ch;
+    ch.net.insert_node(1.0);
+    EXPECT_THROW(ch.net.update(), std::domain_error);
+  }
+  {
+    Chain ch;
+    ch.net.insert_arc(ch.a, ch.c, 1.0, 0.0);
+    EXPECT_THROW(ch.net.update(), std::domain_error);
+    EXPECT_EQ(ch.ab->flow, 0.0);
+  }
+}
+
+TEST(NetCapGraphChangedNetwork, TheMarkGoesWithTheAuxiliaryNetwork)
+{
+  Chain stale;
+  stale.net.remove_arc(stale.bc);
+  Chain fresh;
+
+  DefaultNet moved(std::move(stale.net));
+  EXPECT_THROW(moved.update(), std::domain_error);
+
+  moved.swap(fresh.net);
+  EXPECT_NO_THROW(moved.update());
+  EXPECT_THROW(fresh.net.update(), std::domain_error);
+
+  DefaultNet assigned;
+  assigned = std::move(fresh.net);
+  EXPECT_THROW(assigned.update(), std::domain_error);
+
+  // a copy has no auxiliary network; the one that it computes maps to it
+  DefaultNet copy(moved);
+  EXPECT_THROW(copy.update(), std::domain_error);
+  copy.compute_aux_net();
+  EXPECT_NO_THROW(copy.update());
+}
+
+// =============================================================================
 // Main entry point
 // =============================================================================
 

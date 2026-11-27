@@ -256,6 +256,13 @@ public:
  * net.free_aux_net();
  * @endcode
  *
+ * The auxiliary network keeps pointers to the nodes and the arcs of
+ * the network, which update() follows. A change of the network after
+ * compute_aux_net(), a node or an arc inserted or removed (also by a
+ * copy_graph() over it), leaves it without its network: update() then
+ * throws `std::domain_error`, and the auxiliary network stays as it is,
+ * for free_aux_net().
+ *
  * @tparam NodeT Node type (must derive from Net_Cap_Node).
  * @tparam ArcT Arc type (must derive from Net_Arc).
  *
@@ -288,6 +295,36 @@ public:
   Node * insert_node(Node *p) override
   {
     return Net_Class::insert_node(p);
+  }
+
+  /** @brief Remove the arc `arc` from the network, as
+   *  Net_Graph::remove_arc() does.
+   *
+   * An auxiliary network computed before no longer maps to the network:
+   * update() refuses it.
+   *
+   * @param[in] arc the arc to remove.
+   * @throw std::bad_alloc as Net_Graph::remove_arc().
+   */
+  void remove_arc(Arc *arc) override
+  {
+    aux_stamp.stale = true; // before, since it may go and then throw
+    Net_Class::remove_arc(arc);
+  }
+
+  /** @brief Remove the node `p` and its arcs from the network, as
+   *  Net_Graph::remove_node() does.
+   *
+   * An auxiliary network computed before no longer maps to the network:
+   * update() refuses it.
+   *
+   * @param[in] p the node to remove.
+   * @throw std::bad_alloc as Net_Graph::remove_node().
+   */
+  void remove_node(Node *p) override
+  {
+    aux_stamp.stale = true;
+    Net_Class::remove_node(p);
   }
 
   /** @brief Insert a new capacitated node into the network.
@@ -358,6 +395,17 @@ public:
 private:
   Aux_Net* aux_net = nullptr;
 
+  // What compute_aux_net() saw: the auxiliary network maps to the network
+  // while no node or arc went and the numbers of nodes and of arcs are
+  // these. remove_arc() and remove_node() are virtual, so that they mark
+  // it also when called through a base, as clear_graph() does.
+  struct Aux_Stamp
+  {
+    bool stale = false;
+    size_t num_nodes = 0;
+    size_t num_arcs = 0;
+  } aux_stamp;
+
 public:
   /** @brief Default constructor.
    *
@@ -397,7 +445,7 @@ public:
    * @param other Network to move from.
    */
   Net_Cap_Graph(Net_Cap_Graph&& other) noexcept
-    : Net_Class(std::move(other)), aux_net(other.aux_net)
+    : Net_Class(std::move(other)), aux_net(other.aux_net), aux_stamp(other.aux_stamp)
   {
     other.aux_net = nullptr;
   }
@@ -434,6 +482,7 @@ public:
   {
     Net_Class::swap(other);
     std::swap(aux_net, other.aux_net);
+    std::swap(aux_stamp, other.aux_stamp);
   }
 
   /** @brief Move assignment operator.
@@ -448,6 +497,7 @@ public:
       Net_Class::operator=(std::move(other));
       delete aux_net; // ~Array_Graph() frees without allocating
       aux_net = other.aux_net;
+      aux_stamp = other.aux_stamp;
       other.aux_net = nullptr;
     }
     return *this;
@@ -510,7 +560,8 @@ public:
    * @throw std::bad_alloc if memory allocation fails.
    *
    * @note Call update() after running max flow on the auxiliary network
-   *       to transfer flow values back to this network.
+   *       to transfer flow values back to this network, before any
+   *       change of this network: after one, update() refuses it.
    */
   Aux_Net* compute_aux_net()
   {
@@ -562,7 +613,8 @@ public:
         ARC_COOKIE(arc) = a;
         ARC_COOKIE(a) = arc;
       }
-      
+
+      aux_stamp = {false, this->get_num_nodes(), this->get_num_arcs()};
       return aux_net;
     }
     catch (...)
@@ -588,12 +640,20 @@ public:
    * - Node in_flow and out_flow from node-representing arcs
    * - Arc flow values from edge-representing arcs
    *
-   * @throw std::domain_error if auxiliary network has not been computed.
+   * @throw std::domain_error if auxiliary network has not been computed,
+   *        or if a node or an arc was inserted in this network or removed
+   *        from it after compute_aux_net(): the auxiliary network, which
+   *        points to them, no longer maps to it. Nothing is written then.
    */
   void update()
   {
     ah_domain_error_if(aux_net == nullptr)
       << "Auxiliary network has not been computed";
+
+    ah_domain_error_if(aux_stamp.stale or aux_stamp.num_nodes != this->get_num_nodes()
+                       or aux_stamp.num_arcs != this->get_num_arcs())
+      << "The network changed after compute_aux_net(): free its auxiliary"
+      << " network and compute it again";
 
     for (typename Aux_Net::Arc_Iterator it(*aux_net); it.has_curr(); it.next_ne())
     {
