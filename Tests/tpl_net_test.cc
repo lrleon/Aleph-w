@@ -605,3 +605,68 @@ TEST(NetGraphInfiniteFlows, TheAugmentingPathsReturnAnInfiniteMaximumFlow)
       EXPECT_TRUE(net.check_network()) << (algo == 0 ? "ford_fulkerson" : "edmonds_karp");
     }
 }
+
+// =============================================================================
+// What Net_Graph tells a network derived from it
+// =============================================================================
+
+namespace
+{
+  // A network that counts the calls to swapped() and the arcs that are
+  // disconnected from it
+  struct Told_Net : Net
+  {
+    int swaps = 0;
+    int disconnections = 0;
+
+    void swapped() noexcept override { ++swaps; }
+
+    void disconnect_arc(Arc *arc) override
+    {
+      ++disconnections;
+      Net::disconnect_arc(arc);
+    }
+  };
+}
+
+// swap(), the move and the assignments of Net_Graph, through a reference to
+// it, tell once each network whose nodes and arcs they exchange
+TEST(NetGraphDerived, ASwapTellsItsTwoNetworks)
+{
+  Told_Net one, two;
+  build_single_arc(one, 5);
+  Net &base = one;
+
+  base.swap(two);
+  EXPECT_EQ(one.swaps, 1);
+  EXPECT_EQ(two.swaps, 1);
+  EXPECT_EQ(two.get_num_arcs(), 1U);
+
+  base = std::move(static_cast<Net &>(two));  // a swap
+  EXPECT_EQ(one.swaps, 2);
+  EXPECT_EQ(two.swaps, 2);
+  EXPECT_EQ(one.get_num_arcs(), 1U);
+
+  Net plain;
+  base = plain;  // a copy of plain, and a swap with it
+  EXPECT_EQ(one.swaps, 3);
+  EXPECT_EQ(two.swaps, 2);
+
+  Net taken(std::move(base));  // it tells the network that it empties
+  EXPECT_EQ(one.swaps, 4);
+}
+
+// disconnect_arc() is virtual, as remove_arc()
+TEST(NetGraphDerived, ADisconnectionThroughTheBaseIsThatOfTheDerivedNetwork)
+{
+  Told_Net net;
+  auto sn = build_single_arc(net, 5);
+  Net &base = net;
+
+  base.disconnect_arc(sn.st);
+  EXPECT_EQ(net.disconnections, 1);
+  EXPECT_EQ(net.get_num_arcs(), 0U);
+
+  base.connect_arc(sn.st);
+  EXPECT_EQ(net.get_num_arcs(), 1U);
+}
