@@ -5,6 +5,15 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.8.6](https://github.com/lrleon/Aleph-w/compare/v7.8.5...v7.8.6) (2026-11-27)
+
+
+### Bug Fixes
+
+* **flow:** Forget the super nodes that leave a Net_Sup_Dem_Graph: after an assignment, a swap() or a move through a reference to Net_Graph, a remove_node() of one of them, clear_graph() or a copy_graph() into the network, free_aux_net() and is_feasible() used nodes that the network no longer had ([#240](https://github.com/lrleon/Aleph-w/issues/240)) ([0a39117](https://github.com/lrleon/Aleph-w/commit/0a39117d82b964a1b22c6715d8444f60ea9d2782))
+* **flow:** List every supply and demand in non_feasible_nodes() when a super node is missing: in a network that only supplies or only demands it gave two empty lists, after a flow, while is_feasible() said that nothing was shipped ([#240](https://github.com/lrleon/Aleph-w/issues/240)) ([0a39117](https://github.com/lrleon/Aleph-w/commit/0a39117d82b964a1b22c6715d8444f60ea9d2782))
+* **flow:** Refuse a stale auxiliary network in Net_Cap_Graph::update() ([#238](https://github.com/lrleon/Aleph-w/issues/238)) ([8eaf12f](https://github.com/lrleon/Aleph-w/commit/8eaf12f67ef630e8252c343fc637a141d63bc764))
+
 ## [7.8.5](https://github.com/lrleon/Aleph-w/compare/v7.8.4...v7.8.5) (2026-11-26)
 
 
