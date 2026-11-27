@@ -1213,6 +1213,17 @@ TEST(NetCapGraphChangedNetwork, UpdateRefusesItAfterASwapThroughTheBase)
   }
 }
 
+TEST(NetCapGraphChangedNetwork, UpdateTakesItAfterASwapWithItself)
+{
+  // which exchanges nothing: the auxiliary network still maps to it
+  Chain ch;
+  DefaultNet::Net_Class & base = ch.net;
+  base.swap(base);
+  ASSERT_NO_THROW(ch.net.update());
+  EXPECT_EQ(ch.ab->flow, 1.0);
+  EXPECT_EQ(ch.bc->flow, 1.0);
+}
+
 TEST(NetCapGraphChangedNetwork, UpdateRefusesItAfterAnInsertion)
 {
   {

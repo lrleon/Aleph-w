@@ -217,6 +217,17 @@ public:
  * - Arc capacities from super-source equal supply values
  * - Arc capacities to super-sink equal demand values (absolute)
  *
+ * ## A change of the network
+ *
+ * The super-source and the super-sink are nodes of the network, which
+ * remembers which they are. It forgets one that is removed, by
+ * remove_node(), by clear_graph() or by a copy_graph() into the network,
+ * and the two when its nodes and its arcs are exchanged through a
+ * reference to Net_Graph, by its swap(), its move or its assignments:
+ * they are then nodes like the others of the network that has them, and
+ * this one has no auxiliary network. Its own swap() and moves take them
+ * along.
+ *
  * @tparam NodeT Node type (default: Net_Sup_Dem_Node with double flow)
  * @tparam ArcT Arc type (default: Net_Arc with double flow)
  *
@@ -274,6 +285,23 @@ private:
       return a->flow == a->cap;
   }
 
+protected:
+  /** @brief Forgets the super nodes: Net_Graph calls it once the nodes
+   *  and the arcs of the network were exchanged through a reference to
+   *  it, by its swap(), its move or its assignments.
+   *
+   * The super-source and the super-sink are nodes of the network, and
+   * went with the rest: they are then nodes like the others of the
+   * network that has them, which this one no longer is. The swap() and
+   * the moves of Net_Sup_Dem_Graph, which take them along, do not call
+   * it.
+   */
+  void swapped() noexcept override
+  {
+    super_source = nullptr;
+    super_sink = nullptr;
+  }
+
 public:
   /// @name Constructors and Destructor
   /// @{
@@ -314,11 +342,12 @@ public:
 
   /// Move constructor. O(1).
   Net_Sup_Dem_Graph(Net_Sup_Dem_Graph && other) noexcept
-    : Net_Class(std::move(other)),
+    : Net_Class(),
       super_source(std::exchange(other.super_source, nullptr)),
       super_sink(std::exchange(other.super_sink, nullptr))
   {
-    // empty
+    // not the move of Net_Graph, which tells other that its nodes went
+    Net_Class::swap_contents(other);
   }
 
   /**
@@ -350,12 +379,34 @@ public:
   /// Swaps the networks, with their super nodes. O(1).
   void swap(Net_Sup_Dem_Graph & other) noexcept
   {
-    Net_Class::swap(other);
+    Net_Class::swap_contents(other); // not swap(), which forgets those of the two
     std::swap(super_source, other.super_source);
     std::swap(super_sink, other.super_sink);
   }
 
   /// @}
+
+  /** @brief Remove node `p` and all its arcs from the network, as
+   *  Net_Graph::remove_node() does.
+   *
+   * If `p` is the super-source or the super-sink, the network forgets
+   * it: the auxiliary network is then without it, as when no node
+   * supplies or none demands.
+   *
+   * @param[in] p Node to remove.
+   * @throw std::bad_alloc as Net_Graph::remove_node(). Then `p` is in
+   *        the network, and remembered if it is a super node.
+   */
+  void remove_node(Node *p) override
+  {
+    const bool source = p == super_source;
+    const bool sink = p == super_sink;
+    Net_Class::remove_node(p);
+    if (source)
+      super_source = nullptr;
+    if (sink)
+      super_sink = nullptr;
+  }
 
   // Bring base class insert_node overloads into scope; those below with
   // an info hide that of Net_Graph, which a call with an info would find
@@ -533,6 +584,8 @@ public:
    * Also clears the residual network if it exists.
    *
    * @throw std::domain_error if auxiliary network doesn't exist
+   * @throw std::bad_alloc as remove_node(). Then the network remembers
+   *        the super nodes that it still has, and another call goes on.
    */
   void free_aux_net()
   {

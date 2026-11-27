@@ -4697,6 +4697,124 @@ TEST_F(ExhaustiveFlowMemory, SuperNodesWhenMemoryRunsOut)
     c->expect();
 }
 
+TEST_F(ExhaustiveFlowMemory, SuppliesWhenMemoryRunsOut)
+{
+  using Net = Net_Sup_Dem_Graph<Net_Sup_Dem_Node<int, long>, Net_Arc<int, long>>;
+  // Two supplies and two demands, with each auxiliary network that a
+  // network may have: the two super nodes (0), the super source alone (1)
+  // and the super sink alone (2). The arc of a super node is the only one
+  // that enters a supply, or that leaves a demand: when it goes, its end is
+  // a source, or a sink, again, which allocates; and a super node has two
+  // arcs, so that its removal may fail with one of them gone
+  struct Shipment
+  {
+    Net net;
+    Net from;                 // another one, to copy
+    Net::Net_Class plain;     // and one that is not of supplies
+    Net::Node * source = nullptr;
+    Net::Node * sink = nullptr;
+
+    explicit Shipment(const int aux)
+    {
+      auto s1 = net.insert_node(0, aux == 2 ? 0 : 10);
+      auto s2 = net.insert_node(1, aux == 2 ? 0 : 5);
+      auto t1 = net.insert_node(2, aux == 1 ? 0 : -10);
+      auto t2 = net.insert_node(3, aux == 1 ? 0 : -5);
+      net.insert_arc(s1, t1, 20);
+      net.insert_arc(s2, t2, 20);
+      net.compute_aux_net();
+      source = net.get_super_source();
+      sink = net.get_super_sink();
+      auto x = from.insert_node(0, 3);
+      auto y = from.insert_node(1, -3);
+      from.insert_arc(x, y, 6);
+      auto u = plain.insert_node(0);
+      auto v = plain.insert_node(1);
+      plain.insert_arc(u, v, 1);
+    }
+  };
+  // What every operation must leave, also when it fails: the network
+  // remembers the super nodes that it has, and no other. Here, where no
+  // other node comes or goes, it has its four nodes and those
+  auto kept = [] (const Net & net)
+    {
+      size_t found = 0;
+      for (Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
+        if (it.get_curr() == net.get_super_source() or it.get_curr() == net.get_super_sink())
+          ++found;
+      const size_t remembered = size_t(net.get_super_source() != nullptr)
+        + size_t(net.get_super_sink() != nullptr);
+      return found == remembered and net.get_num_nodes() == 4 + remembered;
+    };
+  const char * const names[] = {"remove_node() of the super source", "remove_node() of the super sink",
+                                "free_aux_net()", "a copy assignment through the base",
+                                "copy_graph() into the network"};
+  size_t failures[5] = {0, 0, 0, 0, 0};
+  const size_t arcs_made[3] = {6, 4, 4}; // those of the network and of its super nodes
+  size_t partial = 0;                    // removals that failed with an arc gone
+  for (int aux = 0; aux < 3; ++aux)
+    for (int which = 0; which < 5; ++which)
+      {
+        {
+          const Shipment probe(aux);
+          if ((which == 0 and probe.source == nullptr) or (which == 1 and probe.sink == nullptr))
+            continue; // it has no such super node
+        }
+        auto make = [aux] { return std::make_unique<Shipment>(aux); };
+        for_each_failure(make,
+                         [which] (Shipment & sh)
+                           {
+                             if (which == 0)
+                               sh.net.remove_node(sh.source);
+                             else if (which == 1)
+                               sh.net.remove_node(sh.sink);
+                             else if (which == 2)
+                               sh.net.free_aux_net();
+                             else if (which == 3)
+                               static_cast<Net::Net_Class &>(sh.net) = sh.plain;
+                             else
+                               copy_graph(sh.net, sh.from);
+                           },
+                         [&] (Shipment & sh, size_t k, bool threw)
+                           {
+                             const std::string at = std::string(names[which]) + ", the auxiliary network "
+                               + std::to_string(aux) + ", the allocation " + std::to_string(k) + " fails";
+                             EXPECT_TRUE(threw) << at;
+                             if (not threw)
+                               return;
+                             ++failures[which];
+                             if (which == 4)
+                               {
+                                 // copy_graph() empties the network that it could not fill
+                                 EXPECT_EQ(sh.net.get_num_nodes(), 0u) << at;
+                                 EXPECT_FALSE(sh.net.exist_aux_net()) << at;
+                                 return;
+                               }
+                             // the removal that failed left the super node in the
+                             // network, and remembered, maybe with an arc less
+                             ASSERT_TRUE(kept(sh.net)) << at;
+                             if (which < 3 and sh.net.get_num_arcs() < arcs_made[aux])
+                               ++partial;
+                             if (which == 0 or which == 3)
+                               {
+                                 EXPECT_EQ(sh.net.get_super_source(), sh.source) << at;
+                               }
+                             if (which == 1 or which == 3)
+                               {
+                                 EXPECT_EQ(sh.net.get_super_sink(), sh.sink) << at;
+                               }
+                             // and another call goes on
+                             sh.net.free_aux_net();
+                             EXPECT_FALSE(sh.net.exist_aux_net()) << at;
+                             EXPECT_EQ(sh.net.get_num_nodes(), 4u) << at;
+                             EXPECT_EQ(sh.net.get_num_arcs(), 2u) << at;
+                           });
+      }
+  for (int which = 0; which < 5; ++which)
+    EXPECT_GT(failures[which], 0u) << names[which] << ": no allocation failed, nothing was checked";
+  EXPECT_GT(partial, 0u) << "no removal failed with an arc of the super node gone";
+}
+
 TEST_F(ExhaustiveFlowMemory, CopiesWhenMemoryRunsOut)
 {
   using Net = Net_Graph<Net_Node<int>, Net_Arc<int, long>>;
