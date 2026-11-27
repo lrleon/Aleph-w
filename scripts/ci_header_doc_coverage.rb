@@ -1,23 +1,20 @@
 #!/usr/bin/env ruby
 
+# Fails when less than a share (80 % by default) of the public declarations
+# whose signature a change touches, in the headers of the library, are
+# documented, as Doxygen publishes them (see ci_cpp_declarations.rb and
+# ci_doxygen_declarations.rb). It needs doxygen in the PATH.
+
 require 'open3'
 require 'optparse'
 require 'set'
+require_relative 'ci_cpp_declarations'
+require_relative 'ci_doxygen_declarations'
 
 HEADER_EXTS = %w[.h .H .hpp .hxx .hh].freeze
 EXCLUDED_TOP_LEVEL = %w[Tests Examples docs .github scripts Testing third_party].freeze
-CONTROL_KEYWORDS = %w[if for while switch catch return sizeof static_assert requires].freeze
 
-Declaration = Struct.new(
-  :file,
-  :line,
-  :start_line,
-  :end_line,
-  :kind,
-  :name,
-  :public,
-  keyword_init: true
-)
+Declaration = Struct.new(:file, :line, :kind, :name, keyword_init: true)
 
 
 def run!(cmd)
@@ -123,284 +120,34 @@ def added_lines_for_file(diff_range, file)
 end
 
 
-def opens_doc_comment_block?(line)
-  s = line.strip
-  s.start_with?('/**', '/*!')
-end
-
-
-def doxygen_comment_before?(lines, line_1_based)
-  idx = line_1_based - 1
-  return false if idx.negative? || idx >= lines.size
-
-  here = lines[idx].strip
-  return true if here.match?(/\/\/\/</) || here.match?(/\/\/!</)
-  return true if opens_doc_comment_block?(here)
-
-  i = idx - 1
-  while i >= 0 && (idx - i) <= 20
-    s = lines[i].strip
-
-    if s.empty?
-      i -= 1
-      next
-    end
-
-    template_continuation = s.match?(/^(?:typename|class)\b.+(?:,|>|>>)\s*$/)
-    requires_continuation = s.start_with?('and ', 'or ', 'not ', '&&', '||')
-    if s.match?(/^(public|private|protected)\s*:\s*$/) ||
-       s.start_with?('template <', 'requires ', '[[', ']]') ||
-       template_continuation || requires_continuation
-      i -= 1
-      next
-    end
-
-    return true if s.start_with?('///', '//!')
-    return true if opens_doc_comment_block?(s)
-
-    if s.include?('*/')
-      j = i
-      while j >= 0
-        t = lines[j].strip
-        return true if opens_doc_comment_block?(t)
-        break if t.start_with?('/*')
-        j -= 1
-      end
-      return false
-    end
-
-    break
+# The public declarations of a header whose signature has an added line, split
+# into [documented, undocumented]. The declarations and their signatures come
+# from CppDeclarations; whether each one is documented, from Doxygen, which
+# also joins the definition of a function with its declaration. A declaration
+# that Doxygen does not report at that line (code that the preprocessor drops,
+# or a construct it misreads) is judged by the text.
+def parse_changed_public_declarations(file, added_lines, doxygen = nil)
+  doxygen ||= DoxygenDeclarations.read([file]).fetch(DoxygenDeclarations.key(file), [])
+  source = File.read(file, encoding: 'utf-8')
+  lines = source.lines(chomp: true)
+  touched = CppDeclarations.parse(source).select do |decl|
+    decl.public && (decl.start_line..decl.end_line).any? { |n| added_lines.include?(n) }
   end
 
-  false
-end
-
-
-def sanitize_for_braces(line, in_block_comment = false)
-  sanitized = +''
-  in_string = nil
-  escaped = false
-  i = 0
-
-  while i < line.length
-    ch = line[i]
-    nxt = i + 1 < line.length ? line[i + 1] : nil
-
-    if in_block_comment
-      if ch == '*' && nxt == '/'
-        in_block_comment = false
-        i += 2
+  judged = touched.filter_map do |decl|
+    same = doxygen.select { |e| e.type == decl.type? && e.name.delete(' ') == decl.name.delete(' ') }
+    documented =
+      if (entry = same.find { |e| e.line == decl.name_line })
+        entry.documented
+      elsif same.any? { |e| e.bodystart == decl.name_line }
+        next # the definition of a function declared elsewhere: not counted
       else
-        i += 1
+        CppDeclarations.documented_by_text?(lines, decl)
       end
-      next
-    end
-
-    unless in_string.nil?
-      if escaped
-        escaped = false
-      elsif ch == '\\'
-        escaped = true
-      elsif ch == in_string
-        in_string = nil
-      end
-      i += 1
-      next
-    end
-
-    if ch == '/' && nxt == '/'
-      break
-    end
-
-    if ch == '/' && nxt == '*'
-      in_block_comment = true
-      i += 2
-      next
-    end
-
-    if ch == '"' || ch == "'"
-      in_string = ch
-      i += 1
-      next
-    end
-
-    sanitized << ch
-    i += 1
+    [Declaration.new(file: file, line: decl.name_line, kind: decl.kind, name: decl.name), documented]
   end
 
-  [sanitized, in_block_comment]
-end
-
-
-def declaration_statement_from_line(line)
-  return nil unless line.include?('(')
-  return nil unless line.rstrip.end_with?(';', '{')
-
-  s = line.strip
-  return nil if s.start_with?('#', 'using ', 'typedef ')
-
-  lowered = s.downcase
-  return nil if CONTROL_KEYWORDS.any? { |kw| lowered.start_with?("#{kw} ", "#{kw}(") }
-
-  if s.include?('=')
-    return nil if s.match?(/\)\s*=\s*(?:default|delete)\s*;/)
-    return nil unless s.match?(/\)\s*=\s*0\s*;/)
-  end
-
-  s
-end
-
-
-def parse_function_like_decl(line, current_class_name)
-  stmt = declaration_statement_from_line(line)
-  return nil if stmt.nil?
-
-  m = stmt.match(
-    /^(?<prefix>.*?)(?<name>~?[A-Za-z_]\w*|operator[^\s(]+)\s*\([^;{}]*\)\s*(?:const\b[^;{}]*)?(?:noexcept(?:\([^)]*\))?[^;{}]*)?(?:->\s*[^;{}]+)?\s*(?:=\s*(?:default|delete))?\s*[;{]\s*$/
-  )
-  return nil if m.nil?
-
-  name = m[:name]
-  prefix = m[:prefix].strip
-  return nil if CONTROL_KEYWORDS.include?(name)
-
-  # Filter method calls: obj.method(...) or obj->method(...)
-  return nil if prefix.match?(/\.\s*$/) || prefix.match?(/\->\s*$/)
-
-  is_ctor_or_dtor = !current_class_name.nil? && (name == current_class_name || name == "~#{current_class_name}")
-  return nil if prefix.empty? && !is_ctor_or_dtor
-
-  name
-end
-
-
-def parse_changed_public_declarations(file, added_lines)
-  lines = File.readlines(file, chomp: true, encoding: 'utf-8')
-  declarations = []
-
-  brace_depth = 0
-  declaration_scope_stack = []
-  pending_declaration_scope = false
-  class_stack = []
-  pending_class = nil
-  in_block_comment = false
-
-  lines.each_with_index do |raw_line, idx|
-    line_no = idx + 1
-    sanitized, in_block_comment = sanitize_for_braces(raw_line, in_block_comment)
-    stripped = sanitized.strip
-    in_decl_scope =
-      if class_stack.any?
-        brace_depth == class_stack.last[:depth]
-      else
-        brace_depth == (declaration_scope_stack.last || 0)
-      end
-
-    if in_decl_scope &&
-       !stripped.empty? &&
-       !stripped.start_with?('//', '/*', '*') &&
-       (m = stripped.match(/^(?:template\s*<.*>\s*)?(class|struct)\s+([A-Za-z_]\w*)\b(?=\s*(?:<|\{|:|;|$|final\b))/)) &&
-       !(stripped.end_with?(';') && !stripped.include?('{'))
-      kind = m[1]
-      name = m[2]
-      is_public = class_stack.empty? || class_stack.last[:access] == 'public'
-      declarations << Declaration.new(
-        file: file,
-        line: line_no,
-        start_line: line_no,
-        end_line: line_no,
-        kind: kind,
-        name: name,
-        public: is_public
-      )
-
-      if stripped.include?('{')
-        pending_class = { name: name, access: kind == 'struct' ? 'public' : 'private', attach_now: true }
-      elsif !stripped.include?(';')
-        pending_class = { name: name, access: kind == 'struct' ? 'public' : 'private', attach_now: false }
-      end
-    end
-
-    if class_stack.any? &&
-       (m = stripped.match(/^(public|private|protected)\s*:\s*(?:(?:\/\/|\/\*).*)?$/))
-      class_stack.last[:access] = m[1]
-    end
-
-    if in_decl_scope &&
-       !stripped.empty? &&
-       !stripped.start_with?('//', '/*', '*') &&
-       (m = stripped.match(/^concept\s+([A-Za-z_]\w*)\s*=/))
-      is_public = class_stack.empty? || class_stack.last[:access] == 'public'
-      declarations << Declaration.new(
-        file: file,
-        line: line_no,
-        start_line: line_no,
-        end_line: line_no,
-        kind: 'concept',
-        name: m[1],
-        public: is_public
-      )
-    end
-
-    if in_decl_scope
-      current_class_name = class_stack.empty? ? nil : class_stack.last[:name]
-      fn_name = parse_function_like_decl(sanitized, current_class_name)
-      unless fn_name.nil?
-        is_public = class_stack.empty? || class_stack.last[:access] == 'public'
-        declarations << Declaration.new(
-          file: file,
-          line: line_no,
-          start_line: line_no,
-          end_line: line_no,
-          kind: class_stack.empty? ? 'function' : 'method',
-          name: fn_name,
-          public: is_public
-        )
-      end
-    end
-
-    before_depth = brace_depth
-    brace_depth += sanitized.count('{')
-    brace_depth -= sanitized.count('}')
-
-    namespace_line = stripped.match?(/^(?:inline\s+)?namespace(?:\s+[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)?\s*(?:\{|$)/)
-    extern_c_line = !stripped.empty? && raw_line.strip.match?(/^extern\s+"C"\s*(?:\{|$)/)
-    declaration_scope_line = namespace_line || extern_c_line
-    if (declaration_scope_line && stripped.include?('{')) ||
-       (pending_declaration_scope && stripped.start_with?('{'))
-      declaration_scope_stack << brace_depth
-    end
-    pending_declaration_scope = declaration_scope_line && !stripped.include?('{') unless stripped.empty?
-
-    if !pending_class.nil?
-      should_attach = pending_class[:attach_now] || (before_depth < brace_depth && sanitized.include?('{'))
-      if should_attach
-        class_stack << {
-          name: pending_class[:name],
-          access: pending_class[:access],
-          depth: brace_depth
-        }
-        pending_class = nil
-      end
-    end
-
-    while class_stack.any? && brace_depth < class_stack.last[:depth]
-      class_stack.pop
-    end
-
-    while declaration_scope_stack.any? && brace_depth < declaration_scope_stack.last
-      declaration_scope_stack.pop
-    end
-  end
-
-  changed_public = declarations.select do |decl|
-    decl.public && (decl.start_line..decl.end_line).any? { |ln| added_lines.include?(ln) }
-  end
-
-  documented = changed_public.select { |decl| doxygen_comment_before?(lines, decl.start_line) }
-  undocumented = changed_public - documented
-
-  [documented, undocumented]
+  judged.partition { |_, documented| documented }.map { |group| group.map(&:first) }
 end
 
 
@@ -451,11 +198,18 @@ def main
   documented = []
   undocumented = []
 
-  files.each do |file|
-    added = added_lines_for_file(diff_range, file)
-    next if added.empty?
+  added_by_file = files.to_h { |file| [file, added_lines_for_file(diff_range, file)] }
+                       .reject { |_, added| added.empty? }
+  begin
+    doxygen = DoxygenDeclarations.read(added_by_file.keys)
+  rescue StandardError => e
+    puts "[fail] unable to run Doxygen: #{e.message}"
+    return 1
+  end
 
-    doc, undoc = parse_changed_public_declarations(file, added)
+  added_by_file.each do |file, added|
+    doc, undoc = parse_changed_public_declarations(file, added,
+                                                   doxygen.fetch(DoxygenDeclarations.key(file), []))
     documented.concat(doc)
     undocumented.concat(undoc)
   rescue StandardError => e
@@ -494,6 +248,9 @@ def main
     end
     extra = undocumented.size - 200
     puts "[fail] ... and #{extra} more" if extra.positive?
+    puts '[info] documented means that Doxygen publishes documentation for it:'
+    puts '[info] "\overload name(args)" documents the named function, not the one below,'
+    puts '[info] and a "///<" right after the parameters, before the body, documents the last one.'
     return 1
   end
 
